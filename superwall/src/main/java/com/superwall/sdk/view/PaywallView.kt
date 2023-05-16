@@ -9,6 +9,7 @@ import android.webkit.WebView
 import android.widget.PopupWindow
 import android.widget.RelativeLayout
 import androidx.core.widget.PopupWindowCompat
+import com.superwall.sdk.misc.runOnUiThread
 
 
 class PaywallView(webView: WebView) {
@@ -68,7 +69,11 @@ class PaywallView(webView: WebView) {
     }
 
     public fun dismiss() {
-        popupWindow.dismiss()
+        // Run on main thread
+        runOnUiThread {
+            // Stuff that updates the UI
+            popupWindow.dismiss()
+        }
     }
 
     private fun _showView(activity: Activity) {

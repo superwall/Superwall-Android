@@ -1,10 +1,15 @@
 package com.superwall.sdk
 
+import LogScope
+import Logger
 import android.app.Application
 import android.content.Context
 import android.util.Log
+import com.android.billingclient.api.SkuDetails
 import com.superwall.sdk.api.Config
 import com.superwall.sdk.api.Network
+import com.superwall.sdk.billing.BillingController
+import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.misc.ActivityLifecycleTracker
 import com.superwall.sdk.view.PaywallViewManager
 
@@ -12,6 +17,9 @@ import com.superwall.sdk.view.PaywallViewManager
 public class Superwall(context: Context, apiKey: String) {
     var apiKey: String = apiKey
     var contex: Context = context
+
+
+    var billingController = BillingController(context)
     companion object {
         lateinit var instance: Superwall
         public fun configure(applicationContext: Context,  apiKey: String) {
@@ -83,6 +91,9 @@ public class Superwall(context: Context, apiKey: String) {
     }
 
     fun setup() {
+
+        Logger.debug(LogLevel.warn, LogScope.cache, "Hello")
+
         // Called after the constructor to begin setting up the sdk
         Log.println(Log.INFO, "Superwall", "Superwall setup")
 
@@ -98,6 +109,7 @@ public class Superwall(context: Context, apiKey: String) {
             if (config != null) {
                 // Save the config
                 this.config = config
+                postConfig()
                 Log.println(Log.INFO, "Superwall", "Superwall config" + config)
             }
         }
@@ -105,6 +117,31 @@ public class Superwall(context: Context, apiKey: String) {
 
     protected var config: Config? = null
 
+    protected  var productMap: Map<String, SkuDetails> = mapOf()
+
+    private fun postConfig() {
+        // Post the config to the webview
+        Log.println(Log.INFO, "Superwall", "Superwall post config")
+
+        // Load all the products using google play billing
+        val productIds = config!!.paywalls.flatMap {
+            paywall -> paywall.products.map { product -> product.id }
+        }
+        billingController.querySkuDetails(productIds as ArrayList<String>) {
+            skuDetails ->
+            Log.println(Log.INFO, "Superwall", "Superwall skuDetails: " + skuDetails)
+            if (skuDetails != null) {
+                // Save the skuDetails
+                Log.println(Log.INFO, "Superwall", "Superwall skuDetails" + skuDetails)
+                this.productMap = skuDetails.map { skuDetail -> skuDetail.sku to skuDetail }.toMap()
+
+            }
+        }
+
+
+
+
+    }
 
     fun present() {
         // Present the Superwall
@@ -120,6 +157,9 @@ public class Superwall(context: Context, apiKey: String) {
         }
 
     }
+
+
+    var options: SuperwallOptions = SuperwallOptions()
 
 }
 

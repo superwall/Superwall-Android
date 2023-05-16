@@ -1,4 +1,4 @@
-package com.example.superapp
+package com.superwall.superapp
 
 import org.junit.Test
 

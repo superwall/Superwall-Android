@@ -44,6 +44,7 @@ dependencies {
 
     //TODO: Not sure how we need to handle this, if this will include the library twice or not
     implementation 'com.android.billingclient:billing:4.0.0'
+    implementation 'androidx.core:core-ktx:1.8.0'
 
 
     testImplementation 'junit:junit:4.13.2'

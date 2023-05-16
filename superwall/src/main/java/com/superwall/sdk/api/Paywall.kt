@@ -1,4 +1,6 @@
 import android.graphics.Color
+import android.util.Log
+import com.superwall.sdk.api.Product
 import org.json.JSONObject
 import java.net.URL
 
@@ -14,14 +16,14 @@ data class Paywall(
 //    val presentationStyle: PaywallPresentationStyle,
 //    val presentationCondition: PresentationCondition,
     val backgroundColorHex: String,
-//    val products: List<Product>,
+    val products: List<Product>,
 //    val featureGating: FeatureGatingBehavior = FeatureGatingBehavior.NON_GATED
 ) {
     val backgroundColor: Int
         get() = Color.parseColor(backgroundColorHex)
 
-//    val productIds: List<String>
-//        get() = products.map { it.id }
+    val productIds: List<String>
+        get() = products.map { it.id }
 
     companion object {
         fun fromJson(json: JSONObject): Paywall {
@@ -33,11 +35,17 @@ data class Paywall(
 //            val presentationStyle = PaywallPresentationStyle.valueOf(json.getString("presentationStyleV2"))
 //            val presentationCondition = PresentationCondition.valueOf(json.getString("presentationCondition"))
             val backgroundColorHex = json.getString("background_color_hex")
-//            val productsJsonArray = json.getJSONArray("products")
-//            val products = mutableListOf<Product>()
-//            for (i in 0 until productsJsonArray.length()) {
-//                products.add(Product.fromJson(productsJsonArray.getJSONObject(i)))
-//            }
+            val productsJsonArray = json.getJSONArray("products")
+            val products = mutableListOf<Product>()
+            for (i in 0 until productsJsonArray.length()) {
+                Log.d("Paywall", "Product: ${productsJsonArray.getJSONObject(i)}")
+                val product = Product.fromJson(productsJsonArray.getJSONObject(i))
+                if (product != null) {
+                    products.add(product)
+                } else {
+                    Log.d("Paywall", "Product is null")
+                }
+            }
 //            val featureGating = FeatureGatingBehavior.valueOf(json.optString("featureGating", "NON_GATED"))
 //            val presentation = Presentation(presentationStyle, presentationCondition)
 
@@ -51,7 +59,7 @@ data class Paywall(
 //                presentationStyle,
 //                presentationCondition,
                 backgroundColorHex,
-//                products,
+                products,
 //                featureGating
             )
         }

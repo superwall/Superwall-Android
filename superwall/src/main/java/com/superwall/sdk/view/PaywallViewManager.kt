@@ -5,6 +5,7 @@ import android.app.Activity
 import android.widget.PopupWindow
 import com.superwall.sdk.api.PaywallMessage
 import com.superwall.sdk.misc.ActivityLifecycleTracker
+import com.superwall.sdk.misc.runOnUiThread
 
 
 class PaywallViewManager(currentActivity: Activity, paywall: Paywall) : PaywallMessageDelegate {
@@ -30,13 +31,15 @@ class PaywallViewManager(currentActivity: Activity, paywall: Paywall) : PaywallM
         }
     }
 
+    private var webView: SWWebView? = null
+
     private fun setupWebView() {
-        val webView = SWWebView(this,  currentActivity as Activity, null)
-        webView.loadUrl(paywall.url.toString())
+        webView = SWWebView(this,  currentActivity as Activity, null)
+        webView!!.loadUrl(paywall.url.toString())
 
         // TODO: Wait for ping...
 
-        createNewPopupView(webView)
+        createNewPopupView(webView!!)
     }
 
     private var paywallView: PaywallView? = null
@@ -57,6 +60,16 @@ class PaywallViewManager(currentActivity: Activity, paywall: Paywall) : PaywallM
                 paywallView!!.dismiss()
             }
         }
+        if (message is PaywallMessage.OnReady) {
+            if (paywallView != null) {
+                // Publish the pjs event
+                runOnUiThread {
 
+                    webView!!.evaluateJavascript("window.paywall.accept64('".plus( paywall.htmlSubstitutions).plus( "');")) {
+
+                    }
+                }
+            }
+        }
     }
 }
