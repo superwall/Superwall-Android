@@ -1,27 +1,48 @@
 package com.superwall.sdk.models.assignment
-
+//
 import Assignment
-import org.json.JSONArray
-import org.json.JSONObject
+//import org.json.JSONArray
+//import org.json.JSONObject
+//
+//data class AssignmentPostback(var assignments: MutableList<Assignment>) {
+//
+//    // Converts this AssignmentPostback object to a JSONObject.
+//    fun toJson(): JSONObject {
+//        val jsonObject = JSONObject()
+//        val jsonArray = JSONArray()
+//
+//        for (assignment in assignments) {
+//            jsonArray.put(assignment.toJson())
+//        }
+//
+//        jsonObject.put("assignments", jsonArray)
+//
+//        return jsonObject
+//    }
+//
+//    companion object {
+//        // Creates an AssignmentPostback object from a ConfirmableAssignment.
+//        fun create(confirmableAssignment: ConfirmableAssignment): AssignmentPostback {
+//            val assignments = mutableListOf<Assignment>()
+//
+//            assignments.add(
+//                Assignment(
+//                    experimentId = confirmableAssignment.experimentId,
+//                    variantId = confirmableAssignment.variant.id
+//                )
+//            )
+//
+//            return AssignmentPostback(assignments)
+//        }
+//    }
+//}
 
-data class AssignmentPostback(var assignments: MutableList<Assignment>) {
+import kotlinx.serialization.*
+import kotlinx.serialization.json.*
 
-    // Converts this AssignmentPostback object to a JSONObject.
-    fun toJson(): JSONObject {
-        val jsonObject = JSONObject()
-        val jsonArray = JSONArray()
-
-        for (assignment in assignments) {
-            jsonArray.put(assignment.toJson())
-        }
-
-        jsonObject.put("assignments", jsonArray)
-
-        return jsonObject
-    }
-
+@Serializable
+data class AssignmentPostback(val assignments: MutableList<Assignment>) {
     companion object {
-        // Creates an AssignmentPostback object from a ConfirmableAssignment.
         fun create(confirmableAssignment: ConfirmableAssignment): AssignmentPostback {
             val assignments = mutableListOf<Assignment>()
 

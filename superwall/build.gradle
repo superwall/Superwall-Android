@@ -1,6 +1,7 @@
 plugins {
     id 'com.android.library'
     id 'org.jetbrains.kotlin.android'
+    id 'org.jetbrains.kotlin.plugin.serialization' version '1.8.21'
 }
 
 android {
@@ -45,6 +46,11 @@ dependencies {
     //TODO: Not sure how we need to handle this, if this will include the library twice or not
     implementation 'com.android.billingclient:billing:4.0.0'
     implementation 'androidx.core:core-ktx:1.8.0'
+
+
+    // Serialization
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.1")
+
 
 
     testImplementation 'junit:junit:4.13.2'

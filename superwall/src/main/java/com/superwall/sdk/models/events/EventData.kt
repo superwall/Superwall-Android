@@ -1,29 +1,93 @@
 package com.superwall.sdk.models.events
 
+import com.superwall.sdk.models.serialization.AnyMapSerializer
+import com.superwall.sdk.models.serialization.AnySerializer
+import com.superwall.sdk.models.serialization.DateSerializer
+import kotlinx.serialization.InternalSerializationApi
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.builtins.MapSerializer
+import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.descriptors.*
+import kotlinx.serialization.encoding.CompositeDecoder
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.JsonElement
 import org.json.JSONObject
 import java.util.*
 
+
+
+//object EventDataSerializer: KSerializer<EventData>  {
+//    @OptIn(InternalSerializationApi::class)
+//    override val descriptor: SerialDescriptor = buildSerialDescriptor("EventData", StructureKind.OBJECT)
+//
+//    override fun deserialize(decoder: Decoder): EventData {
+//        TODO("Not yet implemented")
+//    }
+//
+//    override fun serialize(encoder: Encoder, value: EventData) {
+//        TODO("Not yet implemented")
+//    }
+//
+//}
+
+object EventDataSerializer : KSerializer<EventData> {
+    override val descriptor: SerialDescriptor
+        get() = buildClassSerialDescriptor("EventData") {
+            element<String>("id")
+            element<String>("name")
+            element<Map<String, JsonElement>>("parameters")
+            element<JsonElement>("createdAt")
+        }
+
+    override fun serialize(encoder: Encoder, value: EventData) {
+        val compositeEncoder = encoder.beginStructure(descriptor)
+        compositeEncoder.encodeStringElement(descriptor, 0, value.id)
+        compositeEncoder.encodeStringElement(descriptor, 1, value.name)
+        compositeEncoder.encodeSerializableElement(descriptor, 2, AnyMapSerializer, value.parameters)
+        compositeEncoder.encodeSerializableElement(descriptor, 3, DateSerializer, value.createdAt)
+        compositeEncoder.endStructure(descriptor)
+    }
+
+    override fun deserialize(decoder: Decoder): EventData {
+        lateinit var id: String
+        lateinit var name: String
+        lateinit var parameters: Map<String, Any>
+        lateinit var createdAt: Date
+
+        val dec: CompositeDecoder = decoder.beginStructure(descriptor)
+        loop@ while (true) {
+            when (val i = dec.decodeElementIndex(descriptor)) {
+                CompositeDecoder.DECODE_DONE -> break@loop
+                0 -> id = dec.decodeStringElement(descriptor, i)
+                1 -> name = dec.decodeStringElement(descriptor, i)
+                2 -> parameters = dec.decodeSerializableElement(descriptor, i, MapSerializer(String.serializer(), AnySerializer))
+                3 -> createdAt = dec.decodeSerializableElement(descriptor, i, DateSerializer)
+                else -> throw SerializationException("Unknown index $i")
+            }
+        }
+        dec.endStructure(descriptor)
+        return EventData(id, name, parameters, createdAt)
+    }
+}
+
+
+@kotlinx.serialization.Serializable
 data class EventData(
     var id: String = UUID.randomUUID().toString(),
     var name: String,
-    var parameters: JSONObject,
-    var createdAt: Date
+    var parameters: Map<String,  @Serializable(with = AnySerializer::class) Any?>,
+    @Serializable(with = DateSerializer::class)
+    var createdAt: Date,
 ) {
-    fun toJson(): JSONObject {
-
-            val json = JSONObject()
-            json.put("event_id", id)
-            json.put("event_name", name)
-            json.put("parameters", parameters)
-            json.put("created_at", createdAt.time) // Assuming ISO string conversion
-            return json
-        }
 
     companion object {
         fun stub(): EventData {
             return EventData(
                 name = "opened_application",
-                parameters = JSONObject(),
+                parameters = mapOf<String, Any>(),
                 createdAt = Date()
             )
         }

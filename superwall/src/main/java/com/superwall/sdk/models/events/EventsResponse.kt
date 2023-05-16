@@ -1,26 +1,35 @@
-package com.superwall.sdk.models.events
+import kotlinx.serialization.*
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.*
 
-import org.json.JSONArray
-import org.json.JSONObject
-
-enum class Status(val status: String) {
-    OK("ok"),
-    PARTIAL_SUCCESS("partial_success");
-
-    companion object {
-        fun from(statusString: String): Status {
-            return values().find { it.status == statusString } ?: PARTIAL_SUCCESS
-        }
+@Serializable
+data class EventsResponse(
+    val status: Status,
+    val invalidIndexes: List<Int>? = null
+) {
+    @Serializable(with = StatusSerializer::class)
+    enum class Status {
+        OK, PARTIAL_SUCCESS;
     }
 }
 
-data class EventsResponse(val json: JSONObject) {
-    val status: Status = Status.from(json.optString("status", Status.PARTIAL_SUCCESS.status))
-    val invalidIndexes: List<Int> = json.optJSONArray("invalid_indexes")?.let { jsonArray ->
-        val list = mutableListOf<Int>()
-        for (i in 0 until jsonArray.length()) {
-            list.add(jsonArray.getInt(i))
+object StatusSerializer : KSerializer<EventsResponse.Status> {
+    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("Status", PrimitiveKind.STRING)
+
+    override fun serialize(encoder: Encoder, value: EventsResponse.Status) {
+        encoder.encodeString(value.name)
+    }
+
+    override fun deserialize(decoder: Decoder): EventsResponse.Status {
+        val value = decoder.decodeString()
+        return try {
+            EventsResponse.Status.valueOf(value.toUpperCase())
+        } catch (e: IllegalArgumentException) {
+            EventsResponse.Status.PARTIAL_SUCCESS
         }
-        list
-    } ?: emptyList()
+    }
 }
