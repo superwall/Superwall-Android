@@ -1,7 +1,6 @@
 package com.superwall.sdk.models.assignment
 
 
-import Assignment
 import com.superwall.sdk.assertTrue
 import com.superwall.sdk.models.getSWJson
 import org.json.JSONObject

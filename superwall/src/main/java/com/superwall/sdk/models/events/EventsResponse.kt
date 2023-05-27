@@ -1,3 +1,7 @@
+package com.superwall.sdk.models.events
+
+
+import com.superwall.sdk.models.SerializableEntity
 import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
@@ -10,7 +14,7 @@ import kotlinx.serialization.json.*
 data class EventsResponse(
     val status: Status,
     val invalidIndexes: List<Int>? = null
-) {
+): SerializableEntity {
     @Serializable(with = StatusSerializer::class)
     enum class Status {
         OK, PARTIAL_SUCCESS;

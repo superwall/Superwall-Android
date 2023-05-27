@@ -1,7 +1,6 @@
 package com.superwall.sdk.models.serialization
 
 
-import Assignment
 import com.superwall.sdk.assertTrue
 import com.superwall.sdk.models.serialization.DateSerializer
 import kotlinx.serialization.ExperimentalSerializationApi

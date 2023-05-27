@@ -8,16 +8,16 @@ import java.util.UUID
 @Serializable
 data class VariantOption(
     @SerialName("variant_type")
-    val type: Variant.VariantType,
+    var type: Experiment.Variant.VariantType,
     @SerialName("variant_id")
-    val id: String,
-    val percentage: Int,
-    val paywallId: String? = null
+    var id: String,
+    var percentage: Int,
+    var paywallId: String? = null
 ) {
     @Transient
     val variant = toVariant()
 
-    fun toVariant() = Variant(
+    fun toVariant() = Experiment.Variant(
         id = id,
         type = type,
         paywallId = paywallId
@@ -25,7 +25,7 @@ data class VariantOption(
 
     companion object {
         fun stub() = VariantOption(
-            type = Variant.VariantType.TREATMENT,
+            type = Experiment.Variant.VariantType.TREATMENT,
             id = UUID.randomUUID().toString(),
             percentage = 100,
             paywallId = UUID.randomUUID().toString()

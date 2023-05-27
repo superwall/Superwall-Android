@@ -8,7 +8,6 @@ import com.android.billingclient.api.*
 import com.android.billingclient.api.SkuDetails
 import com.android.billingclient.api.SkuDetailsParams
 import com.android.billingclient.api.SkuDetailsResponseListener
-import com.superwall.sdk.api.Config
 
 class BillingController(context: Context) : PurchasesUpdatedListener {
 

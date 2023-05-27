@@ -1,3 +1,4 @@
+package com.superwall.sdk.models.assignment
 import org.json.JSONObject
 
 //data class Assignment(var experimentId: String, var variantId: String) {

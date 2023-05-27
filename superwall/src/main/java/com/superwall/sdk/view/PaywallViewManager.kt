@@ -1,11 +1,10 @@
 package com.superwall.sdk.view
 
-import Paywall
 import android.app.Activity
-import android.widget.PopupWindow
-import com.superwall.sdk.api.PaywallMessage
+import com.superwall.sdk.deprecated.PaywallMessage
 import com.superwall.sdk.misc.ActivityLifecycleTracker
 import com.superwall.sdk.misc.runOnUiThread
+import com.superwall.sdk.models.paywall.Paywall
 
 
 class PaywallViewManager(currentActivity: Activity, paywall: Paywall) : PaywallMessageDelegate {

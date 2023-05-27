@@ -1,24 +1,38 @@
 package com.superwall.sdk.network.session
-//
-//import kotlinx.coroutines.Dispatchers
-//import kotlinx.coroutines.withContext
-//import java.io.BufferedReader
-//import java.io.InputStreamReader
-//import java.lang.Exception
-//import java.lang.StringBuilder
-//import java.net.HttpURLConnection
-//import java.net.URL
-//import java.util.Base64
-//
-//class CustomHttpUrlConnection {
-//
-//    enum class NetworkError(val errorDescription: String) {
-//        Unknown("An unknown error occurred."),
-//        NotAuthenticated("Unauthorized."),
-//        Decoding("Decoding error."),
-//        NotFound("Not found"),
-//        InvalidUrl("URL invalid")
-//    }
+
+
+import androidx.annotation.RestrictTo
+import com.superwall.sdk.models.SerializableEntity
+import com.superwall.sdk.network.Endpoint
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonNamingStrategy
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.lang.Exception
+import java.lang.StringBuilder
+import java.net.HttpURLConnection
+import java.net.URL
+import java.util.Base64
+
+sealed class NetworkError(message: String): Throwable(message) {
+    class Unknown: NetworkError("An unknown error occurred.")
+    class NotAuthenticated: NetworkError("Unauthorized.")
+    class Decoding: NetworkError("Decoding error.")
+    class NotFound: NetworkError("Not found.")
+    class InvalidUrl: NetworkError("URL invalid.")
+}
+
+
+class CustomHttpUrlConnection {
+
+
+
+    val json = Json {
+        ignoreUnknownKeys = true
+        namingStrategy = JsonNamingStrategy.SnakeCase
+    }
 //
 //    suspend fun request(endpoint: String): String {
 //        var result = ""
@@ -31,7 +45,7 @@ package com.superwall.sdk.network.session
 //                connection.doOutput = true
 //
 //                val auth = connection.getRequestProperty("Authorization")
-//                    ?: throw NetworkError.NotAuthenticated
+//                    ?: throw NetworkError.NotAuthenticated()
 //
 //                val startTime = System.currentTimeMillis()
 //                val responseCode = connection.responseCode
@@ -45,9 +59,9 @@ package com.superwall.sdk.network.session
 //                    result = response.toString()
 //                } else {
 //                    when (responseCode) {
-//                        HttpURLConnection.HTTP_UNAUTHORIZED -> throw NetworkError.NotAuthenticated
-//                        HttpURLConnection.HTTP_NOT_FOUND -> throw NetworkError.NotFound
-//                        else -> throw NetworkError.Unknown
+//                        HttpURLConnection.HTTP_UNAUTHORIZED -> throw NetworkError.NotAuthenticated()
+//                        HttpURLConnection.HTTP_NOT_FOUND -> throw NetworkError.NotFound()
+//                        else -> throw NetworkError.Unknown()
 //                    }
 //                }
 //
@@ -58,9 +72,132 @@ package com.superwall.sdk.network.session
 //
 //            } catch (e: Exception) {
 //                // Log here the request error
-//                throw NetworkError.Decoding
+//                throw NetworkError.Decoding()
 //            }
 //        }
 //        return result
 //    }
-//}
+
+
+    @Throws(NetworkError::class)
+    suspend inline fun <reified Response: SerializableEntity> request(endpoint: Endpoint<Response>): Response {
+        val request = endpoint.makeRequest() ?: throw NetworkError.Unknown()
+
+        val auth = request.getRequestProperty("Authorization") ?: throw NetworkError.NotAuthenticated()
+
+        Logger.debug(
+            LogLevel.debug,
+            LogScope.network,
+            "Request Started",
+            mapOf(
+                "url" to (request.url?.toString() ?: "unknown")
+            )
+        )
+
+        val startTime = System.currentTimeMillis()
+        val responseCode = request.responseCode
+
+        var responseMessage: String? = null
+        if (responseCode == HttpURLConnection.HTTP_OK) {
+            responseMessage = request.inputStream.bufferedReader().use { it.readText() }
+            request.disconnect()
+        } else {
+            println("!!!Error: ${request.responseCode}")
+            request.disconnect()
+            throw NetworkError.Unknown()
+        }
+
+
+        val requestDuration = (System.currentTimeMillis() - startTime) / 1000.0
+        val requestId = try {
+            getRequestId(request, auth, requestDuration)
+        } catch (e: Exception) {
+            throw NetworkError.Unknown()
+        }
+
+        Logger.debug(
+            LogLevel.debug,
+            LogScope.network,
+            "Request Completed",
+            mapOf(
+                "request" to request.toString(),
+                "api_key" to auth,
+                "url" to (request.url?.toString() ?: "unknown"),
+                "request_id" to requestId,
+                "request_duration" to requestDuration
+            )
+        )
+
+        val value: Response? = try {
+            this.json.decodeFromString<Response>(responseMessage)
+        } catch (e: Exception) {
+            Logger.debug(
+                LogLevel.error,
+                LogScope.network,
+                "Request Error",
+                mapOf(
+                    "request" to request.toString(),
+                    "api_key" to auth,
+                    "url" to (request.url?.toString() ?: "unknown"),
+                    "message" to "Unable to decode response to type ${Response::class.simpleName}",
+                    "info" to responseMessage,
+                    "request_duration" to requestDuration
+                )
+            )
+            println("!!!Error: ${e.message}")
+            throw NetworkError.Decoding()
+        }
+
+        return value ?: throw NetworkError.Decoding()
+    }
+
+
+
+    @Throws(NetworkError::class)
+    fun getRequestId(
+        request: HttpURLConnection,
+        auth: String,
+        requestDuration: Double
+    ): String {
+        var requestId = "unknown"
+
+        val id = request.getHeaderField("x-request-id")
+        if (id != null) {
+            requestId = id
+        }
+
+        when (request.responseCode) {
+            HttpURLConnection.HTTP_UNAUTHORIZED -> {
+                Logger.debug(
+                    LogLevel.error,
+                    LogScope.network,
+                    "Unable to Authenticate",
+                    mapOf(
+                        "request" to request.toString(),
+                        "api_key" to auth,
+                        "url" to request.url.toString(),
+                        "request_id" to requestId,
+                        "request_duration" to requestDuration
+                    )
+                )
+                throw NetworkError.NotAuthenticated()
+            }
+            HttpURLConnection.HTTP_NOT_FOUND -> {
+                Logger.debug(
+                    LogLevel.error,
+                    LogScope.network,
+                    "Not Found",
+                    mapOf(
+                        "request" to request.toString(),
+                        "api_key" to auth,
+                        "url" to request.url.toString(),
+                        "request_id" to requestId,
+                        "request_duration" to requestDuration
+                    )
+                )
+                throw NetworkError.NotFound()
+            }
+        }
+        return requestId
+    }
+}

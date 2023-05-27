@@ -6,12 +6,19 @@ import android.app.Application
 import android.content.Context
 import android.util.Log
 import com.android.billingclient.api.SkuDetails
-import com.superwall.sdk.api.Config
-import com.superwall.sdk.api.Network
 import com.superwall.sdk.billing.BillingController
 import com.superwall.sdk.config.options.SuperwallOptions
+import com.superwall.sdk.dependencies.DependencyContainer
 import com.superwall.sdk.misc.ActivityLifecycleTracker
+import com.superwall.sdk.models.config.Config
+import com.superwall.sdk.models.triggers.Experiment
+import com.superwall.sdk.paywall.presentation.PresentationItems
+import com.superwall.sdk.paywall.vc.PaywallViewController
 import com.superwall.sdk.view.PaywallViewManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 
 public class Superwall(context: Context, apiKey: String) {
@@ -20,14 +27,23 @@ public class Superwall(context: Context, apiKey: String) {
 
 
     var billingController = BillingController(context)
+
+
+
+    val presentationItems: PresentationItems = PresentationItems()
+
+    /// The presented paywall view controller.
+    var paywallViewController: PaywallViewController?  = null
+
+    /// Determines whether a paywall is being presented.
+    val isPaywallPresented: Boolean
+        get() = paywallViewController != null
+
+
     companion object {
+        var intialized: Boolean = false
         lateinit var instance: Superwall
         public fun configure(applicationContext: Context,  apiKey: String) {
-
-            if (apiKey == null) {
-                throw Exception("API Key is required")
-            }
-
             // If instance is already set fail,
             // the SDK can only be configured once
 //            if (instance != null) {
@@ -37,6 +53,7 @@ public class Superwall(context: Context, apiKey: String) {
             // setup the SDK using that API Key
             instance =  Superwall(applicationContext, apiKey)
             instance.setup()
+            intialized = true
         }
 
 
@@ -90,7 +107,13 @@ public class Superwall(context: Context, apiKey: String) {
         }
     }
 
+    lateinit var dependencyContainer: DependencyContainer
+
     fun setup() {
+
+
+        this.dependencyContainer = DependencyContainer(contex, purchaseController = null,  options)
+        this.dependencyContainer.storage.apiKey = apiKey
 
         Logger.debug(LogLevel.warn, LogScope.cache, "Hello")
 
@@ -102,17 +125,26 @@ public class Superwall(context: Context, apiKey: String) {
         (contex.applicationContext as Application).registerActivityLifecycleCallbacks(
             ActivityLifecycleTracker.instance)
 
-        // Fetch the static configuration from the server
-        Network.getStaticConfig {
-            config ->
-            Log.println(Log.INFO, "Superwall", "Superwall config: " + config)
-            if (config != null) {
-                // Save the config
-                this.config = config
-                postConfig()
-                Log.println(Log.INFO, "Superwall", "Superwall config" + config)
-            }
+
+
+        val scope = CoroutineScope(Dispatchers.IO)
+
+        val self = this
+        scope.launch {
+            self.dependencyContainer.network.getConfig()
         }
+
+        // Fetch the static configuration from the server
+//        Network.getStaticConfig {
+//            config ->
+//            Log.println(Log.INFO, "Superwall", "Superwall config: " + config)
+//            if (config != null) {
+//                // Save the config
+//                this.config = config
+//                postConfig()
+//                Log.println(Log.INFO, "Superwall", "Superwall config" + config)
+//            }
+//        }
     }
 
     protected var config: Config? = null
@@ -125,7 +157,7 @@ public class Superwall(context: Context, apiKey: String) {
 
         // Load all the products using google play billing
         val productIds = config!!.paywalls.flatMap {
-            paywall -> paywall.products.map { product -> product.id }
+            paywall -> paywall.products.map { product -> product.productId }
         }
         billingController.querySkuDetails(productIds as ArrayList<String>) {
             skuDetails ->

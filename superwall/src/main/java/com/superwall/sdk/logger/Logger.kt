@@ -1,9 +1,14 @@
 import com.superwall.sdk.Superwall
+import com.superwall.sdk.config.options.SuperwallOptions
+import kotlin.math.log
 
 interface Loggable {
     companion object {
         fun shouldPrint(logLevel: LogLevel, scope: LogScope): Boolean {
-            val logging = Superwall.instance.options.logging
+            var logging: SuperwallOptions.Logging = SuperwallOptions.Logging()
+            if (Superwall.intialized) {
+                logging = Superwall.instance.options.logging
+            }
             val exceedsCurrentLogLevel = logLevel.level >= (logging.level?.level ?: 99)
             val isInScope = logging.scopes.contains(scope)
             val allLogsActive = logging.scopes.contains(LogScope.all)

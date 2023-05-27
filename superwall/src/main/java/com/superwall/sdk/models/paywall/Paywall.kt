@@ -1,5 +1,6 @@
 package com.superwall.sdk.models.paywall
 
+import com.superwall.sdk.models.SerializableEntity
 import com.superwall.sdk.models.config.FeatureGatingBehavior
 import com.superwall.sdk.models.serialization.URLSerializer
 import kotlinx.serialization.SerialName
@@ -14,7 +15,7 @@ data class Paywalls(val paywalls: List<Paywall>)
 data class Paywall(
     @SerialName("id")
     val databaseId: String,
-    val identifier: String,
+    var identifier: String,
     val name: String,
     val url: @Serializable(with =  URLSerializer::class) URL,
     @SerialName("paywalljs_event")
@@ -44,9 +45,9 @@ data class Paywall(
     var paywalljsVersion: String? = null,
     var isFreeTrialAvailable: Boolean = false,
     var featureGating: FeatureGatingBehavior = FeatureGatingBehavior.NonGated
-) {
+) : SerializableEntity {
     init {
-        productIds = products.map { it.id }
+        productIds = products.map { it.productId }
         presentation = Presentation(
             style = PaywallPresentationStyle.valueOf(presensentationStyle.uppercase()),
             condition = PresentationCondition.valueOf(presentationCondition.uppercase())
@@ -64,15 +65,39 @@ data class Paywall(
     )
 
     @Serializable
-    data class Product(val id: String)
+    data class Product(
+        val product: String,
+        @SerialName("productId")
+        val productId: String
+        )
 
     @Serializable
     data class ProductVariable(val type: String, val attributes: Map<String, String>)
 
 
     companion object {
-        fun fromJson(json: String): Paywall {
-            return Json.decodeFromString(json)
+        fun stub(): Paywall {
+            return Paywall(
+                databaseId = "id",
+                identifier = "identifier",
+                name = "abac",
+                url = URL("https://google.com"),
+                htmlSubstitutions = "",
+                presentation = Presentation(PaywallPresentationStyle.MODAL, PresentationCondition.CHECK_USER_SUBSCRIPTION),
+                presensentationStyle = "MODAL",
+                presentationCondition = "CHECK_USER_SUBSCRIPTION",
+                backgroundColorHex = "000000",
+                products = arrayListOf(),
+                productIds = arrayListOf(),
+                responseLoadingInfo = LoadingInfo(),
+                webviewLoadingInfo = LoadingInfo(),
+                productsLoadingInfo = LoadingInfo(),
+                productVariables = arrayListOf(),
+                swProductVariablesTemplate = arrayListOf(),
+                paywalljsVersion = "",
+                isFreeTrialAvailable = false,
+                featureGating = FeatureGatingBehavior.NonGated
+            )
         }
     }
 }

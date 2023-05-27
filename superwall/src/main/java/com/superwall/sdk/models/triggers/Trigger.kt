@@ -4,8 +4,8 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class Trigger(
-    val eventName: String,
-    val rules: List<TriggerRule>
+    var eventName: String,
+    var rules: List<TriggerRule>
 ) {
     companion object {
         fun stub() = Trigger(

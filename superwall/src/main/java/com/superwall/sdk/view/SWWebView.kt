@@ -4,7 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.util.AttributeSet
 import android.webkit.WebView
-import com.superwall.sdk.api.PaywallMessage
+import com.superwall.sdk.deprecated.PaywallMessage
 
 class SWWebView(delegate: PaywallMessageDelegate, context: Context, attrs: AttributeSet?) : WebView(context, attrs), PaywallMessageDelegate {
     private val delegate: PaywallMessageDelegate = delegate

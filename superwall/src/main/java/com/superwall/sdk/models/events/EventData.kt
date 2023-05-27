@@ -74,7 +74,7 @@ object EventDataSerializer : KSerializer<EventData> {
 }
 
 
-@kotlinx.serialization.Serializable
+@kotlinx.serialization.Serializable(with = EventDataSerializer::class)
 data class EventData(
     var id: String = UUID.randomUUID().toString(),
     var name: String,

@@ -1,6 +1,5 @@
 package com.superwall.sdk.models.events
 
-import EventsResponse
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Test

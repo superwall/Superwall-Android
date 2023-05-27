@@ -1,6 +1,5 @@
 package com.superwall.sdk.models.assignment
-//
-import Assignment
+
 //import org.json.JSONArray
 //import org.json.JSONObject
 //

@@ -8,3 +8,6 @@ fun getSWJson(): Json {
         namingStrategy = JsonNamingStrategy.SnakeCase
     }
 }
+
+
+interface SerializableEntity

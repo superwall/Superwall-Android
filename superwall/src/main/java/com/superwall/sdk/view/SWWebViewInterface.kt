@@ -3,9 +3,9 @@ package com.superwall.sdk.view
 import android.content.Context
 import android.util.Log
 import android.webkit.JavascriptInterface
-import com.superwall.sdk.api.PaywallMessage
-import com.superwall.sdk.api.WrappedPaywallMessages
-import com.superwall.sdk.api.parseWrappedPaywallMessages
+import com.superwall.sdk.deprecated.PaywallMessage
+import com.superwall.sdk.deprecated.WrappedPaywallMessages
+import com.superwall.sdk.deprecated.parseWrappedPaywallMessages
 
 interface PaywallMessageDelegate {
     fun didReceiveMessage(message: PaywallMessage)
