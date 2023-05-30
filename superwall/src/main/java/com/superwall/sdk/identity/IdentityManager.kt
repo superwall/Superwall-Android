@@ -51,14 +51,13 @@ class IdentityManager(
     private val mutex = Mutex()
     private val scope = CoroutineScope(Dispatchers.Default)
 
-    init {
-        configure()
-    }
-
-    private fun configure() {
+    public fun configure() {
         scope.launch {
             val neverCalledStaticConfig = storage.neverCalledStaticConfig
             val isFirstAppOpen = !(storage.cache.didTrackFirstSeen.get()?.didTrackFirstSeen ?: false)
+
+            println("neverCalledStaticConfig: $neverCalledStaticConfig")
+            println("isFirstAppOpen: $isFirstAppOpen")
 
             if (IdentityLogic.shouldGetAssignments(
                     isLoggedIn,
@@ -67,8 +66,8 @@ class IdentityManager(
                 )
             ) {
                 configManager.getAssignments()
-                didSetIdentity()
             }
+            didSetIdentity()
         }
     }
 
@@ -107,6 +106,7 @@ class IdentityManager(
     }
 
     private fun didSetIdentity() {
+        println("!! didSetIdentity")
         scope.launch { identityFlow.emit(true) }
     }
 

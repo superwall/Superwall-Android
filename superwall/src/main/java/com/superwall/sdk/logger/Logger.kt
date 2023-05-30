@@ -5,6 +5,7 @@ import kotlin.math.log
 interface Loggable {
     companion object {
         fun shouldPrint(logLevel: LogLevel, scope: LogScope): Boolean {
+            return true
             var logging: SuperwallOptions.Logging = SuperwallOptions.Logging()
             if (Superwall.intialized) {
                 logging = Superwall.instance.options.logging
@@ -52,7 +53,7 @@ interface Loggable {
                     return
                 }
 
-                val name = "\n${logLevel.getDescriptionEmoji()} [Superwall] [${scope.toString()}] ${logLevel.toString()}${if (message != null) ": $message" else ""}\n"
+                val name = "\n${logLevel.getDescriptionEmoji()} [!!Superwall] [${scope.toString()}] ${logLevel.toString()}${if (message != null) ": $message" else ""}\n"
 
                 if (dumping.isEmpty()) {
                     println(name)

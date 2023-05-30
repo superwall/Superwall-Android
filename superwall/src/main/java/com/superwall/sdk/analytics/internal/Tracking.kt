@@ -47,8 +47,7 @@ suspend fun Superwall.track(event: Trackable): TrackingResult {
         createdAt = eventCreatedAt
     )
     dependencyContainer.queue.enqueue(event = eventData)
-    // TODO: Re-enable saving events to CoreData
-//    dependencyContainer.storage.coreDataManager.saveEventData(eventData)
+    dependencyContainer.storage.coreDataManager.saveEventData(eventData, null)
 
     if (event.canImplicitlyTriggerPaywall) {
         CoroutineScope(Dispatchers.Default).launch {
@@ -71,11 +70,21 @@ suspend fun Superwall.handleImplicitTrigger(
     forEvent: Trackable,
     withData: EventData
 ) {
+    println("!! handleImplicitTrigger 1")
+
     val event = forEvent
     val eventData = withData
 
     // Should block until identity is available
     dependencyContainer.identityManager.hasIdentity.filter { it }.first()
+
+    println("!! handleImplicitTrigger 1.5")
+
+//     TODO: Divergence from iOS -> waiting for config
+//    dependencyContainer.configManager.hasConfig.first()
+
+
+    println("!! handleImplicitTrigger 2")
 
     val presentationInfo: PresentationInfo = PresentationInfo.ImplicitTrigger(eventData = eventData)
 
@@ -84,6 +93,7 @@ suspend fun Superwall.handleImplicitTrigger(
         triggers = dependencyContainer.configManager.triggersByEventName.keys.toSet(),
         paywallViewController = paywallViewController
     )
+    println("!! handleImplicitTrigger 3 $outcome")
 
     when (outcome) {
         TrackingLogic.ImplicitTriggerOutcome.DeepLinkTrigger -> {

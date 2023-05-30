@@ -2,21 +2,19 @@ package com.superwall.sdk.storage
 
 import android.content.Context
 import com.superwall.sdk.Superwall
+import com.superwall.sdk.analytics.internal.TrackingResult
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
+import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.dependencies.DeviceInfoFactory
 import com.superwall.sdk.misc.sdkVersion
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.storage.core_data.CoreDataManager
-import com.superwall.sdk.storage.keys.ConfirmedAssignments
-import com.superwall.sdk.storage.keys.DidTrackFirstSeen
-import com.superwall.sdk.storage.keys.DidTrackFirstSession
-import com.superwall.sdk.storage.keys.SdkVersion
+import com.superwall.sdk.storage.keys.*
 import com.superwall.sdk.storage.memory.LRUCache
 import com.superwall.sdk.storage.memory.PerpetualCache
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.*
 import java.util.Date
 
 open class Storage(
@@ -121,23 +119,24 @@ open class Storage(
         }
     }
 
-//    fun recordAppInstall(
-//        trackEvent: suspend (Trackable) -> TrackingResult = { Superwall.shared.track(it) }
-//    ) {
-//        val didTrackAppInstall = get(DidTrackAppInstall::class) ?: false
-//        if (didTrackAppInstall) {
-//            return
-//        }
-//
+    fun recordAppInstall(
+        trackEvent: suspend (Trackable) -> TrackingResult = { Superwall.instance.track(it) }
+    ) {
+        val didTrackAppInstall = cache.didTrackAppInstall.get()?.didTrackAppInstall ?: false
+        if (didTrackAppInstall) {
+            return
+        }
+
 //        withContext(queue) {
-//            val deviceInfo = factory.makeDeviceInfo()
-//            val event =
-//                InternalSuperwallEvent.AppInstall(appInstalledAtString = deviceInfo.appInstalledAtString)
-//            trackEvent(event)
-//        }
-//        save(true, DidTrackAppInstall::class)
-//    }
-//
+        CoroutineScope(Dispatchers.IO).launch {
+            val deviceInfo = factory.makeDeviceInfo()
+            val event =
+                InternalSuperwallEvent.AppInstall(appInstalledAtString = deviceInfo.appInstalledAtString)
+            trackEvent(event)
+        }
+        cache.didTrackAppInstall.set(DidTrackAppInstall(true))
+    }
+
 //    fun clearCachedSessionEvents() {
 //        // TODO: implement
 ////        cache.delete(TriggerSessions::class)

@@ -1,86 +1,11 @@
 package com.superwall.sdk.analytics.superwall
 
-import com.superwall.sdk.models.paywall.StoreProduct
 import com.superwall.sdk.models.triggers.TriggerResult
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatus
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatusReason
+import com.superwall.sdk.store.abstractions.product.StoreProduct
 import java.net.URL
-
-/*
-
-  var description: String {
-    switch self {
-    case .firstSeen:
-      return "first_seen"
-    case .appOpen:
-      return "app_open"
-    case .appLaunch:
-      return "app_launch"
-    case .appInstall:
-      return "app_install"
-    case .sessionStart:
-      return "session_start"
-    case .subscriptionStatusDidChange:
-      return "subscriptionStatus_didChange"
-    case .appClose:
-      return "app_close"
-    case .deepLink:
-      return "deepLink_open"
-    case .triggerFire:
-      return "trigger_fire"
-    case .paywallOpen:
-      return "paywall_open"
-    case .paywallDecline:
-      return "paywall_decline"
-    case .paywallClose:
-      return "paywall_close"
-    case .transactionStart:
-      return "transaction_start"
-    case .transactionFail:
-      return "transaction_fail"
-    case .transactionAbandon:
-      return "transaction_abandon"
-    case .transactionTimeout:
-      return "transaction_timeout"
-    case .transactionComplete:
-      return "transaction_complete"
-    case .subscriptionStart:
-      return "subscription_start"
-    case .freeTrialStart:
-      return "freeTrial_start"
-    case .transactionRestore:
-      return "transaction_restore"
-    case .userAttributes:
-      return "user_attributes"
-    case .nonRecurringProductPurchase:
-      return "nonRecurringProduct_purchase"
-    case .paywallResponseLoadStart:
-      return "paywallResponseLoad_start"
-    case .paywallResponseLoadNotFound:
-      return "paywallResponseLoad_notFound"
-    case .paywallResponseLoadFail:
-      return "paywallResponseLoad_fail"
-    case .paywallResponseLoadComplete:
-      return "paywallResponseLoad_complete"
-    case .paywallWebviewLoadStart:
-      return "paywallWebviewLoad_start"
-    case .paywallWebviewLoadFail:
-      return "paywallWebviewLoad_fail"
-    case .paywallWebviewLoadComplete:
-      return "paywallWebviewLoad_complete"
-    case .paywallWebviewLoadTimeout:
-      return "paywallWebviewLoad_timeout"
-    case .paywallProductsLoadStart:
-      return "paywallProductsLoad_start"
-    case .paywallProductsLoadFail:
-      return "paywallProductsLoad_fail"
-    case .paywallProductsLoadComplete:
-      return "paywallProductsLoad_complete"
-    case .paywallPresentationRequest:
-      return "paywallPresentationRequest"
-    }
- */
 
 
 /// Analytical events that are automatically tracked by Superwall.
@@ -302,7 +227,7 @@ sealed class SuperwallEvent {
     }
 
     /// When the request to load the paywall's products completed.
-    data class PaywallProductsLoadComplete(val triggeredEventName: String?) : SuperwallEvent() {
+    data class PaywallProductsLoadComplete(val triggeredEventName: String?, val paywallInfo: PaywallInfo) : SuperwallEvent() {
         override val rawName: String
             get() = "paywallProductsLoad_complete"
     }
@@ -322,7 +247,9 @@ sealed class SuperwallEvent {
 
 
     open val objcEvent: SuperwallEventObjc
-        get() = SuperwallEventObjc.valueOf(rawName)
+        get()  {
+            return SuperwallEventObjc.values().find { it.rawName == rawName }!!
+        }
 
     val canImplicitlyTriggerPaywall: Boolean
         get() = when (this) {

@@ -21,20 +21,20 @@ object DidTrackAppInstallConfig: StorageConfig {
 data class DidTrackAppInstall(var didTrackAppInstall: Boolean)
 
 class DidTrackAppInstallManager(cacheHelper: CacheHelper) {
-    private val mutex = Mutex()
     private val cacheHelper = cacheHelper
 
-    suspend fun get(): DidTrackAppInstall? = mutex.withLock {
+    fun get(): DidTrackAppInstall? {
         this.cacheHelper.read(DidTrackAppInstallConfig)?.let {
-            return@withLock Json.decodeFromString(it.decodeToString())
+            return Json.decodeFromString(it.decodeToString())
         }
+        return null
     }
 
-    suspend fun set(didTrackAppInstall: DidTrackAppInstall) = mutex.withLock {
+    fun set(didTrackAppInstall: DidTrackAppInstall) {
         this.cacheHelper.write(DidTrackAppInstallConfig, Json.encodeToString(didTrackAppInstall).toByteArray(Charsets.UTF_8))
     }
 
-    suspend fun delete() = mutex.withLock {
+    fun delete() {
         this.cacheHelper.delete(DidTrackAppInstallConfig)
     }
 }

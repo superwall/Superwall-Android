@@ -1,6 +1,8 @@
 package com.superwall.sdk.models.paywall
 
 import com.superwall.sdk.models.config.Config
+import com.superwall.sdk.models.product.Product
+import com.superwall.sdk.models.product.ProductType
 
 
 import kotlinx.serialization.json.Json
@@ -22,9 +24,9 @@ class PaywallProductTest {
             ignoreUnknownKeys = true
             namingStrategy = JsonNamingStrategy.SnakeCase
         }
-        val product = json.decodeFromString<Paywall.Product>(productString)
+        val product = json.decodeFromString<Product>(productString)
         assert(product != null)
-        assert(product.productId == "abc-def")
-        assert(product.product == "primary")
+        assert(product.id == "abc-def")
+        assert(product.type == ProductType.PRIMARY)
     }
 }

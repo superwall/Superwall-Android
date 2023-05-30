@@ -3,10 +3,7 @@ package com.superwall.sdk.models.events
 import com.superwall.sdk.models.serialization.AnyMapSerializer
 import com.superwall.sdk.models.serialization.AnySerializer
 import com.superwall.sdk.models.serialization.DateSerializer
-import kotlinx.serialization.InternalSerializationApi
-import kotlinx.serialization.KSerializer
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.SerializationException
+import kotlinx.serialization.*
 import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.descriptors.*
@@ -36,8 +33,8 @@ import java.util.*
 object EventDataSerializer : KSerializer<EventData> {
     override val descriptor: SerialDescriptor
         get() = buildClassSerialDescriptor("EventData") {
-            element<String>("id")
-            element<String>("name")
+            element<String>("event_id")
+            element<String>("event_name")
             element<Map<String, JsonElement>>("parameters")
             element<JsonElement>("createdAt")
         }
@@ -76,7 +73,9 @@ object EventDataSerializer : KSerializer<EventData> {
 
 @kotlinx.serialization.Serializable(with = EventDataSerializer::class)
 data class EventData(
+    @SerialName("event_id")
     var id: String = UUID.randomUUID().toString(),
+    @SerialName("event_name")
     var name: String,
     var parameters: Map<String,  @Serializable(with = AnySerializer::class) Any?>,
     @Serializable(with = DateSerializer::class)

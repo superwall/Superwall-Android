@@ -12,6 +12,7 @@ data class VariantOption(
     @SerialName("variant_id")
     var id: String,
     var percentage: Int,
+    @SerialName("paywall_identifier")
     var paywallId: String? = null
 ) {
     @Transient

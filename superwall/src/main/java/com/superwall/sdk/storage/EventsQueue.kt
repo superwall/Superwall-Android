@@ -75,7 +75,9 @@ class EventsQueue(private val context: Context, private val network: Network, pr
         if (eventsToSend.isNotEmpty()) {
             // Send to network
             val events = EventsRequest(eventsToSend)
-            network.sendEvents(events)
+            CoroutineScope(Dispatchers.IO).launch {
+                network.sendEvents(events)
+            }
         }
         if (elements.isNotEmpty() && depth > 0) {
             flushInternal(depth - 1)

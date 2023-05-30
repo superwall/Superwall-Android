@@ -1,14 +1,12 @@
 package com.superwall.sdk.paywall.presentation.internal
 
 import android.app.Activity
+import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
-import com.superwall.sdk.storage.keys.SubscriptionStatus
+import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegateAdapter
 import kotlinx.coroutines.flow.StateFlow
 
-
-// TODO: Move this and actually implement it
-interface PaywallViewControllerDelegateAdapter {}
 
 
 sealed class PresentationRequestType {

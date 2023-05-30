@@ -1,12 +1,21 @@
 package com.superwall.sdk.models.paywall
 
+import com.superwall.sdk.dependencies.TriggerSessionManagerFactory
 import com.superwall.sdk.models.SerializableEntity
 import com.superwall.sdk.models.config.FeatureGatingBehavior
+import com.superwall.sdk.models.events.EventData
+import com.superwall.sdk.models.product.Product
+import com.superwall.sdk.models.product.ProductVariable
+import com.superwall.sdk.models.serialization.DateSerializer
 import com.superwall.sdk.models.serialization.URLSerializer
+import com.superwall.sdk.models.triggers.Experiment
+import com.superwall.sdk.paywall.presentation.PaywallCloseReason
+import com.superwall.sdk.paywall.presentation.PaywallInfo
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.net.URL
+import java.util.*
 
 @Serializable
 data class Paywalls(val paywalls: List<Paywall>)
@@ -44,10 +53,17 @@ data class Paywall(
     var swProductVariablesTemplate: List<ProductVariable>? = null,
     var paywalljsVersion: String? = null,
     var isFreeTrialAvailable: Boolean = false,
-    var featureGating: FeatureGatingBehavior = FeatureGatingBehavior.NonGated
+    var featureGating: FeatureGatingBehavior = FeatureGatingBehavior.NonGated,
+
+    @kotlinx.serialization.Transient()
+    var experiment: Experiment? = null,
+
+    @kotlinx.serialization.Transient()
+    var closeReason: PaywallCloseReason? = null
+
 ) : SerializableEntity {
     init {
-        productIds = products.map { it.productId }
+        productIds = products.map { it.id }
         presentation = Presentation(
             style = PaywallPresentationStyle.valueOf(presensentationStyle.uppercase()),
             condition = PresentationCondition.valueOf(presentationCondition.uppercase())
@@ -59,20 +75,56 @@ data class Paywall(
 
     @Serializable
     data class LoadingInfo(
-        val startAt: String? = null,
-        val endAt: String? = null,
-        val failAt: String? = null
+        @Serializable(with = DateSerializer::class)
+        var startAt: Date? = null,
+        @Serializable(with = DateSerializer::class)
+        var endAt: Date? = null,
+        @Serializable(with = DateSerializer::class)
+        var failAt: Date? = null
     )
 
-    @Serializable
-    data class Product(
-        val product: String,
-        @SerialName("productId")
-        val productId: String
-        )
 
-    @Serializable
-    data class ProductVariable(val type: String, val attributes: Map<String, String>)
+
+//    @Serializable
+//    data class ProductVariable(val type: String, val attributes: Map<String, String>)
+
+
+    fun  overrideProductsIfNeeded(paywall: Paywall) {
+        products = paywall.products
+        productIds = paywall.productIds
+        // TODO: Figure out if the products makes sense like this
+//        swProducts = paywall.swProducts
+        productVariables = paywall.productVariables
+        swProductVariablesTemplate = paywall.swProductVariablesTemplate
+        isFreeTrialAvailable = paywall.isFreeTrialAvailable
+        productsLoadingInfo = paywall.productsLoadingInfo
+    }
+
+    fun getInfo(fromEvent: EventData?, factory: TriggerSessionManagerFactory): PaywallInfo {
+        return PaywallInfo(
+            databaseId = databaseId,
+            identifier = identifier,
+            name = name,
+            url = url,
+            products = products,
+            eventData = fromEvent,
+            responseLoadStartTime = responseLoadingInfo.startAt,
+            responseLoadCompleteTime = responseLoadingInfo.endAt,
+            responseLoadFailTime = responseLoadingInfo.failAt,
+            webViewLoadStartTime = webviewLoadingInfo.startAt,
+            webViewLoadCompleteTime = webviewLoadingInfo.endAt,
+            webViewLoadFailTime = webviewLoadingInfo.failAt,
+            productsLoadStartTime = productsLoadingInfo.startAt,
+            productsLoadFailTime = productsLoadingInfo.failAt,
+            productsLoadCompleteTime = productsLoadingInfo.endAt,
+            experiment = experiment,
+            paywalljsVersion = paywalljsVersion,
+            isFreeTrialAvailable = isFreeTrialAvailable,
+            factory = factory,
+            featureGatingBehavior = featureGating,
+            closeReason = closeReason
+        )
+    }
 
 
     companion object {

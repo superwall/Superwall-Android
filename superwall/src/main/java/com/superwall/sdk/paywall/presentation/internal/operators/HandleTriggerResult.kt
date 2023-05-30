@@ -53,8 +53,7 @@ suspend fun Superwall.handleTriggerResult(
             sessionEventsManager?.triggerSession?.activateSession(
                 request.presentationInfo,
                 request.presenter,
-                triggerResult
-                        = triggerResult
+                triggerResult= triggerResult
             )
             errorType = PaywallPresentationRequestStatusReason.NoRuleMatch()
             paywallStatePublisher.emit(PaywallState.Skipped(PaywallSkippedReason.NoRuleMatch()))

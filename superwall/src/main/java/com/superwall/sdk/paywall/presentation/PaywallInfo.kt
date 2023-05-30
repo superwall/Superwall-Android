@@ -4,14 +4,17 @@ import com.superwall.sdk.dependencies.TriggerSessionManagerFactory
 import com.superwall.sdk.models.config.FeatureGatingBehavior
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
-import com.superwall.sdk.models.paywall.StoreProduct
 import com.superwall.sdk.models.product.Product
+import com.superwall.sdk.models.serialization.URLSerializer
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
+import com.superwall.sdk.store.abstractions.product.StoreProduct
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import java.net.URL
 import java.time.Instant
+import java.util.*
 
 
 @Serializable
@@ -19,7 +22,8 @@ data class PaywallInfo(
     val databaseId: String,
     val identifier: String,
     val name: String,
-    val url: String,
+    @Serializable(with = URLSerializer::class)
+    val url: URL,
     val experiment: Experiment?,
     val products: List<Product>,
     val productIds: List<String>,
@@ -49,18 +53,18 @@ data class PaywallInfo(
         databaseId: String,
         identifier: String,
         name: String,
-        url: String,
+        url: URL,
         products: List<Product>,
         eventData: EventData?,
-        responseLoadStartTime: Instant?,
-        responseLoadCompleteTime: Instant?,
-        responseLoadFailTime: Instant?,
-        webViewLoadStartTime: Instant?,
-        webViewLoadCompleteTime: Instant?,
-        webViewLoadFailTime: Instant?,
-        productsLoadStartTime: Instant?,
-        productsLoadFailTime: Instant?,
-        productsLoadCompleteTime: Instant?,
+        responseLoadStartTime: Date?,
+        responseLoadCompleteTime: Date?,
+        responseLoadFailTime: Date?,
+        webViewLoadStartTime: Date?,
+        webViewLoadCompleteTime: Date?,
+        webViewLoadFailTime: Date?,
+        productsLoadStartTime: Date?,
+        productsLoadFailTime: Date?,
+        productsLoadCompleteTime: Date?,
         experiment: Experiment? = null,
         paywalljsVersion: String? = null,
         isFreeTrialAvailable: Boolean,
@@ -87,7 +91,7 @@ data class PaywallInfo(
         responseLoadFailTime = responseLoadFailTime?.toString() ?: "",
         responseLoadDuration = responseLoadStartTime?.let { startTime ->
             responseLoadCompleteTime?.let { endTime ->
-                (endTime.epochSecond - startTime.epochSecond).toDouble()
+                (endTime.time  / 1000 - startTime.time / 1000).toDouble()
             }
         },
         webViewLoadStartTime = webViewLoadStartTime?.toString() ?: "",
@@ -95,7 +99,7 @@ data class PaywallInfo(
         webViewLoadFailTime = webViewLoadFailTime?.toString() ?: "",
         webViewLoadDuration = webViewLoadStartTime?.let { startTime ->
             webViewLoadCompleteTime?.let { endTime ->
-                (endTime.epochSecond - startTime.epochSecond).toDouble()
+                (endTime.time / 1000 - startTime.time / 1000).toDouble()
             }
         },
         productsLoadStartTime = productsLoadStartTime?.toString() ?: "",
@@ -103,7 +107,7 @@ data class PaywallInfo(
         productsLoadFailTime = productsLoadFailTime?.toString() ?: "",
         productsLoadDuration = productsLoadStartTime?.let { startTime ->
             productsLoadCompleteTime?.let { endTime ->
-                (endTime.epochSecond - startTime.epochSecond).toDouble()
+                (endTime.time / 1000 - startTime.time / 1000).toDouble()
             }
         },
         factory = factory,
@@ -112,29 +116,29 @@ data class PaywallInfo(
 
     suspend fun eventParams(
         product: StoreProduct? = null,
-        otherParams: Map<String, Any>? = null
+        otherParams: Map<String, Any?>? = null
     ): Map<String, Any> {
-        val output = mutableMapOf<String, Any>(
+        val output = mutableMapOf<String, Any?>(
             "paywall_id" to databaseId,
             ("paywalljs_version" to paywalljsVersion ?: "") as Pair<String, Any>,
             "paywall_identifier" to identifier,
             "paywall_name" to name,
             "paywall_url" to url.toString(),
-            "presented_by_event_name" to presentedByEventWithName as Any,
-            "presented_by_event_id" to presentedByEventWithId as Any,
-            "presented_by_event_timestamp" to presentedByEventAt as Any,
+            "presented_by_event_name" to presentedByEventWithName,
+            "presented_by_event_id" to presentedByEventWithId,
+            "presented_by_event_timestamp" to presentedByEventAt,
             "presented_by" to presentedBy,
             "paywall_product_ids" to productIds.joinToString(","),
-            "paywall_response_load_start_time" to responseLoadStartTime as Any,
-            "paywall_response_load_complete_time" to responseLoadCompleteTime as Any,
-            "paywall_response_load_duration" to responseLoadDuration as Any,
-            "paywall_webview_load_start_time" to webViewLoadStartTime as Any,
-            "paywall_webview_load_complete_time" to webViewLoadCompleteTime as Any,
-            "paywall_webview_load_duration" to webViewLoadDuration as Any,
-            "paywall_products_load_start_time" to productsLoadStartTime as Any,
-            "paywall_products_load_complete_time" to productsLoadCompleteTime as Any,
-            "paywall_products_load_fail_time" to productsLoadFailTime as Any,
-            "paywall_products_load_duration" to productsLoadDuration as Any,
+            "paywall_response_load_start_time" to responseLoadStartTime,
+            "paywall_response_load_complete_time" to responseLoadCompleteTime,
+            "paywall_response_load_duration" to responseLoadDuration,
+            "paywall_webview_load_start_time" to webViewLoadStartTime,
+            "paywall_webview_load_complete_time" to webViewLoadCompleteTime,
+            "paywall_webview_load_duration" to webViewLoadDuration,
+            "paywall_products_load_start_time" to productsLoadStartTime,
+            "paywall_products_load_complete_time" to productsLoadCompleteTime,
+            "paywall_products_load_fail_time" to productsLoadFailTime,
+            "paywall_products_load_duration" to productsLoadDuration,
             "is_free_trial_available" to isFreeTrialAvailable,
             "feature_gating" to featureGatingBehavior.toString()
         )
@@ -193,7 +197,7 @@ data class PaywallInfo(
             }
         }
 
-        return output
+        return output.filter { (_, value) -> value != null } as Map<String, Any>
     }
 
 }

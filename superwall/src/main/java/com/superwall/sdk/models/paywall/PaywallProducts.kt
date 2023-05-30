@@ -1,10 +1,11 @@
 package com.superwall.sdk.models.paywall
 
+import com.superwall.sdk.store.abstractions.product.StoreProduct
 import kotlinx.serialization.Serializable
 
 // Assuming StoreProduct is defined something like this:
-@Serializable
-data class StoreProduct(val productIdentifier: String)
+//@Serializable
+//data class StoreProduct(val productIdentifier: String)
 
 @Serializable
 class PaywallProducts(

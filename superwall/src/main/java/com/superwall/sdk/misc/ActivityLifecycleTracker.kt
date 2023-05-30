@@ -4,11 +4,12 @@ import android.app.Activity
 import android.app.Application
 import android.os.Bundle
 
-class ActivityLifecycleTracker private constructor() : Application.ActivityLifecycleCallbacks {
+class ActivityLifecycleTracker constructor() : Application.ActivityLifecycleCallbacks {
 
     private var currentActivity: Activity? = null
 
     companion object {
+        // TODO: Remove this
         val instance: ActivityLifecycleTracker by lazy { ActivityLifecycleTracker() }
     }
 

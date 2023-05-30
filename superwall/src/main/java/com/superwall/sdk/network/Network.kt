@@ -5,8 +5,10 @@ import com.superwall.sdk.models.assignment.Assignment
 import com.superwall.sdk.models.assignment.AssignmentPostback
 import com.superwall.sdk.models.assignment.ConfirmedAssignmentResponse
 import com.superwall.sdk.models.config.Config
+import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.events.EventsRequest
 import com.superwall.sdk.models.events.EventsResponse
+import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
@@ -112,7 +114,41 @@ open class Network(
             )
         }
     }
-
+    suspend fun getPaywall(
+        identifier: String? = null,
+        event: EventData? = null
+    ): Paywall {
+        return try {
+            urlSession.request(
+                Endpoint.paywall(
+                    identifier = identifier,
+                    event = event,
+                    factory = factory
+                )
+            )
+        } catch (error: Throwable) {
+            if (identifier == null) {
+                Logger.debug(
+                    logLevel = LogLevel.error,
+                    scope = LogScope.network,
+                    message = "Request Failed: /paywall",
+                    info = mapOf(
+                        "identifier" to (identifier ?: "none"),
+                        "event" to (event?.name ?: "")
+                    ),
+                    error = error
+                )
+            } else {
+                Logger.debug(
+                    logLevel = LogLevel.error,
+                    scope = LogScope.network,
+                    message = "Request Failed: /paywall/:$identifier",
+                    error = error
+                )
+            }
+            throw error
+        }
+    }
     open suspend fun getAssignments(): List<Assignment> {
         return try {
             val result = urlSession.request<ConfirmedAssignmentResponse>(

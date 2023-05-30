@@ -6,9 +6,11 @@ import com.superwall.sdk.analytics.superwall.SuperwallEventObjc
 import com.superwall.sdk.paywall.vc.PaywallViewController
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonPrimitive
 import java.net.URL
 import java.time.LocalDateTime
 import java.time.ZoneOffset
@@ -71,26 +73,30 @@ sealed class TrackingLogic {
             return@withContext TrackingParameters(delegateParams, eventParams)
         }
 
+        @OptIn(ExperimentalSerializationApi::class)
         private fun clean(input: Any?): Any? {
-            input?.let { value ->
-                when (value) {
-                    is List<*> -> null
-                    is Map<*, *> -> null
-                    else -> {
-                        try {
-                            Json.encodeToString(JsonElement.serializer(), value as JsonElement)
-                            value
-                        } catch (e: SerializationException) {
-                            when (value) {
-                                is LocalDateTime -> value.atZone(ZoneOffset.UTC).toInstant().toEpochMilli()
-                                is URL -> value.toString()
-                                else -> null
-                            }
-                        }
-                    }
-                }
-            } ?: kotlin.run { return null }
-            return null
+            return input
+
+            // TODO: (Analytics) Fix this
+//            input?.let { value ->
+//                when (value) {
+//                    is List<*> -> null
+//                    is Map<*, *> -> null
+//                    else -> {
+//                        try {
+//                            Json.encodeToString(JsonElement.serializer(), value)
+//                            value
+//                        } catch (e: SerializationException) {
+//                            when (value) {
+//                                is LocalDateTime -> value.atZone(ZoneOffset.UTC).toInstant().toEpochMilli()
+//                                is URL -> value.toString()
+//                                else -> null
+//                            }
+//                        }
+//                    }
+//                }
+//            } ?: kotlin.run { return null }
+//            return null
         }
 
         @Throws(Exception::class)
@@ -114,6 +120,7 @@ sealed class TrackingLogic {
                 return ImplicitTriggerOutcome.DeepLinkTrigger
             }
 
+            println("canTriggerPaywall: ${event.rawName} $triggers")
             if (!triggers.contains(event.rawName)) {
                 return ImplicitTriggerOutcome.DontTriggerPaywall
             }

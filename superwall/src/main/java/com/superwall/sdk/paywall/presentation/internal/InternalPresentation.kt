@@ -2,8 +2,7 @@ package com.superwall.sdk.paywall.presentation.internal
 
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
-import com.superwall.sdk.paywall.presentation.internal.operators.PresentablePipelineOutput
-import com.superwall.sdk.paywall.presentation.internal.operators.checkNoPaywallAlreadyPresented
+import com.superwall.sdk.paywall.presentation.internal.operators.*
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.paywall.vc.PaywallViewController
@@ -22,23 +21,23 @@ typealias PresentablePipelineOutputPublisher = Flow<PresentablePipelineOutput>
 // I'm assuming that there are appropriate definitions for the functions used in `internallyPresent` that are not provided in the Swift code.
 fun Superwall.internallyPresent(request: PresentationRequest, publisher: MutableStateFlow<PaywallState> = MutableStateFlow(PaywallState.NotStarted())): PaywallStatePublisher {
     GlobalScope.launch {
-//        try {
-//            checkNoPaywallAlreadyPresented(request, publisher)
-//            waitToPresent(request)
-//            val debugInfo = logPresentation(request, "Called Superwall.shared.track")
-//            checkDebuggerPresentation(request, publisher)
-//            val assignmentOutput = evaluateRules(request, debugInfo)
-//            checkUserSubscription(request, assignmentOutput.triggerResult, publisher)
-//            confirmHoldoutAssignment(assignmentOutput)
-//            val triggerResultOutput = handleTriggerResult(request, assignmentOutput, publisher)
-//            val paywallVcOutput = getPaywallViewController(request, triggerResultOutput, publisher)
-//
-//            val presentableOutput = checkPaywallIsPresentable(paywallVcOutput, request, publisher)
-//            confirmPaywallAssignment(request, presentableOutput)
-//            presentPaywall(request, presentableOutput, publisher)
-//        } catch (e: Exception) {
-//            logErrors(request, e)
-//        }
+        try {
+            checkNoPaywallAlreadyPresented(request, publisher)
+            waitToPresent(request)
+            val debugInfo = logPresentation(request, "Called Superwall.shared.track")
+            checkDebuggerPresentation(request, publisher)
+            val assignmentOutput = evaluateRules(request, debugInfo)
+            checkUserSubscription(request, assignmentOutput.triggerResult, publisher)
+            confirmHoldoutAssignment(assignmentOutput)
+            val triggerResultOutput = handleTriggerResult(request, assignmentOutput, publisher)
+            val paywallVcOutput = getPaywallViewController(request, triggerResultOutput, publisher)
+
+            val presentableOutput = checkPaywallIsPresentable(paywallVcOutput, request, publisher)
+            confirmPaywallAssignment(request, presentableOutput)
+            presentPaywall(request, presentableOutput, publisher)
+        } catch (e: Exception) {
+            logErrors(request, e)
+        }
     }
 
     return publisher

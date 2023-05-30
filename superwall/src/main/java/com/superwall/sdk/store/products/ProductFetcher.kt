@@ -15,6 +15,14 @@ sealed class Result<T> {
 
 
 open class ProductFetcher(var context: Context) : PurchasesUpdatedListener {
+
+    sealed class Result<T> {
+        data class Success<T>(val value: T): Result<T>()
+        data class Error<T>(val error: Throwable): Result<T>()
+        data class Waiting<T>(val startedAt: Int): Result<T>()
+    }
+
+
     private lateinit var billingClient: BillingClient
     private val _isConnected = MutableStateFlow(false)
     val isConnected = _isConnected.asStateFlow()
@@ -64,7 +72,7 @@ open class ProductFetcher(var context: Context) : PurchasesUpdatedListener {
     }
 
 
-    public fun request(productIds: List<String>)  {
+    protected  fun request(productIds: List<String>)  {
         scope.launch {
 
         val currentResults = _results.value
@@ -87,7 +95,7 @@ open class ProductFetcher(var context: Context) : PurchasesUpdatedListener {
                     _results.value + productIdsToLoad.map { it to Result.Waiting(startedAt = System.currentTimeMillis().toInt()) }
                 )
 
-//            scope.launch {
+//            sdcope.launch {
                 val networkResult = queryProductDetails(productIdsToLoad)
                 _results.emit(
                     _results.value + networkResult.mapValues { it.value  }
@@ -99,7 +107,7 @@ open class ProductFetcher(var context: Context) : PurchasesUpdatedListener {
         }
     }
 
-    suspend fun requestAndAwait(productIds: List<String>): Map<String, Result<RawStoreProduct>>  {
+    suspend fun products(productIds: List<String>): Map<String, Result<RawStoreProduct>>  {
         request(productIds)
         results.map { currentResults ->
             productIds.all { productId ->

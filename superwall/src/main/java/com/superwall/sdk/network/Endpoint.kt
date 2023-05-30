@@ -57,10 +57,19 @@ data class Endpoint<Response : SerializableEntity>(
             return@coroutineScope null
         }
 
+        val headers = factory.makeHeaders(
+            isForDebugging = isForDebugging,
+            requestId = requestId
+        )
         val connection = url.openConnection() as HttpURLConnection
-        connection.requestMethod = method.method
+        headers.forEach { header ->
+            connection.setRequestProperty(header.key, header.value)
+        }
+
         connection.doOutput = method.method == HttpMethod.POST.method
-//        connection.doInput = true
+        if (components?.bodyData != null) {
+            connection.doInput = true
+        }
 
         if (components?.bodyData != null) {
             val outputStream = connection.outputStream
@@ -68,15 +77,10 @@ data class Endpoint<Response : SerializableEntity>(
             outputStream.close()
         }
 
-        val headers = factory.makeHeaders(
-            fromRequest = connection,
-            isForDebugging = isForDebugging,
-            requestId = requestId
-        )
 
-        headers.forEach { header ->
-            connection.setRequestProperty(header.key, header.value)
-        }
+
+
+        connection.requestMethod = method.method
 
         return@coroutineScope connection
     }
@@ -87,7 +91,10 @@ data class Endpoint<Response : SerializableEntity>(
             eventsRequest: EventsRequest,
             factory: ApiFactory
         ) : Endpoint<EventsResponse> {
-            val json = Json { encodeDefaults = true }
+            val json = Json {
+                encodeDefaults = true
+                namingStrategy = JsonNamingStrategy.SnakeCase
+            }
             val bodyData = json.encodeToString(eventsRequest).toByteArray()
             val collectorHost = factory.api.collector.host
 
@@ -203,6 +210,100 @@ data class Endpoint<Response : SerializableEntity>(
 //                }
 //            }
 //        }
+
+
+            fun paywall(
+                identifier: String? = null,
+                event: EventData? = null,
+                factory: ApiFactory
+            ): Endpoint<Paywall> {
+                val bodyData: ByteArray?
+
+                bodyData = when {
+                    identifier != null -> {
+                        return paywall(identifier, factory)
+                    }
+                    else -> {
+                        throw Exception("Invalid paywall request, only load via identifier is supported")
+                    }
+                }
+            }
+//                    event != null -> {
+//                        val bodyDict = mapOf("event" to event.jsonData)
+//                        JSONEncoder.toSnakeCase.encode(bodyDict)
+//                    }
+//                    else -> {
+//                        val body = PaywallRequestBody(appUserId = factory.identityManager.userId)
+//                        JSONEncoder.toSnakeCase.encode(body)
+//                    }
+//                }
+//                val baseHost = factory.api.base.host
+//
+//                return Endpoint(
+//                    components = Components(
+//                        host = baseHost,
+//                        path = Api.version1 + "paywall",
+//                        bodyData = bodyData
+//                    ),
+//                    method = HttpMethod.POST,
+//                    factory = factory
+//                )
+//            }
+
+            private fun paywall(
+                identifier: String,
+                factory: ApiFactory
+            ): Endpoint<Paywall> {
+                // WARNING: Do not modify anything about this request without considering our cache eviction code
+                // we must know all the exact urls we need to invalidate so changing the order, inclusion, etc of any query
+                // parameters will cause issues
+                val queryItems = mutableListOf(URLQueryItem("pk", factory.storage.apiKey))
+
+                // TODO: Localization
+                /*
+
+                // In the config endpoint we return all the locales, this code will check if:
+                // 1. The device locale (ex: en_US) exists in the locales list
+                // 2. The shortened device locale (ex: en) exists in the locale list
+                // If either exist (preferring the most specific) include the locale in the
+                // the url as a query param.
+                factory.configManager.config?.let { config ->
+                    when {
+                        config.locales.contains(factory.deviceHelper.locale) -> {
+                            val localeQuery = URLQueryItem(
+                                name = "locale",
+                                value = factory.deviceHelper.locale
+                            )
+                            queryItems.add(localeQuery)
+                        }
+                        else -> {
+                            val shortLocale = factory.deviceHelper.locale.split("_")[0]
+                            if (config.locales.contains(shortLocale)) {
+                                val localeQuery = URLQueryItem(
+                                    name = "locale",
+                                    value = shortLocale
+                                )
+                                queryItems.add(localeQuery)
+                            }
+                        }
+                    }
+                }
+
+                */
+                val baseHost = factory.api.base.host
+
+                return Endpoint(
+                    components = Components(
+                        host = baseHost,
+                        path = Api.version1 + "paywall/$identifier",
+                        queryItems = queryItems
+                    ),
+                    method = HttpMethod.GET,
+                    factory = factory
+                )
+            }
+
+
 
         private fun createEndpointWithBodyData(bodyData: String?, factory: ApiFactory): Endpoint<Paywall> {
             val baseHost = factory.api.base.host
