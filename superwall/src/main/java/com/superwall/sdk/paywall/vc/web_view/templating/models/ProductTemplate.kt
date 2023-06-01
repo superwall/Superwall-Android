@@ -1,13 +1,10 @@
 package com.superwall.sdk.paywall.view_controller.web_view.templating.models
 
+import com.superwall.sdk.models.product.Product
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-// TODO: Make this use the right product
-@Serializable
-data class Product(
-    val product: String,
-)
+
 
 @Serializable
 data class ProductTemplate(

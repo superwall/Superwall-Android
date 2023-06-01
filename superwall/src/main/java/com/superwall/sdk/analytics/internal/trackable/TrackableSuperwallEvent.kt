@@ -283,22 +283,35 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
         }
     }
 
-    sealed class PaywallWebviewLoad(
+    */
+
+
+        class PaywallWebviewLoad(
+        val state: State,
         val paywallInfo: PaywallInfo,
         override var customParameters: HashMap<String, Any> = HashMap()
     ): InternalSuperwallEvent(SuperwallEvent.PaywallWebviewLoadStart(paywallInfo)) {
 
-        class Start : PaywallWebviewLoad()
-        class Fail : PaywallWebviewLoad()
-        class Timeout : PaywallWebviewLoad()
-        class Complete : PaywallWebviewLoad()
+        sealed class State {
+            class Start : State()
+            class Fail : State()
+            class Timeout : State()
+            class Complete : State()
+        }
+
+        override val superwallEvent: SuperwallEvent
+            get() = when (state) {
+                is PaywallWebviewLoad.State.Start -> SuperwallEvent.PaywallWebviewLoadStart(paywallInfo)
+                is PaywallWebviewLoad.State.Timeout -> SuperwallEvent.PaywallWebviewLoadTimeout(paywallInfo)
+                is PaywallWebviewLoad.State.Fail -> SuperwallEvent.PaywallWebviewLoadFail(paywallInfo)
+                is PaywallWebviewLoad.State.Complete -> SuperwallEvent.PaywallWebviewLoadComplete(paywallInfo)
+            }
 
         override suspend fun getSuperwallParameters(): HashMap<String, Any> {
-            return paywallInfo.eventParams()
+            return HashMap(paywallInfo.eventParams())
         }
     }
 
-    */
     class PaywallProductsLoad(
         val state: State,
         val paywallInfo: PaywallInfo,

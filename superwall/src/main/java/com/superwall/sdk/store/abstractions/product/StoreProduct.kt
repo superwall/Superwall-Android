@@ -27,6 +27,8 @@ object SkuDetailsSerializer : KSerializer<SkuDetails> {
 @Serializable
 data class RawStoreProduct(@Serializable(with = SkuDetailsSerializer::class) val skuDetails: SkuDetails)
 
+// TODO: Fill in all these with appropirate implementations
+
 @Serializable
 class StoreProduct(
     val rawStoreProduct: RawStoreProduct
@@ -45,7 +47,6 @@ class StoreProduct(
     // I think this is the v2 product variables we never shipped so I'm going to skip it
 //    override val swProductTemplateVariablesJson: JsonObject
 //        get() = TODO("Implement based on your needs")
-
     override val localizedPrice: String
         get() = rawStoreProduct.skuDetails.price
 
@@ -56,73 +57,73 @@ class StoreProduct(
         get() = rawStoreProduct.skuDetails.subscriptionPeriod
 
     override val periodly: String
-        get() = TODO("Implement based on your needs")
+        get() = "" // TODO: Implement based on your needs
 
     override val periodWeeks: Int
-        get() = TODO("Convert period into weeks based on your needs")
+        get() = 0 // Convert period into weeks based on your needs
 
     override val periodWeeksString: String
         get() = periodWeeks.toString()
 
     override val periodMonths: Int
-        get() = TODO("Convert period into months based on your needs")
+        get() = 0 // Convert period into months based on your needs
 
     override val periodMonthsString: String
         get() = periodMonths.toString()
 
     override val periodYears: Int
-        get() = TODO("Convert period into years based on your needs")
+        get() = 0 // Convert period into years based on your needs
 
     override val periodYearsString: String
         get() = periodYears.toString()
 
     override val periodDays: Int
-        get() = TODO("Convert period into days based on your needs")
+        get() = 0 // Convert period into days based on your needs
 
     override val periodDaysString: String
         get() = periodDays.toString()
 
     override val dailyPrice: String
-        get() = TODO("Calculate daily price based on your needs")
+        get() = "" // Calculate daily price based on your needs
 
     override val weeklyPrice: String
-        get() = TODO("Calculate weekly price based on your needs")
+        get() = "" // Calculate weekly price based on your needs
 
     override val monthlyPrice: String
-        get() = TODO("Calculate monthly price based on your needs")
+        get() = "" // Calculate monthly price based on your needs
 
     override val yearlyPrice: String
-        get() = TODO("Calculate yearly price based on your needs")
+        get() = "" // Calculate yearly price based on your needs
 
     override val hasFreeTrial: Boolean
         get() = rawStoreProduct.skuDetails.freeTrialPeriod.isNotEmpty()
 
     override val trialPeriodEndDate: Date?
-        get() = TODO("Calculate trial period end date based on your needs")
+        get() = null // Calculate trial period end date based on your needs
 
     override val trialPeriodEndDateString: String
-        get() = TODO("Format trialPeriodEndDate as a string based on your needs")
+        get() = "" // Format trialPeriodEndDate as a string based on your needs
 
     override val trialPeriodDays: Int
-        get() = TODO("Calculate trial period days based on your needs")
+        get() = 0 // Calculate trial period days based on your needs
 
     override val trialPeriodDaysString: String
         get() = trialPeriodDays.toString()
 
     override val trialPeriodWeeks: Int
-        get() = TODO("Calculate trial period weeks based on your needs")
+        get() = 0 // Calculate trial period weeks based on your needs
 
     override val trialPeriodWeeksString: String
         get() = trialPeriodWeeks.toString()
 
     override val trialPeriodMonths: Int
-        get() = TODO("Calculate trial period months based on your needs")
+        get() = 0 // Calculate trial period months based on your needs
 
     override val trialPeriodMonthsString: String
         get() = trialPeriodMonths.toString()
 
     override val trialPeriodYears: Int
-        get() = TODO("Calculate trial period years based on your needs")
+        get() = 0 // Calculate trial period years based on your needs
 
     override val trialPeriodYearsString: String
         get() = trialPeriodYears.toString()
@@ -131,19 +132,19 @@ class StoreProduct(
         get() = rawStoreProduct.skuDetails.freeTrialPeriod
 
     override val locale: String
-        get() = TODO("Get the locale based on your needs")
+        get() = "" // Get the locale based on your needs
 
     override val languageCode: String?
-        get() = TODO("Get the language code based on your needs")
+        get() = null // Get the language code based on your needs
 
     override val currencyCode: String?
         get() = rawStoreProduct.skuDetails.priceCurrencyCode
 
     override val currencySymbol: String?
-        get() = TODO("Get the currency symbol based on your needs")
+        get() = null // Get the currency symbol based on your needs
 
     override val regionCode: String?
-        get() = TODO("Get the region code based on your needs")
+        get() = null // Get the region code based on your needs
 
 
     val attributes: Map<String, String>

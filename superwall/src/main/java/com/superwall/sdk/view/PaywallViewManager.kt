@@ -30,10 +30,10 @@ class PaywallViewManager(currentActivity: Activity, paywall: Paywall) : PaywallM
         }
     }
 
-    private var webView: SWWebView? = null
+    private var webView: SWWebViewOld? = null
 
     private fun setupWebView() {
-        webView = SWWebView(this,  currentActivity as Activity, null)
+        webView = SWWebViewOld(this,  currentActivity as Activity, null)
         webView!!.loadUrl(paywall.url.toString())
 
         // TODO: Wait for ping...
@@ -43,7 +43,7 @@ class PaywallViewManager(currentActivity: Activity, paywall: Paywall) : PaywallM
 
     private var paywallView: PaywallView? = null
 
-    private fun createNewPopupView(webView: SWWebView) {
+    private fun createNewPopupView(webView: SWWebViewOld) {
         if (paywallView != null) {
             paywallView!!.dismiss()
         }

@@ -12,16 +12,11 @@ import android.provider.Settings
 import android.telephony.TelephonyManager
 import android.util.Log
 import androidx.core.content.ContextCompat
-import com.superwall.sdk.Superwall
 import com.superwall.sdk.dependencies.IdentityInfoAndLocaleIdentifierFactory
-import com.superwall.sdk.dependencies.IdentityInfoFactory
-import com.superwall.sdk.dependencies.LocaleIdentifierFactory
-import com.superwall.sdk.paywall.view_controller.web_view.templating.models.DeviceTemplate
+import com.superwall.sdk.paywall.vc.web_view.templating.models.DeviceTemplate
 import com.superwall.sdk.storage.Storage
-import kotlinx.coroutines.coroutineScope
 import java.text.SimpleDateFormat
 import java.util.*
-import kotlin.collections.HashMap
 
 
 class DeviceHelper(private val context: Context, val storage: Storage, val factory: IdentityInfoAndLocaleIdentifierFactory) {

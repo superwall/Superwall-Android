@@ -213,7 +213,7 @@ class PaywallRequestManager(
                 { id -> storeKitManager.isFreeTrialAvailable(id) }
             )
             paywall.productVariables = outcome.productVariables
-            paywall.swProductVariablesTemplate = outcome.swProductVariablesTemplate
+//            paywall.swProductVariablesTemplate = outcome.swProductVariablesTemplate
             paywall.isFreeTrialAvailable = outcome.isFreeTrialAvailable
 
             return paywall

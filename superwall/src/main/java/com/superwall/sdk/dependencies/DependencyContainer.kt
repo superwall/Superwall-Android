@@ -19,9 +19,11 @@ import com.superwall.sdk.delegate.SuperwallDelegate
 import com.superwall.sdk.identity.IdentityInfo
 import com.superwall.sdk.identity.IdentityManager
 import com.superwall.sdk.misc.ActivityLifecycleTracker
+import com.superwall.sdk.misc.runOnUiThread
 import com.superwall.sdk.misc.sdkVersion
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
+import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.network.Api
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.network.device.DeviceHelper
@@ -38,10 +40,16 @@ import com.superwall.sdk.paywall.request.PaywallRequestManager
 import com.superwall.sdk.paywall.request.PaywallRequestManagerDepFactory
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
 import com.superwall.sdk.paywall.vc.PaywallViewController
+import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegate
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegateAdapter
+import com.superwall.sdk.paywall.vc.web_view.SWWebView
+import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallMessageHandler
+import com.superwall.sdk.paywall.vc.web_view.templating.models.OuterVariables
+import com.superwall.sdk.paywall.vc.web_view.templating.models.Variables
 import com.superwall.sdk.storage.EventsQueue
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.StoreKitManager
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.StateFlow
 import java.net.HttpURLConnection
 
@@ -50,7 +58,7 @@ import java.net.HttpURLConnection
 class PurchaseController {}
 
 class DependencyContainer(val context: Context, purchaseController: PurchaseController? = null, options: SuperwallOptions = SuperwallOptions()): ApiFactory, DeviceInfoFactory, AppManagerDelegate, RequestFactory, TriggerSessionManagerFactory, RuleAttributesFactory, IdentityInfoFactory, LocaleIdentifierFactory, IdentityInfoAndLocaleIdentifierFactory, ViewControllerCacheDevice,
-    PaywallRequestManagerDepFactory {
+    PaywallRequestManagerDepFactory, VariablesFactory {
 
     var network: Network
     override lateinit var api: Api
@@ -77,8 +85,7 @@ class DependencyContainer(val context: Context, purchaseController: PurchaseCont
         activityLifecycleTracker = ActivityLifecycleTracker()
         // onto
         (context.applicationContext as Application).registerActivityLifecycleCallbacks(
-            ActivityLifecycleTracker.instance)
-
+            activityLifecycleTracker)
 
         storage = Storage(context = context, factory = this)
         network = Network(factory = this)
@@ -114,7 +121,7 @@ class DependencyContainer(val context: Context, purchaseController: PurchaseCont
             factory = this
         )
 
-        storeKitManager = StoreKitManager()
+        storeKitManager = StoreKitManager(context)
 
         paywallRequestManager = PaywallRequestManager(
             storeKitManager = storeKitManager,
@@ -172,13 +179,48 @@ class DependencyContainer(val context: Context, purchaseController: PurchaseCont
     override suspend fun makePaywallViewController(
         paywall: Paywall,
         cache: PaywallViewControllerCache?,
-        delegate: PaywallViewControllerDelegateAdapter?
+        delegate: PaywallViewControllerDelegate?
     ): PaywallViewController {
-        TODO("Not yet implemented")
+        // TODO: Fix this up
+
+        val messageHandler = PaywallMessageHandler(
+            sessionEventsManager = sessionEventsManager,
+            factory = this
+        )
+
+
+        val webViewDeffered = CompletableDeferred<SWWebView>()
+
+       runOnUiThread {
+           val _webView = SWWebView(
+               context = context,
+               messageHandler = messageHandler,
+               sessionEventsManager = sessionEventsManager,
+           )
+           webViewDeffered.complete(_webView)
+       }
+
+        val webView = webViewDeffered.await()
+
+
+        val paywallViewController =  PaywallViewController(
+            paywall = paywall,
+            factory = this,
+            cache = cache,
+            delegate = delegate,
+            deviceHelper = deviceHelper,
+            paywallManager = paywallManager,
+            storage = storage,
+            webView = webView,
+        )
+        webView.delegate = paywallViewController
+        messageHandler.delegate = paywallViewController
+
+        return paywallViewController
     }
 
     override fun makeCache(): PaywallViewControllerCache {
-        TODO("Not yet implemented")
+        return PaywallViewControllerCache(deviceHelper.locale)
     }
 
 
@@ -281,4 +323,19 @@ class DependencyContainer(val context: Context, purchaseController: PurchaseCont
     override fun makeLocaleIdentifier(): String? {
         return configManager.options?.localeIdentifier
     }
+
+    override suspend fun makeJsonVariables(
+        productVariables: List<ProductVariable>?,
+        params: Map<String, Any?>?
+    ): OuterVariables {
+        val templateDeviceDictionary = deviceHelper.getTemplateDevice().toDictionary()
+        return Variables.fromProperties(
+            productVariables = productVariables ?: listOf<ProductVariable>(),
+            params = params ?: mapOf(),
+            userAttributes = identityManager.userAttributes,
+            templateDeviceDictionary = templateDeviceDictionary
+        )
+    }
+
+
 }

@@ -28,9 +28,15 @@ object AnyMapSerializer : KSerializer<Map<String, Any?>> {
                 when (v) {
                     is String -> put(k, JsonPrimitive(v))
                     is Int -> put(k, JsonPrimitive(v))
+                    is Double -> put(k, JsonPrimitive(v))
                     is Boolean -> put(k, JsonPrimitive(v))
                     null -> put(k, JsonNull)
-                    else -> throw SerializationException("$v is not supported")
+                    else -> {
+                        // TODO: Figure out when this is happening
+                        put(k, JsonNull)
+                        println("!! Warning: Unsupported type ${v::class}, skipping...")
+//                        throw SerializationException("$v is not supported")
+                    }
                 }
             }
         }

@@ -4,6 +4,7 @@ import android.app.Activity
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
+import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegate
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegateAdapter
 import kotlinx.coroutines.flow.StateFlow
 
@@ -12,7 +13,7 @@ import kotlinx.coroutines.flow.StateFlow
 sealed class PresentationRequestType {
 
     object Presentation : PresentationRequestType()
-    data class GetPaywallViewController(val adapter: PaywallViewControllerDelegateAdapter) : PresentationRequestType()
+    data class GetPaywallViewController(val adapter: PaywallViewControllerDelegate) : PresentationRequestType()
     object GetPresentationResult : PresentationRequestType()
     object GetImplicitPresentationResult : PresentationRequestType()
 
@@ -25,7 +26,7 @@ sealed class PresentationRequestType {
             else -> "Unknown"
         }
 
-    val paywallVcDelegateAdapter: PaywallViewControllerDelegateAdapter?
+    val paywallVcDelegateAdapter: PaywallViewControllerDelegate?
         get() = if (this is GetPaywallViewController) this.adapter else null
 
     val hasObjcDelegate: Boolean

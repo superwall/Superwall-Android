@@ -108,7 +108,7 @@ class PaywallView(webView: WebView) {
         //         startDismissTimerIfNeeded();
         //     }
         // });
-            
+
     }
 
     private lateinit var parentRelativeLayout: RelativeLayout
@@ -118,7 +118,5 @@ class PaywallView(webView: WebView) {
         parentRelativeLayout.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         parentRelativeLayout.setClipChildren(false)
         parentRelativeLayout.setClipToPadding(false)
-//        parentRelativeLayout.addView(draggableRelativeLayout)
     }
-
 }

@@ -96,7 +96,11 @@ open class ProductFetcher(var context: Context) : PurchasesUpdatedListener {
                 )
 
 //            sdcope.launch {
-                val networkResult = queryProductDetails(productIdsToLoad)
+                println("!! Querying product details for ${productIdsToLoad.size} products, prodcuts: ${productIdsToLoad} ${Thread.currentThread().name}")
+                val networkResult = runBlocking {
+                    queryProductDetails(productIdsToLoad)
+                }
+                println("!! networkResult: ${networkResult} ${Thread.currentThread().name}")
                 _results.emit(
                     _results.value + networkResult.mapValues { it.value  }
                 )
@@ -120,15 +124,20 @@ open class ProductFetcher(var context: Context) : PurchasesUpdatedListener {
 
     open suspend fun queryProductDetails(productIds: List<String>): Map<String, Result<RawStoreProduct>> {
 
-        val deferred = CompletableDeferred<Map<String, Result<RawStoreProduct>>>(emptyMap())
+        val deferred = CompletableDeferred<Map<String, Result<RawStoreProduct>>>()
 
         val skuList = ArrayList<String>()
         skuList.addAll(productIds)
         val params = SkuDetailsParams.newBuilder()
         params.setSkusList(skuList).setType(BillingClient.SkuType.SUBS)
 
+        println("!! Querying product details for ${productIds.size} products, prodcuts: ${productIds},  ${Thread.currentThread().name}")
+
         billingClient.querySkuDetailsAsync(params.build()) {
                 billingResult, skuDetailsList ->
+
+            println("!! Got product details for ${productIds.size} products, prodcuts: ${productIds}, billingResult: ${billingResult}, skuDetailsList: ${skuDetailsList }  ${Thread.currentThread().name}\"")
+
             if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && skuDetailsList != null) {
                 deferred.complete(skuDetailsList.associateBy { it.sku }.mapValues { Result.Success(RawStoreProduct(it.value)) })
             } else {
@@ -140,7 +149,9 @@ open class ProductFetcher(var context: Context) : PurchasesUpdatedListener {
             }
         }
 
-        return deferred.await()
+        val value =  deferred.await()
+        println("!! Returning product details for ${productIds.size} products, prodcuts: ${productIds}, value: ${value}  ${Thread.currentThread().name}\"")
+        return value
     }
 
     override fun onPurchasesUpdated(p0: BillingResult, p1: MutableList<Purchase>?) {

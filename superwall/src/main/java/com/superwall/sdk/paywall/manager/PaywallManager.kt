@@ -4,6 +4,7 @@ import com.superwall.sdk.dependencies.ViewControllerCacheDevice
 import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.paywall.request.PaywallRequestManager
 import com.superwall.sdk.paywall.vc.PaywallViewController
+import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegate
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegateAdapter
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -43,7 +44,7 @@ class PaywallManager(private val factory: ViewControllerCacheDevice,
     suspend fun getPaywallViewController(
         request: PaywallRequest,
         isPreloading: Boolean,
-        delegate: PaywallViewControllerDelegateAdapter?
+        delegate: PaywallViewControllerDelegate?
     ): PaywallViewController {
         println("!!!PaywallManager.getPaywallViewController: Get")
         val paywall = paywallRequestManager.getPaywall(request)

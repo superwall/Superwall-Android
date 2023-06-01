@@ -25,7 +25,7 @@ data class ResponseIdentifiers(
 
 data class ProductProcessingOutcome(
     var productVariables: List<ProductVariable>,
-    var swProductVariablesTemplate: List<ProductVariable>,
+//    var swProductVariablesTemplate: List<ProductVariable>,
 //    var orderedSwProducts: List<SWProduct>,
     var isFreeTrialAvailable: Boolean
 )
@@ -111,11 +111,11 @@ object PaywallLogic {
             )
             productVariables.add(productVariable)
 
-            val swTemplateProductVariable = ProductVariable(
-                type = product.type,
-                attributes = storeProduct.swProductTemplateVariablesJson
-            )
-            swTemplateProductVariables.add(swTemplateProductVariable)
+//            val swTemplateProductVariable = ProductVariable(
+//                type = product.type,
+//                attributes = storeProduct.swProductTemplateVariablesJson
+//            )
+//            swTemplateProductVariables.add(swTemplateProductVariable)
 
             if (!hasFreeTrial) {
                 hasFreeTrial = isFreeTrialAvailable(storeProduct)
@@ -129,7 +129,7 @@ object PaywallLogic {
 
         return ProductProcessingOutcome(
             productVariables = productVariables,
-            swProductVariablesTemplate = swTemplateProductVariables,
+//            swProductVariablesTemplate = swTemplateProductVariables,
             isFreeTrialAvailable = hasFreeTrial
         )
     }

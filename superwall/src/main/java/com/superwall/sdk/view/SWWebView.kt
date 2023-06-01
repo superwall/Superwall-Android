@@ -6,7 +6,7 @@ import android.util.AttributeSet
 import android.webkit.WebView
 import com.superwall.sdk.deprecated.PaywallMessage
 
-class SWWebView(delegate: PaywallMessageDelegate, context: Context, attrs: AttributeSet?) : WebView(context, attrs), PaywallMessageDelegate {
+class SWWebViewOld(delegate: PaywallMessageDelegate, context: Context, attrs: AttributeSet? = null) : WebView(context, attrs), PaywallMessageDelegate {
     private val delegate: PaywallMessageDelegate = delegate
 
     init {

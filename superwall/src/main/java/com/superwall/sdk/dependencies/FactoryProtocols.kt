@@ -21,7 +21,9 @@ import com.superwall.sdk.paywall.presentation.rule_logic.RuleAttributes
 import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
 import com.superwall.sdk.paywall.vc.PaywallViewController
+import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegate
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegateAdapter
+import com.superwall.sdk.paywall.vc.web_view.templating.models.OuterVariables
 import com.superwall.sdk.storage.Storage
 import kotlinx.coroutines.flow.StateFlow
 import java.net.HttpURLConnection
@@ -98,7 +100,7 @@ interface ViewControllerFactory {
     suspend fun makePaywallViewController(
         paywall: Paywall,
         cache: PaywallViewControllerCache?,
-        delegate: PaywallViewControllerDelegateAdapter?
+        delegate: PaywallViewControllerDelegate?
     ): PaywallViewController
 
     // TODO: (Debug)
@@ -111,7 +113,7 @@ interface ViewControllerCacheDevice  {
     suspend fun makePaywallViewController(
         paywall: Paywall,
         cache: PaywallViewControllerCache?,
-        delegate: PaywallViewControllerDelegateAdapter?
+        delegate: PaywallViewControllerDelegate?
     ): PaywallViewController
 
     // TODO: (Debug)
@@ -132,8 +134,8 @@ interface CacheFactory {
 interface VariablesFactory {
     suspend fun makeJsonVariables(
         productVariables: List<ProductVariable>?,
-        params: Map<String, Any>?
-    ): Map<String, Any>
+        params: Map<String, Any?>?
+    ): OuterVariables
 }
 
 interface ConfigManagerFactory {

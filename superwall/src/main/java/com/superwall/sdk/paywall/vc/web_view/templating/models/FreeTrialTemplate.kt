@@ -1,4 +1,4 @@
-package com.superwall.sdk.paywall.view_controller.web_view.templating.models
+package com.superwall.sdk.paywall.vc.web_view.templating.models
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable

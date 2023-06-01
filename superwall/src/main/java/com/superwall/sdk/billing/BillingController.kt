@@ -29,7 +29,8 @@ class BillingController(context: Context) : PurchasesUpdatedListener {
 
 
     override fun onPurchasesUpdated(p0: BillingResult, p1: MutableList<Purchase>?) {
-        TODO("Not yet implemented")
+//        TODO("Not yet implemented")
+        // Not really sure what this does...
     }
 
     private fun startConnection(completion: (success: Boolean) -> Unit) {

@@ -41,8 +41,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
             presentationStyleOverride = request.paywallOverrides?.presentationStyle,
             paywallStatePublisher = paywallStatePublisher
         ) {
-            isPaywallPresented ->
-            if (isPaywallPresented) {
+            canPresent ->
+            println("!! canPresent: $canPresent")
+            if (canPresent) {
                 val state: PaywallState =
                     PaywallState.Presented(input.paywallViewController.paywallInfo!!)
                 paywallStatePublisher.value = state

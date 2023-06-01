@@ -38,6 +38,7 @@ class StoreKitManager(private val context: Context) : StoreKitManagerInterface {
             when(product.value)  {
                 is ProductFetcher.Result.Success -> {
                     val rawStoreProduct = (product.value as ProductFetcher.Result.Success).value
+                    println("!! rawStoreProduct: $rawStoreProduct")
                     productsById[product.key] = StoreProduct(rawStoreProduct)
                 } else -> {
                     // TODO: ??
@@ -68,7 +69,8 @@ class StoreKitManager(private val context: Context) : StoreKitManagerInterface {
     }
 
     override suspend fun isFreeTrialAvailable(product: StoreProduct): Boolean {
-        TODO("Not yet implemented")
+        // TODO: Implement this
+        return false
     }
 
     override suspend fun products(

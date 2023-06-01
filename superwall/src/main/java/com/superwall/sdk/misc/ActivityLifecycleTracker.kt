@@ -18,6 +18,7 @@ class ActivityLifecycleTracker constructor() : Application.ActivityLifecycleCall
     override fun onActivityStarted(activity: Activity) {}
 
     override fun onActivityResumed(activity: Activity) {
+        println("!! onActivityResumed: $activity")
         currentActivity = activity
     }
 
@@ -28,12 +29,14 @@ class ActivityLifecycleTracker constructor() : Application.ActivityLifecycleCall
     override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
 
     override fun onActivityDestroyed(activity: Activity) {
+        println("!! onActivityDestroyed: $activity")
         if (currentActivity == activity) {
             currentActivity = null
         }
     }
 
     fun getCurrentActivity(): Activity? {
+        println("!! getCurrentActivity: $currentActivity")
         return currentActivity
     }
 }
