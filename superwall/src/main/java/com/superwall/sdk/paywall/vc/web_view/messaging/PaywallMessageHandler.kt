@@ -175,11 +175,10 @@ class PaywallMessageHandler(
             info = mapOf("message" to scriptSrc)
         )
 
-        withContext(Dispatchers.Main) {
+        CoroutineScope(Dispatchers.Main).launch  {
             delegate?.webView?.evaluateJavascript(scriptSrc) { error ->
-                println("!! PaywallMessageHandler: Error: $error")
-
                 if (error != null) {
+                    println("!! PaywallMessageHandler: Error: $error")
                     Logger.debug(
                         logLevel = LogLevel.error,
                         scope = LogScope.paywallViewController,

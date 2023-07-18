@@ -201,6 +201,33 @@ public class Superwall(context: Context, apiKey: String) {
             track(UserInitiatedEvent.Track(rawName = event, customParameters = HashMap(params ?: emptyMap()), isFeatureGatable = true, canImplicitlyTriggerPaywall = true))
         }
     }
+
+
+    //
+//    // MARK: - Reset
+//    /// Resets the `userId`, on-device paywall assignments, and data stored
+//    /// by Superwall.
+    fun reset() {
+       CoroutineScope(Dispatchers.IO).launch {
+           reset(duringIdentify = false)
+       }
+    }
+
+
+
+//    public func reset() {
+//        reset(duringIdentify: false)
+//    }
+//
+    /// Asynchronously resets. Presentation of paywalls is suspended until reset completes.
+    protected suspend fun reset(duringIdentify: Boolean) {
+        dependencyContainer.identityManager.reset(duringIdentify)
+        dependencyContainer.storage.reset()
+        dependencyContainer.paywallManager.resetCache()
+        presentationItems.reset()
+        dependencyContainer.configManager.reset()
+    }
+
 //
 //    fun present() {
 //        // Present the Superwall
@@ -219,6 +246,5 @@ public class Superwall(context: Context, apiKey: String) {
 
 
     var options: SuperwallOptions = SuperwallOptions()
-
 }
 

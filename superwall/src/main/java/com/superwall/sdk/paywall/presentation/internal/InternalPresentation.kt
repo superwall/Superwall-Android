@@ -24,7 +24,7 @@ fun Superwall.internallyPresent(request: PresentationRequest, publisher: Mutable
         try {
             checkNoPaywallAlreadyPresented(request, publisher)
             waitToPresent(request)
-            val debugInfo = logPresentation(request, "Called Superwall.shared.track")
+            val debugInfo = logPresentation(request, "Called Superwall.instance.register")
             checkDebuggerPresentation(request, publisher)
             val assignmentOutput = evaluateRules(request, debugInfo)
             checkUserSubscription(request, assignmentOutput.triggerResult, publisher)

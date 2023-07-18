@@ -85,16 +85,16 @@ open class Storage(
         }
     }
 //
-//    fun reset() {
-//        coreDataManager.deleteAllEntities()
-//        cache.cleanUserFiles()
-//
-//        withContext(queue) {
-//            _confirmedAssignments = null
-//            _didTrackFirstSeen = false
-//        }
-//        recordFirstSeenTracked()
-//    }
+    suspend fun reset() {
+        coreDataManager.deleteAllEntities()
+        cache.cleanUserFiles()
+
+        withContext(queue) {
+            _confirmedAssignments = null
+            _didTrackFirstSeen = false
+        }
+        recordFirstSeenTracked()
+    }
 //
     suspend fun recordFirstSeenTracked() {
         withContext(queue) {

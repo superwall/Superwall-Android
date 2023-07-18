@@ -122,6 +122,7 @@ sealed class TrackingLogic {
 
             println("canTriggerPaywall: ${event.rawName} $triggers")
             if (!triggers.contains(event.rawName)) {
+                println("!! canTriggerPaywall: triggers.contains(event.rawName) ${event.rawName} $triggers")
                 return ImplicitTriggerOutcome.DontTriggerPaywall
             }
 
@@ -135,6 +136,7 @@ sealed class TrackingLogic {
            val referringEventName = paywallViewController?.paywallInfo?.presentedByEventWithName
             if (referringEventName != null)  {
                 if (notAllowedReferringEventNames.contains(referringEventName)) {
+                    println("!! canTriggerPaywall: notAllowedReferringEventNames.contains(referringEventName) $referringEventName")
                     return ImplicitTriggerOutcome.DontTriggerPaywall
                 }
             }
@@ -149,6 +151,7 @@ sealed class TrackingLogic {
             }
 
             if (paywallViewController != null) {
+                println("!! canTriggerPaywall: paywallViewController != null")
                 return ImplicitTriggerOutcome.DontTriggerPaywall
             }
 

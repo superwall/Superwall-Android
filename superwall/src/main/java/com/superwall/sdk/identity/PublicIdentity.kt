@@ -4,7 +4,7 @@ import com.superwall.sdk.Superwall
 
 fun Superwall.identify(userId: String, options: IdentityOptions? = null) {
     // Call to dependency controller
-    // TODO: Actually call
+    dependencyContainer.identityManager.identify(userId, options)
 }
 
 /// Sets user attributes for use in paywalls and the Superwall dashboard.
@@ -34,7 +34,7 @@ fun Superwall.identify(userId: String, options: IdentityOptions? = null) {
 fun Superwall.setUserAttributes(attributes: Map<String, Any?>) {
     // Call to dependency controller
     val cleanAttributes = cleanAttributes(attributes)
-    // TODO: Call to dependency controller
+    dependencyContainer.identityManager.mergeUserAttributes(cleanAttributes)
 }
 
 fun cleanAttributes(attributes: Map<String, Any?>): Map<String, Any?> {

@@ -27,4 +27,9 @@ class Cache(var context: Context, var config: CacheHelperConfiguration = CacheHe
     public val lastPaywallView = LastPaywallViewManager(cacheHelper)
     public val userAttributes = UserAttributesManager(cacheHelper)
     public val sdkVersion = SdkVersionManager(cacheHelper)
+
+
+    suspend fun cleanUserFiles() {
+        cacheHelper.cleanUserFiles()
+    }
 }

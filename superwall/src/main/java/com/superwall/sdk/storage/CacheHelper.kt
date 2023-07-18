@@ -118,4 +118,19 @@ class CacheHelper(context: Context, config: CacheHelperConfiguration) {
         val digest = md5.digest()
         return digest.fold("", { str, it -> str + "%02x".format(it) })
     }
+
+
+    suspend fun cleanUserFiles() {
+        // Clean the mem cache
+        memCache.clear()
+
+
+        ioScope.async {
+            val files = userSpecificDocumentDir.listFiles()
+            files?.forEach {
+                it.delete()
+            }
+        }
+    }
+
 }

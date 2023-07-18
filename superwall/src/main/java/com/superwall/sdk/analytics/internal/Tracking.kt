@@ -70,13 +70,16 @@ suspend fun Superwall.handleImplicitTrigger(
     forEvent: Trackable,
     withData: EventData
 ) {
-    println("!! handleImplicitTrigger 1")
+    println("!! handleImplicitTrigger 1: ${forEvent.rawName}")
 
     val event = forEvent
     val eventData = withData
 
     // Should block until identity is available
+
+    println("!! handleImplicitTrigger 1.1 - awaiting identity ${forEvent.rawName} ${Thread.currentThread().name}")
     dependencyContainer.identityManager.hasIdentity.filter { it }.first()
+    println("!! handleImplicitTrigger 1.1 - confirmed identity ${forEvent.rawName} ${Thread.currentThread().name}")
 
     println("!! handleImplicitTrigger 1.5")
 

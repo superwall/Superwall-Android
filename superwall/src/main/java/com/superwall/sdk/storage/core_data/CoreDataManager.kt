@@ -40,15 +40,16 @@ class CoreDataManager : CoreDataManagerInterface {
         triggerRuleOccurrence: TriggerRuleOccurrence,
         completion: ((ManagedTriggerRuleOccurrence) -> Unit)?
     ) {
-        TODO("Not yet implemented")
+        // TODO: ??
     }
 
     override fun deleteAllEntities() {
-        TODO("Not yet implemented")
+        // TODO: ??
     }
 
     override fun countTriggerRuleOccurrences(ruleOccurrence: TriggerRuleOccurrence): Int {
-        TODO("Not yet implemented")
+        // TODO: ?
+        return 0
     }
 
 }

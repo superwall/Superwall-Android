@@ -33,7 +33,7 @@ object TemplateLogic {
 //            swProductTemplateVariables = paywall.swProductVariablesTemplate ?: emptyList()
 //        )
 
-        val json = Json {  }
+        val json = Json {  encodeDefaults = true }
 
         val encodedTemplates = listOf(
             json.encodeToString(productsTemplate),
@@ -44,6 +44,8 @@ object TemplateLogic {
 
         val templatesString = "[" + encodedTemplates.joinToString(",") + "]"
         val templatesData = templatesString.toByteArray(Charsets.UTF_8)
+
+        println("!!! Template Logic: $templatesString")
 
         return Base64.getEncoder().encodeToString(templatesData)
     }

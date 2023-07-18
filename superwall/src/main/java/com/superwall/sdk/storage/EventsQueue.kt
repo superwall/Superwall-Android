@@ -32,7 +32,7 @@ class EventsQueue(private val context: Context, private val network: Network, pr
     }
 
     private suspend fun setupTimer() {
-        val timeInterval = if (configManager.options?.networkEnvironment == SuperwallOptions.NetworkEnvironment.RELEASE) 20L else 1L
+        val timeInterval = if (configManager.options?.networkEnvironment is SuperwallOptions.NetworkEnvironment.Release) 20L else 1L
         job = CoroutineScope(Dispatchers.Default).launch {
             while (isActive) {
                 delay(timeInterval * 1000) // delay works in milliseconds

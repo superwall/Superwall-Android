@@ -32,7 +32,9 @@ class StoreKitManager(private val context: Context) : StoreKitManagerInterface {
         substituteProducts: PaywallProducts?
     ): GetProductsResponse {
         var productsById = mutableMapOf<String, StoreProduct>()
+        println("!! responseProductIds: $responseProductIds")
         val products = fetcher.products(responseProductIds)
+        println("!! products: $products")
 
         for (product in products) {
             when(product.value)  {

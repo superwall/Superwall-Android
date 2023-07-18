@@ -52,7 +52,7 @@ private fun parsePaywallMessage(json: JSONObject): PaywallMessage {
         "open_url" -> PaywallMessage.OpenUrl(URL(json.getString("url")))
         "open_url_external" -> PaywallMessage.OpenUrlInSafari(URL(json.getString("url")))
         "open_deep_link" -> PaywallMessage.OpenDeepLink(Uri.parse(json.getString("link")))
-        "purchase" -> PaywallMessage.Purchase(json.getString("product"), json.getString("product_id"))
+        "purchase" -> PaywallMessage.Purchase(json.getString("product"), json.getString("product_identifier"))
         "custom" -> PaywallMessage.Custom(json.getString("data"))
         else -> throw IllegalArgumentException("Unknown event name: $eventName")
     }

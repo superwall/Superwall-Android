@@ -18,7 +18,8 @@ class Variables(
     val primary: Map<String, @kotlinx.serialization.Serializable(with = AnySerializer::class)Any?>?,
     val secondary: Map<String, @kotlinx.serialization.Serializable(with = AnySerializer::class)Any?>?,
     val tertiary: Map<String, @kotlinx.serialization.Serializable(with = AnySerializer::class)Any?>?,
-    val device: Map<String, @kotlinx.serialization.Serializable(with = AnySerializer::class) Any?>,
+//    val device: Map<String, @kotlinx.serialization.Serializable(with = AnySerializer::class) Any?>,
+    val device: DeviceTemplate,
     val params: Map<String, @kotlinx.serialization.Serializable(with = AnySerializer::class) Any?>,
 ) {
 
@@ -27,7 +28,7 @@ class Variables(
             productVariables: List<ProductVariable>,
             params: Map<String, Any?>,
             userAttributes: Map<String, Any?>,
-            templateDeviceDictionary: Map<String, Any?>
+            templateDeviceDictionary: DeviceTemplate
         ): OuterVariables  {
             val primary = productVariables.firstOrNull { it.type == ProductType.PRIMARY }
             val secondary = productVariables.firstOrNull { it.type == ProductType.SECONDARY }
@@ -41,7 +42,8 @@ class Variables(
                     tertiary = tertiary?.attributes,
                     device = templateDeviceDictionary,
                     params = params
-                )
+                ),
+               event_name = "template_variables"
            )
         }
     }

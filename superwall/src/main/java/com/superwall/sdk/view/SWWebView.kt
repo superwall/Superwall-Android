@@ -16,6 +16,8 @@ class SWWebViewOld(delegate: PaywallMessageDelegate, context: Context, attrs: At
     private fun setup() {
         settings.javaScriptEnabled = true
         addJavascriptInterface(SWWebViewInterface(this, context), "SWAndroid")
+        // TODO: Remove this
+        setWebContentsDebuggingEnabled(true)
     }
 
 

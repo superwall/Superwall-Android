@@ -98,7 +98,7 @@ class DependencyContainer(val context: Context, purchaseController: PurchaseCont
         )
 
         // TODO: Pass in config manager
-        api = Api(networkEnvironment = SuperwallOptions.NetworkEnvironment.DEVELOPER)
+        api = Api(networkEnvironment = SuperwallOptions.NetworkEnvironment.Developer())
 
 
         identityManager = IdentityManager(
@@ -328,7 +328,7 @@ class DependencyContainer(val context: Context, purchaseController: PurchaseCont
         productVariables: List<ProductVariable>?,
         params: Map<String, Any?>?
     ): OuterVariables {
-        val templateDeviceDictionary = deviceHelper.getTemplateDevice().toDictionary()
+        val templateDeviceDictionary = deviceHelper.getTemplateDevice()
         return Variables.fromProperties(
             productVariables = productVariables ?: listOf<ProductVariable>(),
             params = params ?: mapOf(),

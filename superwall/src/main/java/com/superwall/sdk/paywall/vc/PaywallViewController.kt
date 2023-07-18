@@ -7,6 +7,7 @@ import android.graphics.drawable.ColorDrawable
 import android.view.WindowManager
 import android.widget.PopupWindow
 import android.widget.RelativeLayout
+import androidx.core.view.ViewCompat
 import androidx.core.widget.PopupWindowCompat
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
@@ -315,8 +316,9 @@ class PaywallViewController(
 
         // Using panel for fullbleed IAMs and dialog for non-fullbleed. The attached dialog type
         // does not allow content to bleed under notches but panel does.
-        val displayType =
-            WindowManager.LayoutParams.TYPE_APPLICATION_PANEL
+//        val displayType =
+//            WindowManager.LayoutParams.TYPE_APPLICATION_PANEL
+        val displayType = WindowManager.LayoutParams.TYPE_APPLICATION_ATTACHED_DIALOG
         PopupWindowCompat.setWindowLayoutType(
             popupWindow,
             displayType

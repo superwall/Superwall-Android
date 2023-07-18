@@ -114,6 +114,7 @@ open class ProductFetcher(var context: Context) : PurchasesUpdatedListener {
     suspend fun products(productIds: List<String>): Map<String, Result<RawStoreProduct>>  {
         request(productIds)
         results.map { currentResults ->
+            println("!! currentResults: ${currentResults} ${Thread.currentThread().name}")
             productIds.all { productId ->
                 currentResults[productId] is Result.Success || currentResults[productId] is Result.Error
             }
@@ -139,7 +140,20 @@ open class ProductFetcher(var context: Context) : PurchasesUpdatedListener {
             println("!! Got product details for ${productIds.size} products, prodcuts: ${productIds}, billingResult: ${billingResult}, skuDetailsList: ${skuDetailsList }  ${Thread.currentThread().name}\"")
 
             if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && skuDetailsList != null) {
-                deferred.complete(skuDetailsList.associateBy { it.sku }.mapValues { Result.Success(RawStoreProduct(it.value)) })
+
+                var foundProducts = skuDetailsList.map { it.sku }
+                var missingProducts = productIds.filter { !foundProducts.contains(it) }
+
+                var results =   skuDetailsList.associateBy { it.sku }.mapValues { Result.Success(RawStoreProduct(it.value)) }.toMutableMap() as MutableMap<String, Result<RawStoreProduct>>
+
+                // For all missing products add error
+                missingProducts.forEach { missingProductId ->
+                    results[missingProductId] = Result.Error(Exception("Failed to query product details"))
+                }
+
+                deferred.complete(
+                    results.toMap()
+                )
             } else {
 
                 // Fail all of them
