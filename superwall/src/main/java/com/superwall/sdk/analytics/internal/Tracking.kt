@@ -96,6 +96,9 @@ suspend fun Superwall.handleImplicitTrigger(
         triggers = dependencyContainer.configManager.triggersByEventName.keys.toSet(),
         paywallViewController = paywallViewController
     )
+
+    println("!! handleImplicitTrigger 3b $forEvent")
+    println("!! handleImplicitTrigger 3a ${dependencyContainer.configManager.triggersByEventName.keys}")
     println("!! handleImplicitTrigger 3 $outcome")
 
     when (outcome) {
