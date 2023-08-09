@@ -67,9 +67,10 @@ class PaywallMessageHandler(
     }
 
     fun handle(message: PaywallMessage) {
-        println("!! PaywallMessageHandler: Handling message: $message ${delegate?.paywall}")
+        println("!! PaywallMessageHandler: Handling message: $message ${delegate?.paywall}, delegeate: $delegate")
         val paywall = delegate?.paywall ?: return
-        println("!! PaywallMessageHandler: Paywall: $paywall")
+        println("!! PaywallMessageHandler: Paywall: $paywall, delegeate: $delegate")
+        println("!! PaywallMessageHandler: delegeate: $delegate")
         when (message) {
             is PaywallMessage.TemplateParamsAndUserAttributes ->
                 MainScope().launch { passTemplatesToWebView(paywall) }
@@ -213,7 +214,7 @@ class PaywallMessageHandler(
             mapOf("url" to url.toString())
         )
         hapticFeedback()
-        delegate?.eventDidOccur(PaywallWebEvent.OpenedURL(url.toString()))
+        delegate?.eventDidOccur(PaywallWebEvent.OpenedURL(url))
         delegate?.presentSafariInApp(url.toString())
     }
 
@@ -223,7 +224,7 @@ class PaywallMessageHandler(
             mapOf("url" to url)
         )
         hapticFeedback()
-        delegate?.eventDidOccur(PaywallWebEvent.OpenedUrlInSafari(url.toString()))
+        delegate?.eventDidOccur(PaywallWebEvent.OpenedUrlInSafari(url))
         delegate?.presentSafariExternal(url.toString())
     }
 

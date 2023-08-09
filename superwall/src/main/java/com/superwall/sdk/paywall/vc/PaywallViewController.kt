@@ -75,6 +75,8 @@ class PaywallViewController(
         }
     }
 
+    val info: PaywallInfo get() = paywall.getInfo(request?.presentationInfo?.eventData, factory)
+
     override fun presentSafariInApp(url: String) {
         // TODO: Implement this
 //        val context = this.context // Or replace with appropriate context if not inside an activity/fragment
@@ -134,13 +136,15 @@ class PaywallViewController(
 
     // TODO: Implement this function for real
     fun dismiss(result: PaywallResult, closeReason: PaywallCloseReason = PaywallCloseReason.SystemLogic, completion: (() -> Unit)? = null) {
-//        val dismissCompletionBlock = completion
-//        val paywallResult = result
-//        paywall.closeReason = closeReason
-//
-//        delegate?.let {
-//            it.didFinish(this, result, result.convertForObjc())
-//        } ?: dismiss(presentationIsAnimated)
+        val dismissCompletionBlock = completion
+        val paywallResult = result
+        paywall.closeReason = closeReason
+
+
+        // TODO: Implement a way to dismiss the paywall via the delegate Implement a way to dismiss the paywall via the delegate Implement a way to dismiss the paywall via the delegate Implement a way to dismiss the paywall via the delegate
+        // Sw-2161 https://linear.app/superwall/issue/SW-2161/%5Bandroid%5D-%5Bv0%5D-ensure-dismissing-when-using-getpaywallviewcontroller
+
+        dismiss(false)
     }
 
 
@@ -342,4 +346,12 @@ class PaywallViewController(
         parentRelativeLayout.setClipToPadding(false)
     }
 
-}
+
+    // This is basically the same as `dismiss(animated: Bool)`
+    // in the original iOS implementation
+    private fun dismiss(presentationIsAnimated: Boolean) {
+        // TODO: SW-2162 Implement animation support
+        // https://linear.app/superwall/issue/SW-2162/%5Bandroid%5D-%5Bv1%5D-get-animated-presentation-working
+        popupWindow.dismiss()
+    }
+    }
