@@ -41,7 +41,9 @@ interface Loggable {
                 }
 
                 // TODO: Add logging to the delegate
-//                Superwall.shared.dependencyContainer.delegateAdapter.handleLog(
+            // Launch a coroutine to handle the logging
+
+//                Superwall.instance.dependencyContainer.delegateAdapter.handleLog(
 //                    level = logLevel.toString(),
 //                    scope = scope.toString(),
 //                    message = message,

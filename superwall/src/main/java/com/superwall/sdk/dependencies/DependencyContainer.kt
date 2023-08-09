@@ -212,6 +212,7 @@ class DependencyContainer(val context: Context, purchaseController: PurchaseCont
             paywallManager = paywallManager,
             storage = storage,
             webView = webView,
+            eventDelegate = Superwall.instance
         )
         webView.delegate = paywallViewController
         messageHandler.delegate = paywallViewController

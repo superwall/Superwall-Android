@@ -51,13 +51,13 @@ fun Superwall.dismiss(paywallViewController: PaywallViewController, result: Payw
     }
 }
 
-fun Superwall.dismiss() {
+suspend fun Superwall.dismiss() {
     if (paywallViewController != null) {
         dismiss(paywallViewController!!, PaywallResult.Declined())
     }
 }
 
-fun Superwall.dismissForNextPaywall() {
+suspend fun Superwall.dismissForNextPaywall() {
     if (paywallViewController != null) {
         dismiss(paywallViewController!!, PaywallResult.Declined(), PaywallCloseReason.ForNextPaywall)
     }

@@ -6,7 +6,9 @@ import android.app.Application
 import android.content.Context
 import android.util.Log
 import com.android.billingclient.api.SkuDetails
+import com.superwall.sdk.analytics.internal.TrackingLogic
 import com.superwall.sdk.analytics.internal.track
+import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.UserInitiatedEvent
 import com.superwall.sdk.billing.BillingController
 import com.superwall.sdk.config.options.SuperwallOptions
@@ -14,16 +16,29 @@ import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.dependencies.DependencyContainer
 import com.superwall.sdk.misc.ActivityLifecycleTracker
 import com.superwall.sdk.models.config.Config
+import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.triggers.Experiment
+import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.PresentationItems
+import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
+import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
+import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
+import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
+import com.superwall.sdk.paywall.presentation.result.PresentationResult
 import com.superwall.sdk.paywall.vc.PaywallViewController
+import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerEventDelegate
 import com.superwall.sdk.view.PaywallViewManager
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent
+import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.*
+import java.util.*
+import kotlin.collections.HashMap
 
-
-public class Superwall(context: Context, apiKey: String) {
+public class Superwall(context: Context, apiKey: String): PaywallViewControllerEventDelegate {
     var apiKey: String = apiKey
     var contex: Context = context
 
@@ -246,5 +261,167 @@ public class Superwall(context: Context, apiKey: String) {
 
 
     var options: SuperwallOptions = SuperwallOptions()
+
+
+// Assume that Superwall, Logger, InternalSuperwallEvent,
+// getImplicitPresentationResult, dismiss, track, purchase, tryToRestore,
+// paywallWillOpenURL, paywallWillOpenDeepLink, handleCustomPaywallAction
+// are defined somewhere accessible in your Kotlin project
+// Called internally when you need to get the presentation result from an implicit event.
+// This prevents logs being fired.
+    suspend fun getImplicitPresentationResult(forEvent: String): PresentationResult {
+        return internallyGetPresentationResult(
+            forEvent = forEvent,
+            type = PresentationRequestType.GetImplicitPresentationResult
+        )
+    }
+
+/*
+
+
+  private func internallyGetPresentationResult(
+    forEvent event: String,
+    params: [String: Any]? = nil,
+    type: PresentationRequestType
+  ) async -> PresentationResult {
+    let eventCreatedAt = Date()
+
+    let trackableEvent = UserInitiatedEvent.Track(
+      rawName: event,
+      canImplicitlyTriggerPaywall: false,
+      customParameters: params ?? [:],
+      isFeatureGatable: false
+    )
+
+    let parameters = await TrackingLogic.processParameters(
+      fromTrackableEvent: trackableEvent,
+      eventCreatedAt: eventCreatedAt,
+      appSessionId: dependencyContainer.appSessionManager.appSession.id
+    )
+
+    let eventData = EventData(
+      name: event,
+      parameters: JSON(parameters.eventParams),
+      createdAt: eventCreatedAt
+    )
+
+    let presentationRequest = dependencyContainer.makePresentationRequest(
+      .explicitTrigger(eventData),
+      isDebuggerLaunched: false,
+      isPaywallPresented: false,
+      type: type
+    )
+
+    return await getPresentationResult(for: presentationRequest)
+  }
+ */
+private suspend fun internallyGetPresentationResult(
+    forEvent: String,
+    params: Map<String, Any>? = null,
+    type: PresentationRequestType
+): PresentationResult {
+    val eventCreatedAt = Date()
+
+    val trackableEvent = UserInitiatedEvent.Track(
+        rawName = forEvent,
+        canImplicitlyTriggerPaywall = false,
+        customParameters = HashMap(params ?: emptyMap()),
+        isFeatureGatable = false
+    )
+
+    val parameters = TrackingLogic.processParameters(
+        trackableEvent = trackableEvent,
+        eventCreatedAt = eventCreatedAt,
+        appSessionId = dependencyContainer.appSessionManager.appSession.id
+    )
+
+    val eventData = EventData(
+        name = forEvent,
+        parameters = parameters.eventParams, // Ensure you have a JSON constructor or conversion in place
+        createdAt = eventCreatedAt
+    )
+
+    val presentationRequest = dependencyContainer.makePresentationRequest(
+        PresentationInfo.ExplicitTrigger(eventData), // Assuming a similar structure in Kotlin
+        isDebuggerLaunched = false,
+        isPaywallPresented = false,
+        type = type
+    )
+
+//    return getPresentationResult(for = presentationRequest)
+
+    // TODO: Actually implement `paywall_decline`
+    // SW-2160 https://linear.app/superwall/issue/SW-2160/%5Bandroid%5D-%5Bv1%5D-setup-paywall-decline-events-andamp-ensure-it-works
+    return PresentationResult.EventNotFound()
+
+}
+
+
+
+    override suspend fun eventDidOccur(paywallEvent: PaywallWebEvent, paywallViewController: PaywallViewController) {
+        withContext(Dispatchers.Main) {
+            Logger.debug(
+                logLevel = LogLevel.debug,
+                scope = LogScope.paywallViewController,
+                message = "Event Did Occur",
+                info = mapOf("event" to paywallEvent)
+            )
+
+            when (paywallEvent) {
+                is Closed -> {
+                    print("!! here - got closed")
+                    // TODO: Make this work
+                    // SW-2160
+                    // https://linear.app/superwall/issue/SW-2160/%5Bandroid%5D-%5Bv1%5D-setup-paywall-decline-events-andamp-ensure-it-works
+//                    val trackedEvent = InternalSuperwallEvent.PaywallDecline(paywallInfo = paywallViewController.info)
+//                    val result = getImplicitPresentationResult(forEvent = "paywall_decline")
+//                    if (result == PresentationResult.Paywall && paywallViewController.info.presentedByEventWithName != SuperwallEventObjc.paywallDecline.description) {
+//                        // Do nothing, track will handle it.
+//                    } else {
+                        dismiss(
+                            paywallViewController,
+                            result = PaywallResult.Declined()
+                        )
+//                    }
+
+//                    Superwall.instance.track(trackedEvent)
+                }
+                is InitiatePurchase -> {
+//                    dependencyContainer.transactionManager.purchase(
+//                        paywallEvent.productId,
+//                        from = paywallViewController
+//                    )
+                }
+                is InitiateRestore -> {
+                    dependencyContainer.storeKitManager.tryToRestore(paywallViewController)
+                }
+                is OpenedURL -> {
+                    dependencyContainer.delegateAdapter.paywallWillOpenURL(url = paywallEvent.url)
+                }
+                is OpenedUrlInSafari -> {
+                    dependencyContainer.delegateAdapter.paywallWillOpenURL(url = paywallEvent.url)
+                }
+                is OpenedDeepLink -> {
+                    dependencyContainer.delegateAdapter.paywallWillOpenDeepLink(url = paywallEvent.url)
+                }
+                is Custom -> {
+                    dependencyContainer.delegateAdapter.handleCustomPaywallAction(withName = paywallEvent.string)
+                }
+            }
+        }
+    }
+    suspend fun dismiss(
+        paywallViewController: PaywallViewController,
+        result: PaywallResult,
+        closeReason: PaywallCloseReason = PaywallCloseReason.SystemLogic,
+        completion: (() -> Unit)? = null
+    ) = withContext(Dispatchers.Main) {
+        paywallViewController.dismiss(
+            result = result,
+            closeReason = closeReason
+        ) {
+            completion?.invoke()
+        }
+    }
 }
 
