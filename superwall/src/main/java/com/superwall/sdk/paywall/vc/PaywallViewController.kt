@@ -4,7 +4,9 @@ import android.app.Activity
 import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
+import android.view.ViewGroup
 import android.view.WindowManager
+import android.widget.FrameLayout
 import android.widget.PopupWindow
 import android.widget.RelativeLayout
 import androidx.core.view.ViewCompat
@@ -54,6 +56,12 @@ class PaywallViewController(
     val cache: PaywallViewControllerCache?
     ) : PaywallMessageHandlerDelegate, SWWebViewDelegate {
 
+
+    /// A loading spinner that appears when making a purchase.
+    private var loadingViewController: LoadingViewController? = null
+
+    /// A shimmer view that appears when loading the webpage.
+    private var shimmerView: ShimmerView? = null
 
     override var loadingState: PaywallLoadingState = PaywallLoadingState.Unknown()
         set(value) {
@@ -114,12 +122,21 @@ class PaywallViewController(
     }
 
 
-    init {
+//    init {
+//        runOnUiThread {
+////            webView.loadUrl(paywall.url.toString())
+//        }
+//    }
+
+    fun viewDidLoad(activity: Activity) {
         runOnUiThread {
-            webView.loadUrl(paywall.url.toString())
+            setUpParentRelativeLayout(activity.applicationContext)
+            parentRelativeLayout.addView(webView)
+            createPopupWindow(activity, parentRelativeLayout)
+
+            loadWebView()
         }
     }
-
 
     val cacheKey = PaywallCacheLogic.key(
         identifier = paywall.identifier,
@@ -133,6 +150,16 @@ class PaywallViewController(
     override  var request: PresentationRequest? = null
 
     var paywallStatePublisher: PaywallStatePublisher? = null
+
+    var currentActivity: Activity? = null
+        set(value) {
+            field = value
+
+            // Execute your code here when context is set
+            if (value != null) {
+                viewDidLoad(value)
+            }
+        }
 
     // TODO: Implement this function for real
     fun dismiss(result: PaywallResult, closeReason: PaywallCloseReason = PaywallCloseReason.SystemLogic, completion: (() -> Unit)? = null) {
@@ -198,7 +225,7 @@ class PaywallViewController(
 
         this.request = request
         this.paywallStatePublisher = paywallStatePublisher
-
+        this.currentActivity = presenter
 
 
 
@@ -213,13 +240,13 @@ class PaywallViewController(
       * The only place where currentActivity should be assigned to InAppMessageView */
 //        this.currentActivity = activity
 
-        runOnUiThread {
-
-            val context = presenter.applicationContext
-            setUpParentRelativeLayout(context)
-            parentRelativeLayout.addView(webView)
-            createPopupWindow(presenter, parentRelativeLayout)
-        }
+//        runOnUiThread {
+//
+//            val context = presenter.applicationContext
+//            setUpParentRelativeLayout(context)
+//            parentRelativeLayout.addView(webView)
+//            createPopupWindow(presenter, parentRelativeLayout)
+//        }
 
 
         completion(true)
@@ -254,6 +281,7 @@ class PaywallViewController(
                 */
                 showRefreshButtonAfterTimeout(false)
                 hideLoadingView()
+                hideShimmerView()
 
                 /*
 
@@ -278,17 +306,48 @@ class PaywallViewController(
         }
     }
 
-
     fun addLoadingView() {
-        // TODO: Implement this
+        val currentContext = currentActivity?.applicationContext ?: run {
+            println("currentContext is null")
+            return
+        }
+
+        val view = LoadingViewController(currentContext)
+        parentRelativeLayout.addView(view)
+
+        val layoutParams = RelativeLayout.LayoutParams(
+            RelativeLayout.LayoutParams.MATCH_PARENT,
+            RelativeLayout.LayoutParams.MATCH_PARENT
+        )
+        view.layoutParams = layoutParams
+
+        this.loadingViewController = view
     }
 
     fun addShimmerView() {
-        // TODO: Implement this
+        val currentContext = currentActivity?.applicationContext ?: run {
+            println("currentContext is null")
+            return
+        }
+
+        val view = ShimmerView(currentContext)
+        parentRelativeLayout.addView(view)
+
+        val layoutParams = RelativeLayout.LayoutParams(
+            RelativeLayout.LayoutParams.MATCH_PARENT,
+            RelativeLayout.LayoutParams.MATCH_PARENT
+        )
+        view.layoutParams = layoutParams
+
+        this.shimmerView = view
     }
 
     fun hideLoadingView() {
+        parentRelativeLayout.removeView(this.loadingViewController)
+    }
 
+    fun hideShimmerView() {
+        parentRelativeLayout.removeView(this.shimmerView)
     }
 
     fun showRefreshButtonAfterTimeout(isVisible: Boolean) {
