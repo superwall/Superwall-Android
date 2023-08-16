@@ -14,6 +14,7 @@ import com.superwall.sdk.paywall.vc.delegate.PaywallLoadingState
 import com.superwall.sdk.store.StoreKitManager
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
+import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
 import com.superwall.sdk.store.transactions.purchasing.PurchaseManager
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.SendChannel
@@ -39,10 +40,8 @@ class TransactionManager(
             }
             is InternalPurchaseResult.Failed -> {
                 when (val outcome = TransactionErrorLogic.handle(result.error)) {
-                    TransactionErrorLogic.Cancelled() -> trackCancelled(product, paywallViewController)
-                    TransactionErrorLogic.PresentAlert() -> presentAlert(Error(result.error), product, paywallViewController)
-                    // Should never happen
-                    else -> {}
+                    is TransactionErrorLogic.Cancelled -> trackCancelled(product, paywallViewController)
+                    is TransactionErrorLogic.PresentAlert -> presentAlert(Error(result.error), product, paywallViewController)
                 }
             }
             InternalPurchaseResult.Restored -> {
@@ -85,7 +84,7 @@ class TransactionManager(
     }
 
     // ... Remaining functions translated in a similar fashion ...
-    private suspend fun didPurchase(product: StoreProduct, paywallViewController: PaywallViewController, transaction: StoreTransaction?) {
+    private suspend fun didPurchase(product: StoreProduct, paywallViewController: PaywallViewController, transaction: StoreTransactionType?) {
         Logger.debug(
             LogLevel.debug,
             LogScope.paywallTransactions,
@@ -100,7 +99,7 @@ class TransactionManager(
         coroutineScope {
             launch(Dispatchers.Default) {
                 transaction?.let {
-                    sessionEventsManager.enqueue(it as StoreTransaction)
+                    sessionEventsManager.enqueue(it)
                 }
             }
 
@@ -205,7 +204,7 @@ class TransactionManager(
     }
 
     // ... and so on for the other methods ...
-    suspend fun trackTransactionDidSucceed(transaction: StoreTransaction?, product: StoreProduct) {
+    suspend fun trackTransactionDidSucceed(transaction: StoreTransactionType?, product: StoreProduct) {
         val paywallViewController = lastPaywallViewController ?: return
 
         val paywallShowingFreeTrial = paywallViewController.paywall.isFreeTrialAvailable == true

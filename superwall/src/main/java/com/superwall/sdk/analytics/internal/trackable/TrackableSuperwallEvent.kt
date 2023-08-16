@@ -12,7 +12,9 @@ import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationReques
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.storage.keys.SubscriptionStatus
 import com.superwall.sdk.store.abstractions.product.StoreProduct
+import com.superwall.sdk.store.abstractions.transactions.GoogleBillingPurchaseTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
+import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
 import com.superwall.sdk.store.transactions.TransactionError
 import kotlinx.serialization.json.*
 import java.net.URL
@@ -226,7 +228,7 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
         val state: State,
         val paywallInfo: PaywallInfo,
         val product: StoreProduct?,
-        val model: StoreTransaction?,
+        val model: StoreTransactionType?,
         override var customParameters: HashMap<String, Any> = HashMap()
     ) : TrackableSuperwallEvent {
 
@@ -234,7 +236,7 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
             class Start(val product: StoreProduct) : State()
             class Fail(val error: TransactionError) : State()
             class Abandon(val product: StoreProduct) : State()
-            class Complete(val product: StoreProduct, val transaction: StoreTransaction?) : State()
+            class Complete(val product: StoreProduct, val transaction: StoreTransactionType?) : State()
             class Restore : State()
             class Timeout : State()
         }
@@ -277,7 +279,8 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
                     var eventParams = paywallInfo.eventParams(product).toMutableMap()
                     if (model != null) {
                         val json = Json { encodeDefaults = true }
-                        val jsonObject: JsonObject = json.encodeToJsonElement(model).jsonObject
+                        // TODO: Figure out how to get this to work with kotlinx.serialization
+                        val jsonObject: JsonObject = json.encodeToJsonElement(model as GoogleBillingPurchaseTransaction).jsonObject
 
                         val modelMap: Map<String, Any> = jsonObject.mapValues { entry ->
                             when (val value = entry.value) {

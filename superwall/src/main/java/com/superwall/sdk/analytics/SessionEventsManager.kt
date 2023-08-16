@@ -10,6 +10,7 @@ import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.keys.Transactions
 import com.superwall.sdk.storage.keys.TriggerSessions
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
+import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
 import kotlinx.coroutines.*
 import kotlin.coroutines.CoroutineContext
 
@@ -18,7 +19,7 @@ interface SessionEventsDelegate {
 
     suspend fun enqueue(triggerSession: TriggerSession)
     suspend fun enqueue(triggerSessions: List<TriggerSession>)
-    suspend fun enqueue(transaction: StoreTransaction)
+    suspend fun enqueue(transaction: StoreTransactionType)
 }
 
 // TODO: Re-enable session stuff
@@ -90,7 +91,7 @@ class SessionEventsManager(
 //        }
     }
 
-    override suspend fun enqueue(transaction: StoreTransaction) {
+    override suspend fun enqueue(transaction: StoreTransactionType) {
 //        configManager.config?.featureFlags?.enableSessionEvents?.let { enableSessionEvents ->
 //            if (enableSessionEvents) {
 //                queue.enqueue(transaction)

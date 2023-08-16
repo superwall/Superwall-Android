@@ -7,6 +7,7 @@ import com.android.billingclient.api.SkuDetails
 // SW-2212: [android] [v0] make sure the productIdentifier is properly propagated
 // https://linear.app/superwall/issue/SW-2212/%5Bandroid%5D-%5Bv0%5D-make-sure-the-productidentifier-is-properly-propagated
 
+@kotlinx.serialization.Serializable
 class StorePayment(
     // TODO: Make sure productIdentifier is propogated correctly
 //    val productIdentifier: String,

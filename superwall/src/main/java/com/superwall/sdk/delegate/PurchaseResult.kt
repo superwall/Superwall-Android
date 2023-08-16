@@ -1,10 +1,11 @@
 package com.superwall.sdk.delegate
 
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
+import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
 import java.lang.Exception
 
 sealed class InternalPurchaseResult {
-    data class Purchased(val storeTransaction: StoreTransaction?) : InternalPurchaseResult()
+    data class Purchased(val storeTransaction: StoreTransactionType?) : InternalPurchaseResult()
     object Restored : InternalPurchaseResult()
     object Cancelled : InternalPurchaseResult()
     object Pending : InternalPurchaseResult()

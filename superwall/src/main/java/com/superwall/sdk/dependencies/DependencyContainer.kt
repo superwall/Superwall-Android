@@ -52,7 +52,7 @@ import com.superwall.sdk.paywall.vc.web_view.templating.models.Variables
 import com.superwall.sdk.storage.EventsQueue
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.StoreKitManager
-import com.superwall.sdk.store.abstractions.transactions.GooglePlayStoreTransaction
+import com.superwall.sdk.store.abstractions.transactions.GoogleBillingPurchaseTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
 import com.superwall.sdk.store.coordinator.StoreKitCoordinator
@@ -369,7 +369,7 @@ class DependencyContainer(val context: Context, purchaseController: PurchaseCont
     }
 
     override suspend fun makeStoreTransaction(transaction: Purchase): StoreTransactionType {
-        return GooglePlayStoreTransaction(
+        return GoogleBillingPurchaseTransaction(
             transaction = transaction,
         )
     }
