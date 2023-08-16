@@ -11,6 +11,7 @@ import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.paywall.presentation.PaywallInfo
+import com.superwall.sdk.store.StoreKitManager
 import com.superwall.sdk.store.StoreKitManagerInterface
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
@@ -23,7 +24,7 @@ interface PaywallRequestManagerDepFactory : DeviceInfoFactory,
 
 
 class PaywallRequestManager(
-    private val storeKitManager: StoreKitManagerInterface,
+    private val storeKitManager: StoreKitManager,
     private val network: Network,
     private val factory: PaywallRequestManagerDepFactory
 ) {

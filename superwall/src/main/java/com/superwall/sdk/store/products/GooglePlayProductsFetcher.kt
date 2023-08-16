@@ -4,6 +4,8 @@ import android.content.Context
 import android.util.Log
 import com.android.billingclient.api.*
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
+import com.superwall.sdk.store.abstractions.product.StoreProduct
+import com.superwall.sdk.store.coordinator.ProductsFetcher
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 
@@ -14,7 +16,7 @@ sealed class Result<T> {
 }
 
 
-open class ProductFetcher(var context: Context) : PurchasesUpdatedListener {
+open class GooglePlayProductsFetcher(var context: Context) : ProductsFetcher, PurchasesUpdatedListener {
 
     sealed class Result<T> {
         data class Success<T>(val value: T): Result<T>()
@@ -95,7 +97,6 @@ open class ProductFetcher(var context: Context) : PurchasesUpdatedListener {
                     _results.value + productIdsToLoad.map { it to Result.Waiting(startedAt = System.currentTimeMillis().toInt()) }
                 )
 
-//            sdcope.launch {
                 println("!! Querying product details for ${productIdsToLoad.size} products, prodcuts: ${productIdsToLoad} ${Thread.currentThread().name}")
                 val networkResult = runBlocking {
                     queryProductDetails(productIdsToLoad)
@@ -104,14 +105,12 @@ open class ProductFetcher(var context: Context) : PurchasesUpdatedListener {
                 _results.emit(
                     _results.value + networkResult.mapValues { it.value  }
                 )
-//            }
-//
         }
 
         }
     }
 
-    suspend fun products(productIds: List<String>): Map<String, Result<RawStoreProduct>>  {
+    suspend fun _products(productIds: List<String>): Map<String, Result<RawStoreProduct>>  {
         request(productIds)
         results.map { currentResults ->
             println("!! currentResults: ${currentResults} ${Thread.currentThread().name}")
@@ -124,6 +123,11 @@ open class ProductFetcher(var context: Context) : PurchasesUpdatedListener {
 
 
     open suspend fun queryProductDetails(productIds: List<String>): Map<String, Result<RawStoreProduct>> {
+        // Wait for connection
+        println("!! Waiting for connection ${Thread.currentThread().name}")
+        _isConnected.first { it }
+        println("!! Connected ${Thread.currentThread().name}")
+
 
         val deferred = CompletableDeferred<Map<String, Result<RawStoreProduct>>>()
 
@@ -169,9 +173,22 @@ open class ProductFetcher(var context: Context) : PurchasesUpdatedListener {
     }
 
     override fun onPurchasesUpdated(p0: BillingResult, p1: MutableList<Purchase>?) {
-        TODO("Not yet implemented")
+        println("!!! onPurchasesUpdated $p0 $p1")
     }
 
+
+    override suspend fun products(
+        identifiers: Set<String>,
+        paywallName: String?
+    ): Set<StoreProduct> {
+        val productResults = _products(identifiers.toList())
+        return productResults.values.mapNotNull {
+            when (it) {
+                is Result.Success -> StoreProduct(  it.value) // Assuming RawStoreProduct can be converted to StoreProduct
+                else -> null
+            }
+        }.toSet()
+    }
 //
 //    suspend fun products(
 //        identifiers: Set<String>,

@@ -47,6 +47,10 @@ class StoreProduct(
     // I think this is the v2 product variables we never shipped so I'm going to skip it
 //    override val swProductTemplateVariablesJson: JsonObject
 //        get() = TODO("Implement based on your needs")
+
+    override val subscriptionPeriod: SubscriptionPeriod?
+        get() =  SubscriptionPeriod.from(rawStoreProduct.skuDetails.subscriptionPeriod)
+
     override val localizedPrice: String
         get() = rawStoreProduct.skuDetails.price
 

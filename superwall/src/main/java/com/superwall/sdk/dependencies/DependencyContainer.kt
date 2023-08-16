@@ -4,6 +4,7 @@ import android.app.Activity
 import android.app.Application
 import android.content.Context
 import androidx.core.view.ContentInfoCompat
+import com.android.billingclient.api.Purchase
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.SessionEventsManager
 import com.superwall.sdk.analytics.session.AppManagerDelegate
@@ -16,6 +17,8 @@ import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.delegate.DefaultSuperwallDelegate
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.delegate.SuperwallDelegate
+import com.superwall.sdk.delegate.SuperwallDelegateAdapter
+import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.identity.IdentityInfo
 import com.superwall.sdk.identity.IdentityManager
 import com.superwall.sdk.misc.ActivityLifecycleTracker
@@ -49,16 +52,21 @@ import com.superwall.sdk.paywall.vc.web_view.templating.models.Variables
 import com.superwall.sdk.storage.EventsQueue
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.StoreKitManager
+import com.superwall.sdk.store.abstractions.transactions.GoogleBillingPurchaseTransaction
+import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
+import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
+import com.superwall.sdk.store.coordinator.StoreKitCoordinator
+import com.superwall.sdk.store.transactions.TransactionManager
+import com.superwall.sdk.store.transactions.purchasing.PurchaseManager
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.StateFlow
 import java.net.HttpURLConnection
 
 
 
-class PurchaseController {}
 
 class DependencyContainer(val context: Context, purchaseController: PurchaseController? = null, options: SuperwallOptions = SuperwallOptions()): ApiFactory, DeviceInfoFactory, AppManagerDelegate, RequestFactory, TriggerSessionManagerFactory, RuleAttributesFactory, IdentityInfoFactory, LocaleIdentifierFactory, IdentityInfoAndLocaleIdentifierFactory, ViewControllerCacheDevice,
-    PaywallRequestManagerDepFactory, VariablesFactory {
+    PaywallRequestManagerDepFactory, VariablesFactory, StoreKitCoordinatorFactory, StoreTransactionFactory, PurchaseManagerFactory {
 
     var network: Network
     override lateinit var api: Api
@@ -68,24 +76,30 @@ class DependencyContainer(val context: Context, purchaseController: PurchaseCont
     override lateinit var identityManager: IdentityManager
     var appSessionManager: AppSessionManager
     var sessionEventsManager: SessionEventsManager
-    var delegateAdapter: SuperwallDelegate
+    var delegateAdapter: SuperwallDelegateAdapter
     var queue: EventsQueue
     var paywallManager: PaywallManager
     var paywallRequestManager: PaywallRequestManager
     var storeKitManager: StoreKitManager
     val activityLifecycleTracker: ActivityLifecycleTracker
-
+    val transactionManager: TransactionManager
 
     init {
 
         // TODO: Add delegate adapter
-        delegateAdapter = DefaultSuperwallDelegate()
+
 
 
         activityLifecycleTracker = ActivityLifecycleTracker()
         // onto
         (context.applicationContext as Application).registerActivityLifecycleCallbacks(
             activityLifecycleTracker)
+
+        delegateAdapter = SuperwallDelegateAdapter(
+            activityLifecycleTracker = activityLifecycleTracker,
+            kotlinPurchaseController = purchaseController,
+            javaPurchaseController = null
+        )
 
         storage = Storage(context = context, factory = this)
         network = Network(factory = this)
@@ -121,7 +135,7 @@ class DependencyContainer(val context: Context, purchaseController: PurchaseCont
             factory = this
         )
 
-        storeKitManager = StoreKitManager(context)
+        storeKitManager = StoreKitManager(context, this)
 
         paywallRequestManager = PaywallRequestManager(
             storeKitManager = storeKitManager,
@@ -134,6 +148,12 @@ class DependencyContainer(val context: Context, purchaseController: PurchaseCont
         )
 
         queue = EventsQueue(context, configManager = configManager, network = network)
+
+        transactionManager = TransactionManager(
+            storeKitManager = storeKitManager,
+            sessionEventsManager,
+            factory = this
+        )
     }
 
 
@@ -339,4 +359,25 @@ class DependencyContainer(val context: Context, purchaseController: PurchaseCont
     }
 
 
+    override fun makeStoreKitCoordinator(): StoreKitCoordinator {
+        return StoreKitCoordinator(
+            context,
+            delegateAdapter,
+            storeKitManager = storeKitManager,
+            factory = this,
+        )
+    }
+
+    override suspend fun makeStoreTransaction(transaction: Purchase): StoreTransactionType {
+        return GoogleBillingPurchaseTransaction(
+            transaction = transaction,
+        )
+    }
+
+    override fun makePurchaseManager(): PurchaseManager {
+        return PurchaseManager(
+            storeKitManager,
+            hasPurchaseController = true
+        )
+    }
 }

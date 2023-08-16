@@ -51,7 +51,7 @@ interface StoreProductType {
 
     /// The period details for products that are subscriptions.
     /// - Returns: `nil` if the product is not a subscription.
-//    val subscriptionPeriod: SubscriptionPeriod?
+    val subscriptionPeriod: SubscriptionPeriod?
 //    val introductoryDiscount: StoreProductDiscount?
 //    val discounts: StoreProductDiscountArray
 }

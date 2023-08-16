@@ -13,9 +13,14 @@ class ActivityLifecycleTracker constructor() : Application.ActivityLifecycleCall
         val instance: ActivityLifecycleTracker by lazy { ActivityLifecycleTracker() }
     }
 
-    override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
+    override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
+        println("!! onActivityCreated: $activity")
+    }
 
-    override fun onActivityStarted(activity: Activity) {}
+    override fun onActivityStarted(activity: Activity) {
+        println("!! onActivityStarted: $activity")
+        currentActivity = activity
+    }
 
     override fun onActivityResumed(activity: Activity) {
         println("!! onActivityResumed: $activity")

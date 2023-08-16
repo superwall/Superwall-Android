@@ -2,7 +2,6 @@ package com.superwall.sdk.delegate
 
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
 import com.superwall.sdk.paywall.presentation.PaywallInfo
-import com.superwall.sdk.storage.keys.SubscriptionStatus
 import kotlinx.coroutines.*
 import java.net.URL
 
