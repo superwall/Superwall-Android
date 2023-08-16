@@ -5,6 +5,8 @@ import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatus
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatusReason
 import com.superwall.sdk.store.abstractions.product.StoreProduct
+import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
+import com.superwall.sdk.store.transactions.TransactionError
 import java.net.URL
 
 
@@ -106,7 +108,7 @@ sealed class SuperwallEvent {
     /// When the payment sheet fails to complete a transaction (ignores user canceling the transaction).
     // TODO: Re-enable when this is defined
 //    data class TransactionFail(val error: TransactionError, val paywallInfo: PaywallInfo) : SuperwallEvent()
-    data class TransactionFail(val error: Error, val paywallInfo: PaywallInfo) : SuperwallEvent() {
+    data class TransactionFail(val error: TransactionError, val paywallInfo: PaywallInfo) : SuperwallEvent() {
         override val rawName: String
             get() = "transaction_fail"
     }
@@ -123,7 +125,7 @@ sealed class SuperwallEvent {
     /// this won't be `null`. However, it could be `null` if you are using a ``PurchaseController``
     /// and the transaction object couldn't be detected after you return `.purchased` in ``PurchaseController/purchase(product:)``.
 //    data class TransactionComplete(val transaction: StoreTransaction?, val product: StoreProduct, val paywallInfo: PaywallInfo) : SuperwallEvent()
-    data class TransactionComplete(val product: StoreProduct, val paywallInfo: PaywallInfo) : SuperwallEvent() {
+    data class TransactionComplete(val transaction: StoreTransaction?, val product: StoreProduct, val paywallInfo: PaywallInfo) : SuperwallEvent() {
         override val rawName: String
             get() = "transaction_complete"
     }
@@ -158,10 +160,7 @@ sealed class SuperwallEvent {
             get() = "user_attributes"
     }
 
-    /// When the user purchased a non recurring product.
-    // TODO: Re-enable when TransactionProduct is implemented
-//    data class NonRecurringProductPurchase(val product: TransactionProduct, val paywallInfo: PaywallInfo) : SuperwallEvent()
-    data class NonRecurringProductPurchase(val paywallInfo: PaywallInfo) : SuperwallEvent() {
+    data class NonRecurringProductPurchase(val product: TransactionProduct, val paywallInfo: PaywallInfo) : SuperwallEvent() {
         override val rawName: String
             get() = "nonRecurringProduct_purchase"
     }

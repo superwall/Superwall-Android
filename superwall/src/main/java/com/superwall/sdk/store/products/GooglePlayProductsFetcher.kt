@@ -4,6 +4,8 @@ import android.content.Context
 import android.util.Log
 import com.android.billingclient.api.*
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
+import com.superwall.sdk.store.abstractions.product.StoreProduct
+import com.superwall.sdk.store.coordinator.ProductsFetcher
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 
@@ -14,7 +16,7 @@ sealed class Result<T> {
 }
 
 
-open class ProductFetcher(var context: Context) : PurchasesUpdatedListener {
+open class GooglePlayProductsFetcher(var context: Context) : ProductsFetcher, PurchasesUpdatedListener {
 
     sealed class Result<T> {
         data class Success<T>(val value: T): Result<T>()
@@ -172,6 +174,20 @@ open class ProductFetcher(var context: Context) : PurchasesUpdatedListener {
         TODO("Not yet implemented")
     }
 
+
+    override suspend fun products(
+        identifiers: Set<String>,
+        paywallName: String?
+    ): Set<StoreProduct> {
+        request(identifiers.toList())
+        val productResults = _results.value.filterKeys { it in identifiers }
+        return productResults.values.mapNotNull {
+            when (it) {
+                is Result.Success -> StoreProduct(  it.value) // Assuming RawStoreProduct can be converted to StoreProduct
+                else -> null
+            }
+        }.toSet()
+    }
 //
 //    suspend fun products(
 //        identifiers: Set<String>,

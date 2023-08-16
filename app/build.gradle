@@ -60,4 +60,10 @@ dependencies {
     androidTestImplementation 'org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.1'
 
 //    androidTestImplementation 'com.karumi.shot.ShotTestRunner'
+
+    // Billing
+
+
+    implementation 'com.android.billingclient:billing:4.0.0'
+
 }

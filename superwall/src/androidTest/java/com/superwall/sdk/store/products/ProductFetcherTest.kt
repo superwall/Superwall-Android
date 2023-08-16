@@ -4,20 +4,13 @@ import android.content.Context
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.android.billingclient.api.SkuDetails
-import com.superwall.sdk.config.ConfigManager
-import com.superwall.sdk.dependencies.DependencyContainer
-import com.superwall.sdk.network.NetworkMock
-import com.superwall.sdk.storage.StorageMock
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import kotlinx.coroutines.*
 import kotlinx.coroutines.test.runTest
-import org.junit.Assert
 import org.junit.Test
 import org.junit.runner.RunWith
 
 // Mock implementation of SkuDetails from Google Billing 4.0
-
-import org.json.JSONObject
 
 val mockSku = """{
     "productId": "premium_subscription",
@@ -39,7 +32,7 @@ class MockSkuDetails(jsonDetails: String) : SkuDetails(jsonDetails) {
 
 }
 
-class ProductFetcherUnderTest(context: Context): ProductFetcher(context = context) {
+class ProductFetcherUnderTest(context: Context): GooglePlayProductsFetcher(context = context) {
 
     // We're going to override the query async method to return a list of products
     // that we define in the test

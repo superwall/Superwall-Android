@@ -1,9 +1,12 @@
 package com.superwall.sdk.paywall.vc
 
+import Logger
 import android.app.Activity
 import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
+import android.os.Handler
+import android.os.Looper
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
@@ -169,7 +172,7 @@ class PaywallViewController(
 
 
         // TODO: Implement a way to dismiss the paywall via the delegate Implement a way to dismiss the paywall via the delegate Implement a way to dismiss the paywall via the delegate Implement a way to dismiss the paywall via the delegate
-        // Sw-2161 https://linear.app/superwall/issue/SW-2161/%5Bandroid%5D-%5Bv0%5D-ensure-dismissing-when-using-getpaywallviewcontroller
+        // SW-2161 https://linear.app/superwall/issue/SW-2161/%5Bandroid%5D-%5Bv0%5D-ensure-dismissing-when-using-getpaywallviewcontroller
 
         dismiss(false)
     }
@@ -413,4 +416,52 @@ class PaywallViewController(
         // https://linear.app/superwall/issue/SW-2162/%5Bandroid%5D-%5Bv1%5D-get-animated-presentation-working
         popupWindow.dismiss()
     }
+
+    fun presentAlert(
+        title: String? = null,
+        message: String? = null,
+        actionTitle: String? = null,
+        closeActionTitle: String = "Done",
+        action: (() -> Unit)? = null,
+        onClose: (() -> Unit)? = null
+    ) {
+        // SW-2211
+        // https://linear.app/superwall/issue/SW-2211/[android]-[v0]-add-support-for-the-alert-view-controller-on-the
+
+        // Print out all the properties one by one
+        println("title: $title")
+        println("message: $message")
+        println("actionTitle: $actionTitle")
+        println("closeActionTitle: $closeActionTitle")
+        println("action: $action")
+        println("onClose: $onClose")
+
+        // Wait for 3 seconds, then call onClose
+        Handler(Looper.getMainLooper()).postDelayed({
+            onClose?.invoke()
+        }, 3000)
+
+
+//        if (presentedViewController != null) {
+//            return
+//        }
+//
+//        val alertController = AlertControllerFactory.make(
+//            title = title,
+//            message = message,
+//            actionTitle = actionTitle,
+//            closeActionTitle = closeActionTitle,
+//            action = action,
+//            onClose = onClose,
+//            sourceView = this.view
+//        )
+//
+//        present(alertController, animated = true) {
+//            if (loadingState != LoadingState.loadingURL) {
+//                loadingState = LoadingState.ready
+//            }
+//        }
     }
+
+
+}

@@ -13,6 +13,7 @@ import com.superwall.sdk.analytics.internal.trackable.UserInitiatedEvent
 import com.superwall.sdk.billing.BillingController
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.delegate.SubscriptionStatus
+import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.dependencies.DependencyContainer
 import com.superwall.sdk.misc.ActivityLifecycleTracker
 import com.superwall.sdk.models.config.Config
@@ -38,9 +39,10 @@ import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.*
 import java.util.*
 import kotlin.collections.HashMap
 
-public class Superwall(context: Context, apiKey: String): PaywallViewControllerEventDelegate {
+public class Superwall(context: Context, apiKey: String, purchaseController: PurchaseController?): PaywallViewControllerEventDelegate {
     var apiKey: String = apiKey
     var contex: Context = context
+    var purchaseController: PurchaseController? = purchaseController
 
 
     var billingController = BillingController(context)
@@ -88,9 +90,9 @@ public class Superwall(context: Context, apiKey: String): PaywallViewControllerE
     companion object {
         var intialized: Boolean = false
         lateinit var instance: Superwall
-        public fun configure(applicationContext: Context,  apiKey: String) {
+        public fun configure(applicationContext: Context,  apiKey: String, purchaseController: PurchaseController? = null) {
             // setup the SDK using that API Key
-            instance =  Superwall(applicationContext, apiKey)
+            instance =  Superwall(applicationContext, apiKey, purchaseController)
             instance.setup()
             intialized = true
         }
@@ -387,10 +389,10 @@ private suspend fun internallyGetPresentationResult(
 //                    Superwall.instance.track(trackedEvent)
                 }
                 is InitiatePurchase -> {
-//                    dependencyContainer.transactionManager.purchase(
-//                        paywallEvent.productId,
-//                        from = paywallViewController
-//                    )
+                    dependencyContainer.transactionManager.purchase(
+                        paywallEvent.productId,
+                        paywallViewController
+                    )
                 }
                 is InitiateRestore -> {
                     dependencyContainer.storeKitManager.tryToRestore(paywallViewController)
@@ -405,7 +407,7 @@ private suspend fun internallyGetPresentationResult(
                     dependencyContainer.delegateAdapter.paywallWillOpenDeepLink(url = paywallEvent.url)
                 }
                 is Custom -> {
-                    dependencyContainer.delegateAdapter.handleCustomPaywallAction(withName = paywallEvent.string)
+                    dependencyContainer.delegateAdapter.handleCustomPaywallAction(name = paywallEvent.string)
                 }
             }
         }

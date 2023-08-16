@@ -2,17 +2,37 @@ package com.superwall.superapp
 
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
+import com.superwall.sdk.delegate.PurchaseResult
+import com.superwall.sdk.delegate.RestorationResult
 import com.superwall.sdk.delegate.SubscriptionStatus
+import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.identity.identify
 import com.superwall.sdk.identity.setUserAttributes
 import com.superwall.sdk.models.events.EventData
+
+
+class PurchaseControllerImpl : PurchaseController {
+
+    override suspend fun purchase(product: com.android.billingclient.api.SkuDetails): PurchaseResult {
+        println("!! (from app) purchase: $product")
+        return PurchaseResult.Purchased()
+    }
+
+    override suspend fun restorePurchases(): RestorationResult {
+        println("!! (from app) restorePurchases")
+        return RestorationResult.Failed(Exception("Restore failed"))
+    }
+}
 
 class MainApplication : android.app.Application() {
     override fun onCreate() {
         super.onCreate()
 
 //        // Superwall Android
-        Superwall.configure(this, "pk_d1f0959f70c761b1d55bb774a03e22b2b6ed290ce6561f85")
+
+        val purchaseController =  PurchaseControllerImpl()
+
+        Superwall.configure(this, "pk_d1f0959f70c761b1d55bb774a03e22b2b6ed290ce6561f85", purchaseController)
 //
 //        // TODO: Fix this so we don't need to make the user set this
         Superwall.instance.setSubscriptionStatus(SubscriptionStatus.Inactive)

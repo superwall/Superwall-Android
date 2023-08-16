@@ -1,6 +1,7 @@
 package com.superwall.sdk.dependencies
 
 import android.app.Activity
+import com.android.billingclient.api.Purchase
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.trigger_session.TriggerSessionManager
 import com.superwall.sdk.config.ConfigManager
@@ -25,6 +26,10 @@ import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegate
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegateAdapter
 import com.superwall.sdk.paywall.vc.web_view.templating.models.OuterVariables
 import com.superwall.sdk.storage.Storage
+import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
+import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
+import com.superwall.sdk.store.coordinator.StoreKitCoordinator
+import com.superwall.sdk.store.transactions.purchasing.PurchaseManager
 import kotlinx.coroutines.flow.StateFlow
 import java.net.HttpURLConnection
 
@@ -142,20 +147,18 @@ interface ConfigManagerFactory {
     fun makeStaticPaywall(paywallId: String?): Paywall?
 }
 
-//interface StoreKitCoordinatorFactory {
-//    fun makeStoreKitCoordinator(): StoreKitCoordinator
-//}
-//
+interface StoreKitCoordinatorFactory {
+    fun makeStoreKitCoordinator(): StoreKitCoordinator
+}
+
 //interface ProductPurchaserFactory {
 //    fun makeSK1ProductPurchaser(): ProductPurchaserSK1
 //}
-//
-//interface StoreTransactionFactory {
-//    suspend fun makeStoreTransaction(transaction: SK1Transaction): StoreTransaction
-//
-//    suspend fun makeStoreTransaction(transaction: SK2Transaction): StoreTransaction
-//}
-//
-//interface PurchaseManagerFactory {
-//    fun makePurchaseManager(): PurchaseManager
-//}
+
+interface StoreTransactionFactory {
+    suspend fun makeStoreTransaction(transaction: Purchase): StoreTransactionType
+}
+
+interface PurchaseManagerFactory {
+    fun makePurchaseManager(): PurchaseManager
+}

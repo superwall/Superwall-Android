@@ -31,7 +31,7 @@ suspend fun Superwall.track(event: Trackable): TrackingResult {
             params = parameters.delegateParams
         )
 
-        dependencyContainer.delegateAdapter.handleSuperwallEvent(withInfo = info)
+        dependencyContainer.delegateAdapter.handleSuperwallEvent(eventInfo = info)
 
         Logger.debug(
             logLevel = LogLevel.debug,

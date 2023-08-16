@@ -1,7 +1,9 @@
+
 package com.superwall.sdk.analytics.internal.trackable
 
 import com.superwall.sdk.analytics.SessionEventsManager
 import com.superwall.sdk.analytics.superwall.SuperwallEvent
+import com.superwall.sdk.analytics.superwall.TransactionProduct
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.triggers.TriggerResult
 import com.superwall.sdk.paywall.presentation.PaywallInfo
@@ -9,9 +11,14 @@ import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationReques
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatusReason
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.storage.keys.SubscriptionStatus
+import com.superwall.sdk.store.abstractions.product.StoreProduct
+import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
+import com.superwall.sdk.store.transactions.TransactionError
+import kotlinx.serialization.json.*
 import java.net.URL
 import java.util.*
 import kotlin.collections.HashMap
+
 
 interface TrackableSuperwallEvent: Trackable {
     val superwallEvent: SuperwallEvent
@@ -215,37 +222,79 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
         }
     }
 
-    /*
-    sealed class Transaction(
+    class Transaction(
+        val state: State,
         val paywallInfo: PaywallInfo,
         val product: StoreProduct?,
         val model: StoreTransaction?,
         override var customParameters: HashMap<String, Any> = HashMap()
-    ): InternalSuperwallEvent(SuperwallEvent.TransactionStart(product, paywallInfo)) {
+    ) : TrackableSuperwallEvent {
 
-        class Start(product: StoreProduct) : Transaction(product, product, null)
-        class Fail(error: TransactionError) : Transaction(null, null, null)
-        class Abandon(product: StoreProduct) : Transaction(product, product, null)
-        class Complete(product: StoreProduct, model: StoreTransaction) : Transaction(product, product, model)
-        class Restore : Transaction(null, null, null)
-        class Timeout : Transaction(null, null, null)
+        sealed class State {
+            class Start(val product: StoreProduct) : State()
+            class Fail(val error: TransactionError) : State()
+            class Abandon(val product: StoreProduct) : State()
+            class Complete(val product: StoreProduct, val transaction: StoreTransaction?) : State()
+            class Restore : State()
+            class Timeout : State()
+        }
+
+        override val superwallEvent: SuperwallEvent
+            get() = when (state) {
+                is State.Start -> SuperwallEvent.TransactionStart(
+                    product = state.product,
+                    paywallInfo = paywallInfo
+                )
+                is State.Fail -> SuperwallEvent.TransactionFail(
+                    error = state.error,
+                    paywallInfo = paywallInfo
+                )
+                is State.Abandon -> SuperwallEvent.TransactionAbandon(
+                    product = state.product,
+                    paywallInfo = paywallInfo
+                )
+                is State.Complete -> SuperwallEvent.TransactionComplete(
+                    transaction = state.transaction,
+                    product = state.product,
+                    paywallInfo = paywallInfo
+                )
+                is State.Restore -> SuperwallEvent.TransactionRestore(paywallInfo = paywallInfo)
+                is State.Timeout -> SuperwallEvent.TransactionTimeout(paywallInfo = paywallInfo)
+            }
+        override val rawName: String
+            get() =  superwallEvent.rawName
+
+        override val canImplicitlyTriggerPaywall: Boolean
+            get() = superwallEvent.canImplicitlyTriggerPaywall
 
         override suspend fun getSuperwallParameters(): HashMap<String, Any> {
-            return when (this) {
-                is Start, is Abandon, is Complete, is Restore, is Timeout -> {
-                    var eventParams = paywallInfo.eventParams(forProduct = product)
-                    model?.let {
-                        eventParams.putAll(it.dictionary(withSnakeCase = true))
-                    }
-                    eventParams
-                }
-                is Fail -> {
-                    when (val error = this.error) {
-                        is TransactionError.Failure -> {
-                            paywallInfo.eventParams(forProduct = product, otherParams = hashMapOf("message" to error.message))
+            return when (state) {
+                is State.Start,
+                is State.Abandon,
+                is State.Complete,
+                is State.Restore,
+                is State.Timeout -> {
+                    var eventParams = paywallInfo.eventParams(product).toMutableMap()
+                    if (model != null) {
+                        val json = Json { encodeDefaults = true }
+                        val jsonObject: JsonObject = json.encodeToJsonElement(model).jsonObject
+
+                        val modelMap: Map<String, Any> = jsonObject.mapValues { entry ->
+                            when (val value = entry.value) {
+                                is JsonPrimitive -> value.content // Handle other primitive types as needed
+                                else -> value // Handle complex objects if necessary
+                            }
                         }
+                        eventParams.putAll(modelMap)
+                    }
+                    HashMap(eventParams)
+                }
+                is State.Fail -> {
+                    when (state.error) {
+                        is TransactionError.Failure,
                         is TransactionError.Pending -> {
-                            paywallInfo.eventParams(forProduct = product, otherParams = hashMapOf("message" to error.message))
+                            val message = state.error.message
+                            HashMap(paywallInfo.eventParams(product, otherParams = mapOf("message" to message)))
                         }
                     }
                 }
@@ -253,13 +302,14 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
         }
     }
 
+
     class SubscriptionStart(
         val paywallInfo: PaywallInfo,
         val product: StoreProduct,
         override var customParameters: HashMap<String, Any> = HashMap()
-    ): InternalSuperwallEvent(SuperwallEvent.SubscriptionStart(product, paywallInfo)) {
+    ) : InternalSuperwallEvent(SuperwallEvent.SubscriptionStart(product = product, paywallInfo = paywallInfo)) {
         override suspend fun getSuperwallParameters(): HashMap<String, Any> {
-            return paywallInfo.eventParams(forProduct = product)
+            return HashMap(paywallInfo.eventParams(product))
         }
     }
 
@@ -267,9 +317,9 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
         val paywallInfo: PaywallInfo,
         val product: StoreProduct,
         override var customParameters: HashMap<String, Any> = HashMap()
-    ): InternalSuperwallEvent(SuperwallEvent.FreeTrialStart(product, paywallInfo)) {
+    ) : InternalSuperwallEvent(SuperwallEvent.FreeTrialStart(product = product, paywallInfo = paywallInfo)) {
         override suspend fun getSuperwallParameters(): HashMap<String, Any> {
-            return paywallInfo.eventParams(forProduct = product)
+            return HashMap(paywallInfo.eventParams(product))
         }
     }
 
@@ -277,16 +327,16 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
         val paywallInfo: PaywallInfo,
         val product: StoreProduct,
         override var customParameters: HashMap<String, Any> = HashMap()
-    ): InternalSuperwallEvent(SuperwallEvent.NonRecurringProductPurchase(Product(product), paywallInfo)) {
+    ) : InternalSuperwallEvent(SuperwallEvent.NonRecurringProductPurchase(product = TransactionProduct(product = product), paywallInfo = paywallInfo)) {
         override suspend fun getSuperwallParameters(): HashMap<String, Any> {
-            return paywallInfo.eventParams(forProduct = product)
+            return HashMap(paywallInfo.eventParams(product))
         }
     }
 
-    */
 
 
-        class PaywallWebviewLoad(
+
+    class PaywallWebviewLoad(
         val state: State,
         val paywallInfo: PaywallInfo,
         override var customParameters: HashMap<String, Any> = HashMap()
