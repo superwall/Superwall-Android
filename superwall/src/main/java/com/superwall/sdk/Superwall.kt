@@ -101,7 +101,7 @@ public class Superwall(context: Context, apiKey: String, purchaseController: Pur
     lateinit var dependencyContainer: DependencyContainer
 
     fun setup() {
-        this.dependencyContainer = DependencyContainer(contex, purchaseController = null,  options)
+        this.dependencyContainer = DependencyContainer(contex, purchaseController,  options)
 
 
         CoroutineScope(Dispatchers.IO).launch {

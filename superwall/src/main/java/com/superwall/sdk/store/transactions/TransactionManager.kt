@@ -27,11 +27,13 @@ class TransactionManager(
     private var lastPaywallViewController: PaywallViewController? = null
 
     suspend fun purchase(productId: String,  paywallViewController: PaywallViewController) {
+        print("purchase, $productId")
         val product = storeKitManager.productsById[productId] ?: return
 
         prepareToStartTransaction(product, paywallViewController)
 
-        when (val result = purchaseManager.purchase(product)) {
+        val result = purchaseManager.purchase(product)
+        when (result) {
             is InternalPurchaseResult.Purchased -> {
                 didPurchase(product, paywallViewController, result.storeTransaction)
             }

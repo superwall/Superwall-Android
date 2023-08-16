@@ -27,6 +27,7 @@ class PurchaseManager(
     val hasPurchaseController: Boolean
 ) {
     suspend fun purchase(product: StoreProduct): InternalPurchaseResult {
+        print("! Purchase Manager: ${product.productIdentifier}")
         val purchaseStartAt = Date()
 
         val result = storeKitManager.coordinator.productPurchaser.purchase(product = product)

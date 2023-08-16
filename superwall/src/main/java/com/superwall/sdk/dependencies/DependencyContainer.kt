@@ -87,16 +87,19 @@ class DependencyContainer(val context: Context, purchaseController: PurchaseCont
     init {
 
         // TODO: Add delegate adapter
-        delegateAdapter = SuperwallDelegateAdapter(
-            kotlinPurchaseController = purchaseController,
-            javaPurchaseController = null
-        )
+
 
 
         activityLifecycleTracker = ActivityLifecycleTracker()
         // onto
         (context.applicationContext as Application).registerActivityLifecycleCallbacks(
             activityLifecycleTracker)
+
+        delegateAdapter = SuperwallDelegateAdapter(
+            activityLifecycleTracker = activityLifecycleTracker,
+            kotlinPurchaseController = purchaseController,
+            javaPurchaseController = null
+        )
 
         storage = Storage(context = context, factory = this)
         network = Network(factory = this)

@@ -1,5 +1,6 @@
 package com.superwall.sdk.delegate.subscription_controller
 
+import android.app.Activity
 import kotlinx.coroutines.*
 import android.os.Handler
 import android.os.Looper
@@ -34,7 +35,7 @@ interface PurchaseController {
      * **Note**: Make sure you handle all cases of `PurchaseResult`.
      */
     @MainThread
-    suspend fun purchase(product: SkuDetails): PurchaseResult
+    suspend fun purchase(activity: Activity, product: SkuDetails): PurchaseResult
 
     /**
      * Called when the user initiates a restore.
