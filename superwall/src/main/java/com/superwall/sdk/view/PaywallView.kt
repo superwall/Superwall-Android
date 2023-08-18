@@ -26,7 +26,7 @@ class PaywallView(webView: WebView) {
         popupWindow = PopupWindow(
             parentRelativeLayout,
             WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.MATCH_PARENT ,
+            WindowManager.LayoutParams.MATCH_PARENT,
             true
         )
         popupWindow.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))

@@ -1,9 +1,5 @@
 package com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator
 
-import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.JavascriptExpressionEvaluatorParams
-import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.LiquidExpressionEvaluatorParams
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonElement
 import org.json.JSONObject
 import org.junit.Test
 import java.util.*
@@ -65,7 +61,7 @@ class ExpressionEvaluatorParamsTest {
         // Try to base64 decode the string
         val decodedString = Base64.getDecoder().decode(base64String)
         //  Parse the json
-        val parsedJson2 = JSONObject(String(decodedString,  Charsets.UTF_8))
+        val parsedJson2 = JSONObject(String(decodedString, Charsets.UTF_8))
 
         // Test top-level properties
         assert(parsedJson2.getString("expression") == "user.id == '123'")

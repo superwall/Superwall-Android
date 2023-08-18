@@ -1,16 +1,14 @@
 package com.superwall.sdk.store.abstractions.product
 
+
 import com.android.billingclient.api.SkuDetails
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.JsonObject
-import java.math.BigDecimal
-import java.util.*
-
-
-
-import kotlinx.serialization.*
+import kotlinx.serialization.Serializer
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
+import java.math.BigDecimal
+import java.util.*
 
 @Serializer(forClass = SkuDetails::class)
 object SkuDetailsSerializer : KSerializer<SkuDetails> {
@@ -49,7 +47,7 @@ class StoreProduct(
 //        get() = TODO("Implement based on your needs")
 
     override val subscriptionPeriod: SubscriptionPeriod?
-        get() =  SubscriptionPeriod.from(rawStoreProduct.skuDetails.subscriptionPeriod)
+        get() = SubscriptionPeriod.from(rawStoreProduct.skuDetails.subscriptionPeriod)
 
     override val localizedPrice: String
         get() = rawStoreProduct.skuDetails.price

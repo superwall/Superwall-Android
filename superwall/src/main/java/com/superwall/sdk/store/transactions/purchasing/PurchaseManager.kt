@@ -4,9 +4,8 @@ import com.superwall.sdk.delegate.InternalPurchaseResult
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.store.StoreKitManager
 import com.superwall.sdk.store.abstractions.product.StoreProduct
-import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
-import java.util.Date
+import java.util.*
 
 sealed class PurchaseError : Throwable() {
     object ProductUnavailable : PurchaseError()
@@ -38,10 +37,11 @@ class PurchaseManager(
             is PurchaseResult.Pending -> InternalPurchaseResult.Pending
             is PurchaseResult.Cancelled -> InternalPurchaseResult.Cancelled
             is PurchaseResult.Purchased -> try {
-                val transaction = storeKitManager.coordinator.txnChecker.getAndValidateLatestTransaction(
-                    product.productIdentifier,
-                    hasPurchaseController = hasPurchaseController
-                )
+                val transaction =
+                    storeKitManager.coordinator.txnChecker.getAndValidateLatestTransaction(
+                        product.productIdentifier,
+                        hasPurchaseController = hasPurchaseController
+                    )
 
                 if (hasRestored(
                         transaction,
@@ -79,7 +79,8 @@ class PurchaseManager(
                     if (expirationDate >= Date()) {
                         return true
                     }
-                } ?: return true // If no expiration date, it must be a non-consumable product which has been restored.
+                }
+                    ?: return true // If no expiration date, it must be a non-consumable product which has been restored.
             }
         }
 

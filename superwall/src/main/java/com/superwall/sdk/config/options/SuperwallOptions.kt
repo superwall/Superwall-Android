@@ -38,9 +38,13 @@ class SuperwallOptions {
 
         class Developer() : NetworkEnvironment("superwall.dev")
 
-        class Custom(override val baseHost: String, override val collectorHost: String, override  val scheme: String, override val port: Int?) : NetworkEnvironment(baseHost)
+        class Custom(
+            override val baseHost: String,
+            override val collectorHost: String,
+            override val scheme: String,
+            override val port: Int?
+        ) : NetworkEnvironment(baseHost)
     }
-
 
 
     // **WARNING:**: Determines which network environment your SDK should use.

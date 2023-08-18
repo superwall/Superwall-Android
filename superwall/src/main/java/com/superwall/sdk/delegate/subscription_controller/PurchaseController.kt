@@ -1,9 +1,6 @@
 package com.superwall.sdk.delegate.subscription_controller
 
 import android.app.Activity
-import kotlinx.coroutines.*
-import android.os.Handler
-import android.os.Looper
 import androidx.annotation.MainThread
 import com.android.billingclient.api.SkuDetails
 import com.superwall.sdk.delegate.PurchaseResult

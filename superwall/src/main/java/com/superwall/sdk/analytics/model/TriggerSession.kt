@@ -33,8 +33,10 @@ data class TriggerSession(
     enum class PresentationOutcome {
         @SerialName("PAYWALL")
         PAYWALL,
+
         @SerialName("HOLDOUT")
         HOLDOUT,
+
         @SerialName("NO_RULE_MATCH")
         NO_RULE_MATCH
     }

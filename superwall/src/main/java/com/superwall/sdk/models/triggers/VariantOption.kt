@@ -3,7 +3,7 @@ package com.superwall.sdk.models.triggers
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
-import java.util.UUID
+import java.util.*
 
 @Serializable
 data class VariantOption(

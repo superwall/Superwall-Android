@@ -6,12 +6,11 @@ import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.paywall.request.PaywallRequestManager
 import com.superwall.sdk.paywall.vc.PaywallViewController
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegate
-import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegateAdapter
 import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 
-class PaywallManager(private val factory: ViewControllerCacheDevice,
-                     private val paywallRequestManager: PaywallRequestManager
+class PaywallManager(
+    private val factory: ViewControllerCacheDevice,
+    private val paywallRequestManager: PaywallRequestManager
 ) {
 
     var presentedViewController: PaywallViewController? = null
@@ -52,7 +51,8 @@ class PaywallManager(private val factory: ViewControllerCacheDevice,
         val paywall = paywallRequestManager.getPaywall(request)
         println("!!!PaywallManager.getPaywallViewController: paywall = $paywall")
         val deviceInfo = factory.makeDeviceInfo()
-        val cacheKey = PaywallCacheLogic.key(identifier = paywall.identifier, locale = deviceInfo.locale)
+        val cacheKey =
+            PaywallCacheLogic.key(identifier = paywall.identifier, locale = deviceInfo.locale)
 
         if (!request.isDebuggerLaunched) {
             val viewController = cache.getPaywallViewController(cacheKey)

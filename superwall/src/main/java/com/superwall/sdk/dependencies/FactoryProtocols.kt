@@ -2,7 +2,6 @@ package com.superwall.sdk.dependencies
 
 import android.app.Activity
 import com.android.billingclient.api.Purchase
-import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.trigger_session.TriggerSessionManager
 import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.delegate.SubscriptionStatus
@@ -15,23 +14,20 @@ import com.superwall.sdk.network.Api
 import com.superwall.sdk.network.device.DeviceInfo
 import com.superwall.sdk.paywall.manager.PaywallViewControllerCache
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
-import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
+import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.presentation.rule_logic.RuleAttributes
 import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
 import com.superwall.sdk.paywall.vc.PaywallViewController
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegate
-import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegateAdapter
 import com.superwall.sdk.paywall.vc.web_view.templating.models.OuterVariables
 import com.superwall.sdk.storage.Storage
-import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
 import com.superwall.sdk.store.coordinator.StoreKitCoordinator
 import com.superwall.sdk.store.transactions.purchasing.PurchaseManager
 import kotlinx.coroutines.flow.StateFlow
-import java.net.HttpURLConnection
 
 
 interface ApiFactory {
@@ -39,13 +35,14 @@ interface ApiFactory {
     // swiftlint:disable implicitly_unwrapped_optional
     var api: Api
     var storage: Storage
-//    var storage: Storage! { get }
+
+    //    var storage: Storage! { get }
 //    var deviceHelper: DeviceHelper! { get }
     var configManager: ConfigManager
     var identityManager: IdentityManager
     // swiftlint:enable implicitly_unwrapped_optional
 
-    suspend  fun makeHeaders(
+    suspend fun makeHeaders(
         isForDebugging: Boolean,
         requestId: String
     ): Map<String, String>
@@ -114,7 +111,7 @@ interface ViewControllerFactory {
 
 
 //ViewControllerFactory & CacheFactory & DeviceInfoFactory,
-interface ViewControllerCacheDevice  {
+interface ViewControllerCacheDevice {
     suspend fun makePaywallViewController(
         presentationRequest: PresentationRequest,
         paywall: Paywall,

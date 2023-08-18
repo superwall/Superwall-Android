@@ -15,6 +15,13 @@ class PaywallOverrides(
     constructor(products: PaywallProducts?) : this(products, false, PaywallPresentationStyle.NONE)
 
     // This constructor has been marked as deprecated, as it only sets products and ignoreSubscriptionStatus.
-    @Deprecated("This constructor has been obsoleted.", ReplaceWith("PaywallOverrides(products, ignoreSubscriptionStatus)"))
-    constructor(products: PaywallProducts?, ignoreSubscriptionStatus: Boolean) : this(products, ignoreSubscriptionStatus, PaywallPresentationStyle.NONE)
+    @Deprecated(
+        "This constructor has been obsoleted.",
+        ReplaceWith("PaywallOverrides(products, ignoreSubscriptionStatus)")
+    )
+    constructor(products: PaywallProducts?, ignoreSubscriptionStatus: Boolean) : this(
+        products,
+        ignoreSubscriptionStatus,
+        PaywallPresentationStyle.NONE
+    )
 }

@@ -20,7 +20,10 @@ package com.superwall.sdk.storage.memory
 /**
  * [LRUCache] flushes items that are **Least Recently Used** and keeps [minimalSize] items at most.
  */
-class LRUCache<K, V>(private val delegate: GenericCache<K, V>, private val minimalSize: Int = DEFAULT_SIZE) : GenericCache<K, V> by delegate {
+class LRUCache<K, V>(
+    private val delegate: GenericCache<K, V>,
+    private val minimalSize: Int = DEFAULT_SIZE
+) : GenericCache<K, V> by delegate {
     private val keyMap = object : LinkedHashMap<K, Boolean>(minimalSize, .75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<K, Boolean>): Boolean {
             val tooManyCachedItems = size > minimalSize

@@ -1,4 +1,3 @@
-
 enum class LogLevel(val level: Int) {
     debug(10),
     info(20),

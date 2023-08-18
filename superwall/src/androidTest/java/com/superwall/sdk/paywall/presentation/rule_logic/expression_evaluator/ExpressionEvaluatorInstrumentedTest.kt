@@ -5,7 +5,6 @@ import com.superwall.sdk.dependencies.RuleAttributesFactory
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.TriggerRule
-import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
 import com.superwall.sdk.models.triggers.VariantOption
 import com.superwall.sdk.paywall.presentation.rule_logic.RuleAttributes
 import com.superwall.sdk.storage.StorageMock
@@ -14,7 +13,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Test
 import java.util.*
 
-class RuleAttributeFactoryBuilder: RuleAttributesFactory {
+class RuleAttributeFactoryBuilder : RuleAttributesFactory {
     override suspend fun makeRuleAttributes(): RuleAttributes {
         return RuleAttributes(
             user = mapOf(
@@ -34,7 +33,7 @@ class ExpressionEvaluatorInstrumentedTest {
         // get context
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val ruleAttributes = RuleAttributeFactoryBuilder()
-        val storage = StorageMock( context = context)
+        val storage = StorageMock(context = context)
 
         val expressionEvaluator = ExpressionEvaluator(
             context = context,
@@ -57,7 +56,7 @@ class ExpressionEvaluatorInstrumentedTest {
                 expression = "user.id == '123'",
                 expressionJs = null,
             ),
-            eventData =  EventData(
+            eventData = EventData(
                 name = "test",
                 parameters = mapOf(
                     "id" to "123",
@@ -77,7 +76,7 @@ class ExpressionEvaluatorInstrumentedTest {
     fun test_expression_evaluator_expression_js() = runTest {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val ruleAttributes = RuleAttributeFactoryBuilder()
-        val storage = StorageMock( context = context)
+        val storage = StorageMock(context = context)
 
         val expressionEvaluator = ExpressionEvaluator(
             context = context,
@@ -117,7 +116,7 @@ class ExpressionEvaluatorInstrumentedTest {
 
         var trueResult = expressionEvaluator.evaluateExpression(
             rule = trueRule,
-            eventData =  EventData(
+            eventData = EventData(
                 name = "test",
                 parameters = mapOf(
                     "id" to "123",
@@ -130,7 +129,7 @@ class ExpressionEvaluatorInstrumentedTest {
 
         var falseResult = expressionEvaluator.evaluateExpression(
             rule = falseRule,
-            eventData =  EventData(
+            eventData = EventData(
                 name = "test",
                 parameters = mapOf(
                     "id" to "123",
@@ -267,14 +266,13 @@ class ExpressionEvaluatorInstrumentedTest {
 fun runWithRule(rule: TriggerRule) {
     val context = InstrumentationRegistry.getInstrumentation().targetContext
     val ruleAttributes = RuleAttributeFactoryBuilder()
-    val storage = StorageMock( context = context)
+    val storage = StorageMock(context = context)
 
     val expressionEvaluator = ExpressionEvaluator(
         context = context,
         storage = storage,
         factory = ruleAttributes
     )
-
 
 
 }

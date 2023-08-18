@@ -1,16 +1,12 @@
 package com.superwall.sdk.models.serialization
 
 
-import com.superwall.sdk.assertTrue
-import com.superwall.sdk.models.serialization.DateSerializer
 import kotlinx.serialization.ExperimentalSerializationApi
-import org.junit.Test
-import java.util.*
-
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.contextual
 import org.junit.Assert.assertEquals
+import org.junit.Test
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.Calendar.*

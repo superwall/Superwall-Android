@@ -2,12 +2,10 @@ package com.superwall.sdk.config
 
 import com.superwall.sdk.models.assignment.Assignment
 import com.superwall.sdk.models.config.Config
-import com.superwall.sdk.models.config.LocalizationConfig
 import com.superwall.sdk.models.config.PreloadingDisabled
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.triggers.*
 import org.junit.Assert.*
-import org.junit.Rule
 import org.junit.Test
 
 
@@ -150,7 +148,8 @@ internal class ConfigLogicTest {
     @Test
     fun test_getRulesPerTriggerGroup_noTriggers() {
         val rules = ConfigLogic.getRulesPerTriggerGroup(
-            emptySet())
+            emptySet()
+        )
         assertTrue(rules.isEmpty())
     }
 
@@ -316,7 +315,7 @@ internal class ConfigLogicTest {
         val experimentGroupId = "13"
         val newVariantOption = VariantOption.stub().apply {
             this.id = "newVariantId"
-            this.paywallId  = paywallId
+            this.paywallId = paywallId
             this.type = Experiment.Variant.VariantType.TREATMENT
         }
         val oldVariantOption = VariantOption.stub().apply {
@@ -371,9 +370,9 @@ internal class ConfigLogicTest {
                         }
                     )
                 }
-                ),
-                confirmedAssignments = mapOf(experimentId to oldVariantOption.toVariant())
-            )
+            ),
+            confirmedAssignments = mapOf(experimentId to oldVariantOption.toVariant())
+        )
 
         // Then
         assertTrue(variant.unconfirmed.isEmpty())
@@ -384,8 +383,10 @@ internal class ConfigLogicTest {
 
     @Test
     fun test_processAssignmentsFromServer_noAssignments() {
-        val confirmedVariant = Experiment.Variant("def", Experiment.Variant.VariantType.TREATMENT, "ghi")
-        val unconfirmedVariant = Experiment.Variant("mno", Experiment.Variant.VariantType.TREATMENT, "pqr")
+        val confirmedVariant =
+            Experiment.Variant("def", Experiment.Variant.VariantType.TREATMENT, "ghi")
+        val unconfirmedVariant =
+            Experiment.Variant("mno", Experiment.Variant.VariantType.TREATMENT, "pqr")
         val result = ConfigLogic.transferAssignmentsFromServerToDisk(
             assignments = emptyList(),
             triggers = setOf(Trigger.stub()),
@@ -409,22 +410,26 @@ internal class ConfigLogicTest {
             .apply { id = variantId }
         val triggers = setOf(
             Trigger.stub()
-                .apply { rules = listOf(
-                    TriggerRule.stub()
-                        .apply {
-                            this.experimentId = experimentId
-                            this.variants = listOf(variantOption)
-                        }
+                .apply {
+                    rules = listOf(
+                        TriggerRule.stub()
+                            .apply {
+                                this.experimentId = experimentId
+                                this.variants = listOf(variantOption)
+                            }
                     )
                 }
         )
 
-        val unconfirmedVariant = Experiment.Variant("mno", Experiment.Variant.VariantType.TREATMENT, "pqr")
+        val unconfirmedVariant =
+            Experiment.Variant("mno", Experiment.Variant.VariantType.TREATMENT, "pqr")
         val result = ConfigLogic.transferAssignmentsFromServerToDisk(
             assignments = assignments,
             triggers = triggers,
-            confirmedAssignments = mapOf(experimentId to
-                    oldVariantOption.toVariant()),
+            confirmedAssignments = mapOf(
+                experimentId to
+                        oldVariantOption.toVariant()
+            ),
             unconfirmedAssignments = mapOf("jkl" to unconfirmedVariant)
         )
 
@@ -468,7 +473,7 @@ internal class ConfigLogicTest {
                         TriggerRule.stub().apply {
                             this.experimentId = experimentId1
                             this.variants = listOf(variantOption1, unusedVariantOption1)
-                            },
+                        },
                         TriggerRule.stub().apply {
                             this.experimentId = experimentId2
                             this.variants = listOf(variantOption2, unusedVariantOption2)
@@ -477,12 +482,22 @@ internal class ConfigLogicTest {
                 }
         )
 
-        val unconfirmedVariant = Experiment.Variant(id = "mno", type = Experiment.Variant.VariantType.TREATMENT, paywallId = "pqr")
+        val unconfirmedVariant = Experiment.Variant(
+            id = "mno",
+            type = Experiment.Variant.VariantType.TREATMENT,
+            paywallId = "pqr"
+        )
         val result = ConfigLogic.transferAssignmentsFromServerToDisk(
             assignments = assignments,
             triggers = triggers,
             confirmedAssignments = emptyMap(),
-            unconfirmedAssignments = mapOf("jkl" to Experiment.Variant(id = "mno", type = Experiment.Variant.VariantType.TREATMENT, paywallId = "pqr"))
+            unconfirmedAssignments = mapOf(
+                "jkl" to Experiment.Variant(
+                    id = "mno",
+                    type = Experiment.Variant.VariantType.TREATMENT,
+                    paywallId = "pqr"
+                )
+            )
         )
         assertEquals(result.confirmed.size, 2)
         assertEquals(result.confirmed[experimentId1], variantOption1.toVariant())
@@ -530,7 +545,7 @@ internal class ConfigLogicTest {
         val locale = "en_GB"
         val config: Config = Config.stub()
             .apply {
-                locales =setOf("de_DE")
+                locales = setOf("de_DE")
                 paywalls = listOf(
                     Paywall.stub(),
                     Paywall.stub()
@@ -603,13 +618,17 @@ internal class ConfigLogicTest {
                     rules = listOf(
                         TriggerRule.stub()
                             .apply {
-                                this.experimentId  = experiment1
+                                this.experimentId = experiment1
                             }
                     )
                 }
         )
         val confirmedAssignments: Map<ExperimentID, Experiment.Variant> = mapOf(
-            experiment1 to Experiment.Variant(paywallId1, Experiment.Variant.VariantType.TREATMENT, paywallId1)
+            experiment1 to Experiment.Variant(
+                paywallId1,
+                Experiment.Variant.VariantType.TREATMENT,
+                paywallId1
+            )
         )
         val ids = ConfigLogic.getAllActiveTreatmentPaywallIds(
             fromTriggers = triggers,
@@ -646,7 +665,11 @@ internal class ConfigLogicTest {
                 }
         )
         val confirmedAssignments: Map<String, Experiment.Variant> = mapOf(
-            experiment1 to Experiment.Variant(paywallId1, Experiment.Variant.VariantType.TREATMENT, paywallId1)
+            experiment1 to Experiment.Variant(
+                paywallId1,
+                Experiment.Variant.VariantType.TREATMENT,
+                paywallId1
+            )
         )
         val ids = ConfigLogic.getAllActiveTreatmentPaywallIds(
             fromTriggers = triggers,
@@ -672,7 +695,11 @@ internal class ConfigLogicTest {
                 }
         )
         val confirmedAssignments: Map<String, Experiment.Variant> = mapOf(
-            experiment1 to Experiment.Variant("variantId1", Experiment.Variant.VariantType.HOLDOUT, null)
+            experiment1 to Experiment.Variant(
+                "variantId1",
+                Experiment.Variant.VariantType.HOLDOUT,
+                null
+            )
         )
         val ids = ConfigLogic.getAllActiveTreatmentPaywallIds(
             fromTriggers = triggers,
@@ -702,8 +729,16 @@ internal class ConfigLogicTest {
                 }
         )
         val confirmedAssignments: Map<String, Experiment.Variant> = mapOf(
-            experiment1 to Experiment.Variant("variantId1", Experiment.Variant.VariantType.TREATMENT, paywallId1),
-            experiment2 to Experiment.Variant("variantId2", Experiment.Variant.VariantType.TREATMENT, paywallId2)
+            experiment1 to Experiment.Variant(
+                "variantId1",
+                Experiment.Variant.VariantType.TREATMENT,
+                paywallId1
+            ),
+            experiment2 to Experiment.Variant(
+                "variantId2",
+                Experiment.Variant.VariantType.TREATMENT,
+                paywallId2
+            )
         )
         val ids = ConfigLogic.getAllActiveTreatmentPaywallIds(
             fromTriggers = triggers,
@@ -728,7 +763,7 @@ internal class ConfigLogicTest {
                     rules = listOf(
                         TriggerRule.stub()
                             .apply {
-                                this.experimentId  = experiment1
+                                this.experimentId = experiment1
                                 this.experimentGroupId = "a"
                             }
                     )
@@ -745,14 +780,26 @@ internal class ConfigLogicTest {
                 }
         )
         val confirmedAssignments: Map<String, Experiment.Variant> = mapOf(
-            experiment1 to Experiment.Variant("variantId1", Experiment.Variant.VariantType.TREATMENT, paywallId1),
-            experiment2 to Experiment.Variant("variantId2", Experiment.Variant.VariantType.TREATMENT, paywallId2)
+            experiment1 to Experiment.Variant(
+                "variantId1",
+                Experiment.Variant.VariantType.TREATMENT,
+                paywallId1
+            ),
+            experiment2 to Experiment.Variant(
+                "variantId2",
+                Experiment.Variant.VariantType.TREATMENT,
+                paywallId2
+            )
         )
         val ids = ConfigLogic.getAllActiveTreatmentPaywallIds(
             fromTriggers = triggers,
             confirmedAssignments = confirmedAssignments,
             unconfirmedAssignments = mapOf(
-                experiment3 to Experiment.Variant("variantId3", Experiment.Variant.VariantType.TREATMENT, paywallId3)
+                experiment3 to Experiment.Variant(
+                    "variantId3",
+                    Experiment.Variant.VariantType.TREATMENT,
+                    paywallId3
+                )
             )
         )
         assertEquals(ids, setOf(paywallId1, paywallId3))
@@ -777,8 +824,16 @@ internal class ConfigLogicTest {
                 }
         )
         val confirmedAssignments: Map<String, Experiment.Variant> = mapOf(
-            experiment1 to Experiment.Variant(experiment2, Experiment.Variant.VariantType.TREATMENT, paywallId1),
-            experiment2 to Experiment.Variant(experiment2, Experiment.Variant.VariantType.TREATMENT, paywallId2)
+            experiment1 to Experiment.Variant(
+                experiment2,
+                Experiment.Variant.VariantType.TREATMENT,
+                paywallId1
+            ),
+            experiment2 to Experiment.Variant(
+                experiment2,
+                Experiment.Variant.VariantType.TREATMENT,
+                paywallId2
+            )
         )
         val ids = ConfigLogic.getActiveTreatmentPaywallIds(
             forTriggers = triggers,
@@ -807,8 +862,16 @@ internal class ConfigLogicTest {
                 }
         )
         val confirmedAssignments: Map<String, Experiment.Variant> = mapOf(
-            experiment1 to Experiment.Variant(experiment2, Experiment.Variant.VariantType.HOLDOUT, paywallId1),
-            experiment2 to Experiment.Variant(experiment2, Experiment.Variant.VariantType.TREATMENT, paywallId2)
+            experiment1 to Experiment.Variant(
+                experiment2,
+                Experiment.Variant.VariantType.HOLDOUT,
+                paywallId1
+            ),
+            experiment2 to Experiment.Variant(
+                experiment2,
+                Experiment.Variant.VariantType.TREATMENT,
+                paywallId2
+            )
         )
         val ids = ConfigLogic.getActiveTreatmentPaywallIds(
             forTriggers = triggers,
@@ -837,10 +900,18 @@ internal class ConfigLogicTest {
                 }
         )
         val confirmedAssignments: Map<String, Experiment.Variant> = mapOf(
-            experiment1 to Experiment.Variant(experiment2, Experiment.Variant.VariantType.TREATMENT, paywallId1)
+            experiment1 to Experiment.Variant(
+                experiment2,
+                Experiment.Variant.VariantType.TREATMENT,
+                paywallId1
+            )
         )
         val unconfirmedAssignments: Map<String, Experiment.Variant> = mapOf(
-            experiment2 to Experiment.Variant(experiment2, Experiment.Variant.VariantType.TREATMENT, paywallId2)
+            experiment2 to Experiment.Variant(
+                experiment2,
+                Experiment.Variant.VariantType.TREATMENT,
+                paywallId2
+            )
         )
         val ids = ConfigLogic.getActiveTreatmentPaywallIds(
             forTriggers = triggers,
@@ -863,9 +934,9 @@ internal class ConfigLogicTest {
                     rules = listOf(
                         TriggerRule.stub()
                             .apply {
-                                        this.experimentGroupId = "abc"
-                                        this.experimentId = experiment1
-                                    }
+                                this.experimentGroupId = "abc"
+                                this.experimentId = experiment1
+                            }
                     )
                 },
             Trigger.stub()
@@ -880,10 +951,18 @@ internal class ConfigLogicTest {
                 }
         )
         val confirmedAssignments: Map<String, Experiment.Variant> = mapOf(
-            experiment1 to Experiment.Variant(experiment2, Experiment.Variant.VariantType.TREATMENT, paywallId1)
+            experiment1 to Experiment.Variant(
+                experiment2,
+                Experiment.Variant.VariantType.TREATMENT,
+                paywallId1
+            )
         )
         val unconfirmedAssignments: Map<String, Experiment.Variant> = mapOf(
-            experiment2 to Experiment.Variant(experiment2, Experiment.Variant.VariantType.TREATMENT, paywallId2)
+            experiment2 to Experiment.Variant(
+                experiment2,
+                Experiment.Variant.VariantType.TREATMENT,
+                paywallId2
+            )
         )
         val ids = ConfigLogic.getActiveTreatmentPaywallIds(
             forTriggers = triggers,

@@ -3,14 +3,12 @@ package com.superwall.sdk.storage.keys
 import com.superwall.sdk.storage.CacheDirectory
 import com.superwall.sdk.storage.CacheHelper
 import com.superwall.sdk.storage.StorageConfig
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 
-object AppUserIdConfig: StorageConfig {
+object AppUserIdConfig : StorageConfig {
     override val key: String = "store.appUserId"
     override var directory: CacheDirectory = CacheDirectory.UserSpecificDocuments
 }
@@ -30,7 +28,10 @@ class AppUserIdManager(cacheHelper: CacheHelper) {
     }
 
     fun set(appUserId: AppUserId) {
-        this.cacheHelper.write(AppUserIdConfig, Json.encodeToString(appUserId).toByteArray(Charsets.UTF_8))
+        this.cacheHelper.write(
+            AppUserIdConfig,
+            Json.encodeToString(appUserId).toByteArray(Charsets.UTF_8)
+        )
     }
 
     fun delete() {

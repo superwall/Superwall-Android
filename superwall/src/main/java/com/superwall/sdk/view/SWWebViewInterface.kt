@@ -11,7 +11,7 @@ interface PaywallMessageDelegate {
     fun didReceiveMessage(message: PaywallMessage)
 }
 
-class SWWebViewInterface(delegate: PaywallMessageDelegate,  private val context: Context) {
+class SWWebViewInterface(delegate: PaywallMessageDelegate, private val context: Context) {
     private val delegate: PaywallMessageDelegate = delegate
 
     @JavascriptInterface

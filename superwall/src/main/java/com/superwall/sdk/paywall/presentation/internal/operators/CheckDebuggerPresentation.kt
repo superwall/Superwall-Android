@@ -5,15 +5,11 @@ package com.superwall.sdk.paywall.presentation.internal.operators
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.paywall.presentation.internal.InternalPresentationLogic
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatusReason
-import com.superwall.sdk.paywall.presentation.internal.PresentationPipelineError
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 
-suspend  fun Superwall.checkDebuggerPresentation(
+suspend fun Superwall.checkDebuggerPresentation(
     request: PresentationRequest,
     paywallStatePublisher: MutableStateFlow<PaywallState>
 ) {

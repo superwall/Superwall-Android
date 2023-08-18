@@ -1,8 +1,6 @@
 package com.superwall.sdk.models.triggers
 
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.Transient
 
 @Serializable
 data class TriggerRule(
@@ -15,13 +13,14 @@ data class TriggerRule(
     val occurrence: TriggerRuleOccurrence? = null
 ) {
 
-    val experiment: RawExperiment get() {
-        return RawExperiment(
-            id = this.experimentId,
-            groupId = this.experimentGroupId,
-            variants = this.variants
-        )
-    }
+    val experiment: RawExperiment
+        get() {
+            return RawExperiment(
+                id = this.experimentId,
+                groupId = this.experimentGroupId,
+                variants = this.variants
+            )
+        }
 
     companion object {
         fun stub() = TriggerRule(

@@ -2,14 +2,15 @@ package com.superwall.sdk.billing
 
 import org.json.JSONObject
 import java.math.BigDecimal
-import java.util.Date
+import java.util.*
 
 interface StoreProductType {
     val productIdentifier: String
     val price: BigDecimal
     val subscriptionGroupIdentifier: String?
     val swProductTemplateVariablesJson: JSONObject //Please replace this with your actual JSON type
-//    val swProduct: SWProduct //Please replace this with your actual SWProduct type
+
+    //    val swProduct: SWProduct //Please replace this with your actual SWProduct type
     val localizedPrice: String
     val localizedSubscriptionPeriod: String
     val period: String
@@ -26,7 +27,7 @@ interface StoreProductType {
     val weeklyPrice: String
     val monthlyPrice: String
     val yearlyPrice: String
-   val hasFreeTrial: Boolean
+    val hasFreeTrial: Boolean
     val trialPeriodEndDate: Date?
     val trialPeriodEndDateString: String
     val trialPeriodDays: Int

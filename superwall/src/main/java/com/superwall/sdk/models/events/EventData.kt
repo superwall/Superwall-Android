@@ -11,9 +11,7 @@ import kotlinx.serialization.encoding.CompositeDecoder
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.JsonElement
-import org.json.JSONObject
 import java.util.*
-
 
 
 //object EventDataSerializer: KSerializer<EventData>  {
@@ -43,7 +41,12 @@ object EventDataSerializer : KSerializer<EventData> {
         val compositeEncoder = encoder.beginStructure(descriptor)
         compositeEncoder.encodeStringElement(descriptor, 0, value.id)
         compositeEncoder.encodeStringElement(descriptor, 1, value.name)
-        compositeEncoder.encodeSerializableElement(descriptor, 2, AnyMapSerializer, value.parameters)
+        compositeEncoder.encodeSerializableElement(
+            descriptor,
+            2,
+            AnyMapSerializer,
+            value.parameters
+        )
         compositeEncoder.encodeSerializableElement(descriptor, 3, DateSerializer, value.createdAt)
         compositeEncoder.endStructure(descriptor)
     }
@@ -60,7 +63,11 @@ object EventDataSerializer : KSerializer<EventData> {
                 CompositeDecoder.DECODE_DONE -> break@loop
                 0 -> id = dec.decodeStringElement(descriptor, i)
                 1 -> name = dec.decodeStringElement(descriptor, i)
-                2 -> parameters = dec.decodeSerializableElement(descriptor, i, MapSerializer(String.serializer(), AnySerializer))
+                2 -> parameters = dec.decodeSerializableElement(
+                    descriptor,
+                    i,
+                    MapSerializer(String.serializer(), AnySerializer)
+                )
                 3 -> createdAt = dec.decodeSerializableElement(descriptor, i, DateSerializer)
                 else -> throw SerializationException("Unknown index $i")
             }
@@ -77,7 +84,7 @@ data class EventData(
     var id: String = UUID.randomUUID().toString(),
     @SerialName("event_name")
     var name: String,
-    var parameters: Map<String,  @Serializable(with = AnySerializer::class) Any?>,
+    var parameters: Map<String, @Serializable(with = AnySerializer::class) Any?>,
     @Serializable(with = DateSerializer::class)
     var createdAt: Date,
 ) {

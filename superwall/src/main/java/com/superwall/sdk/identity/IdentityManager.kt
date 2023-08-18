@@ -7,6 +7,9 @@ package com.superwall.sdk.identity
 //import kotlinx.coroutines.sync.Mutex
 //import kotlinx.coroutines.sync.withLock
 //import kotlinx.coroutines.flow.*
+import LogLevel
+import LogScope
+import Logger
 import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.storage.Storage
@@ -16,8 +19,9 @@ import com.superwall.sdk.storage.keys.UserAttributes
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -34,12 +38,14 @@ class IdentityManager(
         }
     val appUserId: String? get() = _appUserId
 
-    private var _aliasId: String = storage.cache.aliasId.get()?.aliasId ?: IdentityLogic.generateAlias()
+    private var _aliasId: String =
+        storage.cache.aliasId.get()?.aliasId ?: IdentityLogic.generateAlias()
     val aliasId: String get() = _aliasId
 
     val userId: String get() = _appUserId ?: _aliasId
 
-    private var _userAttributes: Map<String, Any> = storage.cache.userAttributes.get()?.attributes ?: emptyMap()
+    private var _userAttributes: Map<String, Any> =
+        storage.cache.userAttributes.get()?.attributes ?: emptyMap()
 
     val userAttributes: Map<String, Any> get() = _userAttributes
 
@@ -54,7 +60,8 @@ class IdentityManager(
     public fun configure() {
         scope.launch {
             val neverCalledStaticConfig = storage.neverCalledStaticConfig
-            val isFirstAppOpen = !(storage.cache.didTrackFirstSeen.get()?.didTrackFirstSeen ?: false)
+            val isFirstAppOpen =
+                !(storage.cache.didTrackFirstSeen.get()?.didTrackFirstSeen ?: false)
 
             println("neverCalledStaticConfig: $neverCalledStaticConfig")
             println("isFirstAppOpen: $isFirstAppOpen")

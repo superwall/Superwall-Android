@@ -5,7 +5,7 @@ import kotlinx.serialization.Serializable
 import kotlin.random.Random
 
 @Serializable
-data class PostBackResponse(val status: String): SerializableEntity
+data class PostBackResponse(val status: String) : SerializableEntity
 
 @Serializable
 data class PostbackRequest(val products: List<PostbackProductIdentifier>, val delay: Int? = null) {

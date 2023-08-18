@@ -1,11 +1,13 @@
 package com.superwall.sdk.store
 
+import LogLevel
+import LogScope
+import Logger
 import android.content.Context
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.delegate.RestorationResult
-import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.dependencies.StoreKitCoordinatorFactory
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.PaywallProducts
@@ -18,7 +20,6 @@ import com.superwall.sdk.paywall.vc.delegate.PaywallLoadingState
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.product.receipt.ReceiptManager
 import com.superwall.sdk.store.coordinator.ProductsFetcher
-import com.superwall.sdk.store.products.GooglePlayProductsFetcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -99,7 +100,10 @@ class StoreKitManager(private val context: Context) : StoreKitManagerInterface {
 */
 
 
-class StoreKitManager(private val context: Context, private val factory: StoreKitCoordinatorFactory): ProductsFetcher {
+class StoreKitManager(
+    private val context: Context,
+    private val factory: StoreKitCoordinatorFactory
+) : ProductsFetcher {
 
     public val coordinator by lazy { factory.makeStoreKitCoordinator() }
     private val receiptManager by lazy { ReceiptManager(delegate = this) }
@@ -112,8 +116,8 @@ class StoreKitManager(private val context: Context, private val factory: StoreKi
         val products: List<Product>
     )
 
-     suspend fun getProductVariables(paywall: Paywall): List<ProductVariable> {
-        val output = getProducts( paywall.productIds, paywall.name)
+    suspend fun getProductVariables(paywall: Paywall): List<ProductVariable> {
+        val output = getProducts(paywall.productIds, paywall.name)
 
         val variables = paywall.products.mapNotNull { product ->
             output.productsById[product.id]?.let { storeProduct ->
@@ -124,7 +128,7 @@ class StoreKitManager(private val context: Context, private val factory: StoreKi
         return variables
     }
 
-     suspend fun getProducts(
+    suspend fun getProducts(
         responseProductIds: List<String>,
         paywallName: String? = null,
         responseProducts: List<Product> = emptyList(),
@@ -193,7 +197,7 @@ class StoreKitManager(private val context: Context, private val factory: StoreKi
         )
     }
 
-     suspend fun tryToRestore(paywallViewController: PaywallViewController) {
+    suspend fun tryToRestore(paywallViewController: PaywallViewController) {
         Logger.debug(
             logLevel = LogLevel.debug,
             scope = LogScope.paywallTransactions,
@@ -207,7 +211,7 @@ class StoreKitManager(private val context: Context, private val factory: StoreKi
         processRestoration(restorationResult, paywallViewController)
     }
 
-     suspend fun processRestoration(
+    suspend fun processRestoration(
         restorationResult: RestorationResult,
         paywallViewController: PaywallViewController
     ) {
@@ -264,7 +268,7 @@ class StoreKitManager(private val context: Context, private val factory: StoreKi
         }
     }
 
-      suspend fun refreshReceipt() {
+    suspend fun refreshReceipt() {
         Logger.debug(
             logLevel = LogLevel.debug,
             scope = LogScope.storeKitManager, // Rename this scope to reflect Billing Manager
@@ -273,7 +277,7 @@ class StoreKitManager(private val context: Context, private val factory: StoreKi
         receiptManager.refreshReceipt()
     }
 
-     suspend fun loadPurchasedProducts() {
+    suspend fun loadPurchasedProducts() {
         Logger.debug(
             logLevel = LogLevel.debug,
             scope = LogScope.storeKitManager, // Rename this scope to reflect Billing Manager
@@ -282,7 +286,7 @@ class StoreKitManager(private val context: Context, private val factory: StoreKi
         receiptManager.loadPurchasedProducts()
     }
 
-      suspend fun isFreeTrialAvailable(product: StoreProduct): Boolean {
+    suspend fun isFreeTrialAvailable(product: StoreProduct): Boolean {
         return receiptManager.isFreeTrialAvailable(product)
     }
 
@@ -292,7 +296,7 @@ class StoreKitManager(private val context: Context, private val factory: StoreKi
     ): Set<StoreProduct> {
         return coordinator.productFetcher.products(
             identifiers = identifiers,
-             paywallName
+            paywallName
         )
     }
 }

@@ -11,7 +11,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.util.*
 
-object LastPaywallViewConfig: StorageConfig {
+object LastPaywallViewConfig : StorageConfig {
     override val key: String = "store.lastPaywallView"
     override var directory: CacheDirectory = CacheDirectory.UserSpecificDocuments
 }
@@ -33,7 +33,10 @@ class LastPaywallViewManager(cacheHelper: CacheHelper) {
     }
 
     suspend fun set(lastPaywallView: LastPaywallView) = mutex.withLock {
-        this.cacheHelper.write(LastPaywallViewConfig, Json.encodeToString(lastPaywallView).toByteArray(Charsets.UTF_8))
+        this.cacheHelper.write(
+            LastPaywallViewConfig,
+            Json.encodeToString(lastPaywallView).toByteArray(Charsets.UTF_8)
+        )
     }
 
     suspend fun delete() = mutex.withLock {

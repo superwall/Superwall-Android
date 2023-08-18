@@ -2,9 +2,7 @@ package com.superwall.sdk.paywall.presentation
 
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -20,7 +18,8 @@ class PresentationItems {
     private val paywallInfoMutex = Mutex()
 
     suspend fun getPaywallInfo(): PaywallInfo? = paywallInfoMutex.withLock { _paywallInfo }
-    suspend fun setPaywallInfo(value: PaywallInfo?) = paywallInfoMutex.withLock { _paywallInfo = value }
+    suspend fun setPaywallInfo(value: PaywallInfo?) =
+        paywallInfoMutex.withLock { _paywallInfo = value }
 
     suspend fun reset() {
         withContext(Dispatchers.Default) {

@@ -9,16 +9,14 @@ import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.events.EventsRequest
 import com.superwall.sdk.models.events.EventsResponse
 import com.superwall.sdk.models.paywall.Paywall
-import com.superwall.sdk.models.paywall.PaywallRequestBody
 import com.superwall.sdk.models.postback.PostBackResponse
 import com.superwall.sdk.models.postback.Postback
-import kotlinx.serialization.Serializable
-import kotlinx.coroutines.*
+import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNamingStrategy
-import java.net.URL
 import java.net.HttpURLConnection
+import java.net.URL
 import java.util.*
 
 data class URLQueryItem(val name: String, val value: String)
@@ -44,12 +42,14 @@ data class Endpoint<Response : SerializableEntity>(
         var queryItems: List<URLQueryItem>? = null,
         var bodyData: ByteArray? = null
     )
+
     suspend fun makeRequest(): HttpURLConnection? = coroutineScope {
         val url: URL
 
         if (components != null) {
             val query = components.queryItems?.joinToString("&") { "${it.name}=${it.value}" }
-            val urlString = "${components.scheme}://${components.host}${components.path}?${query ?: ""}"
+            val urlString =
+                "${components.scheme}://${components.host}${components.path}?${query ?: ""}"
             url = URL(urlString)
         } else if (this@Endpoint.url != null) {
             url = this@Endpoint.url!!
@@ -90,7 +90,7 @@ data class Endpoint<Response : SerializableEntity>(
         fun events(
             eventsRequest: EventsRequest,
             factory: ApiFactory
-        ) : Endpoint<EventsResponse> {
+        ): Endpoint<EventsResponse> {
             val json = Json {
                 encodeDefaults = true
                 namingStrategy = JsonNamingStrategy.SnakeCase
@@ -212,22 +212,22 @@ data class Endpoint<Response : SerializableEntity>(
 //        }
 
 
-            fun paywall(
-                identifier: String? = null,
-                event: EventData? = null,
-                factory: ApiFactory
-            ): Endpoint<Paywall> {
-                val bodyData: ByteArray?
+        fun paywall(
+            identifier: String? = null,
+            event: EventData? = null,
+            factory: ApiFactory
+        ): Endpoint<Paywall> {
+            val bodyData: ByteArray?
 
-                bodyData = when {
-                    identifier != null -> {
-                        return paywall(identifier, factory)
-                    }
-                    else -> {
-                        throw Exception("Invalid paywall request, only load via identifier is supported")
-                    }
+            bodyData = when {
+                identifier != null -> {
+                    return paywall(identifier, factory)
+                }
+                else -> {
+                    throw Exception("Invalid paywall request, only load via identifier is supported")
                 }
             }
+        }
 //                    event != null -> {
 //                        val bodyDict = mapOf("event" to event.jsonData)
 //                        JSONEncoder.toSnakeCase.encode(bodyDict)
@@ -250,66 +250,68 @@ data class Endpoint<Response : SerializableEntity>(
 //                )
 //            }
 
-            private fun paywall(
-                identifier: String,
-                factory: ApiFactory
-            ): Endpoint<Paywall> {
-                // WARNING: Do not modify anything about this request without considering our cache eviction code
-                // we must know all the exact urls we need to invalidate so changing the order, inclusion, etc of any query
-                // parameters will cause issues
-                val queryItems = mutableListOf(URLQueryItem("pk", factory.storage.apiKey))
+        private fun paywall(
+            identifier: String,
+            factory: ApiFactory
+        ): Endpoint<Paywall> {
+            // WARNING: Do not modify anything about this request without considering our cache eviction code
+            // we must know all the exact urls we need to invalidate so changing the order, inclusion, etc of any query
+            // parameters will cause issues
+            val queryItems = mutableListOf(URLQueryItem("pk", factory.storage.apiKey))
 
-                // TODO: Localization
-                /*
+            // TODO: Localization
+            /*
 
-                // In the config endpoint we return all the locales, this code will check if:
-                // 1. The device locale (ex: en_US) exists in the locales list
-                // 2. The shortened device locale (ex: en) exists in the locale list
-                // If either exist (preferring the most specific) include the locale in the
-                // the url as a query param.
-                factory.configManager.config?.let { config ->
-                    when {
-                        config.locales.contains(factory.deviceHelper.locale) -> {
+            // In the config endpoint we return all the locales, this code will check if:
+            // 1. The device locale (ex: en_US) exists in the locales list
+            // 2. The shortened device locale (ex: en) exists in the locale list
+            // If either exist (preferring the most specific) include the locale in the
+            // the url as a query param.
+            factory.configManager.config?.let { config ->
+                when {
+                    config.locales.contains(factory.deviceHelper.locale) -> {
+                        val localeQuery = URLQueryItem(
+                            name = "locale",
+                            value = factory.deviceHelper.locale
+                        )
+                        queryItems.add(localeQuery)
+                    }
+                    else -> {
+                        val shortLocale = factory.deviceHelper.locale.split("_")[0]
+                        if (config.locales.contains(shortLocale)) {
                             val localeQuery = URLQueryItem(
                                 name = "locale",
-                                value = factory.deviceHelper.locale
+                                value = shortLocale
                             )
                             queryItems.add(localeQuery)
                         }
-                        else -> {
-                            val shortLocale = factory.deviceHelper.locale.split("_")[0]
-                            if (config.locales.contains(shortLocale)) {
-                                val localeQuery = URLQueryItem(
-                                    name = "locale",
-                                    value = shortLocale
-                                )
-                                queryItems.add(localeQuery)
-                            }
-                        }
                     }
                 }
-
-                */
-                val baseHost = factory.api.base.host
-
-                return Endpoint(
-                    components = Components(
-                        host = baseHost,
-                        path = Api.version1 + "paywall/$identifier",
-                        queryItems = queryItems
-                    ),
-                    method = HttpMethod.GET,
-                    factory = factory
-                )
             }
 
+            */
+            val baseHost = factory.api.base.host
+
+            return Endpoint(
+                components = Components(
+                    host = baseHost,
+                    path = Api.version1 + "paywall/$identifier",
+                    queryItems = queryItems
+                ),
+                method = HttpMethod.GET,
+                factory = factory
+            )
+        }
 
 
-        private fun createEndpointWithBodyData(bodyData: String?, factory: ApiFactory): Endpoint<Paywall> {
+        private fun createEndpointWithBodyData(
+            bodyData: String?,
+            factory: ApiFactory
+        ): Endpoint<Paywall> {
             val baseHost = factory.api.base.host
 
             var _bodyData: ByteArray? = null
-            if (bodyData != null)  {
+            if (bodyData != null) {
                 _bodyData = bodyData.toByteArray()
             }
 

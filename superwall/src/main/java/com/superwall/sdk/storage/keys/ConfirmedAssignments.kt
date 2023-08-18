@@ -11,7 +11,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-object ConfirmedAssignmentsConfig: StorageConfig {
+object ConfirmedAssignmentsConfig : StorageConfig {
     override val key: String = "store.confirmedAssignments"
     override var directory: CacheDirectory = CacheDirectory.UserSpecificDocuments
 }
@@ -30,7 +30,10 @@ class ConfirmedAssignmentsManager(cacheHelper: CacheHelper) {
     }
 
     suspend fun set(confirmedAssignments: ConfirmedAssignments) = mutex.withLock {
-        this.cacheHelper.write(ConfirmedAssignmentsConfig, Json.encodeToString(confirmedAssignments).toByteArray(Charsets.UTF_8))
+        this.cacheHelper.write(
+            ConfirmedAssignmentsConfig,
+            Json.encodeToString(confirmedAssignments).toByteArray(Charsets.UTF_8)
+        )
     }
 
     suspend fun delete() = mutex.withLock {

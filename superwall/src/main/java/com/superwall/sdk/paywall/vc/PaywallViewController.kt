@@ -1,11 +1,9 @@
 package com.superwall.sdk.paywall.vc
 
-import Logger
 import android.app.Activity
 import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
-import android.opengl.Visibility
 import android.os.Handler
 import android.os.Looper
 import android.view.View
@@ -15,7 +13,6 @@ import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.PopupWindow
 import android.widget.RelativeLayout
-import androidx.core.view.ViewCompat
 import androidx.core.widget.PopupWindowCompat
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
@@ -31,10 +28,8 @@ import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.paywall.manager.PaywallViewControllerCache
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.PaywallInfo
-import com.superwall.sdk.paywall.presentation.internal.PaywallStatePublisher
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
-import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.paywall.vc.delegate.PaywallLoadingState
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegate
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerEventDelegate
@@ -45,10 +40,8 @@ import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent
 import com.superwall.sdk.storage.Storage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import java.lang.ref.WeakReference
-import java.net.URL
 import java.util.*
 
 class PaywallViewController(
@@ -65,7 +58,7 @@ class PaywallViewController(
     val cache: PaywallViewControllerCache?,
     private val shimmerView: ShimmerView = ShimmerView(context),
     private val loadingViewController: LoadingViewController = LoadingViewController(context)
-    ) : FrameLayout(context), PaywallMessageHandlerDelegate, SWWebViewDelegate {
+) : FrameLayout(context), PaywallMessageHandlerDelegate, SWWebViewDelegate {
 
     init {
         // Add the webView
@@ -88,7 +81,8 @@ class PaywallViewController(
 
     fun layoutSubviews() {
         webView.layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
-        shimmerView.layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+        shimmerView.layoutParams =
+            LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
     }
 
     /// Presenter used to present this instance; `null` if no presenter was used
@@ -98,7 +92,7 @@ class PaywallViewController(
         set(value) {
             val oldValue = field
             field = value
-            if (value != oldValue)  {
+            if (value != oldValue) {
                 loadingStateDidChange(oldValue)
             }
         }
@@ -162,7 +156,7 @@ class PaywallViewController(
         locale = deviceHelper.locale
     )
 
-    override  val paywallInfo: PaywallInfo
+    override val paywallInfo: PaywallInfo
         get() = paywall.getInfo(fromEvent = request?.presentationInfo?.eventData, factory = factory)
 
     private fun loadWebView() {
@@ -191,7 +185,7 @@ class PaywallViewController(
 //            val request = Request.Builder().url(url).cacheControl(CacheControl.FORCE_CACHE).build()
 //            webView.loadUrl(request)
 //        } else {
-            webView.loadUrl(url.toString())
+        webView.loadUrl(url.toString())
 //        }
 
         loadingState = PaywallLoadingState.LoadingURL()
@@ -200,7 +194,7 @@ class PaywallViewController(
     // Loading state
 
     fun loadingStateDidChange(from: PaywallLoadingState) {
-        when(loadingState) {
+        when (loadingState) {
             is PaywallLoadingState.Unknown -> {
             }
             is PaywallLoadingState.LoadingPurchase, is PaywallLoadingState.ManualLoading -> {
@@ -329,7 +323,10 @@ class PaywallViewPresenter(
 
     /// Public
 
-    fun present(presentationStyleOverride: PaywallPresentationStyle?, completion: (Boolean) -> Unit) {
+    fun present(
+        presentationStyleOverride: PaywallPresentationStyle?,
+        completion: (Boolean) -> Unit
+    ) {
         if (Superwall.instance.isPaywallPresented
         // TODO: Presentation santization
 //            || presenter is PaywallActivity
@@ -347,7 +344,11 @@ class PaywallViewPresenter(
     }
 
     // TODO: Implement this function for real
-    fun dismiss(result: PaywallResult, closeReason: PaywallCloseReason = PaywallCloseReason.SystemLogic, completion: (() -> Unit)? = null) {
+    fun dismiss(
+        result: PaywallResult,
+        closeReason: PaywallCloseReason = PaywallCloseReason.SystemLogic,
+        completion: (() -> Unit)? = null
+    ) {
         paywallViewController?.paywall?.closeReason = closeReason
 
         // TODO: Implement a way to dismiss the paywall via the delegate Implement a way to dismiss the paywall via the delegate Implement a way to dismiss the paywall via the delegate Implement a way to dismiss the paywall via the delegate
@@ -403,7 +404,7 @@ class PaywallViewPresenter(
         popupWindow = PopupWindow(
             parentRelativeLayout,
             WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.MATCH_PARENT ,
+            WindowManager.LayoutParams.MATCH_PARENT,
             true
         )
         popupWindow.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))

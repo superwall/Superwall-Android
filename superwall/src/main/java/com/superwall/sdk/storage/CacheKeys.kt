@@ -12,10 +12,11 @@ interface StorageConfig {
 }
 
 
-
-class Cache(var context: Context, var config: CacheHelperConfiguration = CacheHelperConfiguration(
-    memoryCache = LRUCache(PerpetualCache<String, ByteArray>(), 1000)
-)) {
+class Cache(
+    var context: Context, var config: CacheHelperConfiguration = CacheHelperConfiguration(
+        memoryCache = LRUCache(PerpetualCache<String, ByteArray>(), 1000)
+    )
+) {
     private val cacheHelper = CacheHelper(context, config)
     public val activeSubscriptionStatus = ActiveSubscriptionStatusManager(cacheHelper)
     public val aliasId = AliasIdManager(cacheHelper)

@@ -21,7 +21,7 @@ data class Config(
     var requestId: String? = null,
     @Transient var locales: Set<String> = emptySet()
 
-): SerializableEntity {
+) : SerializableEntity {
     init {
         locales = localizationConfig.locales.map { it.locale }.toSet()
     }
@@ -29,13 +29,14 @@ data class Config(
 
     val featureFlags: FeatureFlags
         get() = FeatureFlags(
-            enableSessionEvents = rawFeatureFlags.find { it.key == "enable_session_events" }?.enabled ?: false,
+            enableSessionEvents = rawFeatureFlags.find { it.key == "enable_session_events" }?.enabled
+                ?: false,
             enablePostback = rawFeatureFlags.find { it.key == "enable_postback" }?.enabled ?: false
         )
 
-   companion object {
-       fun stub(): Config {
-           return Config(
+    companion object {
+        fun stub(): Config {
+            return Config(
                 triggers = setOf(Trigger.stub()),
                 paywalls = listOf(Paywall.stub()),
                 logLevel = 0,
@@ -44,8 +45,8 @@ data class Config(
                 rawFeatureFlags = emptyList(),
                 preloadingDisabled = PreloadingDisabled.stub(),
                 localizationConfig = LocalizationConfig(locales = emptyList())
-           )
-       }
-   }
+            )
+        }
+    }
 
 }

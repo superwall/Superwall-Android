@@ -3,7 +3,6 @@ package com.superwall.sdk.models.serialization
 import kotlinx.serialization.json.JsonPrimitive
 
 
-
 fun Any.isJsonPrimitable(): Boolean {
     return when (this) {
         is String -> true

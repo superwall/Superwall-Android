@@ -2,19 +2,19 @@ package com.superwall.sdk.models.events
 
 
 import com.superwall.sdk.models.SerializableEntity
-import kotlinx.serialization.*
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
-import kotlinx.serialization.json.*
 
 @Serializable
 data class EventsResponse(
     val status: Status,
     val invalidIndexes: List<Int>? = null
-): SerializableEntity {
+) : SerializableEntity {
     @Serializable(with = StatusSerializer::class)
     enum class Status {
         OK, PARTIAL_SUCCESS;
@@ -22,7 +22,8 @@ data class EventsResponse(
 }
 
 object StatusSerializer : KSerializer<EventsResponse.Status> {
-    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("Status", PrimitiveKind.STRING)
+    override val descriptor: SerialDescriptor =
+        PrimitiveSerialDescriptor("Status", PrimitiveKind.STRING)
 
     override fun serialize(encoder: Encoder, value: EventsResponse.Status) {
         encoder.encodeString(value.name)

@@ -40,5 +40,6 @@ sealed class TriggerResult {
     //
     // In these instances, consider falling back to a native paywall.
     @Serializable
-    data class Error(val error: @Serializable(with = ExceptionSerializer::class) Exception) : TriggerResult()
+    data class Error(val error: @Serializable(with = ExceptionSerializer::class) Exception) :
+        TriggerResult()
 }

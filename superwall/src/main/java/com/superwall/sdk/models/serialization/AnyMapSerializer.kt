@@ -1,17 +1,14 @@
 package com.superwall.sdk.models.serialization
 
 import kotlinx.serialization.*
-import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.descriptors.*
-import kotlinx.serialization.encoding.CompositeDecoder
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.*
 
 @Serializable(with = AnyMapSerializer::class)
 data class AnyMap(val map: Map<String, Any>)
-
 
 
 @Serializer(forClass = Map::class)
@@ -22,7 +19,8 @@ object AnyMapSerializer : KSerializer<Map<String, Any?>> {
 
     @OptIn(ExperimentalSerializationApi::class)
     override fun serialize(encoder: Encoder, value: Map<String, Any?>) {
-        val jsonOutput = encoder as? JsonEncoder ?: throw SerializationException("This class can be saved only by Json")
+        val jsonOutput = encoder as? JsonEncoder
+            ?: throw SerializationException("This class can be saved only by Json")
         val jsonObject = buildJsonObject {
             value.forEach { (k, v) ->
                 when (v) {
@@ -45,7 +43,8 @@ object AnyMapSerializer : KSerializer<Map<String, Any?>> {
 
     @OptIn(ExperimentalSerializationApi::class)
     override fun deserialize(decoder: Decoder): Map<String, Any?> {
-        val jsonInput = decoder as? JsonDecoder ?: throw SerializationException("This class can be loaded only by Json")
+        val jsonInput = decoder as? JsonDecoder
+            ?: throw SerializationException("This class can be loaded only by Json")
         val jsonObject = jsonInput.decodeJsonElement().jsonObject
         return jsonObject.map { it.key to it.value.jsonPrimitive.content }.toMap()
     }

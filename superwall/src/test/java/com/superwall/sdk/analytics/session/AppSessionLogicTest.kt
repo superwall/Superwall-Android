@@ -6,7 +6,6 @@ import org.junit.Test
 import java.util.*
 
 
-
 class AppSessionLogicTests {
     @Test
     fun `testDidStartNewSession noTimeout`() {
