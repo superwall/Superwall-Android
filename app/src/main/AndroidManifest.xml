@@ -24,6 +24,10 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name="com.android.billingclient.api.ProxyBillingActivity"
+            android:theme="@style/BillingProxy"
+            tools:replace="android:theme" />
     </application>
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="com.android.vending.BILLING" />
