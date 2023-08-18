@@ -10,8 +10,17 @@ sealed class UserInitiatedEvent(
     val isFeatureGatable: Boolean
 ) : TrackableUserInitiatedEvent {
 
-    class Track(rawName: String, canImplicitlyTriggerPaywall: Boolean, isFeatureGatable: Boolean, customParameters: HashMap<String, Any> = HashMap())
-        : UserInitiatedEvent(rawName, canImplicitlyTriggerPaywall, customParameters, isFeatureGatable) {
+    class Track(
+        rawName: String,
+        canImplicitlyTriggerPaywall: Boolean,
+        isFeatureGatable: Boolean,
+        customParameters: HashMap<String, Any> = HashMap()
+    ) : UserInitiatedEvent(
+        rawName,
+        canImplicitlyTriggerPaywall,
+        customParameters,
+        isFeatureGatable
+    ) {
 
         override suspend fun getSuperwallParameters(): HashMap<String, Any> {
             return hashMapOf("is_feature_gatable" to isFeatureGatable)

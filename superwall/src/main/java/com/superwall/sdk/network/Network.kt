@@ -1,5 +1,8 @@
 package com.superwall.sdk.network
 
+import LogLevel
+import LogScope
+import Logger
 import com.superwall.sdk.dependencies.ApiFactory
 import com.superwall.sdk.models.assignment.Assignment
 import com.superwall.sdk.models.assignment.AssignmentPostback
@@ -10,10 +13,7 @@ import com.superwall.sdk.models.events.EventsRequest
 import com.superwall.sdk.models.events.EventsResponse
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.withContext
-import java.util.UUID
+import java.util.*
 
 
 open class Network(
@@ -60,12 +60,11 @@ open class Network(
     }
 
 
-
-//    @MainActor
+    //    @MainActor
     suspend fun getConfig(
 //        injectedApplicationStatePublisher: (Flow<UIApplication.State>)? = null
     ): Config {
-    // TODO: ApplicationStatePublisher
+        // TODO: ApplicationStatePublisher
 //        // Suspend until app is in foreground.
 //        val applicationStatePublisher =
 //            injectedApplicationStatePublisher ?: this.applicationStatePublisher
@@ -114,6 +113,7 @@ open class Network(
             )
         }
     }
+
     suspend fun getPaywall(
         identifier: String? = null,
         event: EventData? = null
@@ -149,6 +149,7 @@ open class Network(
             throw error
         }
     }
+
     open suspend fun getAssignments(): List<Assignment> {
         return try {
             val result = urlSession.request<ConfirmedAssignmentResponse>(

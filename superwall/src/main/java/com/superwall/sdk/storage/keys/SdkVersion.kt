@@ -6,11 +6,10 @@ import com.superwall.sdk.storage.StorageConfig
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-object SdkVersionConfig: StorageConfig {
+object SdkVersionConfig : StorageConfig {
     override val key: String = "store.sdkVersion"
     override var directory: CacheDirectory = CacheDirectory.AppSpecificDocuments
 }
@@ -29,7 +28,10 @@ class SdkVersionManager(cacheHelper: CacheHelper) {
     }
 
     suspend fun set(sdkVersion: SdkVersion) = mutex.withLock {
-        this.cacheHelper.write(SdkVersionConfig, Json.encodeToString(sdkVersion).toByteArray(Charsets.UTF_8))
+        this.cacheHelper.write(
+            SdkVersionConfig,
+            Json.encodeToString(sdkVersion).toByteArray(Charsets.UTF_8)
+        )
     }
 
     suspend fun delete() = mutex.withLock {

@@ -7,11 +7,10 @@ import com.superwall.sdk.storage.StorageConfig
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-object TriggerSessionsConfig: StorageConfig {
+object TriggerSessionsConfig : StorageConfig {
     override val key: String = "store.triggerSessions"
     override var directory: CacheDirectory = CacheDirectory.Cache
 }
@@ -31,7 +30,10 @@ class TriggerSessionsManager(cacheHelper: CacheHelper) {
     }
 
     suspend fun set(triggerSessions: TriggerSessions) = mutex.withLock {
-        this.cacheHelper.write(TriggerSessionsConfig, Json.encodeToString(triggerSessions).toByteArray(Charsets.UTF_8))
+        this.cacheHelper.write(
+            TriggerSessionsConfig,
+            Json.encodeToString(triggerSessions).toByteArray(Charsets.UTF_8)
+        )
     }
 
     suspend fun delete() = mutex.withLock {

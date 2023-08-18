@@ -1,9 +1,7 @@
 package com.superwall.sdk.store.abstractions.product
 
-import com.android.billingclient.api.SkuDetails
-import java.math.MathContext
-import java.math.RoundingMode
 import java.math.BigDecimal
+import java.math.RoundingMode
 
 data class SubscriptionPeriod(val value: Int, val unit: Unit) {
     enum class Unit {
@@ -28,6 +26,7 @@ data class SubscriptionPeriod(val value: Int, val unit: Unit) {
             else -> this
         }
     }
+
     // TODO: I don't think SkuDetails.SubscriptionPeriod is valid
     companion object {
         fun from(subscriptionPeriodString: String): SubscriptionPeriod? {
@@ -50,23 +49,25 @@ data class SubscriptionPeriod(val value: Int, val unit: Unit) {
         }
     }
 
-    fun pricePerDay( price: BigDecimal): BigDecimal {
+    fun pricePerDay(price: BigDecimal): BigDecimal {
         val periodsPerDay: BigDecimal = BigDecimal(value) * BigDecimal(daysPerUnit)
         return price.divide(periodsPerDay, 2, RoundingMode.DOWN)
     }
 
-    fun pricePerWeek( price: BigDecimal): BigDecimal {
+    fun pricePerWeek(price: BigDecimal): BigDecimal {
         val periodsPerWeek: BigDecimal = BigDecimal(value) * BigDecimal(daysPerUnit) / BigDecimal(7)
         return price.divide(periodsPerWeek, 2, RoundingMode.DOWN)
     }
 
-    fun pricePerMonth( price: BigDecimal): BigDecimal {
-        val periodsPerMonth: BigDecimal = BigDecimal(value) * BigDecimal(daysPerUnit) / BigDecimal(30)
+    fun pricePerMonth(price: BigDecimal): BigDecimal {
+        val periodsPerMonth: BigDecimal =
+            BigDecimal(value) * BigDecimal(daysPerUnit) / BigDecimal(30)
         return price.divide(periodsPerMonth, 2, RoundingMode.DOWN)
     }
 
-    fun pricePerYear( price: BigDecimal): BigDecimal {
-        val periodsPerYear: BigDecimal = BigDecimal(value) * BigDecimal(daysPerUnit) / BigDecimal(365)
+    fun pricePerYear(price: BigDecimal): BigDecimal {
+        val periodsPerYear: BigDecimal =
+            BigDecimal(value) * BigDecimal(daysPerUnit) / BigDecimal(365)
         return price.divide(periodsPerYear, 2, RoundingMode.DOWN)
     }
 }

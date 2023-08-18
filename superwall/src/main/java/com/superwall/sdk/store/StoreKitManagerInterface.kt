@@ -7,7 +7,6 @@ import com.superwall.sdk.models.product.Product
 import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.paywall.vc.PaywallViewController
 import com.superwall.sdk.store.abstractions.product.StoreProduct
-import kotlinx.coroutines.flow.Flow
 
 
 data class GetProductsResponse(
@@ -24,11 +23,13 @@ interface StoreKitManagerInterface {
         responseProducts: List<Product> = listOf(),
         substituteProducts: PaywallProducts? = null
     ): GetProductsResponse
+
     suspend fun tryToRestore(paywallViewController: PaywallViewController)
     suspend fun processRestoration(
         restorationResult: RestorationResult,
         paywallViewController: PaywallViewController
     )
+
     suspend fun refreshReceipt()
     suspend fun loadPurchasedProducts()
     suspend fun isFreeTrialAvailable(product: StoreProduct): Boolean

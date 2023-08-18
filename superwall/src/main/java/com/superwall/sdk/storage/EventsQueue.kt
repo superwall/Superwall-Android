@@ -1,6 +1,9 @@
 package com.superwall.sdk.storage
 
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.Trackable
@@ -13,12 +16,12 @@ import com.superwall.sdk.network.Network
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 
-import android.content.BroadcastReceiver
-import android.content.Intent
-import android.content.IntentFilter
-
 @OptIn(ExperimentalCoroutinesApi::class)
-class EventsQueue(private val context: Context, private val network: Network, private val configManager: ConfigManager): BroadcastReceiver() {
+class EventsQueue(
+    private val context: Context,
+    private val network: Network,
+    private val configManager: ConfigManager
+) : BroadcastReceiver() {
     private val maxEventCount = 50
     private var elements = mutableListOf<EventData>()
     private val timer = MutableSharedFlow<Long>()
@@ -32,7 +35,8 @@ class EventsQueue(private val context: Context, private val network: Network, pr
     }
 
     private suspend fun setupTimer() {
-        val timeInterval = if (configManager.options?.networkEnvironment is SuperwallOptions.NetworkEnvironment.Release) 20L else 1L
+        val timeInterval =
+            if (configManager.options?.networkEnvironment is SuperwallOptions.NetworkEnvironment.Release) 20L else 1L
         job = CoroutineScope(Dispatchers.Default).launch {
             while (isActive) {
                 delay(timeInterval * 1000) // delay works in milliseconds
@@ -85,7 +89,7 @@ class EventsQueue(private val context: Context, private val network: Network, pr
     }
 
     override fun onReceive(context: Context?, intent: Intent?) {
-        when(intent?.action) {
+        when (intent?.action) {
             Intent.ACTION_SCREEN_OFF -> {
                 // equivalent to "applicationWillResignActive"
                 // your code here

@@ -1,5 +1,6 @@
 package com.superwall.sdk.analytics.trigger_session
 
+
 import android.app.Activity
 import com.superwall.sdk.analytics.SessionEventsDelegate
 import com.superwall.sdk.analytics.SessionEventsManager
@@ -17,9 +18,6 @@ import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 
-
-import kotlinx.coroutines.*
-
 enum class LoadState {
     START,
     END,
@@ -36,31 +34,31 @@ class TriggerSessionManager(
     val delegate: SessionEventsDelegate,
     val sessionEventsManager: SessionEventsManager,
 
-) {
-        val pendingTriggerSessions: MutableMap<String, TriggerSession> = mutableMapOf()
-     var activeTriggerSession: TriggerSession? = null
-     var observerCancellables: List<Any> = listOf()
-     var configListener: Any? = null
+    ) {
+    val pendingTriggerSessions: MutableMap<String, TriggerSession> = mutableMapOf()
+    var activeTriggerSession: TriggerSession? = null
+    var observerCancellables: List<Any> = listOf()
+    var configListener: Any? = null
     // TODO: Re-enable
 //    var transactionCount: TriggerSession.Transaction.Count? = null
 
-     fun listenForConfig() {
+    fun listenForConfig() {
         // implementation
     }
 
-     fun addObservers() {
+    fun addObservers() {
         // implementation
     }
 
-     fun willEnterForeground() {
+    fun willEnterForeground() {
         // implementation
     }
 
-     fun didEnterBackground() {
+    fun didEnterBackground() {
         // implementation
     }
 
-     fun createSessions(from: Config) {
+    fun createSessions(from: Config) {
         // implementation
     }
 
@@ -69,7 +67,7 @@ class TriggerSessionManager(
         on: Activity? = null,
         paywall: Paywall? = null,
         triggerResult: TriggerResult? = null,
-        trackEvent: (suspend  (Trackable) -> TrackingResult)? = null
+        trackEvent: (suspend (Trackable) -> TrackingResult)? = null
     ) {
         // implementation
     }
@@ -82,55 +80,55 @@ class TriggerSessionManager(
         // implementation
     }
 
-     fun enqueuePendingTriggerSessions() {
+    fun enqueuePendingTriggerSessions() {
         // implementation
     }
 
-     fun updateAppSession(to: AppSession) {
+    fun updateAppSession(to: AppSession) {
         // implementation
     }
 
-     fun trackPaywallOpen() {
+    fun trackPaywallOpen() {
         // implementation
     }
 
-     fun trackPaywallClose() {
+    fun trackPaywallClose() {
         // implementation
     }
 
-     fun trackWebviewLoad(forPaywallId: String, state: LoadState) {
+    fun trackWebviewLoad(forPaywallId: String, state: LoadState) {
         // implementation
     }
 
-     fun trackPaywallResponseLoad(forPaywallId: String?, state: LoadState) {
+    fun trackPaywallResponseLoad(forPaywallId: String?, state: LoadState) {
         // implementation
     }
 
-     fun trackProductsLoad(forPaywallId: String, state: LoadState) {
+    fun trackProductsLoad(forPaywallId: String, state: LoadState) {
         // implementation
     }
 
-     fun trackBeginTransaction(of: StoreProduct) {
+    fun trackBeginTransaction(of: StoreProduct) {
         // implementation
     }
 
-     fun trackTransactionError() {
+    fun trackTransactionError() {
         // implementation
     }
 
-     fun trackTransactionAbandon() {
+    fun trackTransactionAbandon() {
         // implementation
     }
 
-     fun trackTransactionRestoration(withId: String?, product: StoreProduct?) {
+    fun trackTransactionRestoration(withId: String?, product: StoreProduct?) {
         // implementation
     }
 
-     fun trackPendingTransaction() {
+    fun trackPendingTransaction() {
         // implementation
     }
 
-     fun trackTransactionSucceeded(
+    fun trackTransactionSucceeded(
         withId: String?,
         forProduct: StoreProduct,
         isFreeTrialAvailable: Boolean
@@ -138,7 +136,7 @@ class TriggerSessionManager(
         // implementation
     }
 
-     fun trackTransactionDeferred(withId: String?, forProduct: StoreProduct) {
+    fun trackTransactionDeferred(withId: String?, forProduct: StoreProduct) {
         // implementation
     }
 }

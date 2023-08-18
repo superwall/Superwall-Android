@@ -219,7 +219,8 @@ object ConfigLogic {
 
         val confirmedExperimentIds = confirmedAssignments.keys.toSet()
         val groupedTriggerRules = getRulesPerTriggerGroup(triggers)
-        val triggerExperimentIds = groupedTriggerRules.flatMap { it.map { rule -> rule.experiment.id } }.toSet()
+        val triggerExperimentIds =
+            groupedTriggerRules.flatMap { it.map { rule -> rule.experiment.id } }.toSet()
         val oldExperimentIds = confirmedExperimentIds - triggerExperimentIds
 
         for (id in oldExperimentIds) {

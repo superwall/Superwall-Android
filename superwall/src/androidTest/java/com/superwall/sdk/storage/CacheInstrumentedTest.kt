@@ -6,7 +6,6 @@ import com.superwall.sdk.storage.keys.AliasId
 import com.superwall.sdk.storage.keys.AppUserId
 import com.superwall.sdk.storage.keys.LastPaywallView
 import com.superwall.sdk.storage.keys.UserAttributes
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.Before

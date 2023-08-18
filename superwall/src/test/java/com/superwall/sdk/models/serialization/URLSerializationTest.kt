@@ -1,7 +1,8 @@
 package com.superwall.sdk.models.serialization
 
-import kotlinx.serialization.*
-import kotlinx.serialization.json.*
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.modules.SerializersModule
 import org.junit.Assert.assertEquals
 import org.junit.Test

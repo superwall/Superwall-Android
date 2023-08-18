@@ -32,12 +32,12 @@ class MockSkuDetails(jsonDetails: String) : SkuDetails(jsonDetails) {
 
 }
 
-class ProductFetcherUnderTest(context: Context): GooglePlayProductsFetcher(context = context) {
+class ProductFetcherUnderTest(context: Context) : GooglePlayProductsFetcher(context = context) {
 
     // We're going to override the query async method to return a list of products
     // that we define in the test
 
-    public var productIdsToReturn:  Map<String, Result<RawStoreProduct>> = emptyMap()
+    public var productIdsToReturn: Map<String, Result<RawStoreProduct>> = emptyMap()
 
 
     public var queryProductDetailsCalls: List<List<String>> = emptyList()
@@ -70,7 +70,6 @@ class ProductFetcherInstrumentedTest {
         val productFetcher: ProductFetcherUnderTest = ProductFetcherUnderTest(context)
 
 
-
         val deffereds = listOf(
             async { productFetcher.requestAndAwait(listOf("1", "2")) },
             async { productFetcher.requestAndAwait(listOf("1", "2", "3")) }
@@ -90,7 +89,6 @@ class ProductFetcherInstrumentedTest {
         // Check that the second call is for 3
         assert(productFetcher.queryProductDetailsCalls[1].size == 1)
         assert(productFetcher.queryProductDetailsCalls[1][0] == "3")
-
 
 
     }

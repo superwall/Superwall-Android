@@ -15,9 +15,9 @@ class OuterVariables(
 @kotlinx.serialization.Serializable
 class Variables(
     val user: Map<String, @kotlinx.serialization.Serializable(with = AnySerializer::class) Any?>,
-    val primary: Map<String, @kotlinx.serialization.Serializable(with = AnySerializer::class)Any?>?,
-    val secondary: Map<String, @kotlinx.serialization.Serializable(with = AnySerializer::class)Any?>?,
-    val tertiary: Map<String, @kotlinx.serialization.Serializable(with = AnySerializer::class)Any?>?,
+    val primary: Map<String, @kotlinx.serialization.Serializable(with = AnySerializer::class) Any?>?,
+    val secondary: Map<String, @kotlinx.serialization.Serializable(with = AnySerializer::class) Any?>?,
+    val tertiary: Map<String, @kotlinx.serialization.Serializable(with = AnySerializer::class) Any?>?,
 //    val device: Map<String, @kotlinx.serialization.Serializable(with = AnySerializer::class) Any?>,
     val device: DeviceTemplate,
     val params: Map<String, @kotlinx.serialization.Serializable(with = AnySerializer::class) Any?>,
@@ -29,12 +29,12 @@ class Variables(
             params: Map<String, Any?>,
             userAttributes: Map<String, Any?>,
             templateDeviceDictionary: DeviceTemplate
-        ): OuterVariables  {
+        ): OuterVariables {
             val primary = productVariables.firstOrNull { it.type == ProductType.PRIMARY }
             val secondary = productVariables.firstOrNull { it.type == ProductType.SECONDARY }
             val tertiary = productVariables.firstOrNull { it.type == ProductType.TERTIARY }
 
-           return OuterVariables(
+            return OuterVariables(
                 variables = Variables(
                     user = userAttributes,
                     primary = primary?.attributes,
@@ -43,8 +43,8 @@ class Variables(
                     device = templateDeviceDictionary,
                     params = params
                 ),
-               event_name = "template_variables"
-           )
+                event_name = "template_variables"
+            )
         }
     }
 }

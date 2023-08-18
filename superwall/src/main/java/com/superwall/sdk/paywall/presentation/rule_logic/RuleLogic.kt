@@ -14,10 +14,22 @@ import com.superwall.sdk.storage.Storage
 
 //data class ConfirmableAssignment(val experimentId: Experiment.ID, val variant: Experiment.Variant)
 
-data class Outcome(var confirmableAssignment: ConfirmableAssignment? = null, var triggerResult: TriggerResult)
+data class Outcome(
+    var confirmableAssignment: ConfirmableAssignment? = null,
+    var triggerResult: TriggerResult
+)
 
-class RuleLogic(private val context: Context, private val configManager: ConfigManager, private val storage: Storage, private val factory: RuleAttributesFactory) {
-    suspend fun evaluateRules(event: EventData, triggers: Map<String, Trigger>, isPreemptive: Boolean): Outcome {
+class RuleLogic(
+    private val context: Context,
+    private val configManager: ConfigManager,
+    private val storage: Storage,
+    private val factory: RuleAttributesFactory
+) {
+    suspend fun evaluateRules(
+        event: EventData,
+        triggers: Map<String, Trigger>,
+        isPreemptive: Boolean
+    ): Outcome {
         val trigger = triggers[event.name]
         return if (trigger == null) {
             Outcome(triggerResult = TriggerResult.EventNotFound)
@@ -31,7 +43,9 @@ class RuleLogic(private val context: Context, private val configManager: ConfigM
                 var confirmableAssignment: ConfirmableAssignment? = null
 
                 val confirmedAssignments = storage.getConfirmedAssignments()
-                variant = confirmedAssignments[rule.experiment.id] ?: configManager.unconfirmedAssignments[rule.experiment.id] ?: throw PaywallNotFoundException()
+                variant = confirmedAssignments[rule.experiment.id]
+                    ?: configManager.unconfirmedAssignments[rule.experiment.id]
+                            ?: throw PaywallNotFoundException()
 
                 if (variant !in confirmedAssignments.values) {
                     confirmableAssignment = ConfirmableAssignment(
@@ -66,10 +80,21 @@ class RuleLogic(private val context: Context, private val configManager: ConfigM
         }
     }
 
-    private suspend fun findMatchingRule(event: EventData, trigger: Trigger, isPreemptive: Boolean): TriggerRule? {
+    private suspend fun findMatchingRule(
+        event: EventData,
+        trigger: Trigger,
+        isPreemptive: Boolean
+    ): TriggerRule? {
         val expressionEvaluator = ExpressionEvaluator(context, storage, factory)
-        return trigger.rules.firstOrNull { expressionEvaluator.evaluateExpression(it, event, isPreemptive) }
+        return trigger.rules.firstOrNull {
+            expressionEvaluator.evaluateExpression(
+                it,
+                event,
+                isPreemptive
+            )
+        }
     }
 }
 
-class PaywallNotFoundException : Exception("There isn't a paywall configured to show in this context")
+class PaywallNotFoundException :
+    Exception("There isn't a paywall configured to show in this context")

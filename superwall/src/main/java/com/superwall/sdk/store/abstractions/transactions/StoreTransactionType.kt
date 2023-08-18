@@ -1,12 +1,10 @@
 package com.superwall.sdk.store.abstractions.transactions
 
 import com.android.billingclient.api.BillingClient
-import kotlinx.serialization.Serializer
-import java.util.Date
-import java.util.UUID
+import java.util.*
 
 
-interface StoreTransactionType  {
+interface StoreTransactionType {
     val transactionDate: Date?
     val originalTransactionIdentifier: String
     val state: StoreTransactionState
@@ -33,12 +31,16 @@ sealed class StoreTransactionState {
 
     @kotlinx.serialization.Serializable
     object Purchased : StoreTransactionState() // When purchase is successful
+
     @kotlinx.serialization.Serializable
     object Failed : StoreTransactionState() // When purchase has failed
+
     @kotlinx.serialization.Serializable
     object Restored : StoreTransactionState() // When a previous purchase has been restored
+
     @kotlinx.serialization.Serializable
-    object Deferred : StoreTransactionState() // Optional: When a purchase is pending some external action
+    object Deferred :
+        StoreTransactionState() // Optional: When a purchase is pending some external action
 
     companion object {
         fun from(purchaseResult: Int): StoreTransactionState {

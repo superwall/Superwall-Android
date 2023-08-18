@@ -13,7 +13,6 @@ import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import java.net.URL
 import java.util.*
 
@@ -26,11 +25,14 @@ data class Paywall(
     val databaseId: String,
     var identifier: String,
     val name: String,
-    val url: @Serializable(with =  URLSerializer::class) URL,
+    val url: @Serializable(with = URLSerializer::class) URL,
     @SerialName("paywalljs_event")
     val htmlSubstitutions: String,
     @kotlinx.serialization.Transient()
-    var presentation: Presentation = Presentation(PaywallPresentationStyle.MODAL, PresentationCondition.ALWAYS),
+    var presentation: Presentation = Presentation(
+        PaywallPresentationStyle.MODAL,
+        PresentationCondition.ALWAYS
+    ),
 
     @SerialName("presentation_style_v2")
     private val presensentationStyle: String,
@@ -71,7 +73,10 @@ data class Paywall(
     }
 
     @Serializable
-    data class Presentation(val style: PaywallPresentationStyle, val condition: PresentationCondition)
+    data class Presentation(
+        val style: PaywallPresentationStyle,
+        val condition: PresentationCondition
+    )
 
     @Serializable
     data class LoadingInfo(
@@ -84,12 +89,11 @@ data class Paywall(
     )
 
 
-
 //    @Serializable
 //    data class ProductVariable(val type: String, val attributes: Map<String, String>)
 
 
-    fun  overrideProductsIfNeeded(paywall: Paywall) {
+    fun overrideProductsIfNeeded(paywall: Paywall) {
         products = paywall.products
         productIds = paywall.productIds
         // TODO: Figure out if the products makes sense like this
@@ -135,7 +139,10 @@ data class Paywall(
                 name = "abac",
                 url = URL("https://google.com"),
                 htmlSubstitutions = "",
-                presentation = Presentation(PaywallPresentationStyle.MODAL, PresentationCondition.CHECK_USER_SUBSCRIPTION),
+                presentation = Presentation(
+                    PaywallPresentationStyle.MODAL,
+                    PresentationCondition.CHECK_USER_SUBSCRIPTION
+                ),
                 presensentationStyle = "MODAL",
                 presentationCondition = "CHECK_USER_SUBSCRIPTION",
                 backgroundColorHex = "000000",

@@ -3,7 +3,6 @@ package com.superwall.sdk.store.coordinator
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
 import com.superwall.sdk.store.abstractions.product.StoreProduct
-import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
 
 interface TransactionChecker {

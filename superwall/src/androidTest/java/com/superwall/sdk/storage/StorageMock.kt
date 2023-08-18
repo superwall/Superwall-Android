@@ -6,9 +6,6 @@ import com.superwall.sdk.dependencies.DeviceInfoFactory
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.network.device.DeviceInfo
-import com.superwall.sdk.storage.keys.Transactions
-import com.superwall.sdk.storage.keys.TriggerSessions
-import java.lang.Exception
 
 class DeviceInfoFactoryMock : DeviceInfoFactory {
     override fun makeDeviceInfo(): DeviceInfo {

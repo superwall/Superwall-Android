@@ -12,8 +12,9 @@ import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.store.StoreKitManager
-import com.superwall.sdk.store.StoreKitManagerInterface
-import kotlinx.coroutines.*
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.*
@@ -140,7 +141,7 @@ class PaywallRequestManager(
         paywall.responseLoadingInfo.startAt = responseLoadStartTime
         paywall.responseLoadingInfo.endAt = Date()
 
-       println("!!getPaywallResponse - ${paywallId} - ${paywall} - ${paywall.experiment}")
+        println("!!getPaywallResponse - ${paywallId} - ${paywall} - ${paywall.experiment}")
 
         return paywall
     }
@@ -156,7 +157,7 @@ class PaywallRequestManager(
             state = LoadState.START
         )
         val trackedEvent = InternalSuperwallEvent.PaywallLoad(
-            state =  InternalSuperwallEvent.PaywallLoad.State.Start(),
+            state = InternalSuperwallEvent.PaywallLoad.State.Start(),
             eventData = event
         )
         Superwall.instance.track(trackedEvent)

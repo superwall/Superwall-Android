@@ -4,19 +4,15 @@ import android.content.Context
 import android.graphics.Color
 import android.net.Uri
 import android.os.Build
-import android.view.ViewGroup.LayoutParams
 import android.webkit.*
-import androidx.core.view.ViewCompat
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.SessionEventsManager
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.trigger_session.LoadState
-import com.superwall.sdk.deprecated.PaywallMessage
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallMessageHandler
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallMessageHandlerDelegate
-import com.superwall.sdk.view.SWWebViewInterface
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -33,7 +29,7 @@ class SWWebView(
     private val sessionEventsManager: SessionEventsManager,
     private val messageHandler: PaywallMessageHandler
 ) : WebView(context) {
-    var delegate: SWWebViewDelegate?  = null
+    var delegate: SWWebViewDelegate? = null
 
     init {
 
@@ -60,7 +56,10 @@ class SWWebView(
         // Set a WebViewClient
         this.webViewClient = object : WebViewClient() {
 
-            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+            override fun shouldOverrideUrlLoading(
+                view: WebView?,
+                request: WebResourceRequest?
+            ): Boolean {
                 return true // This will prevent the loading of URLs inside your WebView
             }
 
@@ -79,7 +78,6 @@ class SWWebView(
             }
         }
     }
-
 
 
     override fun loadUrl(url: String) {

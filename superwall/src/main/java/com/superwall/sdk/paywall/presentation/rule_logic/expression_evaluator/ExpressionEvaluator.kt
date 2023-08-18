@@ -1,5 +1,8 @@
 package com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator
 
+import LogLevel
+import LogScope
+import Logger
 import android.content.Context
 import android.webkit.ConsoleMessage
 import android.webkit.ValueCallback
@@ -12,11 +15,13 @@ import com.superwall.sdk.models.triggers.TriggerRule
 import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
 import com.superwall.sdk.storage.Storage
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonElement
 import org.json.JSONObject
 
-class ExpressionEvaluator(private val context: Context, private val storage: Storage, private val factory: RuleAttributesFactory) {
+class ExpressionEvaluator(
+    private val context: Context,
+    private val storage: Storage,
+    private val factory: RuleAttributesFactory
+) {
 
     companion object {
         public var sharedWebView: WebView? = null
@@ -38,13 +43,16 @@ class ExpressionEvaluator(private val context: Context, private val storage: Sto
         }
     }
 
-    suspend fun evaluateExpression(rule: TriggerRule, eventData: EventData, isPreemptive: Boolean): Boolean {
+    suspend fun evaluateExpression(
+        rule: TriggerRule,
+        eventData: EventData,
+        isPreemptive: Boolean
+    ): Boolean {
         // Expression matches all
         if (rule.expressionJs == null && rule.expression == null) {
             val shouldFire = shouldFire(rule.occurrence, ruleMatched = true, isPreemptive)
             return shouldFire
         }
-
 
 
 //        jsCtx.exceptionHandler = { _, value ->
@@ -70,13 +78,15 @@ class ExpressionEvaluator(private val context: Context, private val storage: Sto
 
         var deffered: CompletableDeferred<Boolean> = CompletableDeferred()
         runOnUiThread {
-            sharedWebView!!.evaluateJavascript(SDKJS +  "\n " + postfix, ValueCallback<String?> { result ->
-                println("!! evaluateJavascript result: $result")
+            sharedWebView!!.evaluateJavascript(
+                SDKJS + "\n " + postfix,
+                ValueCallback<String?> { result ->
+                    println("!! evaluateJavascript result: $result")
 
-                val isMatched = result?.toString() == "true"
-                val shouldFire = shouldFire(rule.occurrence, isMatched, isPreemptive)
-                deffered.complete(shouldFire)
-            })
+                    val isMatched = result?.toString() == "true"
+                    val shouldFire = shouldFire(rule.occurrence, isMatched, isPreemptive)
+                    deffered.complete(shouldFire)
+                })
         }
 
         return deffered.await()
@@ -86,7 +96,7 @@ class ExpressionEvaluator(private val context: Context, private val storage: Sto
         val ruleAttributes = factory.makeRuleAttributes()
         val jsonValues = JSONObject()
         jsonValues.put("user", JSONObject(ruleAttributes.user))
-        jsonValues.put("device",JSONObject( ruleAttributes.device))
+        jsonValues.put("device", JSONObject(ruleAttributes.device))
         jsonValues.put("params", JSONObject(eventData.parameters))
 
         return when {
@@ -111,7 +121,11 @@ class ExpressionEvaluator(private val context: Context, private val storage: Sto
         }
     }
 
-    fun shouldFire(occurrence: TriggerRuleOccurrence?, ruleMatched: Boolean, isPreemptive: Boolean): Boolean {
+    fun shouldFire(
+        occurrence: TriggerRuleOccurrence?,
+        ruleMatched: Boolean,
+        isPreemptive: Boolean
+    ): Boolean {
         if (ruleMatched) {
             if (occurrence == null) {
                 Logger.debug(

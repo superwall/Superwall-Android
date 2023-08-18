@@ -1,6 +1,5 @@
 package com.superwall.sdk.models
 
-import kotlinx.serialization.Serializable
 import java.time.Instant
 
 data class LoadingInfo(

@@ -1,5 +1,5 @@
-
 package com.superwall.sdk.paywall.vc.delegate
+
 import com.superwall.sdk.paywall.vc.PaywallViewController
 
 class PaywallViewControllerDelegateAdapter(

@@ -7,13 +7,6 @@ import com.superwall.sdk.paywall.vc.PaywallViewController
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.SerializationException
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonPrimitive
-import java.net.URL
-import java.time.LocalDateTime
-import java.time.ZoneOffset
 import java.util.*
 
 sealed class TrackingLogic {
@@ -133,8 +126,8 @@ sealed class TrackingLogic {
             )
 
 
-           val referringEventName = paywallViewController?.paywallInfo?.presentedByEventWithName
-            if (referringEventName != null)  {
+            val referringEventName = paywallViewController?.paywallInfo?.presentedByEventWithName
+            if (referringEventName != null) {
                 if (notAllowedReferringEventNames.contains(referringEventName)) {
                     println("!! canTriggerPaywall: notAllowedReferringEventNames.contains(referringEventName) $referringEventName")
                     return ImplicitTriggerOutcome.DontTriggerPaywall

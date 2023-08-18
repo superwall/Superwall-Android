@@ -13,5 +13,9 @@ class PaywallProducts(
     val secondary: StoreProduct? = null,
     val tertiary: StoreProduct? = null
 ) {
-    val ids: List<String> = listOfNotNull(primary?.productIdentifier, secondary?.productIdentifier, tertiary?.productIdentifier)
+    val ids: List<String> = listOfNotNull(
+        primary?.productIdentifier,
+        secondary?.productIdentifier,
+        tertiary?.productIdentifier
+    )
 }

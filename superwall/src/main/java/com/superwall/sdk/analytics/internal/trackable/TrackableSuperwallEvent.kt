@@ -1,4 +1,3 @@
-
 package com.superwall.sdk.analytics.internal.trackable
 
 import com.superwall.sdk.analytics.SessionEventsManager
@@ -13,20 +12,18 @@ import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.storage.keys.SubscriptionStatus
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.GoogleBillingPurchaseTransaction
-import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
 import com.superwall.sdk.store.transactions.TransactionError
 import kotlinx.serialization.json.*
 import java.net.URL
-import java.util.*
-import kotlin.collections.HashMap
 
 
-interface TrackableSuperwallEvent: Trackable {
+interface TrackableSuperwallEvent : Trackable {
     val superwallEvent: SuperwallEvent
 }
 
-sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent): TrackableSuperwallEvent {
+sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent) :
+    TrackableSuperwallEvent {
 
     override val rawName: String
         get() = this.superwallEvent.rawName
@@ -34,13 +31,17 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
     override val canImplicitlyTriggerPaywall: Boolean
         get() = this.superwallEvent.canImplicitlyTriggerPaywall
 
-    class AppOpen(override var customParameters: HashMap<String, Any> = HashMap()): InternalSuperwallEvent(SuperwallEvent.AppOpen()) {
+    class AppOpen(override var customParameters: HashMap<String, Any> = HashMap()) :
+        InternalSuperwallEvent(SuperwallEvent.AppOpen()) {
         override suspend fun getSuperwallParameters(): HashMap<String, Any> {
             return HashMap()
         }
     }
 
-    class AppInstall(val appInstalledAtString: String, override var customParameters: HashMap<String, Any> = HashMap()): InternalSuperwallEvent(SuperwallEvent.AppInstall()) {
+    class AppInstall(
+        val appInstalledAtString: String,
+        override var customParameters: HashMap<String, Any> = HashMap()
+    ) : InternalSuperwallEvent(SuperwallEvent.AppInstall()) {
         override suspend fun getSuperwallParameters(): HashMap<String, Any> {
             return hashMapOf(
                 "application_installed_at" to appInstalledAtString
@@ -48,13 +49,17 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
         }
     }
 
-   // TODO: Implement the reste
+    // TODO: Implement the reste
 
-    class AppLaunch(override var customParameters: HashMap<String, Any> = HashMap()): InternalSuperwallEvent(SuperwallEvent.AppLaunch()) {
+    class AppLaunch(override var customParameters: HashMap<String, Any> = HashMap()) :
+        InternalSuperwallEvent(SuperwallEvent.AppLaunch()) {
         override suspend fun getSuperwallParameters(): HashMap<String, Any> = HashMap()
     }
 
-    class Attributes(val appInstalledAtString: String, override var customParameters: HashMap<String, Any> = HashMap()): InternalSuperwallEvent(SuperwallEvent.UserAttributes(customParameters)) {
+    class Attributes(
+        val appInstalledAtString: String,
+        override var customParameters: HashMap<String, Any> = HashMap()
+    ) : InternalSuperwallEvent(SuperwallEvent.UserAttributes(customParameters)) {
         override suspend fun getSuperwallParameters(): HashMap<String, Any> {
             return hashMapOf(
                 "application_installed_at" to appInstalledAtString
@@ -62,7 +67,8 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
         }
     }
 
-    class DeepLink(val url: URL, override var customParameters: HashMap<String, Any> = HashMap()): InternalSuperwallEvent(SuperwallEvent.DeepLink(url)) {
+    class DeepLink(val url: URL, override var customParameters: HashMap<String, Any> = HashMap()) :
+        InternalSuperwallEvent(SuperwallEvent.DeepLink(url)) {
         override suspend fun getSuperwallParameters(): HashMap<String, Any> {
             return hashMapOf(
                 "url" to url.toString(),
@@ -77,23 +83,28 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
         }
     }
 
-    class FirstSeen(override var customParameters: HashMap<String, Any> = HashMap()): InternalSuperwallEvent(SuperwallEvent.FirstSeen()) {
+    class FirstSeen(override var customParameters: HashMap<String, Any> = HashMap()) :
+        InternalSuperwallEvent(SuperwallEvent.FirstSeen()) {
         override suspend fun getSuperwallParameters(): HashMap<String, Any> = HashMap()
     }
 
-    class AppClose(override var customParameters: HashMap<String, Any> = HashMap()): InternalSuperwallEvent(SuperwallEvent.AppClose()) {
+    class AppClose(override var customParameters: HashMap<String, Any> = HashMap()) :
+        InternalSuperwallEvent(SuperwallEvent.AppClose()) {
         override suspend fun getSuperwallParameters(): HashMap<String, Any> = HashMap()
     }
 
 
-
-    class PaywallLoad(val state: State, val eventData: EventData?, override var customParameters: HashMap<String, Any> = HashMap()): InternalSuperwallEvent(SuperwallEvent.PaywallResponseLoadStart(eventData?.name)) {
+    class PaywallLoad(
+        val state: State,
+        val eventData: EventData?,
+        override var customParameters: HashMap<String, Any> = HashMap()
+    ) : InternalSuperwallEvent(SuperwallEvent.PaywallResponseLoadStart(eventData?.name)) {
 
         sealed class State() {
-            class Start(): State()
-            class NotFound(): State()
-            class Fail(): State()
-            class Complete(val paywallInfo: PaywallInfo): State()
+            class Start() : State()
+            class NotFound() : State()
+            class Fail() : State()
+            class Complete(val paywallInfo: PaywallInfo) : State()
         }
 
 
@@ -103,17 +114,22 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
                 "is_triggered_from_event" to fromEvent
             )
 
-            when(state) {
+            when (state) {
                 is State.Start -> return params
                 is State.NotFound -> return params
                 is State.Fail -> return params
-                is State.Complete -> return  HashMap(state.paywallInfo.eventParams(otherParams = params).filterValues { it != null } as Map<String, Any>)
+                is State.Complete -> return HashMap(
+                    state.paywallInfo.eventParams(otherParams = params)
+                        .filterValues { it != null } as Map<String, Any>)
             }
 
         }
     }
 
-    class SubscriptionStatusDidChange(val subscriptionStatus: SubscriptionStatus, override var customParameters: HashMap<String, Any> = HashMap()): InternalSuperwallEvent(SuperwallEvent.SubscriptionStatusDidChange()) {
+    class SubscriptionStatusDidChange(
+        val subscriptionStatus: SubscriptionStatus,
+        override var customParameters: HashMap<String, Any> = HashMap()
+    ) : InternalSuperwallEvent(SuperwallEvent.SubscriptionStatusDidChange()) {
         override suspend fun getSuperwallParameters(): HashMap<String, Any> {
             return hashMapOf(
                 "subscription_status" to subscriptionStatus.description
@@ -122,7 +138,8 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
     }
 
 
-    class SessionStart(override var customParameters: HashMap<String, Any> = HashMap()): InternalSuperwallEvent(SuperwallEvent.SessionStart()) {
+    class SessionStart(override var customParameters: HashMap<String, Any> = HashMap()) :
+        InternalSuperwallEvent(SuperwallEvent.SessionStart()) {
         override suspend fun getSuperwallParameters(): HashMap<String, Any> {
             return HashMap()
         }
@@ -133,7 +150,12 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
         val triggerName: String,
         override var customParameters: HashMap<String, Any> = HashMap(),
         private val sessionEventsManager: SessionEventsManager
-    ): InternalSuperwallEvent(SuperwallEvent.TriggerFire(eventName = triggerName, result = triggerResult)) {
+    ) : InternalSuperwallEvent(
+        SuperwallEvent.TriggerFire(
+            eventName = triggerName,
+            result = triggerResult
+        )
+    ) {
         override suspend fun getSuperwallParameters(): HashMap<String, Any> {
             val params: HashMap<String, Any> = hashMapOf(
                 "trigger_name" to triggerName
@@ -162,7 +184,8 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
                     params.apply {
                         this["variant_id"] = triggerResult.experiment.variant.id
                         this["experiment_id"] = triggerResult.experiment.id
-                        this["paywall_identifier"] = triggerResult.experiment.variant.paywallId ?: ""
+                        this["paywall_identifier"] =
+                            triggerResult.experiment.variant.paywallId ?: ""
                         this["result"] = "present"
                     }
                 }
@@ -186,7 +209,12 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
         val status: PaywallPresentationRequestStatus,
         val statusReason: PaywallPresentationRequestStatusReason?,
         override var customParameters: HashMap<String, Any> = HashMap()
-    ): InternalSuperwallEvent(SuperwallEvent.PaywallPresentationRequest(status = status, reason = statusReason)) {
+    ) : InternalSuperwallEvent(
+        SuperwallEvent.PaywallPresentationRequest(
+            status = status,
+            reason = statusReason
+        )
+    ) {
         override suspend fun getSuperwallParameters(): HashMap<String, Any> {
             return hashMapOf(
                 "source_event_name" to (eventData?.name ?: ""),
@@ -200,16 +228,16 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
     class PaywallOpen(
         val paywallInfo: PaywallInfo,
         override var customParameters: HashMap<String, Any> = HashMap()
-    ): InternalSuperwallEvent(SuperwallEvent.PaywallOpen(paywallInfo = paywallInfo)) {
+    ) : InternalSuperwallEvent(SuperwallEvent.PaywallOpen(paywallInfo = paywallInfo)) {
         override suspend fun getSuperwallParameters(): HashMap<String, Any> {
-            return  HashMap( paywallInfo.eventParams())
+            return HashMap(paywallInfo.eventParams())
         }
     }
 
     class PaywallClose(
         val paywallInfo: PaywallInfo,
         override var customParameters: HashMap<String, Any> = HashMap()
-    ): InternalSuperwallEvent(SuperwallEvent.PaywallClose(paywallInfo = paywallInfo)) {
+    ) : InternalSuperwallEvent(SuperwallEvent.PaywallClose(paywallInfo = paywallInfo)) {
         override suspend fun getSuperwallParameters(): HashMap<String, Any> {
             return HashMap(paywallInfo.eventParams())
         }
@@ -218,7 +246,7 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
     class PaywallDecline(
         val paywallInfo: PaywallInfo,
         override var customParameters: HashMap<String, Any> = HashMap()
-    ): InternalSuperwallEvent(SuperwallEvent.PaywallDecline(paywallInfo = paywallInfo)) {
+    ) : InternalSuperwallEvent(SuperwallEvent.PaywallDecline(paywallInfo = paywallInfo)) {
         override suspend fun getSuperwallParameters(): HashMap<String, Any> {
             return HashMap(paywallInfo.eventParams())
         }
@@ -236,7 +264,9 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
             class Start(val product: StoreProduct) : State()
             class Fail(val error: TransactionError) : State()
             class Abandon(val product: StoreProduct) : State()
-            class Complete(val product: StoreProduct, val transaction: StoreTransactionType?) : State()
+            class Complete(val product: StoreProduct, val transaction: StoreTransactionType?) :
+                State()
+
             class Restore : State()
             class Timeout : State()
         }
@@ -264,7 +294,7 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
                 is State.Timeout -> SuperwallEvent.TransactionTimeout(paywallInfo = paywallInfo)
             }
         override val rawName: String
-            get() =  superwallEvent.rawName
+            get() = superwallEvent.rawName
 
         override val canImplicitlyTriggerPaywall: Boolean
             get() = superwallEvent.canImplicitlyTriggerPaywall
@@ -280,7 +310,8 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
                     if (model != null) {
                         val json = Json { encodeDefaults = true }
                         // TODO: Figure out how to get this to work with kotlinx.serialization
-                        val jsonObject: JsonObject = json.encodeToJsonElement(model as GoogleBillingPurchaseTransaction).jsonObject
+                        val jsonObject: JsonObject =
+                            json.encodeToJsonElement(model as GoogleBillingPurchaseTransaction).jsonObject
 
                         val modelMap: Map<String, Any> = jsonObject.mapValues { entry ->
                             when (val value = entry.value) {
@@ -297,7 +328,12 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
                         is TransactionError.Failure,
                         is TransactionError.Pending -> {
                             val message = state.error.message
-                            HashMap(paywallInfo.eventParams(product, otherParams = mapOf("message" to message)))
+                            HashMap(
+                                paywallInfo.eventParams(
+                                    product,
+                                    otherParams = mapOf("message" to message)
+                                )
+                            )
                         }
                     }
                 }
@@ -310,7 +346,12 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
         val paywallInfo: PaywallInfo,
         val product: StoreProduct,
         override var customParameters: HashMap<String, Any> = HashMap()
-    ) : InternalSuperwallEvent(SuperwallEvent.SubscriptionStart(product = product, paywallInfo = paywallInfo)) {
+    ) : InternalSuperwallEvent(
+        SuperwallEvent.SubscriptionStart(
+            product = product,
+            paywallInfo = paywallInfo
+        )
+    ) {
         override suspend fun getSuperwallParameters(): HashMap<String, Any> {
             return HashMap(paywallInfo.eventParams(product))
         }
@@ -320,7 +361,12 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
         val paywallInfo: PaywallInfo,
         val product: StoreProduct,
         override var customParameters: HashMap<String, Any> = HashMap()
-    ) : InternalSuperwallEvent(SuperwallEvent.FreeTrialStart(product = product, paywallInfo = paywallInfo)) {
+    ) : InternalSuperwallEvent(
+        SuperwallEvent.FreeTrialStart(
+            product = product,
+            paywallInfo = paywallInfo
+        )
+    ) {
         override suspend fun getSuperwallParameters(): HashMap<String, Any> {
             return HashMap(paywallInfo.eventParams(product))
         }
@@ -330,20 +376,24 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
         val paywallInfo: PaywallInfo,
         val product: StoreProduct,
         override var customParameters: HashMap<String, Any> = HashMap()
-    ) : InternalSuperwallEvent(SuperwallEvent.NonRecurringProductPurchase(product = TransactionProduct(product = product), paywallInfo = paywallInfo)) {
+    ) : InternalSuperwallEvent(
+        SuperwallEvent.NonRecurringProductPurchase(
+            product = TransactionProduct(
+                product = product
+            ), paywallInfo = paywallInfo
+        )
+    ) {
         override suspend fun getSuperwallParameters(): HashMap<String, Any> {
             return HashMap(paywallInfo.eventParams(product))
         }
     }
 
 
-
-
     class PaywallWebviewLoad(
         val state: State,
         val paywallInfo: PaywallInfo,
         override var customParameters: HashMap<String, Any> = HashMap()
-    ): InternalSuperwallEvent(SuperwallEvent.PaywallWebviewLoadStart(paywallInfo)) {
+    ) : InternalSuperwallEvent(SuperwallEvent.PaywallWebviewLoadStart(paywallInfo)) {
 
         sealed class State {
             class Start : State()
@@ -354,10 +404,18 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
 
         override val superwallEvent: SuperwallEvent
             get() = when (state) {
-                is PaywallWebviewLoad.State.Start -> SuperwallEvent.PaywallWebviewLoadStart(paywallInfo)
-                is PaywallWebviewLoad.State.Timeout -> SuperwallEvent.PaywallWebviewLoadTimeout(paywallInfo)
-                is PaywallWebviewLoad.State.Fail -> SuperwallEvent.PaywallWebviewLoadFail(paywallInfo)
-                is PaywallWebviewLoad.State.Complete -> SuperwallEvent.PaywallWebviewLoadComplete(paywallInfo)
+                is PaywallWebviewLoad.State.Start -> SuperwallEvent.PaywallWebviewLoadStart(
+                    paywallInfo
+                )
+                is PaywallWebviewLoad.State.Timeout -> SuperwallEvent.PaywallWebviewLoadTimeout(
+                    paywallInfo
+                )
+                is PaywallWebviewLoad.State.Fail -> SuperwallEvent.PaywallWebviewLoadFail(
+                    paywallInfo
+                )
+                is PaywallWebviewLoad.State.Complete -> SuperwallEvent.PaywallWebviewLoadComplete(
+                    paywallInfo
+                )
             }
 
         override suspend fun getSuperwallParameters(): HashMap<String, Any> {
@@ -370,7 +428,12 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
         val paywallInfo: PaywallInfo,
         val eventData: EventData?,
         override var customParameters: HashMap<String, Any> = HashMap()
-    ): InternalSuperwallEvent(SuperwallEvent.PaywallProductsLoadStart(eventData?.name, paywallInfo)) {
+    ) : InternalSuperwallEvent(
+        SuperwallEvent.PaywallProductsLoadStart(
+            eventData?.name,
+            paywallInfo
+        )
+    ) {
 
         sealed class State {
             class Start : State()
@@ -380,9 +443,18 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
 
         override val superwallEvent: SuperwallEvent
             get() = when (state) {
-                is State.Start -> SuperwallEvent.PaywallProductsLoadStart(eventData?.name, paywallInfo)
-                is State.Fail -> SuperwallEvent.PaywallProductsLoadFail(eventData?.name, paywallInfo)
-                is State.Complete -> SuperwallEvent.PaywallProductsLoadComplete(eventData?.name, paywallInfo)
+                is State.Start -> SuperwallEvent.PaywallProductsLoadStart(
+                    eventData?.name,
+                    paywallInfo
+                )
+                is State.Fail -> SuperwallEvent.PaywallProductsLoadFail(
+                    eventData?.name,
+                    paywallInfo
+                )
+                is State.Complete -> SuperwallEvent.PaywallProductsLoadComplete(
+                    eventData?.name,
+                    paywallInfo
+                )
             }
 
         override suspend fun getSuperwallParameters(): HashMap<String, Any> {
@@ -397,7 +469,8 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
 
 
 }
- fun test() {
-     InternalSuperwallEvent.AppOpen()
-     InternalSuperwallEvent.AppInstall(appInstalledAtString = "test")
- }
+
+fun test() {
+    InternalSuperwallEvent.AppOpen()
+    InternalSuperwallEvent.AppInstall(appInstalledAtString = "test")
+}

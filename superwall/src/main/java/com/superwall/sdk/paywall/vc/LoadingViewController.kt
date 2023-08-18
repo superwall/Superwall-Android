@@ -13,7 +13,8 @@ class LoadingViewController(context: Context) : FrameLayout(context) {
         // Create a ProgressBar with the default spinner style
         val progressBar = ProgressBar(context).apply {
             // Ensure it's centered in the LoadingViewController
-            val params = LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.CENTER)
+            val params =
+                LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.CENTER)
             layoutParams = params
         }
 

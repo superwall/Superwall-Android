@@ -9,7 +9,10 @@ sealed class PresentationInfo {
 
     data class ImplicitTrigger(override val eventData: EventData) : PresentationInfo()
     data class ExplicitTrigger(override val eventData: EventData) : PresentationInfo()
-    data class FromIdentifier(override val identifier: String, override val freeTrialOverride: Boolean) : PresentationInfo()
+    data class FromIdentifier(
+        override val identifier: String,
+        override val freeTrialOverride: Boolean
+    ) : PresentationInfo()
 
     open val freeTrialOverride: Boolean?
         get() = when (this) {

@@ -3,15 +3,12 @@ package com.superwall.sdk.storage.keys
 import com.superwall.sdk.storage.CacheDirectory
 import com.superwall.sdk.storage.CacheHelper
 import com.superwall.sdk.storage.StorageConfig
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 
-object AliasIdConfig: StorageConfig {
+object AliasIdConfig : StorageConfig {
     override val key: String = "store.aliasId"
     override var directory: CacheDirectory = CacheDirectory.UserSpecificDocuments
 }
@@ -31,7 +28,10 @@ class AliasIdManager(cacheHelper: CacheHelper) {
 
 
     fun set(aliasId: AliasId) {
-        this.cacheHelper.write(AliasIdConfig, Json.encodeToString(aliasId).toByteArray(Charsets.UTF_8))
+        this.cacheHelper.write(
+            AliasIdConfig,
+            Json.encodeToString(aliasId).toByteArray(Charsets.UTF_8)
+        )
     }
 
     fun delete() {

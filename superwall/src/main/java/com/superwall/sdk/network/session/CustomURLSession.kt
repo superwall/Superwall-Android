@@ -1,32 +1,25 @@
 package com.superwall.sdk.network.session
 
 
-import androidx.annotation.RestrictTo
+import LogLevel
+import LogScope
+import Logger
 import com.superwall.sdk.models.SerializableEntity
 import com.superwall.sdk.network.Endpoint
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNamingStrategy
-import java.io.BufferedReader
-import java.io.InputStreamReader
-import java.lang.Exception
-import java.lang.StringBuilder
 import java.net.HttpURLConnection
-import java.net.URL
-import java.util.Base64
 
-sealed class NetworkError(message: String): Throwable(message) {
-    class Unknown: NetworkError("An unknown error occurred.")
-    class NotAuthenticated: NetworkError("Unauthorized.")
-    class Decoding: NetworkError("Decoding error.")
-    class NotFound: NetworkError("Not found.")
-    class InvalidUrl: NetworkError("URL invalid.")
+sealed class NetworkError(message: String) : Throwable(message) {
+    class Unknown : NetworkError("An unknown error occurred.")
+    class NotAuthenticated : NetworkError("Unauthorized.")
+    class Decoding : NetworkError("Decoding error.")
+    class NotFound : NetworkError("Not found.")
+    class InvalidUrl : NetworkError("URL invalid.")
 }
 
 
 class CustomHttpUrlConnection {
-
 
 
     val json = Json {
@@ -80,10 +73,11 @@ class CustomHttpUrlConnection {
 
 
     @Throws(NetworkError::class)
-    suspend inline fun <reified Response: SerializableEntity> request(endpoint: Endpoint<Response>): Response {
+    suspend inline fun <reified Response : SerializableEntity> request(endpoint: Endpoint<Response>): Response {
         val request = endpoint.makeRequest() ?: throw NetworkError.Unknown()
 
-        val auth = request.getRequestProperty("Authorization") ?: throw NetworkError.NotAuthenticated()
+        val auth =
+            request.getRequestProperty("Authorization") ?: throw NetworkError.NotAuthenticated()
 
         Logger.debug(
             LogLevel.debug,
@@ -150,7 +144,6 @@ class CustomHttpUrlConnection {
 
         return value ?: throw NetworkError.Decoding()
     }
-
 
 
     @Throws(NetworkError::class)

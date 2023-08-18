@@ -42,14 +42,14 @@ class GooglePlayStoreProduct(private val skuDetails: SkuDetails) : StoreProductT
         get() = "" // Not available from SkuDetails
 
     override val periodMonths: Int
-//        get() = skuDetails.subscriptionPeriod?.unit?.let { if (it == SkuDetails.SubscriptionPeriod.Unit.MONTH) skuDetails.subscriptionPeriod.count else 0 } ?: 0
+        //        get() = skuDetails.subscriptionPeriod?.unit?.let { if (it == SkuDetails.SubscriptionPeriod.Unit.MONTH) skuDetails.subscriptionPeriod.count else 0 } ?: 0
         get() = 0
 
     override val periodMonthsString: String
         get() = periodMonths.toString()
 
     override val periodYears: Int
-    get() = 0
+        get() = 0
 //        get() = skuDetails.subscriptionPeriod?.unit?.let { if (it == SkuDetails.SubscriptionPeriod.Unit.YEAR) skuDetails.subscriptionPeriod.count else 0 } ?: 0
 
     override val periodYearsString: String
@@ -146,7 +146,7 @@ class GooglePlayStoreProduct(private val skuDetails: SkuDetails) : StoreProductT
         get() = ""
 
     private fun parseBillingPeriod(period: String): Int {
-        if (period.isEmpty())  {
+        if (period.isEmpty()) {
             return 0
         }
 

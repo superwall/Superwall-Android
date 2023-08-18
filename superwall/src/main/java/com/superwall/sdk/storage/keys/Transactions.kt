@@ -6,11 +6,10 @@ import com.superwall.sdk.storage.StorageConfig
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-object TransactionsConfig: StorageConfig {
+object TransactionsConfig : StorageConfig {
     override val key: String = "store.transactions.v2"
     override var directory: CacheDirectory = CacheDirectory.Cache
 }
@@ -33,7 +32,10 @@ class TransactionsManager(cacheHelper: CacheHelper) {
     }
 
     suspend fun set(transactions: Transactions) = mutex.withLock {
-        this.cacheHelper.write(TransactionsConfig, Json.encodeToString(transactions).toByteArray(Charsets.UTF_8))
+        this.cacheHelper.write(
+            TransactionsConfig,
+            Json.encodeToString(transactions).toByteArray(Charsets.UTF_8)
+        )
     }
 
     suspend fun delete() = mutex.withLock {

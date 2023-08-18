@@ -1,15 +1,11 @@
 package com.superwall.sdk.models.paywall
 
-import com.superwall.sdk.models.config.Config
+
 import com.superwall.sdk.models.product.Product
 import com.superwall.sdk.models.product.ProductType
-
-
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNamingStrategy
-import org.json.JSONObject
 import org.junit.Test
-import java.io.InputStream
 
 class PaywallProductTest {
 

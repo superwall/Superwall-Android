@@ -6,11 +6,10 @@ import com.superwall.sdk.storage.StorageConfig
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-object TotalPaywallViewsConfig: StorageConfig {
+object TotalPaywallViewsConfig : StorageConfig {
     override val key: String = "store.totalPaywallViews"
     override var directory: CacheDirectory = CacheDirectory.UserSpecificDocuments
 }
@@ -29,7 +28,10 @@ class TotalPaywallViewsManager(cacheHelper: CacheHelper) {
     }
 
     suspend fun set(totalPaywallViews: TotalPaywallViews) = mutex.withLock {
-        this.cacheHelper.write(TotalPaywallViewsConfig, Json.encodeToString(totalPaywallViews).toByteArray(Charsets.UTF_8))
+        this.cacheHelper.write(
+            TotalPaywallViewsConfig,
+            Json.encodeToString(totalPaywallViews).toByteArray(Charsets.UTF_8)
+        )
     }
 
     suspend fun delete() = mutex.withLock {

@@ -1,14 +1,11 @@
 package com.superwall.sdk.paywall.vc.web_view.messaging
 
-import android.webkit.WebView
-import android.webkit.WebChromeClient
-import android.os.Build
-import android.webkit.WebResourceRequest
-import android.annotation.TargetApi
+import LogLevel
+import LogScope
+import Logger
 import android.webkit.JavascriptInterface
 import android.webkit.WebViewClient
 import com.superwall.sdk.paywall.vc.web_view.PaywallMessage
-import com.superwall.sdk.paywall.vc.web_view.WrappedPaywallMessages
 import com.superwall.sdk.paywall.vc.web_view.parseWrappedPaywallMessages
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

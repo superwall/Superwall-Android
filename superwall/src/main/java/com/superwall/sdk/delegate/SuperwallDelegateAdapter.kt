@@ -1,5 +1,8 @@
 package com.superwall.sdk.delegate
 
+import LogLevel
+import LogScope
+import Logger
 import android.app.Activity
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
@@ -15,7 +18,7 @@ class SuperwallDelegateAdapter(
     private val activityLifecycleTracker: ActivityLifecycleTracker,
     private val kotlinPurchaseController: PurchaseController?,
     private val javaPurchaseController: PurchaseControllerJava?
-): ProductPurchaser, TransactionRestorer {
+) : ProductPurchaser, TransactionRestorer {
     val hasPurchaseController: Boolean
         get() = kotlinPurchaseController != null || javaPurchaseController != null
 
@@ -112,7 +115,7 @@ class SuperwallDelegateAdapter(
 
     // Transaction Restorer Extension
 //    @MainScope
-     override suspend fun restorePurchases(): RestorationResult {
+    override suspend fun restorePurchases(): RestorationResult {
         kotlinPurchaseController?.let {
             return it.restorePurchases()
         }

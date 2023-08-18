@@ -11,9 +11,10 @@ import java.util.*
 @kotlinx.serialization.ExperimentalSerializationApi
 class EventDataSerializerTest {
 
-    private val json = Json { serializersModule = SerializersModule {
-        contextual(EventDataSerializer)
-        contextual(AnySerializer)
+    private val json = Json {
+        serializersModule = SerializersModule {
+            contextual(EventDataSerializer)
+            contextual(AnySerializer)
         }
     }
 
@@ -29,15 +30,19 @@ class EventDataSerializerTest {
 
         println("jsonString: $jsonString")
 
-        assertEquals("""{"id":"1234","name":"Test Event","parameters":{"param1":"value1","param2":42},"createdAt":"2021-10-13T22:44:08.000"}""", jsonString)
+        assertEquals(
+            """{"id":"1234","name":"Test Event","parameters":{"param1":"value1","param2":42},"createdAt":"2021-10-13T22:44:08.000"}""",
+            jsonString
+        )
     }
 
     @Test
     fun testDeserialization() {
-        val jsonString = """{"id":"1234","name":"Test Event","parameters":{"param1":"value1","param2":42},"createdAt":"2021-10-13T22:44:08.000"}"""
+        val jsonString =
+            """{"id":"1234","name":"Test Event","parameters":{"param1":"value1","param2":42},"createdAt":"2021-10-13T22:44:08.000"}"""
         val eventData = json.decodeFromString(EventDataSerializer, jsonString)
         assertEquals("1234", eventData.id)
-        assertEquals("Test Event",eventData.name)
+        assertEquals("Test Event", eventData.name)
         assertEquals(mapOf("param1" to "value1", "param2" to 42), eventData.parameters)
         assertEquals(Date(1634165048000), eventData.createdAt)
     }

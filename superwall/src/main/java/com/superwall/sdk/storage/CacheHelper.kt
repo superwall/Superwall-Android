@@ -45,11 +45,14 @@ class CacheHelper(context: Context, config: CacheHelperConfiguration) {
     private val mainThreadHandler = Handler(Looper.getMainLooper())
 
     private val cacheDir: File = context.cacheDir
-    private val userSpecificDocumentDir: File = context.getDir(USER_SPECIFIC_DOCUMENT_DIR, Context.MODE_PRIVATE)
-    private val appSpecificDocumentDir: File = context.getDir(APP_SPECIFIC_DOCUMENT_DIR, Context.MODE_PRIVATE)
+    private val userSpecificDocumentDir: File =
+        context.getDir(USER_SPECIFIC_DOCUMENT_DIR, Context.MODE_PRIVATE)
+    private val appSpecificDocumentDir: File =
+        context.getDir(APP_SPECIFIC_DOCUMENT_DIR, Context.MODE_PRIVATE)
 
     // 1000 object LRU cache
-    private val memCache: LRUCache<String, ByteArray> = LRUCache(PerpetualCache<String, ByteArray>(), 1000)
+    private val memCache: LRUCache<String, ByteArray> =
+        LRUCache(PerpetualCache<String, ByteArray>(), 1000)
 
     private val ioScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -60,7 +63,7 @@ class CacheHelper(context: Context, config: CacheHelperConfiguration) {
         var data = memCache[config.key]
 
         if (data == null) {
-            val targetDirectory =  config.directory
+            val targetDirectory = config.directory
             val file = File(getPathFromConfig(config))
             if (file.exists()) {
                 data = file.readBytes()
@@ -71,7 +74,7 @@ class CacheHelper(context: Context, config: CacheHelperConfiguration) {
         return data
     }
 
-    fun <T: StorageConfig> delete(config: T) {
+    fun <T : StorageConfig> delete(config: T) {
         memCache.remove(config.key)
         val file = File(getPathFromConfig(config))
         file.delete()
@@ -96,8 +99,8 @@ class CacheHelper(context: Context, config: CacheHelperConfiguration) {
         private const val APP_SPECIFIC_DOCUMENT_DIR = "app_specific_document"
         private const val DEFAULT_MAX_CACHE_PERIOD_IN_SECOND = 60 * 60 * 24 * 7L // a week
     }
-    
-    
+
+
     private fun getPathFromConfig(config: StorageConfig): String {
         val directory = getDirectoryFromCacheDirectory(config.directory)
         return directory.absolutePath + File.separator + getHashedKeyFromConfig(config)

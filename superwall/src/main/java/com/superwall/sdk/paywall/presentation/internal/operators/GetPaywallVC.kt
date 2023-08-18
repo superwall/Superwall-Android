@@ -1,11 +1,16 @@
 package com.superwall.sdk.paywall.presentation.internal.operators
 
+import LogLevel
+import LogScope
+import Logger
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.dependencies.DependencyContainer
 import com.superwall.sdk.models.assignment.ConfirmableAssignment
 import com.superwall.sdk.models.triggers.TriggerResult
-import com.superwall.sdk.paywall.presentation.internal.*
+import com.superwall.sdk.paywall.presentation.internal.InternalPresentationLogic
+import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatusReason
+import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallSkippedReason
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.paywall.request.PaywallRequest
@@ -43,23 +48,23 @@ suspend fun Superwall.getPaywallViewController(
     )
     println("!!paywallRequest: $paywallRequest")
 //    try {
-        val delegate = request.flags.type.paywallVcDelegateAdapter
+    val delegate = request.flags.type.paywallVcDelegateAdapter
     println("!!delegate: $delegate")
-        val paywallViewController = dependencyContainer.paywallManager.getPaywallViewController(
-            request = paywallRequest,
-            presentationRequest = request,
-            isPreloading = false,
-            delegate = delegate
-        )
+    val paywallViewController = dependencyContainer.paywallManager.getPaywallViewController(
+        request = paywallRequest,
+        presentationRequest = request,
+        isPreloading = false,
+        delegate = delegate
+    )
     println("!!paywallViewController: $paywallViewController")
 
-        val output = PaywallVcPipelineOutput(
-            triggerResult = input.triggerResult,
-            debugInfo = input.debugInfo,
-            paywallViewController = paywallViewController,
-            confirmableAssignment = input.confirmableAssignment
-        )
-        return output
+    val output = PaywallVcPipelineOutput(
+        triggerResult = input.triggerResult,
+        debugInfo = input.debugInfo,
+        paywallViewController = paywallViewController,
+        confirmableAssignment = input.confirmableAssignment
+    )
+    return output
 //    } catch (error: Exception) {
 //        println("!!Error: $error")
 //        when (request.flags.type) {
@@ -91,7 +96,7 @@ private suspend fun Superwall.presentationFailure(
             overrides = InternalPresentationLogic.UserSubscriptionOverrides(
                 isDebuggerLaunched = request.flags.isDebuggerLaunched,
                 shouldIgnoreSubscriptionStatus = request.paywallOverrides?.ignoreSubscriptionStatus,
-                presentationCondition =  null
+                presentationCondition = null
             )
         )
     ) {

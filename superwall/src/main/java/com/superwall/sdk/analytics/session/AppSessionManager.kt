@@ -12,21 +12,21 @@ import com.superwall.sdk.storage.Storage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.launch
 import java.util.*
 
 interface AppManagerDelegate {
     suspend fun didUpdateAppSession(appSession: AppSession)
 }
+
 //
 class AppSessionManager(
     private val context: Context,
     private val configManager: ConfigManager,
     private val storage: Storage,
     private val delegate: AppManagerDelegate
-): BroadcastReceiver() {
+) : BroadcastReceiver() {
     var appSessionTimeout: Long? = null
 
     var appSession = AppSession()
@@ -114,7 +114,8 @@ class AppSessionManager(
             appSession.endAt = null
         }
     }
-//
+
+    //
     private fun trackAppLaunch() {
         if (didTrackAppLaunch) {
             return
@@ -126,22 +127,22 @@ class AppSessionManager(
     }
 
     override fun onReceive(context: Context?, intent: Intent?) {
-       when(intent?.action)  {
-           Intent.ACTION_SCREEN_OFF -> {
-               // equivalent to "applicationWillResignActive"
-               // your code here
-               willResign()
-           }
-           Intent.ACTION_SCREEN_ON -> {
-               // equivalent to "applicationDidBecomeActive"
-               // your code here
+        when (intent?.action) {
+            Intent.ACTION_SCREEN_OFF -> {
+                // equivalent to "applicationWillResignActive"
+                // your code here
+                willResign()
+            }
+            Intent.ACTION_SCREEN_ON -> {
+                // equivalent to "applicationDidBecomeActive"
+                // your code here
                 didBecomeActive()
-           }
-           Intent.ACTION_SHUTDOWN -> {
-               // equivalent to "applicationWillTerminate"
-               // your code here
+            }
+            Intent.ACTION_SHUTDOWN -> {
+                // equivalent to "applicationWillTerminate"
+                // your code here
                 willTerminate()
-           }
-       }
+            }
+        }
     }
 }

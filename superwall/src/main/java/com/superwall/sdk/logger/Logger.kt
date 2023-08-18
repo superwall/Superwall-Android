@@ -1,6 +1,5 @@
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.config.options.SuperwallOptions
-import kotlin.math.log
 
 interface Loggable {
     companion object {
@@ -25,22 +24,22 @@ interface Loggable {
             error: Throwable? = null
         ) {
 //            Task.detached(priority = Task.Priority.utility) {
-                val output: MutableList<String> = mutableListOf()
-                val dumping: MutableMap<String, Any> = mutableMapOf()
+            val output: MutableList<String> = mutableListOf()
+            val dumping: MutableMap<String, Any> = mutableMapOf()
 
-                message?.let { output.add(it) }
+            message?.let { output.add(it) }
 
-                info?.let {
-                    output.add(it.toString())
-                    dumping["info"] = it
-                }
+            info?.let {
+                output.add(it.toString())
+                dumping["info"] = it
+            }
 
-                error?.let {
-                    output.add(it.localizedMessage ?: "")
-                    dumping["error"] = it
-                }
+            error?.let {
+                output.add(it.localizedMessage ?: "")
+                dumping["error"] = it
+            }
 
-                // TODO: Add logging to the delegate
+            // TODO: Add logging to the delegate
             // Launch a coroutine to handle the logging
 
 //                Superwall.instance.dependencyContainer.delegateAdapter.handleLog(
@@ -51,20 +50,21 @@ interface Loggable {
 //                    error = error
 //                )
 
-                if (!shouldPrint(logLevel, scope)) {
-                    return
-                }
+            if (!shouldPrint(logLevel, scope)) {
+                return
+            }
 
-                val name = "\n${logLevel.getDescriptionEmoji()} [!!Superwall] [${scope.toString()}] ${logLevel.toString()}${if (message != null) ": $message" else ""}\n"
+            val name =
+                "\n${logLevel.getDescriptionEmoji()} [!!Superwall] [${scope.toString()}] ${logLevel.toString()}${if (message != null) ": $message" else ""}\n"
 
-                if (dumping.isEmpty()) {
-                    println(name)
-                } else {
-                    dumping.forEach { (key, value) ->
-                        println("$key: $value")
-                    }
+            if (dumping.isEmpty()) {
+                println(name)
+            } else {
+                dumping.forEach { (key, value) ->
+                    println("$key: $value")
                 }
             }
+        }
 //        }
     }
 }

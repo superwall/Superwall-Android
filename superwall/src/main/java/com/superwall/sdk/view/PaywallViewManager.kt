@@ -14,7 +14,7 @@ class PaywallViewManager(currentActivity: Activity, paywall: Paywall) : PaywallM
     companion object {
         public fun showPaywall(paywall: Paywall) {
 
-           val currentActivity = ActivityLifecycleTracker.instance.getCurrentActivity()
+            val currentActivity = ActivityLifecycleTracker.instance.getCurrentActivity()
             if (currentActivity != null) {
                 // TODO: Think about if we need to dismiss the current paywall
 
@@ -33,7 +33,7 @@ class PaywallViewManager(currentActivity: Activity, paywall: Paywall) : PaywallM
     private var webView: SWWebViewOld? = null
 
     private fun setupWebView() {
-        webView = SWWebViewOld(this,  currentActivity as Activity, null)
+        webView = SWWebViewOld(this, currentActivity as Activity, null)
         webView!!.loadUrl(paywall.url.toString())
 
         // TODO: Wait for ping...
@@ -64,7 +64,9 @@ class PaywallViewManager(currentActivity: Activity, paywall: Paywall) : PaywallM
                 // Publish the pjs event
                 runOnUiThread {
 
-                    webView!!.evaluateJavascript("window.paywall.accept64('".plus( paywall.htmlSubstitutions).plus( "');")) {
+                    webView!!.evaluateJavascript(
+                        "window.paywall.accept64('".plus(paywall.htmlSubstitutions).plus("');")
+                    ) {
 
                     }
                 }

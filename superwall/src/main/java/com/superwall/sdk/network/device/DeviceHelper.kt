@@ -19,10 +19,16 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 
-class DeviceHelper(private val context: Context, val storage: Storage, val factory: IdentityInfoAndLocaleIdentifierFactory) {
+class DeviceHelper(
+    private val context: Context,
+    val storage: Storage,
+    val factory: IdentityInfoAndLocaleIdentifierFactory
+) {
 
-    private val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-    private val telephonyManager = context.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
+    private val connectivityManager =
+        context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    private val telephonyManager =
+        context.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
     private val packageManager = context.packageManager
     private val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
     private val appInfo = context.packageManager.getPackageInfo(context.packageName, 0)
@@ -31,7 +37,8 @@ class DeviceHelper(private val context: Context, val storage: Storage, val facto
         timeZone = TimeZone.getTimeZone("UTC")
     }
     private val installTimeString = installTimeFormatter.format(installTime)
-    private val daysSinceInstall = ((Date().time - installTime.time) / (1000 * 60 * 60 * 24)).toInt()
+    private val daysSinceInstall =
+        ((Date().time - installTime.time) / (1000 * 60 * 60 * 24)).toInt()
     private val minutesSinceInstall = ((Date().time - installTime.time) / (1000 * 60)).toInt()
 
     val locale: String
@@ -74,18 +81,22 @@ class DeviceHelper(private val context: Context, val storage: Storage, val facto
         @SuppressLint("MissingPermission")
         get() {
 
-            if (ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_NETWORK_STATE) != PackageManager.PERMISSION_GRANTED) {
+            if (ContextCompat.checkSelfPermission(
+                    context,
+                    android.Manifest.permission.ACCESS_NETWORK_STATE
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
                 return ""
             }
 
-            val networkCapabilities = connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork)
+            val networkCapabilities =
+                connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork)
             return when {
                 networkCapabilities?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) == true -> "Cellular"
                 networkCapabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true -> "Wifi"
                 else -> ""
             }
         }
-
 
 
     val bundleId: String
@@ -103,7 +114,6 @@ class DeviceHelper(private val context: Context, val storage: Storage, val facto
             val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
             return formatter.format(installDate)
         }
-
 
 
     val interfaceStyle: String
@@ -197,7 +207,7 @@ class DeviceHelper(private val context: Context, val storage: Storage, val facto
 
     // TODO: Add these methods to the DeviceHelper class
     suspend fun getTemplateDevice(): DeviceTemplate {
-        val identityInfo =  factory.makeIdentityInfo()
+        val identityInfo = factory.makeIdentityInfo()
         val aliases = listOf(identityInfo.aliasId)
 
         return DeviceTemplate(
@@ -242,7 +252,7 @@ class DeviceHelper(private val context: Context, val storage: Storage, val facto
 
             // TODO: Fix these with actual values
             subscriptionStatus = "NOT_SUBSCRIBED",
-            isFirstAppOpen = false ,
+            isFirstAppOpen = false,
 
 //            subscriptionStatus = Superwall.instance.subscriptionStatus.description,
 //            isFirstAppOpen = isFirstAppOpen

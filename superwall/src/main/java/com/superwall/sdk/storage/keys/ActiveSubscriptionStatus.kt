@@ -8,11 +8,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-object ActiveSubscriptionStatusConfig: StorageConfig {
+object ActiveSubscriptionStatusConfig : StorageConfig {
     override val key: String = "store.subscriptionStatus"
     override var directory: CacheDirectory = CacheDirectory.AppSpecificDocuments
 }
@@ -21,9 +20,10 @@ object ActiveSubscriptionStatusConfig: StorageConfig {
 // TODO: Replace with actual definition.
 @Serializable
 data class SubscriptionStatus(val status: String) {
-    val description: String get()  {
-        return status
-    }
+    val description: String
+        get() {
+            return status
+        }
 }
 
 @Serializable
@@ -41,7 +41,10 @@ class ActiveSubscriptionStatusManager(cacheHelper: CacheHelper) {
     }
 
     suspend fun set(activeSubscriptionStatus: ActiveSubscriptionStatus) = mutex.withLock {
-        this.cacheHelper.write(ActiveSubscriptionStatusConfig, Json.encodeToString(activeSubscriptionStatus).toByteArray(Charsets.UTF_8))
+        this.cacheHelper.write(
+            ActiveSubscriptionStatusConfig,
+            Json.encodeToString(activeSubscriptionStatus).toByteArray(Charsets.UTF_8)
+        )
     }
 
     suspend fun delete() = mutex.withLock {

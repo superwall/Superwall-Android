@@ -10,18 +10,19 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 
 sealed class Result<T> {
-    data class Success<T>(val value: T): Result<T>()
-    data class Error<T>(val error: Throwable): Result<T>()
-    data class Waiting<T>(val startedAt: Int): Result<T>()
+    data class Success<T>(val value: T) : Result<T>()
+    data class Error<T>(val error: Throwable) : Result<T>()
+    data class Waiting<T>(val startedAt: Int) : Result<T>()
 }
 
 
-open class GooglePlayProductsFetcher(var context: Context) : ProductsFetcher, PurchasesUpdatedListener {
+open class GooglePlayProductsFetcher(var context: Context) : ProductsFetcher,
+    PurchasesUpdatedListener {
 
     sealed class Result<T> {
-        data class Success<T>(val value: T): Result<T>()
-        data class Error<T>(val error: Throwable): Result<T>()
-        data class Waiting<T>(val startedAt: Int): Result<T>()
+        data class Success<T>(val value: T) : Result<T>()
+        data class Error<T>(val error: Throwable) : Result<T>()
+        data class Waiting<T>(val startedAt: Int) : Result<T>()
     }
 
 
@@ -52,7 +53,10 @@ open class GooglePlayProductsFetcher(var context: Context) : ProductsFetcher, Pu
     private suspend fun startConnection() {
         billingClient.startConnection(object : BillingClientStateListener {
             override fun onBillingSetupFinished(billingResult: BillingResult) {
-                Log.d("!!!BillingController", "Billing client setup finished".plus(billingResult.responseCode))
+                Log.d(
+                    "!!!BillingController",
+                    "Billing client setup finished".plus(billingResult.responseCode)
+                )
                 if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                     // The billing client is ready. You can query purchases here.
                     Log.d("!!!BillingController", "Billing client connected")
@@ -74,27 +78,31 @@ open class GooglePlayProductsFetcher(var context: Context) : ProductsFetcher, Pu
     }
 
 
-    protected  fun request(productIds: List<String>)  {
+    protected fun request(productIds: List<String>) {
         scope.launch {
 
-        val currentResults = _results.value
+            val currentResults = _results.value
 
-        println("!!! Current results ${currentResults.size}")
+            println("!!! Current results ${currentResults.size}")
 
-        var productIdsToLoad: List<String> = emptyList()
-        productIds.forEach { productId ->
-            val result = currentResults[productId]
-            println("Result for $productId is $result ${Thread.currentThread().name}")
-            if (result == null) {
-                productIdsToLoad = productIdsToLoad + productId
+            var productIdsToLoad: List<String> = emptyList()
+            productIds.forEach { productId ->
+                val result = currentResults[productId]
+                println("Result for $productId is $result ${Thread.currentThread().name}")
+                if (result == null) {
+                    productIdsToLoad = productIdsToLoad + productId
+                }
             }
-        }
 
-        print("!!! Requesting ${productIdsToLoad.size} products")
+            print("!!! Requesting ${productIdsToLoad.size} products")
 
-        if (!productIdsToLoad.isEmpty()) {
+            if (!productIdsToLoad.isEmpty()) {
                 _results.emit(
-                    _results.value + productIdsToLoad.map { it to Result.Waiting(startedAt = System.currentTimeMillis().toInt()) }
+                    _results.value + productIdsToLoad.map {
+                        it to Result.Waiting(
+                            startedAt = System.currentTimeMillis().toInt()
+                        )
+                    }
                 )
 
                 println("!! Querying product details for ${productIdsToLoad.size} products, prodcuts: ${productIdsToLoad} ${Thread.currentThread().name}")
@@ -103,14 +111,14 @@ open class GooglePlayProductsFetcher(var context: Context) : ProductsFetcher, Pu
                 }
                 println("!! networkResult: ${networkResult} ${Thread.currentThread().name}")
                 _results.emit(
-                    _results.value + networkResult.mapValues { it.value  }
+                    _results.value + networkResult.mapValues { it.value }
                 )
-        }
+            }
 
         }
     }
 
-    suspend fun _products(productIds: List<String>): Map<String, Result<RawStoreProduct>>  {
+    suspend fun _products(productIds: List<String>): Map<String, Result<RawStoreProduct>> {
         request(productIds)
         results.map { currentResults ->
             println("!! currentResults: ${currentResults} ${Thread.currentThread().name}")
@@ -138,21 +146,23 @@ open class GooglePlayProductsFetcher(var context: Context) : ProductsFetcher, Pu
 
         println("!! Querying product details for ${productIds.size} products, prodcuts: ${productIds},  ${Thread.currentThread().name}")
 
-        billingClient.querySkuDetailsAsync(params.build()) {
-                billingResult, skuDetailsList ->
+        billingClient.querySkuDetailsAsync(params.build()) { billingResult, skuDetailsList ->
 
-            println("!! Got product details for ${productIds.size} products, prodcuts: ${productIds}, billingResult: ${billingResult}, skuDetailsList: ${skuDetailsList }  ${Thread.currentThread().name}\"")
+            println("!! Got product details for ${productIds.size} products, prodcuts: ${productIds}, billingResult: ${billingResult}, skuDetailsList: ${skuDetailsList}  ${Thread.currentThread().name}\"")
 
             if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && skuDetailsList != null) {
 
                 var foundProducts = skuDetailsList.map { it.sku }
                 var missingProducts = productIds.filter { !foundProducts.contains(it) }
 
-                var results =   skuDetailsList.associateBy { it.sku }.mapValues { Result.Success(RawStoreProduct(it.value)) }.toMutableMap() as MutableMap<String, Result<RawStoreProduct>>
+                var results = skuDetailsList.associateBy { it.sku }
+                    .mapValues { Result.Success(RawStoreProduct(it.value)) }
+                    .toMutableMap() as MutableMap<String, Result<RawStoreProduct>>
 
                 // For all missing products add error
                 missingProducts.forEach { missingProductId ->
-                    results[missingProductId] = Result.Error(Exception("Failed to query product details"))
+                    results[missingProductId] =
+                        Result.Error(Exception("Failed to query product details"))
                 }
 
                 deferred.complete(
@@ -161,13 +171,15 @@ open class GooglePlayProductsFetcher(var context: Context) : ProductsFetcher, Pu
             } else {
 
                 // Fail all of them
-                val failed: Map<String, Result<RawStoreProduct>> = productIds.map { it  to Result.Error<RawStoreProduct>(Exception("Failed to query product details")) }.toMap()
+                val failed: Map<String, Result<RawStoreProduct>> =
+                    productIds.map { it to Result.Error<RawStoreProduct>(Exception("Failed to query product details")) }
+                        .toMap()
 
                 deferred.complete(failed)
             }
         }
 
-        val value =  deferred.await()
+        val value = deferred.await()
         println("!! Returning product details for ${productIds.size} products, prodcuts: ${productIds}, value: ${value}  ${Thread.currentThread().name}\"")
         return value
     }
@@ -184,7 +196,7 @@ open class GooglePlayProductsFetcher(var context: Context) : ProductsFetcher, Pu
         val productResults = _products(identifiers.toList())
         return productResults.values.mapNotNull {
             when (it) {
-                is Result.Success -> StoreProduct(  it.value) // Assuming RawStoreProduct can be converted to StoreProduct
+                is Result.Success -> StoreProduct(it.value) // Assuming RawStoreProduct can be converted to StoreProduct
                 else -> null
             }
         }.toSet()

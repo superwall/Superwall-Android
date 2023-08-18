@@ -1,6 +1,9 @@
 package com.superwall.sdk.paywall.vc.web_view.messaging
 
-import android.net.Uri
+import LogLevel
+import LogScope
+import Logger
+import TemplateLogic
 import android.util.Log
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
@@ -95,6 +98,7 @@ class PaywallMessageHandler(
             }
         }
     }
+
     // Passes the templated variables and params to the webview.
 // This is called every paywall open incase variables like user attributes have changed.
     private suspend fun passTemplatesToWebView(paywall: Paywall) {
@@ -124,7 +128,7 @@ class PaywallMessageHandler(
                         scope = LogScope.paywallViewController,
                         message = "Error Evaluating JS",
                         info = mapOf("message" to templateScript),
-                        error =  java.lang.Exception(error)
+                        error = java.lang.Exception(error)
                     )
                 }
             }
@@ -176,7 +180,7 @@ class PaywallMessageHandler(
             info = mapOf("message" to scriptSrc)
         )
 
-        CoroutineScope(Dispatchers.Main).launch  {
+        CoroutineScope(Dispatchers.Main).launch {
             delegate?.webView?.evaluateJavascript(scriptSrc) { error ->
                 if (error != null) {
                     println("!! PaywallMessageHandler: Error: $error")
@@ -192,10 +196,11 @@ class PaywallMessageHandler(
             }
 
             // block selection
-            val selectionString = "var css = '*{-webkit-touch-callout:none;-webkit-user-select:none} .w-webflow-badge { display: none !important; }'; " +
-                    "var head = document.head || document.getElementsByTagName('head')[0]; " +
-                    "var style = document.createElement('style'); style.type = 'text/css'; " +
-                    "style.appendChild(document.createTextNode(css)); head.appendChild(style); "
+            val selectionString =
+                "var css = '*{-webkit-touch-callout:none;-webkit-user-select:none} .w-webflow-badge { display: none !important; }'; " +
+                        "var head = document.head || document.getElementsByTagName('head')[0]; " +
+                        "var style = document.createElement('style'); style.type = 'text/css'; " +
+                        "style.appendChild(document.createTextNode(css)); head.appendChild(style); "
 
             delegate?.webView?.evaluateJavascript(selectionString, null)
 
@@ -287,12 +292,12 @@ class PaywallMessageHandler(
     }
 
     private fun hapticFeedback() {
-        val isHapticFeedbackEnabled =  Superwall.instance.options.paywalls.isHapticFeedbackEnabled
-        val isGameControllerEnabled =  Superwall.instance.options.isGameControllerEnabled
+        val isHapticFeedbackEnabled = Superwall.instance.options.paywalls.isHapticFeedbackEnabled
+        val isGameControllerEnabled = Superwall.instance.options.isGameControllerEnabled
 
-            if (isHapticFeedbackEnabled == false || isGameControllerEnabled == true) {
-                return
-            }
+        if (isHapticFeedbackEnabled == false || isGameControllerEnabled == true) {
+            return
+        }
 
         // Replace this with your platform-specific implementation for haptic feedback
         // Android doesn't have a direct equivalent to UIImpactFeedbackGenerator

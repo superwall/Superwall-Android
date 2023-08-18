@@ -1,10 +1,8 @@
 package com.superwall.sdk.models.serialization
 
-import com.superwall.sdk.models.serialization.AnySerializer
 import kotlinx.serialization.json.Json
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Test
 
 
@@ -40,6 +38,7 @@ class AnyMapSerializerTest {
         assertEquals(expected.get("key2"), json.get("key2"))
         assertEquals(expected.get("key3"), json.get("key3"))
     }
+
     @Test
     fun testSerializeWithUnsupportedType() {
         val map = AnyMap(mapOf("key1" to 123, "key2" to "value2", "key3" to Any()))
@@ -95,15 +94,15 @@ class AnyMapSerializerTest {
           }
         }
        """.trimIndent()
-    val map = json.decodeFromString(AnyMap.serializer(), jsonStr)
+        val map = json.decodeFromString(AnyMap.serializer(), jsonStr)
 
-    val json = JSONObject(jsonStr).getJSONObject("map")
+        val json = JSONObject(jsonStr).getJSONObject("map")
 
-    assertEquals(json.get("key1"), map.map["key1"])
-    assertEquals(json.get("key2"), map.map["key2"])
+        assertEquals(json.get("key1"), map.map["key1"])
+        assertEquals(json.get("key2"), map.map["key2"])
 
         // TODO: Fix this test
-    // As "key3" is an unsupported type, we expect it not to be present in the decoded map
+        // As "key3" is an unsupported type, we expect it not to be present in the decoded map
 //    assertFalse(map.map.containsKey("key3"))
     }
 }

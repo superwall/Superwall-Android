@@ -1,7 +1,6 @@
 package com.superwall.sdk.config
 
 import androidx.test.platform.app.InstrumentationRegistry
-import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.dependencies.DependencyContainer
 import com.superwall.sdk.models.assignment.Assignment
 import com.superwall.sdk.models.assignment.ConfirmableAssignment
@@ -16,7 +15,6 @@ import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.StorageMock
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.*
 import org.junit.Test
@@ -25,7 +23,7 @@ import org.junit.Test
 class ConfigManagerUnderTest(
     private val storage: Storage,
     private val network: Network,
-): ConfigManager(
+) : ConfigManager(
     storage = storage,
     network = network,
 ) {
@@ -45,11 +43,15 @@ class ConfigManagerTests {
 
         val experimentId = "abc"
         val variantId = "def"
-        val variant = Experiment.Variant(id = variantId, type = Experiment.Variant.VariantType.TREATMENT, paywallId = "jkl")
+        val variant = Experiment.Variant(
+            id = variantId,
+            type = Experiment.Variant.VariantType.TREATMENT,
+            paywallId = "jkl"
+        )
         val assignment = ConfirmableAssignment(experimentId = experimentId, variant = variant)
         val dependencyContainer = DependencyContainer(context)
         val network = NetworkMock(factory = dependencyContainer)
-        val storage = StorageMock( context = context)
+        val storage = StorageMock(context = context)
         val configManager = ConfigManager(
             options = null,
 //            storeKitManager = dependencyContainer.storeKitManager,
@@ -115,7 +117,7 @@ class ConfigManagerTests {
 //            factory = dependencyContainer
         )
         configManager.setConfig(
-         Config.stub().apply { this.triggers = emptySet() }
+            Config.stub().apply { this.triggers = emptySet() }
         )
 
         configManager.getAssignments()
@@ -153,18 +155,18 @@ class ConfigManagerTests {
         configManager.setConfig(
 
 
-        Config.stub().apply {
-            triggers = setOf(
-                Trigger.stub().apply {
-                    rules = listOf(
-                        TriggerRule.stub().apply {
-                            this.experimentId = experimentId
-                            this.variants = listOf(variantOption)
-                        }
-                    )
-                }
-            )
-        }
+            Config.stub().apply {
+                triggers = setOf(
+                    Trigger.stub().apply {
+                        rules = listOf(
+                            TriggerRule.stub().apply {
+                                this.experimentId = experimentId
+                                this.variants = listOf(variantOption)
+                            }
+                        )
+                    }
+                )
+            }
         )
 
         configManager.getAssignments()

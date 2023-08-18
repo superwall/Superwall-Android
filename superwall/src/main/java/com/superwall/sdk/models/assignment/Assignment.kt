@@ -1,5 +1,4 @@
 package com.superwall.sdk.models.assignment
-import org.json.JSONObject
 
 //data class Assignment(var experimentId: String, var variantId: String) {
 //
@@ -21,7 +20,7 @@ import org.json.JSONObject
 //    }
 //}
 
-import kotlinx.serialization.*
-import kotlinx.serialization.json.*
+import kotlinx.serialization.Serializable
+
 @Serializable
 data class Assignment(var experimentId: String, var variantId: String)

@@ -1,7 +1,5 @@
 package com.superwall.sdk.config.options
 
-import java.util.*
-
 // Options for configuring the appearance and behavior of paywalls.
 class PaywallOptions {
     // Determines whether the paywall should use haptic feedback. Defaults to true.

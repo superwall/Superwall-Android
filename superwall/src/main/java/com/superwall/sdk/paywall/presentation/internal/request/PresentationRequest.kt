@@ -5,15 +5,15 @@ import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegate
-import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegateAdapter
 import kotlinx.coroutines.flow.StateFlow
-
 
 
 sealed class PresentationRequestType {
 
     object Presentation : PresentationRequestType()
-    data class GetPaywallViewController(val adapter: PaywallViewControllerDelegate) : PresentationRequestType()
+    data class GetPaywallViewController(val adapter: PaywallViewControllerDelegate) :
+        PresentationRequestType()
+
     object GetPresentationResult : PresentationRequestType()
     object GetImplicitPresentationResult : PresentationRequestType()
 
@@ -49,7 +49,7 @@ data class PresentationRequest(
     var paywallOverrides: PaywallOverrides? = null,
     var flags: Flags,
 
-) {
+    ) {
     data class Flags(
         var isDebuggerLaunched: Boolean,
         var subscriptionStatus: StateFlow<SubscriptionStatus?>,

@@ -14,8 +14,10 @@ import com.superwall.sdk.storage.core_data.CoreDataManager
 import com.superwall.sdk.storage.keys.*
 import com.superwall.sdk.storage.memory.LRUCache
 import com.superwall.sdk.storage.memory.PerpetualCache
-import kotlinx.coroutines.*
-import java.util.Date
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 open class Storage(
     private val context: Context,
@@ -24,9 +26,11 @@ open class Storage(
 
     public val coreDataManager: CoreDataManager = CoreDataManager()
 
-    public val cache: Cache = Cache(context = context, config = CacheHelperConfiguration(
-        memoryCache = LRUCache(PerpetualCache<String, ByteArray>(), 1000)
-    ))
+    public val cache: Cache = Cache(
+        context = context, config = CacheHelperConfiguration(
+            memoryCache = LRUCache(PerpetualCache<String, ByteArray>(), 1000)
+        )
+    )
 
     var apiKey = ""
     var debugKey = ""
@@ -53,9 +57,11 @@ open class Storage(
         set(value) {
             _didTrackFirstSession = value
         }
-//
+
+    //
     var neverCalledStaticConfig = false
-//
+
+    //
     @Volatile
     private var _confirmedAssignments: Map<ExperimentID, Experiment.Variant>? = null
 
@@ -64,12 +70,12 @@ open class Storage(
         set(value) {
             _confirmedAssignments = value
         }
-//
+
+    //
     suspend fun configure(apiKey: String) {
         updateSdkVersion()
         this.apiKey = apiKey
     }
-
 
 
     private suspend fun updateSdkVersion() {
@@ -84,7 +90,8 @@ open class Storage(
             neverCalledStaticConfig = true
         }
     }
-//
+
+    //
     suspend fun reset() {
         coreDataManager.deleteAllEntities()
         cache.cleanUserFiles()
@@ -95,7 +102,8 @@ open class Storage(
         }
         recordFirstSeenTracked()
     }
-//
+
+    //
     suspend fun recordFirstSeenTracked() {
         withContext(queue) {
             if (_didTrackFirstSeen) {
@@ -137,7 +145,7 @@ open class Storage(
         cache.didTrackAppInstall.set(DidTrackAppInstall(true))
     }
 
-//    fun clearCachedSessionEvents() {
+    //    fun clearCachedSessionEvents() {
 //        // TODO: implement
 ////        cache.delete(TriggerSessions::class)
 ////        cache.delete(Transactions::class)
@@ -153,7 +161,8 @@ open class Storage(
         cache.confirmedAssignments.set(ConfirmedAssignments(assignments))
         confirmedAssignments = assignments
     }
-//
+
+    //
     open suspend fun getConfirmedAssignments(): Map<ExperimentID, Experiment.Variant> {
         if (confirmedAssignments != null) {
             return confirmedAssignments!!

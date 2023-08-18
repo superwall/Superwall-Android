@@ -30,7 +30,8 @@ object AnySerializer : KSerializer<Any> {
     }
 
     override fun deserialize(decoder: Decoder): Any {
-        val input = decoder as? JsonDecoder ?: throw SerializationException("This class can be loaded only by Json")
+        val input = decoder as? JsonDecoder
+            ?: throw SerializationException("This class can be loaded only by Json")
         val element = input.decodeJsonElement()
         return when {
             element is JsonPrimitive -> {

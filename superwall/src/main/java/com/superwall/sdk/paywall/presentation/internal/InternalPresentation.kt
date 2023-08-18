@@ -10,16 +10,19 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
-import kotlin.Error
 
 typealias PresentationSubject = MutableStateFlow<PresentationRequest?>
 typealias PaywallStatePublisher = Flow<PaywallState>
 typealias PresentablePipelineOutputPublisher = Flow<PresentablePipelineOutput>
 
 // I'm assuming that there are appropriate definitions for the functions used in `internallyPresent` that are not provided in the Swift code.
-fun Superwall.internallyPresent(request: PresentationRequest, publisher: MutableStateFlow<PaywallState> = MutableStateFlow(PaywallState.NotStarted())): PaywallStatePublisher {
+fun Superwall.internallyPresent(
+    request: PresentationRequest,
+    publisher: MutableStateFlow<PaywallState> = MutableStateFlow(
+        PaywallState.NotStarted()
+    )
+): PaywallStatePublisher {
     GlobalScope.launch {
         try {
             checkNoPaywallAlreadyPresented(request, publisher)
@@ -44,7 +47,12 @@ fun Superwall.internallyPresent(request: PresentationRequest, publisher: Mutable
 }
 
 // Note that there's no direct equivalent for the @MainActor attribute in Swift, but Dispatchers.Main in coroutines serves a similar purpose.
-fun Superwall.dismiss(paywallViewController: PaywallViewController, result: PaywallResult, closeReason: PaywallCloseReason = PaywallCloseReason.SystemLogic, completion: (() -> Unit)? = null) {
+fun Superwall.dismiss(
+    paywallViewController: PaywallViewController,
+    result: PaywallResult,
+    closeReason: PaywallCloseReason = PaywallCloseReason.SystemLogic,
+    completion: (() -> Unit)? = null
+) {
     GlobalScope.launch(Dispatchers.Main) {
         paywallViewController.presenter?.dismiss(result, closeReason)
         completion?.invoke()
@@ -59,6 +67,10 @@ suspend fun Superwall.dismiss() {
 
 suspend fun Superwall.dismissForNextPaywall() {
     if (paywallViewController != null) {
-        dismiss(paywallViewController!!, PaywallResult.Declined(), PaywallCloseReason.ForNextPaywall)
+        dismiss(
+            paywallViewController!!,
+            PaywallResult.Declined(),
+            PaywallCloseReason.ForNextPaywall
+        )
     }
 }

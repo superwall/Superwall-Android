@@ -5,7 +5,6 @@ import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatus
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatusReason
 import com.superwall.sdk.store.abstractions.product.StoreProduct
-import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
 import com.superwall.sdk.store.transactions.TransactionError
 import java.net.URL
@@ -17,15 +16,14 @@ import java.net.URL
 sealed class SuperwallEvent {
 
 
-
     /// When the user is first seen in the app, regardless of whether the user is logged in or not.
-    class FirstSeen(): SuperwallEvent() {
-         override val rawName: String
+    class FirstSeen() : SuperwallEvent() {
+        override val rawName: String
             get() = "first_seen"
     }
 
     /// Anytime the app enters the foreground
-    class AppOpen(): SuperwallEvent() {
+    class AppOpen() : SuperwallEvent() {
         override val rawName: String
             get() = "app_open"
     }
@@ -33,7 +31,7 @@ sealed class SuperwallEvent {
     /// When the app is launched from a cold start
     ///
     /// The raw value of this event can be added to a campaign to trigger a paywall.
-    class AppLaunch(): SuperwallEvent() {
+    class AppLaunch() : SuperwallEvent() {
         override val rawName: String
             get() = "app_launch"
     }
@@ -41,7 +39,7 @@ sealed class SuperwallEvent {
     /// When the SDK is configured for the first time, or directly after calling ``Superwall/reset()``.
     ///
     /// The raw value of this event can be added to a campaign to trigger a paywall.
-    class AppInstall(): SuperwallEvent() {
+    class AppInstall() : SuperwallEvent() {
         override val rawName: String
             get() = "app_install"
     }
@@ -77,7 +75,7 @@ sealed class SuperwallEvent {
     /// When the tracked event matches an event added as a paywall trigger in a campaign.
     ///
     /// The result of firing the trigger is accessible in the `result` associated value.
-    data class TriggerFire(val eventName: String, val result: TriggerResult): SuperwallEvent() {
+    data class TriggerFire(val eventName: String, val result: TriggerResult) : SuperwallEvent() {
         override val rawName: String
             get() = "trigger_fire"
     }
@@ -101,7 +99,8 @@ sealed class SuperwallEvent {
     }
 
     /// When the payment sheet is displayed to the user.
-    data class TransactionStart(val product: StoreProduct, val paywallInfo: PaywallInfo) : SuperwallEvent() {
+    data class TransactionStart(val product: StoreProduct, val paywallInfo: PaywallInfo) :
+        SuperwallEvent() {
         override val rawName: String
             get() = "transaction_start"
     }
@@ -109,13 +108,15 @@ sealed class SuperwallEvent {
     /// When the payment sheet fails to complete a transaction (ignores user canceling the transaction).
     // TODO: Re-enable when this is defined
 //    data class TransactionFail(val error: TransactionError, val paywallInfo: PaywallInfo) : SuperwallEvent()
-    data class TransactionFail(val error: TransactionError, val paywallInfo: PaywallInfo) : SuperwallEvent() {
+    data class TransactionFail(val error: TransactionError, val paywallInfo: PaywallInfo) :
+        SuperwallEvent() {
         override val rawName: String
             get() = "transaction_fail"
     }
 
     /// When the user cancels a transaction.
-    data class TransactionAbandon(val product: StoreProduct, val paywallInfo: PaywallInfo) : SuperwallEvent() {
+    data class TransactionAbandon(val product: StoreProduct, val paywallInfo: PaywallInfo) :
+        SuperwallEvent() {
         override val rawName: String
             get() = "transaction_abandon"
     }
@@ -126,19 +127,25 @@ sealed class SuperwallEvent {
     /// this won't be `null`. However, it could be `null` if you are using a ``PurchaseController``
     /// and the transaction object couldn't be detected after you return `.purchased` in ``PurchaseController/purchase(product:)``.
 //    data class TransactionComplete(val transaction: StoreTransaction?, val product: StoreProduct, val paywallInfo: PaywallInfo) : SuperwallEvent()
-    data class TransactionComplete(val transaction: StoreTransactionType?, val product: StoreProduct, val paywallInfo: PaywallInfo) : SuperwallEvent() {
+    data class TransactionComplete(
+        val transaction: StoreTransactionType?,
+        val product: StoreProduct,
+        val paywallInfo: PaywallInfo
+    ) : SuperwallEvent() {
         override val rawName: String
             get() = "transaction_complete"
     }
 
     /// When the user successfully completes a transaction for a subscription product with no introductory offers.
-    data class SubscriptionStart(val product: StoreProduct, val paywallInfo: PaywallInfo) : SuperwallEvent() {
+    data class SubscriptionStart(val product: StoreProduct, val paywallInfo: PaywallInfo) :
+        SuperwallEvent() {
         override val rawName: String
             get() = "subscription_start"
     }
 
     /// When the user successfully completes a transaction for a subscription product with an introductory offer.
-    data class FreeTrialStart(val product: StoreProduct, val paywallInfo: PaywallInfo) : SuperwallEvent() {
+    data class FreeTrialStart(val product: StoreProduct, val paywallInfo: PaywallInfo) :
+        SuperwallEvent() {
         override val rawName: String
             get() = "freeTrial_start"
     }
@@ -161,7 +168,10 @@ sealed class SuperwallEvent {
             get() = "user_attributes"
     }
 
-    data class NonRecurringProductPurchase(val product: TransactionProduct, val paywallInfo: PaywallInfo) : SuperwallEvent() {
+    data class NonRecurringProductPurchase(
+        val product: TransactionProduct,
+        val paywallInfo: PaywallInfo
+    ) : SuperwallEvent() {
         override val rawName: String
             get() = "nonRecurringProduct_purchase"
     }
@@ -185,7 +195,10 @@ sealed class SuperwallEvent {
     }
 
     /// When a paywall's request to Superwall's servers is complete.
-    data class PaywallResponseLoadComplete(val triggeredEventName: String?, val paywallInfo: PaywallInfo) : SuperwallEvent() {
+    data class PaywallResponseLoadComplete(
+        val triggeredEventName: String?,
+        val paywallInfo: PaywallInfo
+    ) : SuperwallEvent() {
         override val rawName: String
             get() = "paywallResponseLoad_complete"
     }
@@ -215,19 +228,28 @@ sealed class SuperwallEvent {
     }
 
     /// When the request to load the paywall's products started.
-    data class PaywallProductsLoadStart(val triggeredEventName: String?, val paywallInfo: PaywallInfo) : SuperwallEvent() {
+    data class PaywallProductsLoadStart(
+        val triggeredEventName: String?,
+        val paywallInfo: PaywallInfo
+    ) : SuperwallEvent() {
         override val rawName: String
             get() = "paywallProductsLoad_start"
     }
 
     /// When the request to load the paywall's products failed.
-    data class PaywallProductsLoadFail(val triggeredEventName: String?, val paywallInfo: PaywallInfo) : SuperwallEvent() {
+    data class PaywallProductsLoadFail(
+        val triggeredEventName: String?,
+        val paywallInfo: PaywallInfo
+    ) : SuperwallEvent() {
         override val rawName: String
             get() = "paywallProductsLoad_fail"
     }
 
     /// When the request to load the paywall's products completed.
-    data class PaywallProductsLoadComplete(val triggeredEventName: String?, val paywallInfo: PaywallInfo) : SuperwallEvent() {
+    data class PaywallProductsLoadComplete(
+        val triggeredEventName: String?,
+        val paywallInfo: PaywallInfo
+    ) : SuperwallEvent() {
         override val rawName: String
             get() = "paywallProductsLoad_complete"
     }
@@ -247,7 +269,7 @@ sealed class SuperwallEvent {
 
 
     open val objcEvent: SuperwallEventObjc
-        get()  {
+        get() {
             return SuperwallEventObjc.values().find { it.rawName == rawName }!!
         }
 

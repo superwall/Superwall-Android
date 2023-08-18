@@ -36,8 +36,7 @@ package com.superwall.sdk.models.assignment
 //    }
 //}
 
-import kotlinx.serialization.*
-import kotlinx.serialization.json.*
+import kotlinx.serialization.Serializable
 
 @Serializable
 data class AssignmentPostback(val assignments: MutableList<Assignment>) {

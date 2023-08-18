@@ -1,14 +1,7 @@
-
 package com.superwall.sdk.store.abstractions.transactions
 
-import com.superwall.sdk.store.abstractions.transactions.StorePayment
-import com.superwall.sdk.store.abstractions.transactions.StoreTransactionState
-import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
-import java.util.UUID
-import java.util.Date
+import java.util.*
 
 @Serializable
 class StoreTransaction(
@@ -37,7 +30,6 @@ class StoreTransaction(
 
     // You can define SK1Transaction and SK2Transaction conversion methods here
     // based on the Android billing library.
-
 
 
 }

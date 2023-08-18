@@ -3,7 +3,6 @@ package com.superwall.sdk.paywall.presentation.result.operators
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.models.triggers.TriggerResult
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatusReason
-import com.superwall.sdk.paywall.presentation.internal.PresentationPipelineError
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.operators.TriggerResultResponsePipelineOutput
 

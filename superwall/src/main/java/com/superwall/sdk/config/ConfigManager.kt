@@ -1,7 +1,9 @@
 package com.superwall.sdk.config
 
+import LogLevel
+import LogScope
+import Logger
 import com.superwall.sdk.config.options.SuperwallOptions
-import com.superwall.sdk.dependencies.DeviceInfoFactory
 import com.superwall.sdk.models.assignment.AssignmentPostback
 import com.superwall.sdk.models.assignment.ConfirmableAssignment
 import com.superwall.sdk.models.config.Config
@@ -10,8 +12,11 @@ import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.models.triggers.Trigger
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.storage.Storage
-import kotlinx.coroutines.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
 
 // TODO: Re-enable those params
 open class ConfigManager(
@@ -118,7 +123,7 @@ open class ConfigManager(
                 }
 
 //                if (Superwall.shared.options.paywalls.shouldPreload) {
-                    GlobalScope.launch(Dispatchers.IO) { preloadAllPaywalls() }
+                GlobalScope.launch(Dispatchers.IO) { preloadAllPaywalls() }
 //                }
             } catch (e: Exception) {
                 Logger.debug(
@@ -160,7 +165,11 @@ open class ConfigManager(
         val preloadableTriggers = ConfigLogic.filterTriggers(triggers, config.preloadingDisabled)
         if (preloadableTriggers.isEmpty()) return emptySet()
         val confirmedAssignments = storage.getConfirmedAssignments()
-        return ConfigLogic.getActiveTreatmentPaywallIds(preloadableTriggers, confirmedAssignments, unconfirmedAssignments)
+        return ConfigLogic.getActiveTreatmentPaywallIds(
+            preloadableTriggers,
+            confirmedAssignments,
+            unconfirmedAssignments
+        )
     }
 
 
@@ -175,7 +184,11 @@ open class ConfigManager(
         val config = config.filterNotNull().first()
         val triggers = ConfigLogic.filterTriggers(config.triggers, config.preloadingDisabled)
         val confirmedAssignments = storage.getConfirmedAssignments()
-        val paywallIds = ConfigLogic.getAllActiveTreatmentPaywallIds(triggers, confirmedAssignments, unconfirmedAssignments)
+        val paywallIds = ConfigLogic.getAllActiveTreatmentPaywallIds(
+            triggers,
+            confirmedAssignments,
+            unconfirmedAssignments
+        )
         preloadPaywalls(paywallIds)
     }
 

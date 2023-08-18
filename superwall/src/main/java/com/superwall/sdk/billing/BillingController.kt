@@ -1,17 +1,14 @@
 package com.superwall.sdk.billing
 
+
 import android.content.Context
 import android.util.Log
 import com.android.billingclient.api.*
 
-
-import com.android.billingclient.api.SkuDetails
-import com.android.billingclient.api.SkuDetailsParams
-import com.android.billingclient.api.SkuDetailsResponseListener
-
 class BillingController(context: Context) : PurchasesUpdatedListener {
 
     private lateinit var billingClient: BillingClient
+
     init {
         billingClient = BillingClient.newBuilder(context)
             .setListener(this)
@@ -27,7 +24,6 @@ class BillingController(context: Context) : PurchasesUpdatedListener {
     }
 
 
-
     override fun onPurchasesUpdated(p0: BillingResult, p1: MutableList<Purchase>?) {
 //        TODO("Not yet implemented")
         // Not really sure what this does...
@@ -36,7 +32,10 @@ class BillingController(context: Context) : PurchasesUpdatedListener {
     private fun startConnection(completion: (success: Boolean) -> Unit) {
         billingClient.startConnection(object : BillingClientStateListener {
             override fun onBillingSetupFinished(billingResult: BillingResult) {
-                Log.d("BillingController", "Billing client setup finished".plus(billingResult.responseCode))
+                Log.d(
+                    "BillingController",
+                    "Billing client setup finished".plus(billingResult.responseCode)
+                )
                 if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                     // The billing client is ready. You can query purchases here.
 //                    querySkuDetails("your_product_id")
@@ -61,8 +60,11 @@ class BillingController(context: Context) : PurchasesUpdatedListener {
     }
 
 
-    public fun querySkuDetails(productIds: ArrayList<String>,callback: (skuDetails: ArrayList<SkuDetails>) -> Unit) {
-        if (connected())  {
+    public fun querySkuDetails(
+        productIds: ArrayList<String>,
+        callback: (skuDetails: ArrayList<SkuDetails>) -> Unit
+    ) {
+        if (connected()) {
             _querySkuDetails(productIds, callback)
         } else {
             startConnection { success ->
@@ -77,7 +79,10 @@ class BillingController(context: Context) : PurchasesUpdatedListener {
     }
 
 
-    private fun _querySkuDetails(productIds: ArrayList<String>,callback: (skuDetails: ArrayList<SkuDetails>) -> Unit) {
+    private fun _querySkuDetails(
+        productIds: ArrayList<String>,
+        callback: (skuDetails: ArrayList<SkuDetails>) -> Unit
+    ) {
         // TODO: Make sure billingClient is connected before calling querySkuDetailsAsync
 
         Log.d("SkuDetails", "Querying SkuDetails: ".plus(productIds.toString()))
@@ -87,8 +92,15 @@ class BillingController(context: Context) : PurchasesUpdatedListener {
 
         billingClient.querySkuDetailsAsync(params.build(),
             object : SkuDetailsResponseListener {
-                override fun onSkuDetailsResponse(billingResult: BillingResult, skuDetailsList: List<SkuDetails>?) {
-                    Log.d("SkuDetails", "Got SkuDetails".plus(skuDetailsList.toString()).plus(billingResult.responseCode))
+                override fun onSkuDetailsResponse(
+                    billingResult: BillingResult,
+                    skuDetailsList: List<SkuDetails>?
+                ) {
+                    Log.d(
+                        "SkuDetails",
+                        "Got SkuDetails".plus(skuDetailsList.toString())
+                            .plus(billingResult.responseCode)
+                    )
                     if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && skuDetailsList != null) {
                         callback(skuDetailsList as ArrayList<SkuDetails>)
                         for (skuDetails in skuDetailsList) {

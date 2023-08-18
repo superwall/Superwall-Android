@@ -2,9 +2,7 @@ package com.superwall.sdk.models.config
 
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNamingStrategy
-import org.json.JSONObject
 import org.junit.Test
-import java.io.InputStream
 
 class ConfigTest {
 

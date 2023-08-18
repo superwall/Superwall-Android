@@ -3,7 +3,6 @@ package com.superwall.sdk.dependencies
 import android.app.Activity
 import android.app.Application
 import android.content.Context
-import androidx.core.view.ContentInfoCompat
 import com.android.billingclient.api.Purchase
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.SessionEventsManager
@@ -14,15 +13,12 @@ import com.superwall.sdk.analytics.trigger_session.TriggerSessionManager
 import com.superwall.sdk.config.ConfigLogic
 import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.config.options.SuperwallOptions
-import com.superwall.sdk.delegate.DefaultSuperwallDelegate
 import com.superwall.sdk.delegate.SubscriptionStatus
-import com.superwall.sdk.delegate.SuperwallDelegate
 import com.superwall.sdk.delegate.SuperwallDelegateAdapter
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.identity.IdentityInfo
 import com.superwall.sdk.identity.IdentityManager
 import com.superwall.sdk.misc.ActivityLifecycleTracker
-import com.superwall.sdk.misc.runOnUiThread
 import com.superwall.sdk.misc.sdkVersion
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
@@ -44,7 +40,6 @@ import com.superwall.sdk.paywall.request.PaywallRequestManagerDepFactory
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
 import com.superwall.sdk.paywall.vc.PaywallViewController
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegate
-import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegateAdapter
 import com.superwall.sdk.paywall.vc.web_view.SWWebView
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallMessageHandler
 import com.superwall.sdk.paywall.vc.web_view.templating.models.OuterVariables
@@ -53,7 +48,6 @@ import com.superwall.sdk.storage.EventsQueue
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.StoreKitManager
 import com.superwall.sdk.store.abstractions.transactions.GoogleBillingPurchaseTransaction
-import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
 import com.superwall.sdk.store.coordinator.StoreKitCoordinator
 import com.superwall.sdk.store.transactions.TransactionManager
@@ -62,13 +56,17 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
-import java.net.HttpURLConnection
 
 
-
-
-class DependencyContainer(val context: Context, purchaseController: PurchaseController? = null, options: SuperwallOptions = SuperwallOptions()): ApiFactory, DeviceInfoFactory, AppManagerDelegate, RequestFactory, TriggerSessionManagerFactory, RuleAttributesFactory, IdentityInfoFactory, LocaleIdentifierFactory, IdentityInfoAndLocaleIdentifierFactory, ViewControllerCacheDevice,
-    PaywallRequestManagerDepFactory, VariablesFactory, StoreKitCoordinatorFactory, StoreTransactionFactory, PurchaseManagerFactory {
+class DependencyContainer(
+    val context: Context,
+    purchaseController: PurchaseController? = null,
+    options: SuperwallOptions = SuperwallOptions()
+) : ApiFactory, DeviceInfoFactory, AppManagerDelegate, RequestFactory, TriggerSessionManagerFactory,
+    RuleAttributesFactory, IdentityInfoFactory, LocaleIdentifierFactory,
+    IdentityInfoAndLocaleIdentifierFactory, ViewControllerCacheDevice,
+    PaywallRequestManagerDepFactory, VariablesFactory, StoreKitCoordinatorFactory,
+    StoreTransactionFactory, PurchaseManagerFactory {
 
     var network: Network
     override lateinit var api: Api
@@ -91,11 +89,11 @@ class DependencyContainer(val context: Context, purchaseController: PurchaseCont
         // TODO: Add delegate adapter
 
 
-
         activityLifecycleTracker = ActivityLifecycleTracker()
         // onto
         (context.applicationContext as Application).registerActivityLifecycleCallbacks(
-            activityLifecycleTracker)
+            activityLifecycleTracker
+        )
 
         delegateAdapter = SuperwallDelegateAdapter(
             activityLifecycleTracker = activityLifecycleTracker,
@@ -157,7 +155,6 @@ class DependencyContainer(val context: Context, purchaseController: PurchaseCont
             factory = this
         )
     }
-
 
 
     override suspend fun makeHeaders(
@@ -247,17 +244,16 @@ class DependencyContainer(val context: Context, purchaseController: PurchaseCont
 
 
     override fun makeDeviceInfo(): DeviceInfo {
-       return DeviceInfo(
-           appInstalledAtString = deviceHelper.appInstalledAtString,
-           locale = deviceHelper.locale,
-       )
+        return DeviceInfo(
+            appInstalledAtString = deviceHelper.appInstalledAtString,
+            locale = deviceHelper.locale,
+        )
     }
 
 
     override suspend fun didUpdateAppSession(appSession: AppSession) {
 
     }
-
 
 
     // Mark - RequestFactory
@@ -308,7 +304,7 @@ class DependencyContainer(val context: Context, purchaseController: PurchaseCont
             delegate = sessionEventsManager,
             sessionEventsManager = sessionEventsManager,
             storage = storage,
-            configManager =  configManager,
+            configManager = configManager,
             appSessionManager = appSessionManager,
             identityManager = identityManager
         )
