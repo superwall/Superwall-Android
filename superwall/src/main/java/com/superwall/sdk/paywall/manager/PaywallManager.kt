@@ -1,6 +1,7 @@
 package com.superwall.sdk.paywall.manager
 
 import com.superwall.sdk.dependencies.ViewControllerCacheDevice
+import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.paywall.request.PaywallRequestManager
 import com.superwall.sdk.paywall.vc.PaywallViewController
@@ -41,6 +42,7 @@ class PaywallManager(private val factory: ViewControllerCacheDevice,
 
     suspend fun getPaywallViewController(
         request: PaywallRequest,
+        presentationRequest: PresentationRequest,
         isPreloading: Boolean,
         delegate: PaywallViewControllerDelegate?
     ): PaywallViewController {
@@ -62,6 +64,7 @@ class PaywallManager(private val factory: ViewControllerCacheDevice,
         }
 
         val paywallViewController = factory.makePaywallViewController(
+            presentationRequest = presentationRequest,
             paywall = paywall,
             cache = cache,
             delegate = delegate

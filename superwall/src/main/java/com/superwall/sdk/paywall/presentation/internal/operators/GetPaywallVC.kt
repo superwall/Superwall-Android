@@ -52,6 +52,7 @@ suspend fun Superwall.getPaywallViewController(
     println("!!delegate: $delegate")
         val paywallViewController = dependencyContainer.paywallManager.getPaywallViewController(
             request = paywallRequest,
+            presentationRequest = request,
             isPreloading = false,
             delegate = delegate
         )

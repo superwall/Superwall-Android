@@ -55,9 +55,17 @@ import com.superwall.sdk.store.coordinator.StoreKitCoordinator
 import com.superwall.sdk.store.transactions.TransactionManager
 import com.superwall.sdk.store.transactions.purchasing.PurchaseManager
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
+
 import java.time.Period
 import java.util.*
+
+import kotlinx.coroutines.withContext
+import java.net.HttpURLConnection
+
+
+
 
 
 class DependencyContainer(val context: Context, purchaseController: PurchaseController? = null, options: SuperwallOptions = SuperwallOptions()): ApiFactory, DeviceInfoFactory, AppManagerDelegate, RequestFactory, TriggerSessionManagerFactory, RuleAttributesFactory, IdentityInfoFactory, LocaleIdentifierFactory, IdentityInfoAndLocaleIdentifierFactory, ViewControllerCacheDevice,
@@ -194,35 +202,34 @@ class DependencyContainer(val context: Context, purchaseController: PurchaseCont
     }
 
     override suspend fun makePaywallViewController(
+        request: PresentationRequest,
         paywall: Paywall,
         cache: PaywallViewControllerCache?,
         delegate: PaywallViewControllerDelegate?
-    ): PaywallViewController {
+    ): PaywallViewController = withContext(Dispatchers.Main) {
         // TODO: Fix this up
 
         val messageHandler = PaywallMessageHandler(
             sessionEventsManager = sessionEventsManager,
-            factory = this
+            factory = this@DependencyContainer
         )
-
 
         val webViewDeffered = CompletableDeferred<SWWebView>()
 
-       runOnUiThread {
-           val _webView = SWWebView(
-               context = context,
-               messageHandler = messageHandler,
-               sessionEventsManager = sessionEventsManager,
-           )
-           webViewDeffered.complete(_webView)
-       }
+        val _webView = SWWebView(
+            context = context,
+            messageHandler = messageHandler,
+            sessionEventsManager = sessionEventsManager,
+        )
+        webViewDeffered.complete(_webView)
 
         val webView = webViewDeffered.await()
 
-
-        val paywallViewController =  PaywallViewController(
+        val paywallViewController = PaywallViewController(
+            context = context,
+            request = request,
             paywall = paywall,
-            factory = this,
+            factory = this@DependencyContainer,
             cache = cache,
             delegate = delegate,
             deviceHelper = deviceHelper,
@@ -234,7 +241,7 @@ class DependencyContainer(val context: Context, purchaseController: PurchaseCont
         webView.delegate = paywallViewController
         messageHandler.delegate = paywallViewController
 
-        return paywallViewController
+        return@withContext paywallViewController
     }
 
     override fun makeCache(): PaywallViewControllerCache {

@@ -44,7 +44,7 @@ fun Superwall.internallyPresent(request: PresentationRequest, publisher: Mutable
 // Note that there's no direct equivalent for the @MainActor attribute in Swift, but Dispatchers.Main in coroutines serves a similar purpose.
 fun Superwall.dismiss(paywallViewController: PaywallViewController, result: PaywallResult, closeReason: PaywallCloseReason = PaywallCloseReason.SystemLogic, completion: (() -> Unit)? = null) {
     GlobalScope.launch(Dispatchers.Main) {
-        paywallViewController.dismiss(result, closeReason)
+        paywallViewController.presenter?.dismiss(result, closeReason)
         completion?.invoke()
     }
 }
