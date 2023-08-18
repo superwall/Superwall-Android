@@ -279,45 +279,6 @@ public class Superwall(context: Context, apiKey: String, purchaseController: Pur
         )
     }
 
-    /*
-
-
-      private func internallyGetPresentationResult(
-        forEvent event: String,
-        params: [String: Any]? = nil,
-        type: PresentationRequestType
-      ) async -> PresentationResult {
-        let eventCreatedAt = Date()
-
-        let trackableEvent = UserInitiatedEvent.Track(
-          rawName: event,
-          canImplicitlyTriggerPaywall: false,
-          customParameters: params ?? [:],
-          isFeatureGatable: false
-        )
-
-        let parameters = await TrackingLogic.processParameters(
-          fromTrackableEvent: trackableEvent,
-          eventCreatedAt: eventCreatedAt,
-          appSessionId: dependencyContainer.appSessionManager.appSession.id
-        )
-
-        let eventData = EventData(
-          name: event,
-          parameters: JSON(parameters.eventParams),
-          createdAt: eventCreatedAt
-        )
-
-        let presentationRequest = dependencyContainer.makePresentationRequest(
-          .explicitTrigger(eventData),
-          isDebuggerLaunched: false,
-          isPaywallPresented: false,
-          type: type
-        )
-
-        return await getPresentationResult(for: presentationRequest)
-      }
-     */
     private suspend fun internallyGetPresentationResult(
         forEvent: String,
         params: Map<String, Any>? = null,
