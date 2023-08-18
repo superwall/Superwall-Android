@@ -5,7 +5,6 @@ import com.superwall.sdk.dependencies.RuleAttributesFactory
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.TriggerRule
-import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
 import com.superwall.sdk.models.triggers.VariantOption
 import com.superwall.sdk.paywall.presentation.rule_logic.RuleAttributes
 import com.superwall.sdk.storage.StorageMock

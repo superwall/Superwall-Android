@@ -1,10 +1,8 @@
 package com.superwall.sdk.models.serialization
 
-import com.superwall.sdk.models.serialization.AnySerializer
 import kotlinx.serialization.json.Json
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Test
 
 

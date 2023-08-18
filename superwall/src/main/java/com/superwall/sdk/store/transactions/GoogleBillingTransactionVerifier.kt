@@ -4,17 +4,17 @@ import android.content.Context
 import android.util.Log
 import com.android.billingclient.api.*
 import com.superwall.sdk.delegate.InternalPurchaseResult
-import com.superwall.sdk.delegate.PurchaseResult
-import com.superwall.sdk.dependencies.StoreTransactionFactory
-import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import com.superwall.sdk.store.abstractions.transactions.GoogleBillingPurchaseTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
-import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
 import com.superwall.sdk.store.coordinator.TransactionChecker
-import com.superwall.sdk.store.products.GooglePlayProductsFetcher
-import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.*
-import java.lang.Exception
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 class GoogleBillingTransactionVerifier(var context: Context): TransactionChecker,
     PurchasesUpdatedListener {
@@ -61,7 +61,7 @@ class GoogleBillingTransactionVerifier(var context: Context): TransactionChecker
     override suspend fun getAndValidateLatestTransaction(
         productId: String,
         hasPurchaseController: Boolean
-    ): StoreTransactionType? {
+    ): StoreTransaction? {
        // Get the latest from purchaseResults
         purchaseResults.asStateFlow().filter { it != null }.first().let { purchaseResult ->
             return when (purchaseResult) {

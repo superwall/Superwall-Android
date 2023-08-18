@@ -5,8 +5,7 @@ import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.store.StoreKitManager
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
-import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
-import java.util.Date
+import java.util.*
 
 sealed class PurchaseError : Throwable() {
     object ProductUnavailable : PurchaseError()
@@ -61,7 +60,7 @@ class PurchaseManager(
     }
 
     private fun hasRestored(
-        transaction: StoreTransactionType?,
+        transaction: StoreTransaction?,
         hasPurchaseController: Boolean,
         purchaseStartAt: Date
     ): Boolean {

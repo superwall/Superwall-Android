@@ -1,16 +1,14 @@
 package com.superwall.sdk.store.abstractions.product
 
+
 import com.android.billingclient.api.SkuDetails
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.JsonObject
-import java.math.BigDecimal
-import java.util.*
-
-
-
-import kotlinx.serialization.*
+import kotlinx.serialization.Serializer
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
+import java.math.BigDecimal
+import java.util.*
 
 @Serializer(forClass = SkuDetails::class)
 object SkuDetailsSerializer : KSerializer<SkuDetails> {
@@ -55,16 +53,60 @@ class StoreProduct(
         get() = rawStoreProduct.skuDetails.price
 
     override val localizedSubscriptionPeriod: String
-        get() = rawStoreProduct.skuDetails.subscriptionPeriod
+        get() {
+            val subscriptionPeriod = subscriptionPeriod
+                ?: return ""
+//            val dateComponents: DateComponents
+//
+//            dateComponents = when (subscriptionPeriod.unit) {
+//                SubscriptionUnit.DAY -> DateComponents(day = subscriptionPeriod.numberOfUnits)
+//                SubscriptionUnit.WEEK -> DateComponents(weekOfMonth = subscriptionPeriod.numberOfUnits)
+//                SubscriptionUnit.MONTH -> DateComponents(month = subscriptionPeriod.numberOfUnits)
+//                SubscriptionUnit.YEAR -> DateComponents(year = subscriptionPeriod.numberOfUnits)
+//            }
+//
+//            return DateComponentsFormatter.localizedStringFrom(
+//                dateComponents,
+//                unitsStyle = DateComponentsFormatter.UnitsStyle.SHORT
+//            ) ?: ""
+            return ""
+        }
 
     override val period: String
-        get() = rawStoreProduct.skuDetails.subscriptionPeriod
+        get() {
+//            val subscriptionPeriod = subscriptionPeriod
+//                ?: return ""
+//
+//            if (subscriptionPeriod.unit == SubscriptionUnit.DAY) {
+//                return if (subscriptionPeriod.numberOfUnits == 7) "week" else "day"
+//            }
+//
+//            if (subscriptionPeriod.unit == SubscriptionUnit.MONTH) {
+//                return when (subscriptionPeriod.numberOfUnits) {
+//                    2 -> "2 months"
+//                    3 -> "quarter"
+//                    6 -> "6 months"
+//                    else -> "month"
+//                }
+//            }
+//
+//            if (subscriptionPeriod.unit == SubscriptionUnit.WEEK) {
+//                return "week"
+//            }
+//
+//            if (subscriptionPeriod.unit == SubscriptionUnit.YEAR) {
+//                return "year"
+//            }
+
+            return ""
+        }
+
 
     override val periodly: String
         get() = "" // TODO: Implement based on your needs
 
     override val periodWeeks: Int
-        get() = 0 // Convert period into weeks based on your needs
+        get() = 0
 
     override val periodWeeksString: String
         get() = periodWeeks.toString()

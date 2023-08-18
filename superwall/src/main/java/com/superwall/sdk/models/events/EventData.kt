@@ -11,9 +11,7 @@ import kotlinx.serialization.encoding.CompositeDecoder
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.JsonElement
-import org.json.JSONObject
 import java.util.*
-
 
 
 //object EventDataSerializer: KSerializer<EventData>  {

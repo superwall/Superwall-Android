@@ -2,7 +2,7 @@ package com.superwall.sdk.billing
 
 import org.json.JSONObject
 import java.math.BigDecimal
-import java.util.Date
+import java.util.*
 
 interface StoreProductType {
     val productIdentifier: String

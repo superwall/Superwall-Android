@@ -1,19 +1,21 @@
 package com.superwall.sdk.paywall.presentation.internal.operators
 
+import LogLevel
+import LogScope
+import Logger
 import android.app.Activity
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.models.assignment.ConfirmableAssignment
-import com.superwall.sdk.paywall.presentation.internal.*
+import com.superwall.sdk.paywall.presentation.internal.InternalPresentationLogic
+import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatusReason
+import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
+import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallSkippedReason
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.paywall.vc.PaywallViewController
-import kotlinx.coroutines.GlobalScope
-
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 
 data class PresentablePipelineOutput(
     val debugInfo: Map<String, Any>,

@@ -2,7 +2,6 @@ package com.superwall.sdk.dependencies
 
 import android.app.Activity
 import com.android.billingclient.api.Purchase
-import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.trigger_session.TriggerSessionManager
 import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.delegate.SubscriptionStatus
@@ -15,23 +14,20 @@ import com.superwall.sdk.network.Api
 import com.superwall.sdk.network.device.DeviceInfo
 import com.superwall.sdk.paywall.manager.PaywallViewControllerCache
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
-import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
+import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.presentation.rule_logic.RuleAttributes
 import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
 import com.superwall.sdk.paywall.vc.PaywallViewController
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegate
-import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegateAdapter
 import com.superwall.sdk.paywall.vc.web_view.templating.models.OuterVariables
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
-import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
 import com.superwall.sdk.store.coordinator.StoreKitCoordinator
 import com.superwall.sdk.store.transactions.purchasing.PurchaseManager
 import kotlinx.coroutines.flow.StateFlow
-import java.net.HttpURLConnection
 
 
 interface ApiFactory {
@@ -156,7 +152,7 @@ interface StoreKitCoordinatorFactory {
 //}
 
 interface StoreTransactionFactory {
-    suspend fun makeStoreTransaction(transaction: Purchase): StoreTransactionType
+    suspend fun makeStoreTransaction(transaction: Purchase): StoreTransaction
 }
 
 interface PurchaseManagerFactory {

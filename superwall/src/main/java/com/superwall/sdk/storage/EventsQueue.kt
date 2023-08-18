@@ -1,6 +1,9 @@
 package com.superwall.sdk.storage
 
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.Trackable
@@ -12,10 +15,6 @@ import com.superwall.sdk.models.events.EventsRequest
 import com.superwall.sdk.network.Network
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-
-import android.content.BroadcastReceiver
-import android.content.Intent
-import android.content.IntentFilter
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class EventsQueue(private val context: Context, private val network: Network, private val configManager: ConfigManager): BroadcastReceiver() {

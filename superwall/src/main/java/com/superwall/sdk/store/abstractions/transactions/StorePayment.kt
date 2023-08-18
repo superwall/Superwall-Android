@@ -1,7 +1,6 @@
 package com.superwall.sdk.store.abstractions.transactions
 
 import com.android.billingclient.api.Purchase
-import com.android.billingclient.api.SkuDetails
 
 
 // SW-2212: [android] [v0] make sure the productIdentifier is properly propagated

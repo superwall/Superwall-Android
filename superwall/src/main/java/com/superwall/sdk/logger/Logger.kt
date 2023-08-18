@@ -1,6 +1,5 @@
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.config.options.SuperwallOptions
-import kotlin.math.log
 
 interface Loggable {
     companion object {

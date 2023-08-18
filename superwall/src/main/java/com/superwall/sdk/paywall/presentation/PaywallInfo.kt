@@ -1,19 +1,17 @@
 package com.superwall.sdk.paywall.presentation
 
+import LogLevel
+import LogScope
+import Logger
 import com.superwall.sdk.dependencies.TriggerSessionManagerFactory
 import com.superwall.sdk.models.config.FeatureGatingBehavior
 import com.superwall.sdk.models.events.EventData
-import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.product.Product
 import com.superwall.sdk.models.serialization.URLSerializer
 import com.superwall.sdk.models.triggers.Experiment
-import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import java.net.URL
-import java.time.Instant
 import java.util.*
 
 

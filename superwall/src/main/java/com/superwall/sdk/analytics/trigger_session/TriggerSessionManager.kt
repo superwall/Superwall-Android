@@ -1,5 +1,6 @@
 package com.superwall.sdk.analytics.trigger_session
 
+
 import android.app.Activity
 import com.superwall.sdk.analytics.SessionEventsDelegate
 import com.superwall.sdk.analytics.SessionEventsManager
@@ -16,9 +17,6 @@ import com.superwall.sdk.models.triggers.TriggerResult
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.abstractions.product.StoreProduct
-
-
-import kotlinx.coroutines.*
 
 enum class LoadState {
     START,

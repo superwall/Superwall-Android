@@ -1,45 +1,53 @@
-
 package com.superwall.sdk.store.abstractions.transactions
 
-import com.superwall.sdk.store.abstractions.transactions.StorePayment
-import com.superwall.sdk.store.abstractions.transactions.StoreTransactionState
-import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
-import java.util.UUID
-import java.util.Date
-
-@Serializable
-class StoreTransaction(
-    private val transaction: StoreTransactionType,
-    val configRequestId: String,
-    val appSessionId: String,
-    val triggerSessionId: String?
-) : StoreTransactionType {
-
-    private val id = UUID.randomUUID().toString()
-
-    override val transactionDate: Date? get() = transaction.transactionDate
-    override val originalTransactionIdentifier: String get() = transaction.originalTransactionIdentifier
-    override val state: StoreTransactionState get() = transaction.state
-    override val storeTransactionId: String? get() = transaction.storeTransactionId
-    override val payment: StorePayment get() = transaction.payment
-    override val originalTransactionDate: Date? get() = transaction.originalTransactionDate
-    override val webOrderLineItemID: String? get() = transaction.webOrderLineItemID
-    override val appBundleId: String? get() = transaction.appBundleId
-    override val subscriptionGroupId: String? get() = transaction.subscriptionGroupId
-    override val isUpgraded: Boolean? get() = transaction.isUpgraded
-    override val expirationDate: Date? get() = transaction.expirationDate
-    override val offerId: String? get() = transaction.offerId
-    override val revocationDate: Date? get() = transaction.revocationDate
-    override val appAccountToken: UUID? get() = transaction.appAccountToken
-
-    // You can define SK1Transaction and SK2Transaction conversion methods here
-    // based on the Android billing library.
+import com.android.billingclient.api.BillingClient
+import java.util.*
 
 
+interface StoreTransaction  {
+    val transactionDate: Date?
+    val originalTransactionIdentifier: String
+    val state: StoreTransactionState
+    val storeTransactionId: String?
+    val payment: StorePayment
 
+    // MARK: iOS 15 only properties
+    val originalTransactionDate: Date?
+    val webOrderLineItemID: String?
+    val appBundleId: String?
+    val subscriptionGroupId: String?
+    val isUpgraded: Boolean?
+    val expirationDate: Date?
+    val offerId: String?
+    val revocationDate: Date?
+    val appAccountToken: UUID?
+    val productIdentifier: String?
 }
 
+@kotlinx.serialization.Serializable
+sealed class StoreTransactionState {
 
+    @kotlinx.serialization.Serializable
+    object Purchasing : StoreTransactionState() // When purchase is initiated
+
+    @kotlinx.serialization.Serializable
+    object Purchased : StoreTransactionState() // When purchase is successful
+    @kotlinx.serialization.Serializable
+    object Failed : StoreTransactionState() // When purchase has failed
+    @kotlinx.serialization.Serializable
+    object Restored : StoreTransactionState() // When a previous purchase has been restored
+    @kotlinx.serialization.Serializable
+    object Deferred : StoreTransactionState() // Optional: When a purchase is pending some external action
+
+    companion object {
+        fun from(purchaseResult: Int): StoreTransactionState {
+            return when (purchaseResult) {
+                BillingClient.BillingResponseCode.OK -> Purchased
+                BillingClient.BillingResponseCode.USER_CANCELED -> Purchasing
+                BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED -> Restored
+                // Add other cases based on the specific responses you need to handle
+                else -> Failed
+            }
+        }
+    }
+}

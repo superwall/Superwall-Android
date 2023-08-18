@@ -3,7 +3,6 @@ package com.superwall.sdk.dependencies
 import android.app.Activity
 import android.app.Application
 import android.content.Context
-import androidx.core.view.ContentInfoCompat
 import com.android.billingclient.api.Purchase
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.SessionEventsManager
@@ -14,9 +13,8 @@ import com.superwall.sdk.analytics.trigger_session.TriggerSessionManager
 import com.superwall.sdk.config.ConfigLogic
 import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.config.options.SuperwallOptions
-import com.superwall.sdk.delegate.DefaultSuperwallDelegate
+import com.superwall.sdk.contrib.threeteen.AmountFormats
 import com.superwall.sdk.delegate.SubscriptionStatus
-import com.superwall.sdk.delegate.SuperwallDelegate
 import com.superwall.sdk.delegate.SuperwallDelegateAdapter
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.identity.IdentityInfo
@@ -44,7 +42,6 @@ import com.superwall.sdk.paywall.request.PaywallRequestManagerDepFactory
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
 import com.superwall.sdk.paywall.vc.PaywallViewController
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegate
-import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegateAdapter
 import com.superwall.sdk.paywall.vc.web_view.SWWebView
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallMessageHandler
 import com.superwall.sdk.paywall.vc.web_view.templating.models.OuterVariables
@@ -54,15 +51,13 @@ import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.StoreKitManager
 import com.superwall.sdk.store.abstractions.transactions.GoogleBillingPurchaseTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
-import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
 import com.superwall.sdk.store.coordinator.StoreKitCoordinator
 import com.superwall.sdk.store.transactions.TransactionManager
 import com.superwall.sdk.store.transactions.purchasing.PurchaseManager
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.StateFlow
-import java.net.HttpURLConnection
-
-
+import java.time.Period
+import java.util.*
 
 
 class DependencyContainer(val context: Context, purchaseController: PurchaseController? = null, options: SuperwallOptions = SuperwallOptions()): ApiFactory, DeviceInfoFactory, AppManagerDelegate, RequestFactory, TriggerSessionManagerFactory, RuleAttributesFactory, IdentityInfoFactory, LocaleIdentifierFactory, IdentityInfoAndLocaleIdentifierFactory, ViewControllerCacheDevice,
@@ -86,9 +81,11 @@ class DependencyContainer(val context: Context, purchaseController: PurchaseCont
 
     init {
 
-        // TODO: Add delegate adapter
+        val period = Period.ofYears(1)
+        println("!!! localizedPeriod en_US: ${AmountFormats.wordBased(period, Locale("en", "US"))}")
+        println("!!! localizedPeriod ro: ${AmountFormats.wordBased(period, Locale("ro"))}")
 
-
+        storeKitManager = StoreKitManager(context, this)
 
         activityLifecycleTracker = ActivityLifecycleTracker()
         // onto
@@ -107,6 +104,7 @@ class DependencyContainer(val context: Context, purchaseController: PurchaseCont
         deviceHelper = DeviceHelper(context = context, storage, factory = this)
 
         configManager = ConfigManager(
+            storeKitManager = storeKitManager,
             storage = storage,
             network = network
         )
@@ -135,7 +133,6 @@ class DependencyContainer(val context: Context, purchaseController: PurchaseCont
             factory = this
         )
 
-        storeKitManager = StoreKitManager(context, this)
 
         paywallRequestManager = PaywallRequestManager(
             storeKitManager = storeKitManager,
@@ -368,7 +365,7 @@ class DependencyContainer(val context: Context, purchaseController: PurchaseCont
         )
     }
 
-    override suspend fun makeStoreTransaction(transaction: Purchase): StoreTransactionType {
+    override suspend fun makeStoreTransaction(transaction: Purchase): StoreTransaction {
         return GoogleBillingPurchaseTransaction(
             transaction = transaction,
         )

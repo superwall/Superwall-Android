@@ -5,7 +5,6 @@ import com.superwall.sdk.models.assignment.ConfirmableAssignment
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.TriggerResult
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatusReason
-import com.superwall.sdk.paywall.presentation.internal.PresentationPipelineError
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.rule_logic.RuleLogic

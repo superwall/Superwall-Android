@@ -14,12 +14,9 @@ import com.superwall.sdk.storage.keys.SubscriptionStatus
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.GoogleBillingPurchaseTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
-import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
 import com.superwall.sdk.store.transactions.TransactionError
 import kotlinx.serialization.json.*
 import java.net.URL
-import java.util.*
-import kotlin.collections.HashMap
 
 
 interface TrackableSuperwallEvent: Trackable {
@@ -228,7 +225,7 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
         val state: State,
         val paywallInfo: PaywallInfo,
         val product: StoreProduct?,
-        val model: StoreTransactionType?,
+        val model: StoreTransaction?,
         override var customParameters: HashMap<String, Any> = HashMap()
     ) : TrackableSuperwallEvent {
 
@@ -236,7 +233,7 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
             class Start(val product: StoreProduct) : State()
             class Fail(val error: TransactionError) : State()
             class Abandon(val product: StoreProduct) : State()
-            class Complete(val product: StoreProduct, val transaction: StoreTransactionType?) : State()
+            class Complete(val product: StoreProduct, val transaction: StoreTransaction?) : State()
             class Restore : State()
             class Timeout : State()
         }

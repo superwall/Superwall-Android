@@ -7,10 +7,7 @@ import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.dependencies.TriggerSessionManagerFactory
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.storage.Storage
-import com.superwall.sdk.storage.keys.Transactions
-import com.superwall.sdk.storage.keys.TriggerSessions
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
-import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
 import kotlinx.coroutines.*
 import kotlin.coroutines.CoroutineContext
 
@@ -19,7 +16,7 @@ interface SessionEventsDelegate {
 
     suspend fun enqueue(triggerSession: TriggerSession)
     suspend fun enqueue(triggerSessions: List<TriggerSession>)
-    suspend fun enqueue(transaction: StoreTransactionType)
+    suspend fun enqueue(transaction: StoreTransaction)
 }
 
 // TODO: Re-enable session stuff
@@ -30,7 +27,7 @@ class SessionEventsManager(
     private val network: Network,
     private val configManager: ConfigManager,
     private val factory: TriggerSessionManagerFactory
-): CoroutineScope, SessionEventsDelegate {
+) : CoroutineScope, SessionEventsDelegate {
 
     // The Coroutine Context is derived from SupervisorJob() + Dispatchers.Default
     // so that if a child job fails it does not affect the other child jobs
@@ -91,7 +88,7 @@ class SessionEventsManager(
 //        }
     }
 
-    override suspend fun enqueue(transaction: StoreTransactionType) {
+    override suspend fun enqueue(transaction: StoreTransaction) {
 //        configManager.config?.featureFlags?.enableSessionEvents?.let { enableSessionEvents ->
 //            if (enableSessionEvents) {
 //                queue.enqueue(transaction)

@@ -2,7 +2,7 @@ package com.superwall.sdk.analytics.superwall
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.product.SubscriptionPeriod
 import java.math.BigDecimal
-import java.util.Date
+import java.util.*
 
 data class TransactionProduct(
     val id: String,

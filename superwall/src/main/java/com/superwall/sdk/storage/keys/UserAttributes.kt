@@ -1,26 +1,25 @@
 package com.superwall.sdk.storage.keys
 
-import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.serialization.AnyMapSerializer
 import com.superwall.sdk.models.serialization.AnySerializer
-import com.superwall.sdk.models.serialization.DateSerializer
 import com.superwall.sdk.storage.CacheDirectory
 import com.superwall.sdk.storage.CacheHelper
 import com.superwall.sdk.storage.StorageConfig
 import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import kotlinx.serialization.*
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.descriptors.buildClassSerialDescriptor
 import kotlinx.serialization.descriptors.element
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.encoding.CompositeDecoder
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
-import java.util.*
 
 
 object UserAttributesConfig: StorageConfig {

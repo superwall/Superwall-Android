@@ -7,6 +7,9 @@ package com.superwall.sdk.identity
 //import kotlinx.coroutines.sync.Mutex
 //import kotlinx.coroutines.sync.withLock
 //import kotlinx.coroutines.flow.*
+import LogLevel
+import LogScope
+import Logger
 import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.storage.Storage
@@ -16,8 +19,9 @@ import com.superwall.sdk.storage.keys.UserAttributes
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock

@@ -5,9 +5,7 @@ import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegate
-import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegateAdapter
 import kotlinx.coroutines.flow.StateFlow
-
 
 
 sealed class PresentationRequestType {

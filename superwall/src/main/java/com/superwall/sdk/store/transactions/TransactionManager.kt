@@ -1,11 +1,13 @@
 package com.superwall.sdk.store.transactions
 
+import LogLevel
+import LogScope
+import Logger
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.SessionEventsManager
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.delegate.InternalPurchaseResult
-import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
 import com.superwall.sdk.dependencies.PurchaseManagerFactory
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
@@ -14,10 +16,8 @@ import com.superwall.sdk.paywall.vc.delegate.PaywallLoadingState
 import com.superwall.sdk.store.StoreKitManager
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
-import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
 import com.superwall.sdk.store.transactions.purchasing.PurchaseManager
 import kotlinx.coroutines.*
-import kotlinx.coroutines.channels.SendChannel
 
 class TransactionManager(
     private val storeKitManager: StoreKitManager,
@@ -84,7 +84,7 @@ class TransactionManager(
     }
 
     // ... Remaining functions translated in a similar fashion ...
-    private suspend fun didPurchase(product: StoreProduct, paywallViewController: PaywallViewController, transaction: StoreTransactionType?) {
+    private suspend fun didPurchase(product: StoreProduct, paywallViewController: PaywallViewController, transaction: StoreTransaction?) {
         Logger.debug(
             LogLevel.debug,
             LogScope.paywallTransactions,
@@ -204,7 +204,7 @@ class TransactionManager(
     }
 
     // ... and so on for the other methods ...
-    suspend fun trackTransactionDidSucceed(transaction: StoreTransactionType?, product: StoreProduct) {
+    suspend fun trackTransactionDidSucceed(transaction: StoreTransaction?, product: StoreProduct) {
         val paywallViewController = lastPaywallViewController ?: return
 
         val paywallShowingFreeTrial = paywallViewController.paywall.isFreeTrialAvailable == true

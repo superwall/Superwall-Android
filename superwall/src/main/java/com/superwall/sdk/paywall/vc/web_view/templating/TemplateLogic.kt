@@ -1,12 +1,10 @@
 import com.superwall.sdk.dependencies.VariablesFactory
 import com.superwall.sdk.models.paywall.Paywall
-import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.paywall.vc.web_view.templating.models.FreeTrialTemplate
 import com.superwall.sdk.paywall.view_controller.web_view.templating.models.ProductTemplate
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import java.util.Base64
+import java.util.*
 
 object TemplateLogic {
     suspend fun getBase64EncodedTemplates(

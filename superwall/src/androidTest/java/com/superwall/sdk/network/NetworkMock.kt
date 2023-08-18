@@ -1,14 +1,11 @@
 package com.superwall.sdk.network
 
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.SharedFlow
-import java.lang.Exception
-import kotlinx.coroutines.future.await
 import androidx.lifecycle.Lifecycle
 import com.superwall.sdk.dependencies.ApiFactory
 import com.superwall.sdk.models.assignment.Assignment
 import com.superwall.sdk.models.assignment.AssignmentPostback
 import com.superwall.sdk.models.config.Config
+import kotlinx.coroutines.flow.SharedFlow
 
 
 class NetworkMock(

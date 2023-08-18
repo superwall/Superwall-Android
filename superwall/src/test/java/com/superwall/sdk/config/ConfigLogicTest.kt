@@ -2,12 +2,10 @@ package com.superwall.sdk.config
 
 import com.superwall.sdk.models.assignment.Assignment
 import com.superwall.sdk.models.config.Config
-import com.superwall.sdk.models.config.LocalizationConfig
 import com.superwall.sdk.models.config.PreloadingDisabled
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.triggers.*
 import org.junit.Assert.*
-import org.junit.Rule
 import org.junit.Test
 
 

@@ -5,6 +5,8 @@ import android.util.Log
 import com.android.billingclient.api.*
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import com.superwall.sdk.store.abstractions.product.StoreProduct
+import com.superwall.sdk.store.abstractions.transactions.GoogleBillingPurchaseTransaction
+import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import com.superwall.sdk.store.coordinator.ProductsFetcher
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -74,6 +76,12 @@ open class GooglePlayProductsFetcher(var context: Context) : ProductsFetcher, Pu
     }
 
 
+    private suspend fun waitForConnection() {
+        _isConnected.first { isConnected ->
+            isConnected
+        }
+    }
+
     protected  fun request(productIds: List<String>)  {
         scope.launch {
 
@@ -125,7 +133,7 @@ open class GooglePlayProductsFetcher(var context: Context) : ProductsFetcher, Pu
     open suspend fun queryProductDetails(productIds: List<String>): Map<String, Result<RawStoreProduct>> {
         // Wait for connection
         println("!! Waiting for connection ${Thread.currentThread().name}")
-        _isConnected.first { it }
+        waitForConnection()
         println("!! Connected ${Thread.currentThread().name}")
 
 
@@ -145,6 +153,8 @@ open class GooglePlayProductsFetcher(var context: Context) : ProductsFetcher, Pu
 
             if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && skuDetailsList != null) {
 
+                println("!! Got product details for ${productIds.size} products, prodcuts: ${productIds}, billingResult: ${billingResult}, skuDetailsList: ${skuDetailsList }  ${Thread.currentThread().name}\"")
+
                 var foundProducts = skuDetailsList.map { it.sku }
                 var missingProducts = productIds.filter { !foundProducts.contains(it) }
 
@@ -160,6 +170,7 @@ open class GooglePlayProductsFetcher(var context: Context) : ProductsFetcher, Pu
                 )
             } else {
 
+                print("!! Failed to get product details for ${productIds.size} products, prodcuts: ${productIds}, billingResult: ${billingResult}, skuDetailsList: ${skuDetailsList }  ${Thread.currentThread().name}\"")
                 // Fail all of them
                 val failed: Map<String, Result<RawStoreProduct>> = productIds.map { it  to Result.Error<RawStoreProduct>(Exception("Failed to query product details")) }.toMap()
 
@@ -228,4 +239,29 @@ open class GooglePlayProductsFetcher(var context: Context) : ProductsFetcher, Pu
 //    override fun onPurchasesUpdated(p0: BillingResult, p1: MutableList<Purchase>?) {
 //        TODO("Not yet implemented")
 //    }
+
+    override suspend fun purchasedProducts(): Set<StoreTransaction> {
+        val deferred = CompletableDeferred<Set<StoreTransaction>?>()
+
+        billingClient.queryPurchasesAsync(BillingClient.SkuType.SUBS) { billingResult, purchasesList ->
+            // Process the result.
+            Log.d("!!!BillingController", "Got purchases: $purchasesList")
+            if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                // Handle the success of the purchase flow.
+                val purchases = purchasesList?.map { GoogleBillingPurchaseTransaction(transaction = it) }?.toSet()
+                deferred.complete(purchases)
+            } else {
+                // Handle error
+                deferred.complete(null)
+            }
+        }
+        val value =  deferred.await()
+        // This may cause us to show free trial text when we shouldn't
+        // b/c we just haven't found the purchase due to an error
+        if (value == null) {
+            return emptySet()
+        }
+        return value
+    }
+
 }

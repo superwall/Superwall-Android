@@ -1,8 +1,7 @@
 package com.superwall.sdk.store.abstractions.product
 
 import java.math.BigDecimal
-import java.util.Date
-import kotlinx.serialization.json.JsonObject
+import java.util.*
 
 // Define a typealias for List as there is no exact equivalent for Array in Kotlin
 //typealias StoreProductDiscountArray = List<StoreProductDiscount>

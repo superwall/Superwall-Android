@@ -1,11 +1,5 @@
 package com.superwall.sdk.paywall.vc.web_view
 
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.json.Json
-import org.junit.Assert.assertEquals
-import org.junit.Test
-
 class PaywallMessageTest {
 
 //    private val jsonFormat = Json { ignoreUnknownKeys = true }

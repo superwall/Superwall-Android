@@ -1,17 +1,17 @@
 package com.superwall.sdk.paywall.presentation.internal.operators
 
+import LogLevel
+import LogScope
+import Logger
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.models.assignment.ConfirmableAssignment
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.TriggerResult
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatusReason
-import com.superwall.sdk.paywall.presentation.internal.PresentationPipelineError
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallSkippedReason
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
-
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.StateFlow
 
 // Defining the data class equivalent of the struct in Swift
 data class TriggerResultResponsePipelineOutput(

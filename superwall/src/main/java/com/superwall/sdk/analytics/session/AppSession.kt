@@ -1,10 +1,7 @@
 package com.superwall.sdk.analytics.session
 
+
 import com.superwall.sdk.models.serialization.DateSerializer
-import org.json.JSONObject
-import java.util.*
-
-
 import kotlinx.serialization.*
 import java.util.*
 

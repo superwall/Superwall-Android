@@ -1,6 +1,9 @@
 package com.superwall.sdk.paywall.vc.web_view.messaging
 
-import android.net.Uri
+import LogLevel
+import LogScope
+import Logger
+import TemplateLogic
 import android.util.Log
 import android.webkit.JavascriptInterface
 import android.webkit.WebView

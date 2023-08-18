@@ -1,7 +1,9 @@
 package com.superwall.sdk.config
 
+import LogLevel
+import LogScope
+import Logger
 import com.superwall.sdk.config.options.SuperwallOptions
-import com.superwall.sdk.dependencies.DeviceInfoFactory
 import com.superwall.sdk.models.assignment.AssignmentPostback
 import com.superwall.sdk.models.assignment.ConfirmableAssignment
 import com.superwall.sdk.models.config.Config
@@ -10,12 +12,16 @@ import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.models.triggers.Trigger
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.storage.Storage
-import kotlinx.coroutines.*
+import com.superwall.sdk.store.StoreKitManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
 
 // TODO: Re-enable those params
 open class ConfigManager(
-//    private val storeKitManager: StoreKitManager,
+    private val storeKitManager: StoreKitManager,
     private val storage: Storage,
     private val network: Network,
     var options: SuperwallOptions? = null,
@@ -65,8 +71,7 @@ open class ConfigManager(
                 choosePaywallVariants(config.triggers)
                 this@ConfigManager._config.value = config
 
-                // TODO: Re-enable those params
-//                storeKitManager.loadPurchasedProducts()
+                storeKitManager.loadPurchasedProducts()
                 launch { preloadPaywalls() }
             } catch (e: Exception) {
                 Logger.debug(

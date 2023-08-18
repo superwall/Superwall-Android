@@ -3,9 +3,7 @@ package com.superwall.sdk.paywall.request
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.TrackingResult
 import com.superwall.sdk.analytics.internal.track
-import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.Trackable
-import com.superwall.sdk.billing.SWProduct
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.PaywallProducts
 import com.superwall.sdk.models.product.Product

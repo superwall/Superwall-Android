@@ -172,3 +172,4 @@ class GooglePlayStoreProduct(private val skuDetails: SkuDetails) : StoreProductT
         return totalDays
     }
 }
+

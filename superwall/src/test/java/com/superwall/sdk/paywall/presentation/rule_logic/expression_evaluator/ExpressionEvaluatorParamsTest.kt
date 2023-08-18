@@ -1,7 +1,5 @@
 import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.JavascriptExpressionEvaluatorParams
 import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.LiquidExpressionEvaluatorParams
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonElement
 import org.json.JSONObject
 import org.junit.Test
 import java.util.*

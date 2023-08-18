@@ -13,7 +13,6 @@ import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import java.net.URL
 import java.util.*
 

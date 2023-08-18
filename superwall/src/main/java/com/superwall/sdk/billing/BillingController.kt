@@ -1,13 +1,9 @@
 package com.superwall.sdk.billing
 
+
 import android.content.Context
 import android.util.Log
 import com.android.billingclient.api.*
-
-
-import com.android.billingclient.api.SkuDetails
-import com.android.billingclient.api.SkuDetailsParams
-import com.android.billingclient.api.SkuDetailsResponseListener
 
 class BillingController(context: Context) : PurchasesUpdatedListener {
 

@@ -9,16 +9,14 @@ import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.events.EventsRequest
 import com.superwall.sdk.models.events.EventsResponse
 import com.superwall.sdk.models.paywall.Paywall
-import com.superwall.sdk.models.paywall.PaywallRequestBody
 import com.superwall.sdk.models.postback.PostBackResponse
 import com.superwall.sdk.models.postback.Postback
-import kotlinx.serialization.Serializable
-import kotlinx.coroutines.*
+import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNamingStrategy
-import java.net.URL
 import java.net.HttpURLConnection
+import java.net.URL
 import java.util.*
 
 data class URLQueryItem(val name: String, val value: String)

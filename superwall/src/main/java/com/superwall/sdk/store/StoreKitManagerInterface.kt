@@ -7,7 +7,6 @@ import com.superwall.sdk.models.product.Product
 import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.paywall.vc.PaywallViewController
 import com.superwall.sdk.store.abstractions.product.StoreProduct
-import kotlinx.coroutines.flow.Flow
 
 
 data class GetProductsResponse(

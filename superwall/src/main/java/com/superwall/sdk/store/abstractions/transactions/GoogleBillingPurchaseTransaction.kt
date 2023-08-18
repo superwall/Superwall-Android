@@ -5,8 +5,7 @@ import com.superwall.sdk.models.serialization.DateSerializer
 import com.superwall.sdk.models.serialization.UUIDSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
-import java.util.UUID
-import java.util.Date
+import java.util.*
 
 @Serializable
 data class GoogleBillingPurchaseTransaction(
@@ -32,8 +31,9 @@ data class GoogleBillingPurchaseTransaction(
     override val revocationDate: Date?,
     @Serializable(with = UUIDSerializer::class)
     override val appAccountToken: UUID?,
-    override val payment: StorePayment
-) : StoreTransactionType {
+    override val payment: StorePayment,
+    override val productIdentifier: String?
+) : StoreTransaction {
 
     constructor(transaction: Purchase) : this(
         underlyingSK2Transaction = transaction,
@@ -50,6 +50,7 @@ data class GoogleBillingPurchaseTransaction(
         offerId = null, // Replace with correct mapping
         revocationDate = null, // Replace with correct mapping
         appAccountToken = null, // Replace with correct mapping
-        payment = StorePayment(transaction, ) // Replace with correct mapping
+        payment = StorePayment(transaction, ), // Replace with correct mapping
+        productIdentifier = transaction.skus.first() // Replace with correct mapping
     )
 }

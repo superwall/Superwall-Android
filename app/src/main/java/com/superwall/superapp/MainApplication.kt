@@ -110,7 +110,20 @@ class PurchaseControllerImpl(var context: Context) : PurchaseController, Purchas
             if (p1 != null) {
                 for (purchase in p1) {
                     println("!! (from app) purchase: $purchase")
-                    purchaseResults.value = PurchaseResult.Purchased()
+
+                    // Acknowledge the purchase
+                    val acknowledgePurchaseParams = AcknowledgePurchaseParams.newBuilder()
+                        .setPurchaseToken(purchase.purchaseToken)
+                        .build()
+                    billingClient.acknowledgePurchase(acknowledgePurchaseParams) { billingResult ->
+                        if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                            println("!! (from app) purchase acknowledged")
+                            purchaseResults.value = PurchaseResult.Purchased()
+                        } else {
+                            println("!! (from app) purchase acknowledge failed: ${billingResult.responseCode}")
+                            purchaseResults.value = PurchaseResult.Failed(Exception("Purchase failed"))
+                        }
+                    }
                 }
             } else {
                 print("!! (from app) purchase failed: ${p0.responseCode}")
@@ -138,6 +151,27 @@ class PurchaseControllerImpl(var context: Context) : PurchaseController, Purchas
 
     }
 }
+
+
+interface  RevenueCatLikeManager {
+    purchaseWith( PurchaseParams.Builder(this, aPackage).build(), onError = { error, userCancelled -> /* No purchase */ },
+    onSuccess = { product, customerInfo ->
+        if (customerInfo.entitlements["my_entitlement_identifier"]?.isActive == true) {
+            // Unlock that great "pro" content
+        }
+    }
+}
+
+Superwall.configureRC(this, "pk_", Purchases.sharedInstance)
+
+class RCPurchaseController(val purchaseManager: RevenueCatLikeManager) {
+
+    override suspend fun purchase(activity: Activity, product: com.android.billingclient.api.SkuDetails): PurchaseResult {
+        purchaseManager.purchase()
+    }
+}
+-> Superwall.configure(this, "pk", RCPurchaseController)
+
 
 class MainApplication : android.app.Application() {
     override fun onCreate() {

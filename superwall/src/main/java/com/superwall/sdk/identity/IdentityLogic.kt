@@ -6,7 +6,7 @@ package com.superwall.sdk.identity
 //  Created by Yusuf Tör on 16/09/2022.
 //
 
-import java.util.UUID
+import java.util.*
 
 object IdentityLogic {
     enum class IdentityConfigurationAction {

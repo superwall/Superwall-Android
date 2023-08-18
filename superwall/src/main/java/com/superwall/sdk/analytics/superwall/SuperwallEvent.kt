@@ -6,7 +6,6 @@ import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationReques
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatusReason
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
-import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
 import com.superwall.sdk.store.transactions.TransactionError
 import java.net.URL
 
@@ -126,7 +125,7 @@ sealed class SuperwallEvent {
     /// this won't be `null`. However, it could be `null` if you are using a ``PurchaseController``
     /// and the transaction object couldn't be detected after you return `.purchased` in ``PurchaseController/purchase(product:)``.
 //    data class TransactionComplete(val transaction: StoreTransaction?, val product: StoreProduct, val paywallInfo: PaywallInfo) : SuperwallEvent()
-    data class TransactionComplete(val transaction: StoreTransactionType?, val product: StoreProduct, val paywallInfo: PaywallInfo) : SuperwallEvent() {
+    data class TransactionComplete(val transaction: StoreTransaction?, val product: StoreProduct, val paywallInfo: PaywallInfo) : SuperwallEvent() {
         override val rawName: String
             get() = "transaction_complete"
     }

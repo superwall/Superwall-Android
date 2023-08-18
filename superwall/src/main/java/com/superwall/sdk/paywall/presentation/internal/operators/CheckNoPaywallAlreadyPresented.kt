@@ -1,13 +1,14 @@
 package com.superwall.sdk.paywall.presentation.internal.operators
 
+import LogLevel
+import LogScope
+import Logger
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.paywall.presentation.internal.InternalPresentationLogic
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatusReason
-import com.superwall.sdk.paywall.presentation.internal.PresentationPipelineError
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.collect
 
 suspend fun Superwall.checkNoPaywallAlreadyPresented(request: PresentationRequest, paywallStatePublisher: MutableSharedFlow<PaywallState>) {
     if (request.flags.isPaywallPresented) {

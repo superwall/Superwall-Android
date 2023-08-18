@@ -1,5 +1,8 @@
 package com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator
 
+import LogLevel
+import LogScope
+import Logger
 import android.content.Context
 import android.webkit.ConsoleMessage
 import android.webkit.ValueCallback
@@ -12,8 +15,6 @@ import com.superwall.sdk.models.triggers.TriggerRule
 import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
 import com.superwall.sdk.storage.Storage
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonElement
 import org.json.JSONObject
 
 class ExpressionEvaluator(private val context: Context, private val storage: Storage, private val factory: RuleAttributesFactory) {

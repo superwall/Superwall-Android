@@ -2,7 +2,6 @@ package com.superwall.sdk.models.assignment
 
 import com.superwall.sdk.assertTrue
 import org.junit.Test
-import java.util.*
 
 class AssignmentTest {
 

@@ -1,5 +1,8 @@
 package com.superwall.sdk.network
 
+import LogLevel
+import LogScope
+import Logger
 import com.superwall.sdk.dependencies.ApiFactory
 import com.superwall.sdk.models.assignment.Assignment
 import com.superwall.sdk.models.assignment.AssignmentPostback
@@ -10,10 +13,7 @@ import com.superwall.sdk.models.events.EventsRequest
 import com.superwall.sdk.models.events.EventsResponse
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.withContext
-import java.util.UUID
+import java.util.*
 
 
 open class Network(

@@ -12,8 +12,9 @@ import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.store.StoreKitManager
-import com.superwall.sdk.store.StoreKitManagerInterface
-import kotlinx.coroutines.*
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.*

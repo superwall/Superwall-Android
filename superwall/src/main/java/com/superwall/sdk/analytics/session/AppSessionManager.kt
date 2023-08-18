@@ -12,9 +12,8 @@ import com.superwall.sdk.storage.Storage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.launch
 import java.util.*
 
 interface AppManagerDelegate {

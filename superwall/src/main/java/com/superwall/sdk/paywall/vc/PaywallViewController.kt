@@ -1,18 +1,14 @@
 package com.superwall.sdk.paywall.vc
 
-import Logger
 import android.app.Activity
 import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Handler
 import android.os.Looper
-import android.view.ViewGroup
 import android.view.WindowManager
-import android.widget.FrameLayout
 import android.widget.PopupWindow
 import android.widget.RelativeLayout
-import androidx.core.view.ViewCompat
 import androidx.core.widget.PopupWindowCompat
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
@@ -44,7 +40,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
-import java.net.URL
 import java.util.*
 
 class PaywallViewController(

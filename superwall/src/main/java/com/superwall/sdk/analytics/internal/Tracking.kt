@@ -1,4 +1,7 @@
 package com.superwall.sdk.analytics.internal
+import LogLevel
+import LogScope
+import Logger
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
@@ -9,10 +12,12 @@ import com.superwall.sdk.paywall.presentation.internal.dismiss
 import com.superwall.sdk.paywall.presentation.internal.dismissForNextPaywall
 import com.superwall.sdk.paywall.presentation.internal.internallyPresent
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
-import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import java.util.*
-import kotlin.coroutines.*
 
 suspend fun Superwall.track(event: Trackable): TrackingResult {
     // Get parameters to be sent to the delegate and stored in an event.

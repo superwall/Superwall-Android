@@ -1,7 +1,6 @@
 package com.superwall.sdk.config
 
 import androidx.test.platform.app.InstrumentationRegistry
-import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.dependencies.DependencyContainer
 import com.superwall.sdk.models.assignment.Assignment
 import com.superwall.sdk.models.assignment.ConfirmableAssignment
@@ -16,7 +15,6 @@ import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.StorageMock
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.*
 import org.junit.Test
