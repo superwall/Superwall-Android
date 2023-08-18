@@ -116,6 +116,7 @@ interface ViewControllerFactory {
 //ViewControllerFactory & CacheFactory & DeviceInfoFactory,
 interface ViewControllerCacheDevice  {
     suspend fun makePaywallViewController(
+        presentationRequest: PresentationRequest,
         paywall: Paywall,
         cache: PaywallViewControllerCache?,
         delegate: PaywallViewControllerDelegate?

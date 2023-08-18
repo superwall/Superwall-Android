@@ -5,9 +5,12 @@ import android.app.Activity
 import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
+import android.opengl.Visibility
 import android.os.Handler
 import android.os.Looper
+import android.view.View
 import android.view.ViewGroup
+import android.view.ViewTreeObserver
 import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.PopupWindow
@@ -44,10 +47,13 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import java.lang.ref.WeakReference
 import java.net.URL
 import java.util.*
 
 class PaywallViewController(
+    context: Context,
+    override var request: PresentationRequest,
     override var paywall: Paywall,
     val eventDelegate: PaywallViewControllerEventDelegate? = null,
     var delegate: PaywallViewControllerDelegate? = null,
@@ -56,15 +62,37 @@ class PaywallViewController(
     val storage: Storage,
     val paywallManager: PaywallManager,
     override val webView: SWWebView,
-    val cache: PaywallViewControllerCache?
-    ) : PaywallMessageHandlerDelegate, SWWebViewDelegate {
+    val cache: PaywallViewControllerCache?,
+    private val shimmerView: ShimmerView = ShimmerView(context),
+    private val loadingViewController: LoadingViewController = LoadingViewController(context)
+    ) : FrameLayout(context), PaywallMessageHandlerDelegate, SWWebViewDelegate {
 
+    init {
+        // Add the webView
+        addView(webView)
 
-    /// A loading spinner that appears when making a purchase.
-    private var loadingViewController: LoadingViewController? = null
+        // Add the shimmer view and hide it
+        addView(shimmerView)
+        hideShimmerView()
 
-    /// A shimmer view that appears when loading the webpage.
-    private var shimmerView: ShimmerView? = null
+        // Add the loading view and hide it
+        addView(loadingViewController)
+        hideLoadingView()
+
+        // Listen for layout changes
+        val listener = ViewTreeObserver.OnGlobalLayoutListener {
+            layoutSubviews()
+        }
+        viewTreeObserver.addOnGlobalLayoutListener(listener)
+    }
+
+    fun layoutSubviews() {
+        webView.layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+        shimmerView.layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+    }
+
+    /// Presenter used to present this instance; `null` if no presenter was used
+    var presenter: PaywallViewPresenter? = null
 
     override var loadingState: PaywallLoadingState = PaywallLoadingState.Unknown()
         set(value) {
@@ -86,7 +114,12 @@ class PaywallViewController(
         }
     }
 
-    val info: PaywallInfo get() = paywall.getInfo(request?.presentationInfo?.eventData, factory)
+    val info: PaywallInfo get() = paywall.getInfo(request.presentationInfo?.eventData, factory)
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        loadWebView()
+    }
 
     override fun presentSafariInApp(url: String) {
         // TODO: Implement this
@@ -124,23 +157,6 @@ class PaywallViewController(
 //        }
     }
 
-
-//    init {
-//        runOnUiThread {
-////            webView.loadUrl(paywall.url.toString())
-//        }
-//    }
-
-    fun viewDidLoad(activity: Activity) {
-        runOnUiThread {
-            setUpParentRelativeLayout(activity.applicationContext)
-            parentRelativeLayout.addView(webView)
-            createPopupWindow(activity, parentRelativeLayout)
-
-            loadWebView()
-        }
-    }
-
     val cacheKey = PaywallCacheLogic.key(
         identifier = paywall.identifier,
         locale = deviceHelper.locale
@@ -148,35 +164,6 @@ class PaywallViewController(
 
     override  val paywallInfo: PaywallInfo
         get() = paywall.getInfo(fromEvent = request?.presentationInfo?.eventData, factory = factory)
-
-
-    override  var request: PresentationRequest? = null
-
-    var paywallStatePublisher: PaywallStatePublisher? = null
-
-    var currentActivity: Activity? = null
-        set(value) {
-            field = value
-
-            // Execute your code here when context is set
-            if (value != null) {
-                viewDidLoad(value)
-            }
-        }
-
-    // TODO: Implement this function for real
-    fun dismiss(result: PaywallResult, closeReason: PaywallCloseReason = PaywallCloseReason.SystemLogic, completion: (() -> Unit)? = null) {
-        val dismissCompletionBlock = completion
-        val paywallResult = result
-        paywall.closeReason = closeReason
-
-
-        // TODO: Implement a way to dismiss the paywall via the delegate Implement a way to dismiss the paywall via the delegate Implement a way to dismiss the paywall via the delegate Implement a way to dismiss the paywall via the delegate
-        // SW-2161 https://linear.app/superwall/issue/SW-2161/%5Bandroid%5D-%5Bv0%5D-ensure-dismissing-when-using-getpaywallviewcontroller
-
-        dismiss(false)
-    }
-
 
     private fun loadWebView() {
         val url = paywall.url
@@ -210,51 +197,6 @@ class PaywallViewController(
         loadingState = PaywallLoadingState.LoadingURL()
     }
 
-
-    fun present(
-        presenter: Activity,
-        request: PresentationRequest,
-        presentationStyleOverride: PaywallPresentationStyle?,
-        paywallStatePublisher: MutableStateFlow<PaywallState>,
-        completion: (Boolean) -> Unit
-    ) {
-        if (Superwall.instance.isPaywallPresented
-            // TODO: Presentation santization
-//            || presenter is PaywallActivity
-//            || presenter.isTaskRoot
-        ) {  // Not an exact equivalent of `isBeingPresented`
-            return completion(false)
-        }
-
-        this.request = request
-        this.paywallStatePublisher = paywallStatePublisher
-        this.currentActivity = presenter
-
-
-
-
-
-//        val intent = Intent(presenter, this::class.java)
-//        presenter.startActivity(intent) // Assuming `this` is an Activity
-
-        println("!!! Presenting!!!")
-
-        /* IMPORTANT
-      * The only place where currentActivity should be assigned to InAppMessageView */
-//        this.currentActivity = activity
-
-//        runOnUiThread {
-//
-//            val context = presenter.applicationContext
-//            setUpParentRelativeLayout(context)
-//            parentRelativeLayout.addView(webView)
-//            createPopupWindow(presenter, parentRelativeLayout)
-//        }
-
-
-        completion(true)
-    }
-
     // Loading state
 
     fun loadingStateDidChange(from: PaywallLoadingState) {
@@ -263,10 +205,10 @@ class PaywallViewController(
             }
             is PaywallLoadingState.LoadingPurchase, is PaywallLoadingState.ManualLoading -> {
                 // Add Loading View
-                addLoadingView()
+                showLoadingView()
             }
             is PaywallLoadingState.LoadingURL -> {
-                addShimmerView()
+                showShimmerView()
                 showRefreshButtonAfterTimeout(isVisible = true)
                 // TODO: Animation
                 /*
@@ -309,112 +251,26 @@ class PaywallViewController(
         }
     }
 
-    fun addLoadingView() {
-        val currentContext = currentActivity?.applicationContext ?: run {
-            println("currentContext is null")
-            return
-        }
-
-        val view = LoadingViewController(currentContext)
-        parentRelativeLayout.addView(view)
-
-        val layoutParams = RelativeLayout.LayoutParams(
-            RelativeLayout.LayoutParams.MATCH_PARENT,
-            RelativeLayout.LayoutParams.MATCH_PARENT
-        )
-        view.layoutParams = layoutParams
-
-        this.loadingViewController = view
-    }
-
-    fun addShimmerView() {
-        val currentContext = currentActivity?.applicationContext ?: run {
-            println("currentContext is null")
-            return
-        }
-
-        val view = ShimmerView(currentContext)
-        parentRelativeLayout.addView(view)
-
-        val layoutParams = RelativeLayout.LayoutParams(
-            RelativeLayout.LayoutParams.MATCH_PARENT,
-            RelativeLayout.LayoutParams.MATCH_PARENT
-        )
-        view.layoutParams = layoutParams
-
-        this.shimmerView = view
+    fun showLoadingView() {
+        loadingViewController.visibility = View.VISIBLE
     }
 
     fun hideLoadingView() {
-        parentRelativeLayout.removeView(this.loadingViewController)
+        loadingViewController.visibility = View.GONE
+    }
+
+    fun showShimmerView() {
+        shimmerView.visibility = View.VISIBLE
+        // TODO: Start shimmer animation if needed
     }
 
     fun hideShimmerView() {
-        parentRelativeLayout.removeView(this.shimmerView)
+        shimmerView.visibility = View.GONE
+        // TODO: Stop shimmer animation if needed
     }
 
     fun showRefreshButtonAfterTimeout(isVisible: Boolean) {
         // TODO: Implement this
-    }
-
-
-    // Janky presentation stuff
-
-    private lateinit var popupWindow: PopupWindow
-
-    /**
-     * Create a new Android PopupWindow that draws over the current Activity
-     *
-     * @param parentRelativeLayout root layout to attach to the pop up window
-     */
-    private fun createPopupWindow(presenter: Activity, parentRelativeLayout: RelativeLayout) {
-        popupWindow = PopupWindow(
-            parentRelativeLayout,
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.MATCH_PARENT ,
-            true
-        )
-        popupWindow.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-        popupWindow.setTouchable(true)
-        // NOTE: This is required for getting fullscreen under notches working in portrait mode
-        popupWindow.setClippingEnabled(false)
-        var gravity = 0
-
-        // Using panel for fullbleed IAMs and dialog for non-fullbleed. The attached dialog type
-        // does not allow content to bleed under notches but panel does.
-//        val displayType =
-//            WindowManager.LayoutParams.TYPE_APPLICATION_PANEL
-        val displayType = WindowManager.LayoutParams.TYPE_APPLICATION_ATTACHED_DIALOG
-        PopupWindowCompat.setWindowLayoutType(
-            popupWindow,
-            displayType
-        )
-        print("!!! Showing popup window ${presenter.window.decorView.rootView}")
-        popupWindow.showAtLocation(
-            presenter.window.decorView.rootView,
-            gravity,
-            0,
-            0
-        )
-    }
-
-
-    private lateinit var parentRelativeLayout: RelativeLayout
-
-    private fun setUpParentRelativeLayout(context: Context) {
-        parentRelativeLayout = RelativeLayout(context)
-        parentRelativeLayout.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-        parentRelativeLayout.setClipChildren(false)
-        parentRelativeLayout.setClipToPadding(false)
-    }
-
-
-    // This is basically the same as `dismiss(animated: Bool)`
-    // in the original iOS implementation
-    private fun dismiss(presentationIsAnimated: Boolean) {
-        // TODO: SW-2162 Implement animation support
-        // https://linear.app/superwall/issue/SW-2162/%5Bandroid%5D-%5Bv1%5D-get-animated-presentation-working
-        popupWindow.dismiss()
     }
 
     fun presentAlert(
@@ -462,6 +318,132 @@ class PaywallViewController(
 //            }
 //        }
     }
-
-
 }
+
+class PaywallViewPresenter(
+    private val activity: Activity,
+    paywallViewController: PaywallViewController
+) {
+    val paywallViewController: PaywallViewController?
+        get() = weakPaywallViewController.get()
+
+    /// Public
+
+    fun present(presentationStyleOverride: PaywallPresentationStyle?, completion: (Boolean) -> Unit) {
+        if (Superwall.instance.isPaywallPresented
+        // TODO: Presentation santization
+//            || presenter is PaywallActivity
+//            || presenter.isTaskRoot
+        ) {  // Not an exact equivalent of `isBeingPresented`
+            return completion(false)
+        }
+
+        paywallViewController?.presenter = this
+
+        // TODO: handle animation and style from PaywallPresentationStyle
+        layoutContent()
+
+        completion(true)
+    }
+
+    // TODO: Implement this function for real
+    fun dismiss(result: PaywallResult, closeReason: PaywallCloseReason = PaywallCloseReason.SystemLogic, completion: (() -> Unit)? = null) {
+        paywallViewController?.paywall?.closeReason = closeReason
+
+        // TODO: Implement a way to dismiss the paywall via the delegate Implement a way to dismiss the paywall via the delegate Implement a way to dismiss the paywall via the delegate Implement a way to dismiss the paywall via the delegate
+        // Sw-2161 https://linear.app/superwall/issue/SW-2161/%5Bandroid%5D-%5Bv0%5D-ensure-dismissing-when-using-getpaywallviewcontroller
+
+        dismiss(false)
+    }
+
+    /// Private
+
+    private val weakPaywallViewController = WeakReference(paywallViewController)
+    private lateinit var popupWindow: PopupWindow
+
+    private fun layoutContent() {
+        runOnUiThread {
+            paywallViewController?.let { viewController ->
+                val parentRelativeLayout = RelativeLayout(activity.applicationContext)
+                parentRelativeLayout.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+                parentRelativeLayout.setClipChildren(false)
+                parentRelativeLayout.setClipToPadding(false)
+
+                // Check if the viewController already has a parent
+                val parentViewGroup = viewController.parent as? ViewGroup
+                parentViewGroup?.removeView(viewController)
+
+                // Now add
+                parentRelativeLayout.addView(viewController)
+
+                createPopupWindow(activity, parentRelativeLayout)
+            } ?: run {
+                println("paywallViewController is null")
+            }
+        }
+    }
+
+
+    // This is basically the same as `dismiss(animated: Bool)`
+    // in the original iOS implementation
+    private fun dismiss(presentationIsAnimated: Boolean) {
+        // TODO: SW-2162 Implement animation support
+        // https://linear.app/superwall/issue/SW-2162/%5Bandroid%5D-%5Bv1%5D-get-animated-presentation-working
+        popupWindow.dismiss()
+
+//        paywallViewController.parent
+    }
+
+    /**
+     * Create a new Android PopupWindow that draws over the current Activity
+     *
+     * @param parentRelativeLayout root layout to attach to the pop up window
+     */
+    private fun createPopupWindow(presenter: Activity, parentRelativeLayout: RelativeLayout) {
+        popupWindow = PopupWindow(
+            parentRelativeLayout,
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT ,
+            true
+        )
+        popupWindow.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        popupWindow.setTouchable(true)
+        // NOTE: This is required for getting fullscreen under notches working in portrait mode
+        popupWindow.setClippingEnabled(false)
+        var gravity = 0
+
+        // Using panel for fullbleed IAMs and dialog for non-fullbleed. The attached dialog type
+        // does not allow content to bleed under notches but panel does.
+//        val displayType =
+//            WindowManager.LayoutParams.TYPE_APPLICATION_PANEL
+        val displayType = WindowManager.LayoutParams.TYPE_APPLICATION_ATTACHED_DIALOG
+        PopupWindowCompat.setWindowLayoutType(
+            popupWindow,
+            displayType
+        )
+        print("!!! Showing popup window ${presenter.window.decorView.rootView}")
+        popupWindow.showAtLocation(
+            presenter.window.decorView.rootView,
+            gravity,
+            0,
+            0
+        )
+    }
+}
+
+
+//import androidx.compose.runtime.Composable
+//import androidx.compose.ui.viewinterop.AndroidView
+//import com.yourpackage.PaywallViewController
+//
+//@Composable
+//fun ComposablePaywallViewController() {
+//    AndroidView(
+//        factory = { context ->
+//            PaywallViewController(context)
+//        },
+//        update = { view ->
+//            // Optionally update the view with new data here
+//        }
+//    )
+//}

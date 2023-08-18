@@ -8,6 +8,7 @@ import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationReques
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatusReason
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
+import com.superwall.sdk.paywall.vc.PaywallViewPresenter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -35,11 +36,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
             track(trackedEvent)
         }
 
-        val isPresented = input.paywallViewController.present(
-            presenter = input.presenter,
-            request = request,
+        val paywallViewPresenter = PaywallViewPresenter(
+            activity = input.presenter,
+            paywallViewController = input.paywallViewController
+        )
+
+        val isPresented = paywallViewPresenter.present(
             presentationStyleOverride = request.paywallOverrides?.presentationStyle,
-            paywallStatePublisher = paywallStatePublisher
         ) {
             canPresent ->
             println("!! canPresent: $canPresent")
