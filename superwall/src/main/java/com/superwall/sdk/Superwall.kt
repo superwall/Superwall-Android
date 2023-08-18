@@ -418,7 +418,7 @@ private suspend fun internallyGetPresentationResult(
         closeReason: PaywallCloseReason = PaywallCloseReason.SystemLogic,
         completion: (() -> Unit)? = null
     ) = withContext(Dispatchers.Main) {
-        paywallViewController.dismiss(
+        paywallViewController.presenter?.dismiss(
             result = result,
             closeReason = closeReason
         ) {
