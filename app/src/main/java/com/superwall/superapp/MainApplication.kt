@@ -151,7 +151,7 @@ class MainApplication : android.app.Application() {
 //
 //        // TODO: Fix this so we don't need to make the user set this
         Superwall.instance.setSubscriptionStatus(SubscriptionStatus.Inactive)
-        invokeRegister()
+//        invokeRegister()
 
 //        // UI-Tests
 //        Superwall.configure(this, "pk_5f6d9ae96b889bc2c36ca0f2368de2c4c3d5f6119aacd3d2")
@@ -164,8 +164,7 @@ class MainApplication : android.app.Application() {
 //        Superwall.instance.register("present_data")
     }
 
-    fun invokeRegister() {
-        Superwall.instance.register("campaign_trigger", mapOf("test_key" to "test_value"))
-//        Superwall.instance.register("campaign_trigger_v3", mapOf("test_key" to "test_value"))
+    fun invokeRegister(event: String = "campaign_trigger") {
+        Superwall.instance.register(event, mapOf("test_key" to "test_value"))
     }
 }
