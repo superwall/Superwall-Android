@@ -196,7 +196,6 @@ class DependencyContainer(
     }
 
     override suspend fun makePaywallViewController(
-        request: PresentationRequest,
         paywall: Paywall,
         cache: PaywallViewControllerCache?,
         delegate: PaywallViewControllerDelegate?
@@ -221,7 +220,6 @@ class DependencyContainer(
 
         val paywallViewController = PaywallViewController(
             context = context,
-            request = request,
             paywall = paywall,
             factory = this@DependencyContainer,
             cache = cache,

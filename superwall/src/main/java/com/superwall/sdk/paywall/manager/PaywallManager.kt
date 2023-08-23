@@ -43,7 +43,6 @@ class PaywallManager(
 
     suspend fun getPaywallViewController(
         request: PaywallRequest,
-        presentationRequest: PresentationRequest,
         isPreloading: Boolean,
         delegate: PaywallViewControllerDelegate?
     ): PaywallViewController {
@@ -66,7 +65,6 @@ class PaywallManager(
         }
 
         val paywallViewController = factory.makePaywallViewController(
-            presentationRequest = presentationRequest,
             paywall = paywall,
             cache = cache,
             delegate = delegate

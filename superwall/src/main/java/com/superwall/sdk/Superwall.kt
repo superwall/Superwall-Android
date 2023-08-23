@@ -422,7 +422,7 @@ public class Superwall(context: Context, apiKey: String, purchaseController: Pur
         closeReason: PaywallCloseReason = PaywallCloseReason.SystemLogic,
         completion: (() -> Unit)? = null
     ) = withContext(Dispatchers.Main) {
-        paywallViewController.presenter?.dismiss(
+        paywallViewController.dismiss(
             result = result,
             closeReason = closeReason
         ) {

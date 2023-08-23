@@ -54,7 +54,7 @@ fun Superwall.dismiss(
     completion: (() -> Unit)? = null
 ) {
     GlobalScope.launch(Dispatchers.Main) {
-        paywallViewController.presenter?.dismiss(result, closeReason)
+        paywallViewController.dismiss(result, closeReason)
         completion?.invoke()
     }
 }
