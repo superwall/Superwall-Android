@@ -4,23 +4,24 @@ import Logger
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.net.Uri
 import android.opengl.Visibility
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
+import android.view.Window
 import android.view.WindowManager
 import android.widget.FrameLayout
-import android.widget.PopupWindow
 import android.widget.RelativeLayout
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.core.content.ContextCompat.startActivity
 import androidx.core.view.ViewCompat
-import androidx.core.widget.PopupWindowCompat
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
@@ -72,7 +73,7 @@ class PaywallViewController(
     val cache: PaywallViewControllerCache?,
     private val shimmerView: ShimmerView = ShimmerView(context),
     private val loadingViewController: LoadingViewController = LoadingViewController(context)
-) : FrameLayout(context), PaywallMessageHandlerDelegate, SWWebViewDelegate {
+) : FrameLayout(context), PaywallMessageHandlerDelegate, SWWebViewDelegate, Fullscreenable {
 
     //region Public properties
 
@@ -90,11 +91,7 @@ class PaywallViewController(
         paywallStatePublisher: MutableStateFlow<PaywallState>,
         completion: (Boolean) -> Unit
     ) {
-        if (Superwall.instance.isPaywallPresented
-        // TODO: Presentation santization
-//            || presenter is PaywallActivity
-//            || presenter.isTaskRoot
-        ) {  // Not an exact equivalent of `isBeingPresented`
+        if (Superwall.instance.isPaywallPresented) {
             return completion(false)
         }
 
@@ -103,7 +100,7 @@ class PaywallViewController(
         this.paywallStatePublisher = paywallStatePublisher
 
         // TODO: handle animation and style from `presentationStyleOverride`
-        this.popupWindow = PopupWindowUtility.presentViewControllerInPopupWindow(presenter, this)
+        FullscreenActivity.startWithView(presenter.applicationContext, this)
 
         completion(true)
     }
@@ -147,13 +144,23 @@ class PaywallViewController(
 
     //region Lifecycle
 
+    private val cacheKey: String = PaywallCacheLogic.key(paywall.identifier, deviceHelper.locale)
+
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
+
+        cache?.activePaywallVcKey = cacheKey
 
         // Assert if no `presentationRequest`
         fatalAssert(presentationRequest != null, "Must be presenting a PaywallViewController with a `presentationRequest` instance.")
 
         loadWebView()
+    }
+
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+
+        cache?.activePaywallVcKey = null
     }
 
     override fun eventDidOccur(paywallEvent: PaywallWebEvent) {
@@ -180,16 +187,16 @@ class PaywallViewController(
 
     private var paywallStatePublisher: PaywallStatePublisher? = null
 
-    // The active popupWindow instance if this view controller has been presented in one.
-    private var popupWindow: PopupWindow? = null
+    // The full screen activity instance if this view controller has been presented in one.
+    override var fullscreenActivity: Activity? = null
 
     // This is basically the same as `dismiss(animated: Bool)`
     // in the original iOS implementation
     private fun dismiss(presentationIsAnimated: Boolean) {
         // TODO: SW-2162 Implement animation support
         // https://linear.app/superwall/issue/SW-2162/%5Bandroid%5D-%5Bv1%5D-get-animated-presentation-working
-        popupWindow?.dismiss()
 
+        fullscreenActivity?.finish()
     }
 
     private fun showLoadingView() {
@@ -429,84 +436,89 @@ class PaywallViewController(
 
     //endregion
 
-    //region Misc / Unused?
-
-    //    val cacheKey = PaywallCacheLogic.key(
-//        identifier = paywall.identifier,
-//        locale = deviceHelper.locale
-//    )
+    //region Misc
 
     //endregion
 
 }
 
-private class PopupWindowUtility() {
+interface Fullscreenable {
+    var fullscreenActivity: Activity?
+}
+
+class FullscreenActivity : Activity() {
     companion object {
-        /**
-         * Create a new Android PopupWindow that draws over the current Activity
-         *
-         * @param parentRelativeLayout root layout to attach to the pop up window
-         */
-        fun presentViewControllerInPopupWindow(activity: Activity, viewController: FrameLayout): PopupWindow {
-            val parentRelativeLayout = RelativeLayout(activity.applicationContext)
-            parentRelativeLayout.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-            parentRelativeLayout.setClipChildren(false)
-            parentRelativeLayout.setClipToPadding(false)
+        private const val VIEW_KEY = "viewKey"
 
-            // Check if the viewController already has a parent
-            val parentViewGroup = viewController.parent as? ViewGroup
-            parentViewGroup?.removeView(viewController)
+        fun startWithView(context: Context, view: View) {
+            val key = UUID.randomUUID().toString()
+            ViewStorage.storeView(key, view)
 
-            // Now add
-            parentRelativeLayout.addView(viewController)
+            val intent = Intent(context, FullscreenActivity::class.java).apply {
+                putExtra(VIEW_KEY, key)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            }
 
-            val popupWindow = PopupWindow(
-                parentRelativeLayout,
-                WindowManager.LayoutParams.MATCH_PARENT,
-                WindowManager.LayoutParams.MATCH_PARENT ,
-                true
-            )
-            popupWindow.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-            popupWindow.setTouchable(true)
-            // NOTE: This is required for getting fullscreen under notches working in portrait mode
-            popupWindow.setClippingEnabled(false)
-            var gravity = 0
-
-            // Using panel for fullbleed IAMs and dialog for non-fullbleed. The attached dialog type
-            // does not allow content to bleed under notches but panel does.
-//        val displayType =
-//            WindowManager.LayoutParams.TYPE_APPLICATION_PANEL
-            val displayType = WindowManager.LayoutParams.TYPE_APPLICATION_ATTACHED_DIALOG
-            PopupWindowCompat.setWindowLayoutType(
-                popupWindow,
-                displayType
-            )
-            print("!!! Showing popup window ${activity.window.decorView.rootView}")
-            popupWindow.showAtLocation(
-                activity.window.decorView.rootView,
-                gravity,
-                0,
-                0
-            )
-
-            return popupWindow
+            context.startActivity(intent)
         }
+    }
+
+    private var contentView: View? = null
+
+    override fun setContentView(view: View) {
+        super.setContentView(view)
+        contentView = view
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        val key = intent.getStringExtra(VIEW_KEY)
+        if (key == null) {
+            finish() // Close the activity if there's no key
+            return
+        }
+
+        val fullScreenView = ViewStorage.retrieveView(key) ?: run {
+            finish() // Close the activity if the view associated with the key is not found
+            return
+        }
+
+        if (fullScreenView is Fullscreenable) {
+            fullScreenView.fullscreenActivity = this
+        }
+
+        requestWindowFeature(Window.FEATURE_NO_TITLE)
+        window.setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
+            WindowManager.LayoutParams.FLAG_FULLSCREEN)
+
+        // Check if the view already has a parent
+        val parentViewGroup = fullScreenView.parent as? ViewGroup
+        parentViewGroup?.removeView(fullScreenView)
+
+        // Now add
+        setContentView(fullScreenView)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+
+        // Clear reference to activity in the view
+        (contentView as? Fullscreenable)?.fullscreenActivity = null
+
+        // Clear the reference to the contentView
+        contentView = null
     }
 }
 
+object ViewStorage {
+    private val views: MutableMap<String, View> = mutableMapOf()
 
-//import androidx.compose.runtime.Composable
-//import androidx.compose.ui.viewinterop.AndroidView
-//import com.yourpackage.PaywallViewController
-//
-//@Composable
-//fun ComposablePaywallViewController() {
-//    AndroidView(
-//        factory = { context ->
-//            PaywallViewController(context)
-//        },
-//        update = { view ->
-//            // Optionally update the view with new data here
-//        }
-//    )
-//}
+    fun storeView(key: String, view: View) {
+        views[key] = view
+    }
+
+    fun retrieveView(key: String): View? {
+        return views.remove(key)
+    }
+}

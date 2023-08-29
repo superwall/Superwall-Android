@@ -24,6 +24,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity android:name="com.superwall.sdk.paywall.vc.FullscreenActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden">
+        </activity>
     </application>
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="com.android.vending.BILLING" />

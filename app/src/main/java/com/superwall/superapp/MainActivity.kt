@@ -35,5 +35,14 @@ class MainActivity : AppCompatActivity() {
             val app = application as? MainApplication
             app?.invokeRegister("another_paywall")
         }
+
+        // wide_paywall
+        val widePaywallButton: Button = findViewById(R.id.widePaywallButton)
+
+        // Attach a click listener to the button
+        widePaywallButton.setOnClickListener {
+            val app = application as? MainApplication
+            app?.invokeRegister("wide_paywall")
+        }
     }
 }
