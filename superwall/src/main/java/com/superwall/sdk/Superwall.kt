@@ -42,7 +42,8 @@ public class Superwall(context: Context, apiKey: String, purchaseController: Pur
     val presentationItems: PresentationItems = PresentationItems()
 
     /// The presented paywall view controller.
-    var paywallViewController: PaywallViewController? = null
+    val paywallViewController: PaywallViewController?
+        get() = dependencyContainer.paywallManager.presentedViewController
 
     /// Determines whether a paywall is being presented.
     val isPaywallPresented: Boolean
