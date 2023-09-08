@@ -1,33 +1,39 @@
 package com.superwall.sdk.paywall.vc
 
+import LogLevel
+import LogScope
 import Logger
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Context
+import android.content.DialogInterface
 import android.content.Intent
-import android.content.res.Configuration
 import android.graphics.Color
+import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
 import android.net.Uri
-import android.opengl.Visibility
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.view.Window
 import android.view.WindowManager
 import android.widget.FrameLayout
+import android.widget.LinearLayout
+import android.widget.PopupWindow
 import android.widget.RelativeLayout
+import android.widget.TextView
 import androidx.browser.customtabs.CustomTabsIntent
-import androidx.core.content.ContextCompat.startActivity
-import androidx.core.view.ViewCompat
+import androidx.core.widget.PopupWindowCompat
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.trigger_session.LoadState
 import com.superwall.sdk.dependencies.TriggerSessionManagerFactory
-import com.superwall.sdk.misc.runOnUiThread
+import com.superwall.sdk.misc.AlertControllerFactory
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.PaywallPresentationStyle
 import com.superwall.sdk.network.device.DeviceHelper
@@ -53,12 +59,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.lang.Exception
-import java.lang.ref.WeakReference
 import java.net.MalformedURLException
 import java.net.URL
 import java.util.*
+
 
 class PaywallViewController(
     context: Context,
@@ -73,7 +77,7 @@ class PaywallViewController(
     val cache: PaywallViewControllerCache?,
     private val shimmerView: ShimmerView = ShimmerView(context),
     private val loadingViewController: LoadingViewController = LoadingViewController(context)
-) : FrameLayout(context), PaywallMessageHandlerDelegate, SWWebViewDelegate, Fullscreenable {
+) : FrameLayout(context), PaywallMessageHandlerDelegate, SWWebViewDelegate, ActivityEncapsulatable {
 
     //region Public properties
 
@@ -100,7 +104,7 @@ class PaywallViewController(
         this.paywallStatePublisher = paywallStatePublisher
 
         // TODO: handle animation and style from `presentationStyleOverride`
-        FullscreenActivity.startWithView(presenter.applicationContext, this)
+        SuperwallPaywallActivity.startWithView(presenter.applicationContext, this)
 
         completion(true)
     }
@@ -188,7 +192,7 @@ class PaywallViewController(
     private var paywallStatePublisher: PaywallStatePublisher? = null
 
     // The full screen activity instance if this view controller has been presented in one.
-    override var fullscreenActivity: Activity? = null
+    override var encapsulatingActivity: Activity? = null
 
     // This is basically the same as `dismiss(animated: Bool)`
     // in the original iOS implementation
@@ -196,7 +200,7 @@ class PaywallViewController(
         // TODO: SW-2162 Implement animation support
         // https://linear.app/superwall/issue/SW-2162/%5Bandroid%5D-%5Bv1%5D-get-animated-presentation-working
 
-        fullscreenActivity?.finish()
+        encapsulatingActivity?.finish()
     }
 
     private fun showLoadingView() {
@@ -229,42 +233,27 @@ class PaywallViewController(
         action: (() -> Unit)? = null,
         onClose: (() -> Unit)? = null
     ) {
-        // SW-2211
-        // https://linear.app/superwall/issue/SW-2211/[android]-[v0]-add-support-for-the-alert-view-controller-on-the
+        val activity = encapsulatingActivity.let { it } ?: return
 
-        // Print out all the properties one by one
-        println("title: $title")
-        println("message: $message")
-        println("actionTitle: $actionTitle")
-        println("closeActionTitle: $closeActionTitle")
-        println("action: $action")
-        println("onClose: $onClose")
+        val alertController = AlertControllerFactory.make(
+            context = activity,
+            title = title,
+            message = message,
+            actionTitle = actionTitle,
+            action = {
+                action?.invoke()
+            },
+            onClose = {
+                onClose?.invoke()
+            }
+        )
+        alertController.show()
 
-        // Wait for 3 seconds, then call onClose
-        Handler(Looper.getMainLooper()).postDelayed({
-            onClose?.invoke()
-        }, 3000)
+        // TODO: Not sure why the iOS SDK does this...
+        if (loadingState != PaywallLoadingState.LoadingURL()) {
+            this.loadingState = PaywallLoadingState.Ready()
+        }
 
-
-//        if (presentedViewController != null) {
-//            return
-//        }
-//
-//        val alertController = AlertControllerFactory.make(
-//            title = title,
-//            message = message,
-//            actionTitle = actionTitle,
-//            closeActionTitle = closeActionTitle,
-//            action = action,
-//            onClose = onClose,
-//            sourceView = this.view
-//        )
-//
-//        present(alertController, animated = true) {
-//            if (loadingState != LoadingState.loadingURL) {
-//                loadingState = LoadingState.ready
-//            }
-//        }
     }
 
     //endregion
@@ -442,11 +431,11 @@ class PaywallViewController(
 
 }
 
-interface Fullscreenable {
-    var fullscreenActivity: Activity?
+interface ActivityEncapsulatable {
+    var encapsulatingActivity: Activity?
 }
 
-class FullscreenActivity : Activity() {
+class SuperwallPaywallActivity : Activity() {
     companion object {
         private const val VIEW_KEY = "viewKey"
 
@@ -454,7 +443,7 @@ class FullscreenActivity : Activity() {
             val key = UUID.randomUUID().toString()
             ViewStorage.storeView(key, view)
 
-            val intent = Intent(context, FullscreenActivity::class.java).apply {
+            val intent = Intent(context, SuperwallPaywallActivity::class.java).apply {
                 putExtra(VIEW_KEY, key)
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
             }
@@ -479,13 +468,13 @@ class FullscreenActivity : Activity() {
             return
         }
 
-        val fullScreenView = ViewStorage.retrieveView(key) ?: run {
+        val view = ViewStorage.retrieveView(key) ?: run {
             finish() // Close the activity if the view associated with the key is not found
             return
         }
 
-        if (fullScreenView is Fullscreenable) {
-            fullScreenView.fullscreenActivity = this
+        if (view is ActivityEncapsulatable) {
+            view.encapsulatingActivity = this
         }
 
         requestWindowFeature(Window.FEATURE_NO_TITLE)
@@ -493,18 +482,18 @@ class FullscreenActivity : Activity() {
             WindowManager.LayoutParams.FLAG_FULLSCREEN)
 
         // Check if the view already has a parent
-        val parentViewGroup = fullScreenView.parent as? ViewGroup
-        parentViewGroup?.removeView(fullScreenView)
+        val parentViewGroup = view.parent as? ViewGroup
+        parentViewGroup?.removeView(view)
 
         // Now add
-        setContentView(fullScreenView)
+        setContentView(view)
     }
 
     override fun onDestroy() {
         super.onDestroy()
 
         // Clear reference to activity in the view
-        (contentView as? Fullscreenable)?.fullscreenActivity = null
+        (contentView as? ActivityEncapsulatable)?.encapsulatingActivity = null
 
         // Clear the reference to the contentView
         contentView = null

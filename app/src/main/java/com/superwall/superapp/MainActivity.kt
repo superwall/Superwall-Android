@@ -1,5 +1,6 @@
 package com.superwall.superapp
 
+import android.content.Intent
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.widget.Button
@@ -43,6 +44,15 @@ class MainActivity : AppCompatActivity() {
         widePaywallButton.setOnClickListener {
             val app = application as? MainApplication
             app?.invokeRegister("wide_paywall")
+        }
+
+        // jetpack compose activity
+        val jetpackComposeButton: Button = findViewById(R.id.jetpackComposeButton)
+
+        // Attach a click listener to the button
+        jetpackComposeButton.setOnClickListener {
+            val intent = Intent(this, ComposeActivity::class.java)
+            startActivity(intent)
         }
     }
 }
