@@ -1,5 +1,6 @@
 package com.superwall.sdk.analytics.internal.trackable
 
+import android.net.Uri
 import com.superwall.sdk.analytics.SessionEventsManager
 import com.superwall.sdk.analytics.superwall.SuperwallEvent
 import com.superwall.sdk.analytics.superwall.TransactionProduct
@@ -67,19 +68,38 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
         }
     }
 
-    class DeepLink(val url: URL, override var customParameters: HashMap<String, Any> = HashMap()) :
-        InternalSuperwallEvent(SuperwallEvent.DeepLink(url)) {
+    class DeepLink(
+        val uri: Uri,
+        override var customParameters: HashMap<String, Any> = extractQueryParameters(uri)
+    ) : InternalSuperwallEvent(SuperwallEvent.DeepLink(uri)) {
+
         override suspend fun getSuperwallParameters(): HashMap<String, Any> {
             return hashMapOf(
-                "url" to url.toString(),
-                "path" to url.path,
-                // TODO: Re-enable these with kotlin equivalents
-//                "pathExtension" to url.extension,
-//                "lastPathComponent" to url.pathSegments.last(),
-                "host" to (url.host ?: ""),
-                "query" to (url.query ?: ""),
-//                "fragment" to (url.fragment ?: "")
+                "url" to uri.toString(),
+                "path" to (uri.path ?: ""),
+                "pathExtension" to (uri.lastPathSegment?.substringAfterLast('.') ?: ""),
+                "lastPathComponent" to (uri.lastPathSegment ?: ""),
+                "host" to (uri.host ?: ""),
+                "query" to (uri.query ?: ""),
+                "fragment" to (uri.fragment ?: "")
             )
+        }
+
+        companion object {
+            private fun extractQueryParameters(uri: Uri): HashMap<String, Any> {
+                val queryStrings = HashMap<String, Any>()
+                uri.queryParameterNames.forEach { paramName ->
+                    val paramValue = uri.getQueryParameter(paramName) ?: return@forEach
+                    when {
+                        paramValue.equals("true", ignoreCase = true) -> queryStrings[paramName] = true
+                        paramValue.equals("false", ignoreCase = true) -> queryStrings[paramName] = false
+                        paramValue.toIntOrNull() != null -> queryStrings[paramName] = paramValue.toInt()
+                        paramValue.toDoubleOrNull() != null -> queryStrings[paramName] = paramValue.toDouble()
+                        else -> queryStrings[paramName] = paramValue
+                    }
+                }
+                return queryStrings
+            }
         }
     }
 

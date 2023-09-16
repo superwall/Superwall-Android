@@ -1,5 +1,6 @@
 package com.superwall.sdk.network.device
 
+import ComputedPropertyRequest
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
@@ -13,6 +14,7 @@ import android.telephony.TelephonyManager
 import android.util.Log
 import androidx.core.content.ContextCompat
 import com.superwall.sdk.dependencies.IdentityInfoAndLocaleIdentifierFactory
+import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.paywall.vc.web_view.templating.models.DeviceTemplate
 import com.superwall.sdk.storage.Storage
 import java.text.SimpleDateFormat
@@ -205,11 +207,44 @@ class DeviceHelper(
     // You'll need to define your own method for these since there's no direct equivalent in Android:
     // daysSinceLastPaywallView, minutesSinceLastPaywallView, totalPaywallViews
 
+    suspend fun getDeviceAttributes(
+        sinceEvent: EventData?,
+        computedPropertyRequests: List<ComputedPropertyRequest>
+    ): Map<String, Any> {
+        val dictionary = getTemplateDevice()
+
+        val computedProperties = getComputedDevicePropertiesSinceEvent(
+            sinceEvent,
+            computedPropertyRequests
+        )
+        return dictionary + computedProperties
+    }
+
+    private suspend fun getComputedDevicePropertiesSinceEvent(
+        event: EventData?,
+        computedPropertyRequests: List<ComputedPropertyRequest>
+    ): Map<String, Any> {
+        val output = mutableMapOf<String, Any>()
+
+        for (computedPropertyRequest in computedPropertyRequests) {
+            val value = storage.coreDataManager.getComputedPropertySinceEvent(
+                event,
+                request = computedPropertyRequest
+            )
+            value?.let {
+                output[computedPropertyRequest.type.prefix + computedPropertyRequest.eventName] = it
+            }
+        }
+
+        return output
+    }
+
     // TODO: Add these methods to the DeviceHelper class
-    suspend fun getTemplateDevice(): DeviceTemplate {
+    suspend fun getTemplateDevice(): Map<String, Any> {
         val identityInfo = factory.makeIdentityInfo()
         val aliases = listOf(identityInfo.aliasId)
 
+        // TODO: https://linear.app/superwall/issue/SW-2345/[android]-devicehelper-needs-full-implementation
         return DeviceTemplate(
             publicApiKey = storage.apiKey,
             platform = "Android",
@@ -256,7 +291,7 @@ class DeviceHelper(
 
 //            subscriptionStatus = Superwall.instance.subscriptionStatus.description,
 //            isFirstAppOpen = isFirstAppOpen
-        )
+        ).toDictionary()
     }
 
 

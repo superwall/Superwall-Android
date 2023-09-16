@@ -1,5 +1,6 @@
 package com.superwall.sdk.models.paywall
 
+import ComputedPropertyRequest
 import com.superwall.sdk.dependencies.TriggerSessionManagerFactory
 import com.superwall.sdk.models.SerializableEntity
 import com.superwall.sdk.models.config.FeatureGatingBehavior
@@ -56,6 +57,9 @@ data class Paywall(
     var paywalljsVersion: String? = null,
     var isFreeTrialAvailable: Boolean = false,
     var featureGating: FeatureGatingBehavior = FeatureGatingBehavior.NonGated,
+
+    @SerialName("computedProperties")
+    var computedPropertyRequests: List<ComputedPropertyRequest> = emptyList(),
 
     @kotlinx.serialization.Transient()
     var experiment: Experiment? = null,

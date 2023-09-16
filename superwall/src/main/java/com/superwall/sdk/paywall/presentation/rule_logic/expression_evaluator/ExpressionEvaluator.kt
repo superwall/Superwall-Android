@@ -93,17 +93,13 @@ class ExpressionEvaluator(
     }
 
     private suspend fun getPostfix(rule: TriggerRule, eventData: EventData): String? {
-        val ruleAttributes = factory.makeRuleAttributes()
-        val jsonValues = JSONObject()
-        jsonValues.put("user", JSONObject(ruleAttributes.user))
-        jsonValues.put("device", JSONObject(ruleAttributes.device))
-        jsonValues.put("params", JSONObject(eventData.parameters))
+        val jsonAttributes = factory.makeRuleAttributes(event = eventData, computedPropertyRequests = rule.computedPropertyRequests)
 
         return when {
             rule.expressionJs != null -> {
                 val base64Params = JavascriptExpressionEvaluatorParams(
                     expressionJs = rule.expressionJs,
-                    values = jsonValues
+                    values = jsonAttributes
                 ).toBase64Input()
 
 
@@ -112,7 +108,7 @@ class ExpressionEvaluator(
             rule.expression != null -> {
                 val base64Params = LiquidExpressionEvaluatorParams(
                     expression = rule.expression,
-                    values = jsonValues
+                    values = jsonAttributes
                 ).toBase64Input()
 
                 base64Params?.let { "\n SuperwallSDKJS.evaluate64('$it');" }

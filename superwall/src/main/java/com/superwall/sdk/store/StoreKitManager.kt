@@ -23,6 +23,7 @@ import com.superwall.sdk.store.coordinator.ProductsFetcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 
 /*
 class StoreKitManager(private val context: Context) : StoreKitManagerInterface {
@@ -121,7 +122,10 @@ class StoreKitManager(
 
         val variables = paywall.products.mapNotNull { product ->
             output.productsById[product.id]?.let { storeProduct ->
-                ProductVariable(type = product.type, attributes = storeProduct.attributes)
+                ProductVariable(
+                    type = product.type,
+                    attributes = JSONObject(storeProduct.attributes)
+                )
             }
         }
 

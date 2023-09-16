@@ -1,5 +1,6 @@
 package com.superwall.sdk.storage.core_data
 
+import ComputedPropertyRequest
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
 
@@ -26,6 +27,7 @@ interface CoreDataManagerInterface {
 }
 
 
+// TODO: https://linear.app/superwall/issue/SW-2346/[android]-coredatamanager-implementation
 class CoreDataManager : CoreDataManagerInterface {
     override fun saveEventData(
         eventData: EventData,
@@ -51,5 +53,15 @@ class CoreDataManager : CoreDataManagerInterface {
         // TODO: ?
         return 0
     }
+
+    suspend fun getComputedPropertySinceEvent(
+        event: EventData?,
+        request: ComputedPropertyRequest
+    ): Int? {
+        // TODO
+
+        return null
+    }
+
 
 }

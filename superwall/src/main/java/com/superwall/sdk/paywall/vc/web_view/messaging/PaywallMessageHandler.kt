@@ -102,10 +102,10 @@ class PaywallMessageHandler(
     // Passes the templated variables and params to the webview.
 // This is called every paywall open incase variables like user attributes have changed.
     private suspend fun passTemplatesToWebView(paywall: Paywall) {
-        val params = delegate?.request?.presentationInfo?.eventData?.parameters
+        val eventData = delegate?.request?.presentationInfo?.eventData
         val templates = TemplateLogic.getBase64EncodedTemplates(
             paywall = paywall,
-            params = params,
+            event = eventData,
             factory = factory
         )
 
@@ -160,10 +160,10 @@ class PaywallMessageHandler(
         println("!! PaywallMessageHandler: didLoadWebView")
 
         val htmlSubstitutions = paywall.htmlSubstitutions
-        val params = delegate?.request?.presentationInfo?.eventData?.parameters
+        val eventData = delegate?.request?.presentationInfo?.eventData
         val templates = TemplateLogic.getBase64EncodedTemplates(
             paywall = paywall,
-            params = params,
+            event = eventData,
             factory = factory
         )
         val scriptSrc = """

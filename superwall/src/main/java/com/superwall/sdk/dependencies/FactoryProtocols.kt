@@ -1,5 +1,6 @@
 package com.superwall.sdk.dependencies
 
+import ComputedPropertyRequest
 import android.app.Activity
 import com.android.billingclient.api.Purchase
 import com.superwall.sdk.analytics.trigger_session.TriggerSessionManager
@@ -17,17 +18,16 @@ import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
-import com.superwall.sdk.paywall.presentation.rule_logic.RuleAttributes
 import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
 import com.superwall.sdk.paywall.vc.PaywallViewController
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegate
-import com.superwall.sdk.paywall.vc.web_view.templating.models.OuterVariables
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
 import com.superwall.sdk.store.coordinator.StoreKitCoordinator
 import com.superwall.sdk.store.transactions.purchasing.PurchaseManager
 import kotlinx.coroutines.flow.StateFlow
+import org.json.JSONObject
 
 
 interface ApiFactory {
@@ -81,7 +81,10 @@ interface RequestFactory {
 
 
 interface RuleAttributesFactory {
-    suspend fun makeRuleAttributes(): RuleAttributes
+    suspend fun makeRuleAttributes(
+        event: EventData?,
+        computedPropertyRequests: List<ComputedPropertyRequest>
+    ): JSONObject
 }
 
 interface IdentityInfoFactory {
@@ -136,8 +139,9 @@ interface CacheFactory {
 interface VariablesFactory {
     suspend fun makeJsonVariables(
         productVariables: List<ProductVariable>?,
-        params: Map<String, Any?>?
-    ): OuterVariables
+        computedPropertyRequests: List<ComputedPropertyRequest>,
+        event: EventData?
+    ): JSONObject
 }
 
 interface ConfigManagerFactory {

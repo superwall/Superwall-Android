@@ -1,14 +1,19 @@
 package com.superwall.superapp
 
 import android.content.Intent
+import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.widget.Button
+import com.superwall.sdk.Superwall
 
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        // Setup deep linking handling
+        respondToDeepLinks()
 
         // campaign_trigger
         val campaignTriggerButton: Button = findViewById(R.id.campaignTriggerButton)
@@ -55,4 +60,14 @@ class MainActivity : AppCompatActivity() {
             startActivity(intent)
         }
     }
+
+    //region Deep Links
+
+    private fun respondToDeepLinks() {
+        intent?.data?.let { uri ->
+            Superwall.instance.handleDeepLink(uri)
+        }
+    }
+
+    //endregion
 }

@@ -1,4 +1,6 @@
 import com.superwall.sdk.dependencies.VariablesFactory
+import com.superwall.sdk.misc.JSONObjectSerializer
+import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.paywall.vc.web_view.templating.models.FreeTrialTemplate
 import com.superwall.sdk.paywall.view_controller.web_view.templating.models.ProductTemplate
@@ -9,7 +11,7 @@ import java.util.*
 object TemplateLogic {
     suspend fun getBase64EncodedTemplates(
         paywall: Paywall,
-        params: Map<String, Any?>?,
+        event: EventData?,
         factory: VariablesFactory
     ): String {
         val productsTemplate = ProductTemplate(
@@ -19,7 +21,8 @@ object TemplateLogic {
 
         val variablesTemplate = factory.makeJsonVariables(
             productVariables = paywall.productVariables,
-            params = params
+            computedPropertyRequests = paywall.computedPropertyRequests,
+            event = event
         )
 
         val freeTrialTemplate = FreeTrialTemplate(
@@ -35,7 +38,7 @@ object TemplateLogic {
 
         val encodedTemplates = listOf(
             json.encodeToString(productsTemplate),
-            json.encodeToString(variablesTemplate),
+            json.encodeToString(JSONObjectSerializer, variablesTemplate),
             json.encodeToString(freeTrialTemplate),
 //            json.encodeToString(swProductTemplate)
         )
