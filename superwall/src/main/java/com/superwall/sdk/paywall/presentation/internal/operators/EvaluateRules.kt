@@ -24,7 +24,7 @@ suspend fun Superwall.evaluateRules(
     val eventData = request.presentationInfo.eventData
     return if (eventData != null) {
         val assignmentLogic = RuleLogic(
-            context = contex,
+            context = context,
             configManager = dependencyContainer.configManager,
             storage = dependencyContainer.storage,
             factory = dependencyContainer

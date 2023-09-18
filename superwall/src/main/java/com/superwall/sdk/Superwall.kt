@@ -4,9 +4,11 @@ import LogLevel
 import LogScope
 import Logger
 import android.content.Context
+import android.net.Uri
 import android.util.Log
 import com.superwall.sdk.analytics.internal.TrackingLogic
 import com.superwall.sdk.analytics.internal.track
+import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.UserInitiatedEvent
 import com.superwall.sdk.billing.BillingController
 import com.superwall.sdk.config.options.SuperwallOptions
@@ -27,12 +29,13 @@ import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import org.json.JSONObject
 import java.util.*
 
 public class Superwall(context: Context, apiKey: String, purchaseController: PurchaseController?) :
     PaywallViewControllerEventDelegate {
     var apiKey: String = apiKey
-    var contex: Context = context
+    var context: Context = context
     var purchaseController: PurchaseController? = purchaseController
 
 
@@ -97,7 +100,7 @@ public class Superwall(context: Context, apiKey: String, purchaseController: Pur
     lateinit var dependencyContainer: DependencyContainer
 
     fun setup() {
-        this.dependencyContainer = DependencyContainer(contex, purchaseController, options)
+        this.dependencyContainer = DependencyContainer(context, purchaseController, options)
 
 
         CoroutineScope(Dispatchers.IO).launch {
@@ -228,6 +231,7 @@ public class Superwall(context: Context, apiKey: String, purchaseController: Pur
 //    /// Resets the `userId`, on-device paywall assignments, and data stored
 //    /// by Superwall.
     fun reset() {
+        // TODO: From Bryan - why are we doing this with a coroutine?
         CoroutineScope(Dispatchers.IO).launch {
             reset(duringIdentify = false)
         }
@@ -265,6 +269,29 @@ public class Superwall(context: Context, apiKey: String, purchaseController: Pur
 
 
     var options: SuperwallOptions = SuperwallOptions()
+
+    //region Deep Links
+    /// Handles a deep link sent to your app to open a preview of your paywall.
+    ///
+    /// You can preview your paywall on-device before going live by utilizing paywall previews. This uses a deep link to render a
+    /// preview of a paywall you've configured on the Superwall dashboard on your device. See
+    /// [In-App Previews](https://docs.superwall.com/docs/in-app-paywall-previews) for
+    /// more.
+    ///
+    /// - Parameters:
+    ///   - uri: The URL of the deep link.
+    /// - Returns: A `Bool` that is `true` if the deep link was handled.
+    fun handleDeepLink(uri: Uri): Boolean {
+        CoroutineScope(Dispatchers.IO).launch {
+            track(InternalSuperwallEvent.DeepLink(uri = uri))
+        }
+
+        // TODO: https://linear.app/superwall/issue/SW-2340/[android]-add-debug-manager
+//        return dependencyContainer.debugManager.handleDeepLink(url = url)
+        return false
+    }
+
+    //endregion
 
 
     // Assume that Superwall, Logger, InternalSuperwallEvent,
@@ -341,7 +368,7 @@ public class Superwall(context: Context, apiKey: String, purchaseController: Pur
 
         val eventData = EventData(
             name = forEvent,
-            parameters = parameters.eventParams, // Ensure you have a JSON constructor or conversion in place
+            parameters = JSONObject(parameters.eventParams),
             createdAt = eventCreatedAt
         )
 

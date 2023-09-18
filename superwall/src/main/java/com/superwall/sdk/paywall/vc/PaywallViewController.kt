@@ -248,12 +248,6 @@ class PaywallViewController(
             }
         )
         alertController.show()
-
-        // TODO: Not sure why the iOS SDK does this...
-        if (loadingState != PaywallLoadingState.LoadingURL()) {
-            this.loadingState = PaywallLoadingState.Ready()
-        }
-
     }
 
     //endregion

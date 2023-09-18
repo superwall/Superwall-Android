@@ -18,6 +18,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 import java.util.*
 
 suspend fun Superwall.track(event: Trackable): TrackingResult {
@@ -49,7 +50,7 @@ suspend fun Superwall.track(event: Trackable): TrackingResult {
 
     val eventData = EventData(
         name = event.rawName,
-        parameters = parameters.eventParams,
+        parameters = JSONObject(parameters.eventParams),
         createdAt = eventCreatedAt
     )
     dependencyContainer.queue.enqueue(event = eventData)

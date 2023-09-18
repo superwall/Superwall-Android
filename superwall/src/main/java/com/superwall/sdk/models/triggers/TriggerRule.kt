@@ -1,5 +1,7 @@
 package com.superwall.sdk.models.triggers
 
+import ComputedPropertyRequest
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -7,10 +9,11 @@ data class TriggerRule(
     var experimentId: String,
     var experimentGroupId: String,
     var variants: List<VariantOption>,
-
     val expression: String? = null,
     val expressionJs: String? = null,
-    val occurrence: TriggerRuleOccurrence? = null
+    val occurrence: TriggerRuleOccurrence? = null,
+    @SerialName("computedProperties")
+    val computedPropertyRequests: List<ComputedPropertyRequest> = emptyList()
 ) {
 
     val experiment: RawExperiment
@@ -36,7 +39,8 @@ data class TriggerRule(
             ),
             expression = null,
             expressionJs = null,
-            occurrence = null
+            occurrence = null,
+            computedPropertyRequests = emptyList()
         )
     }
 }

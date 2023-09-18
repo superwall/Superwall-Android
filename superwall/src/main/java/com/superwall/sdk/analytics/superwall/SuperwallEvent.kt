@@ -1,5 +1,6 @@
 package com.superwall.sdk.analytics.superwall
 
+import android.net.Uri
 import com.superwall.sdk.models.triggers.TriggerResult
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatus
@@ -67,7 +68,7 @@ sealed class SuperwallEvent {
     /// When a user opens the app via a deep link.
     ///
     /// The raw value of this event can be added to a campaign to trigger a paywall.
-    data class DeepLink(val url: URL) : SuperwallEvent() {
+    data class DeepLink(val uri: Uri) : SuperwallEvent() {
         override val rawName: String
             get() = "deepLink_open"
     }

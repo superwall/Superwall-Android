@@ -1,5 +1,6 @@
 package com.superwall.sdk.dependencies
 
+import ComputedPropertyRequest
 import android.app.Activity
 import android.app.Application
 import android.content.Context
@@ -33,7 +34,6 @@ import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
-import com.superwall.sdk.paywall.presentation.rule_logic.RuleAttributes
 import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.paywall.request.PaywallRequestManager
 import com.superwall.sdk.paywall.request.PaywallRequestManagerDepFactory
@@ -42,7 +42,6 @@ import com.superwall.sdk.paywall.vc.PaywallViewController
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegate
 import com.superwall.sdk.paywall.vc.web_view.SWWebView
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallMessageHandler
-import com.superwall.sdk.paywall.vc.web_view.templating.models.OuterVariables
 import com.superwall.sdk.paywall.vc.web_view.templating.models.Variables
 import com.superwall.sdk.storage.EventsQueue
 import com.superwall.sdk.storage.Storage
@@ -56,6 +55,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
 
 
 class DependencyContainer(
@@ -321,12 +321,24 @@ class DependencyContainer(
         )
     }
 
-    override suspend fun makeRuleAttributes(): RuleAttributes {
+    override suspend fun makeRuleAttributes(
+        event: EventData?,
+        computedPropertyRequests: List<ComputedPropertyRequest>
+    ): JSONObject {
         val userAttributes = identityManager.userAttributes.toMutableMap()
-        userAttributes["isLoggedIn"] = identityManager.isLoggedIn
-        val device = deviceHelper.getTemplateDevice().toDictionary()
+        userAttributes.put("isLoggedIn", identityManager.isLoggedIn)
 
-        return RuleAttributes(userAttributes, device)
+        val deviceAttributes = deviceHelper.getDeviceAttributes(
+            sinceEvent = event,
+            computedPropertyRequests = computedPropertyRequests
+        )
+
+        val result = JSONObject()
+        result.put("user", userAttributes)
+        result.put("device", deviceAttributes)
+        result.put("params", event?.parameters ?: "")
+
+        return result
     }
 
     override suspend fun makeIdentityInfo(): IdentityInfo {
@@ -342,15 +354,20 @@ class DependencyContainer(
 
     override suspend fun makeJsonVariables(
         productVariables: List<ProductVariable>?,
-        params: Map<String, Any?>?
-    ): OuterVariables {
-        val templateDeviceDictionary = deviceHelper.getTemplateDevice()
-        return Variables.fromProperties(
-            productVariables = productVariables ?: listOf<ProductVariable>(),
-            params = params ?: mapOf(),
+        computedPropertyRequests: List<ComputedPropertyRequest>,
+        event: EventData?
+    ): JSONObject {
+        val templateDeviceDictionary = deviceHelper.getDeviceAttributes(
+            sinceEvent = event,
+            computedPropertyRequests = computedPropertyRequests
+        )
+
+        return Variables(
+            productVariables = productVariables,
+            params = event?.parameters,
             userAttributes = identityManager.userAttributes,
             templateDeviceDictionary = templateDeviceDictionary
-        )
+        ).templated()
     }
 
 
