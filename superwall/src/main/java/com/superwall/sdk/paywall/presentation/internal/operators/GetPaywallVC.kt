@@ -26,7 +26,7 @@ data class PaywallVcPipelineOutput(
     val confirmableAssignment: ConfirmableAssignment?
 )
 
-suspend fun Superwall.getPaywallViewController(
+internal suspend fun Superwall.getPaywallViewController(
     request: PresentationRequest,
     input: TriggerResultResponsePipelineOutput,
     paywallStatePublisher: MutableStateFlow<PaywallState>? = null,

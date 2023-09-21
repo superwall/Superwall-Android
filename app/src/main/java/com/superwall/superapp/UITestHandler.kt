@@ -1,11 +1,11 @@
 package com.superwall.superapp
 
 import com.superwall.sdk.Superwall
+import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.identity.identify
 import com.superwall.sdk.identity.setUserAttributes
 import com.superwall.sdk.models.paywall.PaywallProducts
 import com.superwall.sdk.paywall.presentation.internal.dismiss
-import com.superwall.sdk.paywall.presentation.internal.operators.getPaywallViewController
 import kotlinx.coroutines.delay
 
 class UITestHandler {
@@ -119,4 +119,263 @@ class UITestHandler {
         ))
         Superwall.instance.register(event = "present_and_rule_user")
     }
+
+    /// Present regardless of status
+    suspend fun test9() {
+        Superwall.instance.setSubscriptionStatus(SubscriptionStatus.Active)
+        Superwall.instance.register(event = "present_always")
+        Superwall.instance.setSubscriptionStatus(SubscriptionStatus.Inactive)
+    }
+
+    // Paywall should appear with 2 products: 1 monthly at $4.99 and 1 annual at $29.99.
+    // After dismiss, paywall should be presented again with override products: 1 monthly at
+    // $12.99 and 1 annual at $99.99. After dismiss, paywall should be presented again with
+    // no override products. After dismiss, paywall should be presented one last time with
+    // no override products.
+    suspend fun  test10() {
+        // TODO: Product substitution
+    }
+
+    /// Clear a specific user attribute.
+    suspend fun test11() {
+        // TODO: USer attributes not set
+        Superwall.instance.setUserAttributes(mapOf("first_name" to "Claire" ))
+        Superwall.instance.register(event = "present_data")
+
+        delay(8000)
+
+        // Dismiss any view controllers
+        Superwall.instance.dismiss()
+
+        delay(2000)
+
+        Superwall.instance.setUserAttributes(mapOf("first_name" to null))
+        Superwall.instance.register(event = "present_data")
+
+        delay(8000)
+
+        // Dismiss any view controllers
+        Superwall.instance.dismiss()
+
+        delay(2000)
+
+        Superwall.instance.setUserAttributes(mapOf("first_name" to "Sawyer"))
+        Superwall.instance.register(event = "present_data")
+    }
+
+    // Test trigger: off
+    suspend fun test12() {
+        Superwall.instance.register(event = "keep_this_trigger_off")
+    }
+
+    // Test trigger: not in the dashboard
+    suspend fun test13() {
+        Superwall.instance.register(event = "i_just_made_this_up_and_it_dne")
+    }
+
+    /// Test trigger: not-allowed standard event (paywall_close)
+    suspend fun test14() {
+        // Show a paywall
+        Superwall.instance.register(event = "present_always")
+
+        delay(8000)
+
+        // Dismiss any view controllers
+        Superwall.instance.dismiss()
+    }
+
+    /// Clusterfucks by Jake™
+    suspend fun test15() {
+        // TODO: Stop multiple paywalls from being presented at a time
+        Superwall.instance.register(event = "present_always")
+        Superwall.instance.register(
+            event = "present_always",
+            params = mapOf("some_param_1" to "hello")
+        )
+        Superwall.instance.register(event = "present_always")
+
+        delay(8000)
+
+        // Dismiss any view controllers
+        Superwall.instance.dismiss()
+
+        delay(2000)
+
+        Superwall.instance.register(event = "present_always")
+        Superwall.instance.identify(userId = "1111")
+        Superwall.instance.register(event = "present_always")
+
+        delay(8000)
+
+        // Dismiss any view controllers
+        Superwall.instance.dismiss()
+
+        // TODO: Add handler to register
+//
+//        var handler = PaywallPresentationHandler()
+//
+//        var experimentId = ""
+//        handler.onPresent { info in
+//                experimentId = info.experiment?.id ?? ""
+//            Superwall.instance.register(event = "present_always")
+//        }
+//        Superwall.instance.register(event = "present_always", handler = handler)
+    }
+
+    /// Present an alert on Superwall.presentedViewController from the onPresent callback
+    suspend fun test16() {
+        // TODO: Can't do this without a handler in register
+    }
+
+
+    // Clusterfucks by Jake™
+    suspend fun test17() {
+        Superwall.instance.identify(userId = "test0")
+        Superwall.instance.setUserAttributes(mapOf("first_name" to "Jack"))
+        Superwall.instance.register(event = "present_data")
+
+        delay(8000)
+
+        // Dismiss any view controllers
+        Superwall.instance.dismiss()
+
+        delay(2000)
+
+        // Set identity
+        Superwall.instance.identify(userId = "test2")
+        Superwall.instance.setUserAttributes(mapOf("first_name" to "Jack"))
+
+        // Reset the user identity
+        Superwall.instance.reset()
+
+        Superwall.instance.register(event = "present_data")
+
+        delay(8000)
+
+        // Dismiss any view controllers
+        Superwall.instance.dismiss()
+
+        delay(2000)
+
+        // Present paywall
+        Superwall.instance.register(event = "present_always")
+        Superwall.instance.register(
+            event = "present_always",
+            params = mapOf("some_param_1" to "hello")
+        )
+        Superwall.instance.register(event = "present_always")
+    }
+
+    // Open In-App Safari view controller from manually presented paywall
+    suspend fun test18() {
+        // TODO: Needs getPaywall
+    }
+
+    // Clusterfucks by Jake™
+    suspend fun test19() {
+        // Set identity
+        Superwall.instance.identify(userId = "test19a")
+        Superwall.instance.setUserAttributes(mapOf("first_name" to "Jack"))
+
+        Superwall.instance.reset()
+        Superwall.instance.reset()
+        Superwall.instance.register(event = "present_data")
+
+        delay(8000)
+
+        // Dismiss any view controllers
+        Superwall.instance.dismiss()
+
+        delay(2000)
+
+        // TODO: Implement getPresentationResult
+        // Superwall.instance.getPresentationResult(forEvent = "present_and_rule_user")
+
+        delay(8000)
+
+        // Dismiss any view controllers
+        Superwall.instance.dismiss()
+
+        delay(2000)
+
+        // Show a paywall
+        Superwall.instance.register(event = "present_always")
+
+        delay(8000)
+
+        // Dismiss any view controllers
+        Superwall.instance.dismiss()
+
+        delay(2000)
+
+        // Set identity
+        Superwall.instance.identify(userId = "test19b")
+        Superwall.instance.setUserAttributes(mapOf("first_name" to "Jack"))
+
+        // Set new identity
+        Superwall.instance.identify(userId = "test19c")
+        Superwall.instance.setUserAttributes(mapOf("first_name" to "Kate"))
+        Superwall.instance.register(event = "present_data")
+    }
+
+    // Verify that external URLs can be opened in native Safari from paywall
+    suspend fun test20() {
+        // Present paywall with URLs
+        Superwall.instance.register(event = "present_urls")
+
+        // Need to manually tap the button here
+    }
+    /// Present the paywall and purchase; then make sure the paywall doesn't get presented again after the purchase
+    suspend fun test21() {
+        // TODO: Automate purchase
+    }
+
+    /// Track an event shortly after another one is beginning to present. The session should not be cancelled out.
+    suspend fun test22() {
+        // TODO: This is skipped in the iOS SDK for now
+    }
+
+    // Case: Unsubscribed user, register event without a gating handler
+    // Result: paywall should display
+    suspend fun test23() {
+        // Register event
+        Superwall.instance.register(event = "register_nongated_paywall")
+    }
+
+    suspend fun test24() {
+        // Set user as subscribed
+        Superwall.instance.setSubscriptionStatus(SubscriptionStatus.Active)
+
+        // Register event - paywall shouldn't appear.
+        Superwall.instance.register(event = "register_nongated_paywall")
+
+        delay(4000)
+        Superwall.instance.setSubscriptionStatus(SubscriptionStatus.Inactive)
+    }
+
+    // TODO: Test 25-32 require stuff that we don't have rn
+
+    // Call identify twice with the same ID before presenting a paywall
+    suspend fun test33() {
+        // Set identity
+        Superwall.instance.identify(userId = "test33")
+        Superwall.instance.identify(userId = "test33")
+
+        Superwall.instance.register(event = "present_data")
+    }
+
+    // Call reset while a paywall is displayed should not cause a crash
+    suspend fun test34() {
+        Superwall.instance.register(event = "present_data")
+
+        delay(8000)
+
+        // Call reset while it is still on screen
+        Superwall.instance.reset()
+    }
+
+    // TODO: Test 35-48 require either getPaywall or a feature block
+
+    
+
 }

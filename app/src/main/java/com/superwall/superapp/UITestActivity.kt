@@ -44,7 +44,25 @@ fun UITestTable() {
         5 to uiTestHandler::test5,
         6 to uiTestHandler::test6,
         7 to uiTestHandler::test7,
-        8 to uiTestHandler::test8
+        8 to uiTestHandler::test8,
+        9 to uiTestHandler::test9,
+        10 to uiTestHandler::test10,
+        11 to uiTestHandler::test11,
+        12 to uiTestHandler::test12,
+        13 to uiTestHandler::test13,
+        14 to uiTestHandler::test14,
+        15 to uiTestHandler::test15,
+        16 to uiTestHandler::test16,
+        17 to uiTestHandler::test17,
+        18 to uiTestHandler::test18,
+        19 to uiTestHandler::test19,
+        20 to uiTestHandler::test20,
+        21 to uiTestHandler::test21,
+        22 to uiTestHandler::test22,
+        23 to uiTestHandler::test23,
+        24 to uiTestHandler::test24,
+        33 to uiTestHandler::test33,
+        34 to uiTestHandler::test34
     )
 
     LazyColumn {
