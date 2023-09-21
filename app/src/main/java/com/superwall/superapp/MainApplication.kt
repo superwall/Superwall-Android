@@ -170,12 +170,4 @@ class MainApplication : android.app.Application() {
     ) {
         Superwall.instance.register(event, params)
     }
-
-    fun identify(userId: String) {
-        Superwall.instance.identify(userId)
-    }
-
-    fun setUserAttributes(attributes: Map<String, Any?>) {
-        Superwall.instance.setUserAttributes(attributes)
-    }
 }

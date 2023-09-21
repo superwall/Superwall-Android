@@ -76,6 +76,11 @@ public class Superwall(context: Context, apiKey: String, purchaseController: Pur
         _subscriptionStatus.value = subscriptionStatus
     }
 
+    /// Properties stored about the user, set using `setUserAttributes`.
+    suspend fun getUserAttributes(): Map<String, Any> {
+        return dependencyContainer.identityManager.getUserAttributes()
+    }
+
     protected var _subscriptionStatus: MutableStateFlow<SubscriptionStatus> = MutableStateFlow(
         SubscriptionStatus.Unknown
     )

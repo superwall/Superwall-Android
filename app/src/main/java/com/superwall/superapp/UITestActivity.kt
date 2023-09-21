@@ -62,7 +62,9 @@ fun UITestTable() {
         23 to uiTestHandler::test23,
         24 to uiTestHandler::test24,
         33 to uiTestHandler::test33,
-        34 to uiTestHandler::test34
+        34 to uiTestHandler::test34,
+        62 to uiTestHandler::test62,
+        72 to uiTestHandler::test72
     )
 
     LazyColumn {

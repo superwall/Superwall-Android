@@ -325,7 +325,7 @@ class DependencyContainer(
         event: EventData?,
         computedPropertyRequests: List<ComputedPropertyRequest>
     ): JSONObject {
-        val userAttributes = identityManager.userAttributes.toMutableMap()
+        val userAttributes = identityManager.getUserAttributes().toMutableMap()
         userAttributes.put("isLoggedIn", identityManager.isLoggedIn)
 
         val deviceAttributes = deviceHelper.getDeviceAttributes(
@@ -365,7 +365,7 @@ class DependencyContainer(
         return Variables(
             productVariables = productVariables,
             params = event?.parameters,
-            userAttributes = identityManager.userAttributes,
+            userAttributes = identityManager.getUserAttributes(),
             templateDeviceDictionary = templateDeviceDictionary
         ).templated()
     }

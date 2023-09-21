@@ -47,7 +47,13 @@ class IdentityManager(
     private var _userAttributes: Map<String, Any> =
         storage.cache.userAttributes.get()?.attributes ?: emptyMap()
 
-    val userAttributes: Map<String, Any> get() = _userAttributes
+    suspend fun getUserAttributes(): Map<String, Any> {
+        return mutex.withLock {
+            _userAttributes
+        }
+    }
+
+
 
     val isLoggedIn: Boolean get() = _appUserId != null
 

@@ -376,6 +376,37 @@ class UITestHandler {
 
     // TODO: Test 35-48 require either getPaywall or a feature block
 
-    
 
+    // Verify that an invalid URL like `#` doesn't crash the app
+    suspend fun test62() {
+        // Present paywall with URLs
+        Superwall.instance.register(event = "present_urls")
+
+        // Need to manually tap on the URL button
+    }
+
+    // TODO: Test 63 -  require getPaywall, feature block, delegate, and surveys.
+
+
+    /// Check that calling identify restores the seed value. This is async and dependent on
+    // config so needs to sleep after calling identify.
+    suspend fun test72() {
+        // TODO: This fails to have the same userId after resetting and identifying.
+        Superwall.instance.identify(userId = "abc")
+
+        delay(1000)
+
+        var seedHolder = Superwall.instance.getUserAttributes()
+        println(seedHolder)
+
+        Superwall.instance.reset()
+
+        Superwall.instance.identify(userId = "abc")
+
+        delay(1000)
+
+        seedHolder = Superwall.instance.getUserAttributes()
+
+        println(seedHolder)
+    }
 }
