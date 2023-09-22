@@ -10,12 +10,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.superwall.superapp.ui.theme.MyApplicationTheme
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
+
+data class UITestInfo(val number: Int, val description: String)
 
 class UITestActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -31,62 +37,83 @@ class UITestActivity : ComponentActivity() {
 @Preview(showBackground = true)
 @Composable
 fun UITestTable() {
-    val context = LocalContext.current
     val uiTestHandler = UITestHandler()
     val scope = rememberCoroutineScope()
 
     val tests = mapOf(
-        0 to uiTestHandler::test0,
-        1 to uiTestHandler::test1,
-        2 to uiTestHandler::test2,
-        3 to uiTestHandler::test3,
-        4 to uiTestHandler::test4,
-        5 to uiTestHandler::test5,
-        6 to uiTestHandler::test6,
-        7 to uiTestHandler::test7,
-        8 to uiTestHandler::test8,
-        9 to uiTestHandler::test9,
-        10 to uiTestHandler::test10,
-        11 to uiTestHandler::test11,
-        12 to uiTestHandler::test12,
-        13 to uiTestHandler::test13,
-        14 to uiTestHandler::test14,
-        15 to uiTestHandler::test15,
-        16 to uiTestHandler::test16,
-        17 to uiTestHandler::test17,
-        18 to uiTestHandler::test18,
-        19 to uiTestHandler::test19,
-        20 to uiTestHandler::test20,
-        21 to uiTestHandler::test21,
-        22 to uiTestHandler::test22,
-        23 to uiTestHandler::test23,
-        24 to uiTestHandler::test24,
-        33 to uiTestHandler::test33,
-        34 to uiTestHandler::test34,
-        62 to uiTestHandler::test62,
-        72 to uiTestHandler::test72
+        UITestHandler.test0Info to { scope.launch { UITestHandler.test0() } },
+        UITestHandler.test1Info to { scope.launch { UITestHandler.test1() } },
+        UITestHandler.test2Info to { scope.launch { UITestHandler.test2() } },
+        UITestHandler.test3Info to { scope.launch { UITestHandler.test3() } },
+        UITestHandler.test4Info to { scope.launch { UITestHandler.test4() } },
+        UITestHandler.test5Info to { scope.launch { UITestHandler.test5() } },
+        UITestHandler.test6Info to { scope.launch { UITestHandler.test6() } },
+        UITestHandler.test7Info to { scope.launch { UITestHandler.test7() } },
+        UITestHandler.test8Info to { scope.launch { UITestHandler.test8() } },
+        UITestHandler.test9Info to { scope.launch { UITestHandler.test9() } },
+        UITestHandler.test10Info to { scope.launch { UITestHandler.test10() } },
+        UITestHandler.test11Info to { scope.launch { UITestHandler.test11() } },
+        UITestHandler.test12Info to { scope.launch { UITestHandler.test12() } },
+        UITestHandler.test13Info to { scope.launch { UITestHandler.test13() } },
+        UITestHandler.test14Info to { scope.launch { UITestHandler.test14() } },
+        UITestHandler.test15Info to { scope.launch { UITestHandler.test15() } },
+        UITestHandler.test16Info to { scope.launch { UITestHandler.test16() } },
+        UITestHandler.test17Info to { scope.launch { UITestHandler.test17() } },
+        UITestHandler.test18Info to { scope.launch { UITestHandler.test18() } },
+        UITestHandler.test19Info to { scope.launch { UITestHandler.test19() } },
+        UITestHandler.test20Info to { scope.launch { UITestHandler.test20() } },
+        UITestHandler.test21Info to { scope.launch { UITestHandler.test21() } },
+        UITestHandler.test22Info to { scope.launch { UITestHandler.test22() } },
+        UITestHandler.test23Info to { scope.launch { UITestHandler.test23() } },
+        UITestHandler.test24Info to { scope.launch { UITestHandler.test24() } },
+        UITestHandler.test33Info to { scope.launch { UITestHandler.test33() } },
+        UITestHandler.test34Info to { scope.launch { UITestHandler.test34() } },
+        UITestHandler.test62Info to { scope.launch { UITestHandler.test62() } },
+        UITestHandler.test72Info to { scope.launch { UITestHandler.test72() } }
     )
 
     LazyColumn {
         items(tests.keys.toList()) { item ->
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "UITest $item",
-                    modifier = Modifier.padding(16.dp)
-                )
-                Button(
-                    onClick = {
-                        scope.launch {
-                            tests[item]?.invoke()
-                        }
-                    }
+            Column {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Launch")
+                    Column(
+                        modifier = Modifier
+                            .weight(2f)
+                            .padding(horizontal = 8.dp)
+                    ) {
+                        Text(
+                            text = "UITest ${item.number}",
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                        Text(
+                            text = "${item.description}",
+                            style = TextStyle(color = Color.Gray)
+                        )
+                    }
+                    Button(
+                        onClick = {
+                            scope.launch {
+                                tests[item]?.invoke()
+                            }
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Launch")
+                    }
                 }
+                Divider(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(0.5.dp),
+                    color = Color.LightGray
+                )
             }
         }
     }

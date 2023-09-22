@@ -62,8 +62,6 @@ class MainActivity : AppCompatActivity() {
 
         // UITest button
         val uiTestButton: Button = findViewById(R.id.uiTest)
-
-        // Attach a click listener to the button
         uiTestButton.setOnClickListener {
             val intent = Intent(this, UITestActivity::class.java)
             startActivity(intent)
