@@ -1,11 +1,16 @@
 import com.superwall.sdk.dependencies.VariablesFactory
-import com.superwall.sdk.misc.JSONObjectSerializer
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
+import com.superwall.sdk.models.serialization.AnySerializer
 import com.superwall.sdk.paywall.vc.web_view.templating.models.FreeTrialTemplate
 import com.superwall.sdk.paywall.view_controller.web_view.templating.models.ProductTemplate
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import java.util.*
 
 object TemplateLogic {
@@ -29,16 +34,17 @@ object TemplateLogic {
             eventName = "template_substitutions_prefix",
             prefix = if (paywall.isFreeTrialAvailable) "freeTrial" else null
         )
+
 //
 //        val swProductTemplate = swProductTemplate(
 //            swProductTemplateVariables = paywall.swProductVariablesTemplate ?: emptyList()
 //        )
 
-        val json = Json { encodeDefaults = true }
+        val json = Json { encodeDefaults = false }
 
         val encodedTemplates = listOf(
             json.encodeToString(productsTemplate),
-            json.encodeToString(JSONObjectSerializer, variablesTemplate),
+            json.encodeToString(variablesTemplate),
             json.encodeToString(freeTrialTemplate),
 //            json.encodeToString(swProductTemplate)
         )

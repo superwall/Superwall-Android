@@ -7,6 +7,7 @@ import android.content.Context
 import com.android.billingclient.api.Purchase
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.SessionEventsManager
+import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.session.AppManagerDelegate
 import com.superwall.sdk.analytics.session.AppSession
 import com.superwall.sdk.analytics.session.AppSessionManager
@@ -21,9 +22,11 @@ import com.superwall.sdk.identity.IdentityInfo
 import com.superwall.sdk.identity.IdentityManager
 import com.superwall.sdk.misc.ActivityLifecycleTracker
 import com.superwall.sdk.misc.sdkVersion
+import com.superwall.sdk.models.config.FeatureFlags
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.product.ProductVariable
+import com.superwall.sdk.models.serialization.from
 import com.superwall.sdk.network.Api
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.network.device.DeviceHelper
@@ -39,9 +42,10 @@ import com.superwall.sdk.paywall.request.PaywallRequestManager
 import com.superwall.sdk.paywall.request.PaywallRequestManagerDepFactory
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
 import com.superwall.sdk.paywall.vc.PaywallViewController
-import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegate
+import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegateAdapter
 import com.superwall.sdk.paywall.vc.web_view.SWWebView
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallMessageHandler
+import com.superwall.sdk.paywall.vc.web_view.templating.models.OuterVariables
 import com.superwall.sdk.paywall.vc.web_view.templating.models.Variables
 import com.superwall.sdk.storage.EventsQueue
 import com.superwall.sdk.storage.Storage
@@ -55,7 +59,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
-import org.json.JSONObject
+import kotlinx.serialization.json.JsonObject
 
 
 class DependencyContainer(
@@ -63,10 +67,9 @@ class DependencyContainer(
     purchaseController: PurchaseController? = null,
     options: SuperwallOptions = SuperwallOptions()
 ) : ApiFactory, DeviceInfoFactory, AppManagerDelegate, RequestFactory, TriggerSessionManagerFactory,
-    RuleAttributesFactory, IdentityInfoFactory, LocaleIdentifierFactory,
-    IdentityInfoAndLocaleIdentifierFactory, ViewControllerCacheDevice,
+    RuleAttributesFactory, DeviceHelper.Factory, CacheFactory,
     PaywallRequestManagerDepFactory, VariablesFactory, StoreKitCoordinatorFactory,
-    StoreTransactionFactory, PurchaseManagerFactory {
+    StoreTransactionFactory, PurchaseManagerFactory, Storage.Factory, InternalSuperwallEvent.PresentationRequest.Factory, ViewControllerFactory, PaywallManager.Factory {
 
     var network: Network
     override lateinit var api: Api
@@ -168,7 +171,7 @@ class DependencyContainer(
             "Authorization" to auth,
             "X-Platform" to "iOS",
             "X-Platform-Environment" to "SDK",
-            // TODO: Add app user id
+            // TODO: Add app user id: https://linear.app/superwall/issue/SW-2365/[android]-add-appuserid
             "X-App-User-ID" to (identityManager.appUserId ?: ""),
             "X-Alias-ID" to identityManager.aliasId,
             "X-URL-Scheme" to deviceHelper.urlScheme,
@@ -188,7 +191,7 @@ class DependencyContainer(
             "X-Request-Id" to requestId,
             "X-Bundle-ID" to deviceHelper.bundleId,
             "X-Low-Power-Mode" to deviceHelper.isLowPowerModeEnabled.toString(),
-//            "X-Is-Sandbox" to deviceHelper.isSandbox,
+            "X-Is-Sandbox" to deviceHelper.isSandbox.toString(),
             "Content-Type" to "application/json"
         )
 
@@ -198,42 +201,45 @@ class DependencyContainer(
     override suspend fun makePaywallViewController(
         paywall: Paywall,
         cache: PaywallViewControllerCache?,
-        delegate: PaywallViewControllerDelegate?
-    ): PaywallViewController = withContext(Dispatchers.Main) {
-        // TODO: Fix this up
+        delegate: PaywallViewControllerDelegateAdapter?
+    ): PaywallViewController {
+        return withContext(Dispatchers.Main) {
+            // TODO: Fix this up
 
-        val messageHandler = PaywallMessageHandler(
-            sessionEventsManager = sessionEventsManager,
-            factory = this@DependencyContainer
-        )
+            val messageHandler = PaywallMessageHandler(
+                sessionEventsManager = sessionEventsManager,
+                factory = this@DependencyContainer
+            )
 
-        val webViewDeffered = CompletableDeferred<SWWebView>()
+            val webViewDeffered = CompletableDeferred<SWWebView>()
 
-        val _webView = SWWebView(
-            context = context,
-            messageHandler = messageHandler,
-            sessionEventsManager = sessionEventsManager,
-        )
-        webViewDeffered.complete(_webView)
+            val _webView = SWWebView(
+                context = context,
+                messageHandler = messageHandler,
+                sessionEventsManager = sessionEventsManager,
+            )
+            webViewDeffered.complete(_webView)
 
-        val webView = webViewDeffered.await()
+            val webView = webViewDeffered.await()
 
-        val paywallViewController = PaywallViewController(
-            context = context,
-            paywall = paywall,
-            factory = this@DependencyContainer,
-            cache = cache,
-            delegate = delegate,
-            deviceHelper = deviceHelper,
-            paywallManager = paywallManager,
-            storage = storage,
-            webView = webView,
-            eventDelegate = Superwall.instance
-        )
-        webView.delegate = paywallViewController
-        messageHandler.delegate = paywallViewController
+            val paywallViewController = PaywallViewController(
+                context = context,
+                paywall = paywall,
+                factory = this@DependencyContainer,
+                cache = cache,
+                delegate = delegate,
+                deviceHelper = deviceHelper,
+                paywallManager = paywallManager,
+                storage = storage,
+                webView = webView,
+                eventDelegate = Superwall.instance
+            )
+            webView.delegate = paywallViewController
+            messageHandler.delegate = paywallViewController
 
-        return@withContext paywallViewController
+            return@withContext paywallViewController
+        }
+
     }
 
     override fun makeCache(): PaywallViewControllerCache {
@@ -248,6 +254,15 @@ class DependencyContainer(
         )
     }
 
+    override fun makeIsSandbox(): Boolean {
+        return deviceHelper.isSandbox
+    }
+
+    override fun makeHasExternalPurchaseController(): Boolean {
+        // TODO: handle this properly https://linear.app/superwall/issue/SW-2360/[android]-check-areas-that-reference-hasexternalpurchasecontroller
+        return true
+//        return storeKitManager.purchaseController.hasExternalPurchaseController
+    }
 
     override suspend fun didUpdateAppSession(appSession: AppSession) {
 
@@ -261,13 +276,17 @@ class DependencyContainer(
         eventData: EventData?,
         responseIdentifiers: ResponseIdentifiers,
         overrides: PaywallRequest.Overrides?,
-        isDebuggerLaunched: Boolean
+        isDebuggerLaunched: Boolean,
+        presentationSourceType: String?,
+        retryCount: Int
     ): PaywallRequest {
         return PaywallRequest(
             eventData = eventData,
             responseIdentifiers = responseIdentifiers,
             overrides = overrides ?: PaywallRequest.Overrides(products = null, isFreeTrial = null),
-            isDebuggerLaunched = isDebuggerLaunched
+            isDebuggerLaunched = isDebuggerLaunched,
+            presentationSourceType = presentationSourceType,
+            retryCount = retryCount
         )
     }
 
@@ -324,7 +343,7 @@ class DependencyContainer(
     override suspend fun makeRuleAttributes(
         event: EventData?,
         computedPropertyRequests: List<ComputedPropertyRequest>
-    ): JSONObject {
+    ): JsonObject {
         val userAttributes = identityManager.userAttributes.toMutableMap()
         userAttributes.put("isLoggedIn", identityManager.isLoggedIn)
 
@@ -333,12 +352,21 @@ class DependencyContainer(
             computedPropertyRequests = computedPropertyRequests
         )
 
-        val result = JSONObject()
-        result.put("user", userAttributes)
-        result.put("device", deviceAttributes)
-        result.put("params", event?.parameters ?: "")
+        val result = mapOf(
+            "user" to userAttributes,
+            "device" to deviceAttributes,
+            "params" to (event?.parameters ?: "")
+        )
 
-        return result
+        return JsonObject.from(result)
+    }
+
+    override fun makeFeatureFlags(): FeatureFlags? {
+        return configManager.config?.value?.featureFlags
+    }
+
+    override fun makeComputedPropertyRequests(): List<ComputedPropertyRequest> {
+        return configManager.config?.value?.allComputedProperties ?: emptyList()
     }
 
     override suspend fun makeIdentityInfo(): IdentityInfo {
@@ -356,18 +384,23 @@ class DependencyContainer(
         productVariables: List<ProductVariable>?,
         computedPropertyRequests: List<ComputedPropertyRequest>,
         event: EventData?
-    ): JSONObject {
-        val templateDeviceDictionary = deviceHelper.getDeviceAttributes(
-            sinceEvent = event,
-            computedPropertyRequests = computedPropertyRequests
-        )
+    ): OuterVariables {
+        val templateDeviceDictionary = deviceHelper.getTemplateDevice()
 
-        return Variables(
-            productVariables = productVariables,
-            params = event?.parameters,
+        // TODO: Use below
+//        val templateDeviceDictionary = deviceHelper.getDeviceAttributes(
+//            sinceEvent = event,
+//            computedPropertyRequests = computedPropertyRequests
+//        )
+
+        val variables = Variables.fromProperties(
+            productVariables = productVariables ?: listOf<ProductVariable>(),
+            params = event?.parameters ?: mapOf(),
             userAttributes = identityManager.userAttributes,
             templateDeviceDictionary = templateDeviceDictionary
-        ).templated()
+        )
+
+        return variables
     }
 
 

@@ -8,6 +8,7 @@ import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.identity.IdentityInfo
 import com.superwall.sdk.identity.IdentityManager
+import com.superwall.sdk.models.config.FeatureFlags
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.product.ProductVariable
@@ -22,11 +23,16 @@ import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
 import com.superwall.sdk.paywall.vc.PaywallViewController
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegate
+import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegateAdapter
+import com.superwall.sdk.paywall.vc.web_view.templating.models.OuterVariables
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
 import com.superwall.sdk.store.coordinator.StoreKitCoordinator
 import com.superwall.sdk.store.transactions.purchasing.PurchaseManager
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.JsonObject
 import org.json.JSONObject
 
 
@@ -53,6 +59,14 @@ interface DeviceInfoFactory {
     fun makeDeviceInfo(): DeviceInfo
 }
 
+interface FeatureFlagsFactory {
+    fun makeFeatureFlags(): FeatureFlags?
+}
+
+interface ComputedPropertyRequestsFactory {
+    fun makeComputedPropertyRequests(): List<ComputedPropertyRequest>
+}
+
 interface TriggerSessionManagerFactory {
     fun makeTriggerSessionManager(): TriggerSessionManager
     fun getTriggerSessionManager(): TriggerSessionManager
@@ -62,10 +76,12 @@ interface TriggerSessionManagerFactory {
 // RequestFactory interface
 interface RequestFactory {
     fun makePaywallRequest(
-        eventData: EventData? = null,
+        eventData: EventData?,
         responseIdentifiers: ResponseIdentifiers,
-        overrides: PaywallRequest.Overrides? = null,
-        isDebuggerLaunched: Boolean
+        overrides: PaywallRequest.Overrides?,
+        isDebuggerLaunched: Boolean,
+        presentationSourceType: String?,
+        retryCount: Int
     ): PaywallRequest
 
     fun makePresentationRequest(
@@ -84,7 +100,7 @@ interface RuleAttributesFactory {
     suspend fun makeRuleAttributes(
         event: EventData?,
         computedPropertyRequests: List<ComputedPropertyRequest>
-    ): JSONObject
+    ): JsonObject
 }
 
 interface IdentityInfoFactory {
@@ -95,17 +111,21 @@ interface LocaleIdentifierFactory {
     fun makeLocaleIdentifier(): String?
 }
 
-interface IdentityInfoAndLocaleIdentifierFactory {
-    suspend fun makeIdentityInfo(): IdentityInfo
-    fun makeLocaleIdentifier(): String?
+interface DeviceHelperFactory {
+    fun makeDeviceInfo(): DeviceInfo
+    fun makeIsSandbox(): Boolean
 }
 
+interface HasExternalPurchaseControllerFactory {
+    fun makeHasExternalPurchaseController(): Boolean
+}
 
 interface ViewControllerFactory {
+    // NOTE: THIS MUST BE EXECUTED ON THE MAIN THREAD (no way to enforce in Kotlin)
     suspend fun makePaywallViewController(
         paywall: Paywall,
         cache: PaywallViewControllerCache?,
-        delegate: PaywallViewControllerDelegate?
+        delegate: PaywallViewControllerDelegateAdapter?
     ): PaywallViewController
 
     // TODO: (Debug)
@@ -114,22 +134,22 @@ interface ViewControllerFactory {
 
 
 //ViewControllerFactory & CacheFactory & DeviceInfoFactory,
-interface ViewControllerCacheDevice {
-    suspend fun makePaywallViewController(
-        paywall: Paywall,
-        cache: PaywallViewControllerCache?,
-        delegate: PaywallViewControllerDelegate?
-    ): PaywallViewController
-
-    // TODO: (Debug)
-//    fun makeDebugViewController(id: String?): DebugViewController
-
-    // Mark - device
-    fun makeDeviceInfo(): DeviceInfo
-
-    // Mark - cache
-    fun makeCache(): PaywallViewControllerCache
-}
+//interface ViewControllerCacheDevice {
+//    suspend fun makePaywallViewController(
+//        paywall: Paywall,
+//        cache: PaywallViewControllerCache?,
+//        delegate: PaywallViewControllerDelegate?
+//    ): PaywallViewController
+//
+//    // TODO: (Debug)
+////    fun makeDebugViewController(id: String?): DebugViewController
+//
+//    // Mark - device
+//    fun makeDeviceInfo(): DeviceInfo
+//
+//    // Mark - cache
+//    fun makeCache(): PaywallViewControllerCache
+//}
 
 
 interface CacheFactory {
@@ -141,7 +161,7 @@ interface VariablesFactory {
         productVariables: List<ProductVariable>?,
         computedPropertyRequests: List<ComputedPropertyRequest>,
         event: EventData?
-    ): JSONObject
+    ): OuterVariables
 }
 
 interface ConfigManagerFactory {

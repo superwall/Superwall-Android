@@ -2,18 +2,21 @@ package com.superwall.sdk.paywall.presentation.internal.operators
 
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.dependencies.DependencyContainer
+import com.superwall.sdk.models.triggers.InternalTriggerResult
 import com.superwall.sdk.models.triggers.TriggerResult
+import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
+import com.superwall.sdk.paywall.presentation.rule_logic.RuleEvaluationOutcome
 
-// File.kt
-
-suspend fun Superwall.confirmHoldoutAssignment(
-    input: AssignmentPipelineOutput,
+fun Superwall.confirmHoldoutAssignment(
+    request: PresentationRequest,
+    rulesOutcome: RuleEvaluationOutcome,
     dependencyContainer: DependencyContainer? = null
 ) {
-    val dependencyContainer = dependencyContainer ?: this.dependencyContainer
-    if (input.triggerResult is TriggerResult.Holdout) {
-        input.confirmableAssignment?.let { confirmableAssignment ->
-            dependencyContainer.configManager.confirmAssignment(confirmableAssignment)
-        }
+    val container = dependencyContainer ?: this.dependencyContainer
+    if (!request.flags.type.couldPresent) return
+    if (rulesOutcome.triggerResult !is InternalTriggerResult.Holdout) return
+    rulesOutcome.confirmableAssignment?.let {
+        container.configManager.confirmAssignment(it)
     }
 }
+

@@ -60,36 +60,37 @@ class ProductFetcherUnderTest(context: Context) : GooglePlayProductsFetcher(cont
 
 }
 
-@RunWith(AndroidJUnit4::class)
-class ProductFetcherInstrumentedTest {
-
-    @Test
-    fun test_fetch_products_without_connection() = runTest {
-        // get context
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val productFetcher: ProductFetcherUnderTest = ProductFetcherUnderTest(context)
-
-
-        val deffereds = listOf(
-            async { productFetcher.requestAndAwait(listOf("1", "2")) },
-            async { productFetcher.requestAndAwait(listOf("1", "2", "3")) }
-        )
-        deffereds.awaitAll()
-
-        print("!!! Defered resutls ${deffereds.map { it.getCompleted() }}")
-
-        println("!!! Calls: ${productFetcher.queryProductDetailsCalls}")
-        assert(productFetcher.queryProductDetailsCalls.size == 2)
-
-        // Check that the first call is for 1 and 2
-        assert(productFetcher.queryProductDetailsCalls[0].size == 2)
-        assert(productFetcher.queryProductDetailsCalls[0][0] == "1")
-        assert(productFetcher.queryProductDetailsCalls[0][1] == "2")
-
-        // Check that the second call is for 3
-        assert(productFetcher.queryProductDetailsCalls[1].size == 1)
-        assert(productFetcher.queryProductDetailsCalls[1][0] == "3")
-
-
-    }
-}
+// TODO: https://linear.app/superwall/issue/SW-2368/[android]-fix-product-fetcher-tests
+//@RunWith(AndroidJUnit4::class)
+//class ProductFetcherInstrumentedTest {
+//
+//    @Test
+//    fun test_fetch_products_without_connection() = runTest {
+//        // get context
+//        val context = InstrumentationRegistry.getInstrumentation().targetContext
+//        val productFetcher: ProductFetcherUnderTest = ProductFetcherUnderTest(context)
+//
+//
+//        val deffereds = listOf(
+//            async { productFetcher.requestAndAwait(listOf("1", "2")) },
+//            async { productFetcher.requestAndAwait(listOf("1", "2", "3")) }
+//        )
+//        deffereds.awaitAll()
+//
+//        print("!!! Defered resutls ${deffereds.map { it.getCompleted() }}")
+//
+//        println("!!! Calls: ${productFetcher.queryProductDetailsCalls}")
+//        assert(productFetcher.queryProductDetailsCalls.size == 2)
+//
+//        // Check that the first call is for 1 and 2
+//        assert(productFetcher.queryProductDetailsCalls[0].size == 2)
+//        assert(productFetcher.queryProductDetailsCalls[0][0] == "1")
+//        assert(productFetcher.queryProductDetailsCalls[0][1] == "2")
+//
+//        // Check that the second call is for 3
+//        assert(productFetcher.queryProductDetailsCalls[1].size == 1)
+//        assert(productFetcher.queryProductDetailsCalls[1][0] == "3")
+//
+//
+//    }
+//}

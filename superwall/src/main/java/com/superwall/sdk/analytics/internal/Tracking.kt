@@ -8,6 +8,8 @@ import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
 import com.superwall.sdk.models.events.EventData
+import com.superwall.sdk.models.serialization.from
+import com.superwall.sdk.models.serialization.mapToJsonObject
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.dismiss
 import com.superwall.sdk.paywall.presentation.internal.dismissForNextPaywall
@@ -18,7 +20,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import org.json.JSONObject
+import kotlinx.serialization.json.JsonObject
 import java.util.*
 
 suspend fun Superwall.track(event: Trackable): TrackingResult {
@@ -50,7 +52,7 @@ suspend fun Superwall.track(event: Trackable): TrackingResult {
 
     val eventData = EventData(
         name = event.rawName,
-        parameters = JSONObject(parameters.eventParams),
+        parameters = JsonObject.from(parameters.eventParams),
         createdAt = eventCreatedAt
     )
     dependencyContainer.queue.enqueue(event = eventData)

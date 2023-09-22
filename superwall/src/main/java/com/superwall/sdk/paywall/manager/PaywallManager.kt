@@ -1,17 +1,21 @@
 package com.superwall.sdk.paywall.manager
 
-import com.superwall.sdk.dependencies.ViewControllerCacheDevice
-import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
+import com.superwall.sdk.dependencies.CacheFactory
+import com.superwall.sdk.dependencies.DeviceHelperFactory
+import com.superwall.sdk.dependencies.ViewControllerFactory
 import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.paywall.request.PaywallRequestManager
 import com.superwall.sdk.paywall.vc.PaywallViewController
-import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegate
+import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegateAdapter
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.withContext
 
 class PaywallManager(
-    private val factory: ViewControllerCacheDevice,
+    private val factory: PaywallManager.Factory,
     private val paywallRequestManager: PaywallRequestManager
 ) {
+    interface Factory: ViewControllerFactory, CacheFactory, DeviceHelperFactory {}
 
     var presentedViewController: PaywallViewController? = null
         get() = cache.activePaywallViewController
@@ -43,24 +47,25 @@ class PaywallManager(
 
     suspend fun getPaywallViewController(
         request: PaywallRequest,
+        isForPresentation: Boolean,
         isPreloading: Boolean,
-        delegate: PaywallViewControllerDelegate?
-    ): PaywallViewController {
-        println("!!!PaywallManager.getPaywallViewController: Get")
+        delegate: PaywallViewControllerDelegateAdapter?
+    ): PaywallViewController = withContext(Dispatchers.Main) {
         val paywall = paywallRequestManager.getPaywall(request)
-        println("!!!PaywallManager.getPaywallViewController: paywall = $paywall")
-        val deviceInfo = factory.makeDeviceInfo()
-        val cacheKey =
-            PaywallCacheLogic.key(identifier = paywall.identifier, locale = deviceInfo.locale)
 
-        if (!request.isDebuggerLaunched) {
-            val viewController = cache.getPaywallViewController(cacheKey)
-            if (viewController != null) {
+        val deviceInfo = factory.makeDeviceInfo()
+        val cacheKey = PaywallCacheLogic.key(
+            identifier = paywall.identifier,
+            locale = deviceInfo.locale
+        )
+
+        cache.getPaywallViewController(cacheKey)?.let { viewController ->
+            if (!request.isDebuggerLaunched) {
                 if (!isPreloading) {
                     viewController.delegate = delegate
-                    viewController.paywall.overrideProductsIfNeeded(paywall)
+                    viewController.paywall.update(paywall)
                 }
-                return viewController
+                return@withContext viewController
             }
         }
 
@@ -71,10 +76,13 @@ class PaywallManager(
         )
         cache.save(paywallViewController, cacheKey)
 
-        // TODO: Handle the preloading
-        // Preloads the view.
-//        val _ = paywallViewController.view
+        if (isForPresentation) {
+            // Only preload if it's actually gonna present the view.
+            // Not if we're just checking its result
+            // TODO: Handle the preloading
+//            paywallViewController.loadViewIfNeeded()
+        }
 
-        return paywallViewController
+        return@withContext paywallViewController
     }
 }

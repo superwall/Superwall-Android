@@ -12,10 +12,11 @@ import LogScope
 import Logger
 import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.network.device.DeviceHelper
+import com.superwall.sdk.storage.AliasId
+import com.superwall.sdk.storage.AppUserId
+import com.superwall.sdk.storage.DidTrackFirstSeen
 import com.superwall.sdk.storage.Storage
-import com.superwall.sdk.storage.keys.AliasId
-import com.superwall.sdk.storage.keys.AppUserId
-import com.superwall.sdk.storage.keys.UserAttributes
+import com.superwall.sdk.storage.UserAttributes
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -31,7 +32,7 @@ class IdentityManager(
     private val storage: Storage,
     private val configManager: ConfigManager
 ) {
-    private var _appUserId: String? = storage.cache.appUserId.get()?.appUserId ?: null
+    private var _appUserId: String? = storage.get(AppUserId) ?: null
         set(value) {
             field = value
             saveIds()
@@ -39,13 +40,13 @@ class IdentityManager(
     val appUserId: String? get() = _appUserId
 
     private var _aliasId: String =
-        storage.cache.aliasId.get()?.aliasId ?: IdentityLogic.generateAlias()
+        storage.get(AliasId) ?: IdentityLogic.generateAlias()
     val aliasId: String get() = _aliasId
 
     val userId: String get() = _appUserId ?: _aliasId
 
     private var _userAttributes: Map<String, Any> =
-        storage.cache.userAttributes.get()?.attributes ?: emptyMap()
+        storage.get(UserAttributes) ?: emptyMap()
 
     val userAttributes: Map<String, Any> get() = _userAttributes
 
@@ -61,7 +62,7 @@ class IdentityManager(
         scope.launch {
             val neverCalledStaticConfig = storage.neverCalledStaticConfig
             val isFirstAppOpen =
-                !(storage.cache.didTrackFirstSeen.get()?.didTrackFirstSeen ?: false)
+                !(storage.get(DidTrackFirstSeen) ?: false)
 
             println("neverCalledStaticConfig: $neverCalledStaticConfig")
             println("isFirstAppOpen: $isFirstAppOpen")
@@ -121,9 +122,9 @@ class IdentityManager(
         scope.launch {
             mutex.withLock {
                 _appUserId?.let {
-                    storage.cache.appUserId.set(AppUserId(it))
+                    storage.save(it, AppUserId)
                 }
-                storage.cache.aliasId.set(AliasId(_aliasId))
+                storage.save(_aliasId, AliasId)
 
                 val newUserAttributes = mutableMapOf("aliasId" to _aliasId)
                 _appUserId?.let { newUserAttributes["appUserId"] = it }
@@ -177,7 +178,7 @@ class IdentityManager(
 //            )
 //            Superwall.shared.track(trackableEvent)
         }
-        storage.cache.userAttributes.set(UserAttributes(mergedAttributes))
+        storage.save(mergedAttributes, UserAttributes)
         _userAttributes = mergedAttributes
     }
 }

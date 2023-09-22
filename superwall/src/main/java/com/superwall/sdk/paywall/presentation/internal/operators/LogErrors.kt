@@ -23,7 +23,8 @@ fun Superwall.logErrors(
                 eventData = request.presentationInfo.eventData,
                 type = request.flags.type,
                 status = PaywallPresentationRequestStatus.NoPresentation,
-                statusReason = error
+                statusReason = error,
+                factory = dependencyContainer
             )
             track(trackedEvent)
         }

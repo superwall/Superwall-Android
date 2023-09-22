@@ -2,6 +2,7 @@ package com.superwall.sdk.paywall.presentation.internal.operators
 
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.delegate.SubscriptionStatus
+import com.superwall.sdk.models.triggers.InternalTriggerResult
 import com.superwall.sdk.models.triggers.TriggerResult
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatusReason
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
@@ -12,16 +13,16 @@ import kotlinx.coroutines.flow.first
 
 suspend fun Superwall.checkUserSubscription(
     request: PresentationRequest,
-    triggerResult: TriggerResult,
-    paywallStatePublisher: MutableStateFlow<PaywallState>
+    triggerResult: InternalTriggerResult,
+    paywallStatePublisher: MutableStateFlow<PaywallState>? = null
 ) {
     when (triggerResult) {
-        is TriggerResult.Paywall -> return
+        is InternalTriggerResult.Paywall -> return
         else -> {
             val subscriptionStatus = request.flags.subscriptionStatus.first()
-            if (subscriptionStatus == SubscriptionStatus.Active) {
-                paywallStatePublisher.emit(PaywallState.Skipped(PaywallSkippedReason.UserIsSubscribed()))
-                paywallStatePublisher.emit(PaywallState.Finalized())
+            if (subscriptionStatus == SubscriptionStatus.ACTIVE) {
+                paywallStatePublisher?.emit(PaywallState.Skipped(PaywallSkippedReason.UserIsSubscribed()))
+                paywallStatePublisher?.emit(PaywallState.Finalized())
                 throw PaywallPresentationRequestStatusReason.UserIsSubscribed()
             }
         }
