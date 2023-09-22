@@ -2,10 +2,6 @@ package com.superwall.sdk.storage
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.superwall.sdk.storage.keys.AliasId
-import com.superwall.sdk.storage.keys.AppUserId
-import com.superwall.sdk.storage.keys.LastPaywallView
-import com.superwall.sdk.storage.keys.UserAttributes
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
@@ -22,9 +18,9 @@ class CacheInstrumentedTest {
         // Clear all caches
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
         val cache = Cache(appContext)
-        cache.appUserId.delete()
-        cache.aliasId.delete()
-        cache.userAttributes.delete()
+        cache.delete(AppUserId)
+        cache.delete(AliasId)
+        cache.delete(UserAttributes)
         println("!!setUp - done")
     }
 
@@ -35,18 +31,18 @@ class CacheInstrumentedTest {
         val cache = Cache(appContext)
 
         // Test first read
-        val aliasId = cache.appUserId.get()
+        val aliasId = cache.read(AppUserId)
         assert(aliasId == null)
 
         // Test write
-        cache.aliasId.set(AliasId("testAliasId"))
-        val updatedAliasId = cache.aliasId.get()
-        assert(updatedAliasId?.aliasId == "testAliasId")
+        cache.write(AliasId, "testAliasId")
+        val updatedAliasId = cache.read(AliasId)
+        assert(updatedAliasId == "testAliasId")
 
 
         // Test delete
-        cache.aliasId.delete()
-        val deletedAliasId = cache.aliasId.get()
+        cache.delete(AliasId)
+        val deletedAliasId = cache.read(AliasId)
         assert(deletedAliasId == null)
     }
 
@@ -57,17 +53,17 @@ class CacheInstrumentedTest {
         val cache = Cache(appContext)
 
         // Test first read
-        val appUserId = cache.appUserId.get()
+        val appUserId = cache.read(AppUserId)
         assert(appUserId == null)
 
         // Test write
-        cache.appUserId.set(AppUserId("testAppUserId"))
-        val updatedAppUserid = cache.appUserId.get()
-        assert(updatedAppUserid?.appUserId == "testAppUserId")
+        cache.write(AppUserId, "testAppUserId")
+        val updatedAppUserid = cache.read(AppUserId)
+        assert(updatedAppUserid == "testAppUserId")
 
         // Test delete
-        cache.appUserId.delete()
-        val deletedAppUserId = cache.appUserId.get()
+        cache.delete(AppUserId)
+        val deletedAppUserId = cache.read(AppUserId)
         assert(deletedAppUserId == null)
     }
 
@@ -77,18 +73,18 @@ class CacheInstrumentedTest {
         val cache = Cache(appContext)
 
         // Test first read
-        val userAttributes = cache.userAttributes.get()
+        val userAttributes = cache.read(UserAttributes)
         assert(userAttributes == null)
 
         // Test write
-        val testAttributes = UserAttributes(mapOf("key1" to "value1", "key2" to 123))
-        cache.userAttributes.set(testAttributes)
-        val updatedUserAttributes = cache.userAttributes.get()
-        assert(updatedUserAttributes?.attributes == testAttributes.attributes)
+        val testAttributes = mapOf("key1" to "value1", "key2" to 123)
+        cache.write(UserAttributes, testAttributes)
+        val updatedUserAttributes = cache.read(UserAttributes)
+        assert(updatedUserAttributes == testAttributes)
 
         // Test delete
-        cache.userAttributes.delete()
-        val deletedUserAttributes = cache.userAttributes.get()
+        cache.delete(UserAttributes)
+        val deletedUserAttributes = cache.read(UserAttributes)
         assert(deletedUserAttributes == null)
     }
 
@@ -98,19 +94,18 @@ class CacheInstrumentedTest {
         val cache = Cache(appContext)
 
         // Test first read
-        val lastPaywallView = cache.lastPaywallView.get()
+        val lastPaywallView = cache.read(LastPaywallView)
         assert(lastPaywallView == null)
 
         // Test write
         val testDate = Date()
-        val testLastPaywallView = LastPaywallView(testDate)
-        cache.lastPaywallView.set(testLastPaywallView)
-        val updatedLastPaywallView = cache.lastPaywallView.get()
-        assert(updatedLastPaywallView?.date == testLastPaywallView.date)
+        cache.write(LastPaywallView, testDate)
+        val updatedLastPaywallView = cache.read(LastPaywallView)
+        assert(updatedLastPaywallView == testDate)
 
         // Test delete
-        cache.lastPaywallView.delete()
-        val deletedLastPaywallView = cache.lastPaywallView.get()
+        cache.delete(LastPaywallView)
+        val deletedLastPaywallView = cache.read(LastPaywallView)
         assert(deletedLastPaywallView == null)
     }
 }

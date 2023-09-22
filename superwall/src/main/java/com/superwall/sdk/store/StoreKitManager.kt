@@ -14,6 +14,7 @@ import com.superwall.sdk.models.paywall.PaywallProducts
 import com.superwall.sdk.models.product.Product
 import com.superwall.sdk.models.product.ProductType
 import com.superwall.sdk.models.product.ProductVariable
+import com.superwall.sdk.models.serialization.from
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.vc.PaywallViewController
 import com.superwall.sdk.paywall.vc.delegate.PaywallLoadingState
@@ -23,6 +24,7 @@ import com.superwall.sdk.store.coordinator.ProductsFetcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonObject
 import org.json.JSONObject
 
 /*
@@ -124,7 +126,7 @@ class StoreKitManager(
             output.productsById[product.id]?.let { storeProduct ->
                 ProductVariable(
                     type = product.type,
-                    attributes = JSONObject(storeProduct.attributes)
+                    attributes = JsonObject.from(storeProduct.attributes)
                 )
             }
         }

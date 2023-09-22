@@ -48,6 +48,7 @@ import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.paywall.vc.delegate.PaywallLoadingState
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegate
+import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegateAdapter
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerEventDelegate
 import com.superwall.sdk.paywall.vc.web_view.SWWebView
 import com.superwall.sdk.paywall.vc.web_view.SWWebViewDelegate
@@ -68,7 +69,7 @@ class PaywallViewController(
     context: Context,
     override var paywall: Paywall,
     val eventDelegate: PaywallViewControllerEventDelegate? = null,
-    var delegate: PaywallViewControllerDelegate? = null,
+    var delegate: PaywallViewControllerDelegateAdapter? = null,
     val deviceHelper: DeviceHelper,
     val factory: TriggerSessionManagerFactory,
     val storage: Storage,

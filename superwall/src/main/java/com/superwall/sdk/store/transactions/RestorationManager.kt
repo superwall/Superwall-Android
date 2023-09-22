@@ -41,7 +41,7 @@ class RestorationManager(
 //            }
 
             val isUserSubscribed =
-                Superwall.instance.subscriptionStatus.value == SubscriptionStatus.Active
+                Superwall.instance.subscriptionStatus.value == SubscriptionStatus.ACTIVE
 
             if (hasRestored && isUserSubscribed) {
                 Logger.debug(

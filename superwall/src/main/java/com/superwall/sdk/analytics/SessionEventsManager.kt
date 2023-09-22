@@ -27,7 +27,7 @@ class SessionEventsManager(
     private val network: Network,
     private val configManager: ConfigManager,
     private val factory: TriggerSessionManagerFactory
-) : CoroutineScope, SessionEventsDelegate {
+): CoroutineScope, SessionEventsDelegate {
 
     // The Coroutine Context is derived from SupervisorJob() + Dispatchers.Default
     // so that if a child job fails it does not affect the other child jobs

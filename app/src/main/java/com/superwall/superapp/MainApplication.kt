@@ -150,7 +150,7 @@ class MainApplication : android.app.Application() {
         Superwall.configure(this, "pk_d1f0959f70c761b1d55bb774a03e22b2b6ed290ce6561f85", purchaseController)
 //
 //        // TODO: Fix this so we don't need to make the user set this
-        Superwall.instance.setSubscriptionStatus(SubscriptionStatus.Inactive)
+        Superwall.instance.setSubscriptionStatus(SubscriptionStatus.INACTIVE)
 //        invokeRegister()
 
 //        // UI-Tests

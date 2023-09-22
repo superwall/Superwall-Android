@@ -4,13 +4,17 @@ import android.net.Uri
 import com.superwall.sdk.analytics.SessionEventsManager
 import com.superwall.sdk.analytics.superwall.SuperwallEvent
 import com.superwall.sdk.analytics.superwall.TransactionProduct
+import com.superwall.sdk.delegate.SubscriptionStatus
+import com.superwall.sdk.dependencies.ComputedPropertyRequestsFactory
+import com.superwall.sdk.dependencies.FeatureFlagsFactory
+import com.superwall.sdk.dependencies.RuleAttributesFactory
+import com.superwall.sdk.models.config.FeatureFlags
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.triggers.TriggerResult
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatus
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatusReason
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
-import com.superwall.sdk.storage.keys.SubscriptionStatus
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.GoogleBillingPurchaseTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
@@ -41,16 +45,18 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
 
     class AppInstall(
         val appInstalledAtString: String,
+        val hasExternalPurchaseController: Boolean,
         override var customParameters: HashMap<String, Any> = HashMap()
     ) : InternalSuperwallEvent(SuperwallEvent.AppInstall()) {
         override suspend fun getSuperwallParameters(): HashMap<String, Any> {
             return hashMapOf(
-                "application_installed_at" to appInstalledAtString
+                "application_installed_at" to appInstalledAtString,
+                "using_purchase_controller" to hasExternalPurchaseController
             )
         }
     }
 
-    // TODO: Implement the reste
+    // TODO: Implement the rest
 
     class AppLaunch(override var customParameters: HashMap<String, Any> = HashMap()) :
         InternalSuperwallEvent(SuperwallEvent.AppLaunch()) {
@@ -152,7 +158,7 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
     ) : InternalSuperwallEvent(SuperwallEvent.SubscriptionStatusDidChange()) {
         override suspend fun getSuperwallParameters(): HashMap<String, Any> {
             return hashMapOf(
-                "subscription_status" to subscriptionStatus.description
+                "subscription_status" to subscriptionStatus.toString()
             )
         }
     }
@@ -228,6 +234,7 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
         val type: PresentationRequestType,
         val status: PaywallPresentationRequestStatus,
         val statusReason: PaywallPresentationRequestStatusReason?,
+        val factory: PresentationRequest.Factory,
         override var customParameters: HashMap<String, Any> = HashMap()
     ) : InternalSuperwallEvent(
         SuperwallEvent.PaywallPresentationRequest(
@@ -235,6 +242,9 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
             reason = statusReason
         )
     ) {
+        interface Factory: RuleAttributesFactory, FeatureFlagsFactory,
+            ComputedPropertyRequestsFactory {}
+
         override suspend fun getSuperwallParameters(): HashMap<String, Any> {
             return hashMapOf(
                 "source_event_name" to (eventData?.name ?: ""),
@@ -492,5 +502,5 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
 
 fun test() {
     InternalSuperwallEvent.AppOpen()
-    InternalSuperwallEvent.AppInstall(appInstalledAtString = "test")
+    InternalSuperwallEvent.AppInstall(appInstalledAtString = "test", hasExternalPurchaseController = false)
 }

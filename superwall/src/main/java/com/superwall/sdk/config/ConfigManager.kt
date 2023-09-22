@@ -136,7 +136,7 @@ open class ConfigManager(
         }
     }
 
-    suspend fun confirmAssignment(assignment: ConfirmableAssignment) {
+    fun confirmAssignment(assignment: ConfirmableAssignment) {
         val postback: AssignmentPostback = AssignmentPostback.create(assignment)
         GlobalScope.launch(Dispatchers.IO) { network.confirmAssignments(postback) }
 
@@ -149,7 +149,7 @@ open class ConfigManager(
         }
     }
 
-    suspend private fun updateAssignments(operation: (Map<ExperimentID, Experiment.Variant>) -> ConfigLogic.AssignmentOutcome) {
+    private fun updateAssignments(operation: (Map<ExperimentID, Experiment.Variant>) -> ConfigLogic.AssignmentOutcome) {
         var confirmedAssignments = storage.getConfirmedAssignments()
 
         val updatedAssignments = operation(confirmedAssignments)

@@ -8,22 +8,42 @@ sealed class PaywallPresentationRequestStatus(val status: String) {
     object Timeout : PaywallPresentationRequestStatus("timeout")
 }
 
+/**
+ * The reason to why the paywall couldn't present.
+ */
 sealed class PaywallPresentationRequestStatusReason(val description: String) : Throwable() {
+    /** Trying to present paywall when debugger is launched. */
     class DebuggerPresented : PaywallPresentationRequestStatusReason("debugger_presented")
-    class PaywallAlreadyPresented :
-        PaywallPresentationRequestStatusReason("paywall_already_presented")
 
+    /** There's already a paywall presented. */
+    class PaywallAlreadyPresented : PaywallPresentationRequestStatusReason("paywall_already_presented")
+
+    /** The user is subscribed. */
     class UserIsSubscribed : PaywallPresentationRequestStatusReason("user_is_subscribed")
-    data class Holdout(val experiment: Experiment) :
-        PaywallPresentationRequestStatusReason("holdout")
 
+    /** The user is in a holdout group. */
+    data class Holdout(val experiment: Experiment) : PaywallPresentationRequestStatusReason("holdout")
+
+    /** No rules defined in the campaign for the event matched. */
     class NoRuleMatch : PaywallPresentationRequestStatusReason("no_rule_match")
-    class EventNotFound : PaywallPresentationRequestStatusReason("event_not_found")
-    class NoPaywallViewController :
-        PaywallPresentationRequestStatusReason("no_paywall_view_controller")
 
+    /** The event provided was not found in any campaign on the dashboard. */
+    class EventNotFound : PaywallPresentationRequestStatusReason("event_not_found")
+
+    /** There was an error getting the paywall view controller. */
+    class NoPaywallViewController : PaywallPresentationRequestStatusReason("no_paywall_view_controller")
+
+    /** There isn't a view to present the paywall on. */
     class NoPresenter : PaywallPresentationRequestStatusReason("no_presenter")
-    class Unknown : PaywallPresentationRequestStatusReason("unknown")
+
+    /** The config hasn't been retrieved from the server in time. */
+    class NoConfig : PaywallPresentationRequestStatusReason("no_config")
+
+    /**
+     * The subscription status timed out.
+     * This happens when the subscriptionStatus stays unknown for more than 5 seconds.
+     */
+    class SubscriptionStatusTimeout : PaywallPresentationRequestStatusReason("subscription_status_timeout")
 }
 
 typealias PresentationPipelineError = PaywallPresentationRequestStatusReason

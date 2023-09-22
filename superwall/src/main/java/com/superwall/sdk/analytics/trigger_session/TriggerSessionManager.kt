@@ -13,6 +13,7 @@ import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.identity.IdentityManager
 import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.models.paywall.Paywall
+import com.superwall.sdk.models.triggers.InternalTriggerResult
 import com.superwall.sdk.models.triggers.TriggerResult
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.storage.Storage
@@ -25,7 +26,7 @@ enum class LoadState {
 }
 
 
-// TDOO: Actually add the implementation here
+// TODO: https://linear.app/superwall/issue/SW-2366/[android]-implement-triggersessionmanager
 class TriggerSessionManager(
     val storage: Storage,
     val configManager: ConfigManager,
@@ -66,7 +67,7 @@ class TriggerSessionManager(
         forPresentationInfo: PresentationInfo,
         on: Activity? = null,
         paywall: Paywall? = null,
-        triggerResult: TriggerResult? = null,
+        triggerResult: InternalTriggerResult? = null,
         trackEvent: (suspend (Trackable) -> TrackingResult)? = null
     ) {
         // implementation

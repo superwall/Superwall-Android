@@ -3,6 +3,7 @@ package com.superwall.sdk.network.device
 import ComputedPropertyRequest
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.net.ConnectivityManager
@@ -13,19 +14,25 @@ import android.provider.Settings
 import android.telephony.TelephonyManager
 import android.util.Log
 import androidx.core.content.ContextCompat
-import com.superwall.sdk.dependencies.IdentityInfoAndLocaleIdentifierFactory
+import com.superwall.sdk.Superwall
+import com.superwall.sdk.dependencies.IdentityInfoFactory
+import com.superwall.sdk.dependencies.LocaleIdentifierFactory
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.paywall.vc.web_view.templating.models.DeviceTemplate
 import com.superwall.sdk.storage.Storage
 import java.text.SimpleDateFormat
 import java.util.*
-
+import com.superwall.sdk.misc.sdkVersion
+import com.superwall.sdk.storage.LastPaywallView
+import com.superwall.sdk.storage.TotalPaywallViews
+import java.time.Duration
 
 class DeviceHelper(
     private val context: Context,
     val storage: Storage,
-    val factory: IdentityInfoAndLocaleIdentifierFactory
+    val factory: DeviceHelper.Factory
 ) {
+    interface Factory: IdentityInfoFactory, LocaleIdentifierFactory {}
 
     private val connectivityManager =
         context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
@@ -34,14 +41,52 @@ class DeviceHelper(
     private val packageManager = context.packageManager
     private val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
     private val appInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-    private val installTime = Date(appInfo.firstInstallTime)
-    private val installTimeFormatter = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).apply {
-        timeZone = TimeZone.getTimeZone("UTC")
-    }
-    private val installTimeString = installTimeFormatter.format(installTime)
-    private val daysSinceInstall =
-        ((Date().time - installTime.time) / (1000 * 60 * 60 * 24)).toInt()
-    private val minutesSinceInstall = ((Date().time - installTime.time) / (1000 * 60)).toInt()
+    private val appInstallDate = Date(appInfo.firstInstallTime)
+
+    private val daysSinceInstall: Int
+        get() {
+            val fromDate = appInstallDate ?: Date()
+            val toDate = Date()
+            val fromInstant = fromDate.toInstant()
+            val toInstant = toDate.toInstant()
+            val duration = Duration.between(fromInstant, toInstant)
+            return duration.toDays().toInt()
+        }
+
+    private val minutesSinceInstall: Int
+        get() {
+            val fromDate = appInstallDate ?: Date()
+            val toDate = Date()
+            val fromInstant = fromDate.toInstant()
+            val toInstant = toDate.toInstant()
+            val duration = Duration.between(fromInstant, toInstant)
+            return duration.toMinutes().toInt()
+        }
+
+    private val daysSinceLastPaywallView: Int?
+        get() {
+            val fromDate = storage.get(LastPaywallView) ?: return null
+            val toDate = Date()
+            val fromInstant = fromDate.toInstant()
+            val toInstant = toDate.toInstant()
+            val duration = Duration.between(fromInstant, toInstant)
+            return duration.toDays().toInt()
+        }
+
+    private val minutesSinceLastPaywallView: Int?
+        get() {
+            val fromDate = storage.get(LastPaywallView) ?: return null
+            val toDate = Date()
+            val fromInstant = fromDate.toInstant()
+            val toInstant = toDate.toInstant()
+            val duration = Duration.between(fromInstant, toInstant)
+            return duration.toMinutes().toInt()
+        }
+
+    private val totalPaywallViews: Int
+        get() {
+            return storage.get(TotalPaywallViews) ?: 0
+        }
 
     val locale: String
         get() = Locale.getDefault().toString()
@@ -79,6 +124,9 @@ class DeviceHelper(
     val secondsFromGMT: String
         get() = (TimeZone.getDefault().rawOffset / 1000).toString()
 
+    val isFirstAppOpen: Boolean
+        get() = !storage.didTrackFirstSession
+
     val radioType: String
         @SuppressLint("MissingPermission")
         get() {
@@ -104,7 +152,12 @@ class DeviceHelper(
     val bundleId: String
         get() = context.packageName
 
-    // Android doesn't have an equivalent for iOS's sandbox or TestFlight
+    val isSandbox: Boolean
+        get() {
+            // Not exactly the same as iOS, but similar
+            val isDebuggable: Boolean = (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+            return isDebuggable
+        }
 
     val urlScheme: String
         get() = context.packageName
@@ -203,15 +256,65 @@ class DeviceHelper(
     private val utcDateTimeString: String
         get() = utcDateTimeFormat.format(System.currentTimeMillis())
 
+    private val sdkVersionPadded: String
+        get() {
+            // Separate out the "beta" part from the main version.
+            val components = sdkVersion.split("-")
+            if (components.isEmpty()) {
+                return ""
+            }
+            val versionNumber = components[0]
 
-    // You'll need to define your own method for these since there's no direct equivalent in Android:
-    // daysSinceLastPaywallView, minutesSinceLastPaywallView, totalPaywallViews
+            var appendix = ""
+
+            // If there is a "beta" part...
+            if (components.size > 1) {
+                // Separate out the number from the name, e.g. beta.1 -> [beta, 1]
+                val appendixComponents = components[1].split(".")
+                appendix = "-" + appendixComponents[0]
+
+                var appendixVersion = ""
+
+                // Pad beta number and add to appendix
+                if (appendixComponents.size > 1) {
+                    appendixVersion = String.format("%03d", appendixComponents[1].toIntOrNull() ?: 0)
+                    appendix += ".$appendixVersion"
+                }
+            }
+
+            // Separate out the version numbers.
+            val versionComponents = versionNumber.split(".")
+            var newVersion = ""
+            if (versionComponents.isNotEmpty()) {
+                val major = String.format("%03d", versionComponents[0].toIntOrNull() ?: 0)
+                newVersion += major
+            }
+            if (versionComponents.size > 1) {
+                val minor = String.format("%03d", versionComponents[1].toIntOrNull() ?: 0)
+                newVersion += ".$minor"
+            }
+            if (versionComponents.size > 2) {
+                val patch = String.format("%03d", versionComponents[2].toIntOrNull() ?: 0)
+                newVersion += ".$patch"
+            }
+
+            newVersion += appendix
+
+            return newVersion
+        }
+
+    val appBuildString: String
+        get() {
+            val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+            return packageInfo.versionCode.toString()
+        }
+
 
     suspend fun getDeviceAttributes(
         sinceEvent: EventData?,
         computedPropertyRequests: List<ComputedPropertyRequest>
     ): Map<String, Any> {
-        val dictionary = getTemplateDevice()
+        val dictionary = getTemplateDevice().toDictionary()
 
         val computedProperties = getComputedDevicePropertiesSinceEvent(
             sinceEvent,
@@ -239,12 +342,10 @@ class DeviceHelper(
         return output
     }
 
-    // TODO: Add these methods to the DeviceHelper class
-    suspend fun getTemplateDevice(): Map<String, Any> {
+    suspend fun getTemplateDevice(): DeviceTemplate {
         val identityInfo = factory.makeIdentityInfo()
         val aliases = listOf(identityInfo.aliasId)
 
-        // TODO: https://linear.app/superwall/issue/SW-2345/[android]-devicehelper-needs-full-implementation
         return DeviceTemplate(
             publicApiKey = storage.apiKey,
             platform = "Android",
@@ -258,7 +359,7 @@ class DeviceHelper(
             deviceLanguageCode = languageCode,
             deviceCurrencyCode = currencyCode,
             deviceCurrencySymbol = currencySymbol,
-            timezoneOffset = Date().timezoneOffset,
+            timezoneOffset = (TimeZone.getDefault().rawOffset) / 1000,
             radioType = radioType,
             interfaceStyle = interfaceStyle,
             isLowPowerModeEnabled = isLowPowerModeEnabled.toBoolean(),
@@ -267,32 +368,23 @@ class DeviceHelper(
             isMac = false,
             daysSinceInstall = daysSinceInstall,
             minutesSinceInstall = minutesSinceInstall,
-
-            // TODO: Fix these with actual values
-            daysSinceLastPaywallView = 0,
-            minutesSinceLastPaywallView = 0,
-            totalPaywallViews = 0,
-
-//            daysSinceLastPaywallView = daysSinceLastPaywallView,
-//            minutesSinceLastPaywallView = minutesSinceLastPaywallView,
-//            totalPaywallViews = totalPaywallViews,
-
+            daysSinceLastPaywallView = daysSinceLastPaywallView,
+            minutesSinceLastPaywallView = minutesSinceLastPaywallView,
+            totalPaywallViews = totalPaywallViews,
             utcDate = utcDateString,
             localDate = localDateString,
             utcTime = utcTimeString,
             localTime = localTimeString,
             utcDateTime = utcDateTimeString,
             localDateTime = localDateTimeString,
-            isSandbox = "false",
-
-            // TODO: Fix these with actual values
-            subscriptionStatus = "NOT_SUBSCRIBED",
-            isFirstAppOpen = false,
-
-//            subscriptionStatus = Superwall.instance.subscriptionStatus.description,
-//            isFirstAppOpen = isFirstAppOpen
-        ).toDictionary()
+            isSandbox = isSandbox.toString(),
+            subscriptionStatus = Superwall.instance.subscriptionStatus.value.toString(),
+            isFirstAppOpen = isFirstAppOpen,
+            sdkVersion = sdkVersion,
+            sdkVersionPadded = sdkVersionPadded,
+            appBuildString = appBuildString,
+            appBuildStringNumber = appBuildString.toInt()
+        )
     }
-
 
 }

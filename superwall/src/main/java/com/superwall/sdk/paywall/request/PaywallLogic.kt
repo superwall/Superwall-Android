@@ -8,8 +8,10 @@ import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.PaywallProducts
 import com.superwall.sdk.models.product.Product
 import com.superwall.sdk.models.product.ProductVariable
+import com.superwall.sdk.models.serialization.from
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.store.abstractions.product.StoreProduct
+import kotlinx.serialization.json.JsonObject
 import org.json.JSONObject
 
 data class ResponseIdentifiers(
@@ -106,7 +108,7 @@ object PaywallLogic {
 
             val productVariable = ProductVariable(
                 type = product.type,
-                attributes = JSONObject(storeProduct.attributes)
+                attributes = JsonObject.from(storeProduct.attributes)
             )
             productVariables.add(productVariable)
 

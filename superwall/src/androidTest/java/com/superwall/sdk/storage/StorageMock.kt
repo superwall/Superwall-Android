@@ -1,54 +1,44 @@
 package com.superwall.sdk.storage
 
 import android.content.Context
-import com.superwall.sdk.analytics.model.TriggerSession
-import com.superwall.sdk.dependencies.DeviceInfoFactory
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.network.device.DeviceInfo
 
-class DeviceInfoFactoryMock : DeviceInfoFactory {
+class StorageFactoryMock : Storage.Factory {
     override fun makeDeviceInfo(): DeviceInfo {
         return DeviceInfo(appInstalledAtString = "a", locale = "b")
+    }
+
+    override fun makeIsSandbox(): Boolean {
+        return true
+    }
+
+    override fun makeHasExternalPurchaseController(): Boolean {
+        return true
     }
 }
 
 class StorageMock(
     context: Context,
-    private var internalCachedTriggerSessions: List<TriggerSession> = listOf(),
+//    private var internalCachedTriggerSessions: List<TriggerSession> = listOf(),
 //    private var internalCachedTransactions: List<StoreTransaction> = listOf(),
 //    coreDataManager: CoreDataManagerFakeDataMock = CoreDataManagerFakeDataMock(),
     private var confirmedAssignments: Map<ExperimentID, Experiment.Variant> = mapOf(),
-    cache: Cache = Cache(context)
-) : Storage(context = context, factory = DeviceInfoFactoryMock()) {
+//    cache: Cache = Cache(context)
+) : Storage(context = context, factory = StorageFactoryMock()) {
 
     var didClearCachedSessionEvents = false
 
-//    override fun <Key : Storable> get(keyType: Class<Key>): Key.Value? {
-//        return when(keyType) {
-//            TriggerSessions::class.java -> internalCachedTriggerSessions as? Key.Value
-//            Transactions::class.java -> internalCachedTransactions as? Key.Value
-//            else -> null
-//        }
-//    }
-
-//    override fun <Key : Storable> get(keyType: Class<Key>): Key.Value? where Key.Value : Decodable {
-//        return when(keyType) {
-//            TriggerSessions::class.java -> internalCachedTriggerSessions as? Key.Value
-//            Transactions::class.java -> internalCachedTransactions as? Key.Value
-//            else -> null
-//        }
-//    }
-
-    fun clearCachedSessionEvents() {
+    override fun clearCachedSessionEvents() {
         didClearCachedSessionEvents = true
     }
 
-    override suspend fun getConfirmedAssignments(): Map<ExperimentID, Experiment.Variant> {
+    override fun getConfirmedAssignments(): Map<ExperimentID, Experiment.Variant> {
         return confirmedAssignments
     }
 
-    override suspend fun saveConfirmedAssignments(assignments: Map<String, Experiment.Variant>) {
+    override fun saveConfirmedAssignments(assignments: Map<ExperimentID, Experiment.Variant>) {
         confirmedAssignments = assignments
     }
 }

@@ -39,7 +39,11 @@ data class DeviceTemplate(
     val localDateTime: String,
     val isSandbox: String,
     val subscriptionStatus: String,
-    val isFirstAppOpen: Boolean
+    val isFirstAppOpen: Boolean,
+    val sdkVersion: String,
+    val sdkVersionPadded: String,
+    val appBuildString: String,
+    val appBuildStringNumber: Int?
 ) {
     fun toDictionary(): Map<String, Any> {
         val json = Json { encodeDefaults = true }
