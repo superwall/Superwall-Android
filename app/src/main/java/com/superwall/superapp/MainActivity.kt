@@ -68,6 +68,12 @@ class MainActivity : AppCompatActivity() {
             val intent = Intent(this, UITestActivity::class.java)
             startActivity(intent)
         }
+        
+        val devicePropertiesTestButton: Button = findViewById(R.id.devicePropertiesTest)
+        devicePropertiesTestButton.setOnClickListener {
+            val app = application as? MainApplication
+            app?.invokeRegister("device_product_test")
+        }
     }
 
     //region Deep Links
