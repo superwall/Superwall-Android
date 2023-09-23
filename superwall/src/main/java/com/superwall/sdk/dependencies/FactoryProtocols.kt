@@ -12,6 +12,7 @@ import com.superwall.sdk.models.config.FeatureFlags
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.product.ProductVariable
+import com.superwall.sdk.models.serialization.AnySerializer
 import com.superwall.sdk.network.Api
 import com.superwall.sdk.network.device.DeviceInfo
 import com.superwall.sdk.paywall.manager.PaywallViewControllerCache
@@ -24,7 +25,7 @@ import com.superwall.sdk.paywall.request.ResponseIdentifiers
 import com.superwall.sdk.paywall.vc.PaywallViewController
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegate
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegateAdapter
-import com.superwall.sdk.paywall.vc.web_view.templating.models.OuterVariables
+import com.superwall.sdk.paywall.vc.web_view.templating.models.JsonVariables
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
 import com.superwall.sdk.store.coordinator.StoreKitCoordinator
@@ -32,6 +33,7 @@ import com.superwall.sdk.store.transactions.purchasing.PurchaseManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 import org.json.JSONObject
 
@@ -100,7 +102,7 @@ interface RuleAttributesFactory {
     suspend fun makeRuleAttributes(
         event: EventData?,
         computedPropertyRequests: List<ComputedPropertyRequest>
-    ): JsonObject
+    ): Map<String, Any>
 }
 
 interface IdentityInfoFactory {
@@ -161,7 +163,7 @@ interface VariablesFactory {
         productVariables: List<ProductVariable>?,
         computedPropertyRequests: List<ComputedPropertyRequest>,
         event: EventData?
-    ): OuterVariables
+    ): JsonVariables
 }
 
 interface ConfigManagerFactory {

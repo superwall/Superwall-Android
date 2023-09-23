@@ -9,7 +9,7 @@ interface StoreProductType {
     val productIdentifier: String
     val price: BigDecimal
     val subscriptionGroupIdentifier: String?
-    val swProductTemplateVariablesJson: JsonObject
+    val swProductTemplateVariablesJson: Map<String, Any>
 
     //    val swProduct: SWProduct //Please replace this with your actual SWProduct type
     val localizedPrice: String

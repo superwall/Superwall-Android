@@ -1,3 +1,4 @@
+import com.google.gson.Gson
 import com.superwall.sdk.dependencies.VariablesFactory
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
@@ -5,6 +6,7 @@ import com.superwall.sdk.models.serialization.AnySerializer
 import com.superwall.sdk.paywall.vc.web_view.templating.models.FreeTrialTemplate
 import com.superwall.sdk.paywall.view_controller.web_view.templating.models.ProductTemplate
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -40,7 +42,7 @@ object TemplateLogic {
 //            swProductTemplateVariables = paywall.swProductVariablesTemplate ?: emptyList()
 //        )
 
-        val json = Json { encodeDefaults = false }
+        val json = Json { encodeDefaults = true }
 
         val encodedTemplates = listOf(
             json.encodeToString(productsTemplate),
@@ -56,14 +58,6 @@ object TemplateLogic {
 
         return Base64.getEncoder().encodeToString(templatesData)
     }
-
-//    private fun <T> utf8Encoded(input: T): String where T : kotlinx.serialization.Serializable {
-//        return try {
-//            Json.encodeToString(input)
-//        } catch (e: Exception) {
-//            "{}"
-//        }
-//    }
 
 //    private fun swProductTemplate(
 //        swProductTemplateVariables: List<ProductVariable>
