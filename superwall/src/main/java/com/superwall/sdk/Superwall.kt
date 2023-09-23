@@ -16,8 +16,6 @@ import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.dependencies.DependencyContainer
 import com.superwall.sdk.models.events.EventData
-import com.superwall.sdk.models.serialization.from
-import com.superwall.sdk.models.serialization.mapToJsonObject
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.PresentationItems
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
@@ -372,7 +370,7 @@ public class Superwall(context: Context, apiKey: String, purchaseController: Pur
 
         val eventData = EventData(
             name = forEvent,
-            parameters = JsonObject.from(parameters.eventParams),
+            parameters = parameters.eventParams,
             createdAt = eventCreatedAt
         )
 

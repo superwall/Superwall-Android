@@ -3,47 +3,60 @@ package com.superwall.sdk.paywall.vc.web_view.templating.models
 import com.superwall.sdk.models.product.ProductType
 import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.models.serialization.AnySerializer
-import org.json.JSONObject
+import com.superwall.sdk.models.serialization.jsonStringToDictionary
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
-@kotlinx.serialization.Serializable
-class OuterVariables(
-    val event_name: String = "template_variables",
-    val variables: Variables
-)
-
-@kotlinx.serialization.Serializable
-class Variables(
-    val user: Map<String, @kotlinx.serialization.Serializable(with = AnySerializer::class) Any?>,
-    val primary: Map<String, @kotlinx.serialization.Serializable(with = AnySerializer::class) Any?>?,
-    val secondary: Map<String, @kotlinx.serialization.Serializable(with = AnySerializer::class) Any?>?,
-    val tertiary: Map<String, @kotlinx.serialization.Serializable(with = AnySerializer::class) Any?>?,
-//    val device: Map<String, @kotlinx.serialization.Serializable(with = AnySerializer::class) Any?>,
-    val device: DeviceTemplate,
-    val params: Map<String, @kotlinx.serialization.Serializable(with = AnySerializer::class) Any?>,
+@Serializable
+data class Variables(
+    val user: Map<String, @Serializable(with = AnySerializer::class) Any?>,
+    val device: Map<String, @Serializable(with = AnySerializer::class) Any?>,
+    val params: Map<String, @Serializable(with = AnySerializer::class) Any?>,
+    var primary: Map<String, @Serializable(with = AnySerializer::class) Any?> = emptyMap(),
+    var secondary: Map<String, @Serializable(with = AnySerializer::class) Any?> = emptyMap(),
+    var tertiary: Map<String, @Serializable(with = AnySerializer::class) Any?> = emptyMap()
 ) {
-
-    companion object {
-        fun fromProperties(
-            productVariables: List<ProductVariable>,
-            params: Map<String, Any?>,
-            userAttributes: Map<String, Any?>,
-            templateDeviceDictionary: DeviceTemplate
-        ): OuterVariables {
-            val primary = productVariables.firstOrNull { it.type == ProductType.PRIMARY }
-            val secondary = productVariables.firstOrNull { it.type == ProductType.SECONDARY }
-            val tertiary = productVariables.firstOrNull { it.type == ProductType.TERTIARY }
-
-            return OuterVariables(
-                variables = Variables(
-                    user = userAttributes,
-                    primary = primary?.attributes,
-                    secondary = secondary?.attributes,
-                    tertiary = tertiary?.attributes,
-                    device = templateDeviceDictionary,
-                    params = params
-                ),
-                event_name = "template_variables"
-            )
+    constructor(
+        productVariables: List<ProductVariable>?,
+        params: Map<String, Any?>?,
+        userAttributes: Map<String, Any?>,
+        templateDeviceDictionary: Map<String, Any?>?
+    ) : this(
+        user = userAttributes,
+        device = templateDeviceDictionary ?: emptyMap(),
+        params = params ?: emptyMap()
+    ) {
+        productVariables?.forEach { productVariable ->
+            when (productVariable.type) {
+                ProductType.PRIMARY -> primary = productVariable.attributes
+                ProductType.SECONDARY -> secondary = productVariable.attributes
+                ProductType.TERTIARY -> tertiary = productVariable.attributes
+            }
         }
     }
+
+    fun templated(): JsonVariables {
+        val variables = this.toDictionary()
+
+        return JsonVariables(
+            eventName = "template_variables",
+            variables = this
+        )
+    }
+
+    fun toDictionary(): Map<String, Any> {
+        val json = Json { encodeDefaults = true }
+        val jsonString = json.encodeToString(this)
+        val dictionary = jsonString.jsonStringToDictionary()
+        return dictionary
+    }
 }
+
+@Serializable
+data class JsonVariables (
+    @SerialName("event_name")
+    val eventName: String,
+    val variables: Variables
+)

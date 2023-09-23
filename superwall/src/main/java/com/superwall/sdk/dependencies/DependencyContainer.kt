@@ -26,7 +26,7 @@ import com.superwall.sdk.models.config.FeatureFlags
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.product.ProductVariable
-import com.superwall.sdk.models.serialization.from
+import com.superwall.sdk.models.serialization.AnySerializer
 import com.superwall.sdk.network.Api
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.network.device.DeviceHelper
@@ -45,7 +45,7 @@ import com.superwall.sdk.paywall.vc.PaywallViewController
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegateAdapter
 import com.superwall.sdk.paywall.vc.web_view.SWWebView
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallMessageHandler
-import com.superwall.sdk.paywall.vc.web_view.templating.models.OuterVariables
+import com.superwall.sdk.paywall.vc.web_view.templating.models.JsonVariables
 import com.superwall.sdk.paywall.vc.web_view.templating.models.Variables
 import com.superwall.sdk.storage.EventsQueue
 import com.superwall.sdk.storage.Storage
@@ -59,8 +59,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.JsonObject
-
+import kotlinx.serialization.Serializable
 
 class DependencyContainer(
     val context: Context,
@@ -343,7 +342,7 @@ class DependencyContainer(
     override suspend fun makeRuleAttributes(
         event: EventData?,
         computedPropertyRequests: List<ComputedPropertyRequest>
-    ): JsonObject {
+    ): Map<String, Any> {
         val userAttributes = identityManager.userAttributes.toMutableMap()
         userAttributes.put("isLoggedIn", identityManager.isLoggedIn)
 
@@ -358,7 +357,7 @@ class DependencyContainer(
             "params" to (event?.parameters ?: "")
         )
 
-        return JsonObject.from(result)
+        return result
     }
 
     override fun makeFeatureFlags(): FeatureFlags? {
@@ -384,21 +383,18 @@ class DependencyContainer(
         productVariables: List<ProductVariable>?,
         computedPropertyRequests: List<ComputedPropertyRequest>,
         event: EventData?
-    ): OuterVariables {
-        val templateDeviceDictionary = deviceHelper.getTemplateDevice()
+    ): JsonVariables {
+        val templateDeviceDictionary = deviceHelper.getDeviceAttributes(
+            sinceEvent = event,
+            computedPropertyRequests = computedPropertyRequests
+        )
 
-        // TODO: Use below
-//        val templateDeviceDictionary = deviceHelper.getDeviceAttributes(
-//            sinceEvent = event,
-//            computedPropertyRequests = computedPropertyRequests
-//        )
-
-        val variables = Variables.fromProperties(
+        val variables = Variables(
             productVariables = productVariables ?: listOf<ProductVariable>(),
-            params = event?.parameters ?: mapOf(),
+            params = event?.parameters ?: emptyMap(),
             userAttributes = identityManager.userAttributes,
             templateDeviceDictionary = templateDeviceDictionary
-        )
+        ).templated()
 
         return variables
     }

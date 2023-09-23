@@ -14,7 +14,6 @@ import com.superwall.sdk.models.paywall.PaywallProducts
 import com.superwall.sdk.models.product.Product
 import com.superwall.sdk.models.product.ProductType
 import com.superwall.sdk.models.product.ProductVariable
-import com.superwall.sdk.models.serialization.from
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.vc.PaywallViewController
 import com.superwall.sdk.paywall.vc.delegate.PaywallLoadingState
@@ -126,7 +125,7 @@ class StoreKitManager(
             output.productsById[product.id]?.let { storeProduct ->
                 ProductVariable(
                     type = product.type,
-                    attributes = JsonObject.from(storeProduct.attributes)
+                    attributes = storeProduct.attributes
                 )
             }
         }

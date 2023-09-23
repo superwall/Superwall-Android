@@ -12,7 +12,6 @@ import com.superwall.sdk.dependencies.RuleAttributesFactory
 import com.superwall.sdk.misc.runOnUiThread
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.triggers.TriggerRule
-import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
 import com.superwall.sdk.models.triggers.TriggerRuleOutcome
 import com.superwall.sdk.models.triggers.UnmatchedRule
 import com.superwall.sdk.storage.Storage
@@ -89,13 +88,13 @@ class ExpressionEvaluator(
         val jsonAttributes = factory.makeRuleAttributes(eventData, rule.computedPropertyRequests)
 
         rule.expressionJs?.let { expressionJs ->
-            JavascriptExpressionEvaluatorParams(expressionJs, jsonAttributes).toBase64Input()?.let { base64Params ->
+            JavascriptExpressionEvaluatorParams(expressionJs, JSONObject(jsonAttributes)).toBase64Input()?.let { base64Params ->
                 return "\n SuperwallSDKJS.evaluateJS64('$base64Params');"
             }
         }
 
         rule.expression?.let { expression ->
-            LiquidExpressionEvaluatorParams(expression, jsonAttributes).toBase64Input()?.let { base64Params ->
+            LiquidExpressionEvaluatorParams(expression, JSONObject(jsonAttributes)).toBase64Input()?.let { base64Params ->
                 return "\n SuperwallSDKJS.evaluate64('$base64Params');"
             }
         }

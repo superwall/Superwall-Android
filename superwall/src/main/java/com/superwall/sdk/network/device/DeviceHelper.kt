@@ -314,7 +314,7 @@ class DeviceHelper(
         sinceEvent: EventData?,
         computedPropertyRequests: List<ComputedPropertyRequest>
     ): Map<String, Any> {
-        val dictionary = getTemplateDevice().toDictionary()
+        val dictionary = getTemplateDevice()
 
         val computedProperties = getComputedDevicePropertiesSinceEvent(
             sinceEvent,
@@ -342,11 +342,11 @@ class DeviceHelper(
         return output
     }
 
-    suspend fun getTemplateDevice(): DeviceTemplate {
+    suspend fun getTemplateDevice(): Map<String, Any> {
         val identityInfo = factory.makeIdentityInfo()
         val aliases = listOf(identityInfo.aliasId)
 
-        return DeviceTemplate(
+        val deviceTemplate = DeviceTemplate(
             publicApiKey = storage.apiKey,
             platform = "Android",
             appUserId = identityInfo.appUserId ?: "",
@@ -385,6 +385,8 @@ class DeviceHelper(
             appBuildString = appBuildString,
             appBuildStringNumber = appBuildString.toInt()
         )
-    }
 
+        val map = deviceTemplate.toDictionary()
+        return map
+    }
 }

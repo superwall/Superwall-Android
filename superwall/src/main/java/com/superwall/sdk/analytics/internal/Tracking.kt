@@ -8,8 +8,6 @@ import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
 import com.superwall.sdk.models.events.EventData
-import com.superwall.sdk.models.serialization.from
-import com.superwall.sdk.models.serialization.mapToJsonObject
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.dismiss
 import com.superwall.sdk.paywall.presentation.internal.dismissForNextPaywall
@@ -52,7 +50,7 @@ suspend fun Superwall.track(event: Trackable): TrackingResult {
 
     val eventData = EventData(
         name = event.rawName,
-        parameters = JsonObject.from(parameters.eventParams),
+        parameters = parameters.eventParams,
         createdAt = eventCreatedAt
     )
     dependencyContainer.queue.enqueue(event = eventData)
