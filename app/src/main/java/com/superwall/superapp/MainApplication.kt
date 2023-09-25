@@ -6,9 +6,11 @@ import android.util.Log
 import com.android.billingclient.api.*
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
+import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
 import com.superwall.sdk.delegate.SubscriptionStatus
+import com.superwall.sdk.delegate.SuperwallDelegate
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.identity.identify
 import com.superwall.sdk.identity.setUserAttributes
@@ -139,7 +141,7 @@ class PurchaseControllerImpl(var context: Context) : PurchaseController, Purchas
     }
 }
 
-class MainApplication : android.app.Application() {
+class MainApplication : android.app.Application(), SuperwallDelegate {
     override fun onCreate() {
         super.onCreate()
 
@@ -147,7 +149,20 @@ class MainApplication : android.app.Application() {
 
         val purchaseController =  PurchaseControllerImpl(this)
 
-        Superwall.configure(this, "pk_d1f0959f70c761b1d55bb774a03e22b2b6ed290ce6561f85", purchaseController)
+
+        /*
+        Copy and paste the following API keys to switch between apps.
+        App API Keys:
+            Android Tests: pk_d1f0959f70c761b1d55bb774a03e22b2b6ed290ce6561f85
+            UITest (default): pk_5f6d9ae96b889bc2c36ca0f2368de2c4c3d5f6119aacd3d2
+         */
+
+        Superwall.configure(
+            this,
+            "pk_d1f0959f70c761b1d55bb774a03e22b2b6ed290ce6561f85",
+            purchaseController
+        )
+        Superwall.instance.delegate = this
 //
 //        // TODO: Fix this so we don't need to make the user set this
         Superwall.instance.setSubscriptionStatus(SubscriptionStatus.INACTIVE)
@@ -164,7 +179,17 @@ class MainApplication : android.app.Application() {
 //        Superwall.instance.register("present_data")
     }
 
-    fun invokeRegister(event: String = "campaign_trigger") {
-        Superwall.instance.register(event, mapOf("test_key" to "test_value"))
+    fun invokeRegister(
+        event: String = "campaign_trigger",
+        params: Map<String, Any>? = null
+    ) {
+        Superwall.instance.register(event, params)
+    }
+
+    override suspend fun handleSuperwallEvent(withInfo: SuperwallEventInfo) {
+        println("\n!! SuperwallDelegate !! \n" +
+                "\tEvent name:" + withInfo.event.rawName + "" +
+                ",\n\tParams:" + withInfo.params + "\n"
+        )
     }
 }

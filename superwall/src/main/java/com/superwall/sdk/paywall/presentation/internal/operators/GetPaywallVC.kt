@@ -21,7 +21,7 @@ import com.superwall.sdk.paywall.vc.PaywallViewController
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 
-suspend fun Superwall.getPaywallViewController(
+internal suspend fun Superwall.getPaywallViewController(
     request: PresentationRequest,
     rulesOutcome: RuleEvaluationOutcome,
     debugInfo: Map<String, Any>,

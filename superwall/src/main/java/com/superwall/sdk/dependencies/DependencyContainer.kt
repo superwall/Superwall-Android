@@ -60,6 +60,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
+import org.json.JSONObject
 
 class DependencyContainer(
     val context: Context,
@@ -343,7 +344,7 @@ class DependencyContainer(
         event: EventData?,
         computedPropertyRequests: List<ComputedPropertyRequest>
     ): Map<String, Any> {
-        val userAttributes = identityManager.userAttributes.toMutableMap()
+        val userAttributes = identityManager.getUserAttributes().toMutableMap()
         userAttributes.put("isLoggedIn", identityManager.isLoggedIn)
 
         val deviceAttributes = deviceHelper.getDeviceAttributes(
@@ -351,13 +352,11 @@ class DependencyContainer(
             computedPropertyRequests = computedPropertyRequests
         )
 
-        val result = mapOf(
+        return mapOf(
             "user" to userAttributes,
             "device" to deviceAttributes,
             "params" to (event?.parameters ?: "")
         )
-
-        return result
     }
 
     override fun makeFeatureFlags(): FeatureFlags? {
@@ -392,7 +391,7 @@ class DependencyContainer(
         val variables = Variables(
             productVariables = productVariables ?: listOf<ProductVariable>(),
             params = event?.parameters ?: emptyMap(),
-            userAttributes = identityManager.userAttributes,
+            userAttributes = identityManager.getUserAttributes(),
             templateDeviceDictionary = templateDeviceDictionary
         ).templated()
 

@@ -5,22 +5,22 @@ import com.superwall.sdk.paywall.presentation.PaywallInfo
 import java.net.URL
 
 interface SuperwallDelegate {
-    fun subscriptionStatusDidChange(to: SubscriptionStatus)
-    suspend fun handleSuperwallEvent(withInfo: SuperwallEventInfo)
-    suspend fun handleCustomPaywallAction(withName: String)
-    suspend fun willDismissPaywall(withInfo: PaywallInfo)
-    suspend fun willPresentPaywall(withInfo: PaywallInfo)
-    suspend fun didDismissPaywall(withInfo: PaywallInfo)
-    suspend fun didPresentPaywall(withInfo: PaywallInfo)
-    suspend fun paywallWillOpenURL(url: URL)
-    suspend fun paywallWillOpenDeepLink(url: URL)
+    fun subscriptionStatusDidChange(to: SubscriptionStatus) {}
+    suspend fun handleSuperwallEvent(withInfo: SuperwallEventInfo) {}
+    suspend fun handleCustomPaywallAction(withName: String) {}
+    suspend fun willDismissPaywall(withInfo: PaywallInfo) {}
+    suspend fun willPresentPaywall(withInfo: PaywallInfo) {}
+    suspend fun didDismissPaywall(withInfo: PaywallInfo) {}
+    suspend fun didPresentPaywall(withInfo: PaywallInfo) {}
+    suspend fun paywallWillOpenURL(url: URL) {}
+    suspend fun paywallWillOpenDeepLink(url: URL) {}
     suspend fun handleLog(
         level: String,
         scope: String,
         message: String?,
         info: Map<String, Any>?,
         error: Throwable?
-    )
+    ) {}
 }
 
 // Default implementations for all SuperwallDelegate methods

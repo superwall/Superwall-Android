@@ -60,7 +60,13 @@ class MainActivity : AppCompatActivity() {
             startActivity(intent)
         }
 
-        //
+        // UITest button
+        val uiTestButton: Button = findViewById(R.id.uiTest)
+        uiTestButton.setOnClickListener {
+            val intent = Intent(this, UITestActivity::class.java)
+            startActivity(intent)
+        }
+        
         val devicePropertiesTestButton: Button = findViewById(R.id.devicePropertiesTest)
         devicePropertiesTestButton.setOnClickListener {
             val app = application as? MainApplication
