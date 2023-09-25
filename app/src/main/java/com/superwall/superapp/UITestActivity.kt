@@ -66,6 +66,7 @@ fun UITestTable() {
         UITestHandler.test22Info to { scope.launch { UITestHandler.test22() } },
         UITestHandler.test23Info to { scope.launch { UITestHandler.test23() } },
         UITestHandler.test24Info to { scope.launch { UITestHandler.test24() } },
+        UITestHandler.test25Info to { scope.launch { UITestHandler.test25() } },
         UITestHandler.test33Info to { scope.launch { UITestHandler.test33() } },
         UITestHandler.test34Info to { scope.launch { UITestHandler.test34() } },
         UITestHandler.test62Info to { scope.launch { UITestHandler.test62() } },
