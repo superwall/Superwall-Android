@@ -110,7 +110,17 @@ class PurchaseControllerImpl(var context: Context) : PurchaseController, Purchas
             if (p1 != null) {
                 for (purchase in p1) {
                     println("!! (from app) purchase: $purchase")
-                    purchaseResults.value = PurchaseResult.Purchased()
+
+                    // Acknowledge the purchase
+                    val acknowledgePurchaseParams = AcknowledgePurchaseParams.newBuilder()
+                        .setPurchaseToken(purchase.purchaseToken)
+                        .build()
+
+                    billingClient.acknowledgePurchase(acknowledgePurchaseParams) {
+                        println("!! (from app) acknowledgePurchase: $it")
+                        purchaseResults.value = PurchaseResult.Purchased()
+                    }
+
                 }
             } else {
                 print("!! (from app) purchase failed: ${p0.responseCode}")
