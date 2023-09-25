@@ -20,6 +20,58 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
+class MainApplication : android.app.Application(), SuperwallDelegate {
+    override fun onCreate() {
+        super.onCreate()
+
+//        // Superwall Android
+
+        val purchaseController =  PurchaseControllerImpl(this)
+
+
+        /*
+        Copy and paste the following API keys to switch between apps.
+        App API Keys:
+            Android Tests: pk_d1f0959f70c761b1d55bb774a03e22b2b6ed290ce6561f85
+            UITest (default): pk_5f6d9ae96b889bc2c36ca0f2368de2c4c3d5f6119aacd3d2
+         */
+
+        Superwall.configure(
+            this,
+            "pk_d1f0959f70c761b1d55bb774a03e22b2b6ed290ce6561f85",
+            purchaseController
+        )
+        Superwall.instance.delegate = this
+//
+//        // TODO: Fix this so we don't need to make the user set this
+        Superwall.instance.setSubscriptionStatus(SubscriptionStatus.INACTIVE)
+//        invokeRegister()
+
+//        // UI-Tests
+//        Superwall.configure(this, "pk_5f6d9ae96b889bc2c36ca0f2368de2c4c3d5f6119aacd3d2")
+//
+//        // TODO: Fix this so we don't need to make the user set this
+//        Superwall.instance.setSubscriptionStatus(SubscriptionStatus.Inactive)
+//
+//        // Test 0
+//        Superwall.instance.setUserAttributes(mapOf("first_name" to "Jack"))
+//        Superwall.instance.register("present_data")
+    }
+
+    fun invokeRegister(
+        event: String = "campaign_trigger",
+        params: Map<String, Any>? = null
+    ) {
+        Superwall.instance.register(event, params)
+    }
+
+    override suspend fun handleSuperwallEvent(withInfo: SuperwallEventInfo) {
+        println("\n!! SuperwallDelegate !! \n" +
+                "\tEvent name:" + withInfo.event.rawName + "" +
+                ",\n\tParams:" + withInfo.params + "\n"
+        )
+    }
+}
 
 class PurchaseControllerImpl(var context: Context) : PurchaseController, PurchasesUpdatedListener {
 
@@ -108,7 +160,17 @@ class PurchaseControllerImpl(var context: Context) : PurchaseController, Purchas
             if (p1 != null) {
                 for (purchase in p1) {
                     println("!! (from app) purchase: $purchase")
-                    purchaseResults.value = PurchaseResult.Purchased()
+
+                    // Acknowledge the purchase
+                    val acknowledgePurchaseParams = AcknowledgePurchaseParams.newBuilder()
+                        .setPurchaseToken(purchase.purchaseToken)
+                        .build()
+
+                    billingClient.acknowledgePurchase(acknowledgePurchaseParams) {
+                        println("!! (from app) acknowledgePurchase: $it")
+                        purchaseResults.value = PurchaseResult.Purchased()
+                    }
+
                 }
             } else {
                 print("!! (from app) purchase failed: ${p0.responseCode}")
@@ -134,58 +196,5 @@ class PurchaseControllerImpl(var context: Context) : PurchaseController, Purchas
             purchaseResults.value = PurchaseResult.Failed(Exception("Purchase failed"))
         }
 
-    }
-}
-
-class MainApplication : android.app.Application(), SuperwallDelegate {
-    override fun onCreate() {
-        super.onCreate()
-
-//        // Superwall Android
-
-        val purchaseController =  PurchaseControllerImpl(this)
-
-
-        /*
-        Copy and paste the following API keys to switch between apps.
-        App API Keys:
-            Android Tests: pk_d1f0959f70c761b1d55bb774a03e22b2b6ed290ce6561f85
-            UITest (default): pk_5f6d9ae96b889bc2c36ca0f2368de2c4c3d5f6119aacd3d2
-         */
-
-        Superwall.configure(
-            this,
-            "pk_d1f0959f70c761b1d55bb774a03e22b2b6ed290ce6561f85",
-            purchaseController
-        )
-        Superwall.instance.delegate = this
-//
-//        // TODO: Fix this so we don't need to make the user set this
-        Superwall.instance.setSubscriptionStatus(SubscriptionStatus.INACTIVE)
-//        invokeRegister()
-
-//        // UI-Tests
-//        Superwall.configure(this, "pk_5f6d9ae96b889bc2c36ca0f2368de2c4c3d5f6119aacd3d2")
-//
-//        // TODO: Fix this so we don't need to make the user set this
-//        Superwall.instance.setSubscriptionStatus(SubscriptionStatus.Inactive)
-//
-//        // Test 0
-//        Superwall.instance.setUserAttributes(mapOf("first_name" to "Jack"))
-//        Superwall.instance.register("present_data")
-    }
-
-    fun invokeRegister(
-        event: String = "campaign_trigger",
-        params: Map<String, Any>? = null
-    ) {
-        Superwall.instance.register(event, params)
-    }
-
-    override suspend fun handleSuperwallEvent(withInfo: SuperwallEventInfo) {
-        println("\n!! SuperwallDelegate !! \n" +
-                "\tEvent name:" + withInfo.event.rawName + "" +
-                ",\n\tParams:" + withInfo.params + "\n"
-        )
     }
 }
