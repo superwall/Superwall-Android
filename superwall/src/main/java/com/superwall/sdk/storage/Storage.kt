@@ -6,84 +6,100 @@ import com.superwall.sdk.analytics.internal.TrackingResult
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.Trackable
-import com.superwall.sdk.dependencies.DeviceInfoFactory
+import com.superwall.sdk.dependencies.DeviceHelperFactory
+import com.superwall.sdk.dependencies.HasExternalPurchaseControllerFactory
 import com.superwall.sdk.misc.sdkVersion
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.storage.core_data.CoreDataManager
-import com.superwall.sdk.storage.keys.*
-import com.superwall.sdk.storage.memory.LRUCache
-import com.superwall.sdk.storage.memory.PerpetualCache
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.*
+import java.util.Date
 
 open class Storage(
-    private val context: Context,
-    private val factory: DeviceInfoFactory,
+    context: Context,
+    private val factory: Storage.Factory,
+    /// The disk cache.
+    private val cache: Cache = Cache(context = context),
+    /// The interface that manages core data.
+    val coreDataManager: CoreDataManager = CoreDataManager()
 ) {
+    interface Factory: DeviceHelperFactory, HasExternalPurchaseControllerFactory {}
 
-    public val coreDataManager: CoreDataManager = CoreDataManager()
+    /// The API key, set on configure.
+    var apiKey: String = ""
 
-    public val cache: Cache = Cache(
-        context = context, config = CacheHelperConfiguration(
-            memoryCache = LRUCache(PerpetualCache<String, ByteArray>(), 1000)
-        )
-    )
+    /// The API key for debugging, set when handling a deep link.
+    var debugKey: String = ""
 
-    var apiKey = ""
-    var debugKey = ""
-    private val queue = Dispatchers.IO
-
-    @Volatile
+    /// Indicates whether first seen has been tracked.
+    var didTrackFirstSeen: Boolean
+        get() = runBlocking(queue) {
+            _didTrackFirstSeen
+        }
+        set(value) {
+            CoroutineScope(queue).launch {
+                _didTrackFirstSeen = value
+            }
+        }
     private var _didTrackFirstSeen: Boolean = false
 
-    var didTrackFirstSeen: Boolean
-        get() = _didTrackFirstSeen
-        set(value) {
-            _didTrackFirstSeen = value
-        }
-
-    @Volatile
-    private var _didTrackFirstSession: Boolean = if (_didTrackFirstSeen) {
-        true
-    } else {
-        cache.didTrackFirstSession.get()?.didTrackFirstSession ?: false
-    }
-
+    /// Indicates whether first seen has been tracked.
     var didTrackFirstSession: Boolean
-        get() = _didTrackFirstSession
-        set(value) {
-            _didTrackFirstSession = value
+        get() = runBlocking(queue) {
+            _didTrackFirstSession
         }
+        set(value) {
+            CoroutineScope(queue).launch {
+                _didTrackFirstSession = value
+            }
+        }
+    private var _didTrackFirstSession: Boolean = false
 
-    //
-    var neverCalledStaticConfig = false
+    /// Indicates whether static config hasn't been called before.
+    ///
+    /// Users upgrading from older SDK versions will not have called static config.
+    /// This means that we'll need to wait for assignments before firing triggers.
+    var neverCalledStaticConfig: Boolean = false
 
-    //
-    @Volatile
+    /// The confirmed assignments for the user loaded from the cache.
+    private var p_confirmedAssignments: Map<ExperimentID, Experiment.Variant>?
+        get() = runBlocking(queue) {
+            _confirmedAssignments
+        }
+        set(value) {
+            CoroutineScope(queue).launch {
+                _confirmedAssignments = value
+            }
+        }
     private var _confirmedAssignments: Map<ExperimentID, Experiment.Variant>? = null
 
-    private var confirmedAssignments: Map<ExperimentID, Experiment.Variant>?
-        get() = _confirmedAssignments
-        set(value) {
-            _confirmedAssignments = value
-        }
+    private val queue = newSingleThreadContext("com.superwall.storage")
 
-    //
-    suspend fun configure(apiKey: String) {
+    init {
+        _didTrackFirstSeen = cache.read(DidTrackFirstSeen) == true
+
+        // If we've already tracked firstSeen, then it can't be the first session. Useful for those upgrading.
+        if (_didTrackFirstSeen) {
+            _didTrackFirstSession = true
+        } else {
+            _didTrackFirstSession = cache.read(DidTrackFirstSession) == true
+        }
+    }
+
+    fun configure(apiKey: String) {
         updateSdkVersion()
         this.apiKey = apiKey
     }
 
-
-    private suspend fun updateSdkVersion() {
+    /// Checks to see whether a user has upgraded from normal to static config.
+    /// This blocks triggers until assignments is returned.
+    private fun updateSdkVersion() {
         val actualSdkVersion = sdkVersion
-        val previousSdkVersion = cache.sdkVersion.get()
+        val previousSdkVersion = get(SdkVersion)
 
-        if (actualSdkVersion != previousSdkVersion?.sdkVersion) {
-            cache.sdkVersion.set(SdkVersion(actualSdkVersion))
+        if (actualSdkVersion != previousSdkVersion) {
+            save(actualSdkVersion, SdkVersion)
         }
 
         if (previousSdkVersion == null) {
@@ -91,84 +107,102 @@ open class Storage(
         }
     }
 
-    //
-    suspend fun reset() {
+    /// Clears data that is user specific.
+    fun reset() {
         coreDataManager.deleteAllEntities()
         cache.cleanUserFiles()
 
-        withContext(queue) {
+        CoroutineScope(queue).launch {
             _confirmedAssignments = null
             _didTrackFirstSeen = false
         }
         recordFirstSeenTracked()
     }
 
-    //
-    suspend fun recordFirstSeenTracked() {
-        withContext(queue) {
-            if (_didTrackFirstSeen) {
-                return@withContext
+    //region Custom
+
+    /// Tracks and stores first seen for the user.
+    fun recordFirstSeenTracked() {
+        CoroutineScope(queue).launch {
+            if (_didTrackFirstSeen) return@launch
+
+            CoroutineScope(Dispatchers.IO).launch {
+                Superwall.instance.track(InternalSuperwallEvent.FirstSeen())
             }
 
-            Superwall.instance.track(InternalSuperwallEvent.FirstSeen())
-            cache.didTrackFirstSeen.set(DidTrackFirstSeen(true))
+            save(true, DidTrackFirstSeen)
             _didTrackFirstSeen = true
         }
     }
 
-    suspend fun recordFirstSessionTracked() {
-        withContext(queue) {
-            if (_didTrackFirstSession) {
-                return@withContext
-            }
+    fun recordFirstSessionTracked() {
+        CoroutineScope(queue).launch {
+            if (_didTrackFirstSession) return@launch
 
-            cache.didTrackFirstSession.set(DidTrackFirstSession(true))
+            save(true, DidTrackFirstSession)
             _didTrackFirstSession = true
         }
     }
 
-    fun recordAppInstall(
-        trackEvent: suspend (Trackable) -> TrackingResult = { Superwall.instance.track(it) }
-    ) {
-        val didTrackAppInstall = cache.didTrackAppInstall.get()?.didTrackAppInstall ?: false
+    /// Records the app install
+    fun recordAppInstall(trackEvent: suspend (Trackable) -> TrackingResult) {
+        val didTrackAppInstall = get(DidTrackAppInstall) ?: false
         if (didTrackAppInstall) {
             return
         }
 
-//        withContext(queue) {
+        val hasExternalPurchaseController = factory.makeHasExternalPurchaseController()
+        val deviceInfo = factory.makeDeviceInfo()
+
         CoroutineScope(Dispatchers.IO).launch {
-            val deviceInfo = factory.makeDeviceInfo()
-            val event =
-                InternalSuperwallEvent.AppInstall(appInstalledAtString = deviceInfo.appInstalledAtString)
+            val event = InternalSuperwallEvent.AppInstall(
+                appInstalledAtString = deviceInfo.appInstalledAtString,
+                hasExternalPurchaseController = hasExternalPurchaseController
+            )
             trackEvent(event)
         }
-        cache.didTrackAppInstall.set(DidTrackAppInstall(true))
+        save(true, DidTrackAppInstall)
     }
 
-    //    fun clearCachedSessionEvents() {
-//        // TODO: implement
-////        cache.delete(TriggerSessions::class)
-////        cache.delete(Transactions::class)
-//    }
-//
-//    fun trackPaywallOpen() {
-//        val totalPaywallViews = get(TotalPaywallViews::class) ?: 0
-//        save(totalPaywallViews + 1, TotalPaywallViews::class)
-//        save(Date(), LastPaywallView::class)
-//    }
-//
-    open suspend fun saveConfirmedAssignments(assignments: Map<ExperimentID, Experiment.Variant>) {
-        cache.confirmedAssignments.set(ConfirmedAssignments(assignments))
-        confirmedAssignments = assignments
+    open fun clearCachedSessionEvents() {
+        cache.delete(TriggerSessions)
+        cache.delete(Transactions)
     }
 
-    //
-    open suspend fun getConfirmedAssignments(): Map<ExperimentID, Experiment.Variant> {
-        if (confirmedAssignments != null) {
-            return confirmedAssignments!!
+    fun trackPaywallOpen() {
+        val totalPaywallViews = get(TotalPaywallViews) ?: 0
+        save(totalPaywallViews + 1, TotalPaywallViews)
+        save(Date(), LastPaywallView)
+    }
+
+    open fun saveConfirmedAssignments(assignments: Map<ExperimentID, Experiment.Variant>) {
+        save(assignments, ConfirmedAssignments)
+        p_confirmedAssignments = assignments
+    }
+
+    open fun getConfirmedAssignments(): Map<ExperimentID, Experiment.Variant> {
+        p_confirmedAssignments?.let {
+            return it
+        } ?: run {
+            val assignments = get(ConfirmedAssignments) ?: emptyMap()
+            p_confirmedAssignments = assignments
+            return assignments
         }
-        val assignments = cache.confirmedAssignments.get()
-        confirmedAssignments = assignments?.assignments ?: emptyMap()
-        return confirmedAssignments!!
     }
+
+    //endregion
+
+    //region Cache Reading & Writing
+
+    fun <T> get(storable: Storable<T>): T? {
+        return cache.read(storable)
+    }
+
+    fun <T: Any> save(data: T, storable: Storable<T>) {
+        cache.write(storable, data = data)
+    }
+
+    //endregion
 }
+
+

@@ -23,6 +23,7 @@ import com.superwall.sdk.store.coordinator.ProductsFetcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonObject
 import org.json.JSONObject
 
 /*
@@ -124,7 +125,7 @@ class StoreKitManager(
             output.productsById[product.id]?.let { storeProduct ->
                 ProductVariable(
                     type = product.type,
-                    attributes = JSONObject(storeProduct.attributes)
+                    attributes = storeProduct.attributes
                 )
             }
         }

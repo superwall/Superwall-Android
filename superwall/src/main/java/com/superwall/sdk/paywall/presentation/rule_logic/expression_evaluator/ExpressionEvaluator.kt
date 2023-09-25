@@ -12,9 +12,13 @@ import com.superwall.sdk.dependencies.RuleAttributesFactory
 import com.superwall.sdk.misc.runOnUiThread
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.triggers.TriggerRule
-import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
+import com.superwall.sdk.models.triggers.TriggerRuleOutcome
+import com.superwall.sdk.models.triggers.UnmatchedRule
 import com.superwall.sdk.storage.Storage
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 class ExpressionEvaluator(
@@ -45,102 +49,85 @@ class ExpressionEvaluator(
 
     suspend fun evaluateExpression(
         rule: TriggerRule,
-        eventData: EventData,
-        isPreemptive: Boolean
-    ): Boolean {
+        eventData: EventData
+    ): TriggerRuleOutcome {
         // Expression matches all
         if (rule.expressionJs == null && rule.expression == null) {
-            val shouldFire = shouldFire(rule.occurrence, ruleMatched = true, isPreemptive)
-            return shouldFire
+            return tryToMatchOccurrence(rule, true)
         }
 
+        val base64Params = getBase64Params(rule, eventData) ?: return TriggerRuleOutcome.noMatch(UnmatchedRule.Source.EXPRESSION, rule.experiment.id)
 
-//        jsCtx.exceptionHandler = { _, value ->
-//            val stackTraceString = value?.getProperty("stack")?.toString()
-//            val lineNumber = value?.getProperty("line")
-//            val columnNumber = value?.getProperty("column")
-//            val moreInfo = "In method $stackTraceString, Line number in file: $lineNumber, column: $columnNumber"
-//            Logger.debug(
-//                logLevel = LogLevel.error,
-//                scope = LogScope.events,
-//                message = "JS ERROR: $value $moreInfo",
-//                info = null,
-//                error = null
-//            )
-//        }
-
-        val postfix = getPostfix(rule, eventData)
-
-        println("postfix: $postfix")
-
-//        println("!! SDKJS: $SDKJS")
-
-
-        var deffered: CompletableDeferred<Boolean> = CompletableDeferred()
+        var deferred: CompletableDeferred<TriggerRuleOutcome> = CompletableDeferred()
         runOnUiThread {
             sharedWebView!!.evaluateJavascript(
-                SDKJS + "\n " + postfix,
+                SDKJS + "\n " + base64Params,
                 ValueCallback<String?> { result ->
                     println("!! evaluateJavascript result: $result")
 
-                    val isMatched = result?.toString() == "true"
-                    val shouldFire = shouldFire(rule.occurrence, isMatched, isPreemptive)
-                    deffered.complete(shouldFire)
+                    if (result == null) {
+                        deferred.complete(TriggerRuleOutcome.noMatch(UnmatchedRule.Source.EXPRESSION, rule.experiment.id))
+                    } else {
+                        val expressionMatched = result == "true"
+
+                        CoroutineScope(Dispatchers.IO).launch {
+                            val ruleMatched = tryToMatchOccurrence(rule, expressionMatched)
+                            deferred.complete(ruleMatched)
+                        }
+                    }
                 })
         }
 
-        return deffered.await()
+        return deferred.await()
     }
 
-    private suspend fun getPostfix(rule: TriggerRule, eventData: EventData): String? {
-        val jsonAttributes = factory.makeRuleAttributes(event = eventData, computedPropertyRequests = rule.computedPropertyRequests)
+    private suspend fun getBase64Params(
+        rule: TriggerRule,
+        eventData: EventData
+    ): String? {
+        val jsonAttributes = factory.makeRuleAttributes(eventData, rule.computedPropertyRequests)
 
-        return when {
-            rule.expressionJs != null -> {
-                val base64Params = JavascriptExpressionEvaluatorParams(
-                    expressionJs = rule.expressionJs,
-                    values = jsonAttributes
-                ).toBase64Input()
-
-
-                base64Params?.let { "\n SuperwallSDKJS.evaluateJS64('$it');" }
+        rule.expressionJs?.let { expressionJs ->
+            JavascriptExpressionEvaluatorParams(expressionJs, JSONObject(jsonAttributes)).toBase64Input()?.let { base64Params ->
+                return "\n SuperwallSDKJS.evaluateJS64('$base64Params');"
             }
-            rule.expression != null -> {
-                val base64Params = LiquidExpressionEvaluatorParams(
-                    expression = rule.expression,
-                    values = jsonAttributes
-                ).toBase64Input()
-
-                base64Params?.let { "\n SuperwallSDKJS.evaluate64('$it');" }
-            }
-            else -> null
         }
+
+        rule.expression?.let { expression ->
+            LiquidExpressionEvaluatorParams(expression, JSONObject(jsonAttributes)).toBase64Input()?.let { base64Params ->
+                return "\n SuperwallSDKJS.evaluate64('$base64Params');"
+            }
+        }
+
+        return null
     }
 
-    fun shouldFire(
-        occurrence: TriggerRuleOccurrence?,
-        ruleMatched: Boolean,
-        isPreemptive: Boolean
-    ): Boolean {
-        if (ruleMatched) {
-            if (occurrence == null) {
+    suspend fun tryToMatchOccurrence(
+        rule: TriggerRule,
+        expressionMatched: Boolean
+    ): TriggerRuleOutcome {
+        if (expressionMatched) {
+            rule.occurrence?.let { occurrence ->
+                val count = storage.coreDataManager.countTriggerRuleOccurrences(occurrence) + 1
+                val shouldFire = count <= occurrence.maxCount
+
+                if (shouldFire) {
+                    return TriggerRuleOutcome.match(rule, occurrence)
+                } else {
+                    return TriggerRuleOutcome.noMatch(
+                        UnmatchedRule.Source.OCCURRENCE,
+                        rule.experiment.id
+                    )
+                }
+            } ?: run {
                 Logger.debug(
                     logLevel = LogLevel.debug,
                     scope = LogScope.paywallPresentation,
                     message = "No occurrence parameter found for trigger rule."
                 )
-                return true
+                return TriggerRuleOutcome.match(rule)
             }
-            val count = storage.coreDataManager.countTriggerRuleOccurrences(occurrence) + 1
-            val shouldFire = count <= occurrence.maxCount
-
-            if (shouldFire && !isPreemptive) {
-                storage.coreDataManager.save(triggerRuleOccurrence = occurrence, completion = null)
-            }
-
-            return shouldFire
         }
-
-        return false
+        return TriggerRuleOutcome.noMatch(UnmatchedRule.Source.EXPRESSION, rule.experiment.id)
     }
 }

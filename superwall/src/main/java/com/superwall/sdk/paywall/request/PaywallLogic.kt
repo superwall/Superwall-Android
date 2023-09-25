@@ -10,7 +10,6 @@ import com.superwall.sdk.models.product.Product
 import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.store.abstractions.product.StoreProduct
-import org.json.JSONObject
 
 data class ResponseIdentifiers(
     val paywallId: String?,
@@ -106,7 +105,7 @@ object PaywallLogic {
 
             val productVariable = ProductVariable(
                 type = product.type,
-                attributes = JSONObject(storeProduct.attributes)
+                attributes = storeProduct.attributes
             )
             productVariables.add(productVariable)
 

@@ -2,6 +2,7 @@ package com.superwall.sdk.paywall.presentation.internal.operators
 
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.dependencies.DependencyContainer
+import com.superwall.sdk.models.assignment.ConfirmableAssignment
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 
 /**
@@ -11,18 +12,23 @@ import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
  * paywall present even if the user is subscribed. We only know the overrides
  * at this point.
  */
-suspend fun Superwall.confirmPaywallAssignment(
+fun Superwall.confirmPaywallAssignment(
+    confirmableAssignment: ConfirmableAssignment?,
     request: PresentationRequest,
-    input: PresentablePipelineOutput,
+    isDebuggerLaunched: Boolean,
     dependencyContainer: DependencyContainer? = null
 ) {
-    val dependencyContainer = dependencyContainer ?: this.dependencyContainer
+    if (!request.flags.type.couldPresent) {
+        return
+    }
+    val actualDependencyContainer = dependencyContainer ?: this.dependencyContainer
     // Debuggers shouldn't confirm assignments.
-    if (request.flags.isDebuggerLaunched) {
+    if (isDebuggerLaunched) {
         return
     }
 
-    input.confirmableAssignment?.let { confirmableAssignment ->
-        dependencyContainer.configManager.confirmAssignment(confirmableAssignment)
+    confirmableAssignment?.let {
+        actualDependencyContainer.configManager.confirmAssignment(it)
     }
 }
+

@@ -6,23 +6,17 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class Experiment(
-
-
     @SerialName("experiment_id")
     val id: String,
 
     @SerialName("trigger_experiment_group_id")
     val groupId: String,
 
-//    @Serializable(with = VariantSerializer::class)
     val variant: Variant
 ) {
-
     @Serializable
     data class Variant(
         val id: String,
-
-//    @Serializable(with = VariantTypeSerializer::class)
         val type: VariantType,
 
         @SerialName("paywall_identifier")
@@ -33,7 +27,6 @@ data class Experiment(
             HOLDOUT
         }
     }
-
 
     companion object {
         fun presentById(id: String) = Experiment(

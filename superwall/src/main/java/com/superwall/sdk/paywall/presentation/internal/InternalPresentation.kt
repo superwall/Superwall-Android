@@ -6,6 +6,7 @@ import com.superwall.sdk.paywall.presentation.internal.operators.*
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.paywall.vc.PaywallViewController
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.flow.Flow
@@ -16,28 +17,34 @@ typealias PresentationSubject = MutableStateFlow<PresentationRequest?>
 typealias PaywallStatePublisher = Flow<PaywallState>
 typealias PresentablePipelineOutputPublisher = Flow<PresentablePipelineOutput>
 
-// I'm assuming that there are appropriate definitions for the functions used in `internallyPresent` that are not provided in the Swift code.
 fun Superwall.internallyPresent(
     request: PresentationRequest,
     publisher: MutableStateFlow<PaywallState> = MutableStateFlow(
         PaywallState.NotStarted()
     )
 ): PaywallStatePublisher {
-    GlobalScope.launch {
+    CoroutineScope(Dispatchers.IO).launch {
         try {
             checkNoPaywallAlreadyPresented(request, publisher)
-            waitToPresent(request)
-            val debugInfo = logPresentation(request, "Called Superwall.instance.register")
-            checkDebuggerPresentation(request, publisher)
-            val assignmentOutput = evaluateRules(request, debugInfo)
-            checkUserSubscription(request, assignmentOutput.triggerResult, publisher)
-            confirmHoldoutAssignment(assignmentOutput)
-            val triggerResultOutput = handleTriggerResult(request, assignmentOutput, publisher)
-            val paywallVcOutput = getPaywallViewController(request, triggerResultOutput, publisher)
 
-            val presentableOutput = checkPaywallIsPresentable(paywallVcOutput, request, publisher)
-            confirmPaywallAssignment(request, presentableOutput)
-            presentPaywall(request, presentableOutput, publisher)
+            val paywallComponents = getPaywallComponents(request, publisher)
+
+            // TODO: Guard
+            val presenter = paywallComponents.presenter!!
+//            guard let presenter = paywallComponents.presenter else {
+//                // Will never get here as an error would have already been thrown.
+//                return
+//            }
+
+            presentPaywallViewController(
+                paywallViewController = paywallComponents.viewController,
+                presenter = presenter,
+                unsavedOccurrence = paywallComponents.rulesOutcome.unsavedOccurrence,
+                debugInfo = paywallComponents.debugInfo,
+                request = request,
+                paywallStatePublisher = publisher
+            )
+
         } catch (e: Exception) {
             logErrors(request, e)
         }

@@ -1,31 +1,32 @@
 package com.superwall.sdk.paywall.vc.web_view.templating.models
 
-import com.superwall.sdk.misc.toMap
 import com.superwall.sdk.models.product.ProductType
 import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.models.serialization.AnySerializer
+import com.superwall.sdk.models.serialization.jsonStringToDictionary
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.modules.SerializersModule
-import org.json.JSONObject
 
+@Serializable
 data class Variables(
-    val user: JSONObject,
-    val device: JSONObject,
-    val params: JSONObject,
-    var primary: JSONObject = JSONObject(),
-    var secondary: JSONObject = JSONObject(),
-    var tertiary: JSONObject = JSONObject()
+    val user: Map<String, @Serializable(with = AnySerializer::class) Any?>,
+    val device: Map<String, @Serializable(with = AnySerializer::class) Any?>,
+    val params: Map<String, @Serializable(with = AnySerializer::class) Any?>,
+    var primary: Map<String, @Serializable(with = AnySerializer::class) Any?> = emptyMap(),
+    var secondary: Map<String, @Serializable(with = AnySerializer::class) Any?> = emptyMap(),
+    var tertiary: Map<String, @Serializable(with = AnySerializer::class) Any?> = emptyMap()
 ) {
     constructor(
         productVariables: List<ProductVariable>?,
-        params: JSONObject?,
-        userAttributes: Map<String, Any>,
-        templateDeviceDictionary: Map<String, Any>?
+        params: Map<String, Any?>?,
+        userAttributes: Map<String, Any?>,
+        templateDeviceDictionary: Map<String, Any?>?
     ) : this(
-        user = JSONObject(userAttributes),
-        device = JSONObject(templateDeviceDictionary ?: emptyMap<String, Any>()),
-        params = params ?: JSONObject()
+        user = userAttributes,
+        device = templateDeviceDictionary ?: emptyMap(),
+        params = params ?: emptyMap()
     ) {
         productVariables?.forEach { productVariable ->
             when (productVariable.type) {
@@ -36,24 +37,26 @@ data class Variables(
         }
     }
 
-    fun templated(): JSONObject {
-        val template = JSONObject()
-        template.put("event_name", "template_variables")
+    fun templated(): JsonVariables {
+        val variables = this.toDictionary()
 
-        val dict = dictionary() ?: emptyMap<String, Any>()
-        template.put("variables", dict)
-
-        return template
-    }
-
-    private fun dictionary(): Map<String, Any?>? {
-        return mapOf(
-            "user" to user.toMap(),
-            "device" to device.toMap(),
-            "params" to params.toMap(),
-            "primary" to primary.toMap(),
-            "secondary" to secondary.toMap(),
-            "tertiary" to tertiary.toMap()
+        return JsonVariables(
+            eventName = "template_variables",
+            variables = this
         )
     }
+
+    fun toDictionary(): Map<String, Any> {
+        val json = Json { encodeDefaults = true }
+        val jsonString = json.encodeToString(this)
+        val dictionary = jsonString.jsonStringToDictionary()
+        return dictionary
+    }
 }
+
+@Serializable
+data class JsonVariables (
+    @SerialName("event_name")
+    val eventName: String,
+    val variables: Variables
+)

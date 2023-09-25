@@ -1,5 +1,6 @@
 package com.superwall.sdk.billing
 
+import kotlinx.serialization.json.JsonObject
 import org.json.JSONObject
 import java.math.BigDecimal
 import java.util.*
@@ -8,7 +9,7 @@ interface StoreProductType {
     val productIdentifier: String
     val price: BigDecimal
     val subscriptionGroupIdentifier: String?
-    val swProductTemplateVariablesJson: JSONObject //Please replace this with your actual JSON type
+    val swProductTemplateVariablesJson: Map<String, Any>
 
     //    val swProduct: SWProduct //Please replace this with your actual SWProduct type
     val localizedPrice: String

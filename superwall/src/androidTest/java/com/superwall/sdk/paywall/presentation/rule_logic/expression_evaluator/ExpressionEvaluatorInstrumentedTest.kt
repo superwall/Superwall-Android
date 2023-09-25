@@ -1,12 +1,15 @@
 package com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator
 
+import ComputedPropertyRequest
 import androidx.test.platform.app.InstrumentationRegistry
 import com.superwall.sdk.dependencies.RuleAttributesFactory
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.triggers.Experiment
+import com.superwall.sdk.models.triggers.MatchedItem
 import com.superwall.sdk.models.triggers.TriggerRule
+import com.superwall.sdk.models.triggers.TriggerRuleOutcome
+import com.superwall.sdk.models.triggers.UnmatchedRule
 import com.superwall.sdk.models.triggers.VariantOption
-import com.superwall.sdk.paywall.presentation.rule_logic.RuleAttributes
 import com.superwall.sdk.storage.StorageMock
 import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
@@ -14,17 +17,18 @@ import org.junit.Test
 import java.util.*
 
 class RuleAttributeFactoryBuilder : RuleAttributesFactory {
-    override suspend fun makeRuleAttributes(): RuleAttributes {
-        return RuleAttributes(
-            user = mapOf(
+    override suspend fun makeRuleAttributes(
+        event: EventData?,
+        computedPropertyRequests: List<ComputedPropertyRequest>
+    ): Map<String, Any> {
+        return mapOf(
+            "user" to mapOf(
                 "id" to "123",
                 "email" to "test@gmail.com"
-            ),
-            device = mapOf()
+            )
         )
     }
 }
-
 
 class ExpressionEvaluatorInstrumentedTest {
 
@@ -41,36 +45,34 @@ class ExpressionEvaluatorInstrumentedTest {
             factory = ruleAttributes
         )
 
-        val result = expressionEvaluator.evaluateExpression(
-            rule = TriggerRule(
-                experimentId = "1",
-                experimentGroupId = "2",
-                variants = listOf(
-                    VariantOption(
-                        type = Experiment.Variant.VariantType.HOLDOUT,
-                        id = "3",
-                        percentage = 20,
-                        paywallId = null
-                    )
-                ),
-                expression = "user.id == '123'",
-                expressionJs = null,
+        val rule = TriggerRule(
+            experimentId = "1",
+            experimentGroupId = "2",
+            variants = listOf(
+                VariantOption(
+                    type = Experiment.Variant.VariantType.HOLDOUT,
+                    id = "3",
+                    percentage = 20,
+                    paywallId = null
+                )
             ),
+            expression = "user.id == '123'",
+            expressionJs = null,
+        )
+
+        val result = expressionEvaluator.evaluateExpression(
+            rule = rule,
             eventData = EventData(
                 name = "test",
-                parameters = mapOf(
-                    "id" to "123",
-                ),
+                parameters = mapOf("id" to "123"),
                 createdAt = Date()
-            ),
-            isPreemptive = true
+            )
         )
 
         println("result: $result")
 
-        assert(result == true)
+        assert(result == TriggerRuleOutcome.match(rule = rule))
     }
-
 
     @Test
     fun test_expression_evaluator_expression_js() = runTest {
@@ -118,33 +120,31 @@ class ExpressionEvaluatorInstrumentedTest {
             rule = trueRule,
             eventData = EventData(
                 name = "test",
-                parameters = mapOf(
-                    "id" to "123",
-                ),
+                parameters = mapOf("id" to "123"),
                 createdAt = Date()
             ),
-            isPreemptive = true
         )
-        assert(trueResult == true)
+        assert(trueResult == TriggerRuleOutcome.match(trueRule))
 
         var falseResult = expressionEvaluator.evaluateExpression(
             rule = falseRule,
             eventData = EventData(
                 name = "test",
-                parameters = mapOf(
-                    "id" to "123",
-                ),
+                parameters = mapOf("id" to "123"),
                 createdAt = Date()
             ),
-            isPreemptive = true
         )
-        assert(falseResult == false)
-    }
 
+        assert(
+            falseResult == TriggerRuleOutcome.noMatch(
+                source = UnmatchedRule.Source.EXPRESSION,
+                experimentId = "1"
+            )
+        )
+    }
 
     @Test
     fun multi_threaded() = runTest {
-
 
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val ruleAttributes = RuleAttributeFactoryBuilder()
@@ -192,12 +192,9 @@ class ExpressionEvaluatorInstrumentedTest {
                 rule = trueRule,
                 eventData = EventData(
                     name = "test",
-                    parameters = mapOf(
-                        "id" to "123",
-                    ),
+                    parameters = mapOf("id" to "123"),
                     createdAt = Date()
                 ),
-                isPreemptive = true
             )
         }
 
@@ -206,18 +203,23 @@ class ExpressionEvaluatorInstrumentedTest {
                 rule = falseRule,
                 eventData = EventData(
                     name = "test",
-                    parameters = mapOf(
-                        "id" to "123",
-                    ),
+                    parameters = mapOf("id" to "123"),
                     createdAt = Date()
                 ),
-                isPreemptive = true
             )
         }
 
         // Await all the results
         val results = listOf(trueResult.await(), falseResult.await())
-        assert(results == listOf(true, false))
+        val expectedResults = listOf(
+            TriggerRuleOutcome.Match(matchedItem = MatchedItem(rule = trueRule)),
+            TriggerRuleOutcome.noMatch(
+                source = UnmatchedRule.Source.EXPRESSION,
+                experimentId = "1"
+            )
+        )
+
+        assert(results == expectedResults)
     }
 
 
@@ -234,31 +236,31 @@ class ExpressionEvaluatorInstrumentedTest {
             factory = ruleAttributes
         )
 
-        val result = expressionEvaluator.evaluateExpression(
-            rule = TriggerRule(
-                experimentId = "1",
-                experimentGroupId = "2",
-                variants = listOf(
-                    VariantOption(
-                        type = Experiment.Variant.VariantType.HOLDOUT,
-                        id = "3",
-                        percentage = 20,
-                        paywallId = null
-                    )
-                ),
-                expression = null,
-                expressionJs = null,
+        val rule = TriggerRule(
+            experimentId = "1",
+            experimentGroupId = "2",
+            variants = listOf(
+                VariantOption(
+                    type = Experiment.Variant.VariantType.HOLDOUT,
+                    id = "3",
+                    percentage = 20,
+                    paywallId = null
+                )
             ),
+            expression = null,
+            expressionJs = null,
+        )
+
+        val result = expressionEvaluator.evaluateExpression(
+            rule = rule,
             eventData = EventData(
                 name = "test",
-                parameters = mapOf(
-                    "id" to "123",
-                ),
+                parameters = mapOf("id" to "123"),
                 createdAt = Date()
-            ),
-            isPreemptive = true
+            )
         )
-        assert(result == true)
+
+        assert(result == TriggerRuleOutcome.match(rule = rule))
     }
 }
 

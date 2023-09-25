@@ -1,9 +1,9 @@
 package com.superwall.sdk.paywall.vc.web_view.templating.models
 
+import com.superwall.sdk.models.serialization.jsonStringToDictionary
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonObject
 
 @Serializable
 data class DeviceTemplate(
@@ -39,11 +39,16 @@ data class DeviceTemplate(
     val localDateTime: String,
     val isSandbox: String,
     val subscriptionStatus: String,
-    val isFirstAppOpen: Boolean
+    val isFirstAppOpen: Boolean,
+    val sdkVersion: String,
+    val sdkVersionPadded: String,
+    val appBuildString: String,
+    val appBuildStringNumber: Int?
 ) {
     fun toDictionary(): Map<String, Any> {
         val json = Json { encodeDefaults = true }
         val jsonString = json.encodeToString(this)
-        return json.parseToJsonElement(jsonString).jsonObject.toMap()
+        val dictionary = jsonString.jsonStringToDictionary()
+        return dictionary
     }
 }

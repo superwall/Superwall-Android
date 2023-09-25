@@ -1,7 +1,7 @@
 package com.superwall.sdk.billing
 
 import com.android.billingclient.api.SkuDetails
-import org.json.JSONObject
+import kotlinx.serialization.json.JsonObject
 import java.math.BigDecimal
 import java.util.*
 
@@ -17,8 +17,8 @@ class GooglePlayStoreProduct(private val skuDetails: SkuDetails) : StoreProductT
     override val subscriptionGroupIdentifier: String?
         get() = null
 
-    override val swProductTemplateVariablesJson: JSONObject
-        get() = JSONObject() // Replace with actual JSON
+    override val swProductTemplateVariablesJson: Map<String, Any>
+        get() = emptyMap() // Replace with actual JSON
 
 //    override val swProduct: SWProduct
 //        get() = SWProduct() // Replace with actual SWProduct

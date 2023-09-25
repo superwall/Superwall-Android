@@ -56,6 +56,10 @@ data class Paywall(
     var swProductVariablesTemplate: List<ProductVariable>? = null,
     var paywalljsVersion: String? = null,
     var isFreeTrialAvailable: Boolean = false,
+
+    /// The source of the presentation request. Either 'implicit', 'getPaywall', 'register'.
+    var presentationSourceType: String? = null,
+
     var featureGating: FeatureGatingBehavior = FeatureGatingBehavior.NonGated,
 
     @SerialName("computedProperties")
@@ -97,7 +101,7 @@ data class Paywall(
 //    data class ProductVariable(val type: String, val attributes: Map<String, String>)
 
 
-    fun overrideProductsIfNeeded(paywall: Paywall) {
+    fun update(paywall: Paywall) {
         products = paywall.products
         productIds = paywall.productIds
         // TODO: Figure out if the products makes sense like this
@@ -106,6 +110,8 @@ data class Paywall(
         swProductVariablesTemplate = paywall.swProductVariablesTemplate
         isFreeTrialAvailable = paywall.isFreeTrialAvailable
         productsLoadingInfo = paywall.productsLoadingInfo
+        presentationSourceType = paywall.presentationSourceType
+        experiment = paywall.experiment
     }
 
     fun getInfo(fromEvent: EventData?, factory: TriggerSessionManagerFactory): PaywallInfo {

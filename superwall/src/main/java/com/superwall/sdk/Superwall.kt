@@ -29,7 +29,7 @@ import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import org.json.JSONObject
+import kotlinx.serialization.json.JsonObject
 import java.util.*
 
 public class Superwall(context: Context, apiKey: String, purchaseController: PurchaseController?) :
@@ -82,7 +82,7 @@ public class Superwall(context: Context, apiKey: String, purchaseController: Pur
     }
 
     protected var _subscriptionStatus: MutableStateFlow<SubscriptionStatus> = MutableStateFlow(
-        SubscriptionStatus.Unknown
+        SubscriptionStatus.UNKNOWN
     )
     val subscriptionStatus: StateFlow<SubscriptionStatus> get() = _subscriptionStatus
 
@@ -110,8 +110,10 @@ public class Superwall(context: Context, apiKey: String, purchaseController: Pur
 
         CoroutineScope(Dispatchers.IO).launch {
             dependencyContainer.storage.configure(apiKey = apiKey)
-            dependencyContainer.storage.recordAppInstall()
-            // Implictly wait
+            dependencyContainer.storage.recordAppInstall {
+                track(event = it)
+            }
+            // Implicitly wait
             dependencyContainer.configManager.fetchConfiguration()
             dependencyContainer.identityManager.configure()
 //
@@ -373,7 +375,7 @@ public class Superwall(context: Context, apiKey: String, purchaseController: Pur
 
         val eventData = EventData(
             name = forEvent,
-            parameters = JSONObject(parameters.eventParams),
+            parameters = parameters.eventParams,
             createdAt = eventCreatedAt
         )
 

@@ -11,87 +11,92 @@ import com.superwall.sdk.models.triggers.TriggerResult
 import com.superwall.sdk.paywall.presentation.internal.InternalPresentationLogic
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatusReason
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
+import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallSkippedReason
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
+import com.superwall.sdk.paywall.presentation.rule_logic.RuleEvaluationOutcome
 import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
 import com.superwall.sdk.paywall.vc.PaywallViewController
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 
-data class PaywallVcPipelineOutput(
-    val triggerResult: TriggerResult,
-    val debugInfo: Map<String, Any>,
-    val paywallViewController: PaywallViewController,
-    val confirmableAssignment: ConfirmableAssignment?
-)
-
 internal suspend fun Superwall.getPaywallViewController(
     request: PresentationRequest,
-    input: TriggerResultResponsePipelineOutput,
+    rulesOutcome: RuleEvaluationOutcome,
+    debugInfo: Map<String, Any>,
     paywallStatePublisher: MutableStateFlow<PaywallState>? = null,
     dependencyContainer: DependencyContainer? = null
-): PaywallVcPipelineOutput {
-    val dependencyContainer = dependencyContainer ?: this.dependencyContainer
-    val responseIdentifiers = ResponseIdentifiers(
-        paywallId = input.experiment.variant.paywallId,
-        experiment = input.experiment
+): PaywallViewController {
+    val experiment = getExperiment(
+        request = request,
+        rulesOutcome = rulesOutcome,
+        debugInfo = debugInfo,
+        paywallStatePublisher = paywallStatePublisher
     )
-    val paywallRequest = dependencyContainer.makePaywallRequest(
+
+    val container = dependencyContainer ?: this.dependencyContainer
+    val responseIdentifiers = ResponseIdentifiers(
+        paywallId = experiment.variant.paywallId,
+        experiment = experiment
+    )
+
+    var requestRetryCount = 6
+
+    val subscriptionStatus = request.flags.subscriptionStatus.first()
+    if (subscriptionStatus == SubscriptionStatus.ACTIVE) {
+        requestRetryCount = 0
+    }
+
+    val paywallRequest = container.makePaywallRequest(
         eventData = request.presentationInfo.eventData,
         responseIdentifiers = responseIdentifiers,
         overrides = PaywallRequest.Overrides(
             products = request.paywallOverrides?.products,
             isFreeTrial = request.presentationInfo.freeTrialOverride
         ),
-        isDebuggerLaunched = request.flags.isDebuggerLaunched
+        isDebuggerLaunched = request.flags.isDebuggerLaunched,
+        presentationSourceType = request.presentationSourceType,
+        retryCount = requestRetryCount
     )
-    println("!!paywallRequest: $paywallRequest")
-//    try {
-    val delegate = request.flags.type.paywallVcDelegateAdapter
-    println("!!delegate: $delegate")
-    val paywallViewController = dependencyContainer.paywallManager.getPaywallViewController(
-        request = paywallRequest,
-        isPreloading = false,
-        delegate = delegate
-    )
-    println("!!paywallViewController: $paywallViewController")
+    return try {
+        val isForPresentation = request.flags.type != PresentationRequestType.GetImplicitPresentationResult
+                && request.flags.type != PresentationRequestType.GetPresentationResult
+        val delegate = request.flags.type.paywallVcDelegateAdapter
 
-    val output = PaywallVcPipelineOutput(
-        triggerResult = input.triggerResult,
-        debugInfo = input.debugInfo,
-        paywallViewController = paywallViewController,
-        confirmableAssignment = input.confirmableAssignment
-    )
-    return output
-//    } catch (error: Exception) {
-//        println("!!Error: $error")
-//        when (request.flags.type) {
-//            is PresentationRequestType.GetImplicitPresentationResult,
-//            is PresentationRequestType.GetPresentationResult -> throw PaywallPresentationRequestStatusReason.NoPaywallViewController()
-//            is PresentationRequestType.Presentation,
-//            is PresentationRequestType.GetPaywallViewController -> {
-//                paywallStatePublisher?.let {
-//                    throw presentationFailure(error, request, input.debugInfo, it)
-//                } ?: throw error // Will never get here
-//            }
-//            else -> {
-//                // Will never get here
-//                throw error
-//            }
-//        }
-//    }
+        container.paywallManager.getPaywallViewController(
+            request = paywallRequest,
+            isForPresentation = isForPresentation,
+            isPreloading = false,
+            delegate = delegate
+        )
+
+        container.paywallManager.getPaywallViewController(
+            request = paywallRequest,
+            isForPresentation = isForPresentation,
+            isPreloading = false,
+            delegate = delegate
+        )
+    } catch (e: Exception) {
+        if (subscriptionStatus == SubscriptionStatus.ACTIVE) {
+            // TODO: throw userIsSubscribed
+//            throw userIsSubscribed(paywallStatePublisher)
+            throw presentationFailure(e, request, debugInfo, paywallStatePublisher)
+        } else {
+            throw presentationFailure(e, request, debugInfo, paywallStatePublisher)
+        }
+    }
 }
 
 private suspend fun Superwall.presentationFailure(
     error: Exception,
     request: PresentationRequest,
     debugInfo: Map<String, Any>,
-    paywallStatePublisher: MutableStateFlow<PaywallState>
+    paywallStatePublisher: MutableStateFlow<PaywallState>?
 ): Throwable {
     val subscriptionStatus = request.flags.subscriptionStatus.first()
     if (InternalPresentationLogic.userSubscribedAndNotOverridden(
-            isUserSubscribed = subscriptionStatus == SubscriptionStatus.Active,
+            isUserSubscribed = subscriptionStatus == SubscriptionStatus.ACTIVE,
             overrides = InternalPresentationLogic.UserSubscriptionOverrides(
                 isDebuggerLaunched = request.flags.isDebuggerLaunched,
                 shouldIgnoreSubscriptionStatus = request.paywallOverrides?.ignoreSubscriptionStatus,
@@ -99,8 +104,8 @@ private suspend fun Superwall.presentationFailure(
             )
         )
     ) {
-        paywallStatePublisher.emit(PaywallState.Skipped(PaywallSkippedReason.UserIsSubscribed()))
-        paywallStatePublisher.emit(PaywallState.Finalized())
+        paywallStatePublisher?.emit(PaywallState.Skipped(PaywallSkippedReason.UserIsSubscribed()))
+        paywallStatePublisher?.emit(PaywallState.Finalized())
         return PaywallPresentationRequestStatusReason.UserIsSubscribed()
     }
 
@@ -111,7 +116,7 @@ private suspend fun Superwall.presentationFailure(
         info = debugInfo,
         error = error
     )
-    paywallStatePublisher.emit(PaywallState.PresentationError(error))
-    paywallStatePublisher.emit(PaywallState.Finalized())
+    paywallStatePublisher?.emit(PaywallState.PresentationError(error))
+    paywallStatePublisher?.emit(PaywallState.Finalized())
     return PaywallPresentationRequestStatusReason.NoPaywallViewController()
 }

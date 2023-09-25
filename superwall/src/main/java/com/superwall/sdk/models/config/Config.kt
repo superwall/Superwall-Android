@@ -1,5 +1,6 @@
 package com.superwall.sdk.models.config
 
+import ComputedPropertyRequest
 import com.superwall.sdk.models.SerializableEntity
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.postback.PostbackRequest
@@ -26,6 +27,12 @@ data class Config(
         locales = localizationConfig.locales.map { it.locale }.toSet()
     }
 
+    val allComputedProperties: List<ComputedPropertyRequest>
+        get() = triggers.flatMap { trigger ->
+            trigger.rules.flatMap { rule ->
+                rule.computedPropertyRequests
+            }
+        }
 
     val featureFlags: FeatureFlags
         get() = FeatureFlags(
