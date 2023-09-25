@@ -7,43 +7,50 @@ import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.SessionEventsManager
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
-import com.superwall.sdk.delegate.InternalPurchaseResult
-import com.superwall.sdk.delegate.RestorationResult
-import com.superwall.sdk.dependencies.PurchaseManagerFactory
+import com.superwall.sdk.delegate.PurchaseResult
+import com.superwall.sdk.dependencies.TransactionVerifierFactory
+import com.superwall.sdk.misc.ActivityLifecycleTracker
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.vc.PaywallViewController
 import com.superwall.sdk.paywall.vc.delegate.PaywallLoadingState
 import com.superwall.sdk.store.StoreKitManager
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
-import com.superwall.sdk.store.transactions.purchasing.PurchaseManager
 import kotlinx.coroutines.*
 
 class TransactionManager(
     private val storeKitManager: StoreKitManager,
     private val sessionEventsManager: SessionEventsManager,
-    factory: PurchaseManagerFactory
+    private val activityLifecycleTracker: ActivityLifecycleTracker,
+    private val factory: TransactionVerifierFactory
 ) {
-    private val purchaseManager: PurchaseManager = factory.makePurchaseManager()
     private var lastPaywallViewController: PaywallViewController? = null
 
     suspend fun purchase(productId: String, paywallViewController: PaywallViewController) {
         print("purchase, $productId")
         val product = storeKitManager.productsById[productId] ?: return
 
+        val activity = activityLifecycleTracker.getCurrentActivity() ?: return
+        println("currentActivity: $activity")
+
         prepareToStartTransaction(product, paywallViewController)
 
-        val result = purchaseManager.purchase(product)
+        val result = storeKitManager.purchaseController.purchase(
+            activity,
+            product.rawStoreProduct.skuDetails
+        )
+
         when (result) {
-            is InternalPurchaseResult.Purchased -> {
-                didPurchase(product, paywallViewController, result.storeTransaction)
+            is PurchaseResult.Purchased -> {
+                didPurchase(product, paywallViewController)
             }
-            is InternalPurchaseResult.Failed -> {
+            is PurchaseResult.Failed -> {
                 when (val outcome = TransactionErrorLogic.handle(result.error)) {
                     is TransactionErrorLogic.Cancelled -> trackCancelled(
                         product,
                         paywallViewController
                     )
+
                     is TransactionErrorLogic.PresentAlert -> presentAlert(
                         Error(result.error),
                         product,
@@ -51,14 +58,12 @@ class TransactionManager(
                     )
                 }
             }
-            InternalPurchaseResult.Restored -> {
-                storeKitManager.processRestoration(
-                    RestorationResult.Restored(),
-                    paywallViewController
-                )
+            is PurchaseResult.Pending -> {
+                handlePendingTransaction(paywallViewController)
             }
-            InternalPurchaseResult.Pending -> handlePendingTransaction(paywallViewController)
-            InternalPurchaseResult.Cancelled -> trackCancelled(product, paywallViewController)
+            is PurchaseResult.Cancelled -> {
+                trackCancelled(product, paywallViewController)
+            }
         }
     }
 
@@ -66,31 +71,29 @@ class TransactionManager(
         product: StoreProduct,
         paywallViewController: PaywallViewController
     ) {
-        Logger.debug(
-            LogLevel.debug,
-            LogScope.paywallTransactions,
-            "Transaction Purchasing",
-            mapOf("paywall_vc" to paywallViewController),
-            null
-        )
+        GlobalScope.launch(Dispatchers.Default) {
+            Logger.debug(
+                LogLevel.debug,
+                LogScope.paywallTransactions,
+                "Transaction Purchasing",
+                mapOf("paywall_vc" to paywallViewController),
+                null
+            )
+        }
 
         val paywallInfo = paywallViewController.info
 
-        coroutineScope {
-            launch(Dispatchers.Default) {
-                sessionEventsManager.triggerSession.trackBeginTransaction(product)
-                val trackedEvent = InternalSuperwallEvent.Transaction(
-                    InternalSuperwallEvent.Transaction.State.Start(product),
-                    paywallInfo,
-                    product,
-                    null
-                )
-                Superwall.instance.track(trackedEvent)
-            }
+        sessionEventsManager.triggerSession.trackBeginTransaction(product)
+        val trackedEvent = InternalSuperwallEvent.Transaction(
+            InternalSuperwallEvent.Transaction.State.Start(product),
+            paywallInfo,
+            product,
+            null
+        )
+        Superwall.instance.track(trackedEvent)
 
-            withContext(Dispatchers.Main) {
-                paywallViewController.loadingState = PaywallLoadingState.LoadingPurchase()
-            }
+        withContext(Dispatchers.Main) {
+            paywallViewController.loadingState = PaywallLoadingState.LoadingPurchase()
         }
 
         lastPaywallViewController = paywallViewController
@@ -99,37 +102,39 @@ class TransactionManager(
     // ... Remaining functions translated in a similar fashion ...
     private suspend fun didPurchase(
         product: StoreProduct,
-        paywallViewController: PaywallViewController,
-        transaction: StoreTransactionType?
+        paywallViewController: PaywallViewController
     ) {
-        Logger.debug(
-            LogLevel.debug,
-            LogScope.paywallTransactions,
-            "Transaction Succeeded",
-            mapOf(
-                "product_id" to product.productIdentifier,
-                "paywall_vc" to paywallViewController
-            ),
-            null
+        GlobalScope.launch(Dispatchers.Default) {
+            Logger.debug(
+                LogLevel.debug,
+                LogScope.paywallTransactions,
+                "Transaction Succeeded",
+                mapOf(
+                    "product_id" to product.productIdentifier,
+                    "paywall_vc" to paywallViewController
+                ),
+                null
+            )
+        }
+
+        val transactionVerifier = factory.makeTransactionVerifier()
+        val transaction = transactionVerifier.getAndValidateLatestTransaction(
+            product.productIdentifier
         )
 
-        coroutineScope {
-            launch(Dispatchers.Default) {
-                transaction?.let {
-                    sessionEventsManager.enqueue(it)
-                }
-            }
+        transaction?.let {
+            sessionEventsManager.enqueue(it)
+        }
 
-            storeKitManager.loadPurchasedProducts()
+        storeKitManager.loadPurchasedProducts()
 
-            trackTransactionDidSucceed(transaction, product)
+        trackTransactionDidSucceed(transaction, product)
 
-            if (Superwall.instance.options.paywalls.automaticallyDismiss) {
-                Superwall.instance.dismiss(
-                    paywallViewController,
-                    PaywallResult.Purchased(product.productIdentifier)
-                )
-            }
+        if (Superwall.instance.options.paywalls.automaticallyDismiss) {
+            Superwall.instance.dismiss(
+                paywallViewController,
+                PaywallResult.Purchased(product.productIdentifier)
+            )
         }
     }
 
@@ -148,17 +153,17 @@ class TransactionManager(
                 ),
                 null
             )
-
-            val paywallInfo = paywallViewController.info
-            val trackedEvent = InternalSuperwallEvent.Transaction(
-                InternalSuperwallEvent.Transaction.State.Abandon(product),
-                paywallInfo,
-                product,
-                null
-            )
-            Superwall.instance.track(trackedEvent)
-            sessionEventsManager.triggerSession.trackTransactionAbandon()
         }
+
+        val paywallInfo = paywallViewController.info
+        val trackedEvent = InternalSuperwallEvent.Transaction(
+            InternalSuperwallEvent.Transaction.State.Abandon(product),
+            paywallInfo,
+            product,
+            null
+        )
+        Superwall.instance.track(trackedEvent)
+        sessionEventsManager.triggerSession.trackTransactionAbandon()
 
         withContext(Dispatchers.Main) {
             paywallViewController.loadingState = PaywallLoadingState.Ready()
@@ -166,32 +171,31 @@ class TransactionManager(
     }
 
     private suspend fun handlePendingTransaction(paywallViewController: PaywallViewController) {
-        Logger.debug(
-            LogLevel.debug,
-            LogScope.paywallTransactions,
-            "Transaction Pending",
-            mapOf("paywall_vc" to paywallViewController),
-            null
-        )
-
-        val paywallInfo = paywallViewController.info
-        coroutineScope {
-            launch(Dispatchers.Default) {
-                val trackedEvent = InternalSuperwallEvent.Transaction(
-                    InternalSuperwallEvent.Transaction.State.Fail(TransactionError.Pending("Needs parental approval")),
-                    paywallInfo,
-                    null,
-                    null
-                )
-                Superwall.instance.track(trackedEvent)
-                sessionEventsManager.triggerSession.trackPendingTransaction()
-            }
-
-            paywallViewController.presentAlert(
-                "Waiting for Approval",
-                "Thank you! This purchase is pending approval from your parent. Please try again once it is approved."
+        GlobalScope.launch(Dispatchers.Default) {
+            Logger.debug(
+                LogLevel.debug,
+                LogScope.paywallTransactions,
+                "Transaction Pending",
+                mapOf("paywall_vc" to paywallViewController),
+                null
             )
         }
+
+        val paywallInfo = paywallViewController.info
+
+        val trackedEvent = InternalSuperwallEvent.Transaction(
+            InternalSuperwallEvent.Transaction.State.Fail(TransactionError.Pending("Needs parental approval")),
+            paywallInfo,
+            null,
+            null
+        )
+        Superwall.instance.track(trackedEvent)
+        sessionEventsManager.triggerSession.trackPendingTransaction()
+
+        paywallViewController.presentAlert(
+            "Waiting for Approval",
+            "Thank you! This purchase is pending approval from your parent. Please try again once it is approved."
+        )
     }
 
     private suspend fun presentAlert(
@@ -199,39 +203,39 @@ class TransactionManager(
         product: StoreProduct,
         paywallViewController: PaywallViewController
     ) {
-        Logger.debug(
-            LogLevel.debug,
-            LogScope.paywallTransactions,
-            "Transaction Error",
-            mapOf(
-                "product_id" to product.productIdentifier,
-                "paywall_vc" to paywallViewController
-            ),
-            error
-        )
-
-        val paywallInfo = paywallViewController.info
-        coroutineScope {
-            launch(Dispatchers.Default) {
-                val trackedEvent = InternalSuperwallEvent.Transaction(
-                    InternalSuperwallEvent.Transaction.State.Fail(
-                        TransactionError.Failure(
-                            error.message ?: "", product
-                        )
-                    ),
-                    paywallInfo,
-                    product,
-                    null
-                )
-                Superwall.instance.track(trackedEvent)
-                sessionEventsManager.triggerSession.trackTransactionError()
-            }
-
-            paywallViewController.presentAlert(
-                "An error occurred",
-                error.message ?: "Unknown error"
+        GlobalScope.launch(Dispatchers.Default) {
+            Logger.debug(
+                LogLevel.debug,
+                LogScope.paywallTransactions,
+                "Transaction Error",
+                mapOf(
+                    "product_id" to product.productIdentifier,
+                    "paywall_vc" to paywallViewController
+                ),
+                error
             )
         }
+
+        val paywallInfo = paywallViewController.info
+
+        val trackedEvent = InternalSuperwallEvent.Transaction(
+            InternalSuperwallEvent.Transaction.State.Fail(
+                TransactionError.Failure(
+                    error.message ?: "", product
+                )
+            ),
+            paywallInfo,
+            product,
+            null
+        )
+        Superwall.instance.track(trackedEvent)
+        sessionEventsManager.triggerSession.trackTransactionError()
+
+
+        paywallViewController.presentAlert(
+            "An error occurred",
+            error.message ?: "Unknown error"
+        )
     }
 
     // ... and so on for the other methods ...
@@ -246,47 +250,44 @@ class TransactionManager(
 
         val paywallInfo = paywallViewController.info
 
-        coroutineScope {
-            transaction?.let {
-                sessionEventsManager.triggerSession.trackTransactionSucceeded(
-                    withId = it.storeTransactionId,
-                    forProduct = product,
-                    isFreeTrialAvailable = didStartFreeTrial
-                )
-            }
-
-            val trackedEvent = InternalSuperwallEvent.Transaction(
-                InternalSuperwallEvent.Transaction.State.Complete(product, transaction),
-                paywallInfo,
-                product,
-                transaction
+        transaction?.let {
+            sessionEventsManager.triggerSession.trackTransactionSucceeded(
+                withId = it.storeTransactionId,
+                forProduct = product,
+                isFreeTrialAvailable = didStartFreeTrial
             )
-            Superwall.instance.track(trackedEvent)
+        }
 
-            if (product.subscriptionPeriod == null) {
-                val nonRecurringEvent = InternalSuperwallEvent.NonRecurringProductPurchase(
-                    paywallInfo,
-                    product
-                )
-                Superwall.instance.track(nonRecurringEvent)
-            }
+        val trackedEvent = InternalSuperwallEvent.Transaction(
+            InternalSuperwallEvent.Transaction.State.Complete(product, transaction),
+            paywallInfo,
+            product,
+            transaction
+        )
+        Superwall.instance.track(trackedEvent)
 
-            if (didStartFreeTrial) {
-                val freeTrialEvent = InternalSuperwallEvent.FreeTrialStart(paywallInfo, product)
-                Superwall.instance.track(freeTrialEvent)
+        if (product.subscriptionPeriod == null) {
+            val nonRecurringEvent = InternalSuperwallEvent.NonRecurringProductPurchase(
+                paywallInfo,
+                product
+            )
+            Superwall.instance.track(nonRecurringEvent)
+        }
 
-                // SW-2214
-                // https://linear.app/superwall/issue/SW-2214/%5Bandroid%5D-%5Bv2%5D-add-back-local-notifications
-//                val notifications = paywallInfo.localNotifications.filter { it.type == NotificationType.TRIAL_STARTED }
-//                NotificationScheduler.scheduleNotifications(notifications)
-            } else {
-                val subscriptionEvent =
-                    InternalSuperwallEvent.SubscriptionStart(paywallInfo, product)
-                Superwall.instance.track(subscriptionEvent)
-            }
+        if (didStartFreeTrial) {
+            val freeTrialEvent = InternalSuperwallEvent.FreeTrialStart(paywallInfo, product)
+            Superwall.instance.track(freeTrialEvent)
+
+        // SW-2214
+        // https://linear.app/superwall/issue/SW-2214/%5Bandroid%5D-%5Bv2%5D-add-back-local-notifications
+        // val notifications = paywallInfo.localNotifications.filter { it.type == NotificationType.TRIAL_STARTED }
+        // NotificationScheduler.scheduleNotifications(notifications)
+        } else {
+            val subscriptionEvent =
+                InternalSuperwallEvent.SubscriptionStart(paywallInfo, product)
+            Superwall.instance.track(subscriptionEvent)
         }
 
         lastPaywallViewController = null
     }
-
 }

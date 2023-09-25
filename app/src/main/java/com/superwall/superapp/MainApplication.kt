@@ -12,10 +12,6 @@ import com.superwall.sdk.delegate.RestorationResult
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.delegate.SuperwallDelegate
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
-import com.superwall.sdk.identity.identify
-import com.superwall.sdk.identity.setUserAttributes
-import com.superwall.sdk.models.events.EventData
-import com.superwall.sdk.store.coordinator.TransactionChecker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -67,7 +63,7 @@ class PurchaseControllerImpl(var context: Context) : PurchaseController, Purchas
             }
         })
     }
-    override suspend fun purchase(activity: Activity, product: com.android.billingclient.api.SkuDetails): PurchaseResult {
+    override suspend fun purchase(activity: Activity, product: SkuDetails): PurchaseResult {
         // Wait for
 
         val skuDetails = product

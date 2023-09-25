@@ -3,25 +3,11 @@ package com.superwall.sdk.delegate
 import LogLevel
 import LogScope
 import Logger
-import android.app.Activity
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
-import com.superwall.sdk.delegate.subscription_controller.PurchaseController
-import com.superwall.sdk.delegate.subscription_controller.PurchaseControllerJava
-import com.superwall.sdk.misc.ActivityLifecycleTracker
 import com.superwall.sdk.paywall.presentation.PaywallInfo
-import com.superwall.sdk.store.abstractions.product.StoreProduct
-import com.superwall.sdk.store.coordinator.ProductPurchaser
-import com.superwall.sdk.store.coordinator.TransactionRestorer
 import java.net.URL
 
-class SuperwallDelegateAdapter(
-    private val activityLifecycleTracker: ActivityLifecycleTracker,
-    private val kotlinPurchaseController: PurchaseController?,
-    private val javaPurchaseController: PurchaseControllerJava?
-) : ProductPurchaser, TransactionRestorer {
-    val hasPurchaseController: Boolean
-        get() = kotlinPurchaseController != null || javaPurchaseController != null
-
+class SuperwallDelegateAdapter {
     var kotlinDelegate: SuperwallDelegate? = null
     var javaDelegate: SuperwallDelegateJava? = null
 
@@ -84,46 +70,5 @@ class SuperwallDelegateAdapter(
             info = info,
             error = error
         )
-    }
-
-    // Product Purchaser Extension
-    // @MainScope
-    override suspend fun purchase(product: StoreProduct): PurchaseResult {
-        // Hack to find the current activity
-        val currentActivity = activityLifecycleTracker.getCurrentActivity()
-        println("currentActivity: $currentActivity")
-
-
-        kotlinPurchaseController?.let {
-            product.rawStoreProduct?.let { sk1Product ->
-                return it.purchase(currentActivity as Activity, sk1Product.skuDetails)
-            }
-
-            // There used to be a failure if raw store product wasn't present but there isn't anymore...
-            // not sure why
-        }
-
-        // SW-2217
-        // https://linear.app/superwall/issue/SW-2217/%5Bandroid%5D-%5Bv1%5D-add-back-support-for-javanon-kotlinxcoroutines-purchase
-//        javaPurchaseController?.let {
-//            product.sk1Product?.let { sk1Product ->
-//                return it.purchase(sk1Product)
-//            } ?: return PurchaseResult.failed(PurchaseError.productUnavailable)
-//        }
-        return PurchaseResult.Cancelled()
-    }
-
-    // Transaction Restorer Extension
-//    @MainScope
-    override suspend fun restorePurchases(): RestorationResult {
-        kotlinPurchaseController?.let {
-            return it.restorePurchases()
-        }
-        // SW-2217
-        // https://linear.app/superwall/issue/SW-2217/%5Bandroid%5D-%5Bv1%5D-add-back-support-for-javanon-kotlinxcoroutines-purchase
-//        javaPurchaseController?.let {
-//            return it.restorePurchases()
-//        }
-        return RestorationResult.Failed(null)
     }
 }

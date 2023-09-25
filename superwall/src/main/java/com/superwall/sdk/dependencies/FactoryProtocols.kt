@@ -12,7 +12,6 @@ import com.superwall.sdk.models.config.FeatureFlags
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.product.ProductVariable
-import com.superwall.sdk.models.serialization.AnySerializer
 import com.superwall.sdk.network.Api
 import com.superwall.sdk.network.device.DeviceInfo
 import com.superwall.sdk.paywall.manager.PaywallViewControllerCache
@@ -23,19 +22,12 @@ import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
 import com.superwall.sdk.paywall.vc.PaywallViewController
-import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegate
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegateAdapter
 import com.superwall.sdk.paywall.vc.web_view.templating.models.JsonVariables
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
-import com.superwall.sdk.store.coordinator.StoreKitCoordinator
-import com.superwall.sdk.store.transactions.purchasing.PurchaseManager
-import kotlinx.coroutines.Dispatchers
+import com.superwall.sdk.store.transactions.GoogleBillingTransactionVerifier
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.withContext
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.JsonObject
-import org.json.JSONObject
 
 
 interface ApiFactory {
@@ -170,10 +162,6 @@ interface ConfigManagerFactory {
     fun makeStaticPaywall(paywallId: String?): Paywall?
 }
 
-interface StoreKitCoordinatorFactory {
-    fun makeStoreKitCoordinator(): StoreKitCoordinator
-}
-
 //interface ProductPurchaserFactory {
 //    fun makeSK1ProductPurchaser(): ProductPurchaserSK1
 //}
@@ -182,6 +170,6 @@ interface StoreTransactionFactory {
     suspend fun makeStoreTransaction(transaction: Purchase): StoreTransactionType
 }
 
-interface PurchaseManagerFactory {
-    fun makePurchaseManager(): PurchaseManager
+interface TransactionVerifierFactory {
+    fun makeTransactionVerifier(): GoogleBillingTransactionVerifier
 }

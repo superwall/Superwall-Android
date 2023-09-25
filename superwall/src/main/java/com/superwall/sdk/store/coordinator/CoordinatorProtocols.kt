@@ -4,14 +4,7 @@ import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
-
-interface TransactionChecker {
-    // Gets and validates a transaction of a product, if the user isn't using a PurchaseController.
-    suspend fun getAndValidateLatestTransaction(
-        productId: String,
-        hasPurchaseController: Boolean = true // Always true in Kotlin
-    ): StoreTransactionType?
-}
+import com.superwall.sdk.store.transactions.GoogleBillingTransactionVerifier
 
 interface ProductPurchaser {
     // Purchases a product and returns its result.

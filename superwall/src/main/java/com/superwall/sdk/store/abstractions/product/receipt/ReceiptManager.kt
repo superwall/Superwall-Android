@@ -12,7 +12,7 @@ import java.util.*
 data class InAppPurchase(var productIdentifier: String) {}
 
 class ReceiptManager(
-    private var delegate: ProductsFetcher?
+    private var delegate: ProductsFetcher?,
 //    private val receiptData: () -> ByteArray? = ReceiptLogic::getReceiptData
 ) {
     var purchasedSubscriptionGroupIds: Set<String>? = null

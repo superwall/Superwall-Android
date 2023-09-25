@@ -452,7 +452,7 @@ public class Superwall(context: Context, apiKey: String, purchaseController: Pur
                     )
                 }
                 is InitiateRestore -> {
-                    dependencyContainer.storeKitManager.tryToRestore(paywallViewController)
+                    dependencyContainer.storeKitManager.purchaseController.tryToRestore(paywallViewController)
                 }
                 is OpenedURL -> {
                     dependencyContainer.delegateAdapter.paywallWillOpenURL(url = paywallEvent.url)

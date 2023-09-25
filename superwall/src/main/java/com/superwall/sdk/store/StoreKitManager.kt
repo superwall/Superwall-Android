@@ -4,27 +4,15 @@ import LogLevel
 import LogScope
 import Logger
 import android.content.Context
-import com.superwall.sdk.Superwall
-import com.superwall.sdk.analytics.internal.track
-import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
-import com.superwall.sdk.delegate.RestorationResult
-import com.superwall.sdk.dependencies.StoreKitCoordinatorFactory
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.PaywallProducts
 import com.superwall.sdk.models.product.Product
 import com.superwall.sdk.models.product.ProductType
 import com.superwall.sdk.models.product.ProductVariable
-import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
-import com.superwall.sdk.paywall.vc.PaywallViewController
-import com.superwall.sdk.paywall.vc.delegate.PaywallLoadingState
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.product.receipt.ReceiptManager
 import com.superwall.sdk.store.coordinator.ProductsFetcher
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
-import kotlinx.serialization.json.JsonObject
-import org.json.JSONObject
+import com.superwall.sdk.store.products.GooglePlayProductsFetcher
 
 /*
 class StoreKitManager(private val context: Context) : StoreKitManagerInterface {
@@ -101,13 +89,11 @@ class StoreKitManager(private val context: Context) : StoreKitManagerInterface {
 }
 */
 
-
 class StoreKitManager(
     private val context: Context,
-    private val factory: StoreKitCoordinatorFactory
+    val purchaseController: InternalPurchaseController
 ) : ProductsFetcher {
-
-    public val coordinator by lazy { factory.makeStoreKitCoordinator() }
+    private val productFetcher = GooglePlayProductsFetcher(context)
     private val receiptManager by lazy { ReceiptManager(delegate = this) }
 
     var productsById: MutableMap<String, StoreProduct> = mutableMapOf()
@@ -202,77 +188,6 @@ class StoreKitManager(
         )
     }
 
-    suspend fun tryToRestore(paywallViewController: PaywallViewController) {
-        Logger.debug(
-            logLevel = LogLevel.debug,
-            scope = LogScope.paywallTransactions,
-            message = "Attempting Restore"
-        )
-
-        paywallViewController.loadingState = PaywallLoadingState.LoadingPurchase()
-
-        val restorationResult = coordinator.txnRestorer.restorePurchases()
-
-        processRestoration(restorationResult, paywallViewController)
-    }
-
-    suspend fun processRestoration(
-        restorationResult: RestorationResult,
-        paywallViewController: PaywallViewController
-    ) {
-        val hasRestored = restorationResult == RestorationResult.Restored()
-        var successfulRestore = hasRestored
-
-        // We'll always have a purchase controller, so this is always false
-//        if (!Superwall.instance.dependencyContainer.delegateAdapter.hasPurchaseController) {
-//            refreshReceipt()
-//            var isUserSubscribed = false
-//            if (hasRestored) {
-//                loadPurchasedProducts()
-//                isUserSubscribed = Superwall.instance.subscriptionStatus == SubscriptionStatus.ACTIVE
-//            }
-//            successfulRestore = hasRestored && isUserSubscribed
-//        }
-
-        if (successfulRestore) {
-            Logger.debug(
-                logLevel = LogLevel.debug,
-                scope = LogScope.paywallTransactions,
-                message = "Transactions Restored"
-            )
-            transactionWasRestored(paywallViewController)
-        } else {
-            Logger.debug(
-                logLevel = LogLevel.debug,
-                scope = LogScope.paywallTransactions,
-                message = "Transactions Failed to Restore"
-            )
-
-            paywallViewController.presentAlert(
-                title = Superwall.instance.options.paywalls.restoreFailed.title,
-                message = Superwall.instance.options.paywalls.restoreFailed.message,
-                closeActionTitle = Superwall.instance.options.paywalls.restoreFailed.closeButtonTitle
-            )
-        }
-    }
-
-    private fun transactionWasRestored(paywallViewController: PaywallViewController) {
-        val paywallInfo = paywallViewController.info
-        GlobalScope.launch(Dispatchers.Default) {
-            val trackedEvent = InternalSuperwallEvent.Transaction(
-                state = InternalSuperwallEvent.Transaction.State.Restore(),
-                paywallInfo = paywallInfo,
-                product = null,
-                model = null
-            )
-            Superwall.instance.track(trackedEvent)
-
-            if (Superwall.instance.options.paywalls.automaticallyDismiss) {
-                Superwall.instance.dismiss(paywallViewController, result = PaywallResult.Restored())
-            }
-        }
-    }
-
     suspend fun refreshReceipt() {
         Logger.debug(
             logLevel = LogLevel.debug,
@@ -299,7 +214,7 @@ class StoreKitManager(
         identifiers: Set<String>,
         paywallName: String?
     ): Set<StoreProduct> {
-        return coordinator.productFetcher.products(
+        return productFetcher.products(
             identifiers = identifiers,
             paywallName
         )
