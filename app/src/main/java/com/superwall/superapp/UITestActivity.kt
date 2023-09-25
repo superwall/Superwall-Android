@@ -88,6 +88,7 @@ fun UITestTable() {
                             .padding(horizontal = 8.dp)
                     ) {
                         Text(
+                            color = Color.White,
                             text = "UITest ${item.number}",
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(bottom = 8.dp)
