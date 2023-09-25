@@ -26,7 +26,6 @@ import com.superwall.sdk.models.config.FeatureFlags
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.product.ProductVariable
-import com.superwall.sdk.models.serialization.AnySerializer
 import com.superwall.sdk.network.Api
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.network.device.DeviceHelper
@@ -49,18 +48,16 @@ import com.superwall.sdk.paywall.vc.web_view.templating.models.JsonVariables
 import com.superwall.sdk.paywall.vc.web_view.templating.models.Variables
 import com.superwall.sdk.storage.EventsQueue
 import com.superwall.sdk.storage.Storage
+import com.superwall.sdk.store.InternalPurchaseController
 import com.superwall.sdk.store.StoreKitManager
 import com.superwall.sdk.store.abstractions.transactions.GoogleBillingPurchaseTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
-import com.superwall.sdk.store.coordinator.StoreKitCoordinator
+import com.superwall.sdk.store.transactions.GoogleBillingTransactionVerifier
 import com.superwall.sdk.store.transactions.TransactionManager
-import com.superwall.sdk.store.transactions.purchasing.PurchaseManager
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.Serializable
-import org.json.JSONObject
 
 class DependencyContainer(
     val context: Context,
@@ -68,8 +65,9 @@ class DependencyContainer(
     options: SuperwallOptions = SuperwallOptions()
 ) : ApiFactory, DeviceInfoFactory, AppManagerDelegate, RequestFactory, TriggerSessionManagerFactory,
     RuleAttributesFactory, DeviceHelper.Factory, CacheFactory,
-    PaywallRequestManagerDepFactory, VariablesFactory, StoreKitCoordinatorFactory,
-    StoreTransactionFactory, PurchaseManagerFactory, Storage.Factory, InternalSuperwallEvent.PresentationRequest.Factory, ViewControllerFactory, PaywallManager.Factory {
+    PaywallRequestManagerDepFactory, VariablesFactory,
+    StoreTransactionFactory, Storage.Factory, InternalSuperwallEvent.PresentationRequest.Factory,
+    ViewControllerFactory, PaywallManager.Factory, TransactionVerifierFactory {
 
     var network: Network
     override lateinit var api: Api
@@ -91,18 +89,19 @@ class DependencyContainer(
 
         // TODO: Add delegate adapter
 
-
         activityLifecycleTracker = ActivityLifecycleTracker()
         // onto
         (context.applicationContext as Application).registerActivityLifecycleCallbacks(
             activityLifecycleTracker
         )
 
-        delegateAdapter = SuperwallDelegateAdapter(
-            activityLifecycleTracker = activityLifecycleTracker,
+        var purchaseController = InternalPurchaseController(
             kotlinPurchaseController = purchaseController,
-            javaPurchaseController = null
+            javaPurchaseController = null,
+            context
         )
+
+        delegateAdapter = SuperwallDelegateAdapter()
 
         storage = Storage(context = context, factory = this)
         network = Network(factory = this)
@@ -124,13 +123,6 @@ class DependencyContainer(
             configManager = configManager
         )
 
-        appSessionManager = AppSessionManager(
-            context = context,
-            storage = storage,
-            configManager = configManager,
-            delegate = this
-        )
-
         sessionEventsManager = SessionEventsManager(
             network = network,
             storage = storage,
@@ -138,7 +130,15 @@ class DependencyContainer(
             factory = this
         )
 
-        storeKitManager = StoreKitManager(context, this)
+        // Must be after session events
+        appSessionManager = AppSessionManager(
+            context = context,
+            storage = storage,
+            configManager = configManager,
+            delegate = this
+        )
+
+        storeKitManager = StoreKitManager(context, purchaseController)
 
         paywallRequestManager = PaywallRequestManager(
             storeKitManager = storeKitManager,
@@ -155,6 +155,7 @@ class DependencyContainer(
         transactionManager = TransactionManager(
             storeKitManager = storeKitManager,
             sessionEventsManager,
+            activityLifecycleTracker,
             factory = this
         )
     }
@@ -259,9 +260,7 @@ class DependencyContainer(
     }
 
     override fun makeHasExternalPurchaseController(): Boolean {
-        // TODO: handle this properly https://linear.app/superwall/issue/SW-2360/[android]-check-areas-that-reference-hasexternalpurchasecontroller
-        return true
-//        return storeKitManager.purchaseController.hasExternalPurchaseController
+        return storeKitManager.purchaseController.hasExternalPurchaseController
     }
 
     override suspend fun didUpdateAppSession(appSession: AppSession) {
@@ -398,26 +397,13 @@ class DependencyContainer(
         return variables
     }
 
-
-    override fun makeStoreKitCoordinator(): StoreKitCoordinator {
-        return StoreKitCoordinator(
-            context,
-            delegateAdapter,
-            storeKitManager = storeKitManager,
-            factory = this,
-        )
-    }
-
     override suspend fun makeStoreTransaction(transaction: Purchase): StoreTransactionType {
         return GoogleBillingPurchaseTransaction(
             transaction = transaction,
         )
     }
 
-    override fun makePurchaseManager(): PurchaseManager {
-        return PurchaseManager(
-            storeKitManager,
-            hasPurchaseController = true
-        )
+    override  fun makeTransactionVerifier(): GoogleBillingTransactionVerifier {
+        return storeKitManager.purchaseController.transactionVerifier
     }
 }

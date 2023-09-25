@@ -31,8 +31,8 @@ interface PurchaseControllerJava {
      *    **Note:** Make sure you handle all cases of `PurchaseResultJava`.
      */
     fun purchase(
-        product: SkuDetails,
-        completion: (PurchaseResult, Throwable?) -> Unit
+            product: SkuDetails,
+            completion: (PurchaseResult) -> Unit
     )
 
     /**

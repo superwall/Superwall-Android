@@ -6,7 +6,6 @@ import com.android.billingclient.api.*
 import com.superwall.sdk.delegate.InternalPurchaseResult
 import com.superwall.sdk.store.abstractions.transactions.GoogleBillingPurchaseTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
-import com.superwall.sdk.store.coordinator.TransactionChecker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -16,8 +15,7 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
-class GoogleBillingTransactionVerifier(var context: Context) : TransactionChecker,
-    PurchasesUpdatedListener {
+class GoogleBillingTransactionVerifier(var context: Context) : PurchasesUpdatedListener {
     private var billingClient: BillingClient = BillingClient.newBuilder(context)
         .setListener(this)
         .enablePendingPurchases()
@@ -58,9 +56,8 @@ class GoogleBillingTransactionVerifier(var context: Context) : TransactionChecke
     // Setup mutable state flow for purchase results
     private val purchaseResults = MutableStateFlow<InternalPurchaseResult?>(null)
 
-    override suspend fun getAndValidateLatestTransaction(
-        productId: String,
-        hasPurchaseController: Boolean
+    suspend fun getAndValidateLatestTransaction(
+        productId: String
     ): StoreTransactionType? {
         // Get the latest from purchaseResults
         purchaseResults.asStateFlow().filter { it != null }.first().let { purchaseResult ->
@@ -76,7 +73,6 @@ class GoogleBillingTransactionVerifier(var context: Context) : TransactionChecke
                 }
             }
         }
-
     }
 
     override fun onPurchasesUpdated(result: BillingResult, purchases: MutableList<Purchase>?) {
