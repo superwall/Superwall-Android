@@ -1,5 +1,6 @@
 package com.superwall.sdk.paywall.presentation.internal
 
+import android.util.Log
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.internal.operators.*
@@ -27,6 +28,7 @@ fun Superwall.internallyPresent(
         try {
             checkNoPaywallAlreadyPresented(request, publisher)
 
+            // Print a log here to indicate that the paywall is being presented.
             val paywallComponents = getPaywallComponents(request, publisher)
 
             // TODO: Guard
@@ -44,8 +46,7 @@ fun Superwall.internallyPresent(
                 request = request,
                 paywallStatePublisher = publisher
             )
-
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             logErrors(request, e)
         }
     }
