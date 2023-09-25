@@ -260,9 +260,7 @@ class DependencyContainer(
     }
 
     override fun makeHasExternalPurchaseController(): Boolean {
-        // TODO: handle this properly https://linear.app/superwall/issue/SW-2360/[android]-check-areas-that-reference-hasexternalpurchasecontroller
-        return true
-//        return storeKitManager.purchaseController.hasExternalPurchaseController
+        return storeKitManager.purchaseController.hasExternalPurchaseController
     }
 
     override suspend fun didUpdateAppSession(appSession: AppSession) {
