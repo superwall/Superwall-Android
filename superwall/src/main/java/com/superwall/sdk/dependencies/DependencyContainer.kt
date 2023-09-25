@@ -60,6 +60,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
+import org.json.JSONObject
 
 class DependencyContainer(
     val context: Context,
@@ -342,7 +343,7 @@ class DependencyContainer(
     override suspend fun makeRuleAttributes(
         event: EventData?,
         computedPropertyRequests: List<ComputedPropertyRequest>
-    ): JSONObject {
+    ): Map<String, Any> {
         val userAttributes = identityManager.getUserAttributes().toMutableMap()
         userAttributes.put("isLoggedIn", identityManager.isLoggedIn)
 
@@ -351,13 +352,11 @@ class DependencyContainer(
             computedPropertyRequests = computedPropertyRequests
         )
 
-        val result = mapOf(
+        return mapOf(
             "user" to userAttributes,
             "device" to deviceAttributes,
             "params" to (event?.parameters ?: "")
         )
-
-        return result
     }
 
     override fun makeFeatureFlags(): FeatureFlags? {

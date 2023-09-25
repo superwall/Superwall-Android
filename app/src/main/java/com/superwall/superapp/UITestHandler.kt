@@ -162,9 +162,9 @@ class UITestHandler {
                     " then it sets the status back to inactive."
         )
         suspend fun test9() {
-            Superwall.instance.setSubscriptionStatus(SubscriptionStatus.Active)
+            Superwall.instance.setSubscriptionStatus(SubscriptionStatus.ACTIVE)
             Superwall.instance.register(event = "present_always")
-            Superwall.instance.setSubscriptionStatus(SubscriptionStatus.Inactive)
+            Superwall.instance.setSubscriptionStatus(SubscriptionStatus.INACTIVE)
         }
 
         var test10Info = UITestInfo(
@@ -450,13 +450,13 @@ class UITestHandler {
         )
         suspend fun test24() {
             // Set user as subscribed
-            Superwall.instance.setSubscriptionStatus(SubscriptionStatus.Active)
+            Superwall.instance.setSubscriptionStatus(SubscriptionStatus.ACTIVE)
 
             // Register event - paywall shouldn't appear.
             Superwall.instance.register(event = "register_nongated_paywall")
 
             delay(4000)
-            Superwall.instance.setSubscriptionStatus(SubscriptionStatus.Inactive)
+            Superwall.instance.setSubscriptionStatus(SubscriptionStatus.INACTIVE)
         }
 
         var test25Info = UITestInfo(

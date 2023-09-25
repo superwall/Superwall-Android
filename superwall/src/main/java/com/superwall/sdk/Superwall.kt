@@ -13,6 +13,8 @@ import com.superwall.sdk.analytics.internal.trackable.UserInitiatedEvent
 import com.superwall.sdk.billing.BillingController
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.delegate.SubscriptionStatus
+import com.superwall.sdk.delegate.SuperwallDelegate
+import com.superwall.sdk.delegate.SuperwallDelegateJava
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.dependencies.DependencyContainer
 import com.superwall.sdk.models.events.EventData
@@ -51,6 +53,23 @@ public class Superwall(context: Context, apiKey: String, purchaseController: Pur
     /// Determines whether a paywall is being presented.
     val isPaywallPresented: Boolean
         get() = paywallViewController != null
+
+
+    var delegate: SuperwallDelegate?
+        get() = dependencyContainer.delegateAdapter.kotlinDelegate
+        set(newValue) {
+            dependencyContainer.delegateAdapter.kotlinDelegate = newValue
+        }
+
+    @JvmName("setDelegate")
+    fun setJavaDelegate(newValue: SuperwallDelegateJava?) {
+        dependencyContainer.delegateAdapter.javaDelegate = newValue
+    }
+
+    @JvmName("getDelegate")
+    fun getJavaDelegate(): SuperwallDelegateJava? {
+        return dependencyContainer.delegateAdapter.javaDelegate
+    }
 
 
     /// A published property that indicates the subscription status of the user.
