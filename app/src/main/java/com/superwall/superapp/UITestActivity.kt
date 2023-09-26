@@ -3,6 +3,7 @@ package com.superwall.superapp
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -40,6 +41,12 @@ fun UITestTable() {
     val uiTestHandler = UITestHandler()
     val scope = rememberCoroutineScope()
     UITestHandler.context = LocalContext.current
+
+    val mainTextColor = if (isSystemInDarkTheme()) {
+        Color.White // Set the color for dark mode
+    } else {
+        Color.Black // Set the color for light mode
+    }
 
     val tests = mapOf(
         UITestHandler.test0Info to { scope.launch { UITestHandler.test0() } },
@@ -99,7 +106,7 @@ fun UITestTable() {
                             .padding(horizontal = 8.dp)
                     ) {
                         Text(
-                            color = Color.Black,
+                            color =  mainTextColor,
                             text = "UITest ${item.number}",
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(bottom = 8.dp)
