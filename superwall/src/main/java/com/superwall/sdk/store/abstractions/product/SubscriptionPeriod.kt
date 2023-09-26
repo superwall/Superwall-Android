@@ -2,10 +2,12 @@ package com.superwall.sdk.store.abstractions.product
 
 import java.math.BigDecimal
 import java.math.RoundingMode
+import java.text.DecimalFormat
 import java.time.Period
 import java.time.temporal.ChronoUnit
+import java.util.*
 
-data class SubscriptionPeriod(val value: Int, val unit: Unit) {
+data class SubscriptionPeriod(val value: Int, val unit: Unit, val locale: Locale = Locale.getDefault(), val pricingFactor: Long = 1_000_000) {
     enum class Unit {
         day,
         week,
@@ -90,6 +92,20 @@ data class SubscriptionPeriod(val value: Int, val unit: Unit) {
             }
         }
 
+    val periodDays: Int
+        get() {
+            val subscriptionPeriod = this
+            val numberOfUnits = subscriptionPeriod.value
+
+            return when (subscriptionPeriod.unit) {
+                SubscriptionPeriod.Unit.day -> 1 * numberOfUnits
+                SubscriptionPeriod.Unit.month -> 30 * numberOfUnits  // Assumes 30 days in a month
+                SubscriptionPeriod.Unit.week -> 7 * numberOfUnits   // Assumes 7 days in a week
+                SubscriptionPeriod.Unit.year -> 365 * numberOfUnits // Assumes 365 days in a year
+                else -> 0
+            }
+        }
+
     val periodWeeks: Int
         get() {
             val subscriptionPeriod = this
@@ -100,6 +116,20 @@ data class SubscriptionPeriod(val value: Int, val unit: Unit) {
                 Unit.week -> numberOfUnits
                 Unit.month -> 4 * numberOfUnits
                 Unit.year -> 52 * numberOfUnits
+            }
+        }
+
+    val periodMonths: Int
+        get() {
+            val subscriptionPeriod = this
+            val numberOfUnits = subscriptionPeriod.value
+
+            return when (subscriptionPeriod.unit) {
+                SubscriptionPeriod.Unit.day -> numberOfUnits / 30       // Assumes 30 days in a month
+                SubscriptionPeriod.Unit.month -> numberOfUnits
+                SubscriptionPeriod.Unit.week -> numberOfUnits / 4      // Assumes 4 weeks in a month
+                SubscriptionPeriod.Unit.year -> numberOfUnits * 12     // Assumes 12 months in a year
+                else -> 0
             }
         }
 
@@ -115,25 +145,95 @@ data class SubscriptionPeriod(val value: Int, val unit: Unit) {
                 Unit.year -> numberOfUnits
             }
         }
+
+    fun dailyPrice(rawPrice: BigDecimal): String {
+        if (rawPrice == BigDecimal.ZERO) {
+            return "$0.00"
+        }
+
+        val numberFormatter = DecimalFormat.getCurrencyInstance()
+        numberFormatter.currency = Currency.getInstance(locale)
+        return numberFormatter.format(pricePerDay(rawPrice))
+    }
+
+    fun weeklyPrice(price: BigDecimal): String {
+        if (price == BigDecimal.ZERO) {
+            return "$0.00"
+        }
+
+        val numberFormatter = DecimalFormat.getCurrencyInstance()
+        numberFormatter.currency = Currency.getInstance(locale)
+        return numberFormatter.format(pricePerWeek(price))
+    }
+
+    fun monthlyPrice(price: BigDecimal): String {
+        if (price == BigDecimal.ZERO) {
+            return "$0.00"
+        }
+
+        val numberFormatter = DecimalFormat.getCurrencyInstance()
+        numberFormatter.currency = Currency.getInstance(locale)
+        return numberFormatter.format(pricePerMonth(price))
+    }
+
+    fun yearlyPrice(price: BigDecimal): String {
+        if (price == BigDecimal.ZERO) {
+            return "$0.00"
+        }
+
+        val numberFormatter = DecimalFormat.getCurrencyInstance()
+        numberFormatter.currency = Currency.getInstance(locale)
+        return numberFormatter.format(pricePerYear(price))
+    }
+
+
     fun pricePerDay(price: BigDecimal): BigDecimal {
-        val periodsPerDay: BigDecimal = BigDecimal(value) * BigDecimal(daysPerUnit)
-        return price.divide(periodsPerDay, 2, RoundingMode.DOWN)
+        when (unit) {
+            Unit.day -> return _truncateDecimal(price.divide(BigDecimal(value)))
+            Unit.week -> return _truncateDecimal(price.divide(BigDecimal(value), RoundingMode.HALF_EVEN).divide(BigDecimal(  7), RoundingMode.HALF_EVEN))
+            Unit.month -> return _truncateDecimal(price.divide(BigDecimal(value), RoundingMode.HALF_EVEN).divide(BigDecimal( 30), RoundingMode.HALF_EVEN))
+            Unit.year -> return  _truncateDecimal(price.divide(BigDecimal(value), RoundingMode.HALF_EVEN).divide( BigDecimal( 365), RoundingMode.HALF_EVEN))
+        }
     }
 
     fun pricePerWeek(price: BigDecimal): BigDecimal {
-        val periodsPerWeek: BigDecimal = BigDecimal(value) * BigDecimal(daysPerUnit) / BigDecimal(7)
-        return price.divide(periodsPerWeek, 2, RoundingMode.DOWN)
+        when (unit) {
+            Unit.day -> return _truncateDecimal(price.divide(BigDecimal(value), RoundingMode.HALF_EVEN).multiply(BigDecimal(  7)))
+            Unit.week -> return _truncateDecimal(price.divide(BigDecimal(value)))
+            Unit.month -> return _truncateDecimal(price.divide(BigDecimal(value * 4), RoundingMode.DOWN))
+            Unit.year -> return _truncateDecimal(price.divide(BigDecimal(value * 52), RoundingMode.DOWN))
+        }
     }
 
     fun pricePerMonth(price: BigDecimal): BigDecimal {
-        val periodsPerMonth: BigDecimal =
-            BigDecimal(value) * BigDecimal(daysPerUnit) / BigDecimal(30)
-        return price.divide(periodsPerMonth, 2, RoundingMode.DOWN)
+        when (unit) {
+            Unit.day -> return _truncateDecimal(price.divide(BigDecimal(value), RoundingMode.HALF_EVEN).multiply(BigDecimal( 30)))
+            Unit.week -> return _truncateDecimal(price.divide(BigDecimal(value), RoundingMode.HALF_EVEN).multiply(BigDecimal( 30.0 / 7.0)))
+            Unit.month -> return _truncateDecimal(price.divide(BigDecimal(value)))
+            Unit.year -> return _truncateDecimal(price.divide(BigDecimal(value), RoundingMode.HALF_EVEN).divide(BigDecimal(12), RoundingMode.HALF_EVEN))
+        }
     }
 
     fun pricePerYear(price: BigDecimal): BigDecimal {
-        val periodsPerYear: BigDecimal =
-            BigDecimal(value) * BigDecimal(daysPerUnit) / BigDecimal(365)
-        return price.divide(periodsPerYear, 2, RoundingMode.DOWN)
+        when (unit) {
+            Unit.day -> return _truncateDecimal(price.divide(BigDecimal(value), RoundingMode.HALF_EVEN).multiply(BigDecimal( 365)))
+            Unit.week -> return _truncateDecimal(price.divide(BigDecimal(value), RoundingMode.HALF_EVEN).multiply(BigDecimal( 365.0 / 7)))
+            Unit.month -> return _truncateDecimal(price.divide(BigDecimal(value), RoundingMode.HALF_EVEN).multiply(BigDecimal(12)))
+            Unit.year -> return _truncateDecimal(price.divide(BigDecimal(value), RoundingMode.HALF_EVEN))
+        }
     }
+
+    fun _truncateDecimal(decimal: BigDecimal, places: Int = Currency.getInstance(Locale.getDefault()).defaultFractionDigits ?: 2): BigDecimal {
+        // First we need to divide by the main google product scaling factor
+       val minimizedDecimal = decimal.divide(BigDecimal(pricingFactor), RoundingMode.HALF_EVEN)
+
+
+        val factor = BigDecimal.TEN.pow(places) // Create a factor of 10^decimalPlaces
+        val result: BigDecimal =
+            minimizedDecimal.multiply(factor) // Multiply the original number by the factor
+                .setScale(0, BigDecimal.ROUND_DOWN) // Set scale to 0 and ROUND_DOWN to truncate
+                .divide(factor) // Divide back by the factor to get the truncated number
+        return result
+    }
+
 }

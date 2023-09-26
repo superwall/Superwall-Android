@@ -9,7 +9,9 @@ import kotlinx.serialization.Serializer
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import java.math.BigDecimal
+import java.math.RoundingMode
 import java.text.DecimalFormat
+import java.text.SimpleDateFormat
 import java.util.*
 
 @Serializer(forClass = SkuDetails::class)
@@ -38,7 +40,7 @@ class StoreProduct(
         get() = rawStoreProduct.skuDetails.sku
 
     override val price: BigDecimal
-        get() = BigDecimal(rawStoreProduct.skuDetails.priceAmountMicros) / BigDecimal(1_000_000)
+        get() = BigDecimal(rawStoreProduct.skuDetails.priceAmountMicros).divide(BigDecimal(1_000_000), RoundingMode.HALF_EVEN)
 
     override val subscriptionGroupIdentifier: String?
         get() = ""
@@ -68,173 +70,103 @@ class StoreProduct(
         get() = periodWeeks.toString()
 
     override val periodMonths: Int
-        get() = 0 // subscriptionPeriod?.pe
+        get() = subscriptionPeriod?.periodMonths ?: 0
 
     override val periodMonthsString: String
         get() = periodMonths.toString()
 
     override val periodYears: Int
-        get() = 0 // Convert period into years based on your needs
+        get() = subscriptionPeriod?.periodYears ?: 0
 
     override val periodYearsString: String
         get() = periodYears.toString()
 
     override val periodDays: Int
-        get() = 0 // Convert period into days based on your needs
+        get() = subscriptionPeriod?.periodDays ?: 0
 
     override val periodDaysString: String
         get() = periodDays.toString()
 
     override val dailyPrice: String
-        get() {
-            if (price == BigDecimal(0.00)) {
-                return "$0.00"
-            }
-
-            val numberFormatter = DecimalFormat.getCurrencyInstance()
-            numberFormatter.currency = Currency.getInstance(Locale.getDefault())
-
-            val subscriptionPeriod = subscriptionPeriod
-            if (subscriptionPeriod == null) {
-                return "n/a"
-            }
-
-            val numberOfUnits = subscriptionPeriod.value
-            var periods: BigDecimal = BigDecimal(1)
-            val inputPrice = price
-
-            when (subscriptionPeriod.unit) {
-                SubscriptionPeriod.Unit.year -> periods = BigDecimal(365 * numberOfUnits)
-                SubscriptionPeriod.Unit.month -> periods = BigDecimal(30 * numberOfUnits)
-                SubscriptionPeriod.Unit.week -> periods = BigDecimal(numberOfUnits).divide(BigDecimal(7), BigDecimal.ROUND_HALF_EVEN)
-                SubscriptionPeriod.Unit.day -> periods = BigDecimal(numberOfUnits).divide(BigDecimal(1), BigDecimal.ROUND_HALF_EVEN)
-            }
-
-            val dailyPriceDecimal = inputPrice.divide(periods, 2, BigDecimal.ROUND_HALF_EVEN)  // 2 is the scale (number of decimal places)
-            println("!!! dailyPrice  $inputPrice, $periods, $dailyPriceDecimal")
-            return numberFormatter.format(dailyPriceDecimal.toDouble()) ?: "n/a"
-        }
+        get() = subscriptionPeriod?.dailyPrice(BigDecimal(rawStoreProduct.skuDetails.priceAmountMicros)) ?: "n/a"
 
     override val weeklyPrice: String
-        get() {
-            if (price == BigDecimal(0.00)) {
-                return "$0.00"
-            }
+        get() = subscriptionPeriod?.weeklyPrice(BigDecimal(rawStoreProduct.skuDetails.priceAmountMicros)) ?: "n/a"
 
-            val numberFormatter = DecimalFormat.getCurrencyInstance()
-            numberFormatter.currency = Currency.getInstance(Locale.getDefault())
-
-            val subscriptionPeriod = subscriptionPeriod
-            if (subscriptionPeriod == null) {
-                return "n/a"
-            }
-
-            val numberOfUnits = subscriptionPeriod.value
-            var periods: BigDecimal = BigDecimal(1)
-            val inputPrice = price
-
-            when (subscriptionPeriod.unit) {
-                SubscriptionPeriod.Unit.year -> periods = BigDecimal(52 * numberOfUnits)
-                SubscriptionPeriod.Unit.month -> periods = BigDecimal(4 * numberOfUnits)
-                SubscriptionPeriod.Unit.week -> periods = BigDecimal(numberOfUnits)
-                SubscriptionPeriod.Unit.day -> periods = BigDecimal(numberOfUnits).divide(BigDecimal(7), BigDecimal.ROUND_HALF_EVEN)
-            }
-
-            val weeklyPriceDecimal = inputPrice.divide(periods, 2, BigDecimal.ROUND_HALF_EVEN)  // 2 is the scale (number of decimal places)
-            println("!!! weeklyPrice  $inputPrice, $periods, $weeklyPriceDecimal")
-            return numberFormatter.format(weeklyPriceDecimal.toDouble()) ?: "n/a"
-        }
     override val monthlyPrice: String
-        get() {
-            if (price == BigDecimal(0.00)) {
-                return "$0.00"
-            }
-
-            val numberFormatter = DecimalFormat.getCurrencyInstance()
-            numberFormatter.currency = Currency.getInstance(Locale.getDefault())
-
-            val subscriptionPeriod = subscriptionPeriod
-            if (subscriptionPeriod == null) {
-                return "n/a"
-            }
-
-            val numberOfUnits = subscriptionPeriod.value
-            var periods: BigDecimal = BigDecimal(1)
-            val inputPrice = price
-
-            when (subscriptionPeriod.unit) {
-                SubscriptionPeriod.Unit.year -> periods = BigDecimal(12 * numberOfUnits)
-                SubscriptionPeriod.Unit.month -> periods = BigDecimal(numberOfUnits)
-                SubscriptionPeriod.Unit.week -> periods = BigDecimal(numberOfUnits).divide(BigDecimal(4), BigDecimal.ROUND_HALF_EVEN) // Assumes 4 weeks per month
-                SubscriptionPeriod.Unit.day -> periods = BigDecimal(numberOfUnits).divide(BigDecimal(30), BigDecimal.ROUND_HALF_EVEN) // Assumes 30 days per month
-            }
-
-            val monthlyPriceDecimal = inputPrice.divide(periods, 2, BigDecimal.ROUND_HALF_EVEN)  // 2 is the scale (number of decimal places)
-            println("!!! monthlyPrice  $inputPrice, $periods, $monthlyPriceDecimal")
-            return numberFormatter.format(monthlyPriceDecimal.toDouble()) ?: "n/a"
-        }
+        get() = subscriptionPeriod?.monthlyPrice(BigDecimal(rawStoreProduct.skuDetails.priceAmountMicros)) ?: "n/a"
 
     override val yearlyPrice: String
         get() {
-            if (price == BigDecimal(0.00)) {
-                return "$0.00"
-            }
-
-            val numberFormatter = DecimalFormat.getCurrencyInstance()
-            numberFormatter.currency = Currency.getInstance(Locale.getDefault())
-
-            val subscriptionPeriod = subscriptionPeriod
-            if (subscriptionPeriod == null) {
-                return "n/a"
-            }
-
-            val numberOfUnits = subscriptionPeriod.value
-            var periods: BigDecimal = BigDecimal(1)
-            val inputPrice = price
-
-            when (subscriptionPeriod.unit) {
-                SubscriptionPeriod.Unit.year -> periods = BigDecimal(numberOfUnits)
-                SubscriptionPeriod.Unit.month -> periods = BigDecimal(numberOfUnits).divide(BigDecimal(12), BigDecimal.ROUND_HALF_EVEN)
-                SubscriptionPeriod.Unit.week -> periods = BigDecimal(numberOfUnits).divide(BigDecimal(52), BigDecimal.ROUND_HALF_EVEN)
-                SubscriptionPeriod.Unit.day -> periods = BigDecimal(numberOfUnits).divide(BigDecimal(365), BigDecimal.ROUND_HALF_EVEN)
-            }
-
-            val yearlyPriceDecimal = inputPrice.divide(periods, 2, BigDecimal.ROUND_HALF_EVEN)  // 2 is the scale (number of decimal places)
-            println("!!! yearlyPrice  $inputPrice, $periods, $yearlyPriceDecimal")
-            return numberFormatter.format(yearlyPriceDecimal.toDouble()) ?: "n/a"
+            println("!!! yearlyPrice: ${subscriptionPeriod?.yearlyPrice(BigDecimal(rawStoreProduct.skuDetails.priceAmountMicros))}} $price")
+            return subscriptionPeriod?.yearlyPrice(BigDecimal(rawStoreProduct.skuDetails.priceAmountMicros)) ?: "n/a"
         }
 
-
+    /**
+     * The trial subscription period of the product.
+     */
+    val trialSubscriptionPeriod: SubscriptionPeriod?
+        get() = SubscriptionPeriod.from(rawStoreProduct.skuDetails.freeTrialPeriod)
 
     override val hasFreeTrial: Boolean
         get() = rawStoreProduct.skuDetails.freeTrialPeriod.isNotEmpty()
 
     override val trialPeriodEndDate: Date?
-        get() = null // Calculate trial period end date based on your needs
+        get() = if (trialSubscriptionPeriod != null)  {
+            val calendar = Calendar.getInstance()
+            when (trialSubscriptionPeriod!!.unit) {
+                SubscriptionPeriod.Unit.day -> calendar.add(Calendar.DAY_OF_YEAR, trialSubscriptionPeriod!!.value)
+                SubscriptionPeriod.Unit.week -> calendar.add(Calendar.WEEK_OF_YEAR, trialSubscriptionPeriod!!.value)
+                SubscriptionPeriod.Unit.month -> calendar.add(Calendar.MONTH, trialSubscriptionPeriod!!.value)
+                SubscriptionPeriod.Unit.year -> calendar.add(Calendar.YEAR, trialSubscriptionPeriod!!.value)
+            }
+            calendar.time
+        } else {
+            null
+        }
 
     override val trialPeriodEndDateString: String
-        get() = "" // Format trialPeriodEndDate as a string based on your needs
+        get() = if (trialPeriodEndDate != null) {
+            val dateFormatter = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+            dateFormatter.format(trialPeriodEndDate!!)
+        } else {
+            ""
+        }
 
     override val trialPeriodDays: Int
-        get() = 0 // Calculate trial period days based on your needs
+        get() =
+            trialSubscriptionPeriod?.periodDays ?:  0
 
     override val trialPeriodDaysString: String
         get() = trialPeriodDays.toString()
 
     override val trialPeriodWeeks: Int
-        get() = 0 // Calculate trial period weeks based on your needs
+        get() {
+            val trialPeriod = trialSubscriptionPeriod ?: return 0
+            val numberOfUnits = trialPeriod.value
+
+            return when (trialPeriod.unit) {
+                SubscriptionPeriod.Unit.day -> numberOfUnits / 7
+                SubscriptionPeriod.Unit.month -> 4 * numberOfUnits  // Assumes 4 weeks in a month
+                SubscriptionPeriod.Unit.week -> 1 * numberOfUnits
+                SubscriptionPeriod.Unit.year -> 52 * numberOfUnits  // Assumes 52 weeks in a year
+                else -> 0
+            }
+        }
 
     override val trialPeriodWeeksString: String
         get() = trialPeriodWeeks.toString()
 
     override val trialPeriodMonths: Int
-        get() = 0 // Calculate trial period months based on your needs
+        get() =
+            trialSubscriptionPeriod?.periodMonths ?:  0
 
     override val trialPeriodMonthsString: String
         get() = trialPeriodMonths.toString()
 
     override val trialPeriodYears: Int
-        get() = 0 // Calculate trial period years based on your needs
+        get() =
+            trialSubscriptionPeriod?.periodYears ?:  0
 
     override val trialPeriodYearsString: String
         get() = trialPeriodYears.toString()
@@ -243,19 +175,19 @@ class StoreProduct(
         get() = rawStoreProduct.skuDetails.freeTrialPeriod
 
     override val locale: String
-        get() = "" // Get the locale based on your needs
+        get() = Locale.getDefault().toString()
 
     override val languageCode: String?
-        get() = null // Get the language code based on your needs
+        get() = Locale.getDefault().language
 
     override val currencyCode: String?
         get() = rawStoreProduct.skuDetails.priceCurrencyCode
 
     override val currencySymbol: String?
-        get() = null // Get the currency symbol based on your needs
+        get() = Currency.getInstance(rawStoreProduct.skuDetails.priceCurrencyCode).symbol
 
     override val regionCode: String?
-        get() = null // Get the region code based on your needs
+        get() = Locale.getDefault().country
 
 
     val attributes: Map<String, String>
