@@ -35,6 +35,9 @@ import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEventObjc
 import com.superwall.sdk.analytics.trigger_session.LoadState
 import com.superwall.sdk.dependencies.TriggerSessionManagerFactory
+import com.superwall.sdk.game.GameControllerDelegate
+import com.superwall.sdk.game.GameControllerEvent
+import com.superwall.sdk.game.GameControllerManager
 import com.superwall.sdk.misc.AlertControllerFactory
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.PaywallPresentationStyle
@@ -85,7 +88,7 @@ class PaywallViewController(
     val cache: PaywallViewControllerCache?,
     private val shimmerView: ShimmerView = ShimmerView(context),
     private val loadingViewController: LoadingViewController = LoadingViewController(context)
-) : FrameLayout(context), PaywallMessageHandlerDelegate, SWWebViewDelegate, ActivityEncapsulatable {
+) : FrameLayout(context), PaywallMessageHandlerDelegate, SWWebViewDelegate, ActivityEncapsulatable, GameControllerDelegate {
     //region Public properties
 
     // MUST be set prior to presentation
@@ -248,10 +251,7 @@ class PaywallViewController(
             paywallStatePublisher = null
         }
 
-        // Reset state
-        // TODO: Game Controller and survey
-
-        // GameControllerManager.shared.clearDelegate(self)
+         GameControllerManager.shared.clearDelegate(this)
 
 //        if didDisableSwipeForSurvey {
 //            presentationController?.delegate = nil
@@ -352,9 +352,17 @@ class PaywallViewController(
         didCallDelegate = false
         paywall.closeReason = PaywallCloseReason.None
 
-        // TODO: Implement game controller
-        // GameControllerManager.shared.setDelegate(self)
+         GameControllerManager.shared.setDelegate(this)
+
+        // Focus the webView
+        webView.requestFocus()
+
+        // Grab the current orientation, to be able to set it back after the transaction abandon
+        val currentOrientation = resources.configuration.orientation
+        initialOrientation = currentOrientation
     }
+
+    private var initialOrientation: Int? = null
 
     private suspend fun trackOpen() {
         val triggerSessionManager = factory.getTriggerSessionManager()
@@ -607,6 +615,19 @@ class PaywallViewController(
 //            context.startActivity(deepLinkIntent)
 //        }
     }
+
+    //region GameController
+    override fun gameControllerEventDidOccur(event: GameControllerEvent) {
+        val payload = event.jsonString
+        webView.evaluateJavascript("window.paywall.accept([$payload])", null)
+        Logger.debug(
+            logLevel = LogLevel.debug,
+            scope = LogScope.paywallViewController,
+            message = "Game controller event occurred: $payload"
+        )
+    }
+
+    //endregion
 
     //endregion
 

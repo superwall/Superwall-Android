@@ -4,12 +4,19 @@ import android.content.Context
 import android.graphics.Color
 import android.net.Uri
 import android.os.Build
+import android.view.KeyEvent
+import android.view.MotionEvent
+import android.view.inputmethod.BaseInputConnection
+import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputConnection
 import android.webkit.*
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.SessionEventsManager
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.trigger_session.LoadState
+import com.superwall.sdk.game.dispatchKeyEvent
+import com.superwall.sdk.game.dispatchMotionEvent
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallMessageHandler
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallMessageHandlerDelegate
@@ -17,6 +24,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.util.*
+
 
 interface _SWWebViewDelegate {
     val info: PaywallInfo
@@ -77,6 +85,28 @@ class SWWebView(
                 }
             }
         }
+    }
+
+    // ???
+    // https://stackoverflow.com/questions/20968707/capturing-keypress-events-in-android-webview
+    override fun onCreateInputConnection(outAttrs: EditorInfo?): InputConnection {
+        return BaseInputConnection(this, false)
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent?): Boolean {
+        if (event == null) {
+            return super.dispatchKeyEvent(event)
+        }
+        Superwall.instance.dispatchKeyEvent(event)
+        return true
+    }
+
+    override fun dispatchGenericMotionEvent(event: MotionEvent?): Boolean {
+        if (event == null) {
+            return super.dispatchGenericMotionEvent(event)
+        }
+        Superwall.instance.dispatchMotionEvent(event)
+        return true
     }
 
 
