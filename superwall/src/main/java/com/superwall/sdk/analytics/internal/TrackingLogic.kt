@@ -126,7 +126,7 @@ sealed class TrackingLogic {
             )
 
 
-            val referringEventName = paywallViewController?.paywallInfo?.presentedByEventWithName
+            val referringEventName = paywallViewController?.info?.presentedByEventWithName
             if (referringEventName != null) {
                 if (notAllowedReferringEventNames.contains(referringEventName)) {
                     println("!! canTriggerPaywall: notAllowedReferringEventNames.contains(referringEventName) $referringEventName")

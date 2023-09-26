@@ -65,7 +65,7 @@ class MainApplication : android.app.Application(), SuperwallDelegate {
         Superwall.instance.register(event, params)
     }
 
-    override suspend fun handleSuperwallEvent(withInfo: SuperwallEventInfo) {
+    override fun handleSuperwallEvent(withInfo: SuperwallEventInfo) {
         println("\n!! SuperwallDelegate !! \n" +
                 "\tEvent name:" + withInfo.event.rawName + "" +
                 ",\n\tParams:" + withInfo.params + "\n"

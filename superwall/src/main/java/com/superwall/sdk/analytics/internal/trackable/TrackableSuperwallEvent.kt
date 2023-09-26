@@ -15,6 +15,7 @@ import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatus
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatusReason
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
+import com.superwall.sdk.paywall.vc.Survey.SurveyPresentationResult
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.GoogleBillingPurchaseTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
@@ -266,9 +267,21 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
 
     class PaywallClose(
         val paywallInfo: PaywallInfo,
+        //val surveyPresentationResult: SurveyPresentationResult
         override var customParameters: HashMap<String, Any> = HashMap()
     ) : InternalSuperwallEvent(SuperwallEvent.PaywallClose(paywallInfo = paywallInfo)) {
         override suspend fun getSuperwallParameters(): HashMap<String, Any> {
+            // TODO: Add surveys
+            var params: Map<String, Any> = mapOf(
+                "survey_attached" to false //paywallInfo.surveys.isEmpty ? false : true
+            )
+
+//            if surveyPresentationResult != .noShow {
+//                params["survey_presentation"] = surveyPresentationResult.rawValue
+//            }
+
+            val eventParams = paywallInfo.eventParams()
+            params = params + eventParams
             return HashMap(paywallInfo.eventParams())
         }
     }
