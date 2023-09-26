@@ -13,6 +13,9 @@ class MockPaywallViewControllerDelegate : PaywallViewControllerDelegate {
         shouldDismiss: Boolean
     ) {
         paywallViewControllerDidFinish?.invoke(paywall, result, shouldDismiss)
+        if (shouldDismiss) {
+            paywall.encapsulatingActivity?.finish()
+        }
     }
     fun paywallViewControllerDidFinish(handler: (PaywallViewController, PaywallResult, Boolean) -> Unit) {
         paywallViewControllerDidFinish = handler

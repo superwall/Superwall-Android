@@ -229,7 +229,7 @@ class PaywallViewController(
         completion(true)
     }
 
-    suspend fun viewDidDisappear() {
+    internal suspend fun viewDidDisappear() {
         Superwall.instance.dependencyContainer.delegateAdapter.didDismissPaywall(info)
 
         val result = paywallResult ?: PaywallResult.Declined()
@@ -267,7 +267,7 @@ class PaywallViewController(
         dismissCompletionBlock = null
     }
 
-    suspend fun dismiss(
+    internal suspend fun dismiss(
         result: PaywallResult,
         closeReason: PaywallCloseReason = PaywallCloseReason.SystemLogic,
         completion: (() -> Unit)? = null
@@ -463,7 +463,7 @@ class PaywallViewController(
 
     //region State
 
-    fun loadingStateDidChange(from: PaywallLoadingState) {
+    internal fun loadingStateDidChange(from: PaywallLoadingState) {
         when (loadingState) {
             is PaywallLoadingState.Unknown -> {
             }
