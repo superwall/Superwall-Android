@@ -22,6 +22,7 @@ class UITestHandler {
             0,
             "Uses the identify function. Should see the name 'Jack' in the paywall."
         )
+
         suspend fun test0() {
             // TODO: The name doesn't display
             Superwall.instance.identify(userId = "test0")
@@ -33,6 +34,7 @@ class UITestHandler {
             1,
             "Uses the identify function. Should see the name 'Kate' in the paywall."
         )
+
         suspend fun test1() {
             // TODO: The name doesn't display
             // Set identity
@@ -49,6 +51,7 @@ class UITestHandler {
             2,
             "Calls `reset()`. No first name should be displayed."
         )
+
         suspend fun test2() {
             // TODO: The name doesn't get set to begin with so isn't an accurate test.
             // Set identity
@@ -63,6 +66,7 @@ class UITestHandler {
             3,
             "Calls `reset()` multiple times. No first name should be displayed."
         )
+
         suspend fun test3() {
             // Set identity
             Superwall.instance.identify(userId = "test3")
@@ -109,6 +113,7 @@ class UITestHandler {
             "Paywall should appear with 2 products: 1 monthly at \$4.99 and 1 annual at" +
                     " \$29.99."
         )
+
         suspend fun test6() {
             // TODO: This doesn't have the products that it should have - need to add to
             //  google play console
@@ -121,6 +126,7 @@ class UITestHandler {
                     "user.should_display == true and user.some_value > 12. Then dismisses and removes " +
                     "those attributes. Make sure it's not presented."
         )
+
         suspend fun test7() {
             // TODO: This crashes with no rule match
             Superwall.instance.identify(userId = "test7")
@@ -151,6 +157,7 @@ class UITestHandler {
             "Adds a user attribute to verify rule on `present_and_rule_user`. Verify it" +
                     " DOES NOT present: user.should_display == true and user.some_value > 12"
         )
+
         suspend fun test8() {
             // TODO: Crashes on no rule match
             Superwall.instance.identify(userId = "test7")
@@ -169,6 +176,7 @@ class UITestHandler {
             "Sets subs status to active, paywall should present regardless of this," +
                     " then it sets the status back to inactive."
         )
+
         suspend fun test9() {
             Superwall.instance.setSubscriptionStatus(SubscriptionStatus.ACTIVE)
             Superwall.instance.register(event = "present_always")
@@ -183,7 +191,8 @@ class UITestHandler {
                     "should be presented again with no override products. After dismiss, paywall " +
                     "should be presented one last time with no override products."
         )
-        suspend fun  test10() {
+
+        suspend fun test10() {
             // TODO: Product substitution
         }
 
@@ -193,9 +202,10 @@ class UITestHandler {
                     "8 seconds and present again without any name. Then it should present again" +
                     " with the name Sawyer."
         )
+
         suspend fun test11() {
             // TODO: USer attributes not set
-            Superwall.instance.setUserAttributes(mapOf("first_name" to "Claire" ))
+            Superwall.instance.setUserAttributes(mapOf("first_name" to "Claire"))
             Superwall.instance.register(event = "present_data")
 
             delay(8000)
@@ -223,6 +233,7 @@ class UITestHandler {
             12,
             "Test trigger: off. Paywall shouldn't present."
         )
+
         suspend fun test12() {
             Superwall.instance.register(event = "keep_this_trigger_off")
         }
@@ -231,6 +242,7 @@ class UITestHandler {
             13,
             "Test trigger: not in the dashboard. Paywall shouldn't present."
         )
+
         suspend fun test13() {
             Superwall.instance.register(event = "i_just_made_this_up_and_it_dne")
         }
@@ -240,6 +252,7 @@ class UITestHandler {
             "Presents the paywall and then dismisses after 8 seconds. The paywall shouldn't " +
                     "display based on a paywall_close event."
         )
+
         suspend fun test14() {
             // Show a paywall
             Superwall.instance.register(event = "present_always")
@@ -255,6 +268,7 @@ class UITestHandler {
             "Clusterfucks by Jake™. One paywall should present, then it should disappear" +
                     " then another paywall should present and disappear."
         )
+
         suspend fun test15() {
             // TODO: Stop multiple paywalls from being presented at a time
             Superwall.instance.register(event = "present_always")
@@ -297,6 +311,7 @@ class UITestHandler {
             "Present an alert on Superwall.presentedViewController from the onPresent" +
                     " callback"
         )
+
         suspend fun test16() {
             // TODO: Can't do this without a handler in register
         }
@@ -307,6 +322,7 @@ class UITestHandler {
                     "dismisses after 8s. Then another paywall will present with no name. Then" +
                     " the paywall will dismiss after 8s and one more paywall will display."
         )
+
         suspend fun test17() {
             Superwall.instance.identify(userId = "test0")
             Superwall.instance.setUserAttributes(mapOf("first_name" to "Jack"))
@@ -348,6 +364,7 @@ class UITestHandler {
             18,
             "Open In-App browser from a manually presented paywall. Once the in-app browser opens, close it, and verify that the paywall is still showing."
         )
+
         suspend fun test18() {
             // Create a mock paywall view controller
             val delegate = MockPaywallViewControllerDelegate()
@@ -365,6 +382,7 @@ class UITestHandler {
                     " after 8s. Then it presents again with no name, dismisses, and finally presents " +
                     "with the name Kate."
         )
+
         suspend fun test19() {
             // Set identity
             Superwall.instance.identify(userId = "test19a")
@@ -416,6 +434,7 @@ class UITestHandler {
             "Verify that external URLs can be opened in native Safari from paywall. When" +
                     " the paywall opens, tap button 2."
         )
+
         suspend fun test20() {
             // Present paywall with URLs
             Superwall.instance.register(event = "present_urls")
@@ -428,6 +447,7 @@ class UITestHandler {
             "Present the paywall and manually purchase. After 12 seconds, it'll try to " +
                     "present the paywall again. The paywall shouldn't present."
         )
+
         suspend fun test21() {
             Superwall.instance.register(event = "present_data")
 
@@ -443,6 +463,7 @@ class UITestHandler {
             "Track an event shortly after another one is beginning to present. The " +
                     "session should not be cancelled out."
         )
+
         suspend fun test22() {
             // TODO: This is skipped in the iOS SDK for now
         }
@@ -452,6 +473,7 @@ class UITestHandler {
             "Case: Unsubscribed user, register event without a gating handler\n" +
                     "Result: paywall should display"
         )
+
         suspend fun test23() {
             // Register event
             Superwall.instance.register(event = "register_nongated_paywall")
@@ -463,6 +485,7 @@ class UITestHandler {
                     "Result: paywall should NOT display. Resets subscription status to inactive " +
                     "4s later."
         )
+
         suspend fun test24() {
             // Set user as subscribed
             Superwall.instance.setSubscriptionStatus(SubscriptionStatus.ACTIVE)
@@ -479,6 +502,7 @@ class UITestHandler {
             "Present the paywall and make a purchase. After 12s it'll try to present a " +
                     "paywall again. It shouldn't present. These register calls don't have a feature gate."
         )
+
         suspend fun test25() {
             Superwall.instance.register(event = "register_nongated_paywall")
 
@@ -533,6 +557,7 @@ class UITestHandler {
             33,
             "Calls identify twice with the same ID before presenting a paywall"
         )
+
         suspend fun test33() {
             // Set identity
             Superwall.instance.identify(userId = "test33")
@@ -545,6 +570,7 @@ class UITestHandler {
             34,
             "Call reset 8s after a paywall is presented – should not cause a crash."
         )
+
         suspend fun test34() {
             Superwall.instance.register(event = "present_data")
 
@@ -623,11 +649,11 @@ class UITestHandler {
             "Verify that an invalid URL like `#` doesn't crash the app. Manually tap on" +
                     "the \"Open in-app #\" button."
         )
+
         suspend fun test62() {
             // Present paywall with URLs
             Superwall.instance.register(event = "present_urls")
 
-            // Need to manually tap on the URL button
         }
 
         var test63Info = UITestInfo(
@@ -657,6 +683,7 @@ class UITestHandler {
             "Check that calling identify restores the seed value. This is async and " +
                     "dependent on config so needs to sleep after calling identify."
         )
+
         suspend fun test72() {
             // TODO: This fails to have the same userId after resetting and identifying.
             Superwall.instance.identify(userId = "abc")
@@ -664,7 +691,7 @@ class UITestHandler {
             delay(1000)
 
             var seedHolder = Superwall.instance.getUserAttributes()
-            println(seedHolder)
+            println("!!! seedHolder - 1: $seedHolder")
 
             Superwall.instance.reset()
 
@@ -673,8 +700,17 @@ class UITestHandler {
             delay(1000)
 
             seedHolder = Superwall.instance.getUserAttributes()
-            val seed = seedHolder["seed"]
-            println("!!! TESST 72 !!! The seed is: $seedHolder")
+            println("!!! seedHolder - 2: $seedHolder")
+
+        }
+
+        var test82Info = UITestInfo(
+            82,
+            "Verify that our pricing gets templated in correctly."
+        )
+
+        suspend fun test82() {
+            Superwall.instance.register(event = "price_readout")
         }
     }
 }
