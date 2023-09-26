@@ -8,6 +8,7 @@ import com.superwall.sdk.identity.identify
 import com.superwall.sdk.identity.setUserAttributes
 import com.superwall.sdk.models.paywall.PaywallProducts
 import com.superwall.sdk.paywall.presentation.get_paywall.getPaywall
+import com.superwall.sdk.paywall.presentation.get_presentation_result.getPresentationResult
 import com.superwall.sdk.paywall.presentation.internal.dismiss
 import com.superwall.sdk.paywall.vc.SuperwallPaywallActivity
 import kotlinx.coroutines.delay
@@ -487,6 +488,43 @@ class UITestHandler {
 
             // Try to present paywall again
             Superwall.instance.register(event = "register_nongated_paywall")
+        }
+
+        var test28Info = UITestInfo(
+            28,
+            "Should print out \"Paywall(experiment...)\"."
+        )
+        suspend fun test28() {
+            val result = Superwall.instance.getPresentationResult("present_data")
+            println("!!! TEST 28 !!! $result")
+        }
+
+        var test29Info = UITestInfo(
+            29,
+            "Should print out \"noRuleMatch\"."
+        )
+        suspend fun test29() {
+            Superwall.instance.setUserAttributes(mapOf("should_display" to null, "some_value" to null))
+            val result = Superwall.instance.getPresentationResult("present_and_rule_user")
+            println("!!! TEST 29 !!! $result")
+        }
+
+        var test30Info = UITestInfo(
+            30,
+            "Should print out \"eventNotFound\"."
+        )
+        suspend fun test30() {
+            val result = Superwall.instance.getPresentationResult("some_random_not_found_event")
+            println("!!! TEST 30 !!! $result")
+        }
+
+        var test31Info = UITestInfo(
+            31,
+            "Should print out \"holdout\"."
+        )
+        suspend fun test31() {
+            val result = Superwall.instance.getPresentationResult("holdout")
+            println("!!! TEST 31 !!! $result")
         }
 
         // TODO: Test 25-32 require stuff that we don't have rn

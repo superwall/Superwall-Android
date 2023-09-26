@@ -9,7 +9,7 @@ import com.superwall.sdk.paywall.presentation.internal.getPaywallComponents
 import com.superwall.sdk.paywall.presentation.result.PresentationResult
 
 
-suspend fun Superwall.getPresentationResult(request: PresentationRequest): PresentationResult {
+internal suspend fun Superwall.getPresentationResult(request: PresentationRequest): PresentationResult {
     return try {
         val paywallComponents = getPaywallComponents(request)
         val triggerResult = paywallComponents.rulesOutcome.triggerResult
@@ -20,7 +20,7 @@ suspend fun Superwall.getPresentationResult(request: PresentationRequest): Prese
     }
 }
 
-private fun Superwall.handle(
+private fun handle(
     error: PresentationPipelineError,
     requestType: PresentationRequestType
 ): PresentationResult {
