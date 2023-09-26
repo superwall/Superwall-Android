@@ -50,7 +50,6 @@ class ComposeActivity : ComponentActivity(), PaywallViewControllerDelegate {
         result: PaywallResult,
         shouldDismiss: Boolean
     ) {
-        // TODO: Add an implementation here if the paywall view controller would dismiss.
         // In the context of a tab bar, there won't be a dismissal.
     }
 }
