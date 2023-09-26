@@ -94,7 +94,7 @@ class SWWebView(
     }
 
     override fun dispatchKeyEvent(event: KeyEvent?): Boolean {
-        if (event == null) {
+        if (event == null || !Superwall.instance.options.isGameControllerEnabled) {
             return super.dispatchKeyEvent(event)
         }
         Superwall.instance.dispatchKeyEvent(event)
@@ -102,7 +102,7 @@ class SWWebView(
     }
 
     override fun dispatchGenericMotionEvent(event: MotionEvent?): Boolean {
-        if (event == null) {
+        if (event == null || !Superwall.instance.options.isGameControllerEnabled) {
             return super.dispatchGenericMotionEvent(event)
         }
         Superwall.instance.dispatchMotionEvent(event)
