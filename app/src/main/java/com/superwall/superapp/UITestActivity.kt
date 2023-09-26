@@ -39,6 +39,7 @@ class UITestActivity : ComponentActivity() {
 fun UITestTable() {
     val uiTestHandler = UITestHandler()
     val scope = rememberCoroutineScope()
+    UITestHandler.context = LocalContext.current
 
     val tests = mapOf(
         UITestHandler.test0Info to { scope.launch { UITestHandler.test0() } },
@@ -89,7 +90,7 @@ fun UITestTable() {
                             .padding(horizontal = 8.dp)
                     ) {
                         Text(
-                            color = Color.White,
+                            color = Color.Black,
                             text = "UITest ${item.number}",
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(bottom = 8.dp)

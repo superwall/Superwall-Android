@@ -36,6 +36,7 @@ import com.superwall.sdk.dependencies.TriggerSessionManagerFactory
 import com.superwall.sdk.misc.AlertControllerFactory
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.PaywallPresentationStyle
+import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.paywall.manager.PaywallCacheLogic
 import com.superwall.sdk.paywall.manager.PaywallManager
@@ -80,50 +81,6 @@ class PaywallViewController(
     private val loadingViewController: LoadingViewController = LoadingViewController(context)
 ) : FrameLayout(context), PaywallMessageHandlerDelegate, SWWebViewDelegate, ActivityEncapsulatable {
 
-    //region Public properties
-
-    // MUST be set prior to presentation
-    override var request: PresentationRequest? = null
-
-    //endregion
-
-    //region Public functions
-
-    fun present(
-        presenter: Activity,
-        request: PresentationRequest,
-        presentationStyleOverride: PaywallPresentationStyle?,
-        paywallStatePublisher: MutableStateFlow<PaywallState>,
-        completion: (Boolean) -> Unit
-    ) {
-        if (Superwall.instance.isPaywallPresented) {
-            return completion(false)
-        }
-
-        // TODO: do something with these values
-        this.presentationRequest = request
-        this.paywallStatePublisher = paywallStatePublisher
-
-        // TODO: handle animation and style from `presentationStyleOverride`
-        SuperwallPaywallActivity.startWithView(presenter.applicationContext, this)
-
-        completion(true)
-    }
-
-    // TODO: Implement this function for real
-    fun dismiss(result: PaywallResult, closeReason: PaywallCloseReason = PaywallCloseReason.SystemLogic, completion: (() -> Unit)? = null) {
-        paywall?.closeReason = closeReason
-
-        // TODO: Implement a way to dismiss the paywall via the delegate Implement a way to dismiss the paywall via the delegate Implement a way to dismiss the paywall via the delegate Implement a way to dismiss the paywall via the delegate
-        // Sw-2161 https://linear.app/superwall/issue/SW-2161/%5Bandroid%5D-%5Bv0%5D-ensure-dismissing-when-using-getpaywallviewcontroller
-
-        dismiss(false)
-    }
-
-
-
-    //endregion
-
     //region Initialization
 
     init {
@@ -147,6 +104,80 @@ class PaywallViewController(
 
     //endregion
 
+    //region Public properties
+
+    // MUST be set prior to presentation
+    override var request: PresentationRequest? = null
+
+    //endregion
+
+    //region Public functions
+
+    fun set(
+        request: PresentationRequest,
+        paywallStatePublisher: MutableStateFlow<PaywallState>,
+        unsavedOccurrence: TriggerRuleOccurrence? = null
+    ) {
+        this.request = request
+        this.paywallStatePublisher = paywallStatePublisher
+        this.unsavedOccurrence = unsavedOccurrence
+    }
+
+
+    fun present(
+        presenter: Activity,
+        request: PresentationRequest,
+        presentationStyleOverride: PaywallPresentationStyle?,
+        paywallStatePublisher: MutableStateFlow<PaywallState>,
+        completion: (Boolean) -> Unit
+    ) {
+        if (Superwall.instance.isPaywallPresented) {
+            return completion(false)
+        }
+
+        // TODO: Add unsavedOccurrence for 3.4.0
+        set(request = request, paywallStatePublisher = paywallStatePublisher, unsavedOccurrence = null)
+
+        // TODO: handle animation and style from `presentationStyleOverride`
+        SuperwallPaywallActivity.startWithView(presenter.applicationContext, this)
+
+        completion(true)
+    }
+
+    // TODO: Implement this function for real
+    fun dismiss(result: PaywallResult, closeReason: PaywallCloseReason = PaywallCloseReason.SystemLogic, completion: (() -> Unit)? = null) {
+        paywall?.closeReason = closeReason
+
+        // TODO: Implement a way to dismiss the paywall via the delegate Implement a way to dismiss the paywall via the delegate Implement a way to dismiss the paywall via the delegate Implement a way to dismiss the paywall via the delegate
+        // Sw-2161 https://linear.app/superwall/issue/SW-2161/%5Bandroid%5D-%5Bv0%5D-ensure-dismissing-when-using-getpaywallviewcontroller
+
+        dismiss(false)
+    }
+
+    //endregion
+
+    //region Private properties not used in initializer
+
+    /// `true` if there's a survey to complete and the paywall is displayed in a modal style.
+    private var didDisableSwipeForSurvey = false
+
+    /// The presenting view controller, saved for presenting surveys from when
+    /// the view disappears.
+    private val internalPresentingViewController: Activity?
+        get() {
+            return encapsulatingActivity
+        }
+
+    /// Whether the survey was shown, not shown, or in a holdout. Defaults to not shown.
+    // TODO:
+//    private var surveyPresentationResult: SurveyPresentationResult = .noShow
+
+    /// If the user match a rule with an occurrence, this needs to be saved on
+    /// paywall presentation.
+    private var unsavedOccurrence: TriggerRuleOccurrence? = null
+
+    //endregion
+
     //region Lifecycle
 
     private val cacheKey: String = PaywallCacheLogic.key(paywall.identifier, deviceHelper.locale)
@@ -156,8 +187,8 @@ class PaywallViewController(
 
         cache?.activePaywallVcKey = cacheKey
 
-        // Assert if no `presentationRequest`
-        fatalAssert(presentationRequest != null, "Must be presenting a PaywallViewController with a `presentationRequest` instance.")
+        // Assert if no `request`
+        fatalAssert(request != null, "Must be presenting a PaywallViewController with a `request` instance.")
 
         loadWebView()
     }
@@ -187,8 +218,6 @@ class PaywallViewController(
     //endregion
 
     //region Presentation
-
-    private var presentationRequest: PresentationRequest? = null
 
     private var paywallStatePublisher: PaywallStatePublisher? = null
 

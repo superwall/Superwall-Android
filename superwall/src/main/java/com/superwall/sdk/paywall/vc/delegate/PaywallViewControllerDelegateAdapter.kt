@@ -3,12 +3,12 @@ package com.superwall.sdk.paywall.vc.delegate
 import com.superwall.sdk.paywall.vc.PaywallViewController
 
 class PaywallViewControllerDelegateAdapter(
-    var swiftDelegate: PaywallViewControllerDelegate?,
+    var kotlinDelegate: PaywallViewControllerDelegate?,
 ) {
-    val hasObjcDelegate: Boolean
+    val hasJavaDelegate: Boolean
         get() = false
 
     suspend fun didFinish(controller: PaywallViewController, swiftResult: PaywallResult) {
-        swiftDelegate?.paywallViewController(controller, swiftResult)
+        kotlinDelegate?.paywallViewController(controller, swiftResult)
     }
 }

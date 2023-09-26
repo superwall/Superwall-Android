@@ -12,6 +12,7 @@ sealed class PaywallResult {
 }
 
 interface PaywallViewControllerDelegate {
+    // TODO: missing `shouldDismiss`
     fun paywallViewController(controller: PaywallViewController, didFinishWith: PaywallResult)
 }
 
