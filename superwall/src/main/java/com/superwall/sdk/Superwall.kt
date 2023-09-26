@@ -9,6 +9,7 @@ import android.util.Log
 import com.superwall.sdk.analytics.internal.TrackingLogic
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
+import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.analytics.internal.trackable.UserInitiatedEvent
 import com.superwall.sdk.billing.BillingController
 import com.superwall.sdk.config.options.SuperwallOptions
@@ -18,11 +19,16 @@ import com.superwall.sdk.delegate.SuperwallDelegateJava
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.dependencies.DependencyContainer
 import com.superwall.sdk.models.events.EventData
+import com.superwall.sdk.paywall.presentation.LastPresentationItems
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.PresentationItems
+import com.superwall.sdk.paywall.presentation.get_presentation_result.getPresentationResult
+import com.superwall.sdk.paywall.presentation.internal.PaywallStatePublisher
+import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
+import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.paywall.presentation.result.PresentationResult
 import com.superwall.sdk.paywall.vc.PaywallViewController
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerEventDelegate
@@ -319,20 +325,6 @@ public class Superwall(context: Context, apiKey: String, purchaseController: Pur
 
     //endregion
 
-
-    // Assume that Superwall, Logger, InternalSuperwallEvent,
-// getImplicitPresentationResult, dismiss, track, purchase, tryToRestore,
-// paywallWillOpenURL, paywallWillOpenDeepLink, handleCustomPaywallAction
-// are defined somewhere accessible in your Kotlin project
-// Called internally when you need to get the presentation result from an implicit event.
-// This prevents logs being fired.
-    suspend fun getImplicitPresentationResult(forEvent: String): PresentationResult {
-        return internallyGetPresentationResult(
-            forEvent = forEvent,
-            type = PresentationRequestType.GetImplicitPresentationResult
-        )
-    }
-
     /*
 
 
@@ -372,28 +364,20 @@ public class Superwall(context: Context, apiKey: String, purchaseController: Pur
         return await getPresentationResult(for: presentationRequest)
       }
      */
-    private suspend fun internallyGetPresentationResult(
-        forEvent: String,
-        params: Map<String, Any>? = null,
-        type: PresentationRequestType
+    internal suspend fun internallyGetPresentationResult(
+        event: Trackable,
+        isImplicit: Boolean
     ): PresentationResult {
         val eventCreatedAt = Date()
 
-        val trackableEvent = UserInitiatedEvent.Track(
-            rawName = forEvent,
-            canImplicitlyTriggerPaywall = false,
-            customParameters = HashMap(params ?: emptyMap()),
-            isFeatureGatable = false
-        )
-
         val parameters = TrackingLogic.processParameters(
-            trackableEvent = trackableEvent,
+            trackableEvent = event,
             eventCreatedAt = eventCreatedAt,
             appSessionId = dependencyContainer.appSessionManager.appSession.id
         )
 
         val eventData = EventData(
-            name = forEvent,
+            name = event.rawName,
             parameters = parameters.eventParams,
             createdAt = eventCreatedAt
         )
@@ -402,15 +386,11 @@ public class Superwall(context: Context, apiKey: String, purchaseController: Pur
             PresentationInfo.ExplicitTrigger(eventData), // Assuming a similar structure in Kotlin
             isDebuggerLaunched = false,
             isPaywallPresented = false,
-            type = type
+            type = if (isImplicit) PresentationRequestType.GetImplicitPresentationResult
+                    else PresentationRequestType.GetPresentationResult
         )
 
-//    return getPresentationResult(for = presentationRequest)
-
-        // TODO: Actually implement `paywall_decline`
-        // SW-2160 https://linear.app/superwall/issue/SW-2160/%5Bandroid%5D-%5Bv1%5D-setup-paywall-decline-events-andamp-ensure-it-works
-        return PresentationResult.EventNotFound()
-
+        return getPresentationResult(presentationRequest)
     }
 
 
@@ -428,22 +408,11 @@ public class Superwall(context: Context, apiKey: String, purchaseController: Pur
 
             when (paywallEvent) {
                 is Closed -> {
-                    print("!! here - got closed")
-                    // TODO: Make this work
-                    // SW-2160
-                    // https://linear.app/superwall/issue/SW-2160/%5Bandroid%5D-%5Bv1%5D-setup-paywall-decline-events-andamp-ensure-it-works
-//                    val trackedEvent = InternalSuperwallEvent.PaywallDecline(paywallInfo = paywallViewController.info)
-//                    val result = getImplicitPresentationResult(forEvent = "paywall_decline")
-//                    if (result == PresentationResult.Paywall && paywallViewController.info.presentedByEventWithName != SuperwallEventObjc.paywallDecline.description) {
-//                        // Do nothing, track will handle it.
-//                    } else {
                     dismiss(
                         paywallViewController,
-                        result = PaywallResult.Declined()
+                        result = PaywallResult.Declined(),
+                        closeReason = PaywallCloseReason.ManualClose
                     )
-//                    }
-
-//                    Superwall.instance.track(trackedEvent)
                 }
                 is InitiatePurchase -> {
                     dependencyContainer.transactionManager.purchase(

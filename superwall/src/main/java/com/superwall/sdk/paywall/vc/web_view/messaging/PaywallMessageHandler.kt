@@ -27,7 +27,7 @@ import java.util.*
 interface PaywallMessageHandlerDelegate {
     val request: PresentationRequest?
     var paywall: Paywall
-    val paywallInfo: PaywallInfo
+    val info: PaywallInfo
     val webView: WebView
     var loadingState: PaywallLoadingState
     val isActive: Boolean
@@ -143,7 +143,7 @@ class PaywallMessageHandler(
             if (delegate != null) {
                 delegate.paywall.webviewLoadingInfo.endAt = loadedAt
 
-                val paywallInfo = delegate.paywallInfo
+                val paywallInfo = delegate.info
                 val trackedEvent = InternalSuperwallEvent.PaywallWebviewLoad(
                     state = InternalSuperwallEvent.PaywallWebviewLoad.State.Complete(),
                     paywallInfo = paywallInfo

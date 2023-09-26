@@ -19,7 +19,7 @@ import kotlinx.coroutines.launch
 import java.util.*
 
 interface _SWWebViewDelegate {
-    val paywallInfo: PaywallInfo
+    val info: PaywallInfo
 }
 
 interface SWWebViewDelegate : _SWWebViewDelegate, PaywallMessageHandlerDelegate
@@ -102,7 +102,7 @@ class SWWebView(
     private suspend fun trackPaywallError() {
         delegate?.paywall?.webviewLoadingInfo?.failAt = Date()
 
-        val paywallInfo = delegate?.paywallInfo ?: return
+        val paywallInfo = delegate?.info ?: return
 
         sessionEventsManager.triggerSession.trackWebviewLoad(
             forPaywallId = paywallInfo.databaseId,

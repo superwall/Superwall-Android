@@ -49,10 +49,10 @@ suspend fun Superwall.presentPaywallViewController(
     )
     track(trackedEvent)
 
-    // TODO: Modify for 3.4.0 present
     paywallViewController.present(
         presenter = presenter,
         request = request,
+        unsavedOccurrence = unsavedOccurrence,
         presentationStyleOverride = request.paywallOverrides?.presentationStyle,
         paywallStatePublisher = paywallStatePublisher
     ) { isPresented ->

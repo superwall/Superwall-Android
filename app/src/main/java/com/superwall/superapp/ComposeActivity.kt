@@ -34,8 +34,8 @@ import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.paywall.presentation.get_paywall.getPaywall
+import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.vc.PaywallViewController
-import com.superwall.sdk.paywall.vc.delegate.PaywallResult
 
 class ComposeActivity : ComponentActivity(), PaywallViewControllerDelegate {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -45,11 +45,12 @@ class ComposeActivity : ComponentActivity(), PaywallViewControllerDelegate {
         }
     }
 
-    override fun paywallViewController(
-        controller: PaywallViewController,
-        didFinishWith: PaywallResult
+    override fun didFinish(
+        paywall: PaywallViewController,
+        result: PaywallResult,
+        shouldDismiss: Boolean
     ) {
-        // Add an implementation here if the paywall view controller would dismiss.
+        // TODO: Add an implementation here if the paywall view controller would dismiss.
         // In the context of a tab bar, there won't be a dismissal.
     }
 }
@@ -209,9 +210,10 @@ class PreviewPaywallDelegateProvider : PreviewParameterProvider<PaywallViewContr
     override val values: Sequence<PaywallViewControllerDelegate> = sequenceOf(
         object : PaywallViewControllerDelegate {
             // Mock implementation of PaywallViewControllerDelegate
-            override fun paywallViewController(
-                controller: PaywallViewController,
-                didFinishWith: PaywallResult
+            override fun didFinish(
+                paywall: PaywallViewController,
+                result: PaywallResult,
+                shouldDismiss: Boolean
             ) {
                 // No implementation required
             }

@@ -86,7 +86,6 @@ class DependencyContainer(
     val transactionManager: TransactionManager
 
     init {
-
         // TODO: Add delegate adapter
 
         activityLifecycleTracker = ActivityLifecycleTracker()
