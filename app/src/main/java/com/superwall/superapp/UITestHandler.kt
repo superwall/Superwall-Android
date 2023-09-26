@@ -557,7 +557,8 @@ class UITestHandler {
         var test35Info = UITestInfo(
             35,
             "Purchase from the paywall and then check that after the purchase has finished " +
-                    "the result type `purchased` is printed to the console. The paywall should dismiss."
+                    "the result type `purchased` is printed to the console. The paywall should dismiss." +
+                    " After doing this, try test 37"
         )
         suspend fun test35() {
             // Create a mock paywall view controller

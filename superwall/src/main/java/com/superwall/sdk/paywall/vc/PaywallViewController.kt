@@ -349,6 +349,9 @@ class PaywallViewController(
             trackOpen()
         }
 
+        didCallDelegate = false
+        paywall.closeReason = PaywallCloseReason.None
+
         // TODO: Implement game controller
         // GameControllerManager.shared.setDelegate(self)
     }

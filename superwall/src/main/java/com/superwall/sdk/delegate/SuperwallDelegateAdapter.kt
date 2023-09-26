@@ -26,7 +26,7 @@ class SuperwallDelegateAdapter {
             ?: javaDelegate?.didDismissPaywall(paywallInfo)
     }
 
-    fun willPresentPaywall(paywallInfo: PaywallInfo) {
+    private fun willPresentPaywall(paywallInfo: PaywallInfo) {
         kotlinDelegate?.willPresentPaywall(paywallInfo)
             ?: javaDelegate?.willPresentPaywall(paywallInfo)
     }
