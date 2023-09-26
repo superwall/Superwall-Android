@@ -7,6 +7,7 @@ import com.android.billingclient.api.*
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
+import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
 import com.superwall.sdk.delegate.SubscriptionStatus
@@ -43,6 +44,11 @@ class MainApplication : android.app.Application(), SuperwallDelegate {
             purchaseController
         )
         Superwall.instance.delegate = this
+
+        // Make sure we enable the game controller
+        Superwall.instance.options.isGameControllerEnabled = true
+
+
 //
 //        // TODO: Fix this so we don't need to make the user set this
         Superwall.instance.setSubscriptionStatus(SubscriptionStatus.INACTIVE)
@@ -125,9 +131,9 @@ class PurchaseControllerImpl(var context: Context) : PurchaseController, Purchas
             .build()
 
         // Wait for connection using kotlinx.coroutines.flow.StateFlow
-        println("!! Waiting for connection ${Thread.currentThread().name}")
+        println("!! (from app) Waiting for connection ${Thread.currentThread().name}")
         _isConnected.first { it }
-        println("!! Connected ${Thread.currentThread().name}")
+        println("!! (from app) Connected ${Thread.currentThread().name}")
 
 
         billingClient.launchBillingFlow(activity, flowParams)

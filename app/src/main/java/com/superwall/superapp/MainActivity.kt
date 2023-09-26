@@ -4,8 +4,16 @@ import android.content.Intent
 import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.view.KeyEvent
+import android.view.MotionEvent
 import android.widget.Button
 import com.superwall.sdk.Superwall
+import com.superwall.sdk.game.dispatchKeyEvent
+import com.superwall.sdk.game.dispatchMotionEvent
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -72,7 +80,47 @@ class MainActivity : AppCompatActivity() {
             val app = application as? MainApplication
             app?.invokeRegister("device_product_test")
         }
+
+        val backboneTestButton: Button = findViewById(R.id.backboneTest)
+        backboneTestButton.setOnClickListener {
+            val app = application as? MainApplication
+            app?.invokeRegister("game_controller")
+
+            // Wait for 5 seconds then press down, then press up
+//            CoroutineScope(Dispatchers.Main).launch {
+//                delay(5000)
+//                Superwall.instance.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BUTTON_A))
+//                delay(1000)
+//                Superwall.instance.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_BUTTON_A))
+//            }
+        }
     }
+
+    /*
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (event == null) {
+            return super.onKeyDown(keyCode, event)
+        }
+        Superwall.instance.dispatchKeyEvent(event)
+        return true
+    }
+
+    override fun onKeyUp(keyCode: Int, event: KeyEvent?): Boolean {
+        if (event == null) {
+            return super.onKeyUp(keyCode, event)
+        }
+        Superwall.instance.dispatchKeyEvent(event)
+        return true
+    }
+
+    override fun onGenericMotionEvent(event: MotionEvent?): Boolean {
+        if (event == null) {
+            return super.onGenericMotionEvent(event)
+        }
+        Superwall.instance.dispatchMotionEvent(event)
+        return true
+    }
+    */
 
     //region Deep Links
 
