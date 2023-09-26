@@ -40,7 +40,10 @@ class StoreProduct(
         get() = rawStoreProduct.skuDetails.sku
 
     override val price: BigDecimal
-        get() = BigDecimal(rawStoreProduct.skuDetails.priceAmountMicros).divide(BigDecimal(1_000_000), RoundingMode.HALF_EVEN)
+        get() = BigDecimal(rawStoreProduct.skuDetails.priceAmountMicros).divide(BigDecimal(1_000_000), 6, RoundingMode.DOWN)
+
+    val trialPrice: BigDecimal
+        get() = BigDecimal(rawStoreProduct.skuDetails.introductoryPriceAmountMicros).divide(BigDecimal(1_000_000), 6, RoundingMode.DOWN)
 
     override val subscriptionGroupIdentifier: String?
         get() = ""
@@ -88,19 +91,16 @@ class StoreProduct(
         get() = periodDays.toString()
 
     override val dailyPrice: String
-        get() = subscriptionPeriod?.dailyPrice(BigDecimal(rawStoreProduct.skuDetails.priceAmountMicros)) ?: "n/a"
+        get() = subscriptionPeriod?.dailyPrice(price) ?: "n/a"
 
     override val weeklyPrice: String
-        get() = subscriptionPeriod?.weeklyPrice(BigDecimal(rawStoreProduct.skuDetails.priceAmountMicros)) ?: "n/a"
+        get() = subscriptionPeriod?.weeklyPrice(price) ?: "n/a"
 
     override val monthlyPrice: String
-        get() = subscriptionPeriod?.monthlyPrice(BigDecimal(rawStoreProduct.skuDetails.priceAmountMicros)) ?: "n/a"
+        get() = subscriptionPeriod?.monthlyPrice(price) ?: "n/a"
 
     override val yearlyPrice: String
-        get() {
-            println("!!! yearlyPrice: ${subscriptionPeriod?.yearlyPrice(BigDecimal(rawStoreProduct.skuDetails.priceAmountMicros))}} $price")
-            return subscriptionPeriod?.yearlyPrice(BigDecimal(rawStoreProduct.skuDetails.priceAmountMicros)) ?: "n/a"
-        }
+        get() = subscriptionPeriod?.yearlyPrice(price) ?: "n/a"
 
     /**
      * The trial subscription period of the product.
@@ -172,7 +172,10 @@ class StoreProduct(
         get() = trialPeriodYears.toString()
 
     override val trialPeriodText: String
-        get() = rawStoreProduct.skuDetails.freeTrialPeriod
+        get() = trialSubscriptionPeriod?.period ?: ""
+
+    override val localizedTrialPeriodPrice: String
+        get() = rawStoreProduct.skuDetails.introductoryPrice
 
     override val locale: String
         get() = Locale.getDefault().toString()
@@ -204,6 +207,12 @@ class StoreProduct(
             attributes["dailyPrice"] = dailyPrice
             attributes["monthlyPrice"] = monthlyPrice
             attributes["yearlyPrice"] = yearlyPrice
+            attributes["rawTrialPeriodPrice"] = trialPrice.toString()
+            attributes["trialPeriodPrice"] = localizedTrialPeriodPrice
+            attributes["trialPeriodDailyPrice"] = trialSubscriptionPeriod?.dailyPrice(trialPrice) ?: "n/a"
+            attributes["trialPeriodWeeklyPrice"] = trialSubscriptionPeriod?.weeklyPrice(trialPrice) ?: "n/a"
+            attributes["trialPeriodMonthlyPrice"] = trialSubscriptionPeriod?.monthlyPrice(trialPrice) ?: "n/a"
+            attributes["trialPeriodYearlyPrice"] = trialSubscriptionPeriod?.yearlyPrice(trialPrice) ?: "n/a"
             attributes["trialPeriodDays"] = trialPeriodDaysString
             attributes["trialPeriodWeeks"] = trialPeriodWeeksString
             attributes["trialPeriodMonths"] = trialPeriodMonthsString

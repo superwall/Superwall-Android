@@ -30,6 +30,7 @@ interface StoreProductType {
     val monthlyPrice: String
     val yearlyPrice: String
     val hasFreeTrial: Boolean
+    val localizedTrialPeriodPrice: String
     val trialPeriodEndDate: Date?
     val trialPeriodEndDateString: String
     val trialPeriodDays: Int
@@ -48,7 +49,6 @@ interface StoreProductType {
     val regionCode: String?
     // Not relevant for Android
 //    val isFamilyShareable: Boolean
-
     /// The period details for products that are subscriptions.
     /// - Returns: `nil` if the product is not a subscription.
     val subscriptionPeriod: SubscriptionPeriod?

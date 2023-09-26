@@ -31,7 +31,10 @@ class SubscriptionPeriodUnitTest {
         assert(period.periodYears == 0)
 
 
-        assertEquals(0, period.pricePerDay(BigDecimal(4.99)).compareTo(truncateDecimal(BigDecimal(4.99), 2)))
+        var correctDailyPrice = truncateDecimal(BigDecimal(4.99), 2)
+        var dailyPrice = period.pricePerDay(BigDecimal(4.99) )
+        println("!!! dailyPrice: $dailyPrice $correctDailyPrice")
+        assertEquals(0, dailyPrice.compareTo(correctDailyPrice))
         val weeklyPrice = truncateDecimal(BigDecimal(4.99).multiply(BigDecimal(7)), 2)
         assertEquals(0, period.pricePerWeek(BigDecimal(4.99)).compareTo(weeklyPrice))
         val monthlyPrice = truncateDecimal(BigDecimal(4.99).multiply(BigDecimal(30)), 2)
