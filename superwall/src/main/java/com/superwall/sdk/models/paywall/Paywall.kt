@@ -69,7 +69,7 @@ data class Paywall(
     var experiment: Experiment? = null,
 
     @kotlinx.serialization.Transient()
-    var closeReason: PaywallCloseReason? = null
+    var closeReason: PaywallCloseReason = PaywallCloseReason.None
 
 ) : SerializableEntity {
     init {

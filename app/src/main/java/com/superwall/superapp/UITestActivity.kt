@@ -39,6 +39,7 @@ class UITestActivity : ComponentActivity() {
 fun UITestTable() {
     val uiTestHandler = UITestHandler()
     val scope = rememberCoroutineScope()
+    UITestHandler.context = LocalContext.current
 
     val tests = mapOf(
         UITestHandler.test0Info to { scope.launch { UITestHandler.test0() } },
@@ -67,9 +68,17 @@ fun UITestTable() {
         UITestHandler.test23Info to { scope.launch { UITestHandler.test23() } },
         UITestHandler.test24Info to { scope.launch { UITestHandler.test24() } },
         UITestHandler.test25Info to { scope.launch { UITestHandler.test25() } },
+        UITestHandler.test28Info to { scope.launch { UITestHandler.test28() } },
+        UITestHandler.test29Info to { scope.launch { UITestHandler.test29() } },
+        UITestHandler.test30Info to { scope.launch { UITestHandler.test30() } },
+        UITestHandler.test31Info to { scope.launch { UITestHandler.test31() } },
         UITestHandler.test33Info to { scope.launch { UITestHandler.test33() } },
         UITestHandler.test34Info to { scope.launch { UITestHandler.test34() } },
+        UITestHandler.test35Info to { scope.launch { UITestHandler.test35() } },
+        UITestHandler.test36Info to { scope.launch { UITestHandler.test36() } },
+        UITestHandler.test37Info to { scope.launch { UITestHandler.test37() } },
         UITestHandler.test62Info to { scope.launch { UITestHandler.test62() } },
+        UITestHandler.test63Info to { scope.launch { UITestHandler.test63() } },
         UITestHandler.test72Info to { scope.launch { UITestHandler.test72() } }
     )
 
@@ -89,7 +98,7 @@ fun UITestTable() {
                             .padding(horizontal = 8.dp)
                     ) {
                         Text(
-                            color = Color.White,
+                            color = Color.Black,
                             text = "UITest ${item.number}",
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(bottom = 8.dp)

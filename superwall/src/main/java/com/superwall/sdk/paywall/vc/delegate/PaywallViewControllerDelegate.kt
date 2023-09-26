@@ -1,18 +1,16 @@
 package com.superwall.sdk.paywall.vc.delegate
 
+import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.vc.PaywallViewController
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent
 
-sealed class PaywallResult {
-    object Unknown : PaywallResult()
-    object LoadingPurchase : PaywallResult()
-    object LoadingURL : PaywallResult()
-    object ManualLoading : PaywallResult()
-    object Ready : PaywallResult()
-}
-
 interface PaywallViewControllerDelegate {
-    fun paywallViewController(controller: PaywallViewController, didFinishWith: PaywallResult)
+    // TODO: missing `shouldDismiss`
+    fun didFinish(
+        paywall: PaywallViewController,
+        result: PaywallResult,
+        shouldDismiss: Boolean
+    )
 }
 
 interface PaywallViewControllerEventDelegate {

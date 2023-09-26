@@ -1,15 +1,23 @@
 package com.superwall.superapp
 
+import android.annotation.SuppressLint
+import android.content.Context
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.identity.identify
 import com.superwall.sdk.identity.setUserAttributes
 import com.superwall.sdk.models.paywall.PaywallProducts
+import com.superwall.sdk.paywall.presentation.get_paywall.getPaywall
+import com.superwall.sdk.paywall.presentation.get_presentation_result.getPresentationResult
 import com.superwall.sdk.paywall.presentation.internal.dismiss
+import com.superwall.sdk.paywall.vc.SuperwallPaywallActivity
 import kotlinx.coroutines.delay
 
 class UITestHandler {
     companion object {
+        @SuppressLint("StaticFieldLeak")
+        lateinit var context: Context
+
         var test0Info = UITestInfo(
             0,
             "Uses the identify function. Should see the name 'Jack' in the paywall."
@@ -354,11 +362,18 @@ class UITestHandler {
 
         var test18Info = UITestInfo(
             18,
-            "Open In-App Safari view controller from manually presented paywall"
+            "Open In-App browser from a manually presented paywall. Once the in-app browser opens, close it, and verify that the paywall is still showing."
         )
 
         suspend fun test18() {
-            // TODO: Needs getPaywall
+            // Create a mock paywall view controller
+            val delegate = MockPaywallViewControllerDelegate()
+
+            // Get the paywall view controller instance
+            val viewController = Superwall.instance.getPaywall(event = "present_urls", delegate = delegate)
+
+            // Present using the convenience `SuperwallPaywallActivity` activity and verify test case.
+            SuperwallPaywallActivity.startWithView(context = UITestHandler.context, view = viewController)
         }
 
         var test19Info = UITestInfo(
@@ -499,7 +514,44 @@ class UITestHandler {
             Superwall.instance.register(event = "register_nongated_paywall")
         }
 
-        // TODO: Test 25-32 require stuff that we don't have rn
+        var test28Info = UITestInfo(
+            28,
+            "Should print out \"Paywall(experiment...)\"."
+        )
+        suspend fun test28() {
+            val result = Superwall.instance.getPresentationResult("present_data")
+            println("!!! TEST 28 !!! $result")
+        }
+
+        var test29Info = UITestInfo(
+            29,
+            "Should print out \"noRuleMatch\"."
+        )
+        suspend fun test29() {
+            Superwall.instance.setUserAttributes(mapOf("should_display" to null, "some_value" to null))
+            val result = Superwall.instance.getPresentationResult("present_and_rule_user")
+            println("!!! TEST 29 !!! $result")
+        }
+
+        var test30Info = UITestInfo(
+            30,
+            "Should print out \"eventNotFound\"."
+        )
+        suspend fun test30() {
+            val result = Superwall.instance.getPresentationResult("some_random_not_found_event")
+            println("!!! TEST 30 !!! $result")
+        }
+
+        var test31Info = UITestInfo(
+            31,
+            "Should print out \"holdout\"."
+        )
+        suspend fun test31() {
+            val result = Superwall.instance.getPresentationResult("holdout")
+            println("!!! TEST 31 !!! $result")
+        }
+
+        // TODO: Test 32 requires either ability to mock subscription or we just purchase before hand and test
 
         var test33Info = UITestInfo(
             33,
@@ -528,7 +580,69 @@ class UITestHandler {
             Superwall.instance.reset()
         }
 
-        // TODO: Test 35-48 require either getPaywall or a feature block
+        var test35Info = UITestInfo(
+            35,
+            "Purchase from the paywall and then check that after the purchase has finished " +
+                    "the result type `purchased` is printed to the console. The paywall should dismiss." +
+                    " After doing this, try test 37"
+        )
+        suspend fun test35() {
+            // Create a mock paywall view controller
+            val delegate = MockPaywallViewControllerDelegate()
+            delegate.paywallViewControllerDidFinish { paywallViewController, paywallResult, shouldDismiss ->
+                println("!!! TEST 35 !!! Result: $paywallResult, shouldDismiss: $shouldDismiss, paywallVc: $paywallViewController")
+            }
+
+            // Get the paywall view controller instance
+            val viewController = Superwall.instance.getPaywall(event = "present_data", delegate = delegate)
+
+            // Present using the convenience `SuperwallPaywallActivity` activity and verify test case.
+            SuperwallPaywallActivity.startWithView(context = UITestHandler.context, view = viewController)
+        }
+
+        var test36Info = UITestInfo(
+            36,
+            "Close the paywall and check that after the purchase has finished \" " +
+                    "\"the result type \"declined\" is printed to the console. The paywall should close."
+        )
+        suspend fun test36() {
+            // Create a mock paywall view controller
+            val delegate = MockPaywallViewControllerDelegate()
+            delegate.paywallViewControllerDidFinish { paywallViewController, paywallResult, shouldDismiss ->
+                println("!!! TEST 36 !!! Result: $paywallResult, shouldDismiss: $shouldDismiss, paywallVc: $paywallViewController")
+            }
+
+            // Get the paywall view controller instance
+            val viewController = Superwall.instance.getPaywall(event = "present_data", delegate = delegate)
+
+            // Present using the convenience `SuperwallPaywallActivity` activity and verify test case.
+            SuperwallPaywallActivity.startWithView(context = UITestHandler.context, view = viewController)
+        }
+
+        var test37Info = UITestInfo(
+            37,
+            "Need to have purchased a product before calling this test, then present the " +
+                    "paywall and tap \"restore\". The paywall should dismiss and the the console should" +
+                    "print the paywallResult as \"restored\"."
+        )
+        suspend fun test37() {
+            // Create a mock paywall view controller
+            val delegate = MockPaywallViewControllerDelegate()
+            delegate.paywallViewControllerDidFinish { paywallViewController, paywallResult, shouldDismiss ->
+                println("!!! TEST 37 !!! Result: $paywallResult, shouldDismiss: $shouldDismiss, paywallVc: $paywallViewController")
+            }
+
+            // Get the paywall view controller instance
+            val viewController = Superwall.instance.getPaywall(event = "restore", delegate = delegate)
+
+            // Present using the convenience `SuperwallPaywallActivity` activity and verify test case.
+            SuperwallPaywallActivity.startWithView(context = UITestHandler.context, view = viewController)
+        }
+
+        // TODO: Test 38 & 39, & 40 need to be able to present modally and swipe to dismiss implemented.
+
+
+        // TODO: Tests 41 - 48 require a feature block
 
         var test62Info = UITestInfo(
             62,
@@ -540,6 +654,25 @@ class UITestHandler {
             // Present paywall with URLs
             Superwall.instance.register(event = "present_urls")
 
+        }
+
+        var test63Info = UITestInfo(
+            63,
+            "Don't have an active subscription, present paywall, tap restore. Check " +
+                    "the \"No Subscription Found\" alert pops up."
+        )
+        suspend fun test63() {
+            // Create a mock paywall view controller
+            val delegate = MockPaywallViewControllerDelegate()
+            delegate.paywallViewControllerDidFinish { paywallViewController, paywallResult, shouldDismiss ->
+                println("!!! TEST 37 !!! Result: $paywallResult, shouldDismiss: $shouldDismiss, paywallVc: $paywallViewController")
+            }
+
+            // Get the paywall view controller instance
+            val viewController = Superwall.instance.getPaywall(event = "restore", delegate = delegate)
+
+            // Present using the convenience `SuperwallPaywallActivity` activity and verify test case.
+            SuperwallPaywallActivity.startWithView(context = UITestHandler.context, view = viewController)
         }
 
         // TODO: Test 63 - 71 require getPaywall, feature block, delegate, and surveys.

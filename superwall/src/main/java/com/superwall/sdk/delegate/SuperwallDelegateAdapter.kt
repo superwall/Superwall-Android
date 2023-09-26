@@ -11,42 +11,43 @@ class SuperwallDelegateAdapter {
     var kotlinDelegate: SuperwallDelegate? = null
     var javaDelegate: SuperwallDelegateJava? = null
 
-    suspend fun handleCustomPaywallAction(name: String) {
+    fun handleCustomPaywallAction(name: String) {
         kotlinDelegate?.handleCustomPaywallAction(name)
             ?: javaDelegate?.handleCustomPaywallAction(name)
     }
 
-    private suspend fun willDismissPaywall(paywallInfo: PaywallInfo) {
+    fun willDismissPaywall(paywallInfo: PaywallInfo) {
         kotlinDelegate?.willDismissPaywall(paywallInfo)
             ?: javaDelegate?.willDismissPaywall(paywallInfo)
     }
 
-    private suspend fun willPresentPaywall(paywallInfo: PaywallInfo) {
-        kotlinDelegate?.willPresentPaywall(paywallInfo)
-            ?: javaDelegate?.willPresentPaywall(paywallInfo)
-    }
-
-    private suspend fun didDismissPaywall(paywallInfo: PaywallInfo) {
+    fun didDismissPaywall(paywallInfo: PaywallInfo) {
         kotlinDelegate?.didDismissPaywall(paywallInfo)
             ?: javaDelegate?.didDismissPaywall(paywallInfo)
     }
 
-    private suspend fun didPresentPaywall(paywallInfo: PaywallInfo) {
+    private fun willPresentPaywall(paywallInfo: PaywallInfo) {
+        kotlinDelegate?.willPresentPaywall(paywallInfo)
+            ?: javaDelegate?.willPresentPaywall(paywallInfo)
+    }
+
+
+    fun didPresentPaywall(paywallInfo: PaywallInfo) {
         kotlinDelegate?.didPresentPaywall(paywallInfo)
             ?: javaDelegate?.didPresentPaywall(paywallInfo)
     }
 
-    suspend fun paywallWillOpenURL(url: URL) {
+    fun paywallWillOpenURL(url: URL) {
         kotlinDelegate?.paywallWillOpenURL(url)
             ?: javaDelegate?.paywallWillOpenURL(url)
     }
 
-    suspend fun paywallWillOpenDeepLink(url: URL) {
+    fun paywallWillOpenDeepLink(url: URL) {
         kotlinDelegate?.paywallWillOpenDeepLink(url)
             ?: javaDelegate?.paywallWillOpenDeepLink(url)
     }
 
-    suspend fun handleSuperwallEvent(eventInfo: SuperwallEventInfo) {
+    fun handleSuperwallEvent(eventInfo: SuperwallEventInfo) {
         kotlinDelegate?.handleSuperwallEvent(eventInfo)
             ?: javaDelegate?.handleSuperwallEvent(eventInfo)
     }
@@ -56,7 +57,7 @@ class SuperwallDelegateAdapter {
             ?: javaDelegate?.subscriptionStatusDidChange(newValue)
     }
 
-    private suspend fun handleLog(
+    private fun handleLog(
         level: String,
         scope: String,
         message: String?,
