@@ -14,11 +14,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.superwall.superapp.ui.theme.MyApplicationTheme
-import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
 
 data class UITestInfo(val number: Int, val description: String)
@@ -77,6 +75,7 @@ fun UITestTable() {
         UITestHandler.test35Info to { scope.launch { UITestHandler.test35() } },
         UITestHandler.test36Info to { scope.launch { UITestHandler.test36() } },
         UITestHandler.test37Info to { scope.launch { UITestHandler.test37() } },
+        UITestHandler.test57Info to { scope.launch { UITestHandler.test57() } },
         UITestHandler.test62Info to { scope.launch { UITestHandler.test62() } },
         UITestHandler.test63Info to { scope.launch { UITestHandler.test63() } },
         UITestHandler.test72Info to { scope.launch { UITestHandler.test72() } }

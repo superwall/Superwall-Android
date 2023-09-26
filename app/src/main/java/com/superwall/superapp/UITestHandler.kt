@@ -2,11 +2,12 @@ package com.superwall.superapp
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.net.Uri
 import com.superwall.sdk.Superwall
+import com.superwall.sdk.analytics.superwall.SuperwallEvent.DeepLink
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.identity.identify
 import com.superwall.sdk.identity.setUserAttributes
-import com.superwall.sdk.models.paywall.PaywallProducts
 import com.superwall.sdk.paywall.presentation.get_paywall.getPaywall
 import com.superwall.sdk.paywall.presentation.get_presentation_result.getPresentationResult
 import com.superwall.sdk.paywall.presentation.internal.dismiss
@@ -640,9 +641,34 @@ class UITestHandler {
         }
 
         // TODO: Test 38 & 39, & 40 need to be able to present modally and swipe to dismiss implemented.
-
-
         // TODO: Tests 41 - 48 require a feature block
+
+        var test57Info = UITestInfo(
+            57,
+            "NOTE: Must use Deep Link API key. Present paywall from implicit trigger: `deepLink_open`. Verify the `Deep link event received successfully.` in the console."
+        )
+        suspend fun test57() {
+            // Create a mock Superwall delegate
+            val delegate = MockSuperwallDelegate()
+
+            // Set delegate
+            Superwall.instance.delegate = delegate
+
+            // Respond to Superwall events
+            delegate.handleSuperwallEvent { eventInfo ->
+                when (eventInfo.event) {
+                    is DeepLink -> {
+                        println("!!! TEST 57 !!! Result: Deep link event received successfully.")
+                    }
+                    else -> return@handleSuperwallEvent
+                }
+            }
+
+            // Handle the URL
+            val url = Uri.parse("superapp://mydeepLink?isDeepLink=true")
+            val handled = Superwall.instance.handleDeepLink(url)
+        }
+
 
         var test62Info = UITestInfo(
             62,

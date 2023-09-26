@@ -34,6 +34,7 @@ class MainApplication : android.app.Application(), SuperwallDelegate {
         App API Keys:
             Android Tests: pk_d1f0959f70c761b1d55bb774a03e22b2b6ed290ce6561f85
             UITest (default): pk_5f6d9ae96b889bc2c36ca0f2368de2c4c3d5f6119aacd3d2
+            Deep Link Open: pk_3faea4c721179218a245475ea9d378d1ecb9bf059411a0c0
          */
 
         Superwall.configure(
