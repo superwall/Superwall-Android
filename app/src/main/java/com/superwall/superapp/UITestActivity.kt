@@ -79,7 +79,8 @@ fun UITestTable() {
         UITestHandler.test37Info to { scope.launch { UITestHandler.test37() } },
         UITestHandler.test62Info to { scope.launch { UITestHandler.test62() } },
         UITestHandler.test63Info to { scope.launch { UITestHandler.test63() } },
-        UITestHandler.test72Info to { scope.launch { UITestHandler.test72() } }
+        UITestHandler.test72Info to { scope.launch { UITestHandler.test72() } },
+        UITestHandler.test82Info to { scope.launch { UITestHandler.test82() } },
     )
 
     LazyColumn {
