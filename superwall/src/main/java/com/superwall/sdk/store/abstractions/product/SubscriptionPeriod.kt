@@ -225,12 +225,11 @@ data class SubscriptionPeriod(val value: Int, val unit: Unit, val locale: Locale
 
     fun _truncateDecimal(decimal: BigDecimal, places: Int = Currency.getInstance(Locale.getDefault()).defaultFractionDigits ?: 2): BigDecimal {
         // First we need to divide by the main google product scaling factor
-       val minimizedDecimal = decimal.divide(BigDecimal(pricingFactor), RoundingMode.HALF_EVEN)
 
 
         val factor = BigDecimal.TEN.pow(places) // Create a factor of 10^decimalPlaces
         val result: BigDecimal =
-            minimizedDecimal.multiply(factor) // Multiply the original number by the factor
+            decimal.multiply(factor) // Multiply the original number by the factor
                 .setScale(0, BigDecimal.ROUND_DOWN) // Set scale to 0 and ROUND_DOWN to truncate
                 .divide(factor) // Divide back by the factor to get the truncated number
         return result
