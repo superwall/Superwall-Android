@@ -6,7 +6,7 @@ import java.net.URL
 
 interface SuperwallDelegate {
     fun subscriptionStatusDidChange(to: SubscriptionStatus) {}
-    fun handleSuperwallEvent(withInfo: SuperwallEventInfo) {}
+    fun handleSuperwallEvent(eventInfo: SuperwallEventInfo) {}
     fun handleCustomPaywallAction(withName: String) {}
     fun willDismissPaywall(withInfo: PaywallInfo) {}
     fun willPresentPaywall(withInfo: PaywallInfo) {}
