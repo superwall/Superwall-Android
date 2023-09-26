@@ -1,15 +1,22 @@
 package com.superwall.superapp
 
+import android.annotation.SuppressLint
+import android.content.Context
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.identity.identify
 import com.superwall.sdk.identity.setUserAttributes
 import com.superwall.sdk.models.paywall.PaywallProducts
+import com.superwall.sdk.paywall.presentation.get_paywall.getPaywall
 import com.superwall.sdk.paywall.presentation.internal.dismiss
+import com.superwall.sdk.paywall.vc.SuperwallPaywallActivity
 import kotlinx.coroutines.delay
 
 class UITestHandler {
     companion object {
+        @SuppressLint("StaticFieldLeak")
+        lateinit var context: Context
+
         var test0Info = UITestInfo(
             0,
             "Uses the identify function. Should see the name 'Jack' in the paywall."
@@ -338,10 +345,17 @@ class UITestHandler {
 
         var test18Info = UITestInfo(
             18,
-            "Open In-App Safari view controller from manually presented paywall"
+            "Open In-App browser from a manually presented paywall. Once the in-app browser opens, close it, and verify that the paywall is still showing."
         )
         suspend fun test18() {
-            // TODO: Needs getPaywall
+            // Create a mock paywall view controller
+            val delegate = MockPaywallViewControllerDelegate()
+
+            // Get the paywall view controller instance
+            val viewController = Superwall.instance.getPaywall(event = "present_urls", delegate = delegate)
+
+            // Present using the convenience `SuperwallPaywallActivity` activity and verify test case.
+            SuperwallPaywallActivity.startWithView(context = UITestHandler.context, view = viewController)
         }
 
         var test19Info = UITestInfo(

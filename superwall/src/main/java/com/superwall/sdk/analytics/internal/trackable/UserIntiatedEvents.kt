@@ -6,7 +6,7 @@ interface TrackableUserInitiatedEvent : Trackable
 sealed class UserInitiatedEvent(
     override val rawName: String,
     override val canImplicitlyTriggerPaywall: Boolean,
-    override var customParameters: HashMap<String, Any> = HashMap(),
+    override var customParameters: Map<String, Any> = emptyMap(),
     val isFeatureGatable: Boolean
 ) : TrackableUserInitiatedEvent {
 
@@ -14,7 +14,7 @@ sealed class UserInitiatedEvent(
         rawName: String,
         canImplicitlyTriggerPaywall: Boolean,
         isFeatureGatable: Boolean,
-        customParameters: HashMap<String, Any> = HashMap()
+        customParameters: Map<String, Any> = emptyMap()
     ) : UserInitiatedEvent(
         rawName,
         canImplicitlyTriggerPaywall,

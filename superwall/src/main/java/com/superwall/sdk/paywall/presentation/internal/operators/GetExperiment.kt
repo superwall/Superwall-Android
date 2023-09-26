@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
  *
  * @return A data class that contains info for the next operation.
  */
+@Throws(Throwable::class)
 suspend fun Superwall.getExperiment(
     request: PresentationRequest,
     rulesOutcome: RuleEvaluationOutcome,
