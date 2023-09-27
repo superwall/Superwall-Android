@@ -115,7 +115,7 @@ class PaywallViewController(
     private var didCallDelegate = false
 
     /// Defines when Safari is presenting in app.
-    var isSafariVCPresented = false
+    internal var isSafariVCPresented = false
 
     //endregion
 
@@ -198,7 +198,7 @@ class PaywallViewController(
 
     //region Public functions
 
-    fun set(
+    internal fun set(
         request: PresentationRequest,
         paywallStatePublisher: MutableStateFlow<PaywallState>,
         unsavedOccurrence: TriggerRuleOccurrence?
@@ -278,6 +278,11 @@ class PaywallViewController(
         if (isSafariVCPresented) {
             return
         }
+
+        CoroutineScope(Dispatchers.IO).launch {
+            trackClose()
+        }
+
         Superwall.instance.dependencyContainer.delegateAdapter.didDismissPaywall(info)
 
         val result = paywallResult ?: PaywallResult.Declined()
@@ -418,14 +423,6 @@ class PaywallViewController(
         storage.trackPaywallOpen()
         val trackedEvent = InternalSuperwallEvent.PaywallOpen(info)
         Superwall.instance.track(trackedEvent)
-    }
-
-    override fun onDetachedFromWindow() {
-        super.onDetachedFromWindow()
-
-        CoroutineScope(Dispatchers.IO).launch {
-            trackClose()
-        }
     }
 
     private suspend fun trackClose() {

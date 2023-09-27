@@ -349,7 +349,6 @@ class UITestHandler {
             "Open In-App browser from a manually presented paywall. Once the in-app " +
                     "browser opens, close it, and verify that the paywall is still showing."
         )
-
         suspend fun test18() {
             // Create a mock paywall view controller
             val delegate = MockPaywallViewControllerDelegate()
@@ -367,7 +366,6 @@ class UITestHandler {
                     " after 8s. Then it presents again with no name, dismisses, and finally presents " +
                     "with the name Kate."
         )
-
         suspend fun test19() {
             // Set identity
             Superwall.instance.identify(userId = "test19a")
