@@ -332,7 +332,6 @@ class PaywallViewController(
         CoroutineScope(Dispatchers.IO).launch {
             if (isDeclined && isManualClose) {
                 val trackedEvent = InternalSuperwallEvent.PaywallDecline(info)
-                Superwall.instance.track(trackedEvent)
 
                 val presentationResult = Superwall.instance.internallyGetPresentationResult(
                     event = trackedEvent,
@@ -340,6 +339,8 @@ class PaywallViewController(
                 )
                 val paywallPresenterEvent = info.presentedByEventWithName
                 val presentedByPaywallDecline = paywallPresenterEvent == SuperwallEventObjc.PaywallDecline.rawName
+
+                Superwall.instance.track(trackedEvent)
 
                 if (presentationResult is PresentationResult.Paywall && !presentedByPaywallDecline) {
                     // If a paywall_decline trigger is active and the current paywall wasn't presented
