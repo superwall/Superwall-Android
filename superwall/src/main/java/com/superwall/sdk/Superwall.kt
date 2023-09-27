@@ -26,6 +26,7 @@ import com.superwall.sdk.paywall.presentation.get_presentation_result.getPresent
 import com.superwall.sdk.paywall.presentation.internal.PaywallStatePublisher
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
+import com.superwall.sdk.paywall.presentation.internal.dismiss
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
@@ -242,22 +243,6 @@ public class Superwall(context: Context, apiKey: String, purchaseController: Pur
 //
 //    }
 
-    fun register(event: String, params: Map<String, Any>? = null) {
-        // Register an event that could trigger a paywall
-        Log.println(Log.INFO, "Superwall", "Superwall register event: " + event)
-        GlobalScope.launch {
-            track(
-                UserInitiatedEvent.Track(
-                    rawName = event,
-                    customParameters = HashMap(params ?: emptyMap()),
-                    isFeatureGatable = true,
-                    canImplicitlyTriggerPaywall = true
-                )
-            )
-        }
-    }
-
-
     //
 //    // MARK: - Reset
 //    /// Resets the `userId`, on-device paywall assignments, and data stored
@@ -436,20 +421,6 @@ public class Superwall(context: Context, apiKey: String, purchaseController: Pur
                     dependencyContainer.delegateAdapter.handleCustomPaywallAction(name = paywallEvent.string)
                 }
             }
-        }
-    }
-
-    suspend fun dismiss(
-        paywallViewController: PaywallViewController,
-        result: PaywallResult,
-        closeReason: PaywallCloseReason = PaywallCloseReason.SystemLogic,
-        completion: (() -> Unit)? = null
-    ) = withContext(Dispatchers.Main) {
-        paywallViewController.dismiss(
-            result = result,
-            closeReason = closeReason
-        ) {
-            completion?.invoke()
         }
     }
 }
