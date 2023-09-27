@@ -114,6 +114,9 @@ class PaywallViewController(
 
     private var didCallDelegate = false
 
+    /// Defines when Safari is presenting in app.
+    var isSafariVCPresented = false
+
     //endregion
 
     // region State properties
@@ -139,6 +142,8 @@ class PaywallViewController(
     /// Defines whether the view controller is being presented or not.
     private var isPresented = false
     private var isBeingPresented = false
+    private var presentationWillPrepare = true
+    private var presentationDidFinishPrepare = false
 
     //endregion
 
@@ -232,12 +237,47 @@ class PaywallViewController(
         completion(true)
     }
 
+    internal fun viewWillAppear() {
+        if (isSafariVCPresented) {
+            return
+        }
+
+        cache?.activePaywallVcKey = cacheKey
+        presentationWillBegin()
+    }
+
+    private fun presentationWillBegin() {
+        if (!presentationWillPrepare) {
+            return
+        }
+        // TODO: Add surveys
+//        if willShowSurvey {
+//            didDisableSwipeForSurvey = true
+//            presentationController?.delegate = self
+//            isModalInPresentation = true
+//        }
+//        addShimmerView(onPresent: true)
+
+        didCallDelegate = false
+        paywall.closeReason = PaywallCloseReason.None
+
+        Superwall.instance.dependencyContainer.delegateAdapter.willPresentPaywall(info)
+
+        presentationWillPrepare = false
+    }
+
     internal suspend fun viewWillDisappear() {
+        if (isSafariVCPresented) {
+            return
+        }
         Superwall.instance.presentationItems.setPaywallInfo(info)
         Superwall.instance.dependencyContainer.delegateAdapter.willDismissPaywall(info)
     }
 
     internal suspend fun viewDidDisappear() {
+        if (isSafariVCPresented) {
+            return
+        }
         Superwall.instance.dependencyContainer.delegateAdapter.didDismissPaywall(info)
 
         val result = paywallResult ?: PaywallResult.Declined()
@@ -327,17 +367,18 @@ class PaywallViewController(
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
 
-        cache?.activePaywallVcKey = cacheKey
-
         // Assert if no `request`
         fatalAssert(request != null, "Must be presenting a PaywallViewController with a `request` instance.")
 
         loadWebView()
-
-        presentationDidFinish()
     }
 
-    private fun presentationDidFinish() {
+    /// Lets the view controller know that presentation has finished.
+    // Only called once per presentation.
+    internal fun viewDidAppear() {
+        if (presentationDidFinishPrepare) {
+            return
+        }
         CoroutineScope(Dispatchers.IO).launch {
             paywallStatePublisher?.let {
                 Superwall.instance.storePresentationObjects(request, it)
@@ -351,13 +392,11 @@ class PaywallViewController(
 
         isPresented = true
 
+        Superwall.instance.dependencyContainer.delegateAdapter.didPresentPaywall(info)
+
         CoroutineScope(Dispatchers.IO).launch {
-            Superwall.instance.dependencyContainer.delegateAdapter.didPresentPaywall(info)
             trackOpen()
         }
-
-        didCallDelegate = false
-        paywall.closeReason = PaywallCloseReason.None
 
          GameControllerManager.shared.setDelegate(this)
 
@@ -367,6 +406,8 @@ class PaywallViewController(
         // Grab the current orientation, to be able to set it back after the transaction abandon
         val currentOrientation = resources.configuration.orientation
         initialOrientation = currentOrientation
+
+        presentationDidFinishPrepare = true
     }
 
     private var initialOrientation: Int? = null
@@ -574,6 +615,7 @@ class PaywallViewController(
             val customTabsIntent = CustomTabsIntent.Builder().build()
             customTabsIntent.intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
             customTabsIntent.launchUrl(context, Uri.parse(parsedUrl.toString()))
+            isSafariVCPresented = true
         } catch (e: MalformedURLException) {
             Logger.debug(
                 logLevel = LogLevel.debug,
@@ -730,6 +772,24 @@ class SuperwallPaywallActivity : Activity() {
                 // Do nothing
             }
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        val paywallVc = contentView as? PaywallViewController ?: return
+
+        if (paywallVc.isSafariVCPresented) {
+            paywallVc.isSafariVCPresented = false
+        }
+
+        paywallVc.viewWillAppear()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        val paywallVc = contentView as? PaywallViewController ?: return
+
+        paywallVc.viewDidAppear()
     }
 
     override fun onPause() {
