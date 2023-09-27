@@ -84,6 +84,8 @@ dependencies {
 
     // Billing
 
+    implementation 'com.revenuecat.purchases:purchases:6.0.0'
+
 
     implementation 'com.android.billingclient:billing:5.2.1'
     androidTestImplementation platform('androidx.compose:compose-bom:2022.10.00')
