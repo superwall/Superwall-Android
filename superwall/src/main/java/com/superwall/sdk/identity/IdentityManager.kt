@@ -10,6 +10,9 @@ package com.superwall.sdk.identity
 import LogLevel
 import LogScope
 import Logger
+import com.superwall.sdk.Superwall
+import com.superwall.sdk.analytics.internal.track
+import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.storage.AliasId
@@ -177,12 +180,11 @@ class IdentityManager(
         )
 
         scope.launch {
-            // TODO: Track attributes
-//            val trackableEvent = InternalSuperwallEvent.Attributes(
-//                deviceHelper.appInstalledAtString,
-//                mergedAttributes
-//            )
-//            Superwall.shared.track(trackableEvent)
+            val trackableEvent = InternalSuperwallEvent.Attributes(
+                deviceHelper.appInstalledAtString,
+                HashMap(mergedAttributes)
+            )
+            Superwall.instance.track(trackableEvent)
         }
         storage.save(mergedAttributes, UserAttributes)
         _userAttributes = mergedAttributes

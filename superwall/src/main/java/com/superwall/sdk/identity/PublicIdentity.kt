@@ -41,14 +41,12 @@ fun cleanAttributes(attributes: Map<String, Any?>): Map<String, Any?> {
     val customAttributes = mutableMapOf<String, Any?>()
 
     for (key in attributes.keys) {
-        val value = attributes[key]
-        if (value != null) {
-            if (key.startsWith("$")) {
-                // preserve $ for Superwall-only values
-                continue
-            }
-            customAttributes[key] = value
+        if (key.startsWith("$")) {
+            // preserve $ for Superwall-only values
+            continue
         }
+        val value = attributes[key]
+        customAttributes[key] = value
     }
     return customAttributes.toMap()
 }

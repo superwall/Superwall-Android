@@ -38,7 +38,6 @@ object IdentityLogic {
             if (key.startsWith("\$")) { // replace dollar signs
                 key = key.replace("\$", "")
             }
-
             val value = newAttributes[key]
             if (value != null) {
                 mergedAttributes[key] = value

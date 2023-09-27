@@ -113,7 +113,7 @@ suspend private fun Superwall.internallyRegister(
 }
 
 @Throws(Throwable::class)
-suspend private fun Superwall.asyncPublisher(
+private suspend fun Superwall.asyncPublisher(
     event: String,
     params: Map<String, Any>? = null,
     paywallOverrides: PaywallOverrides? = null,

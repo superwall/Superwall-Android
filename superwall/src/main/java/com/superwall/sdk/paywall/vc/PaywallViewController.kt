@@ -470,6 +470,7 @@ class PaywallViewController(
             }
         )
         alertController.show()
+        loadingState = PaywallLoadingState.Ready()
     }
 
     //endregion

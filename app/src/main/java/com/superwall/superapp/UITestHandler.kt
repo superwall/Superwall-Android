@@ -133,7 +133,6 @@ class UITestHandler {
         )
 
         suspend fun test7() {
-            // TODO: This crashes with no rule match
             Superwall.instance.identify(userId = "test7")
             Superwall.instance.setUserAttributes(
                 mapOf(
@@ -154,6 +153,7 @@ class UITestHandler {
                     "some_value" to null
                 )
             )
+            delay(4000)
             Superwall.instance.register(event = "present_and_rule_user")
         }
 
@@ -209,7 +209,6 @@ class UITestHandler {
         )
 
         suspend fun test11() {
-            // TODO: USer attributes not set
             Superwall.instance.setUserAttributes(mapOf("first_name" to "Claire"))
             Superwall.instance.register(event = "present_data")
 
@@ -236,7 +235,7 @@ class UITestHandler {
 
         var test12Info = UITestInfo(
             12,
-            "Test trigger: off. Paywall shouldn't present."
+            "Test trigger: off. Paywall shouldn't present. Should print eventNotFound."
         )
 
         suspend fun test12() {
@@ -365,7 +364,8 @@ class UITestHandler {
 
         var test18Info = UITestInfo(
             18,
-            "Open In-App browser from a manually presented paywall. Once the in-app browser opens, close it, and verify that the paywall is still showing."
+            "Open In-App browser from a manually presented paywall. Once the in-app " +
+                    "browser opens, close it, and verify that the paywall is still showing."
         )
 
         suspend fun test18() {
@@ -400,10 +400,9 @@ class UITestHandler {
             // Dismiss any view controllers
             Superwall.instance.dismiss()
 
-            delay(2000)
+            delay(4000)
 
-            // TODO: Implement getPresentationResult
-            // Superwall.instance.getPresentationResult(forEvent = "present_and_rule_user")
+            Superwall.instance.getPresentationResult(event = "present_and_rule_user")
 
             delay(8000)
 
@@ -435,7 +434,8 @@ class UITestHandler {
         var test20Info = UITestInfo(
             20,
             "Verify that external URLs can be opened in native browser from paywall. When" +
-                    " the paywall opens, tap `Perform` for `Open in Safari`. Afterwards, go back and verify the paywall is displayed."
+                    " the paywall opens, tap \"Perform\" for \"Open in Safari\". Afterwards, go back " +
+                    "and verify the paywall is still displayed."
         )
 
         suspend fun test20() {
@@ -515,6 +515,24 @@ class UITestHandler {
             Superwall.instance.register(event = "register_nongated_paywall")
         }
 
+        var test26Info = UITestInfo(
+            26,
+            "Registers an event with a gating handler. The paywall should display, you should " +
+                    "NOT see !!! TEST 26 !!! printed in the console when you close the paywall."
+        )
+        suspend fun test26() {
+            // TODO: Implement feature block for register: https://linear.app/superwall/issue/SW-2372/add-feature-block-to-register
+        }
+
+        var test27Info = UITestInfo(
+            27,
+            "After purchasing tap button to present the paywall. The paywall should NOT " +
+                    "present but you should see !!! TEST 27 !!! printed in the console."
+        )
+        suspend fun test27() {
+            // TODO: Implement feature block for register: https://linear.app/superwall/issue/SW-2372/add-feature-block-to-register
+        }
+
         var test28Info = UITestInfo(
             28,
             "Should print out \"Paywall(experiment...)\"."
@@ -561,6 +579,7 @@ class UITestHandler {
             Superwall.instance.setSubscriptionStatus(SubscriptionStatus.ACTIVE)
             val result = Superwall.instance.getPresentationResult("present_data")
             println("!!! TEST 32 !!! $result")
+            Superwall.instance.setSubscriptionStatus(SubscriptionStatus.INACTIVE)
 
         }
 
@@ -655,7 +674,9 @@ class UITestHandler {
 
         var test57Info = UITestInfo(
             57,
-            "NOTE: Must use Deep Link API key. Present paywall from implicit trigger: `deepLink_open`. Verify the `Deep link event received successfully.` in the console."
+            "NOTE: Must use Deep Link API key. Present paywall from implicit trigger: " +
+                    "`deepLink_open`. Verify the `Deep link event received successfully.` in the" +
+                    " console."
         )
         suspend fun test57() {
             // Create a mock Superwall delegate
@@ -712,7 +733,6 @@ class UITestHandler {
         }
 
         // TODO: Test 63 - 71 require getPaywall, feature block, delegate, and surveys.
-
 
         var test72Info = UITestInfo(
             72,
