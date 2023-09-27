@@ -552,7 +552,17 @@ class UITestHandler {
             println("!!! TEST 31 !!! $result")
         }
 
-        // TODO: Test 32 requires either ability to mock subscription or we just purchase before hand and test
+        var test32Info = UITestInfo(
+            32,
+            "This sets the subscription status active, prints out \"userIsSubscribed\" " +
+                    "and then returns subscription status to inactive."
+        )
+        suspend fun test32() {
+            Superwall.instance.setSubscriptionStatus(SubscriptionStatus.ACTIVE)
+            val result = Superwall.instance.getPresentationResult("present_data")
+            println("!!! TEST 32 !!! $result")
+
+        }
 
         var test33Info = UITestInfo(
             33,

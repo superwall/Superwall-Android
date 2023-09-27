@@ -27,10 +27,7 @@ object InternalPresentationLogic {
             return true
         }
 
-        val presentationCondition = overrides.presentationCondition
-        if (presentationCondition == null) {
-            return checkSubscriptionStatus()
-        }
+        val presentationCondition = overrides.presentationCondition ?: return checkSubscriptionStatus()
 
         if (presentationCondition == PresentationCondition.ALWAYS) {
             return false
