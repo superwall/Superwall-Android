@@ -59,6 +59,5 @@ suspend fun Superwall.dismiss(
     closeReason: PaywallCloseReason = PaywallCloseReason.SystemLogic,
     completion: (() -> Unit)? = null
 ) = withContext(Dispatchers.Main) {
-    paywallViewController.dismiss(result, closeReason)
-    completion?.invoke()
+    paywallViewController.dismiss(result, closeReason, completion)
 }

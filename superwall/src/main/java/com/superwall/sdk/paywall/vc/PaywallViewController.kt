@@ -232,6 +232,11 @@ class PaywallViewController(
         completion(true)
     }
 
+    internal suspend fun viewWillDisappear() {
+        Superwall.instance.presentationItems.setPaywallInfo(info)
+        Superwall.instance.dependencyContainer.delegateAdapter.willDismissPaywall(info)
+    }
+
     internal suspend fun viewDidDisappear() {
         Superwall.instance.dependencyContainer.delegateAdapter.didDismissPaywall(info)
 
@@ -376,8 +381,6 @@ class PaywallViewController(
 
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
-
-        cache?.activePaywallVcKey = null
 
         CoroutineScope(Dispatchers.IO).launch {
             trackClose()
@@ -732,22 +735,17 @@ class SuperwallPaywallActivity : Activity() {
     override fun onPause() {
         super.onPause()
 
-        val key = intent.getStringExtra(VIEW_KEY) ?: return
-
-        val paywallVc = ViewStorage.retrieveView(key) as? PaywallViewController ?: return
+        val paywallVc = contentView as? PaywallViewController ?: return
 
         CoroutineScope(Dispatchers.IO).launch {
-            Superwall.instance.presentationItems.setPaywallInfo(paywallVc.info)
-            Superwall.instance.dependencyContainer.delegateAdapter.willDismissPaywall(paywallVc.info)
+            paywallVc.viewWillDisappear()
         }
     }
 
     override fun onStop() {
         super.onStop()
 
-        val key = intent.getStringExtra(VIEW_KEY) ?: return
-
-        val paywallVc = ViewStorage.retrieveView(key) as? PaywallViewController ?: return
+        val paywallVc = contentView as? PaywallViewController ?: return
 
         CoroutineScope(Dispatchers.IO).launch {
             paywallVc.viewDidDisappear()

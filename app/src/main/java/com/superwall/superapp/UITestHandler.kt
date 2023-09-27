@@ -97,9 +97,6 @@ class UITestHandler {
             // Dismiss after 4 seconds
             delay(4000)
             Superwall.instance.dismiss()
-
-            // Present again after 1 second
-            delay(1000)
             Superwall.instance.register(event = "present_video")
         }
 
@@ -153,7 +150,6 @@ class UITestHandler {
                     "some_value" to null
                 )
             )
-            delay(4000)
             Superwall.instance.register(event = "present_and_rule_user")
         }
 
@@ -162,7 +158,6 @@ class UITestHandler {
             "Adds a user attribute to verify rule on `present_and_rule_user`. Verify it" +
                     " DOES NOT present: user.should_display == true and user.some_value > 12"
         )
-
         suspend fun test8() {
             // TODO: Crashes on no rule match
             Superwall.instance.identify(userId = "test7")
@@ -207,7 +202,6 @@ class UITestHandler {
                     "8 seconds and present again without any name. Then it should present again" +
                     " with the name Sawyer."
         )
-
         suspend fun test11() {
             Superwall.instance.setUserAttributes(mapOf("first_name" to "Claire"))
             Superwall.instance.register(event = "present_data")
@@ -216,9 +210,6 @@ class UITestHandler {
 
             // Dismiss any view controllers
             Superwall.instance.dismiss()
-
-            delay(2000)
-
             Superwall.instance.setUserAttributes(mapOf("first_name" to null))
             Superwall.instance.register(event = "present_data")
 
@@ -226,9 +217,6 @@ class UITestHandler {
 
             // Dismiss any view controllers
             Superwall.instance.dismiss()
-
-            delay(2000)
-
             Superwall.instance.setUserAttributes(mapOf("first_name" to "Sawyer"))
             Superwall.instance.register(event = "present_data")
         }
@@ -287,8 +275,6 @@ class UITestHandler {
             // Dismiss any view controllers
             Superwall.instance.dismiss()
 
-            delay(5000)
-
             Superwall.instance.register(event = "present_always")
             Superwall.instance.identify(userId = "1111")
             Superwall.instance.register(event = "present_always")
@@ -335,8 +321,6 @@ class UITestHandler {
             // Dismiss any view controllers
             Superwall.instance.dismiss()
 
-            delay(2000)
-
             // Set identity
             Superwall.instance.identify(userId = "test2")
             Superwall.instance.setUserAttributes(mapOf("first_name" to "Jack"))
@@ -350,8 +334,6 @@ class UITestHandler {
 
             // Dismiss any view controllers
             Superwall.instance.dismiss()
-
-            delay(2000)
 
             // Present paywall
             Superwall.instance.register(event = "present_always")
@@ -400,16 +382,12 @@ class UITestHandler {
             // Dismiss any view controllers
             Superwall.instance.dismiss()
 
-            delay(4000)
-
             Superwall.instance.getPresentationResult(event = "present_and_rule_user")
 
             delay(8000)
 
             // Dismiss any view controllers
             Superwall.instance.dismiss()
-
-            delay(2000)
 
             // Show a paywall
             Superwall.instance.register(event = "present_always")
@@ -418,8 +396,6 @@ class UITestHandler {
 
             // Dismiss any view controllers
             Superwall.instance.dismiss()
-
-            delay(2000)
 
             // Set identity
             Superwall.instance.identify(userId = "test19b")
