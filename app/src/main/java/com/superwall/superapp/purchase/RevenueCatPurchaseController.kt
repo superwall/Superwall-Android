@@ -121,9 +121,9 @@ class RevenueCatPurchaseController(val context: Context): PurchaseController, Up
     override suspend fun restorePurchases(): RestorationResult {
         try {
             if (hasAnyActiveEntitlements(Purchases.sharedInstance.awaitRestoration())) {
-                return RestorationResult.Failed(Exception("No active entitlements"))
-            } else {
                 return RestorationResult.Restored()
+            } else {
+                return RestorationResult.Failed(Exception("No active entitlements"))
             }
         } catch (e: Throwable) {
             return RestorationResult.Failed(e)
