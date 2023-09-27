@@ -116,6 +116,7 @@ class SWWebView(
 
         // Add a query parameter
         val builder = uri.buildUpon()
+        builder.appendQueryParameter("platform", "android")
         builder.appendQueryParameter("transport", "android")
         builder.appendQueryParameter("debug", "true")
 //        builder.appendQueryParameter("pjs", "http://10.0.2.2:4444/runtime/dev/entrypoint.js")
