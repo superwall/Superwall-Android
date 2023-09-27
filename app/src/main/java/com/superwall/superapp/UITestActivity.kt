@@ -22,7 +22,19 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
-data class UITestInfo(val number: Int, val description: String)
+data class UITestInfo(val number: Int, val description: String, val testCaseType: TestCaseType = TestCaseType.iOS)
+
+enum class TestCaseType(val prefix: String) {
+    iOS(prefix = "iOS"),
+    Android("Android");
+
+    fun titleText(testCaseNumber: Int): String {
+        return when(this) {
+            iOS -> "UITest ${testCaseNumber}"
+            Android -> "${prefix} UITest ${testCaseNumber}"
+        }
+    }
+}
 
 class UITestActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -92,6 +104,7 @@ fun UITestTable() {
         UITestHandler.test63Info to { CoroutineScope(Dispatchers.IO).launch { UITestHandler.test63() } },
         UITestHandler.test72Info to { CoroutineScope(Dispatchers.IO).launch { UITestHandler.test72() } },
         UITestHandler.test82Info to { CoroutineScope(Dispatchers.IO).launch { UITestHandler.test82() } },
+        UITestHandler.testAndroid4Info to { CoroutineScope(Dispatchers.IO).launch { UITestHandler.testAndroid4() } },
     )
 
     LazyColumn {
@@ -111,7 +124,7 @@ fun UITestTable() {
                     ) {
                         Text(
                             color =  mainTextColor,
-                            text = "UITest ${item.number}",
+                            text = item.testCaseType.titleText(item.number),
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(bottom = 8.dp)
                         )

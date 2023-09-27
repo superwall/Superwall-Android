@@ -2,8 +2,12 @@ package com.superwall.superapp
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.os.Looper
+import android.provider.Contacts
+import androidx.compose.runtime.remember
+import androidx.core.content.ContextCompat.startActivity
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.superwall.SuperwallEvent.DeepLink
 import com.superwall.sdk.delegate.SubscriptionStatus
@@ -741,6 +745,20 @@ class UITestHandler {
 
         suspend fun test82() {
             Superwall.instance.register(event = "price_readout")
+        }
+
+        var testAndroid4Info = UITestInfo(
+            4,
+            "NOTE: Must use `Android Main screen` API key. Launch compose debug screen: " +
+                    "Verify that paywall loads in Tab 0. Go to Tab 2 and press `Another Paywall` button. " +
+                    "Verify that paywall loads the same paywall from Tab 0. Close paywall, then go back to" +
+                    " Tab 0. Verify no crash occurs.",
+            testCaseType = TestCaseType.Android
+        )
+
+        suspend fun testAndroid4() {
+            val intent = Intent(context, ComposeActivity::class.java)
+            context.startActivity(intent)
         }
     }
 }

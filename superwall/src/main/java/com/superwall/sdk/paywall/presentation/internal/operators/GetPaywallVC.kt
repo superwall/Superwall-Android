@@ -71,13 +71,6 @@ internal suspend fun Superwall.getPaywallViewController(
             isPreloading = false,
             delegate = delegate
         )
-
-        container.paywallManager.getPaywallViewController(
-            request = paywallRequest,
-            isForPresentation = isForPresentation,
-            isPreloading = false,
-            delegate = delegate
-        )
     } catch (e: Exception) {
         if (subscriptionStatus == SubscriptionStatus.ACTIVE) {
             // TODO: throw userIsSubscribed
