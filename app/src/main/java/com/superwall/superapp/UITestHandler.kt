@@ -423,17 +423,11 @@ class UITestHandler {
 
         var test21Info = UITestInfo(
             21,
-            "Present the paywall and manually purchase. After 12 seconds, it'll try to " +
-                    "present the paywall again. The paywall shouldn't present."
+            "Present the paywall and make a purchase. After purchasing completes and " +
+                    "the paywall dismisses, attempt to launch again. The paywall should NOT appear."
         )
 
         suspend fun test21() {
-            Superwall.instance.register(event = "present_data")
-
-            // Manually purchase here
-            delay(12000)
-
-            // Try to present paywall again
             Superwall.instance.register(event = "present_data")
         }
 

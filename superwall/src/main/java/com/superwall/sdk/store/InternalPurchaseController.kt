@@ -42,7 +42,7 @@ class InternalPurchaseController(
 
         val restorationResult = restorePurchases()
 
-        val hasRestored = restorationResult == RestorationResult.Restored()
+        val hasRestored = restorationResult is RestorationResult.Restored
         val isUserSubscribed = Superwall.instance.subscriptionStatus.value == SubscriptionStatus.ACTIVE
 
         if (hasRestored && isUserSubscribed) {
