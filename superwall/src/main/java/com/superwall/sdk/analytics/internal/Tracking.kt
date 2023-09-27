@@ -8,9 +8,10 @@ import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
 import com.superwall.sdk.models.events.EventData
+import com.superwall.sdk.paywall.presentation.dismiss
+import com.superwall.sdk.paywall.presentation.dismissForNextPaywall
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.dismiss
-import com.superwall.sdk.paywall.presentation.internal.dismissForNextPaywall
 import com.superwall.sdk.paywall.presentation.internal.internallyPresent
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import kotlinx.coroutines.CoroutineScope
@@ -72,7 +73,6 @@ suspend fun Superwall.track(event: Trackable): TrackingResult {
     return result
 }
 
-//@MainCoroutineDispatcher
 suspend fun Superwall.handleImplicitTrigger(
     forEvent: Trackable,
     withData: EventData

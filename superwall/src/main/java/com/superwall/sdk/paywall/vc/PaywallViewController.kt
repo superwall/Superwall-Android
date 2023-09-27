@@ -267,7 +267,7 @@ class PaywallViewController(
         dismissCompletionBlock = null
     }
 
-    internal suspend fun dismiss(
+    internal fun dismiss(
         result: PaywallResult,
         closeReason: PaywallCloseReason = PaywallCloseReason.SystemLogic,
         completion: (() -> Unit)? = null
@@ -279,37 +279,39 @@ class PaywallViewController(
         val isDeclined = paywallResult is PaywallResult.Declined
         val isManualClose = closeReason is PaywallCloseReason.ManualClose
 
-        if (isDeclined && isManualClose) {
-            val trackedEvent = InternalSuperwallEvent.PaywallDecline(info)
-            Superwall.instance.track(trackedEvent)
+        CoroutineScope(Dispatchers.IO).launch {
+            if (isDeclined && isManualClose) {
+                val trackedEvent = InternalSuperwallEvent.PaywallDecline(info)
+                Superwall.instance.track(trackedEvent)
 
-            val presentationResult = Superwall.instance.internallyGetPresentationResult(
-                event = trackedEvent,
-                isImplicit = true
-            )
-            val paywallPresenterEvent = info.presentedByEventWithName
-            val presentedByPaywallDecline = paywallPresenterEvent == SuperwallEventObjc.PaywallDecline.rawName
+                val presentationResult = Superwall.instance.internallyGetPresentationResult(
+                    event = trackedEvent,
+                    isImplicit = true
+                )
+                val paywallPresenterEvent = info.presentedByEventWithName
+                val presentedByPaywallDecline = paywallPresenterEvent == SuperwallEventObjc.PaywallDecline.rawName
 
-            if (presentationResult is PresentationResult.Paywall && !presentedByPaywallDecline) {
-                // If a paywall_decline trigger is active and the current paywall wasn't presented
-                // by paywall_decline, it lands here so as not to dismiss the paywall.
-                // track() will do that before presenting the next paywall.
-                return
+                if (presentationResult is PresentationResult.Paywall && !presentedByPaywallDecline) {
+                    // If a paywall_decline trigger is active and the current paywall wasn't presented
+                    // by paywall_decline, it lands here so as not to dismiss the paywall.
+                    // track() will do that before presenting the next paywall.
+                    return@launch
+                }
             }
-        }
 
-        // TODO: Add in survey logic here
+            // TODO: Add in survey logic here
 
-        delegate?.let { delegate ->
-            didCallDelegate = true
-            delegate.didFinish(
-                paywall = this,
-                result = result,
-                shouldDismiss = true
-            )
-        } ?: run {
-            // TODO: Implement presentationIsAnimated and pass here:
-            dismiss(false)
+            delegate?.let { delegate ->
+                didCallDelegate = true
+                delegate.didFinish(
+                    paywall = this@PaywallViewController,
+                    result = result,
+                    shouldDismiss = true
+                )
+            } ?: run {
+                // TODO: Implement presentationIsAnimated and pass here:
+                dismiss(false)
+            }
         }
     }
 

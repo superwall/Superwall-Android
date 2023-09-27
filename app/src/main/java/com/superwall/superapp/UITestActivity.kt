@@ -18,6 +18,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.superwall.superapp.ui.theme.MyApplicationTheme
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 data class UITestInfo(val number: Int, val description: String)
@@ -62,7 +64,7 @@ fun UITestTable() {
         UITestHandler.test12Info to { scope.launch { UITestHandler.test12() } },
         UITestHandler.test13Info to { scope.launch { UITestHandler.test13() } },
         UITestHandler.test14Info to { scope.launch { UITestHandler.test14() } },
-        UITestHandler.test15Info to { scope.launch { UITestHandler.test15() } },
+        UITestHandler.test15Info to { CoroutineScope(Dispatchers.IO).launch { UITestHandler.test15() } },
         UITestHandler.test16Info to { scope.launch { UITestHandler.test16() } },
         UITestHandler.test17Info to { scope.launch { UITestHandler.test17() } },
         UITestHandler.test18Info to { scope.launch { UITestHandler.test18() } },

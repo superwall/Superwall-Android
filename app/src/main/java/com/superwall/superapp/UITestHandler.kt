@@ -3,14 +3,18 @@ package com.superwall.superapp
 import android.annotation.SuppressLint
 import android.content.Context
 import android.net.Uri
+import android.os.Looper
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.superwall.SuperwallEvent.DeepLink
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.identity.identify
 import com.superwall.sdk.identity.setUserAttributes
+import com.superwall.sdk.paywall.presentation.PaywallPresentationHandler
+import com.superwall.sdk.paywall.presentation.dismiss
 import com.superwall.sdk.paywall.presentation.get_paywall.getPaywall
 import com.superwall.sdk.paywall.presentation.get_presentation_result.getPresentationResult
 import com.superwall.sdk.paywall.presentation.internal.dismiss
+import com.superwall.sdk.paywall.presentation.register
 import com.superwall.sdk.paywall.vc.SuperwallPaywallActivity
 import kotlinx.coroutines.delay
 
@@ -267,11 +271,11 @@ class UITestHandler {
         var test15Info = UITestInfo(
             15,
             "Clusterfucks by Jake™. One paywall should present, then it should disappear" +
-                    " then another paywall should present and disappear."
+                    " then another paywall should present and disappear. Then a third should present. " +
+                    "Verify that the console output contains a non-null experimentId."
         )
 
         suspend fun test15() {
-            // TODO: Stop multiple paywalls from being presented at a time
             Superwall.instance.register(event = "present_always")
             Superwall.instance.register(
                 event = "present_always",
@@ -279,32 +283,30 @@ class UITestHandler {
             )
             Superwall.instance.register(event = "present_always")
 
-            delay(8000)
+            delay(5000)
 
             // Dismiss any view controllers
             Superwall.instance.dismiss()
 
-            delay(2000)
+            delay(5000)
 
             Superwall.instance.register(event = "present_always")
             Superwall.instance.identify(userId = "1111")
             Superwall.instance.register(event = "present_always")
 
-            delay(8000)
+            delay(5000)
 
             // Dismiss any view controllers
             Superwall.instance.dismiss()
 
-            // TODO: Add handler to register
-//
-//        var handler = PaywallPresentationHandler()
-//
-//        var experimentId = ""
-//        handler.onPresent { info in
-//                experimentId = info.experiment?.id ?? ""
-//            Superwall.instance.register(event = "present_always")
-//        }
-//        Superwall.instance.register(event = "present_always", handler = handler)
+            var handler = PaywallPresentationHandler()
+            handler.onPresent { info ->
+                val experimentId = info.experiment?.id ?: ""
+                println("!!! TEST 15 !!! experimentId: $experimentId")
+                Superwall.instance.register(event = "present_always")
+            }
+
+            Superwall.instance.register(event = "present_always", handler = handler)
         }
 
         var test16Info = UITestInfo(
@@ -432,15 +434,13 @@ class UITestHandler {
 
         var test20Info = UITestInfo(
             20,
-            "Verify that external URLs can be opened in native Safari from paywall. When" +
-                    " the paywall opens, tap button 2."
+            "Verify that external URLs can be opened in native browser from paywall. When" +
+                    " the paywall opens, tap `Perform` for `Open in Safari`. Afterwards, go back and verify the paywall is displayed."
         )
 
         suspend fun test20() {
             // Present paywall with URLs
-            Superwall.instance.register(event = "present_urls")
-
-            // Need to manually tap the button here
+            Superwall.instance.register("present_urls")
         }
 
         var test21Info = UITestInfo(

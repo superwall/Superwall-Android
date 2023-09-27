@@ -13,6 +13,7 @@ import com.superwall.sdk.delegate.RestorationResult
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.delegate.SuperwallDelegate
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
+import com.superwall.sdk.paywall.presentation.register
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -25,15 +26,12 @@ class MainApplication : android.app.Application(), SuperwallDelegate {
     override fun onCreate() {
         super.onCreate()
 
-//        // Superwall Android
-
         val purchaseController =  PurchaseControllerImpl(this)
-
 
         /*
         Copy and paste the following API keys to switch between apps.
         App API Keys:
-            Android Tests: pk_d1f0959f70c761b1d55bb774a03e22b2b6ed290ce6561f85
+            Android Main screen: pk_d1f0959f70c761b1d55bb774a03e22b2b6ed290ce6561f85
             UITest (default): pk_5f6d9ae96b889bc2c36ca0f2368de2c4c3d5f6119aacd3d2
             Deep Link Open: pk_3faea4c721179218a245475ea9d378d1ecb9bf059411a0c0
          */
@@ -48,21 +46,8 @@ class MainApplication : android.app.Application(), SuperwallDelegate {
         // Make sure we enable the game controller
         Superwall.instance.options.isGameControllerEnabled = true
 
-
-//
-//        // TODO: Fix this so we don't need to make the user set this
+        // TODO: Fix this so we don't need to make the user set this
         Superwall.instance.setSubscriptionStatus(SubscriptionStatus.INACTIVE)
-//        invokeRegister()
-
-//        // UI-Tests
-//        Superwall.configure(this, "pk_5f6d9ae96b889bc2c36ca0f2368de2c4c3d5f6119aacd3d2")
-//
-//        // TODO: Fix this so we don't need to make the user set this
-//        Superwall.instance.setSubscriptionStatus(SubscriptionStatus.Inactive)
-//
-//        // Test 0
-//        Superwall.instance.setUserAttributes(mapOf("first_name" to "Jack"))
-//        Superwall.instance.register("present_data")
     }
 
     fun invokeRegister(

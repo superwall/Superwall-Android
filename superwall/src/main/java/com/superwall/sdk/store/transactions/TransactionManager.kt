@@ -10,6 +10,7 @@ import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.dependencies.TransactionVerifierFactory
 import com.superwall.sdk.misc.ActivityLifecycleTracker
+import com.superwall.sdk.paywall.presentation.internal.dismiss
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.vc.PaywallViewController
 import com.superwall.sdk.paywall.vc.delegate.PaywallLoadingState
