@@ -16,9 +16,6 @@ import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.vc.PaywallViewController
 import com.superwall.sdk.paywall.vc.delegate.PaywallLoadingState
 import com.superwall.sdk.store.transactions.GoogleBillingTransactionVerifier
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
@@ -86,10 +83,17 @@ class InternalPurchaseController(
     override suspend fun purchase(activity: Activity, product: SkuDetails): PurchaseResult {
         // Hack to find the current activity
         if (kotlinPurchaseController != null) {
-            return kotlinPurchaseController.purchase(activity, product)
+            val result = kotlinPurchaseController.purchase(activity, product)
+            if (result is PurchaseResult.Purchased) {
+                Superwall.instance.setSubscriptionStatus(SubscriptionStatus.ACTIVE)
+            }
+            return result
         } else if (javaPurchaseController != null) {
             return suspendCoroutine<PurchaseResult> { continuation ->
                 javaPurchaseController.purchase(product) { result ->
+                    if (result is PurchaseResult.Purchased) {
+                        Superwall.instance.setSubscriptionStatus(SubscriptionStatus.ACTIVE)
+                    }
                     continuation.resume(result)
                 }
             }
@@ -119,11 +123,20 @@ class InternalPurchaseController(
 
     override suspend fun restorePurchases(): RestorationResult {
         if (kotlinPurchaseController != null) {
-            return kotlinPurchaseController.restorePurchases()
+            val restorationResult: RestorationResult = kotlinPurchaseController.restorePurchases()
+            if (restorationResult is RestorationResult.Restored) {
+                Superwall.instance.setSubscriptionStatus(SubscriptionStatus.ACTIVE)
+            }
+            // else, it failed but we don't quite know why?
+            return restorationResult
         } else if (javaPurchaseController != null) {
             return suspendCoroutine<RestorationResult> { continuation ->
                 javaPurchaseController.restorePurchases { result, error ->
                     if (error == null) {
+                        // I'm not sure that we need this if block.
+                        if (result is RestorationResult.Restored) {
+                            Superwall.instance.setSubscriptionStatus(SubscriptionStatus.ACTIVE)
+                        }
                         continuation.resume(result)
                     } else {
                         continuation.resume(RestorationResult.Failed(error))
