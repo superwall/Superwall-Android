@@ -171,7 +171,6 @@ class PaywallViewController(
 
     //endregion
 
-
     //region Initialization
 
     init {
@@ -675,9 +674,14 @@ class PaywallViewController(
 
     //endregion
 
-    //endregion
-
     //region Misc
+
+    // Android-specific
+    fun removeParent() {
+        // Check if the view already has a parent
+        val parentViewGroup = this.parent as? ViewGroup
+        parentViewGroup?.removeView(this)
+    }
 
     //endregion
 
@@ -737,10 +741,6 @@ class SuperwallPaywallActivity : Activity() {
         requestWindowFeature(Window.FEATURE_NO_TITLE)
         window.setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
             WindowManager.LayoutParams.FLAG_FULLSCREEN)
-
-        // Check if the view already has a parent
-        val parentViewGroup = view.parent as? ViewGroup
-        parentViewGroup?.removeView(view)
 
         // Now add
         setContentView(view)

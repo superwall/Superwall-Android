@@ -49,6 +49,10 @@ suspend fun Superwall.presentPaywallViewController(
     )
     track(trackedEvent)
 
+    // Note: Deviation from iOS. Unique to Android. This is also done in `PublicGetPaywall.kt`.
+    // See comments there.
+    paywallViewController.removeParent()
+
     paywallViewController.present(
         presenter = presenter,
         request = request,
