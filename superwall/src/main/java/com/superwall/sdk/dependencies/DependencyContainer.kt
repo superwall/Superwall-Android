@@ -21,6 +21,7 @@ import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.identity.IdentityInfo
 import com.superwall.sdk.identity.IdentityManager
 import com.superwall.sdk.misc.ActivityLifecycleTracker
+import com.superwall.sdk.misc.VersionHelper
 import com.superwall.sdk.misc.sdkVersion
 import com.superwall.sdk.models.config.FeatureFlags
 import com.superwall.sdk.models.events.EventData
@@ -84,6 +85,7 @@ class DependencyContainer(
     var storeKitManager: StoreKitManager
     val activityLifecycleTracker: ActivityLifecycleTracker
     val transactionManager: TransactionManager
+    val versionHelper: VersionHelper
 
     init {
         // TODO: Add delegate adapter
@@ -105,7 +107,8 @@ class DependencyContainer(
         storage = Storage(context = context, factory = this)
         network = Network(factory = this)
 
-        deviceHelper = DeviceHelper(context = context, storage, factory = this)
+        versionHelper = VersionHelper(context)
+        deviceHelper = DeviceHelper(context = context, storage, versionHelper, factory = this)
 
         configManager = ConfigManager(
             storage = storage,
@@ -187,8 +190,9 @@ class DependencyContainer(
             "X-App-Install-Date" to deviceHelper.appInstalledAtString,
             "X-Radio-Type" to deviceHelper.radioType,
             "X-Device-Interface-Style" to deviceHelper.interfaceStyle,
-            "X-SDK-Version" to sdkVersion,
-            "X-Request-Id" to requestId,
+            "X-SDK-Version" to deviceHelper.sdkVersion,
+            "X-Git-Sha" to if(deviceHelper.gitSha != null) deviceHelper.gitSha!! else "",
+            "X-Build-Time" to  if(versionHelper.buildTime != null) versionHelper.buildTime!! else "",
             "X-Bundle-ID" to deviceHelper.bundleId,
             "X-Low-Power-Mode" to deviceHelper.isLowPowerModeEnabled.toString(),
             "X-Is-Sandbox" to deviceHelper.isSandbox.toString(),

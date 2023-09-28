@@ -17,6 +17,7 @@ import androidx.core.content.ContextCompat
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.dependencies.IdentityInfoFactory
 import com.superwall.sdk.dependencies.LocaleIdentifierFactory
+import com.superwall.sdk.misc.VersionHelper
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.paywall.vc.web_view.templating.models.DeviceTemplate
 import com.superwall.sdk.storage.Storage
@@ -30,6 +31,7 @@ import java.time.Duration
 class DeviceHelper(
     private val context: Context,
     val storage: Storage,
+    val versionHelper: VersionHelper,
     val factory: DeviceHelper.Factory
 ) {
     interface Factory: IdentityInfoFactory, LocaleIdentifierFactory {}
@@ -309,6 +311,15 @@ class DeviceHelper(
             return packageInfo.versionCode.toString()
         }
 
+
+    val sdkVersion: String
+        get() = versionHelper.sdkVersion
+
+    val buildTime: String?
+        get() = versionHelper.buildTime
+   
+   val gitSha: String?
+        get() = versionHelper.gitSha
 
     suspend fun getDeviceAttributes(
         sinceEvent: EventData?,

@@ -66,6 +66,12 @@ open class ConfigManager(
                 val config = network.getConfig()
                 launch { sendProductsBack(config) }
 
+                Logger.debug(
+                    logLevel = LogLevel.debug,
+                    scope = LogScope.superwallCore,
+                    message = "Fetched Configuration: $config",
+                )
+
                 triggersByEventName = ConfigLogic.getTriggersByEventName(config.triggers)
                 choosePaywallVariants(config.triggers)
                 this@ConfigManager._config.value = config
