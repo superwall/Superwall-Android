@@ -272,7 +272,9 @@
                 <map>
                   <entry key="Duration" value="90" />
                   <entry key="Pixel_4_API_UpsideDownCake" value="120" />
+                  <entry key="RFCW71E0GPA" value="120" />
                   <entry key="Tests" value="360" />
+                  <entry key="samsung&#10; SM-S911U1" value="120" />
                 </map>
               </option>
             </AndroidTestResultsTableState>

@@ -4,7 +4,6 @@ import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.TrackingLogic
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.UserInitiatedEvent
-import com.superwall.sdk.dependencies.DependencyContainer
 import com.superwall.sdk.models.config.FeatureGatingBehavior
 import com.superwall.sdk.paywall.presentation.internal.InternalPresentationLogic
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
@@ -21,9 +20,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.withContext
 
 suspend fun Superwall.dismiss() = withContext(Dispatchers.Main) {
@@ -56,96 +53,107 @@ fun Superwall.register(
     handler: PaywallPresentationHandler? = null,
     feature: (() -> Unit)? = null
 ) {
-    CoroutineScope(Dispatchers.IO).launch {
-        internallyRegister(event, params, handler, feature)
-    }
+    internallyRegister(event, params, handler, feature)
 }
 
-suspend private fun Superwall.internallyRegister(
+private fun Superwall.internallyRegister(
     event: String,
     params: Map<String, Any>? = null,
     handler: PaywallPresentationHandler? = null,
-    completion: (() -> Unit)? = null,
+    completion: (() -> Unit)? = null
 ) {
-    val publisher = asyncPublisher(event, params, null, isFeatureGatable = (completion != null))
+    val publisher = MutableStateFlow<PaywallState>(PaywallState.NotStarted())
 
-    publisher.collect { state ->
-        when (state) {
-            is PaywallState.Presented -> {
-                handler?.onPresentHandler?.invoke(state.paywallInfo)
-            }
-            is PaywallState.Dismissed -> {
-                val (paywallInfo, paywallResult) = state
-                handler?.onDismissHandler?.invoke(paywallInfo)
-                when (paywallResult) {
-                    is Purchased, is Restored -> {
-                        completion?.invoke()
-                    }
-                    is Declined -> {
-                        val closeReason = paywallInfo.closeReason
-                        val featureGating = paywallInfo.featureGatingBehavior
-                        if (closeReason != PaywallCloseReason.ForNextPaywall && featureGating == FeatureGatingBehavior.NonGated) {
+    CoroutineScope(Dispatchers.Main).launch {
+        publisher.collect { state ->
+            when (state) {
+                is PaywallState.Presented -> {
+                    handler?.onPresentHandler?.invoke(state.paywallInfo)
+                }
+
+                is PaywallState.Dismissed -> {
+                    val (paywallInfo, paywallResult) = state
+                    handler?.onDismissHandler?.invoke(paywallInfo)
+                    when (paywallResult) {
+                        is Purchased, is Restored -> {
                             completion?.invoke()
                         }
-                        if (closeReason == PaywallCloseReason.WebViewFailedToLoad && featureGating == FeatureGatingBehavior.Gated) {
-                            val error = InternalPresentationLogic.presentationError(
-                                domain = "SWKPresentationError",
-                                code = 106,
-                                title = "Webview Failed",
-                                value = "Trying to present gated paywall but the webview could not load."
-                            )
-                            handler?.onErrorHandler?.invoke(error)
+
+                        is Declined -> {
+                            val closeReason = paywallInfo.closeReason
+                            val featureGating = paywallInfo.featureGatingBehavior
+                            if (closeReason != PaywallCloseReason.ForNextPaywall && featureGating == FeatureGatingBehavior.NonGated) {
+                                completion?.invoke()
+                            }
+                            if (closeReason == PaywallCloseReason.WebViewFailedToLoad && featureGating == FeatureGatingBehavior.Gated) {
+                                val error = InternalPresentationLogic.presentationError(
+                                    domain = "SWKPresentationError",
+                                    code = 106,
+                                    title = "Webview Failed",
+                                    value = "Trying to present gated paywall but the webview could not load."
+                                )
+                                handler?.onErrorHandler?.invoke(error)
+                            }
                         }
                     }
                 }
-            }
-            is PaywallState.Skipped -> {
-                val (reason) = state
-                handler?.onSkipHandler?.invoke(reason)
-                completion?.invoke()
-            }
-            is PaywallState.PresentationError -> {
-                handler?.onErrorHandler?.invoke(state.error)
-            }
 
-            else -> {}
+                is PaywallState.Skipped -> {
+                    val (reason) = state
+                    handler?.onSkipHandler?.invoke(reason)
+                    completion?.invoke()
+                }
+
+                is PaywallState.PresentationError -> {
+                    handler?.onErrorHandler?.invoke(state.error)
+                }
+
+                else -> {}
+            }
         }
+    }
+
+    serialTaskManager.addTask {
+        trackAndPresentPaywall(
+            event = event,
+            params = params,
+            paywallOverrides = null,
+            isFeatureGatable = completion != null,
+            publisher = publisher
+        )
     }
 }
 
-@Throws(Throwable::class)
-private suspend fun Superwall.asyncPublisher(
+private suspend fun Superwall.trackAndPresentPaywall(
     event: String,
     params: Map<String, Any>? = null,
     paywallOverrides: PaywallOverrides? = null,
-    isFeatureGatable: Boolean
-): Flow<PaywallState> {
-    return try {
+    isFeatureGatable: Boolean,
+    publisher: MutableStateFlow<PaywallState>
+) {
+    try {
         TrackingLogic.checkNotSuperwallEvent(event)
-
-        val trackableEvent = UserInitiatedEvent.Track(
-            rawName = event,
-            canImplicitlyTriggerPaywall = false,
-            customParameters = params ?: emptyMap(),
-            isFeatureGatable = isFeatureGatable
-        )
-        val trackResult = track(trackableEvent)
-
-        val presentationRequest = dependencyContainer.makePresentationRequest(
-            PresentationInfo.ExplicitTrigger(trackResult.data),
-            paywallOverrides,
-            isPaywallPresented = isPaywallPresented,
-            type = PresentationRequestType.Presentation
-        )
-
-        internallyPresent(presentationRequest).catch { e ->
-            emit(PaywallState.PresentationError(e))
-        }
-
     } catch (e: Exception) {
-        flow {
-            emit(PaywallState.PresentationError(e))
-        }
+        return
     }
+
+    val trackableEvent = UserInitiatedEvent.Track(
+        rawName = event,
+        canImplicitlyTriggerPaywall = false,
+        customParameters = params ?: emptyMap(),
+        isFeatureGatable = isFeatureGatable
+    )
+
+    val trackResult = track(trackableEvent)
+
+    val presentationRequest = dependencyContainer.makePresentationRequest(
+        PresentationInfo.ExplicitTrigger(trackResult.data),
+        paywallOverrides,
+        isPaywallPresented = isPaywallPresented,
+        type = PresentationRequestType.Presentation
+    )
+
+    internallyPresent(presentationRequest, publisher)
 }
+
 

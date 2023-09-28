@@ -84,7 +84,8 @@ class InternalPurchaseController(
     }
 
     override suspend fun purchase(activity: Activity, product: SkuDetails): PurchaseResult {
-        // Hack to find the current activity
+        // TODO: Await beginPurchase with purchasing coordinator: https://linear.app/superwall/issue/SW-2415/[android]-implement-purchasingcoordinator
+
         if (kotlinPurchaseController != null) {
             return kotlinPurchaseController.purchase(activity, product)
         } else if (javaPurchaseController != null) {

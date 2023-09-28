@@ -259,7 +259,9 @@ class UITestHandler {
             15,
             "Clusterfucks by Jake™. One paywall should present, then it should disappear" +
                     " then another paywall should present and disappear. Then a third should present. " +
-                    "Verify that the console output contains a non-null experimentId."
+                    "Verify that the console output contains a non-null experimentId. After the third " +
+                    "presentation, manually close the paywall. During this test only 3 paywalls should " +
+                    "event present. If more than 3 present, this test has failed."
         )
 
         suspend fun test15() {
@@ -308,7 +310,9 @@ class UITestHandler {
             17,
             "Clusterfucks by Jake™. This presents a paywall with the name Jack. Then it " +
                     "dismisses after 8s. Then another paywall will present with no name. Then" +
-                    " the paywall will dismiss after 8s and one more paywall will display."
+                    " the paywall will dismiss after 8s and one more paywall will display. After " +
+                    "the third presentation, manually close the paywall. During this test only 3 " +
+                    "paywalls should event present. If more than 3 present, this test has failed."
         )
 
         suspend fun test17() {
@@ -741,8 +745,7 @@ class UITestHandler {
             4,
             "NOTE: Must use `Android Main screen` API key. Launch compose debug screen: " +
                     "Verify that paywall loads in Tab 0. Go to Tab 2 and press `Another Paywall` button. " +
-                    "Verify that paywall loads the same paywall from Tab 0. Close paywall, then go back to" +
-                    " Tab 0. Verify no crash occurs.",
+                    "Verify that paywall does not load (only 1 paywall can be displayed at once).",
             testCaseType = TestCaseType.Android
         )
 

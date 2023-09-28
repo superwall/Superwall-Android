@@ -13,12 +13,16 @@ import com.superwall.sdk.paywall.presentation.dismissForNextPaywall
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.dismiss
 import com.superwall.sdk.paywall.presentation.internal.internallyPresent
+import com.superwall.sdk.paywall.presentation.internal.operators.logErrors
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
+import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
 import java.util.*
 
@@ -28,7 +32,6 @@ suspend fun Superwall.track(event: Trackable): TrackingResult {
     val eventCreatedAt = Date()
     val parameters = TrackingLogic.processParameters(
         trackableEvent = event,
-        eventCreatedAt = eventCreatedAt,
         appSessionId = dependencyContainer.appSessionManager.appSession.id
     )
 
@@ -58,10 +61,10 @@ suspend fun Superwall.track(event: Trackable): TrackingResult {
     dependencyContainer.storage.coreDataManager.saveEventData(eventData, null)
 
     if (event.canImplicitlyTriggerPaywall) {
-        CoroutineScope(Dispatchers.Default).launch {
+        CoroutineScope(Dispatchers.IO).launch {
             Superwall.instance.handleImplicitTrigger(
-                forEvent = event,
-                withData = eventData
+                event = event,
+                eventData = eventData
             )
         }
     }
@@ -74,114 +77,62 @@ suspend fun Superwall.track(event: Trackable): TrackingResult {
 }
 
 suspend fun Superwall.handleImplicitTrigger(
-    forEvent: Trackable,
-    withData: EventData
-) {
-    println("!! handleImplicitTrigger 1: ${forEvent.rawName}")
-
-    val event = forEvent
-    val eventData = withData
-
-    // Should block until identity is available
-
-    println("!! handleImplicitTrigger 1.1 - awaiting identity ${forEvent.rawName} ${Thread.currentThread().name}")
-    dependencyContainer.identityManager.hasIdentity.filter { it }.first()
-    println("!! handleImplicitTrigger 1.1 - confirmed identity ${forEvent.rawName} ${Thread.currentThread().name}")
-
-    println("!! handleImplicitTrigger 1.5")
-
-//     TODO: Divergence from iOS -> waiting for config
-//    dependencyContainer.configManager.hasConfig.first()
-
-
-    println("!! handleImplicitTrigger 2")
-
-    val presentationInfo: PresentationInfo = PresentationInfo.ImplicitTrigger(eventData = eventData)
-
-    val outcome = TrackingLogic.canTriggerPaywall(
-        event,
-        triggers = dependencyContainer.configManager.triggersByEventName.keys.toSet(),
-        paywallViewController = paywallViewController
-    )
-
-    println("!! handleImplicitTrigger 3b $forEvent")
-    println("!! handleImplicitTrigger 3a ${dependencyContainer.configManager.triggersByEventName.keys}")
-    println("!! handleImplicitTrigger 3 $outcome")
-
-    when (outcome) {
-        TrackingLogic.ImplicitTriggerOutcome.DeepLinkTrigger -> {
-            if (isPaywallPresented) {
-                dismiss()
-            }
-            val presentationRequest = dependencyContainer.makePresentationRequest(
-                presentationInfo,
-                isPaywallPresented = isPaywallPresented,
-                type = PresentationRequestType.Presentation
-            )
-            internallyPresent(presentationRequest)
-        }
-        TrackingLogic.ImplicitTriggerOutcome.ClosePaywallThenTriggerPaywall -> {
-            val lastPresentationItems = presentationItems.getLast() ?: return
-            if (isPaywallPresented) {
-                dismissForNextPaywall()
-            }
-            val presentationRequest = dependencyContainer.makePresentationRequest(
-                presentationInfo,
-                isPaywallPresented = isPaywallPresented,
-                type = PresentationRequestType.Presentation
-            )
-            internallyPresent(presentationRequest, lastPresentationItems.statePublisher)
-        }
-        TrackingLogic.ImplicitTriggerOutcome.TriggerPaywall -> {
-            val presentationRequest = dependencyContainer.makePresentationRequest(
-                presentationInfo,
-                isPaywallPresented = isPaywallPresented,
-                type = PresentationRequestType.Presentation
-            )
-            internallyPresent(presentationRequest)
-        }
-        TrackingLogic.ImplicitTriggerOutcome.DisallowedEventAsTrigger -> {
-            Logger.debug(
-                logLevel = LogLevel.warn,
-                scope = LogScope.superwallCore,
-                message = "Event Used as Trigger",
-                info = mapOf("message" to "You can't use events as triggers")
-            )
-        }
-        TrackingLogic.ImplicitTriggerOutcome.DontTriggerPaywall -> {
-            return
-        }
-        TrackingLogic.ImplicitTriggerOutcome.DeepLinkTrigger -> {
-            if (isPaywallPresented) {
-                dismiss()
-            }
-            val presentationRequest = dependencyContainer.makePresentationRequest(
-                presentationInfo,
-                isPaywallPresented = isPaywallPresented,
-                type = PresentationRequestType.Presentation
-            )
-            internallyPresent(presentationRequest)
-        }
-        TrackingLogic.ImplicitTriggerOutcome.ClosePaywallThenTriggerPaywall -> {
-            val lastPresentationItems = presentationItems.getLast() ?: return
-            if (isPaywallPresented) {
-                dismissForNextPaywall()
-            }
-            val presentationRequest = dependencyContainer.makePresentationRequest(
-                presentationInfo,
-                isPaywallPresented = isPaywallPresented,
-                type = PresentationRequestType.Presentation
-            )
-            internallyPresent(presentationRequest, lastPresentationItems.statePublisher)
-        }
-        TrackingLogic.ImplicitTriggerOutcome.TriggerPaywall -> {
-            val presentationRequest = dependencyContainer.makePresentationRequest(
-                presentationInfo,
-                isPaywallPresented = isPaywallPresented,
-                type = PresentationRequestType.Presentation
-            )
-            internallyPresent(presentationRequest)
-        }
+    event: Trackable,
+    eventData: EventData
+) = withContext(Dispatchers.Main) {
+    serialTaskManager.addTask {
+        internallyHandleImplicitTrigger(event, eventData)
     }
 }
 
+private suspend fun Superwall.internallyHandleImplicitTrigger(
+    event: Trackable,
+    eventData: EventData
+) = withContext(Dispatchers.Main) {
+    val presentationInfo = PresentationInfo.ImplicitTrigger(eventData)
+
+    var request = dependencyContainer.makePresentationRequest(
+        presentationInfo = presentationInfo,
+        isPaywallPresented = isPaywallPresented,
+        type = PresentationRequestType.Presentation
+    )
+
+    // TODO: https://linear.app/superwall/issue/SW-2414/[android]-wait-for-sub-status
+//    try {
+//        waitForSubsStatusAndConfig(request, null)
+//    } catch (e: Exception) {
+//        logErrors(request, e)
+//        return@withContext
+//    }
+
+    val outcome = TrackingLogic.canTriggerPaywall(
+        event,
+        dependencyContainer.configManager.triggersByEventName.keys.toSet(),
+        paywallViewController
+    )
+
+    val statePublisher = MutableStateFlow<PaywallState>(PaywallState.NotStarted())
+
+    when (outcome) {
+        TrackingLogic.ImplicitTriggerOutcome.DeepLinkTrigger -> {
+            dismiss()
+        }
+        TrackingLogic.ImplicitTriggerOutcome.ClosePaywallThenTriggerPaywall -> {
+            val lastPresentationItems = presentationItems.getLast() ?: return@withContext
+            dismissForNextPaywall()
+            statePublisher.value = lastPresentationItems.statePublisher.value
+        }
+        TrackingLogic.ImplicitTriggerOutcome.TriggerPaywall -> {
+            return@withContext
+        }
+        TrackingLogic.ImplicitTriggerOutcome.DontTriggerPaywall -> {
+            return@withContext
+        }
+
+        else -> {}
+    }
+
+    request.flags.isPaywallPresented = isPaywallPresented
+
+    internallyPresent(request, statePublisher)
+}

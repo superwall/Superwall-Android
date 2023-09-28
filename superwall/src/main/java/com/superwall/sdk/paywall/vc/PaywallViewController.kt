@@ -5,30 +5,17 @@ import LogScope
 import Logger
 import android.app.Activity
 import android.R
-import android.app.AlertDialog
 import android.content.Context
-import android.content.DialogInterface
 import android.content.Intent
-import android.graphics.Color
-import android.graphics.Typeface
-import android.graphics.drawable.ColorDrawable
 import android.net.Uri
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
-import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.view.Window
 import android.view.WindowManager
 import android.widget.FrameLayout
-import android.widget.LinearLayout
-import android.widget.PopupWindow
-import android.widget.RelativeLayout
-import android.widget.TextView
 import androidx.browser.customtabs.CustomTabsIntent
-import androidx.core.widget.PopupWindowCompat
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
@@ -48,14 +35,13 @@ import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.paywall.manager.PaywallViewControllerCache
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.PaywallInfo
-import com.superwall.sdk.paywall.presentation.internal.PaywallStatePublisher
+import com.superwall.sdk.paywall.presentation.get_presentation_result.internallyGetPresentationResult
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.operators.storePresentationObjects
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.paywall.presentation.result.PresentationResult
 import com.superwall.sdk.paywall.vc.delegate.PaywallLoadingState
-import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegate
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegateAdapter
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerEventDelegate
 import com.superwall.sdk.paywall.vc.web_view.SWWebView
@@ -63,13 +49,11 @@ import com.superwall.sdk.paywall.vc.web_view.SWWebViewDelegate
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallMessageHandlerDelegate
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent
 import com.superwall.sdk.storage.Storage
-import com.superwall.sdk.view.PaywallView
 import com.superwall.sdk.view.fatalAssert
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.serialization.Serializable
 import java.net.MalformedURLException
 import java.net.URL
 import java.util.*
@@ -152,13 +136,6 @@ class PaywallViewController(
     /// `true` if there's a survey to complete and the paywall is displayed in a modal style.
     private var didDisableSwipeForSurvey = false
 
-    /// The presenting view controller, saved for presenting surveys from when
-    /// the view disappears.
-    private val internalPresentingViewController: Activity?
-        get() {
-            return encapsulatingActivity
-        }
-
     /// Whether the survey was shown, not shown, or in a holdout. Defaults to not shown.
     // TODO:
 //    private var surveyPresentationResult: SurveyPresentationResult = .noShow
@@ -216,10 +193,6 @@ class PaywallViewController(
         paywallStatePublisher: MutableStateFlow<PaywallState>,
         completion: (Boolean) -> Unit
     ) {
-        if (Superwall.instance.isPaywallPresented) {
-            return completion(false)
-        }
-
         set(request, paywallStatePublisher, unsavedOccurrence)
 
         if (presentationStyleOverride != null && presentationStyleOverride != PaywallPresentationStyle.NONE) {
@@ -241,7 +214,6 @@ class PaywallViewController(
             return
         }
 
-        cache?.activePaywallVcKey = cacheKey
         presentationWillBegin()
     }
 
@@ -677,10 +649,13 @@ class PaywallViewController(
     //region Misc
 
     // Android-specific
-    fun removeParent() {
+    fun prepareToDisplay() {
         // Check if the view already has a parent
         val parentViewGroup = this.parent as? ViewGroup
         parentViewGroup?.removeView(this)
+
+        // This would normally be in iOS view will appear, but there's not a similar paradigm
+        cache?.activePaywallVcKey = cacheKey
     }
 
     //endregion
