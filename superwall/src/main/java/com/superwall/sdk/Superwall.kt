@@ -5,12 +5,8 @@ import LogScope
 import Logger
 import android.content.Context
 import android.net.Uri
-import android.util.Log
-import com.superwall.sdk.analytics.internal.TrackingLogic
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
-import com.superwall.sdk.analytics.internal.trackable.Trackable
-import com.superwall.sdk.analytics.internal.trackable.UserInitiatedEvent
 import com.superwall.sdk.billing.BillingController
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.delegate.SubscriptionStatus
@@ -18,19 +14,11 @@ import com.superwall.sdk.delegate.SuperwallDelegate
 import com.superwall.sdk.delegate.SuperwallDelegateJava
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.dependencies.DependencyContainer
-import com.superwall.sdk.models.events.EventData
-import com.superwall.sdk.paywall.presentation.LastPresentationItems
+import com.superwall.sdk.misc.SerialTaskManager
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.PresentationItems
-import com.superwall.sdk.paywall.presentation.get_presentation_result.getPresentationResult
-import com.superwall.sdk.paywall.presentation.internal.PaywallStatePublisher
-import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
-import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.dismiss
-import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
-import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
-import com.superwall.sdk.paywall.presentation.result.PresentationResult
 import com.superwall.sdk.paywall.vc.PaywallViewController
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerEventDelegate
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent
@@ -38,7 +26,6 @@ import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.serialization.json.JsonObject
 import java.util.*
 
 public class Superwall(context: Context, apiKey: String, purchaseController: PurchaseController?) :
@@ -129,6 +116,9 @@ public class Superwall(context: Context, apiKey: String, purchaseController: Pur
     }
 
     lateinit var dependencyContainer: DependencyContainer
+
+    /// Used to serially execute register calls.
+    val serialTaskManager = SerialTaskManager()
 
     fun setup() {
         this.dependencyContainer = DependencyContainer(context, purchaseController, options)
@@ -309,75 +299,6 @@ public class Superwall(context: Context, apiKey: String, purchaseController: Pur
     }
 
     //endregion
-
-    /*
-
-
-      private func internallyGetPresentationResult(
-        forEvent event: String,
-        params: [String: Any]? = nil,
-        type: PresentationRequestType
-      ) async -> PresentationResult {
-        let eventCreatedAt = Date()
-
-        let trackableEvent = UserInitiatedEvent.Track(
-          rawName: event,
-          canImplicitlyTriggerPaywall: false,
-          customParameters: params ?? [:],
-          isFeatureGatable: false
-        )
-
-        let parameters = await TrackingLogic.processParameters(
-          fromTrackableEvent: trackableEvent,
-          eventCreatedAt: eventCreatedAt,
-          appSessionId: dependencyContainer.appSessionManager.appSession.id
-        )
-
-        let eventData = EventData(
-          name: event,
-          parameters: JSON(parameters.eventParams),
-          createdAt: eventCreatedAt
-        )
-
-        let presentationRequest = dependencyContainer.makePresentationRequest(
-          .explicitTrigger(eventData),
-          isDebuggerLaunched: false,
-          isPaywallPresented: false,
-          type: type
-        )
-
-        return await getPresentationResult(for: presentationRequest)
-      }
-     */
-    internal suspend fun internallyGetPresentationResult(
-        event: Trackable,
-        isImplicit: Boolean
-    ): PresentationResult {
-        val eventCreatedAt = Date()
-
-        val parameters = TrackingLogic.processParameters(
-            trackableEvent = event,
-            eventCreatedAt = eventCreatedAt,
-            appSessionId = dependencyContainer.appSessionManager.appSession.id
-        )
-
-        val eventData = EventData(
-            name = event.rawName,
-            parameters = parameters.eventParams,
-            createdAt = eventCreatedAt
-        )
-
-        val presentationRequest = dependencyContainer.makePresentationRequest(
-            PresentationInfo.ExplicitTrigger(eventData), // Assuming a similar structure in Kotlin
-            isDebuggerLaunched = false,
-            isPaywallPresented = false,
-            type = if (isImplicit) PresentationRequestType.GetImplicitPresentationResult
-                    else PresentationRequestType.GetPresentationResult
-        )
-
-        return getPresentationResult(presentationRequest)
-    }
-
 
     override suspend fun eventDidOccur(
         paywallEvent: PaywallWebEvent,

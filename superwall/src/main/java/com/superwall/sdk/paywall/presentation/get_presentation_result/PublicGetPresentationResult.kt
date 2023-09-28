@@ -1,8 +1,14 @@
 package com.superwall.sdk.paywall.presentation.get_presentation_result
 
 import com.superwall.sdk.Superwall
+import com.superwall.sdk.analytics.internal.TrackingLogic
+import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.analytics.internal.trackable.UserInitiatedEvent
+import com.superwall.sdk.models.events.EventData
+import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
+import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.presentation.result.PresentationResult
+import java.util.Date
 import java.util.HashMap
 
 suspend fun Superwall.getPresentationResult(
@@ -20,4 +26,32 @@ suspend fun Superwall.getPresentationResult(
         event,
         isImplicit = false
     )
+}
+
+internal suspend fun Superwall.internallyGetPresentationResult(
+    event: Trackable,
+    isImplicit: Boolean
+): PresentationResult {
+    val eventCreatedAt = Date()
+
+    val parameters = TrackingLogic.processParameters(
+        trackableEvent = event,
+        appSessionId = dependencyContainer.appSessionManager.appSession.id
+    )
+
+    val eventData = EventData(
+        name = event.rawName,
+        parameters = parameters.eventParams,
+        createdAt = eventCreatedAt
+    )
+
+    val presentationRequest = dependencyContainer.makePresentationRequest(
+        PresentationInfo.ExplicitTrigger(eventData), // Assuming a similar structure in Kotlin
+        isDebuggerLaunched = false,
+        isPaywallPresented = false,
+        type = if (isImplicit) PresentationRequestType.GetImplicitPresentationResult
+        else PresentationRequestType.GetPresentationResult
+    )
+
+    return getPresentationResult(presentationRequest)
 }

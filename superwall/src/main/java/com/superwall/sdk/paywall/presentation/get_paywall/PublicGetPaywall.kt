@@ -32,7 +32,7 @@ suspend fun Superwall.getPaywall(
     // would only handle presentation. This cannot be done is the shared `GetPaywallComponents.kt` because it's
     // also used for getting a presentation result, and we don't want that to have side effects. Opting to
     // do at the top-most point.
-    viewController.removeParent()
+    viewController.prepareToDisplay()
 
     return@withContext viewController
 }

@@ -2,56 +2,42 @@ package com.superwall.sdk.paywall.manager
 
 import com.superwall.sdk.paywall.vc.PaywallViewController
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.*
 
 class PaywallViewControllerCache(private val deviceLocaleString: String) {
 
     private var _activePaywallVcKey: String? = null
-    private val queue = Mutex()
     private val cache = ConcurrentHashMap<String, PaywallViewController>()
-    private val scope = CoroutineScope(Dispatchers.Default)
+    private val singleThreadContext = newSingleThreadContext("com.superwall.paywallcache")
 
     var activePaywallVcKey: String?
-        get() = runBlocking { queue.withLock { _activePaywallVcKey } }
+        get() = runBlocking(singleThreadContext) { _activePaywallVcKey }
         set(value) {
-            scope.launch {
-                queue.withLock {
-                    _activePaywallVcKey = value
-                }
-            }
+            CoroutineScope(singleThreadContext).launch { _activePaywallVcKey = value }.apply { }
         }
 
     val activePaywallViewController: PaywallViewController?
-        get() = runBlocking {
-            queue.withLock {
-                _activePaywallVcKey?.let { cache[it] }
-            }
-        }
+        get() = runBlocking(singleThreadContext) { _activePaywallVcKey?.let { cache[it] } }
 
     fun save(paywallViewController: PaywallViewController, key: String) {
-        scope.launch { queue.withLock { cache[key] = paywallViewController } }
+        CoroutineScope(singleThreadContext).launch { cache[key] = paywallViewController }
     }
 
     fun getPaywallViewController(key: String): PaywallViewController? {
-        return runBlocking { queue.withLock { cache[key] } }
+        return runBlocking(singleThreadContext) { cache[key] }
     }
 
     fun removePaywallViewController(key: String) {
-        scope.launch { queue.withLock { cache.remove(key) } }
+        CoroutineScope(singleThreadContext).launch { cache.remove(key) }
     }
 
     fun removeAll() {
-        scope.launch {
-            queue.withLock {
-                cache.keys.forEach { key ->
-                    if (key != _activePaywallVcKey) {
-                        cache.remove(key)
-                    }
+        CoroutineScope(singleThreadContext).launch {
+            cache.keys.forEach { key ->
+                if (key != _activePaywallVcKey) {
+                    cache.remove(key)
                 }
             }
         }

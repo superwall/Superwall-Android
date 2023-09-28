@@ -8,13 +8,10 @@ import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
 import com.superwall.sdk.paywall.presentation.internal.InternalPresentationLogic
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatus
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatusReason
-import com.superwall.sdk.paywall.presentation.internal.PresentationPipelineError
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.paywall.vc.PaywallViewController
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.withContext
 
@@ -48,10 +45,6 @@ suspend fun Superwall.presentPaywallViewController(
         factory = this@presentPaywallViewController.dependencyContainer
     )
     track(trackedEvent)
-
-    // Note: Deviation from iOS. Unique to Android. This is also done in `PublicGetPaywall.kt`.
-    // See comments there.
-    paywallViewController.removeParent()
 
     paywallViewController.present(
         presenter = presenter,

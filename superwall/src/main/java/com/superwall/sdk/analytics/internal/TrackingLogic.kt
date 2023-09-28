@@ -21,7 +21,6 @@ sealed class TrackingLogic {
     companion object {
         suspend fun processParameters(
             trackableEvent: Trackable,
-            eventCreatedAt: Date,
             appSessionId: String
         ): TrackingParameters = withContext(Dispatchers.Default) {
             val superwallParameters = trackableEvent.getSuperwallParameters().toMutableMap()
