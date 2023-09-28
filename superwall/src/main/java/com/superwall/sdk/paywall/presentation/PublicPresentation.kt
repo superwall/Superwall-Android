@@ -53,10 +53,11 @@ suspend fun Superwall.dismissForNextPaywall() = withContext(Dispatchers.Main) {
 fun Superwall.register(
     event: String,
     params: Map<String, Any>? = null,
-    handler: PaywallPresentationHandler? = null
+    handler: PaywallPresentationHandler? = null,
+    feature: (() -> Unit)? = null
 ) {
     CoroutineScope(Dispatchers.IO).launch {
-        internallyRegister(event, params, handler)
+        internallyRegister(event, params, handler, feature)
     }
 }
 
@@ -64,7 +65,7 @@ suspend private fun Superwall.internallyRegister(
     event: String,
     params: Map<String, Any>? = null,
     handler: PaywallPresentationHandler? = null,
-    completion: (() -> Unit)? = null
+    completion: (() -> Unit)? = null,
 ) {
     val publisher = asyncPublisher(event, params, null, isFeatureGatable = (completion != null))
 

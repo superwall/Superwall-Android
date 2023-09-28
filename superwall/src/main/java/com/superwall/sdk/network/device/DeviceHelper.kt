@@ -114,14 +114,17 @@ class DeviceHelper(
     val vendorId: String
         get() = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
 
+
+    private val _locale: Locale = Locale.getDefault()
+
     val languageCode: String
-        get() = Locale.getDefault().language
+        get() = _locale.language
 
     val currencyCode: String
-        get() = Currency.getInstance(Locale.getDefault()).currencyCode
+        get() = Currency.getInstance(_locale).currencyCode
 
     val currencySymbol: String
-        get() = Currency.getInstance(Locale.getDefault()).symbol
+        get() = Currency.getInstance(_locale).symbol
 
     val secondsFromGMT: String
         get() = (TimeZone.getDefault().rawOffset / 1000).toString()

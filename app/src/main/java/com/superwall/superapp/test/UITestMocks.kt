@@ -1,4 +1,4 @@
-package com.superwall.superapp
+package com.superwall.superapp.test
 
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
 import com.superwall.sdk.delegate.SuperwallDelegate

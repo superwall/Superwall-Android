@@ -1,19 +1,11 @@
 package com.superwall.superapp
 
 import android.content.Intent
-import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.view.KeyEvent
-import android.view.MotionEvent
 import android.widget.Button
 import com.superwall.sdk.Superwall
-import com.superwall.sdk.game.dispatchKeyEvent
-import com.superwall.sdk.game.dispatchMotionEvent
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import com.superwall.superapp.test.UITestActivity
 
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

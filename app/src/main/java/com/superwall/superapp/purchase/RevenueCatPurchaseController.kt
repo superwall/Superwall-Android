@@ -15,6 +15,7 @@ import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
+import com.superwall.sdk.identity.setUserAttributes
 import kotlinx.coroutines.CompletableDeferred
 
 // Extension function to convert callback to suspend function

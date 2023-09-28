@@ -1,13 +1,9 @@
-package com.superwall.superapp
+package com.superwall.superapp.test
 
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Looper
-import android.provider.Contacts
-import androidx.compose.runtime.remember
-import androidx.core.content.ContextCompat.startActivity
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.superwall.SuperwallEvent.DeepLink
 import com.superwall.sdk.delegate.SubscriptionStatus
@@ -17,9 +13,9 @@ import com.superwall.sdk.paywall.presentation.PaywallPresentationHandler
 import com.superwall.sdk.paywall.presentation.dismiss
 import com.superwall.sdk.paywall.presentation.get_paywall.getPaywall
 import com.superwall.sdk.paywall.presentation.get_presentation_result.getPresentationResult
-import com.superwall.sdk.paywall.presentation.internal.dismiss
 import com.superwall.sdk.paywall.presentation.register
 import com.superwall.sdk.paywall.vc.SuperwallPaywallActivity
+import com.superwall.superapp.ComposeActivity
 import kotlinx.coroutines.delay
 
 class UITestHandler {
@@ -361,7 +357,7 @@ class UITestHandler {
             val viewController = Superwall.instance.getPaywall(event = "present_urls", delegate = delegate)
 
             // Present using the convenience `SuperwallPaywallActivity` activity and verify test case.
-            SuperwallPaywallActivity.startWithView(context = UITestHandler.context, view = viewController)
+            SuperwallPaywallActivity.startWithView(context = context, view = viewController)
         }
 
         var test19Info = UITestInfo(
@@ -599,7 +595,7 @@ class UITestHandler {
             val viewController = Superwall.instance.getPaywall(event = "present_data", delegate = delegate)
 
             // Present using the convenience `SuperwallPaywallActivity` activity and verify test case.
-            SuperwallPaywallActivity.startWithView(context = UITestHandler.context, view = viewController)
+            SuperwallPaywallActivity.startWithView(context = context, view = viewController)
         }
 
         var test36Info = UITestInfo(
@@ -618,7 +614,7 @@ class UITestHandler {
             val viewController = Superwall.instance.getPaywall(event = "present_data", delegate = delegate)
 
             // Present using the convenience `SuperwallPaywallActivity` activity and verify test case.
-            SuperwallPaywallActivity.startWithView(context = UITestHandler.context, view = viewController)
+            SuperwallPaywallActivity.startWithView(context = context, view = viewController)
         }
 
         var test37Info = UITestInfo(
@@ -638,7 +634,7 @@ class UITestHandler {
             val viewController = Superwall.instance.getPaywall(event = "restore", delegate = delegate)
 
             // Present using the convenience `SuperwallPaywallActivity` activity and verify test case.
-            SuperwallPaywallActivity.startWithView(context = UITestHandler.context, view = viewController)
+            SuperwallPaywallActivity.startWithView(context = context, view = viewController)
         }
 
         // TODO: Test 38 & 39, & 40 need to be able to present modally and swipe to dismiss implemented.
@@ -701,7 +697,7 @@ class UITestHandler {
             val viewController = Superwall.instance.getPaywall(event = "restore", delegate = delegate)
 
             // Present using the convenience `SuperwallPaywallActivity` activity and verify test case.
-            SuperwallPaywallActivity.startWithView(context = UITestHandler.context, view = viewController)
+            SuperwallPaywallActivity.startWithView(context = context, view = viewController)
         }
 
         // TODO: Test 63 - 71 require getPaywall, feature block, delegate, and surveys.

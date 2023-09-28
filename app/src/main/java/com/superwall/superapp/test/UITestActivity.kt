@@ -1,4 +1,4 @@
-package com.superwall.superapp
+package com.superwall.superapp.test
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
