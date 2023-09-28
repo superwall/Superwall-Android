@@ -27,7 +27,7 @@ suspend fun Purchases.awaitProducts(productIds: List<String>): List<StoreProduct
 
         override fun onError(error: PurchasesError) {
             // Not sure about this cast...
-            deferred.completeExceptionally(error as Throwable)
+            deferred.completeExceptionally(Exception(error.message))
         }
     })
     return deferred.await()
@@ -48,8 +48,8 @@ suspend fun Purchases.awaitPurchase(activity: Activity, storeProduct: StoreProdu
             })
         }
 
-        override fun onError(p0: PurchasesError, p1: Boolean) {
-            deferred.completeExceptionally(p0 as Throwable)
+        override fun onError(error: PurchasesError, p1: Boolean) {
+            deferred.completeExceptionally(Exception(error.toString()))
         }
     })
     return deferred.await()
