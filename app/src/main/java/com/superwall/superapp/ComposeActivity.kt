@@ -33,6 +33,7 @@ import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegate
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import com.superwall.sdk.Superwall
+import com.superwall.sdk.composable.PaywallComposable
 import com.superwall.sdk.paywall.presentation.get_paywall.getPaywall
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.vc.PaywallViewController
@@ -152,55 +153,6 @@ fun EventButton() {
         .width(250.dp)
     ){
         Text("Another Paywall")
-    }
-}
-
-@Composable
-fun PaywallComposable(
-    event: String,
-    params: Map<String, Any>? = null,
-    paywallOverrides: PaywallOverrides? = null,
-    delegate: PaywallViewControllerDelegate
-) {
-    val viewState = remember { mutableStateOf<PaywallViewController?>(null) }
-    val errorState = remember { mutableStateOf<Throwable?>(null) }
-
-    LaunchedEffect(Unit) {
-        try {
-            val newView = Superwall.instance.getPaywall(event, params, paywallOverrides, delegate)
-            viewState.value = newView
-        } catch (e: Throwable) {
-            errorState.value = e
-        }
-    }
-
-    when {
-        viewState.value != null -> {
-            // If a paywall is returned, it'll be provided here
-            viewState.value?.let { viewToRender ->
-                AndroidView(
-                    factory = { context ->
-                        viewToRender
-                    }
-                )
-            }
-        }
-        errorState.value != null -> {
-            // Some other composable to display if no paywall is returned
-            Text(text = "No paywall to display")
-        }
-        else -> {
-            // Some other composable to display while waiting for a potential paywall
-            Box(modifier = Modifier.fillMaxSize()) {
-                Column(
-                    modifier = Modifier.align(Alignment.Center),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    CircularProgressIndicator()
-                }
-            }
-        }
     }
 }
 
