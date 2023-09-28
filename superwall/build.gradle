@@ -47,6 +47,16 @@ android {
 
     testOptions {}
 
+    packagingOptions {
+        pickFirst "$buildDir/intermediates/git_sha.txt"
+        pickFirst "$buildDir/intermediates/build_time.txt"
+    }
+
+    sourceSets {
+        main {
+            assets.srcDirs += "$buildDir/intermediates/"
+        }
+    }
 }
 
 dependencies {
@@ -86,3 +96,16 @@ dependencies {
     implementation 'androidx.browser:browser:1.5.0'
     implementation 'com.google.code.gson:gson:2.8.5'
 }
+
+task generateBuildInfo {
+    doLast {
+        def gitSha = 'git rev-parse --short HEAD'.execute([], project.rootDir).text.trim()
+        def buildTime = new Date().format("yyyy-MM-dd HH:mm:ss")
+        def gitShaFile = new File("$buildDir/intermediates/git_sha.txt")
+        gitShaFile.text = gitSha
+        def buildTimeFile = new File("$buildDir/intermediates/build_time.txt")
+        buildTimeFile.text = buildTime
+    }
+}
+
+preBuild.dependsOn generateBuildInfo
