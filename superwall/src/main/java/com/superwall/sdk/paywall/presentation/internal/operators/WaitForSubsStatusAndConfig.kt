@@ -137,7 +137,7 @@ internal suspend fun Superwall.waitForSubsStatusAndConfig(
                     throw PaywallPresentationRequestStatusReason.NoConfig()
                 }
             },
-            timeout = 5000
+            timeout = 15000
         )
         result.cancelTimeout()
         val config = result.value
