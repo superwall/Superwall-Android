@@ -5,7 +5,6 @@ import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.widget.Button
 import com.superwall.sdk.Superwall
-import com.superwall.superapp.test.UITestActivity
 
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -60,13 +59,6 @@ class MainActivity : AppCompatActivity() {
             startActivity(intent)
         }
 
-        // UITest button
-        val uiTestButton: Button = findViewById(R.id.uiTest)
-        uiTestButton.setOnClickListener {
-            val intent = Intent(this, UITestActivity::class.java)
-            startActivity(intent)
-        }
-        
         val devicePropertiesTestButton: Button = findViewById(R.id.devicePropertiesTest)
         devicePropertiesTestButton.setOnClickListener {
             val app = application as? MainApplication

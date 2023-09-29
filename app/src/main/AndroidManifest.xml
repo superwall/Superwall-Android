@@ -24,7 +24,7 @@
             android:label="@string/title_activity_compose"
             android:theme="@style/Theme.MyApplication" />
         <activity
-            android:name=".test.UITestActivity"
+            android:name="com.superwall.uitest.UITestActivity"
             android:exported="false"
             android:label="@string/title_activity_uitest"
             android:theme="@style/Theme.MyApplication" />
