@@ -22,7 +22,6 @@ suspend fun Superwall.checkUserSubscription(
             val subscriptionStatus = request.flags.subscriptionStatus.first()
             if (subscriptionStatus == SubscriptionStatus.ACTIVE) {
                 paywallStatePublisher?.emit(PaywallState.Skipped(PaywallSkippedReason.UserIsSubscribed()))
-                paywallStatePublisher?.emit(PaywallState.Finalized())
                 throw PaywallPresentationRequestStatusReason.UserIsSubscribed()
             }
         }

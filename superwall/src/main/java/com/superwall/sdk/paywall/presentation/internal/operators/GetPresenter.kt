@@ -45,7 +45,6 @@ suspend fun Superwall.getPresenterIfNecessary(
         )
     ) {
         paywallStatePublisher?.emit(PaywallState.Skipped(PaywallSkippedReason.UserIsSubscribed()))
-        paywallStatePublisher?.emit(PaywallState.Finalized())
         throw PaywallPresentationRequestStatusReason.UserIsSubscribed()
     }
 

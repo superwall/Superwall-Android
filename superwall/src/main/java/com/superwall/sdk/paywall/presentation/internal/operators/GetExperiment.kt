@@ -68,7 +68,6 @@ suspend fun Superwall.getExperiment(
         }
     }
 
-    paywallStatePublisher?.emit(PaywallState.Finalized())
     throw errorType
 }
 

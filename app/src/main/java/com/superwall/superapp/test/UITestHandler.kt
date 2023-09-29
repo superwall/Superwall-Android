@@ -9,6 +9,7 @@ import com.superwall.sdk.analytics.superwall.SuperwallEvent.DeepLink
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.identity.identify
 import com.superwall.sdk.identity.setUserAttributes
+import com.superwall.sdk.misc.AlertControllerFactory
 import com.superwall.sdk.paywall.presentation.PaywallPresentationHandler
 import com.superwall.sdk.paywall.presentation.dismiss
 import com.superwall.sdk.paywall.presentation.get_paywall.getPaywall
@@ -27,7 +28,6 @@ class UITestHandler {
             0,
             "Uses the identify function. Should see the name 'Jack' in the paywall."
         )
-
         suspend fun test0() {
             // TODO: The name doesn't display
             Superwall.instance.identify(userId = "test0")
@@ -490,10 +490,18 @@ class UITestHandler {
         var test26Info = UITestInfo(
             26,
             "Registers an event with a gating handler. The paywall should display, you should " +
-                    "NOT see !!! TEST 26 !!! printed in the console when you close the paywall."
+                    "NOT see an alert when you close the paywall."
         )
         suspend fun test26() {
-            // TODO: Implement feature block for register: https://linear.app/superwall/issue/SW-2372/add-feature-block-to-register
+            Superwall.instance.register(event = "register_gated_paywall") {
+                val alertController = AlertControllerFactory.make(
+                    context = context,
+                    title = "Feature Launched",
+                    message = "The feature block was called",
+                    actionTitle = "Ok"
+                )
+                alertController.show()
+            }
         }
 
         var test27Info = UITestInfo(
@@ -643,6 +651,128 @@ class UITestHandler {
 
         // TODO: Test 38 & 39, & 40 need to be able to present modally and swipe to dismiss implemented.
         // TODO: Tests 41 - 48 require a feature block
+
+        // Warning: Change `subscribed` param to product id
+        suspend fun executeRegisterFeatureClosureTest(subscribed: Boolean, gated: Boolean) {
+            var currentSubscriptionStatus = Superwall.instance.subscriptionStatus.value
+
+            if (subscribed) {
+                // Set user subscribed
+                Superwall.instance.setSubscriptionStatus(SubscriptionStatus.ACTIVE)
+            }
+
+            // Determine gating event
+            val event = if (gated) {
+                "register_gated_paywall"
+            } else {
+                "register_nongated_paywall"
+            }
+
+            val paywallPresentationHandler = PaywallPresentationHandler()
+            paywallPresentationHandler.onError { error ->
+                println("!!! ERROR HANDLER !!! $error")
+            }
+
+            Superwall.instance.register(event, null, paywallPresentationHandler) {
+                val alertController = AlertControllerFactory.make(
+                    context = context,
+                    title = "Feature Launched",
+                    message = "The feature block was called",
+                    actionTitle = "Ok"
+                )
+                alertController.show()
+            }
+
+            delay(4000)
+
+            if (subscribed) {
+                // Reset status
+                Superwall.instance.setSubscriptionStatus(currentSubscriptionStatus)
+            }
+        }
+
+        var test41Info = UITestInfo(
+            41,
+            "Unable to fetch config, not subscribed, and not gated. First disable " +
+                    "internet on device. You should not be subscribed. You SHOULD " +
+                    "see !!! ERROR HANDLER !!! in the console and the alert should NOT show."
+        )
+        suspend fun test41() {
+            executeRegisterFeatureClosureTest(subscribed = false, gated = false)
+        }
+
+        var test42Info = UITestInfo(
+            42,
+            "Unable to fetch config, not subscribed, and gated. First disable internet " +
+                    "on device. You should not be subscribed.  You SHOULD " +
+                    "see !!! ERROR HANDLER !!! in the console and the alert should NOT show."
+        )
+        suspend fun test42() {
+            executeRegisterFeatureClosureTest(subscribed = false, gated = true)
+        }
+
+        var test43Info = UITestInfo(
+            43,
+            "Unable to fetch config, subscribed, and not gated. First disable internet on " +
+                    "device. You should NOT see !!! ERROR HANDLER !!! in the console and the alert " +
+                    "SHOULD show."
+        )
+        suspend fun test43() {
+            executeRegisterFeatureClosureTest(subscribed = true, gated = false)
+        }
+
+        var test44Info = UITestInfo(
+            44,
+            "Unable to fetch config, subscribed, and gated. First disable internet on " +
+                    "device. You should NOT see !!! ERROR HANDLER !!! in the console and the alert " +
+                    "SHOULD show."
+        )
+        suspend fun test44() {
+            executeRegisterFeatureClosureTest(subscribed = true, gated = true)
+        }
+
+        var test45Info = UITestInfo(
+            45,
+            "Fetched config, not subscribed, and not gated. The paywall should show. On " +
+                    "paywall dismiss you should NOT see !!! ERROR HANDLER !!! in the console and the " +
+                    "alert should show when you dismiss the paywall."
+        )
+        suspend fun test45() {
+            executeRegisterFeatureClosureTest(subscribed = false, gated = false)
+            delay(4000)
+        }
+
+        var test46Info = UITestInfo(
+            46,
+            "Fetched config, not subscribed, and gated. The paywall should show. You should " +
+                    "NOT see !!! ERROR HANDLER !!! in the console and the alert should NOT show on " +
+                    "paywall dismiss."
+        )
+        suspend fun test46() {
+            executeRegisterFeatureClosureTest(subscribed = false, gated = true)
+            delay(4000)
+        }
+
+        var test47Info = UITestInfo(
+            47,
+            "Fetched config, subscribed, and not gated. The paywall should NOT show. You " +
+                    "should NOT see !!! ERROR HANDLER !!! in the console and the alert SHOULD show."
+        )
+        suspend fun test47() {
+            executeRegisterFeatureClosureTest(subscribed = true, gated = false)
+        }
+
+        var test48Info = UITestInfo(
+            48,
+            "Fetched config, subscribed, and gated. The paywall should NOT show. You should" +
+                    " NOT see !!! ERROR HANDLER !!! in the console and the alert SHOULD show."
+        )
+        suspend fun test48() {
+            executeRegisterFeatureClosureTest(subscribed = true, gated = true)
+            delay(4000)
+        }
+
+        // TODO: Tests 49 - 56
 
         var test57Info = UITestInfo(
             57,
