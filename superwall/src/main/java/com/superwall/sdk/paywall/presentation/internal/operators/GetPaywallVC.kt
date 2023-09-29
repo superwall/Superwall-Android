@@ -14,6 +14,7 @@ import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallSkippedReason
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
+import com.superwall.sdk.paywall.presentation.internal.userIsSubscribed
 import com.superwall.sdk.paywall.presentation.rule_logic.RuleEvaluationOutcome
 import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
@@ -73,9 +74,7 @@ internal suspend fun Superwall.getPaywallViewController(
         )
     } catch (e: Exception) {
         if (subscriptionStatus == SubscriptionStatus.ACTIVE) {
-            // TODO: throw userIsSubscribed
-//            throw userIsSubscribed(paywallStatePublisher)
-            throw presentationFailure(e, request, debugInfo, paywallStatePublisher)
+            throw userIsSubscribed(paywallStatePublisher)
         } else {
             throw presentationFailure(e, request, debugInfo, paywallStatePublisher)
         }
@@ -99,7 +98,6 @@ private suspend fun Superwall.presentationFailure(
         )
     ) {
         paywallStatePublisher?.emit(PaywallState.Skipped(PaywallSkippedReason.UserIsSubscribed()))
-        paywallStatePublisher?.emit(PaywallState.Finalized())
         return PaywallPresentationRequestStatusReason.UserIsSubscribed()
     }
 

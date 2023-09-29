@@ -30,6 +30,5 @@ suspend fun Superwall.checkDebuggerPresentation(
     val state: PaywallState = PaywallState.PresentationError(error)
 
     paywallStatePublisher.emit(state)
-    paywallStatePublisher.emit(PaywallState.Finalized())
     throw PaywallPresentationRequestStatusReason.DebuggerPresented()
 }

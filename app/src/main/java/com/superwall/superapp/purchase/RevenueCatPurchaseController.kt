@@ -141,7 +141,7 @@ class RevenueCatPurchaseController(val context: Context): PurchaseController, Up
     }
 
     private fun setSubscriptionStatus(SubscriptionStatus: SubscriptionStatus) {
-        if (Superwall.intialized) {
+        if (Superwall.initialized) {
             Superwall.instance.setSubscriptionStatus(SubscriptionStatus)
         }
     }
