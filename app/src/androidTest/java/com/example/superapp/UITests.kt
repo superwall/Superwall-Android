@@ -2,7 +2,6 @@ package com.example.superapp
 
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ActivityScenario.launch
-import com.karumi.shot.ScreenshotTest
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.identity.identify

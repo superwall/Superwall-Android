@@ -1,4 +1,3 @@
-import com.google.gson.Gson
 import com.superwall.sdk.dependencies.VariablesFactory
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
