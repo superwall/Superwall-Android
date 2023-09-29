@@ -35,7 +35,7 @@ class IdentityManager(
     private val storage: Storage,
     private val configManager: ConfigManager
 ) {
-    private var _appUserId: String? = storage.get(AppUserId) ?: null
+    private var _appUserId: String? = storage.get(AppUserId)
         set(value) {
             field = value
             saveIds()

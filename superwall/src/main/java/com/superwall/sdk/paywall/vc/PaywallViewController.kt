@@ -295,7 +295,7 @@ class PaywallViewController(
     ) {
         dismissCompletionBlock = completion
         paywallResult = result
-        paywall?.closeReason = closeReason
+        paywall.closeReason = closeReason
 
         val isDeclined = paywallResult is PaywallResult.Declined
         val isManualClose = closeReason is PaywallCloseReason.ManualClose

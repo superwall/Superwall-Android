@@ -14,6 +14,7 @@ import android.provider.Settings
 import android.telephony.TelephonyManager
 import android.util.Log
 import androidx.core.content.ContextCompat
+import com.superwall.sdk.BuildConfig
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.dependencies.IdentityInfoFactory
 import com.superwall.sdk.dependencies.LocaleIdentifierFactory
@@ -31,7 +32,6 @@ import java.time.Duration
 class DeviceHelper(
     private val context: Context,
     val storage: Storage,
-    val versionHelper: VersionHelper,
     val factory: DeviceHelper.Factory
 ) {
     interface Factory: IdentityInfoFactory, LocaleIdentifierFactory {}
@@ -47,7 +47,7 @@ class DeviceHelper(
 
     private val daysSinceInstall: Int
         get() {
-            val fromDate = appInstallDate ?: Date()
+            val fromDate = appInstallDate
             val toDate = Date()
             val fromInstant = fromDate.toInstant()
             val toInstant = toDate.toInstant()
@@ -57,7 +57,7 @@ class DeviceHelper(
 
     private val minutesSinceInstall: Int
         get() {
-            val fromDate = appInstallDate ?: Date()
+            val fromDate = appInstallDate
             val toDate = Date()
             val fromInstant = fromDate.toInstant()
             val toInstant = toDate.toInstant()
@@ -316,13 +316,13 @@ class DeviceHelper(
 
 
     val sdkVersion: String
-        get() = versionHelper.sdkVersion
+        get() = BuildConfig.SDK_VERSION
 
     val buildTime: String?
-        get() = versionHelper.buildTime
+        get() = BuildConfig.BUILD_TIME
    
    val gitSha: String?
-        get() = versionHelper.gitSha
+        get() = BuildConfig.GIT_SHA
 
     suspend fun getDeviceAttributes(
         sinceEvent: EventData?,

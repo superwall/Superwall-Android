@@ -85,7 +85,6 @@ class DependencyContainer(
     var storeKitManager: StoreKitManager
     val activityLifecycleTracker: ActivityLifecycleTracker
     val transactionManager: TransactionManager
-    val versionHelper: VersionHelper
 
     init {
         // TODO: Add delegate adapter
@@ -107,8 +106,7 @@ class DependencyContainer(
         storage = Storage(context = context, factory = this)
         network = Network(factory = this)
 
-        versionHelper = VersionHelper(context)
-        deviceHelper = DeviceHelper(context = context, storage, versionHelper, factory = this)
+        deviceHelper = DeviceHelper(context = context, storage, factory = this)
 
         configManager = ConfigManager(
             storage = storage,
@@ -192,7 +190,7 @@ class DependencyContainer(
             "X-Device-Interface-Style" to deviceHelper.interfaceStyle,
             "X-SDK-Version" to deviceHelper.sdkVersion,
             "X-Git-Sha" to if(deviceHelper.gitSha != null) deviceHelper.gitSha!! else "",
-            "X-Build-Time" to  if(versionHelper.buildTime != null) versionHelper.buildTime!! else "",
+            "X-Build-Time" to  if(deviceHelper.buildTime != null) deviceHelper.buildTime!! else "",
             "X-Bundle-ID" to deviceHelper.bundleId,
             "X-Low-Power-Mode" to deviceHelper.isLowPowerModeEnabled.toString(),
             "X-Is-Sandbox" to deviceHelper.isSandbox.toString(),
@@ -362,11 +360,11 @@ class DependencyContainer(
     }
 
     override fun makeFeatureFlags(): FeatureFlags? {
-        return configManager.config?.value?.featureFlags
+        return configManager.config.value?.featureFlags
     }
 
     override fun makeComputedPropertyRequests(): List<ComputedPropertyRequest> {
-        return configManager.config?.value?.allComputedProperties ?: emptyList()
+        return configManager.config.value?.allComputedProperties ?: emptyList()
     }
 
     override suspend fun makeIdentityInfo(): IdentityInfo {
