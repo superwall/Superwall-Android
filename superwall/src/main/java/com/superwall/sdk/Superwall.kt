@@ -101,7 +101,7 @@ public class Superwall(context: Context, apiKey: String, purchaseController: Pur
 
 
     companion object {
-        var intialized: Boolean = false
+        var initialized: Boolean = false
         lateinit var instance: Superwall
         public fun configure(
             applicationContext: Context,
@@ -111,7 +111,7 @@ public class Superwall(context: Context, apiKey: String, purchaseController: Pur
             // setup the SDK using that API Key
             instance = Superwall(applicationContext, apiKey, purchaseController)
             instance.setup()
-            intialized = true
+            initialized = true
         }
     }
 

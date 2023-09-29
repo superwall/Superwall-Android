@@ -6,7 +6,7 @@ interface Loggable {
         fun shouldPrint(logLevel: LogLevel, scope: LogScope): Boolean {
             return true
             var logging: SuperwallOptions.Logging = SuperwallOptions.Logging()
-            if (Superwall.intialized) {
+            if (Superwall.initialized) {
                 logging = Superwall.instance.options.logging
             }
             val exceedsCurrentLogLevel = logLevel.level >= (logging.level?.level ?: 99)
