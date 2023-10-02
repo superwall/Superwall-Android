@@ -10,6 +10,7 @@ import com.superwall.sdk.paywall.vc.PaywallViewController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -19,7 +20,7 @@ typealias PaywallStatePublisher = Flow<PaywallState>
 @Throws(Throwable::class)
 suspend fun Superwall.internallyPresent(
     request: PresentationRequest,
-    publisher: MutableStateFlow<PaywallState>
+    publisher: MutableSharedFlow<PaywallState>
 ) {
     try {
         checkNoPaywallAlreadyPresented(request, publisher)

@@ -18,6 +18,7 @@ import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
@@ -111,7 +112,7 @@ private suspend fun Superwall.internallyHandleImplicitTrigger(
         paywallViewController
     )
 
-    val statePublisher = MutableStateFlow<PaywallState>(PaywallState.NotStarted())
+    var statePublisher = MutableSharedFlow<PaywallState>()
 
     when (outcome) {
         TrackingLogic.ImplicitTriggerOutcome.DeepLinkTrigger -> {
@@ -120,7 +121,7 @@ private suspend fun Superwall.internallyHandleImplicitTrigger(
         TrackingLogic.ImplicitTriggerOutcome.ClosePaywallThenTriggerPaywall -> {
             val lastPresentationItems = presentationItems.getLast() ?: return@withContext
             dismissForNextPaywall()
-            statePublisher.value = lastPresentationItems.statePublisher.value
+            statePublisher = lastPresentationItems.statePublisher
         }
         TrackingLogic.ImplicitTriggerOutcome.TriggerPaywall -> {
             return@withContext

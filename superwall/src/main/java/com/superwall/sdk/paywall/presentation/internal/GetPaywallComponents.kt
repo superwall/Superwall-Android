@@ -10,6 +10,7 @@ import com.superwall.sdk.paywall.presentation.internal.operators.evaluateRules
 import com.superwall.sdk.paywall.presentation.internal.operators.getPaywallViewController
 import com.superwall.sdk.paywall.presentation.internal.operators.getPresenterIfNecessary
 import com.superwall.sdk.paywall.presentation.internal.operators.waitForSubsStatusAndConfig
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 
 /**
@@ -24,7 +25,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 @Throws(Throwable::class)
 suspend fun Superwall.getPaywallComponents(
     request: PresentationRequest,
-    publisher: MutableStateFlow<PaywallState>? = null
+    publisher: MutableSharedFlow<PaywallState>? = null
 ): PaywallComponents {
     waitForSubsStatusAndConfig(request, publisher)
 

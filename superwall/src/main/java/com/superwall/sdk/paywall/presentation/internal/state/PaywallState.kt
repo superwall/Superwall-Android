@@ -15,8 +15,4 @@ sealed class PaywallState {
         PaywallState()
 
     data class Skipped(val paywallSkippedReason: PaywallSkippedReason) : PaywallState()
-
-    // Used to signal the end of the flow
-    class Finalized : PaywallState()
-    class NotStarted : PaywallState()
 }

@@ -19,6 +19,7 @@ import com.superwall.sdk.paywall.presentation.rule_logic.RuleEvaluationOutcome
 import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
 import com.superwall.sdk.paywall.vc.PaywallViewController
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 
@@ -27,7 +28,7 @@ internal suspend fun Superwall.getPaywallViewController(
     request: PresentationRequest,
     rulesOutcome: RuleEvaluationOutcome,
     debugInfo: Map<String, Any>,
-    paywallStatePublisher: MutableStateFlow<PaywallState>? = null,
+    paywallStatePublisher: MutableSharedFlow<PaywallState>? = null,
     dependencyContainer: DependencyContainer? = null
 ): PaywallViewController {
     val experiment = getExperiment(
@@ -85,7 +86,7 @@ private suspend fun Superwall.presentationFailure(
     error: Exception,
     request: PresentationRequest,
     debugInfo: Map<String, Any>,
-    paywallStatePublisher: MutableStateFlow<PaywallState>?
+    paywallStatePublisher: MutableSharedFlow<PaywallState>?
 ): Throwable {
     val subscriptionStatus = request.flags.subscriptionStatus.first()
     if (InternalPresentationLogic.userSubscribedAndNotOverridden(
@@ -109,6 +110,5 @@ private suspend fun Superwall.presentationFailure(
         error = error
     )
     paywallStatePublisher?.emit(PaywallState.PresentationError(error))
-    paywallStatePublisher?.emit(PaywallState.Finalized())
     return PaywallPresentationRequestStatusReason.NoPaywallViewController()
 }

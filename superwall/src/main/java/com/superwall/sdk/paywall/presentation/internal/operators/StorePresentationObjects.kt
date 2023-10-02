@@ -4,13 +4,14 @@ import com.superwall.sdk.Superwall
 import com.superwall.sdk.paywall.presentation.LastPresentationItems
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 
 
 /// Stores the presentation request for future use.
 internal suspend fun Superwall.storePresentationObjects(
     request: PresentationRequest?,
-    paywallStatePublisher: MutableStateFlow<PaywallState>
+    paywallStatePublisher: MutableSharedFlow<PaywallState>
 ) {
     val request = request ?: return
 

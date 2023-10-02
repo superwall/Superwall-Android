@@ -3,6 +3,7 @@ package com.superwall.sdk.paywall.presentation
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -36,5 +37,5 @@ data class LastPresentationItems(
     val request: PresentationRequest,
 
     // The last state publisher.
-    val statePublisher: MutableStateFlow<PaywallState>
+    val statePublisher: MutableSharedFlow<PaywallState>
 )

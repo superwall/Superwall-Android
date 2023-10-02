@@ -8,6 +8,7 @@ import com.superwall.sdk.paywall.presentation.internal.operators.logErrors
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.paywall.presentation.rule_logic.RuleEvaluationOutcome
 import com.superwall.sdk.paywall.vc.PaywallViewController
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 
 data class PaywallComponents(
@@ -20,7 +21,7 @@ data class PaywallComponents(
 @Throws(Throwable::class)
 suspend fun Superwall.getPaywall(
     request: PresentationRequest,
-    publisher: MutableStateFlow<PaywallState> = MutableStateFlow(PaywallState.NotStarted())
+    publisher: MutableSharedFlow<PaywallState> = MutableSharedFlow()
 ): PaywallViewController {
     return try {
         val paywallComponents = getPaywallComponents(request, publisher)

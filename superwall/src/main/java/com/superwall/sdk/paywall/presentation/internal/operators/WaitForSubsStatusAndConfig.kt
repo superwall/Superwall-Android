@@ -36,7 +36,7 @@ import java.util.TimerTask
 // Kotlin version of `waitForSubsStatusAndConfig` function
 internal suspend fun Superwall.waitForSubsStatusAndConfig(
     request: PresentationRequest,
-    paywallStatePublisher: MutableStateFlow<PaywallState>? = null,
+    paywallStatePublisher: MutableSharedFlow<PaywallState>? = null,
     dependencyContainer: DependencyContainer? = null
 ) {
     val dependencyContainer = dependencyContainer ?: this.dependencyContainer

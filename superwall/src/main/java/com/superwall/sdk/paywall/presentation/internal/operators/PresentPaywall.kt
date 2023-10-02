@@ -11,8 +11,11 @@ import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationReques
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.paywall.vc.PaywallViewController
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 
@@ -35,7 +38,7 @@ suspend fun Superwall.presentPaywallViewController(
     unsavedOccurrence: TriggerRuleOccurrence?,
     debugInfo: Map<String, Any>,
     request: PresentationRequest,
-    paywallStatePublisher: MutableStateFlow<PaywallState>
+    paywallStatePublisher: MutableSharedFlow<PaywallState>
 ) = withContext(Dispatchers.Main) {
     val trackedEvent = InternalSuperwallEvent.PresentationRequest(
         eventData = request.presentationInfo.eventData,
@@ -55,7 +58,9 @@ suspend fun Superwall.presentPaywallViewController(
     ) { isPresented ->
         if (isPresented) {
             val state = PaywallState.Presented(paywallViewController.info)
-            paywallStatePublisher.value = state
+            CoroutineScope(Dispatchers.IO).launch {
+                paywallStatePublisher.emit(state)
+            }
         } else {
             Logger.debug(
                 logLevel = LogLevel.info,
@@ -69,7 +74,9 @@ suspend fun Superwall.presentPaywallViewController(
                 title = "Paywall Already Presented",
                 value = "Trying to present paywall while another paywall is presented."
             )
-            paywallStatePublisher.value = PaywallState.PresentationError(error)
+            CoroutineScope(Dispatchers.IO).launch {
+                paywallStatePublisher.emit(PaywallState.PresentationError(error))
+            }
             throw PaywallPresentationRequestStatusReason.PaywallAlreadyPresented()
         }
     }

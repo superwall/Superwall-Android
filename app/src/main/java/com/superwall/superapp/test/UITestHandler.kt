@@ -506,11 +506,27 @@ class UITestHandler {
 
         var test27Info = UITestInfo(
             27,
-            "After purchasing tap button to present the paywall. The paywall should NOT " +
-                    "present but you should see !!! TEST 27 !!! printed in the console."
+            "Tapping the button shouldn't present the paywall but should launch the " +
+                    "feature block - an alert should present."
         )
         suspend fun test27() {
-            // TODO: Implement feature block for register: https://linear.app/superwall/issue/SW-2372/add-feature-block-to-register
+            var currentSubscriptionStatus = Superwall.instance.subscriptionStatus.value
+
+            Superwall.instance.setSubscriptionStatus(SubscriptionStatus.ACTIVE)
+
+            Superwall.instance.register(event = "register_gated_paywall") {
+                val alertController = AlertControllerFactory.make(
+                    context = context,
+                    title = "Feature Launched",
+                    message = "The feature block was called",
+                    actionTitle = "Ok"
+                )
+                alertController.show()
+            }
+
+            delay(4000)
+            Superwall.instance.setSubscriptionStatus(currentSubscriptionStatus)
+
         }
 
         var test28Info = UITestInfo(
