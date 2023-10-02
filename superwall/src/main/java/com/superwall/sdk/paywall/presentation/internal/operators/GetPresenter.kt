@@ -17,6 +17,7 @@ import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.paywall.presentation.result.PresentationResult
 import com.superwall.sdk.paywall.presentation.rule_logic.RuleEvaluationOutcome
 import com.superwall.sdk.paywall.vc.PaywallViewController
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 
@@ -32,7 +33,7 @@ suspend fun Superwall.getPresenterIfNecessary(
     rulesOutcome: RuleEvaluationOutcome,
     request: PresentationRequest,
     debugInfo: Map<String, Any>,
-    paywallStatePublisher: MutableStateFlow<PaywallState>? = null
+    paywallStatePublisher: MutableSharedFlow<PaywallState>? = null
 ): Activity? {
     val subscriptionStatus = request.flags.subscriptionStatus.first()
     if (InternalPresentationLogic.userSubscribedAndNotOverridden(

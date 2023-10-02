@@ -52,6 +52,7 @@ import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.view.fatalAssert
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import java.net.MalformedURLException
@@ -85,7 +86,7 @@ class PaywallViewController(
     /// The presentation style for the paywall.
     private  var presentationStyle: PaywallPresentationStyle
 
-    var paywallStatePublisher: MutableStateFlow<PaywallState>? = null
+    var paywallStatePublisher: MutableSharedFlow<PaywallState>? = null
 
     // The full screen activity instance if this view controller has been presented in one.
     override var encapsulatingActivity: Activity? = null
@@ -176,7 +177,7 @@ class PaywallViewController(
 
     internal fun set(
         request: PresentationRequest,
-        paywallStatePublisher: MutableStateFlow<PaywallState>,
+        paywallStatePublisher: MutableSharedFlow<PaywallState>,
         unsavedOccurrence: TriggerRuleOccurrence?
     ) {
         this.request = request
@@ -190,7 +191,7 @@ class PaywallViewController(
         request: PresentationRequest,
         unsavedOccurrence: TriggerRuleOccurrence?,
         presentationStyleOverride: PaywallPresentationStyle?,
-        paywallStatePublisher: MutableStateFlow<PaywallState>,
+        paywallStatePublisher: MutableSharedFlow<PaywallState>,
         completion: (Boolean) -> Unit
     ) {
         set(request, paywallStatePublisher, unsavedOccurrence)

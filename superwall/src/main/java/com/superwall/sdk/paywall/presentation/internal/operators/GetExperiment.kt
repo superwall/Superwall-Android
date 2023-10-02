@@ -10,6 +10,7 @@ import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallSkippedReason
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.paywall.presentation.rule_logic.RuleEvaluationOutcome
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 
 // Assuming you have definitions for all the classes and functions used in the below code.
@@ -30,7 +31,7 @@ suspend fun Superwall.getExperiment(
     request: PresentationRequest,
     rulesOutcome: RuleEvaluationOutcome,
     debugInfo: Map<String, Any>,
-    paywallStatePublisher: MutableStateFlow<PaywallState>? = null,
+    paywallStatePublisher: MutableSharedFlow<PaywallState>? = null,
 ): Experiment {
     val errorType: PresentationPipelineError
 

@@ -19,6 +19,7 @@ import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.withContext
@@ -62,7 +63,7 @@ private fun Superwall.internallyRegister(
     handler: PaywallPresentationHandler? = null,
     completion: (() -> Unit)? = null
 ) {
-    val publisher = MutableStateFlow<PaywallState>(PaywallState.NotStarted())
+    val publisher = MutableSharedFlow<PaywallState>()
 
     CoroutineScope(Dispatchers.Main).launch {
         publisher.collect { state ->
@@ -129,7 +130,7 @@ private suspend fun Superwall.trackAndPresentPaywall(
     params: Map<String, Any>? = null,
     paywallOverrides: PaywallOverrides? = null,
     isFeatureGatable: Boolean,
-    publisher: MutableStateFlow<PaywallState>
+    publisher: MutableSharedFlow<PaywallState>
 ) {
     try {
         TrackingLogic.checkNotSuperwallEvent(event)

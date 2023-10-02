@@ -303,7 +303,22 @@ class UITestHandler {
         )
 
         suspend fun test16() {
-            // TODO: Can't do this without a handler in register
+            val paywallPresentationHandler = PaywallPresentationHandler()
+            paywallPresentationHandler.onPresent { info ->
+                val alertController = AlertControllerFactory.make(
+                    context = context,
+                    title = "Paywall presented",
+                    message = "The paywall did present",
+                    actionTitle = "Ok"
+                )
+                alertController.show()
+            }
+
+            Superwall.instance.register(
+                "present_always",
+                null,
+                paywallPresentationHandler
+            )
         }
 
         var test17Info = UITestInfo(
@@ -506,11 +521,27 @@ class UITestHandler {
 
         var test27Info = UITestInfo(
             27,
-            "After purchasing tap button to present the paywall. The paywall should NOT " +
-                    "present but you should see !!! TEST 27 !!! printed in the console."
+            "Tapping the button shouldn't present the paywall but should launch the " +
+                    "feature block - an alert should present."
         )
         suspend fun test27() {
-            // TODO: Implement feature block for register: https://linear.app/superwall/issue/SW-2372/add-feature-block-to-register
+            var currentSubscriptionStatus = Superwall.instance.subscriptionStatus.value
+
+            Superwall.instance.setSubscriptionStatus(SubscriptionStatus.ACTIVE)
+
+            Superwall.instance.register(event = "register_gated_paywall") {
+                val alertController = AlertControllerFactory.make(
+                    context = context,
+                    title = "Feature Launched",
+                    message = "The feature block was called",
+                    actionTitle = "Ok"
+                )
+                alertController.show()
+            }
+
+            delay(4000)
+            Superwall.instance.setSubscriptionStatus(currentSubscriptionStatus)
+
         }
 
         var test28Info = UITestInfo(
@@ -772,7 +803,56 @@ class UITestHandler {
             delay(4000)
         }
 
-        // TODO: Tests 49 - 56
+        // Test 49 is combined with test 53.
+
+        var test50Info = UITestInfo(
+            50,
+            "Change the API Key to the SessionStart UITest app. Clean install app and the " +
+                    "paywall should show. The button does nothing."
+        )
+        suspend fun test50() {}
+
+        var test52Info = UITestInfo(
+            52,
+            "Change the API Key to the AppInstall UITest app. Then restart the app and " +
+                    "a paywall should show when the app is launched from a cold start. The button " +
+                    "does nothing."
+        )
+        suspend fun test52() {}
+
+        var test53Info = UITestInfo(
+            53,
+            "This covers test 49 too. Change the API Key to the AppLaunch UITest app. " +
+                    "Then restart the app and a paywall should show when the app is launched from a " +
+                    "cold start. Also should happen from a clean install. The button does nothing."
+        )
+        suspend fun test53() {}
+
+        var test56Info = UITestInfo(
+            56,
+            "The debugger should open when tapping on link. Currently the debugger isn't " +
+                    "implemented."
+        )
+        suspend fun test56() {
+            // Create a mock Superwall delegate
+            val delegate = MockSuperwallDelegate()
+
+            // Set delegate
+            Superwall.instance.delegate = delegate
+
+            // Respond to Superwall events
+            delegate.handleSuperwallEvent { eventInfo ->
+                when (eventInfo.event) {
+                    is DeepLink -> {
+                        println("!!! TEST 56 !!! Result: Deep link event received successfully.")
+                    }
+                    else -> return@handleSuperwallEvent
+                }
+            }
+
+            val url = Uri.parse("superapp://?superwall_debug=true&paywall_id=7872&token=sat_eyJhbGciOiJIUzI1NiJ9.eyJzY29wZXMiOlt7InNjb3BlIjoicGF5d2FsbF9wcmV2aWV3IiwiYXBwbGljYXRpb25JZCI6MTI3MH1dLCJpYXQiOjE2ODg2MjgxNTIsImV4cCI6NTA2NTI4Nzg3MiwiYXVkIjoicHduIiwiaXNzIjoicHduIiwic3ViIjoiNzAifQ.J0QNaycFlGY8ZQGBUwrySxkX43iPH2iV646EvJ5TvCg")
+            Superwall.instance.handleDeepLink(url)
+        }
 
         var test57Info = UITestInfo(
             57,
