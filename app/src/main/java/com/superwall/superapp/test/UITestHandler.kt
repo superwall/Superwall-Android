@@ -303,7 +303,22 @@ class UITestHandler {
         )
 
         suspend fun test16() {
-            // TODO: Can't do this without a handler in register
+            val paywallPresentationHandler = PaywallPresentationHandler()
+            paywallPresentationHandler.onPresent { info ->
+                val alertController = AlertControllerFactory.make(
+                    context = context,
+                    title = "Paywall presented",
+                    message = "The paywall did present",
+                    actionTitle = "Ok"
+                )
+                alertController.show()
+            }
+
+            Superwall.instance.register(
+                "present_always",
+                null,
+                paywallPresentationHandler
+            )
         }
 
         var test17Info = UITestInfo(
