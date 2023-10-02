@@ -803,7 +803,56 @@ class UITestHandler {
             delay(4000)
         }
 
-        // TODO: Tests 49 - 56
+        // Test 49 is combined with test 53.
+
+        var test50Info = UITestInfo(
+            50,
+            "Change the API Key to the SessionStart UITest app. Clean install app and the " +
+                    "paywall should show. The button does nothing."
+        )
+        suspend fun test50() {}
+
+        var test52Info = UITestInfo(
+            52,
+            "Change the API Key to the AppInstall UITest app. Then restart the app and " +
+                    "a paywall should show when the app is launched from a cold start. The button " +
+                    "does nothing."
+        )
+        suspend fun test52() {}
+
+        var test53Info = UITestInfo(
+            53,
+            "This covers test 49 too. Change the API Key to the AppLaunch UITest app. " +
+                    "Then restart the app and a paywall should show when the app is launched from a " +
+                    "cold start. Also should happen from a clean install. The button does nothing."
+        )
+        suspend fun test53() {}
+
+        var test56Info = UITestInfo(
+            56,
+            "The debugger should open when tapping on link. Currently the debugger isn't " +
+                    "implemented."
+        )
+        suspend fun test56() {
+            // Create a mock Superwall delegate
+            val delegate = MockSuperwallDelegate()
+
+            // Set delegate
+            Superwall.instance.delegate = delegate
+
+            // Respond to Superwall events
+            delegate.handleSuperwallEvent { eventInfo ->
+                when (eventInfo.event) {
+                    is DeepLink -> {
+                        println("!!! TEST 56 !!! Result: Deep link event received successfully.")
+                    }
+                    else -> return@handleSuperwallEvent
+                }
+            }
+
+            val url = Uri.parse("superapp://?superwall_debug=true&paywall_id=7872&token=sat_eyJhbGciOiJIUzI1NiJ9.eyJzY29wZXMiOlt7InNjb3BlIjoicGF5d2FsbF9wcmV2aWV3IiwiYXBwbGljYXRpb25JZCI6MTI3MH1dLCJpYXQiOjE2ODg2MjgxNTIsImV4cCI6NTA2NTI4Nzg3MiwiYXVkIjoicHduIiwiaXNzIjoicHduIiwic3ViIjoiNzAifQ.J0QNaycFlGY8ZQGBUwrySxkX43iPH2iV646EvJ5TvCg")
+            Superwall.instance.handleDeepLink(url)
+        }
 
         var test57Info = UITestInfo(
             57,

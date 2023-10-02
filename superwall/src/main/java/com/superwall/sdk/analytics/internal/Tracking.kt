@@ -14,6 +14,7 @@ import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.dismiss
 import com.superwall.sdk.paywall.presentation.internal.internallyPresent
 import com.superwall.sdk.paywall.presentation.internal.operators.logErrors
+import com.superwall.sdk.paywall.presentation.internal.operators.waitForSubsStatusAndConfig
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import kotlinx.coroutines.CoroutineScope
@@ -99,12 +100,12 @@ private suspend fun Superwall.internallyHandleImplicitTrigger(
     )
 
     // TODO: https://linear.app/superwall/issue/SW-2414/[android]-wait-for-sub-status
-//    try {
-//        waitForSubsStatusAndConfig(request, null)
-//    } catch (e: Exception) {
-//        logErrors(request, e)
-//        return@withContext
-//    }
+    try {
+        waitForSubsStatusAndConfig(request, null)
+    } catch (e: Exception) {
+        logErrors(request, e)
+        return@withContext
+    }
 
     val outcome = TrackingLogic.canTriggerPaywall(
         event,
@@ -123,9 +124,7 @@ private suspend fun Superwall.internallyHandleImplicitTrigger(
             dismissForNextPaywall()
             statePublisher = lastPresentationItems.statePublisher
         }
-        TrackingLogic.ImplicitTriggerOutcome.TriggerPaywall -> {
-            return@withContext
-        }
+        TrackingLogic.ImplicitTriggerOutcome.TriggerPaywall -> {}
         TrackingLogic.ImplicitTriggerOutcome.DontTriggerPaywall -> {
             return@withContext
         }
