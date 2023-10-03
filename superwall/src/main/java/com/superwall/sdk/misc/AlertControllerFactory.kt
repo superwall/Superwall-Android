@@ -4,7 +4,6 @@ import android.app.AlertDialog
 import android.content.Context
 
 object AlertControllerFactory {
-
     fun make(
         context: Context,
         title: String? = null,
@@ -14,7 +13,6 @@ object AlertControllerFactory {
         action: (() -> Unit)? = null,
         onClose: (() -> Unit)? = null
     ): AlertDialog {
-
         val builder = AlertDialog.Builder(context)
             .setTitle(title)
             .setMessage(message)
@@ -31,5 +29,4 @@ object AlertControllerFactory {
 
         return builder.create()
     }
-
 }

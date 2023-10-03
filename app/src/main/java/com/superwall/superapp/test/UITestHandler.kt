@@ -298,20 +298,14 @@ class UITestHandler {
 
         var test16Info = UITestInfo(
             16,
-            "Present an alert on Superwall.presentedViewController from the onPresent" +
-                    " callback"
+            "The paywall should present. In the console you should see a paywall_open event " +
+                    "from the delegate followed by !!! TEST 16 !!!."
         )
 
         suspend fun test16() {
             val paywallPresentationHandler = PaywallPresentationHandler()
             paywallPresentationHandler.onPresent { info ->
-                val alertController = AlertControllerFactory.make(
-                    context = context,
-                    title = "Paywall presented",
-                    message = "The paywall did present",
-                    actionTitle = "Ok"
-                )
-                alertController.show()
+                println("!!! TEST 16 !!! DID PRESENT PAYWALL")
             }
 
             Superwall.instance.register(

@@ -51,9 +51,6 @@ class MainApplication : android.app.Application(), SuperwallDelegate {
 
         // Make sure we enable the game controller
         Superwall.instance.options.isGameControllerEnabled = true
-
-        // TODO: Fix this so we don't need to make the user set this. Should we still have this given that RC is supposed to set the status??
-        Superwall.instance.setSubscriptionStatus(SubscriptionStatus.INACTIVE)
     }
 
     fun invokeRegister(

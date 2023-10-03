@@ -99,6 +99,8 @@ class PaywallViewController(
 
     private var didCallDelegate = false
 
+    private var viewDidAppearCompletion: ((Boolean) -> Unit)? = null
+
     /// Defines when Safari is presenting in app.
     internal var isSafariVCPresented = false
 
@@ -207,7 +209,7 @@ class PaywallViewController(
             this,
             presentationStyleOverride
         )
-        completion(true)
+        viewDidAppearCompletion = completion
     }
 
     internal fun viewWillAppear() {
@@ -281,12 +283,19 @@ class PaywallViewController(
 //            didDisableSwipeForSurvey = false
 //        }
 
+        resetPresentationPreparations()
+
         paywallResult = null
         cache?.activePaywallVcKey = null
         isPresented = false
 
         dismissCompletionBlock?.invoke()
         dismissCompletionBlock = null
+    }
+
+    private fun resetPresentationPreparations() {
+        presentationWillPrepare = true
+        presentationDidFinishPrepare = false
     }
 
     internal fun dismiss(
@@ -354,6 +363,9 @@ class PaywallViewController(
     /// Lets the view controller know that presentation has finished.
     // Only called once per presentation.
     internal fun viewDidAppear() {
+        viewDidAppearCompletion?.invoke(true)
+        viewDidAppearCompletion = null
+
         if (presentationDidFinishPrepare) {
             return
         }
@@ -373,6 +385,7 @@ class PaywallViewController(
         Superwall.instance.dependencyContainer.delegateAdapter.didPresentPaywall(info)
 
         CoroutineScope(Dispatchers.IO).launch {
+            print("*** TRACK OPEN*** ")
             trackOpen()
         }
 
