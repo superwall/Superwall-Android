@@ -29,6 +29,7 @@ import com.superwall.sdk.game.GameControllerEvent
 import com.superwall.sdk.game.GameControllerManager
 import com.superwall.sdk.misc.AlertControllerFactory
 import com.superwall.sdk.misc.isDarkColor
+import com.superwall.sdk.misc.readableOverlayColor
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.PaywallPresentationStyle
 import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
@@ -166,7 +167,8 @@ class PaywallViewController(
         this.shimmerView = ShimmerView(
             context,
             backgroundColor,
-            !backgroundColor.isDarkColor()
+            !backgroundColor.isDarkColor(),
+            backgroundColor.readableOverlayColor()
         )
         addView(shimmerView)
         hideShimmerView()

@@ -16,6 +16,7 @@ class ShimmerView(
     context: Context,
     backgroundColor: Int,
     val isLightBackground: Boolean,
+    val tintColor: Int,
     attrs: AttributeSet? = null
 ) : AppCompatImageView(context, attrs) {
     private val paint = Paint()
@@ -47,15 +48,22 @@ class ShimmerView(
 
     private fun setDrawableBasedOnOrientation(config: Configuration) {
         // Check the orientation of the screen
-        if (config.orientation == Configuration.ORIENTATION_LANDSCAPE) {
-            setImageResource(R.drawable.landscape_shimmer_skeleton)
-            // Load the drawable for landscape mode
-            vectorDrawable = ContextCompat.getDrawable(context, R.drawable.landscape_shimmer_skeleton) as? VectorDrawable
-        } else if (config.orientation == Configuration.ORIENTATION_PORTRAIT) {
-            setImageResource(R.drawable.portrait_shimmer_skeleton)
-            // Load the drawable for portrait mode
-            vectorDrawable = ContextCompat.getDrawable(context, R.drawable.portrait_shimmer_skeleton) as? VectorDrawable
+        val drawableResId = if (config.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+            R.drawable.landscape_shimmer_skeleton
+        } else {
+            R.drawable.portrait_shimmer_skeleton
         }
+
+        // 25% alpha and tint color
+        val tintWithAlpha = Color.argb(64, Color.red(tintColor), Color.green(tintColor), Color.blue(tintColor))
+
+        val imageDrawable = ContextCompat.getDrawable(context, drawableResId)?.mutate() as? VectorDrawable
+        imageDrawable?.setColorFilter(tintWithAlpha, PorterDuff.Mode.SRC_IN)
+        setImageDrawable(imageDrawable)
+
+        // 100% alpha and tint color
+        vectorDrawable = ContextCompat.getDrawable(context, drawableResId) as? VectorDrawable
+        vectorDrawable?.setColorFilter(tintColor, PorterDuff.Mode.SRC_IN)
 
         // Update the mask bitmap with the new drawable
         vectorDrawable?.let {
@@ -65,6 +73,7 @@ class ShimmerView(
             it.draw(canvas)
         }
     }
+
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
