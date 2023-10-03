@@ -7,6 +7,7 @@ import android.app.Activity
 import android.R
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.view.View
@@ -15,6 +16,7 @@ import android.view.ViewTreeObserver
 import android.view.Window
 import android.view.WindowManager
 import android.widget.FrameLayout
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.browser.customtabs.CustomTabsIntent
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
@@ -26,6 +28,7 @@ import com.superwall.sdk.game.GameControllerDelegate
 import com.superwall.sdk.game.GameControllerEvent
 import com.superwall.sdk.game.GameControllerManager
 import com.superwall.sdk.misc.AlertControllerFactory
+import com.superwall.sdk.misc.isDarkColor
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.PaywallPresentationStyle
 import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
@@ -71,7 +74,6 @@ class PaywallViewController(
     val paywallManager: PaywallManager,
     override val webView: SWWebView,
     val cache: PaywallViewControllerCache?,
-    private val shimmerView: ShimmerView = ShimmerView(context),
     private val loadingViewController: LoadingViewController = LoadingViewController(context)
 ) : FrameLayout(context), PaywallMessageHandlerDelegate, SWWebViewDelegate, ActivityEncapsulatable, GameControllerDelegate {
     //region Public properties
@@ -84,7 +86,9 @@ class PaywallViewController(
     //region Presentation properties
 
     /// The presentation style for the paywall.
-    private  var presentationStyle: PaywallPresentationStyle
+    private var presentationStyle: PaywallPresentationStyle
+
+    private val shimmerView: ShimmerView
 
     var paywallStatePublisher: MutableSharedFlow<PaywallState>? = null
 
@@ -157,13 +161,22 @@ class PaywallViewController(
         // Add the webView
         addView(webView)
 
+        val backgroundColor = Color.parseColor(paywall.backgroundColorHex)
         // Add the shimmer view and hide it
+        this.shimmerView = ShimmerView(
+            context,
+            backgroundColor,
+            !backgroundColor.isDarkColor()
+        )
         addView(shimmerView)
         hideShimmerView()
+
 
         // Add the loading view and hide it
         addView(loadingViewController)
         hideLoadingView()
+
+        setBackgroundColor(backgroundColor)
 
         // Listen for layout changes
         val listener = ViewTreeObserver.OnGlobalLayoutListener {
@@ -216,7 +229,7 @@ class PaywallViewController(
         if (isSafariVCPresented) {
             return
         }
-
+        shimmerView.checkForOrientationChanges()
         presentationWillBegin()
     }
 
@@ -711,6 +724,7 @@ class SuperwallPaywallActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        AppCompatDelegate.setCompatVectorFromResourcesEnabled(true)
 
         val key = intent.getStringExtra(VIEW_KEY)
         if (key == null) {

@@ -2,20 +2,68 @@ package com.superwall.sdk.paywall.vc
 
 import android.animation.ValueAnimator
 import android.content.Context
+import android.content.res.Configuration
 import android.graphics.*
+import android.graphics.drawable.VectorDrawable
 import android.util.AttributeSet
-import android.view.View
 import android.view.ViewTreeObserver
 import android.view.animation.LinearInterpolator
+import androidx.appcompat.widget.AppCompatImageView
+import androidx.core.content.ContextCompat
+import com.superwall.sdk.R
 
-class ShimmerView(context: Context, attrs: AttributeSet? = null) : View(context, attrs) {
+class ShimmerView(
+    context: Context,
+    backgroundColor: Int,
+    val isLightBackground: Boolean,
+    attrs: AttributeSet? = null
+) : AppCompatImageView(context, attrs) {
     private val paint = Paint()
     private var gradientWidth: Float = 0f
     private var animator: ValueAnimator? = null
+    private var vectorDrawable: VectorDrawable? = null
+    private var maskBitmap: Bitmap? = null
 
     init {
-        setBackgroundColor(Color.LTGRAY)
+        setBackgroundColor(backgroundColor)
         setLayerType(LAYER_TYPE_SOFTWARE, null)
+
+        checkForOrientationChanges()
+    }
+
+    fun checkForOrientationChanges() {
+        val config = resources.configuration
+        setDrawableBasedOnOrientation(config)
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+
+        setDrawableBasedOnOrientation(newConfig)
+
+        // Redraw the view
+        invalidate()
+    }
+
+    private fun setDrawableBasedOnOrientation(config: Configuration) {
+        // Check the orientation of the screen
+        if (config.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+            setImageResource(R.drawable.landscape_shimmer_skeleton)
+            // Load the drawable for landscape mode
+            vectorDrawable = ContextCompat.getDrawable(context, R.drawable.landscape_shimmer_skeleton) as? VectorDrawable
+        } else if (config.orientation == Configuration.ORIENTATION_PORTRAIT) {
+            setImageResource(R.drawable.portrait_shimmer_skeleton)
+            // Load the drawable for portrait mode
+            vectorDrawable = ContextCompat.getDrawable(context, R.drawable.portrait_shimmer_skeleton) as? VectorDrawable
+        }
+
+        // Update the mask bitmap with the new drawable
+        vectorDrawable?.let {
+            maskBitmap = Bitmap.createBitmap(it.intrinsicWidth, it.intrinsicHeight, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(maskBitmap!!)
+            it.setBounds(0, 0, canvas.width, canvas.height)
+            it.draw(canvas)
+        }
     }
 
     override fun onAttachedToWindow() {
@@ -40,13 +88,40 @@ class ShimmerView(context: Context, attrs: AttributeSet? = null) : View(context,
 
     override fun onDraw(canvas: Canvas?) {
         super.onDraw(canvas)
-        canvas?.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
+        canvas ?: return
+
+        val saveLayer = canvas.saveLayer(0f, 0f, width.toFloat(), height.toFloat(), null)
+
+        // Draw the shimmer effect
+        canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
+
+        // Prepare the paint for masking
+        paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN)
+
+        // Draw the masking bitmap
+        maskBitmap?.let {
+            val srcRect = Rect(0, 0, it.width, it.height)
+            val dstRect = Rect(0, 0, width, height)
+            canvas.drawBitmap(it, srcRect, dstRect, paint)
+        }
+
+        // Clear the Xfermode
+        paint.xfermode = null
+
+        // Restore the canvas
+        canvas.restoreToCount(saveLayer)
     }
 
     fun startShimmer() {
         if (width > 0) {
             val shimmerColor1 = 0x00000000 // Fully transparent
-            val shimmerColor2 = 0x33FFFFFF // White with 20% opacity
+            val shimmerColor2: Int
+
+            if (isLightBackground) {
+                shimmerColor2 = Color.argb(128, 255, 255, 255) // White with 50% opacity
+            } else {
+                shimmerColor2 = 0x33FFFFFF // White with 20% opacity
+            }
 
             val shimmerRatio = 0.2f
             gradientWidth = width * shimmerRatio
