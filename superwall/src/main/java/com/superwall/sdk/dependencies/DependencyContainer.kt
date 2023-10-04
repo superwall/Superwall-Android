@@ -4,6 +4,7 @@ import ComputedPropertyRequest
 import android.app.Activity
 import android.app.Application
 import android.content.Context
+import androidx.lifecycle.ProcessLifecycleOwner
 import com.android.billingclient.api.Purchase
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.SessionEventsManager
@@ -137,6 +138,7 @@ class DependencyContainer(
             configManager = configManager,
             delegate = this
         )
+        ProcessLifecycleOwner.get().lifecycle.addObserver(appSessionManager)
 
         storeKitManager = StoreKitManager(context, purchaseController)
 

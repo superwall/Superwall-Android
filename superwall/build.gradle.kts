@@ -65,6 +65,7 @@ android {
 }
 
 dependencies {
+    implementation("androidx.lifecycle:lifecycle-process:2.2.0")
     // Billing
     implementation(libs.billing)
 
@@ -87,7 +88,6 @@ dependencies {
     implementation(libs.ui.graphics)
     implementation(libs.ui.tooling.preview)
     implementation(libs.material3)
-
 
     // Serialization
     implementation(libs.kotlinx.serialization.json)

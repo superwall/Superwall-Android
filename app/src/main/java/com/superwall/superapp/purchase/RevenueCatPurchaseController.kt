@@ -131,7 +131,6 @@ class RevenueCatPurchaseController(val context: Context): PurchaseController, Up
         }
     }
 
-
     /**
      * Check if the customer has any active entitlements
      */

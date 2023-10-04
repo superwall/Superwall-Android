@@ -4,6 +4,9 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
@@ -26,7 +29,7 @@ class AppSessionManager(
     private val configManager: ConfigManager,
     private val storage: Storage,
     private val delegate: AppManagerDelegate
-) : BroadcastReceiver() {
+) : DefaultLifecycleObserver {
     var appSessionTimeout: Long? = null
 
     var appSession = AppSession()
@@ -40,33 +43,27 @@ class AppSessionManager(
     private var didTrackAppLaunch = false
 
     init {
-        addActiveStateObservers()
         listenForAppSessionTimeout()
     }
 
-    private fun addActiveStateObservers() {
-        val filter = IntentFilter().apply {
-            addAction(Intent.ACTION_SCREEN_OFF)
-            addAction(Intent.ACTION_SCREEN_ON)
-            addAction(Intent.ACTION_USER_PRESENT)
+    // Called when the app goes to the foreground
+    override fun onStart(owner: LifecycleOwner) {
+        super.onStart(owner)
+        print("ON START")
+        CoroutineScope(Dispatchers.IO).launch {
+            Superwall.instance.track(InternalSuperwallEvent.AppOpen())
         }
-        context.registerReceiver(this, filter)
+        sessionCouldRefresh()
     }
 
-
-    private fun willResign() {
+    // Called when the app goes to the background
+    override fun onStop(owner: LifecycleOwner) {
+        super.onStop(owner)
         CoroutineScope(Dispatchers.IO).launch {
             Superwall.instance.track(InternalSuperwallEvent.AppClose())
         }
         lastAppClose = Date()
         appSession.endAt = Date()
-    }
-
-    private fun didBecomeActive() {
-        CoroutineScope(Dispatchers.IO).launch {
-            Superwall.instance.track(InternalSuperwallEvent.AppOpen())
-        }
-        sessionCouldRefresh()
     }
 
     private fun willTerminate() {
@@ -92,7 +89,7 @@ class AppSessionManager(
 
     private fun sessionCouldRefresh() {
         detectNewSession()
-        trackAppLaunch()
+       // trackAppLaunch()
         // TODO: Figure out if this is the right dispatch queue
         GlobalScope.launch {
             storage.recordFirstSeenTracked()
@@ -124,25 +121,5 @@ class AppSessionManager(
             Superwall.instance.track(InternalSuperwallEvent.AppLaunch())
         }
         didTrackAppLaunch = true
-    }
-
-    override fun onReceive(context: Context?, intent: Intent?) {
-        when (intent?.action) {
-            Intent.ACTION_SCREEN_OFF -> {
-                // equivalent to "applicationWillResignActive"
-                // your code here
-                willResign()
-            }
-            Intent.ACTION_SCREEN_ON -> {
-                // equivalent to "applicationDidBecomeActive"
-                // your code here
-                didBecomeActive()
-            }
-            Intent.ACTION_SHUTDOWN -> {
-                // equivalent to "applicationWillTerminate"
-                // your code here
-                willTerminate()
-            }
-        }
     }
 }

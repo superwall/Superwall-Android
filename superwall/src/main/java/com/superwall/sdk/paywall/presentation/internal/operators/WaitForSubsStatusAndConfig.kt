@@ -15,6 +15,7 @@ import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.paywall.presentation.internal.userIsSubscribed
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -79,7 +80,6 @@ internal suspend fun Superwall.waitForSubsStatusAndConfig(
         timeout = 5000
     )
     subscriptionStatusTask.cancelTimeout()
-
     val config = dependencyContainer.configManager.config.value
 
     if (subscriptionStatusTask.value == SubscriptionStatus.ACTIVE) {
@@ -150,45 +150,63 @@ internal suspend fun Superwall.waitForSubsStatusAndConfig(
 
 private data class ValueResult<T>(
     val value: T,
-    val delayJob: Job,
-    val collectionJob: Job
+    private val delayJob: Job,
+    private val collectionJob: Job
 ) {
     fun cancelTimeout() {
         delayJob.cancel()
         collectionJob.cancel()
     }
 }
+/**
+ * Executes a given suspending task with a timeout.
+ *
+ * @param T The type of the result returned by the task.
+ * @param task The suspending function to execute.
+ * @param timeout Duration in milliseconds after which the task will be cancelled if not completed.
+ * @return [ValueResult] object encapsulating the result and the ability to cancel the timeout.
+ * @throws CancellationException if the task gets cancelled.
+ */
 private suspend fun <T> getValueWithTimeout(
     task: suspend () -> T,
     timeout: Long
 ): ValueResult<T> {
+    // Deferred object to hold the result of the 'task'
+    val valueResult = CompletableDeferred<T>()
+
+    // Start the given task in a separate coroutine and store its result in 'valueResult'
     val valueTask = CoroutineScope(Dispatchers.Default).async {
         try {
-            task()
+            val result = task()
+            valueResult.complete(result)
         } catch (e: CancellationException) {
+            // Rethrow any cancellation exception to be handled by the caller
             throw e
         }
     }
 
-    val publisher = MutableSharedFlow<Long>()
-    val delayJob = GlobalScope.async(Dispatchers.Default) {
-        while (isActive) {
-            delay(timeout)
-            publisher.emit(System.currentTimeMillis())
-            this.cancel()
-        }
+    // SharedFlow to act as a signal for when the timeout has occurred
+    val publisher = MutableSharedFlow<Unit>()
+
+    // Job to introduce the delay for the timeout
+    val delayJob = CoroutineScope(Dispatchers.Default).launch {
+        delay(timeout)   // Wait for the timeout duration
+        publisher.emit(Unit)  // Emit a signal indicating timeout has occurred
     }
 
+    // Job to listen for the timeout signal and cancel the 'valueTask'
     val collectionJob = CoroutineScope(Dispatchers.Default).launch {
         publisher.collect {
-            valueTask.cancel()
-            this.cancel()
+            valueTask.cancel()  // Cancel the task
+            valueResult.cancel()  // Cancel the result deferred
         }
     }
 
-    val value = runBlocking {
-        valueTask.await()
+    // Await the result of the task and return it wrapped in a ValueResult
+    return try {
+        ValueResult(valueResult.await(), delayJob, collectionJob)
+    } catch (e: CancellationException) {
+        // Rethrow any cancellation exception to be handled by the caller
+        throw e
     }
-
-    return ValueResult(value, delayJob, collectionJob)
 }
