@@ -44,13 +44,15 @@ class MainApplication : android.app.Application(), SuperwallDelegate {
 
         Superwall.configure(
             this,
-            "pk_5f6d9ae96b889bc2c36ca0f2368de2c4c3d5f6119aacd3d2",
+            "pk_d1f0959f70c761b1d55bb774a03e22b2b6ed290ce6561f85",
             purchaseController
         )
         Superwall.instance.delegate = this
 
         // Make sure we enable the game controller
         Superwall.instance.options.isGameControllerEnabled = true
+
+        purchaseController.syncSubscriptionStatus()
     }
 
     fun invokeRegister(
