@@ -65,7 +65,7 @@ android {
 }
 
 dependencies {
-    implementation("androidx.lifecycle:lifecycle-process:2.2.0")
+
     // Billing
     implementation(libs.billing)
 
@@ -78,6 +78,7 @@ dependencies {
     implementation(libs.appcompat)
     implementation(libs.material)
     implementation(libs.core.ktx)
+    implementation("androidx.lifecycle:lifecycle-process:2.2.0")
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.core)

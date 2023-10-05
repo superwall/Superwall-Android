@@ -40,7 +40,7 @@ class SWWebView(
     var delegate: SWWebViewDelegate? = null
 
     init {
-
+        isNestedScrollingEnabled = true
         addJavascriptInterface(messageHandler, "SWAndroid")
 
         val webSettings = this.settings
@@ -101,6 +101,21 @@ class SWWebView(
         return true
     }
 
+    override fun onTouchEvent(event: MotionEvent?): Boolean {
+        when (event?.action) {
+            MotionEvent.ACTION_DOWN -> {
+                // Check if we can scroll up
+                if (!canScrollVertically(-1)) {
+                    // If we can't scroll up, let the parent handle the event
+                    parent.requestDisallowInterceptTouchEvent(false)
+                } else {
+                    parent.requestDisallowInterceptTouchEvent(true)
+                }
+            }
+        }
+        return super.onTouchEvent(event)
+    }
+
     override fun dispatchGenericMotionEvent(event: MotionEvent?): Boolean {
         if (event == null || !Superwall.instance.options.isGameControllerEnabled) {
             return super.dispatchGenericMotionEvent(event)
@@ -108,7 +123,6 @@ class SWWebView(
         Superwall.instance.dispatchMotionEvent(event)
         return true
     }
-
 
     override fun loadUrl(url: String) {
         // Parse the url and add the query parameter

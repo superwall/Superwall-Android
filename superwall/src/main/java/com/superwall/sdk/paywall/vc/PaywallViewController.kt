@@ -8,16 +8,23 @@ import android.R
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.net.Uri
 import android.os.Bundle
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.view.Window
 import android.view.WindowManager
 import android.widget.FrameLayout
+import android.widget.LinearLayout
+import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.browser.customtabs.CustomTabsIntent
+import androidx.coordinatorlayout.widget.CoordinatorLayout
+import androidx.fragment.app.FragmentActivity
+import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
@@ -32,6 +39,7 @@ import com.superwall.sdk.misc.isDarkColor
 import com.superwall.sdk.misc.readableOverlayColor
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.PaywallPresentationStyle
+import com.superwall.sdk.models.paywall.toPaywallPresentationStyle
 import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.paywall.manager.PaywallCacheLogic
@@ -57,7 +65,6 @@ import com.superwall.sdk.view.fatalAssert
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import java.net.MalformedURLException
 import java.net.URL
@@ -161,7 +168,7 @@ class PaywallViewController(
     init {
         // Add the webView
         addView(webView)
-
+    isNestedScrollingEnabled = true
         val backgroundColor = Color.parseColor(paywall.backgroundColorHex)
         // Add the shimmer view and hide it
         this.shimmerView = ShimmerView(
@@ -172,7 +179,6 @@ class PaywallViewController(
         )
         addView(shimmerView)
         hideShimmerView()
-
 
         // Add the loading view and hide it
         addView(loadingViewController)
@@ -219,10 +225,12 @@ class PaywallViewController(
             presentationStyle = paywall.presentation.style
         }
 
+
+        // Use the existing code to present it in a different manner
         SuperwallPaywallActivity.startWithView(
             presenter.applicationContext,
             this,
-            presentationStyleOverride
+            presentationStyle
         )
         viewDidAppearCompletion = completion
     }
@@ -253,6 +261,10 @@ class PaywallViewController(
         Superwall.instance.dependencyContainer.delegateAdapter.willPresentPaywall(info)
 
         presentationWillPrepare = false
+    }
+
+    override fun onInterceptTouchEvent(event: MotionEvent?): Boolean {
+        return false
     }
 
     internal suspend fun viewWillDisappear() {
@@ -400,7 +412,6 @@ class PaywallViewController(
         Superwall.instance.dependencyContainer.delegateAdapter.didPresentPaywall(info)
 
         CoroutineScope(Dispatchers.IO).launch {
-            print("*** TRACK OPEN*** ")
             trackOpen()
         }
 
@@ -709,7 +720,7 @@ class SuperwallPaywallActivity : Activity() {
 
             val intent = Intent(context, SuperwallPaywallActivity::class.java).apply {
                 putExtra(VIEW_KEY, key)
-                putExtra(PRESENTATION_STYLE_KEY, presentationStyleOverride)
+                putExtra(PRESENTATION_STYLE_KEY, presentationStyleOverride?.name)
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
             }
 
@@ -724,7 +735,14 @@ class SuperwallPaywallActivity : Activity() {
         contentView = view
     }
 
+//    override fun finish() {
+//        super.finish()
+//        overridePendingTransition(0, com.superwall.sdk.R.anim.slide_down_modal)
+//    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Set the activity to be translucent
+
         super.onCreate(savedInstanceState)
         AppCompatDelegate.setCompatVectorFromResourcesEnabled(true)
 
@@ -747,26 +765,65 @@ class SuperwallPaywallActivity : Activity() {
         window.setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
             WindowManager.LayoutParams.FLAG_FULLSCREEN)
 
+
+        val coordinatorLayout = CoordinatorLayout(view.context)
+       // coordinatorLayout.setBackgroundColor(Color.TRANSPARENT)
+        val layoutParams = CoordinatorLayout.LayoutParams(
+            CoordinatorLayout.LayoutParams.MATCH_PARENT,
+            CoordinatorLayout.LayoutParams.WRAP_CONTENT
+        )
+
+        val bottomSheetBehavior = BottomSheetBehavior<LinearLayout>()
+      //  bottomSheetBehavior.peekHeight = PeekHeightAuto  // e.g., 150px peek height
+        bottomSheetBehavior.state = BottomSheetBehavior.STATE_EXPANDED
+        layoutParams.behavior = bottomSheetBehavior
+        view.layoutParams = layoutParams
+        coordinatorLayout.addView(view)
+        coordinatorLayout.setBackgroundColor(Color.parseColor("#88000000"))
+
+        bottomSheetBehavior.addBottomSheetCallback(object : BottomSheetBehavior.BottomSheetCallback() {
+            override fun onSlide(bottomSheet: View, slideOffset: Float) {
+                // Handle slide offset if needed
+            }
+
+            override fun onStateChanged(bottomSheet: View, newState: Int) {
+                // Handle state change
+                print("State changed $newState")
+            }
+        })
+
+
         // Now add
-        setContentView(view)
+        setContentView(coordinatorLayout)
+
+        val presentationStyleString = intent.getStringExtra(PRESENTATION_STYLE_KEY) ?: return
+        val presentationStyle = presentationStyleString.toPaywallPresentationStyle() ?: return
 
         // TODO: handle animation and style from `presentationStyleOverride`
-        when (intent.getSerializableExtra(PRESENTATION_STYLE_KEY) as? PaywallPresentationStyle) {
+       /* when (presentationStyle) {
             PaywallPresentationStyle.PUSH -> {
                 overridePendingTransition(R.anim.slide_in_left, R.anim.slide_in_left)
-
             }
             PaywallPresentationStyle.DRAWER -> {
-
+                overridePendingTransition(
+                    com.superwall.sdk.R.anim.slide_up_drawer,
+                    com.superwall.sdk.R.anim.slide_down_drawer
+                )
             }
             PaywallPresentationStyle.FULLSCREEN -> {
-
+                overridePendingTransition(
+                    com.superwall.sdk.R.anim.slide_up_modal,
+                    com.superwall.sdk.R.anim.slide_down_modal
+                )
             }
             PaywallPresentationStyle.FULLSCREEN_NO_ANIMATION -> {
 
             }
             PaywallPresentationStyle.MODAL -> {
-
+                overridePendingTransition(
+                    com.superwall.sdk.R.anim.slide_up_modal,
+                    com.superwall.sdk.R.anim.slide_down_modal
+                )
             }
             PaywallPresentationStyle.NONE -> {
                 // Do nothing
@@ -774,7 +831,7 @@ class SuperwallPaywallActivity : Activity() {
             null -> {
                 // Do nothing
             }
-        }
+        }*/
     }
 
     override fun onStart() {

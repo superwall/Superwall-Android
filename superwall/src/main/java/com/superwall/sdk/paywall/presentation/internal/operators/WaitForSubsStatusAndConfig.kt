@@ -79,6 +79,7 @@ internal suspend fun Superwall.waitForSubsStatusAndConfig(
         },
         timeout = 5000
     )
+
     subscriptionStatusTask.cancelTimeout()
     val config = dependencyContainer.configManager.config.value
 
