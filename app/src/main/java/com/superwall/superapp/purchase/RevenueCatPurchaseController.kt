@@ -78,7 +78,9 @@ class RevenueCatPurchaseController(val context: Context): PurchaseController, Up
 
         // Make sure we get the updates
         Purchases.sharedInstance.updatedCustomerInfoListener = this
+    }
 
+    fun syncSubscriptionStatus() {
         // Refetch the customer info on load
         Purchases.sharedInstance.getCustomerInfoWith {
             if (hasAnyActiveEntitlements(it)) {
@@ -99,7 +101,6 @@ class RevenueCatPurchaseController(val context: Context): PurchaseController, Up
            setSubscriptionStatus(SubscriptionStatus.INACTIVE)
        }
     }
-
 
     /**
      * Initiate a purchase
