@@ -40,6 +40,8 @@ class MainApplication : android.app.Application(), SuperwallDelegate {
             AppLaunch: pk_fb295f846b075fae6619eebb43d126ecddd1e3b18e7028b8
             AppInstall: pk_8db958db59cc8460969659822351d5e177d8d65cb295cff2
             SessionStart: pk_6c881299e2f8db59f697646e399397be76432fa0968ca254
+            PaywallDecline: pk_a1071d541642719e2dc854da9ec717ec967b8908854ede74
+            TransactionAbandon: pk_9c99186b023ae795e0189cf9cdcd3e2d2d174289e0800d66
          */
 
         Superwall.configure(

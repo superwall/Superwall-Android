@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import com.superwall.sdk.Superwall
+import com.superwall.sdk.analytics.superwall.SuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEvent.DeepLink
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.identity.identify
@@ -481,19 +482,20 @@ class UITestHandler {
 
         var test25Info = UITestInfo(
             25,
-            "Present the paywall and make a purchase. After 12s it'll try to present a " +
-                    "paywall again. It shouldn't present. These register calls don't have a feature gate."
+            "Tapping the button shouldn't present a paywall. These register calls don't " +
+                    "have a feature gate. Differs from iOS in that there is no purchase taking place."
         )
 
         suspend fun test25() {
-            Superwall.instance.register(event = "register_nongated_paywall")
+            var currentSubscriptionStatus = Superwall.instance.subscriptionStatus.value
 
-            // Manually purchase
-
-            delay(12000)
+            Superwall.instance.setSubscriptionStatus(SubscriptionStatus.ACTIVE)
 
             // Try to present paywall again
             Superwall.instance.register(event = "register_nongated_paywall")
+
+            delay(4000)
+            Superwall.instance.setSubscriptionStatus(currentSubscriptionStatus)
         }
 
         var test26Info = UITestInfo(
@@ -876,6 +878,56 @@ class UITestHandler {
             val handled = Superwall.instance.handleDeepLink(url)
         }
 
+        var test58Info = UITestInfo(
+            58,
+            "Present paywall, try to purchase, then abandon the transaction. Another paywall " +
+                    "will present. In the console you'll see !!! TEST 58 !!!"
+        )
+        suspend fun test58() {
+            // Create a mock Superwall delegate
+            val delegate = MockSuperwallDelegate()
+
+            // Set delegate
+            Superwall.instance.delegate = delegate
+
+            // Respond to Superwall events
+            delegate.handleSuperwallEvent { eventInfo ->
+                when (eventInfo.event) {
+                    is SuperwallEvent.TransactionAbandon -> {
+                        println("!!! TEST 58 !!! TransactionAbandon.")
+                    }
+                    else -> return@handleSuperwallEvent
+                }
+            }
+
+            Superwall.instance.register("campaign_trigger")
+        }
+
+        var test59Info = UITestInfo(
+            59,
+            "Present paywall, dismiss it and another paywall should dismiss after the " +
+                    "decline. In the console you'll see !!! TEST 59 !!!."
+        )
+        suspend fun test59() {
+            // TODO: Add surveys here
+            // Create a mock Superwall delegate
+            val delegate = MockSuperwallDelegate()
+
+            // Set delegate
+            Superwall.instance.delegate = delegate
+
+            // Respond to Superwall events
+            delegate.handleSuperwallEvent { eventInfo ->
+                when (eventInfo.event) {
+                    is SuperwallEvent.PaywallDecline -> {
+                        println("!!! TEST 59 !!! PaywallDeclined.")
+                    }
+                    else -> return@handleSuperwallEvent
+                }
+            }
+
+            Superwall.instance.register("campaign_trigger")
+        }
 
         var test62Info = UITestInfo(
             62,

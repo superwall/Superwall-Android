@@ -112,6 +112,8 @@ fun UITestTable() {
         UITestHandler.test53Info to { CoroutineScope(Dispatchers.IO).launch { UITestHandler.test53() } },
         UITestHandler.test56Info to { CoroutineScope(Dispatchers.IO).launch { UITestHandler.test56() } },
         UITestHandler.test57Info to { CoroutineScope(Dispatchers.IO).launch { UITestHandler.test57() } },
+        UITestHandler.test58Info to { CoroutineScope(Dispatchers.IO).launch { UITestHandler.test58() } },
+        UITestHandler.test59Info to { CoroutineScope(Dispatchers.IO).launch { UITestHandler.test59() } },
         UITestHandler.test62Info to { CoroutineScope(Dispatchers.IO).launch { UITestHandler.test62() } },
         UITestHandler.test63Info to { CoroutineScope(Dispatchers.IO).launch { UITestHandler.test63() } },
         UITestHandler.test72Info to { CoroutineScope(Dispatchers.IO).launch { UITestHandler.test72() } },
