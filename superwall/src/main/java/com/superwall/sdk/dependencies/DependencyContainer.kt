@@ -115,7 +115,7 @@ class DependencyContainer(
         )
 
         // TODO: Pass in config manager
-        api = Api(networkEnvironment = SuperwallOptions.NetworkEnvironment.Developer())
+        api = Api(networkEnvironment = SuperwallOptions.NetworkEnvironment.Release())
 
 
         identityManager = IdentityManager(
