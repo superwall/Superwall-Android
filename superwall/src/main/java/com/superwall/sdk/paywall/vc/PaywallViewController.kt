@@ -519,6 +519,26 @@ class PaywallViewController(
 
     //region State
 
+    /**
+     * Hides or displays the paywall spinner.
+     *
+     * @param isHidden A Boolean indicating whether to show or hide the spinner.
+     */
+    fun togglePaywallSpinner(isHidden: Boolean) {
+        when {
+            isHidden -> {
+                if (loadingState is PaywallLoadingState.ManualLoading || loadingState is PaywallLoadingState.LoadingPurchase) {
+                    loadingState = PaywallLoadingState.Ready()
+                }
+            }
+            else -> {
+                if (loadingState is PaywallLoadingState.Ready) {
+                    loadingState = PaywallLoadingState.ManualLoading()
+                }
+            }
+        }
+    }
+
     internal fun loadingStateDidChange(from: PaywallLoadingState) {
         when (loadingState) {
             is PaywallLoadingState.Unknown -> {

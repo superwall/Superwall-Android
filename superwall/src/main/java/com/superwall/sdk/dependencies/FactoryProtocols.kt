@@ -5,6 +5,7 @@ import android.app.Activity
 import com.android.billingclient.api.Purchase
 import com.superwall.sdk.analytics.trigger_session.TriggerSessionManager
 import com.superwall.sdk.config.ConfigManager
+import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.identity.IdentityInfo
 import com.superwall.sdk.identity.IdentityManager
@@ -105,6 +106,11 @@ interface LocaleIdentifierFactory {
     fun makeLocaleIdentifier(): String?
 }
 
+
+interface TransactionVerifierFactory {
+    fun makeTransactionVerifier(): GoogleBillingTransactionVerifier
+}
+
 interface DeviceHelperFactory {
     fun makeDeviceInfo(): DeviceInfo
     fun makeIsSandbox(): Boolean
@@ -170,6 +176,10 @@ interface StoreTransactionFactory {
     suspend fun makeStoreTransaction(transaction: Purchase): StoreTransactionType
 }
 
-interface TransactionVerifierFactory {
-    fun makeTransactionVerifier(): GoogleBillingTransactionVerifier
+interface OptionsFactory {
+    suspend fun makeSuperwallOptions(): SuperwallOptions
+}
+
+interface  TriggerFactory {
+    suspend fun makeTriggers(): Set<String>
 }

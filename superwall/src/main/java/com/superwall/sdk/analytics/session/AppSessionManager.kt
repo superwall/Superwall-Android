@@ -49,7 +49,6 @@ class AppSessionManager(
     // Called when the app goes to the foreground
     override fun onStart(owner: LifecycleOwner) {
         super.onStart(owner)
-        print("ON START")
         CoroutineScope(Dispatchers.IO).launch {
             Superwall.instance.track(InternalSuperwallEvent.AppOpen())
         }

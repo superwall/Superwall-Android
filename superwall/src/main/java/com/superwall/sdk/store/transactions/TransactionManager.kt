@@ -7,8 +7,14 @@ import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.SessionEventsManager
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
+import com.superwall.sdk.analytics.superwall.SuperwallEventObjc
 import com.superwall.sdk.delegate.PurchaseResult
+import com.superwall.sdk.dependencies.DeviceHelperFactory
+import com.superwall.sdk.dependencies.IdentityInfoFactory
+import com.superwall.sdk.dependencies.LocaleIdentifierFactory
+import com.superwall.sdk.dependencies.OptionsFactory
 import com.superwall.sdk.dependencies.TransactionVerifierFactory
+import com.superwall.sdk.dependencies.TriggerFactory
 import com.superwall.sdk.misc.ActivityLifecycleTracker
 import com.superwall.sdk.paywall.presentation.internal.dismiss
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
@@ -23,8 +29,9 @@ class TransactionManager(
     private val storeKitManager: StoreKitManager,
     private val sessionEventsManager: SessionEventsManager,
     private val activityLifecycleTracker: ActivityLifecycleTracker,
-    private val factory: TransactionVerifierFactory
+    private val factory: Factory
 ) {
+    interface Factory: OptionsFactory, TriggerFactory, TransactionVerifierFactory {}
     private var lastPaywallViewController: PaywallViewController? = null
 
     suspend fun purchase(productId: String, paywallViewController: PaywallViewController) {
@@ -46,17 +53,29 @@ class TransactionManager(
                 didPurchase(product, paywallViewController)
             }
             is PurchaseResult.Failed -> {
-                when (val outcome = TransactionErrorLogic.handle(result.error)) {
-                    is TransactionErrorLogic.Cancelled -> trackCancelled(
+                val superwallOptions = factory.makeSuperwallOptions()
+                val shouldShowPurchaseFailureAlert = superwallOptions.paywalls.shouldShowPurchaseFailureAlert
+                val triggers = factory.makeTriggers()
+                val transactionFailExists = triggers.contains(SuperwallEventObjc.TransactionFail.rawName)
+
+                if (shouldShowPurchaseFailureAlert && !transactionFailExists) {
+                    trackFailure(
+                        result.error,
                         product,
                         paywallViewController
                     )
-
-                    is TransactionErrorLogic.PresentAlert -> presentAlert(
+                    presentAlert(
                         Error(result.error),
                         product,
                         paywallViewController
                     )
+                } else {
+                    trackFailure(
+                        result.error,
+                        product,
+                        paywallViewController
+                    )
+                    return paywallViewController.togglePaywallSpinner(isHidden = true)
                 }
             }
             is PurchaseResult.Pending -> {
@@ -65,6 +84,39 @@ class TransactionManager(
             is PurchaseResult.Cancelled -> {
                 trackCancelled(product, paywallViewController)
             }
+        }
+    }
+
+    private fun trackFailure(
+        error: Throwable,
+        product: StoreProduct,
+        paywallViewController: PaywallViewController
+    ) {
+        // Log the error
+        Logger.debug(
+            logLevel = LogLevel.debug,
+            scope = LogScope.paywallTransactions,
+            message = "Transaction Error",
+            info = mapOf(
+                "product_id" to product.productIdentifier,
+                "paywall_vc" to paywallViewController
+            ),
+            error = error
+        )
+
+        // Launch a coroutine to handle async tasks
+        CoroutineScope(Dispatchers.Default).launch {
+            val paywallInfo = paywallViewController.info
+            val trackedEvent = InternalSuperwallEvent.Transaction(
+                state =  InternalSuperwallEvent.Transaction.State.Fail(TransactionError.Failure(error.localizedMessage, product)),
+                paywallInfo = paywallInfo,
+                product = product,
+                model = null
+            )
+
+            // Assuming Superwall.shared.track and sessionEventsManager.triggerSession.trackTransactionError are suspend functions
+            Superwall.instance.track(trackedEvent)
+            sessionEventsManager.triggerSession.trackTransactionError()
         }
     }
 
@@ -119,7 +171,7 @@ class TransactionManager(
         }
 
         val transactionVerifier = factory.makeTransactionVerifier()
-        val transaction = transactionVerifier.getAndValidateLatestTransaction(
+        val transaction = transactionVerifier.getLatestTransaction(
             product.productIdentifier
         )
 

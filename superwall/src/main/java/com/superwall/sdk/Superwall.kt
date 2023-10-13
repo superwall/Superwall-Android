@@ -233,8 +233,23 @@ public class Superwall(context: Context, apiKey: String, purchaseController: Pur
 //
 //    }
 
-    //
-//    // MARK: - Reset
+    /**
+     * Toggles the paywall loading spinner on and off.
+     *
+     * Useful for when you want to display a spinner when doing asynchronous work inside
+     * [SuperwallDelegate.handleCustomPaywallAction].
+     *
+     * @param isHidden Toggles the paywall loading spinner on and off.
+     */
+    fun togglePaywallSpinner(isHidden: Boolean) {
+        CoroutineScope(Dispatchers.IO).launch {
+            val paywallViewController = dependencyContainer.paywallManager.presentedViewController ?: return@launch
+            paywallViewController.togglePaywallSpinner(isHidden)
+        }
+    }
+
+
+    //    // MARK: - Reset
 //    /// Resets the `userId`, on-device paywall assignments, and data stored
 //    /// by Superwall.
     fun reset() {
