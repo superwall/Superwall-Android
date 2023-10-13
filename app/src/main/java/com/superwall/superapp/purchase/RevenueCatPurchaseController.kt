@@ -110,9 +110,16 @@ class RevenueCatPurchaseController(val context: Context): PurchaseController, Up
         val product = products.firstOrNull()
             ?: return PurchaseResult.Failed(Exception("Product not found"))
         try {
-           Purchases.sharedInstance.awaitPurchase(activity, product)
+            Purchases.sharedInstance.awaitPurchase(activity, product)
         } catch (e: Throwable) {
-            return PurchaseResult.Failed(e)
+            val purchasesError = e as? PurchasesError
+            if (purchasesError?.code == PurchasesErrorCode.PurchaseCancelledError) {
+                // Purchase was cancelled by the user
+                return PurchaseResult.Cancelled()
+            } else {
+                // Some other error occurred
+                return PurchaseResult.Failed(e)
+            }
         }
         return PurchaseResult.Purchased()
     }

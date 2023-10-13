@@ -23,17 +23,17 @@ open class ConfigManager(
 //    private val storeKitManager: StoreKitManager,
     private val storage: Storage,
     private val network: Network,
-    var options: SuperwallOptions? = null,
+    options: SuperwallOptions? = null,
 //    private val paywallManager: PaywallManager,
 //    private val factory: RequestFactory & DeviceInfoFactory
 ) {
+    var options = SuperwallOptions()
 
     protected val _config = MutableStateFlow<Config?>(null)
     val config: StateFlow<Config?> get() = _config
 
     // A flow that emits just once only when `config` is non-`nil`.
     val hasConfig: Flow<Config> = config.filterNotNull()
-
 
     // A dictionary of triggers by their event name.
     private var _triggersByEventName = mutableMapOf<String, Trigger>()

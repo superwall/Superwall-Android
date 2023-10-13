@@ -57,8 +57,11 @@ import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
 import com.superwall.sdk.store.transactions.GoogleBillingTransactionVerifier
 import com.superwall.sdk.store.transactions.TransactionManager
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class DependencyContainer(
@@ -69,7 +72,8 @@ class DependencyContainer(
     RuleAttributesFactory, DeviceHelper.Factory, CacheFactory,
     PaywallRequestManagerDepFactory, VariablesFactory,
     StoreTransactionFactory, Storage.Factory, InternalSuperwallEvent.PresentationRequest.Factory,
-    ViewControllerFactory, PaywallManager.Factory, TransactionVerifierFactory {
+    ViewControllerFactory, PaywallManager.Factory, OptionsFactory, TriggerFactory,
+    TransactionVerifierFactory, TransactionManager.Factory {
 
     var network: Network
     override lateinit var api: Api
@@ -117,7 +121,6 @@ class DependencyContainer(
         // TODO: Pass in config manager
         api = Api(networkEnvironment = SuperwallOptions.NetworkEnvironment.Release())
 
-
         identityManager = IdentityManager(
             storage = storage,
             deviceHelper = deviceHelper,
@@ -138,7 +141,10 @@ class DependencyContainer(
             configManager = configManager,
             delegate = this
         )
-        ProcessLifecycleOwner.get().lifecycle.addObserver(appSessionManager)
+
+        CoroutineScope(Dispatchers.Main).launch {
+            ProcessLifecycleOwner.get().lifecycle.addObserver(appSessionManager)
+        }
 
         storeKitManager = StoreKitManager(context, purchaseController)
 
@@ -408,5 +414,13 @@ class DependencyContainer(
 
     override  fun makeTransactionVerifier(): GoogleBillingTransactionVerifier {
         return storeKitManager.purchaseController.transactionVerifier
+    }
+
+    override suspend fun makeSuperwallOptions(): SuperwallOptions {
+        return configManager.options
+    }
+
+    override suspend fun makeTriggers(): Set<String> {
+        return configManager.triggersByEventName.keys
     }
 }

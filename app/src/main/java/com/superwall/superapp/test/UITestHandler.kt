@@ -852,7 +852,7 @@ class UITestHandler {
 
         var test57Info = UITestInfo(
             57,
-            "NOTE: Must use Deep Link API key. Present paywall from implicit trigger: " +
+            "Change API key to DeepLink. Present paywall from implicit trigger: " +
                     "`deepLink_open`. Verify the `Deep link event received successfully.` in the" +
                     " console."
         )
@@ -880,8 +880,9 @@ class UITestHandler {
 
         var test58Info = UITestInfo(
             58,
-            "Present paywall, try to purchase, then abandon the transaction. Another paywall " +
-                    "will present. In the console you'll see !!! TEST 58 !!!"
+            "Change API key to TransactionAbandon. Then, present paywall, try to purchase, " +
+                    "then abandon the transaction. Another paywall will present. In the console " +
+                    "you'll see !!! TEST 58 !!!"
         )
         suspend fun test58() {
             // Create a mock Superwall delegate
@@ -905,8 +906,9 @@ class UITestHandler {
 
         var test59Info = UITestInfo(
             59,
-            "Present paywall, dismiss it and another paywall should dismiss after the " +
-                    "decline. In the console you'll see !!! TEST 59 !!!."
+            "Change API key to PaywallDecline. Present paywall, dismiss it and another " +
+                    "paywall should present after the decline. In the console you'll see " +
+                    "!!! TEST 59 !!!."
         )
         suspend fun test59() {
             // TODO: Add surveys here
@@ -929,12 +931,39 @@ class UITestHandler {
             Superwall.instance.register("campaign_trigger")
         }
 
+        var test60Info = UITestInfo(
+            60,
+            "Change API key to TransactionFail. Inside RevenueCatPurchaseController, " +
+                    "comment out everything in the purchase function catch except " +
+                    "PurchaseResult.Failed(e). Then present paywall, go to purchase and cancel the " +
+                    "purchase. This will trigger a transaction_fail and it will dismiss the paywall " +
+                    "and present another paywall. In the console you'll see !!! TEST 60 !!!."
+        )
+        suspend fun test60() {
+            // Create a mock Superwall delegate
+            val delegate = MockSuperwallDelegate()
+
+            // Set delegate
+            Superwall.instance.delegate = delegate
+
+            // Respond to Superwall events
+            delegate.handleSuperwallEvent { eventInfo ->
+                when (eventInfo.event) {
+                    is SuperwallEvent.TransactionFail -> {
+                        println("!!! TEST 60 !!! TransactionFail.")
+                    }
+                    else -> return@handleSuperwallEvent
+                }
+            }
+
+            Superwall.instance.register("campaign_trigger")
+        }
+
         var test62Info = UITestInfo(
             62,
             "Verify that an invalid URL like `#` doesn't crash the app. Manually tap on" +
                     "the \"Open in-app #\" button."
         )
-
         suspend fun test62() {
             // Present paywall with URLs
             Superwall.instance.register(event = "present_urls")

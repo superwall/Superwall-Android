@@ -56,7 +56,7 @@ class GoogleBillingTransactionVerifier(var context: Context) : PurchasesUpdatedL
     // Setup mutable state flow for purchase results
     private val purchaseResults = MutableStateFlow<InternalPurchaseResult?>(null)
 
-    suspend fun getAndValidateLatestTransaction(
+    suspend fun getLatestTransaction(
         productId: String
     ): StoreTransactionType? {
         // Get the latest from purchaseResults
