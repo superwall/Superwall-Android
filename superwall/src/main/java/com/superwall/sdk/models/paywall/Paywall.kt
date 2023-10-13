@@ -1,6 +1,7 @@
 package com.superwall.sdk.models.paywall
 
 import ComputedPropertyRequest
+import com.superwall.sdk.config.models.Survey
 import com.superwall.sdk.dependencies.TriggerSessionManagerFactory
 import com.superwall.sdk.models.SerializableEntity
 import com.superwall.sdk.models.config.FeatureGatingBehavior
@@ -69,7 +70,12 @@ data class Paywall(
     var experiment: Experiment? = null,
 
     @kotlinx.serialization.Transient()
-    var closeReason: PaywallCloseReason = PaywallCloseReason.None
+    var closeReason: PaywallCloseReason = PaywallCloseReason.None,
+
+    /**
+     Surveys to potentially show when an action happens in the paywall.
+     */
+    var surveys: List<Survey> = emptyList()
 
 ) : SerializableEntity {
     init {
