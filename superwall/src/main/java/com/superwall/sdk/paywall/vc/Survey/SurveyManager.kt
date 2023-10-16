@@ -1,10 +1,21 @@
 package com.superwall.sdk.paywall.vc.Survey
 
+import android.app.Activity
 import android.content.Context
+import android.content.DialogInterface
 import android.text.Editable
 import android.text.TextWatcher
+import android.view.LayoutInflater
+import android.widget.ArrayAdapter
 import android.widget.EditText
+import android.widget.ListView
 import androidx.appcompat.app.AlertDialog
+import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.superwall.sdk.R
+import com.superwall.sdk.Superwall
+import com.superwall.sdk.analytics.internal.TrackingLogic
+import com.superwall.sdk.analytics.internal.track
+import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.config.models.Survey
 import com.superwall.sdk.config.models.SurveyOption
 import com.superwall.sdk.config.models.SurveyShowCondition
@@ -28,7 +39,8 @@ object SurveyManager {
         surveys: List<Survey>,
         paywallResult: PaywallResult,
         paywallCloseReason: PaywallCloseReason,
-        presenter: PaywallViewController,
+        activity: Activity?,
+        paywallViewController: PaywallViewController,
         loadingState: PaywallLoadingState,
         isDebuggerLaunched: Boolean,
         paywallInfo: PaywallInfo,
@@ -36,6 +48,11 @@ object SurveyManager {
         factory: TriggerFactory,
         completion: (SurveyPresentationResult) -> Unit
     ) {
+        val activity = activity.let { it } ?: run {
+            completion(SurveyPresentationResult.NOSHOW)
+            return
+        }
+
         val survey = selectSurvey(surveys, paywallResult, paywallCloseReason) ?: run {
             completion(SurveyPresentationResult.NOSHOW)
             return
@@ -68,77 +85,154 @@ object SurveyManager {
             return
         }
 
-        // TODO: Use a bottom sheet dialog with a list rather than alertdialog
-        val builder = AlertDialog.Builder(presenter.context)
-        builder.setTitle(survey.title)
-            .setMessage(survey.message)
+        val dialog = BottomSheetDialog(activity)
+        val view = LayoutInflater.from(activity).inflate(R.layout.survey_bottom_sheet, null)
+        dialog.setContentView(view)
 
-        survey.options.shuffled().forEach { option ->
-            builder.setPositiveButton(option.title) { _, _ ->
-                selectedOption(
-                    option,
-                    survey,
-                    null,
-                    paywallInfo,
-                    factory,
-                    presenter,
-                    isDebuggerLaunched,
-                    completion
-                )
-            }
+        val optionsToShow = mutableListOf<String>()
+        optionsToShow.addAll(survey.options.map { it.title })
+
+        // Include 'Other' and 'Close' options in the ListView data source if necessary
+        if (survey.includeOtherOption) {
+            optionsToShow.add("Other")
+        }
+        if (survey.includeCloseOption) {
+            optionsToShow.add("Close")
         }
 
-        if (survey.includeOtherOption) {
-            val otherOption = SurveyOption("000", "Other")
-            builder.setPositiveButton("Other") { _, _ ->
-                val editText = EditText(presenter.context)
-                editText.addTextChangedListener(object : TextWatcher {
-                    override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-                    override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-                    override fun afterTextChanged(s: Editable?) {
-                        val text = s?.toString()?.trim()
-                        if (text != null) {
-                            otherAlertController?.actions?.get(0)?.isEnabled = text.isNotEmpty()
+        val listView: ListView = view.findViewById(R.id.surveyListView)
+        val surveyOptionsAdapter = ArrayAdapter(
+            activity,
+            android.R.layout.simple_list_item_1,
+            optionsToShow
+        )
+
+        listView.adapter = surveyOptionsAdapter
+        listView.setOnItemClickListener { _, _, position, _ ->
+            if (position < survey.options.size) {
+                // Standard option selected
+                dialog.setOnDismissListener {
+                    handleDialogDismissal(
+                        isDebuggerLaunched = isDebuggerLaunched,
+                        survey = survey,
+                        option = survey.options[position],
+                        customResponse = null,
+                        paywallInfo = paywallInfo,
+                        factory = factory,
+                        paywallViewController = paywallViewController,
+                        completion = completion
+                    )
+                }
+                dialog.dismiss()
+            } else {
+                // Special case for 'Other' or 'Close'
+                val selectedItem = optionsToShow[position]
+                if (selectedItem == "Other") {
+                    // Create AlertDialog with an EditText
+                    val editText = EditText(activity)
+                    val otherBuilder = AlertDialog.Builder(activity)
+                    otherBuilder.setCancelable(false)
+                    otherBuilder.setTitle(survey.title)
+                    otherBuilder.setMessage(survey.message)
+                    otherBuilder.setView(editText)
+
+                    val option = SurveyOption("000", "Other")
+
+
+                    otherBuilder.setPositiveButton("Submit") { _, _ ->
+                        // Intentionally left blank
+                    }
+
+                    val otherDialog = otherBuilder.create()
+
+                    editText.addTextChangedListener(object : TextWatcher {
+                        override fun afterTextChanged(s: Editable?) {
+                            val text = s?.toString()?.trim()
+                            otherDialog.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled = !text.isNullOrEmpty()
                         }
 
-                        // Logic for enabling/disabling the submit button based on text
+                        override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+
+                        override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                    })
+
+                    // Disable the 'Submit' button initially
+                    otherDialog.setOnShowListener {
+                        otherDialog.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled = false
                     }
-                })
-                val otherBuilder = AlertDialog.Builder(presenter.context)
-                otherBuilder.setView(editText)
-                    .setPositiveButton("Submit") { _, _ ->
-                        selectedOption(
-                            otherOption, survey, editText.text.toString(), paywallInfo,
-                            factory, presenter, isDebuggerLaunched, completion
-                        )
+
+                    dialog.setOnDismissListener {
+                        otherDialog.show()
                     }
-                otherAlertDialog = otherBuilder.create()
-                otherAlertDialog?.show()
+
+                    otherDialog.setOnShowListener {
+                        // Set OnClickListener here
+                        otherDialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                            handleDialogDismissal(
+                                isDebuggerLaunched = isDebuggerLaunched,
+                                survey = survey,
+                                option = option,
+                                customResponse = editText.text.toString(),
+                                paywallInfo = paywallInfo,
+                                factory = factory,
+                                paywallViewController = paywallViewController,
+                                completion = completion
+                            )
+                            otherDialog.dismiss()
+                        }
+                    }
+
+                    // Dismiss the Survey
+                    dialog.dismiss()
+                } else if (selectedItem == "Close") {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        val event = InternalSuperwallEvent.SurveyClose()
+                        Superwall.instance.track(event)
+                    }
+                    dialog.dismiss()
+                    completion(SurveyPresentationResult.SHOW)
+                }
             }
         }
 
-        if (survey.includeCloseOption) {
-            builder.setNegativeButton("Close") { _, _ ->
-                // Tracking logic here
-                completion(SurveyPresentationResult.Show)
-            }
-        }
-
-        val alertDialog = builder.create()
-        alertDialog.show()
+        dialog.show()
     }
 
-    private suspend fun selectedOption(
-        option: SurveyOption,
+    private fun handleDialogDismissal(
+        isDebuggerLaunched: Boolean,
         survey: Survey,
+        option: SurveyOption,
         customResponse: String?,
         paywallInfo: PaywallInfo,
         factory: TriggerFactory,
-        presenter: PaywallViewController,
-        isDebuggerLaunched: Boolean,
+        paywallViewController: PaywallViewController,
         completion: (SurveyPresentationResult) -> Unit
     ) {
-        // Logic to handle option selection
+        if (isDebuggerLaunched) {
+            completion(SurveyPresentationResult.SHOW)
+            return
+        }
+
+        CoroutineScope(Dispatchers.IO).launch {
+            val event = InternalSuperwallEvent.SurveyResponse(
+                survey,
+                option,
+                customResponse,
+                paywallInfo
+            )
+
+            val outcome = TrackingLogic.canTriggerPaywall(
+                event,
+                factory.makeTriggers(),
+                paywallViewController
+            )
+
+            Superwall.instance.track(event)
+
+            if (outcome == TrackingLogic.ImplicitTriggerOutcome.DontTriggerPaywall) {
+                completion(SurveyPresentationResult.SHOW)
+            }
+        }
     }
 
     private fun selectSurvey(

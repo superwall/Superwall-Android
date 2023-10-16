@@ -108,7 +108,7 @@ sealed class TrackingLogic {
             triggers: Set<String>,
             paywallViewController: PaywallViewController?
         ): ImplicitTriggerOutcome {
-            if (event is TrackableSuperwallEvent && event.superwallEvent.objcEvent == SuperwallEventObjc.DeepLink) {
+            if (event is TrackableSuperwallEvent && event.superwallEvent.rawName == SuperwallEventObjc.DeepLink.rawName) {
                 return ImplicitTriggerOutcome.DeepLinkTrigger
             }
 

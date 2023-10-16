@@ -23,6 +23,7 @@ import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEventObjc
 import com.superwall.sdk.analytics.trigger_session.LoadState
+import com.superwall.sdk.dependencies.TriggerFactory
 import com.superwall.sdk.dependencies.TriggerSessionManagerFactory
 import com.superwall.sdk.game.GameControllerDelegate
 import com.superwall.sdk.game.GameControllerEvent
@@ -45,6 +46,8 @@ import com.superwall.sdk.paywall.presentation.internal.operators.storePresentati
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.paywall.presentation.result.PresentationResult
+import com.superwall.sdk.paywall.vc.Survey.SurveyManager
+import com.superwall.sdk.paywall.vc.Survey.SurveyPresentationResult
 import com.superwall.sdk.paywall.vc.delegate.PaywallLoadingState
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegateAdapter
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerEventDelegate
@@ -70,13 +73,14 @@ class PaywallViewController(
     val eventDelegate: PaywallViewControllerEventDelegate? = null,
     var delegate: PaywallViewControllerDelegateAdapter? = null,
     val deviceHelper: DeviceHelper,
-    val factory: TriggerSessionManagerFactory,
+    val factory: Factory,
     val storage: Storage,
     val paywallManager: PaywallManager,
     override val webView: SWWebView,
     val cache: PaywallViewControllerCache?,
     private val loadingViewController: LoadingViewController = LoadingViewController(context)
 ) : FrameLayout(context), PaywallMessageHandlerDelegate, SWWebViewDelegate, ActivityEncapsulatable, GameControllerDelegate {
+    interface Factory: TriggerSessionManagerFactory, TriggerFactory {}
     //region Public properties
 
     // MUST be set prior to presentation
@@ -108,6 +112,9 @@ class PaywallViewController(
 
     /// Defines when Safari is presenting in app.
     internal var isSafariVCPresented = false
+
+    /// Whether the survey was shown, not shown, or in a holdout. Defaults to not shown.
+    private var surveyPresentationResult: SurveyPresentationResult = SurveyPresentationResult.NOSHOW
 
     //endregion
 
@@ -315,7 +322,7 @@ class PaywallViewController(
 
     internal fun dismiss(
         result: PaywallResult,
-        closeReason: PaywallCloseReason = PaywallCloseReason.SystemLogic,
+        closeReason: PaywallCloseReason,
         completion: (() -> Unit)? = null
     ) {
         dismissCompletionBlock = completion
@@ -325,9 +332,10 @@ class PaywallViewController(
         val isDeclined = paywallResult is PaywallResult.Declined
         val isManualClose = closeReason is PaywallCloseReason.ManualClose
 
-        CoroutineScope(Dispatchers.IO).launch {
+
+        suspend fun dismissView() {
             if (isDeclined && isManualClose) {
-                val trackedEvent = InternalSuperwallEvent.PaywallDecline(info)
+                val trackedEvent = InternalSuperwallEvent.PaywallDecline(paywallInfo = info)
 
                 val presentationResult = Superwall.instance.internallyGetPresentationResult(
                     event = trackedEvent,
@@ -339,25 +347,39 @@ class PaywallViewController(
                 Superwall.instance.track(trackedEvent)
 
                 if (presentationResult is PresentationResult.Paywall && !presentedByPaywallDecline) {
-                    // If a paywall_decline trigger is active and the current paywall wasn't presented
-                    // by paywall_decline, it lands here so as not to dismiss the paywall.
-                    // track() will do that before presenting the next paywall.
-                    return@launch
+                    // Logic here, similar to the Swift one
+                    return
                 }
             }
 
-            // TODO: Add in survey logic here
-
-            delegate?.let { delegate ->
+            delegate?.let {
                 didCallDelegate = true
-                delegate.didFinish(
-                    paywall = this@PaywallViewController,
+                it.didFinish(
+                    paywall = this,
                     result = result,
                     shouldDismiss = true
                 )
             } ?: run {
-                // TODO: Implement presentationIsAnimated and pass here:
-                dismiss(false)
+                // TODO: Add presentationIsAnimated here
+                dismiss(presentationIsAnimated = false)
+            }
+        }
+
+        SurveyManager.presentSurveyIfAvailable(
+            paywall.surveys,
+            paywallResult = result,
+            paywallCloseReason = closeReason,
+            activity = encapsulatingActivity,
+            paywallViewController = this,
+            loadingState = loadingState,
+            isDebuggerLaunched = request?.flags?.isDebuggerLaunched == true,
+            paywallInfo = info,
+            storage = storage,
+            factory = factory
+        ) { result ->
+            this.surveyPresentationResult = result
+            CoroutineScope(Dispatchers.IO).launch {
+                dismissView()
             }
         }
     }
@@ -429,10 +451,9 @@ class PaywallViewController(
     private suspend fun trackClose() {
         val triggerSessionManager = factory.getTriggerSessionManager()
 
-        // TODO: Update when surveys are added:
         val trackedEvent = InternalSuperwallEvent.PaywallClose(
-            info
-            // surveyPresentationResult
+            info ,
+            surveyPresentationResult
         )
         Superwall.instance.track(trackedEvent)
         triggerSessionManager.trackPaywallClose()

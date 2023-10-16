@@ -142,7 +142,8 @@ data class Paywall(
             isFreeTrialAvailable = isFreeTrialAvailable,
             factory = factory,
             featureGatingBehavior = featureGating,
-            closeReason = closeReason
+            closeReason = closeReason,
+            surveys = surveys
         )
     }
 
