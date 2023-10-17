@@ -9,7 +9,7 @@ interface StoreTransactionType {
     val originalTransactionIdentifier: String
     val state: StoreTransactionState
     val storeTransactionId: String?
-    val payment: StorePayment
+    val payment: StorePayment?
 
     // MARK: iOS 15 only properties
     val originalTransactionDate: Date?

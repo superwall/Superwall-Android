@@ -17,7 +17,7 @@ class StoreTransaction(
     override val originalTransactionIdentifier: String get() = transaction.originalTransactionIdentifier
     override val state: StoreTransactionState get() = transaction.state
     override val storeTransactionId: String? get() = transaction.storeTransactionId
-    override val payment: StorePayment get() = transaction.payment
+    override val payment: StorePayment? get() = transaction.payment
     override val originalTransactionDate: Date? get() = transaction.originalTransactionDate
     override val webOrderLineItemID: String? get() = transaction.webOrderLineItemID
     override val appBundleId: String? get() = transaction.appBundleId
