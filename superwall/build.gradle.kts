@@ -1,8 +1,14 @@
 
+import groovy.json.JsonBuilder
 import java.text.SimpleDateFormat
 import java.util.Date
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import java.io.ByteArrayOutputStream
+buildscript {
+    extra["awsAccessKeyId"] = System.getenv("AWS_ACCESS_KEY_ID") ?: findProperty("aws_access_key_id")
+    extra["awsSecretAccessKey"] = System.getenv("AWS_SECRET_ACCESS_KEY") ?: findProperty("aws_secret_access_key")
+    // ... rest of the buildscript block ...
+}
 
 plugins {
     id("com.android.library")
@@ -92,14 +98,28 @@ publishing {
 
     repositories {
         mavenLocal()
+        maven {
+            url = uri("s3://mvn.superwall.com/release")
+            credentials(AwsCredentials::class.java) {
+                val awsAccessKeyId: String? by extra
+                val awsSecretAccessKey: String? by extra
 
+                accessKey = awsAccessKeyId
+                secretKey = awsSecretAccessKey
+            }
+        }
     }
-//        maven {
-//            name = "MavenCentral"
-//            url = uri("https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/")
-//        }
-//    }
 }
+
+tasks.register("generateBuildInfo") {
+    doLast {
+        var buildInfo = mapOf("version" to version)
+        val jsonOutput = JsonBuilder(buildInfo).toPrettyString()
+        val outputFile = File("${project.buildDir}/version.json")
+        outputFile.writeText(jsonOutput)
+    }
+}
+
 
 dependencies {
     implementation("androidx.lifecycle:lifecycle-process:2.2.0")

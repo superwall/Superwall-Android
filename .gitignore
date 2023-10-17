@@ -16,3 +16,4 @@ local.properties
 .idea/*
 private_key.pepk
 upload-keystore.jks
+.env
