@@ -1,0 +1,90 @@
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+# This workflow will build a Java project with Gradle and cache/restore any dependencies to improve the workflow execution time
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-java-with-gradle
+
+name: Build, Test & Publish
+
+# on:
+#   push:
+#     branches: [ "main" ]
+#   pull_request:
+#     branches: [ "main" ]
+
+on:
+  push:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - name: Set Up JDK
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'zulu' # See 'Supported distributions' for available options
+        java-version: '17'
+        cache: 'gradle'
+
+    # Allow us to run the command
+    - name: Change wrapper permissions
+      run: chmod +x ./gradlew
+
+    # Run Tests Build
+    # - name: Run gradle tests
+    #   run: ./gradlew test
+
+    # Run Build Project
+    - name: Build gradle project
+      run: ./gradlew build
+
+    # See what version we're on 
+    - name: Generate version from config
+      run: ./gradlew :superwall:generateBuildInfo
+
+    - name: Get Version
+      uses: notiz-dev/github-action-json-property@release
+      id: version
+      with:
+        path: "superwall/build/version.json"
+        prop_path: "version"
+
+    - name: Check if tag exists
+      id: check-tag
+      run: |
+        EXISTS=$(git tag -l | grep -Fxq "${{steps.version.outputs.prop}}" && echo 'true' || echo 'false')
+        echo "::set-output name=tag-exists::$EXISTS"
+
+    - name: Tag
+      run: |
+        if [ "${{ steps.check-tag.outputs.tag-exists }}" == "false" ]; then
+          sudo git config --global user.name 'Jake'
+          sudo git config --global user.email 'jakemor@users.noreply.github.com'
+          sudo git pull
+          echo "\n\n\n- - - - - VERSION - - - - -\n\n\n"
+          echo ${{steps.version.outputs.prop}}
+          echo "\n\n\n- - - - - END VERSION - - - - -\n\n\n"
+          sudo git tag -a ${{steps.version.outputs.prop}} -m "tags with latest version"
+          sudo git push --tags
+          sudo git checkout -b release/${{steps.version.outputs.prop}}
+          sudo git push -u origin release/${{steps.version.outputs.prop}}
+        fi
+
+    - name: Deploy
+      run: |
+        if [ "${{ steps.check-tag.outputs.tag-exists }}" == "false" ]; then
+          ./gradlew publish -Paws_access_key_id=$AWS_ACCESS_KEY_ID -Paws_secret_access_key=$AWS_SECRET_ACCESS_KEY
+        fi
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
