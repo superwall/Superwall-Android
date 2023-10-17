@@ -81,7 +81,9 @@ jobs:
 
     - name: Deploy
       run: |
-        ./gradlew publish -Paws_access_key_id=$AWS_ACCESS_KEY_ID -Paws_secret_access_key=$AWS_SECRET_ACCESS_KEY
+        if [ "${{ steps.check-tag.outputs.tag-exists }}" == "false" ]; then
+          ./gradlew publish -Paws_access_key_id=$AWS_ACCESS_KEY_ID -Paws_secret_access_key=$AWS_SECRET_ACCESS_KEY
+        fi
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
