@@ -7,17 +7,19 @@
 
 name: Build, Test & Publish
 
-# on:
-#   push:
-#     branches: [ "main" ]
-#   pull_request:
-#     branches: [ "main" ]
-
 on:
   push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
 
 permissions:
   contents: write
+
+# Prevents running a bunch of we push right back to back
+concurrency:
+  group: test-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -39,15 +41,13 @@ jobs:
     - name: Change wrapper permissions
       run: chmod +x ./gradlew
 
-    # Run Tests Build
-    # - name: Run gradle tests
-    #   run: ./gradlew test
-
-    # Run Build Project
+    # Run Build & Test the Project
     - name: Build gradle project
       run: ./gradlew build
 
-    # See what version we're on 
+    # See what version we're on
+    # Writes to superwall/build/version.json with the version set 
+    # in the superwall build.gradle
     - name: Generate version from config
       run: ./gradlew :superwall:generateBuildInfo
 
@@ -58,13 +58,16 @@ jobs:
         path: "superwall/build/version.json"
         prop_path: "version"
 
+    # Only try to publish if we're on main
     - name: Check if tag exists
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       id: check-tag
       run: |
         EXISTS=$(git tag -l | grep -Fxq "${{steps.version.outputs.prop}}" && echo 'true' || echo 'false')
         echo "::set-output name=tag-exists::$EXISTS"
 
     - name: Tag
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       run: |
         if [ "${{ steps.check-tag.outputs.tag-exists }}" == "false" ]; then
           sudo git config --global user.name 'Jake'
@@ -80,6 +83,7 @@ jobs:
         fi
 
     - name: Deploy
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       run: |
         if [ "${{ steps.check-tag.outputs.tag-exists }}" == "false" ]; then
           ./gradlew publish -Paws_access_key_id=$AWS_ACCESS_KEY_ID -Paws_secret_access_key=$AWS_SECRET_ACCESS_KEY
