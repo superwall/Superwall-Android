@@ -13,7 +13,7 @@ plugins {
 }
 
 
-version = "0.0.1"
+version = "1.0.2"
 
 android {
     compileSdk = 33
@@ -82,7 +82,7 @@ publishing {
         register<MavenPublication>("release") {
             groupId = "com.superwall.sdk"
             artifactId = "superwall-android"
-            version = "1.0.0"
+            version = version
 
             afterEvaluate {
                 from(components["release"])

@@ -1,6 +1,12 @@
 package com.superwall.sdk.store.abstractions.transactions
 
 import com.android.billingclient.api.BillingClient
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.Serializer
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
 import java.util.*
 
 
@@ -23,24 +29,52 @@ interface StoreTransactionType {
     val appAccountToken: UUID?
 }
 
-@kotlinx.serialization.Serializable
+// Custom serializer
+@Serializer(forClass = StoreTransactionState::class)
+object StoreTransactionStateSerializer : KSerializer<StoreTransactionState> {
+    override fun serialize(encoder: Encoder, value: StoreTransactionState) {
+        // Transform the object to a lowercase string representation
+        val str = when (value) {
+            is StoreTransactionState.Purchasing -> "purchasing"
+            is StoreTransactionState.Purchased -> "purchased"
+            is StoreTransactionState.Failed -> "failed"
+            is StoreTransactionState.Restored -> "restored"
+            is StoreTransactionState.Deferred -> "deferred"
+        }
+        encoder.encodeString(str)
+    }
+
+    override fun deserialize(decoder: Decoder): StoreTransactionState {
+        // Convert back from string to object
+        return when (val str = decoder.decodeString()) {
+            "purchasing" -> StoreTransactionState.Purchasing
+            "purchased" -> StoreTransactionState.Purchased
+            "failed" -> StoreTransactionState.Failed
+            "restored" -> StoreTransactionState.Restored
+            "deferred" -> StoreTransactionState.Deferred
+            else -> throw SerializationException("Unknown string value: $str")
+        }
+    }
+}
+
+// Annotated sealed class
+@Serializable(with = StoreTransactionStateSerializer::class)
 sealed class StoreTransactionState {
 
-    @kotlinx.serialization.Serializable
+    @Serializable
     object Purchasing : StoreTransactionState() // When purchase is initiated
 
-    @kotlinx.serialization.Serializable
+    @Serializable
     object Purchased : StoreTransactionState() // When purchase is successful
 
-    @kotlinx.serialization.Serializable
+    @Serializable
     object Failed : StoreTransactionState() // When purchase has failed
 
-    @kotlinx.serialization.Serializable
+    @Serializable
     object Restored : StoreTransactionState() // When a previous purchase has been restored
 
-    @kotlinx.serialization.Serializable
-    object Deferred :
-        StoreTransactionState() // Optional: When a purchase is pending some external action
+    @Serializable
+    object Deferred : StoreTransactionState() // Optional: When a purchase is pending some external action
 
     companion object {
         fun from(purchaseResult: Int): StoreTransactionState {
