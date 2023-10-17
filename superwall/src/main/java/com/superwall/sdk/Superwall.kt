@@ -48,7 +48,6 @@ public class Superwall(context: Context, apiKey: String, purchaseController: Pur
     val isPaywallPresented: Boolean
         get() = paywallViewController != null
 
-
     var delegate: SuperwallDelegate?
         get() = dependencyContainer.delegateAdapter.kotlinDelegate
         set(newValue) {

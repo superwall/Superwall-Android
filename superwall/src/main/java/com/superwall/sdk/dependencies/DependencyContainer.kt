@@ -73,7 +73,7 @@ class DependencyContainer(
     PaywallRequestManagerDepFactory, VariablesFactory,
     StoreTransactionFactory, Storage.Factory, InternalSuperwallEvent.PresentationRequest.Factory,
     ViewControllerFactory, PaywallManager.Factory, OptionsFactory, TriggerFactory,
-    TransactionVerifierFactory, TransactionManager.Factory {
+    TransactionVerifierFactory, TransactionManager.Factory, PaywallViewController.Factory {
 
     var network: Network
     override lateinit var api: Api

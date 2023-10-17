@@ -18,7 +18,10 @@ import com.superwall.sdk.paywall.presentation.get_presentation_result.getPresent
 import com.superwall.sdk.paywall.presentation.register
 import com.superwall.sdk.paywall.vc.SuperwallPaywallActivity
 import com.superwall.superapp.ComposeActivity
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class UITestHandler {
     companion object {
@@ -906,12 +909,13 @@ class UITestHandler {
 
         var test59Info = UITestInfo(
             59,
-            "Change API key to PaywallDecline. Present paywall, dismiss it and another " +
-                    "paywall should present after the decline. In the console you'll see " +
-                    "!!! TEST 59 !!!."
+            "Delete and reinstall app. Change API key to PaywallDecline. Present paywall, " +
+                    "dismiss it and a survey will present. Choose Option 1. The survey will dismiss, " +
+                    "then survey_response will be printed in the console. The paywall will dismiss " +
+                    "and PaywallDecline will be printed in the console. Then a paywall should auto " +
+                    "present after the decline."
         )
         suspend fun test59() {
-            // TODO: Add surveys here
             // Create a mock Superwall delegate
             val delegate = MockSuperwallDelegate()
 
@@ -922,7 +926,10 @@ class UITestHandler {
             delegate.handleSuperwallEvent { eventInfo ->
                 when (eventInfo.event) {
                     is SuperwallEvent.PaywallDecline -> {
-                        println("!!! TEST 59 !!! PaywallDeclined.")
+                        println("!!! TEST 59 !!! PaywallDecline")
+                    }
+                    is SuperwallEvent.SurveyResponse -> {
+                        println("!!! TEST 59 !!! SurveyResponse")
                     }
                     else -> return@handleSuperwallEvent
                 }
@@ -989,12 +996,251 @@ class UITestHandler {
             SuperwallPaywallActivity.startWithView(context = context, view = viewController)
         }
 
+        var test64Info = UITestInfo(
+            64,
+            "Delete and reinstall app. Present paywall then tap close button. A survey will " +
+                    "show. Choose non-other option. The paywall will close with !!! TEST 63 !!! and " +
+                    "PaywallClose and SurveyResponse printed to the console. The feature block will fire. " +
+                    "Then open and close the paywall again to make sure survey doesn't show again. " +
+                    "The console will just print out !!! TEST 63!!! with PaywallClose  and the feature " +
+                    "block will fire again."
+        )
+        suspend fun test64() {
+            // Create a mock Superwall delegate
+            val delegate = MockSuperwallDelegate()
+
+            // Set delegate
+            Superwall.instance.delegate = delegate
+
+            // Respond to Superwall events
+            delegate.handleSuperwallEvent { eventInfo ->
+                when (eventInfo.event) {
+                    is SuperwallEvent.PaywallClose -> {
+                        println("!!! TEST 64 !!! PaywallClose")
+                    }
+                    is SuperwallEvent.SurveyResponse -> {
+                        println("!!! TEST 64 !!! SurveyResponse")
+                    }
+                    else -> return@handleSuperwallEvent
+                }
+            }
+
+            Superwall.instance.register("show_survey_with_other") {
+                val alertController = AlertControllerFactory.make(
+                    context = context,
+                    title = "Feature Launched",
+                    message = "The feature block was called",
+                    actionTitle = "Ok"
+                )
+                alertController.show()
+            }
+        }
+
+        var test65Info = UITestInfo(
+            65,
+            "Delete and reinstall app. Present paywall then tap close button. A survey will " +
+                    "show. Choose the other option and type \"Test\" and tap Submit. The console " +
+                    "will print out !!! TEST 65!!! with PaywallClose and again with SurveyResponse. " +
+                    "The feature block will fire."
+        )
+        suspend fun test65() {
+            // Create a mock Superwall delegate
+            val delegate = MockSuperwallDelegate()
+
+            // Set delegate
+            Superwall.instance.delegate = delegate
+
+            // Respond to Superwall events
+            delegate.handleSuperwallEvent { eventInfo ->
+                when (eventInfo.event) {
+                    is SuperwallEvent.PaywallClose -> {
+                        println("!!! TEST 65 !!! PaywallClose")
+                    }
+                    is SuperwallEvent.SurveyResponse -> {
+                        println("!!! TEST 65 !!! SurveyResponse")
+                    }
+                    else -> return@handleSuperwallEvent
+                }
+            }
+
+            Superwall.instance.register("show_survey_with_other") {
+                val alertController = AlertControllerFactory.make(
+                    context = context,
+                    title = "Feature Launched",
+                    message = "The feature block was called",
+                    actionTitle = "Ok"
+                )
+                alertController.show()
+            }
+        }
+
+        var test66Info = UITestInfo(
+            66,
+            "Delete an reinstall app. Present paywall then tap close button. A survey will " +
+                    "NOT show. The console will print out !!! TEST 66 !!! with PaywallClose. " +
+                    "The feature block will fire."
+        )
+        suspend fun test66() {
+            // Create a mock Superwall delegate
+            val delegate = MockSuperwallDelegate()
+
+            // Set delegate
+            Superwall.instance.delegate = delegate
+
+            // Respond to Superwall events
+            delegate.handleSuperwallEvent { eventInfo ->
+                when (eventInfo.event) {
+                    is SuperwallEvent.PaywallClose -> {
+                        println("!!! TEST 66 !!! PaywallClose")
+                    }
+                    is SuperwallEvent.SurveyResponse -> {
+                        println("!!! TEST 66 !!! SurveyResponse")
+                    }
+                    else -> return@handleSuperwallEvent
+                }
+            }
+
+            Superwall.instance.register("zero_percent_survey") {
+                val alertController = AlertControllerFactory.make(
+                    context = context,
+                    title = "Feature Launched",
+                    message = "The feature block was called",
+                    actionTitle = "Ok"
+                )
+                alertController.show()
+            }
+        }
+
+        // TODO: Test 67 needs modal presentation and swipe to dismiss.
+
+        var test68Info = UITestInfo(
+            68,
+            "Delete an reinstall app. Present paywall then tap close button. A survey will " +
+                    "show. Tap Option 1. The paywall will dismiss and a new paywall will auto show. " +
+                    "The console will print out !!! TEST 68 !!! with PaywallClose. Close the second " +
+                    "paywall. The feature block will fire on close of the second paywall."
+        )
+        suspend fun test68() {
+            // Create a mock Superwall delegate
+            val delegate = MockSuperwallDelegate()
+
+            // Set delegate
+            Superwall.instance.delegate = delegate
+
+            // Respond to Superwall events
+            delegate.handleSuperwallEvent { eventInfo ->
+                when (eventInfo.event) {
+                    is SuperwallEvent.PaywallClose -> {
+                        println("!!! TEST 68 !!! PaywallClose")
+                    }
+                    is SuperwallEvent.SurveyResponse -> {
+                        println("!!! TEST 68 !!! SurveyResponse")
+                    }
+                    else -> return@handleSuperwallEvent
+                }
+            }
+
+            Superwall.instance.register("campaign_trigger") {
+                val alertController = AlertControllerFactory.make(
+                    context = context,
+                    title = "Feature Launched",
+                    message = "The feature block was called",
+                    actionTitle = "Ok"
+                )
+                alertController.show()
+            }
+        }
+
+        // TODO: Test 69 requires modal presentation and swipe to dismiss.
+
+        var test70Info = UITestInfo(
+            70,
+            "Delete an reinstall app. Present paywall then tap close button. Make sure a " +
+                    "survey is displayed. Tap Option 1, make sure it dismisses and the console prints " +
+                    "!!! TEST 70 !!! twice with both PaywallClose and SurveyResponse."
+        )
+        suspend fun test70() {
+            // Create a mock Superwall delegate
+            val delegate = MockSuperwallDelegate()
+
+            // Set delegate
+            Superwall.instance.delegate = delegate
+
+            // Respond to Superwall events
+            delegate.handleSuperwallEvent { eventInfo ->
+                when (eventInfo.event) {
+                    is SuperwallEvent.PaywallClose -> {
+                        println("!!! TEST 70 !!! PaywallClose")
+                    }
+                    is SuperwallEvent.SurveyResponse -> {
+                        println("!!! TEST 70 !!! SurveyResponse")
+                    }
+                    else -> return@handleSuperwallEvent
+                }
+            }
+
+            // Create a mock paywall view controller
+            val paywallDelegate = MockPaywallViewControllerDelegate()
+            paywallDelegate.paywallViewControllerDidFinish { paywallViewController, paywallResult, shouldDismiss ->
+                println("!!! TEST 70 !!! Result: $paywallResult, shouldDismiss: $shouldDismiss, paywallVc: $paywallViewController")
+                if (shouldDismiss) {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        Superwall.instance.dismiss()
+                    }
+                }
+            }
+
+            // Get the paywall view controller instance
+            val viewController = Superwall.instance.getPaywall(
+                event = "show_survey_with_other",
+                delegate = paywallDelegate
+            )
+
+            // Present using the convenience `SuperwallPaywallActivity` activity and verify test case.
+            SuperwallPaywallActivity.startWithView(context = context, view = viewController)
+        }
+
+        var test71Info = UITestInfo(
+            71,
+            "Delete an reinstall app. Present paywall then purchase product. Make sure the " +
+                    "paywall closes and DOES NOT show a survey. The console should NOT print " +
+                    "!!! TEST 71 !!!."
+        )
+        suspend fun test71() {
+            // Create a mock Superwall delegate
+            val delegate = MockSuperwallDelegate()
+
+            // Set delegate
+            Superwall.instance.delegate = delegate
+
+            // Respond to Superwall events
+            delegate.handleSuperwallEvent { eventInfo ->
+                when (eventInfo.event) {
+                    is SuperwallEvent.SurveyResponse -> {
+                        println("!!! TEST 71 !!! SurveyResponse")
+                    }
+                    else -> return@handleSuperwallEvent
+                }
+            }
+
+            Superwall.instance.register("survey_with_purchase_button") {
+                val alertController = AlertControllerFactory.make(
+                    context = context,
+                    title = "Feature Launched",
+                    message = "The feature block was called",
+                    actionTitle = "Ok"
+                )
+                alertController.show()
+            }
+        }
+
         // TODO: Test 63 - 71 require getPaywall, feature block, delegate, and surveys.
 
         var test72Info = UITestInfo(
             72,
             "Check that calling identify restores the seed value. This is async and " +
-                    "dependent on config so needs to sleep after calling identify."
+                    "dependent on config so needs to sleep after calling identify. You should see " +
+                    "\"!!! seed - 1: X\", where X is a seed number. Then \"!!! seed - 2: X\"."
         )
 
         suspend fun test72() {
@@ -1003,8 +1249,8 @@ class UITestHandler {
 
             delay(1000)
 
-            var seedHolder = Superwall.instance.getUserAttributes()
-            println("!!! seedHolder - 1: $seedHolder")
+            var seed = Superwall.instance.getUserAttributes()["seed"]
+            println("!!! seed - 1: $seed")
 
             Superwall.instance.reset()
 
@@ -1012,9 +1258,70 @@ class UITestHandler {
 
             delay(1000)
 
-            seedHolder = Superwall.instance.getUserAttributes()
-            println("!!! seedHolder - 2: $seedHolder")
+            seed = Superwall.instance.getUserAttributes()["seed"]
+            println("!!! seed - 2: $seed")
 
+        }
+
+        // TODO: Test 73 needs touches_began implemented.
+
+        var test74Info = UITestInfo(
+            74,
+            "Delete an reinstall app. Present paywall then close the paywall. A survey will " +
+                    "show. Tap the close button. The paywall will close and the console will print " +
+                    "\"!!! TEST 74 !!! SurveyClose\"."
+        )
+        suspend fun test74() {
+            Superwall.instance.setSubscriptionStatus(SubscriptionStatus.INACTIVE)
+            // Create a mock Superwall delegate
+            val delegate = MockSuperwallDelegate()
+
+            // Set delegate
+            Superwall.instance.delegate = delegate
+
+            // Respond to Superwall events
+            delegate.handleSuperwallEvent { eventInfo ->
+                when (eventInfo.event) {
+                    is SuperwallEvent.SurveyClose -> {
+                        println("!!! TEST 74 !!! SurveyClose")
+                    }
+
+                    else -> return@handleSuperwallEvent
+                }
+            }
+
+            Superwall.instance.register("survey_with_close_option")
+        }
+
+        var test75Info = UITestInfo(
+            75,
+            "Present paywall then make a purchase. Make sure !!! TEST 75 !!! with  \"false\" " +
+                    "for the transaction being nil, a product id, and a paywall id is printed to the " +
+                    "console."
+        )
+        suspend fun test75() {
+            // Create a mock Superwall delegate
+            val delegate = MockSuperwallDelegate()
+
+            // Set delegate
+            Superwall.instance.delegate = delegate
+
+            // Respond to Superwall events
+            delegate.handleSuperwallEvent { eventInfo ->
+                when (eventInfo.event) {
+                    is SuperwallEvent.TransactionComplete -> {
+                        val transaction = (eventInfo.event as SuperwallEvent.TransactionComplete).transaction == null
+                        val productId = (eventInfo.event as SuperwallEvent.TransactionComplete).product.productIdentifier
+                        val paywallId = (eventInfo.event as SuperwallEvent.TransactionComplete).paywallInfo.identifier
+
+                        println("!!! TEST 75 !!! TransactionComplete. Transaction nil? $transaction, $productId, $paywallId")
+                    }
+
+                    else -> return@handleSuperwallEvent
+                }
+            }
+
+            Superwall.instance.register("present_data")
         }
 
         var test82Info = UITestInfo(

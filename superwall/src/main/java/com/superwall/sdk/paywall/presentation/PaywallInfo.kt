@@ -3,6 +3,7 @@ package com.superwall.sdk.paywall.presentation
 import LogLevel
 import LogScope
 import Logger
+import com.superwall.sdk.config.models.Survey
 import com.superwall.sdk.dependencies.TriggerSessionManagerFactory
 import com.superwall.sdk.models.config.FeatureGatingBehavior
 import com.superwall.sdk.models.events.EventData
@@ -29,6 +30,7 @@ data class PaywallInfo(
     val presentedByEventWithId: String?,
     val presentedByEventAt: String?,
     val presentedBy: String,
+    val presentationSourceType: String?,
     val responseLoadStartTime: String?,
     val responseLoadCompleteTime: String?,
     val responseLoadFailTime: String?,
@@ -45,6 +47,7 @@ data class PaywallInfo(
     val isFreeTrialAvailable: Boolean,
     val featureGatingBehavior: FeatureGatingBehavior,
     val closeReason: PaywallCloseReason?,
+    val surveys: List<Survey>,
     val factory: TriggerSessionManagerFactory
 ) {
     constructor(
@@ -66,9 +69,11 @@ data class PaywallInfo(
         experiment: Experiment? = null,
         paywalljsVersion: String? = null,
         isFreeTrialAvailable: Boolean,
+        presentationSourceType: String? = null,
         factory: TriggerSessionManagerFactory,
         featureGatingBehavior: FeatureGatingBehavior = FeatureGatingBehavior.NonGated,
-        closeReason: PaywallCloseReason? = null
+        closeReason: PaywallCloseReason? = null,
+        surveys: List<Survey>
     ) : this(
         databaseId = databaseId,
         identifier = identifier,
@@ -84,6 +89,7 @@ data class PaywallInfo(
         isFreeTrialAvailable = isFreeTrialAvailable,
         featureGatingBehavior = featureGatingBehavior,
         presentedBy = eventData?.let { "event" } ?: "programmatically",
+        presentationSourceType = presentationSourceType,
         responseLoadStartTime = responseLoadStartTime?.toString() ?: "",
         responseLoadCompleteTime = responseLoadStartTime?.toString() ?: "",
         responseLoadFailTime = responseLoadFailTime?.toString() ?: "",
@@ -109,24 +115,23 @@ data class PaywallInfo(
             }
         },
         factory = factory,
-        closeReason = closeReason
+        closeReason = closeReason,
+        surveys = surveys
     )
 
-    suspend fun eventParams(
+    fun eventParams(
         product: StoreProduct? = null,
         otherParams: Map<String, Any?>? = null
     ): Map<String, Any> {
-        val output = mutableMapOf<String, Any?>(
-            "paywall_id" to databaseId,
-            ("paywalljs_version" to paywalljsVersion ?: "") as Pair<String, Any>,
+        var output = customParams()
+
+        val params = mutableMapOf(
+            (("paywalljs_version" to paywalljsVersion) ?: "") as Pair<String, Any>,
             "paywall_identifier" to identifier,
-            "paywall_name" to name,
             "paywall_url" to url.toString(),
-            "presented_by_event_name" to presentedByEventWithName,
             "presented_by_event_id" to presentedByEventWithId,
             "presented_by_event_timestamp" to presentedByEventAt,
-            "presented_by" to presentedBy,
-            "paywall_product_ids" to productIds.joinToString(","),
+            "presentation_source_type" to presentationSourceType,
             "paywall_response_load_start_time" to responseLoadStartTime,
             "paywall_response_load_complete_time" to responseLoadCompleteTime,
             "paywall_response_load_duration" to responseLoadDuration,
@@ -137,9 +142,10 @@ data class PaywallInfo(
             "paywall_products_load_complete_time" to productsLoadCompleteTime,
             "paywall_products_load_fail_time" to productsLoadFailTime,
             "paywall_products_load_duration" to productsLoadDuration,
-            "is_free_trial_available" to isFreeTrialAvailable,
-            "feature_gating" to featureGatingBehavior.toString()
         )
+        params.values.removeAll { it == null }
+        val filteredParams = params as MutableMap<String, Any>
+        output.putAll(filteredParams)
 
         // TODO: Re-enable this
 //        val triggerSessionManager = factory.getTriggerSessionManager()
@@ -167,16 +173,6 @@ data class PaywallInfo(
             info = loadingVars
         )
 
-        val levels = listOf("primary", "secondary", "tertiary")
-
-        for ((id, level) in levels.withIndex()) {
-            val key = "${level}_product_id"
-            output[key] = ""
-            if (id < products.size) {
-                output[key] = productIds[id]
-            }
-        }
-
         // TODO: Re-enable store product
 //        product?.let {
 //            output["product_id"] = it.productIdentifier
@@ -195,7 +191,31 @@ data class PaywallInfo(
             }
         }
 
-        return output.filter { (_, value) -> value != null } as Map<String, Any>
+        return output
     }
 
+    /// Parameters that can be used in rules.
+    fun customParams(): MutableMap<String, Any> {
+        val output: MutableMap<String, Any?> = mutableMapOf(
+            "paywall_id" to databaseId,
+            "paywall_name" to name,
+            "presented_by_event_name" to (presentedByEventWithName ?: ""),
+            "paywall_product_ids" to productIds.joinToString(","),
+            "is_free_trial_available" to isFreeTrialAvailable,
+            "feature_gating" to featureGatingBehavior.toString(),
+            "presented_by" to presentedBy
+        )
+
+        val levels = listOf("primary", "secondary", "tertiary")
+
+        for ((id, level) in levels.withIndex()) {
+            val key = "${level}_product_id"
+            output[key] = ""
+            if (id < products.size) {
+                output[key] = productIds[id]
+            }
+        }
+
+        return output.filter { (_, value) -> value != null } as MutableMap<String, Any>
+    }
 }

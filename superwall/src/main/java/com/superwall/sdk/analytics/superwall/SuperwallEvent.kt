@@ -1,6 +1,8 @@
 package com.superwall.sdk.analytics.superwall
 
 import android.net.Uri
+import com.superwall.sdk.config.models.Survey
+import com.superwall.sdk.config.models.SurveyOption
 import com.superwall.sdk.models.triggers.TriggerResult
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatus
@@ -264,6 +266,22 @@ sealed class SuperwallEvent {
             get() = "paywallPresentationRequest"
     }
 
+    /// When the response to a paywall survey is recorded.
+    data class SurveyResponse(
+        val survey: Survey,
+        val selectedOption: SurveyOption,
+        val customResponse: String?,
+        val paywallInfo: PaywallInfo
+    ) : SuperwallEvent() {
+        override val rawName: String
+            get() = "survey_response"
+    }
+
+    /// When the user chose the close button on a survey instead of responding.
+    class SurveyClose() : SuperwallEvent() {
+        override val rawName: String
+            get() = "survey_close"
+    }
 
     open val rawName: String
         get() = this.toString()
@@ -282,7 +300,8 @@ sealed class SuperwallEvent {
             is DeepLink,
             is TransactionFail,
             is PaywallDecline,
-            is TransactionAbandon -> true
+            is TransactionAbandon,
+            is SurveyResponse -> true
             else -> false
         }
 }
