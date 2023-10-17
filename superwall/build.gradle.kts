@@ -8,10 +8,12 @@ plugins {
     id("com.android.library")
     kotlin("android")
     kotlin("plugin.serialization") version "1.8.21"
+    // Maven publishing
+    id("maven-publish")
 }
 
 
-version = "0.0.1"
+version = "1.0.2"
 
 android {
     compileSdk = 33
@@ -20,6 +22,10 @@ android {
     defaultConfig {
         minSdkVersion(26)
         targetSdkVersion(33)
+
+        aarMetadata {
+          minCompileSdk = 26
+        }
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -62,6 +68,37 @@ android {
     }
 
     testOptions { }
+
+    publishing {
+        singleVariant("release") {
+            withSourcesJar()
+        }
+    }
+}
+
+
+publishing {
+    publications {
+        register<MavenPublication>("release") {
+            groupId = "com.superwall.sdk"
+            artifactId = "superwall-android"
+            version = version
+
+            afterEvaluate {
+                from(components["release"])
+            }
+        }
+    }
+
+    repositories {
+        mavenLocal()
+
+    }
+//        maven {
+//            name = "MavenCentral"
+//            url = uri("https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/")
+//        }
+//    }
 }
 
 dependencies {
