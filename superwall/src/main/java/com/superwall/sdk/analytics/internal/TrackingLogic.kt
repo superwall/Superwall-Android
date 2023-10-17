@@ -137,6 +137,7 @@ sealed class TrackingLogic {
                 return when (event.superwallEvent.objcEvent) {
                     SuperwallEventObjc.TransactionAbandon,
                     SuperwallEventObjc.TransactionFail,
+                    SuperwallEventObjc.SurveyResponse,
                     SuperwallEventObjc.PaywallDecline -> ImplicitTriggerOutcome.ClosePaywallThenTriggerPaywall
                     else -> ImplicitTriggerOutcome.TriggerPaywall
                 }

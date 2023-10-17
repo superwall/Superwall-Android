@@ -20,6 +20,8 @@ enum class SuperwallEventObjc(val rawName: String) {
     TransactionRestore("transaction_restore"),
     TransactionTimeout("transaction_timeout"),
     SubscriptionStart("subscription_start"),
+    SurveyResponse("survey_response"),
+    SurveyClose("survey_close"),
     SubscriptionStatusDidChange("subscriptionStatus_didChange"),
     FreeTrialStart("freeTrial_start"),
     UserAttributes("user_attributes"),

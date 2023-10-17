@@ -43,6 +43,7 @@ class MainApplication : android.app.Application(), SuperwallDelegate {
             PaywallDecline: pk_a1071d541642719e2dc854da9ec717ec967b8908854ede74
             TransactionAbandon: pk_9c99186b023ae795e0189cf9cdcd3e2d2d174289e0800d66
             TransacionFail: pk_b6cd945401435766da627080a3fbe349adb2dcd69ab767f3
+            SurveyResponse: pk_3698d9fe123f1e4aa8014ceca111096ca06fd68d31d9e662
          */
 
         Superwall.configure(

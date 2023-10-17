@@ -300,7 +300,8 @@ sealed class SuperwallEvent {
             is DeepLink,
             is TransactionFail,
             is PaywallDecline,
-            is TransactionAbandon -> true
+            is TransactionAbandon,
+            is SurveyResponse -> true
             else -> false
         }
 }

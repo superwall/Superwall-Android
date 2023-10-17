@@ -9,6 +9,7 @@ import android.view.LayoutInflater
 import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.ListView
+import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.superwall.sdk.R
@@ -86,8 +87,10 @@ object SurveyManager {
         }
 
         val dialog = BottomSheetDialog(activity)
-        val view = LayoutInflater.from(activity).inflate(R.layout.survey_bottom_sheet, null)
-        dialog.setContentView(view)
+        dialog.setCanceledOnTouchOutside(false)
+        dialog.setCancelable(false)
+        val surveyView = LayoutInflater.from(activity).inflate(R.layout.survey_bottom_sheet, null)
+        dialog.setContentView(surveyView)
 
         val optionsToShow = mutableListOf<String>()
         optionsToShow.addAll(survey.options.map { it.title })
@@ -100,10 +103,16 @@ object SurveyManager {
             optionsToShow.add("Close")
         }
 
-        val listView: ListView = view.findViewById(R.id.surveyListView)
+        val titleTextView = surveyView.findViewById<TextView>(R.id.title)
+        val messageTextView = surveyView.findViewById<TextView>(R.id.message)
+
+        titleTextView.text = survey.title
+        messageTextView.text = survey.message
+
+        val listView: ListView = surveyView.findViewById(R.id.surveyListView)
         val surveyOptionsAdapter = ArrayAdapter(
             activity,
-            android.R.layout.simple_list_item_1,
+            R.layout.list_item,
             optionsToShow
         )
 
@@ -130,14 +139,13 @@ object SurveyManager {
                 if (selectedItem == "Other") {
                     // Create AlertDialog with an EditText
                     val editText = EditText(activity)
+                    val customAlertView = LayoutInflater.from(activity).inflate(R.layout.custom_alert_dialog_layout, null)
+
                     val otherBuilder = AlertDialog.Builder(activity)
                     otherBuilder.setCancelable(false)
-                    otherBuilder.setTitle(survey.title)
-                    otherBuilder.setMessage(survey.message)
-                    otherBuilder.setView(editText)
+                    otherBuilder.setView(customAlertView)
 
                     val option = SurveyOption("000", "Other")
-
 
                     otherBuilder.setPositiveButton("Submit") { _, _ ->
                         // Intentionally left blank
@@ -145,7 +153,14 @@ object SurveyManager {
 
                     val otherDialog = otherBuilder.create()
 
-                    editText.addTextChangedListener(object : TextWatcher {
+                    val customDialogTitle = customAlertView.findViewById<TextView>(R.id.customDialogTitle)
+                    val customDialogMessage = customAlertView.findViewById<TextView>(R.id.customDialogMessage)
+                    val customEditText = customAlertView.findViewById<EditText>(R.id.editText)
+
+                    customDialogTitle.text = survey.title
+                    customDialogMessage.text = survey.message
+
+                    customEditText.addTextChangedListener(object : TextWatcher {
                         override fun afterTextChanged(s: Editable?) {
                             val text = s?.toString()?.trim()
                             otherDialog.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled = !text.isNullOrEmpty()
@@ -163,6 +178,10 @@ object SurveyManager {
 
                     dialog.setOnDismissListener {
                         otherDialog.show()
+                        otherDialog.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled = false
+
+                        // Auto-select the EditText
+                        customEditText.requestFocus()
                     }
 
                     otherDialog.setOnShowListener {
