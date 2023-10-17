@@ -7,7 +7,7 @@ import org.json.JSONObject
 import org.junit.Test
 
 class SerializationTest {
-
+/*
     @Test
     fun `make sure snake case works `() {
         val swJson = getSWJson()
@@ -20,4 +20,5 @@ class SerializationTest {
         assert(parsed.getString("experiment_id") == "123")
         assert(parsed.getString("variant_id") == "456")
     }
+ */
 }

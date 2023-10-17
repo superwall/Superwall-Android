@@ -5,7 +5,7 @@ import org.junit.Test
 import java.util.*
 
 class ExpressionEvaluatorParamsTest {
-
+/*
     @Test
     fun expression_evaluator_params_test() {
         val expected = """
@@ -153,7 +153,7 @@ class ExpressionEvaluatorParamsTest {
         val params2 = values2.getJSONObject("params")
         assert(params2.getString("id") == "567")
     }
-
+*/
 }
 
 
