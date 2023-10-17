@@ -98,14 +98,18 @@ publishing {
 
     repositories {
         mavenLocal()
-        maven {
-            url = uri("s3://mvn.superwall.com/release")
-            credentials(AwsCredentials::class.java) {
-                val awsAccessKeyId: String? by extra
-                val awsSecretAccessKey: String? by extra
 
-                accessKey = awsAccessKeyId
-                secretKey = awsSecretAccessKey
+        // Allow us to publish to S3 if we have the credentials
+        // but also allow us to publish locally if we don't
+        val awsAccessKeyId: String? by extra
+        val awsSecretAccessKey: String? by extra
+        if (awsAccessKeyId != null && awsSecretAccessKey != null) {
+            maven {
+                url = uri("s3://mvn.superwall.com/release")
+                credentials(AwsCredentials::class.java) {
+                    accessKey = awsAccessKeyId
+                    secretKey = awsSecretAccessKey
+                }
             }
         }
     }
