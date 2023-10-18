@@ -45,7 +45,6 @@ class UITestHandler {
         )
 
         suspend fun test1() {
-            // TODO: The name doesn't display
             // Set identity
             Superwall.instance.identify(userId = "test1a")
             Superwall.instance.setUserAttributes(mapOf("first_name" to "Jack"))
@@ -60,7 +59,6 @@ class UITestHandler {
             2,
             "Calls `reset()`. No first name should be displayed."
         )
-
         suspend fun test2() {
             // TODO: The name doesn't get set to begin with so isn't an accurate test.
             // Set identity
@@ -75,7 +73,6 @@ class UITestHandler {
             3,
             "Calls `reset()` multiple times. No first name should be displayed."
         )
-
         suspend fun test3() {
             // Set identity
             Superwall.instance.identify(userId = "test3")
@@ -507,7 +504,7 @@ class UITestHandler {
                     "NOT see an alert when you close the paywall."
         )
         suspend fun test26() {
-            Superwall.instance.register(event = "register_gated_paywall") {
+            Superwall.instance.register(event = "register_gated_paywalls") {
                 val alertController = AlertControllerFactory.make(
                     context = context,
                     title = "Feature Launched",

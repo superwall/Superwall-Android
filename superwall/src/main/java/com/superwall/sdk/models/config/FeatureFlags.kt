@@ -12,7 +12,8 @@ data class RawFeatureFlag(
 @Serializable
 data class FeatureFlags(
     @SerialName("enable_session_events") var enableSessionEvents: Boolean,
-    @SerialName("enable_postback") var enablePostback: Boolean
+    @SerialName("enable_postback") var enablePostback: Boolean,
+    @SerialName("enable_userid_seed") var enableUserIdSeed: Boolean
 )
 
 fun List<RawFeatureFlag>.value(key: String, default: Boolean): Boolean {

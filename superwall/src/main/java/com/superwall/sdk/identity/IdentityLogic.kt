@@ -18,6 +18,10 @@ object IdentityLogic {
         return "\$SuperwallAlias:${UUID.randomUUID()}"
     }
 
+    fun generateSeed(): Int {
+        return (0 until 100).random()
+    }
+
     fun mergeAttributes(
         newAttributes: Map<String, Any?>,
         oldAttributes: Map<String, Any>,

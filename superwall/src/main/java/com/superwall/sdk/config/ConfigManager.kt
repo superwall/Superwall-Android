@@ -12,6 +12,7 @@ import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.models.triggers.Trigger
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.storage.Storage
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.coroutineScope
@@ -91,18 +92,15 @@ open class ConfigManager(
         }
     }
 
-    suspend fun reset() {
-        val _config = config.value
-        if (_config == null) {
-            return
-        }
+    fun reset() {
+        val config = config.value ?: return
 
         unconfirmedAssignments = mutableMapOf()
-        choosePaywallVariants(_config.triggers)
-        GlobalScope.launch(Dispatchers.IO) { preloadPaywalls() }
+        choosePaywallVariants(config.triggers)
+        CoroutineScope(Dispatchers.IO).launch { preloadPaywalls() }
     }
 
-    suspend private fun choosePaywallVariants(triggers: Set<Trigger>) {
+    private fun choosePaywallVariants(triggers: Set<Trigger>) {
         updateAssignments { confirmedAssignments ->
             ConfigLogic.chooseAssignments(
                 fromTriggers = triggers,

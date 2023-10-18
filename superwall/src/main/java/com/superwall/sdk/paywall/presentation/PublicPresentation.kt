@@ -108,8 +108,6 @@ private fun Superwall.internallyRegister(
                 is PaywallState.PresentationError -> {
                     handler?.onErrorHandler?.invoke(state.error)
                 }
-
-                else -> {}
             }
         }
     }

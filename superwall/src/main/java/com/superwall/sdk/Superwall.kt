@@ -249,22 +249,17 @@ public class Superwall(context: Context, apiKey: String, purchaseController: Pur
 
 
     //    // MARK: - Reset
-//    /// Resets the `userId`, on-device paywall assignments, and data stored
-//    /// by Superwall.
+
+    /**
+     * Resets the `userId`, on-device paywall assignments, and data stored
+     * by Superwall.
+     */
     fun reset() {
-        // TODO: From Bryan - why are we doing this with a coroutine?
-        CoroutineScope(Dispatchers.IO).launch {
-            reset(duringIdentify = false)
-        }
+        reset(duringIdentify = false)
     }
 
-
-    //    public func reset() {
-//        reset(duringIdentify: false)
-//    }
-//
     /// Asynchronously resets. Presentation of paywalls is suspended until reset completes.
-    protected suspend fun reset(duringIdentify: Boolean) {
+    internal fun reset(duringIdentify: Boolean) {
         dependencyContainer.identityManager.reset(duringIdentify)
         dependencyContainer.storage.reset()
         dependencyContainer.paywallManager.resetCache()
