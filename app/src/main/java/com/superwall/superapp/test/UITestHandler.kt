@@ -443,8 +443,8 @@ class UITestHandler {
 
         var test22Info = UITestInfo(
             22,
-            "Track an event shortly after another one is beginning to present. The " +
-                    "session should not be cancelled out."
+            "This is skipped! (Track an event shortly after another one is beginning to present. The " +
+                    "session should not be cancelled out.)"
         )
 
         suspend fun test22() {

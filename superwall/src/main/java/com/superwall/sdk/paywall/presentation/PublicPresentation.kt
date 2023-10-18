@@ -19,6 +19,7 @@ import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -64,8 +65,11 @@ private fun Superwall.internallyRegister(
     completion: (() -> Unit)? = null
 ) {
     val publisher = MutableSharedFlow<PaywallState>()
+    val collectionWillStart = CompletableDeferred<Unit>()
 
     CoroutineScope(Dispatchers.Main).launch {
+        collectionWillStart.complete(Unit)
+
         publisher.collect { state ->
             when (state) {
                 is PaywallState.Presented -> {
@@ -113,6 +117,7 @@ private fun Superwall.internallyRegister(
     }
 
     serialTaskManager.addTask {
+        collectionWillStart.await()
         trackAndPresentPaywall(
             event = event,
             params = params,
