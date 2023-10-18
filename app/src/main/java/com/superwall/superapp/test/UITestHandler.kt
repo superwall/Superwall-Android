@@ -504,7 +504,7 @@ class UITestHandler {
                     "NOT see an alert when you close the paywall."
         )
         suspend fun test26() {
-            Superwall.instance.register(event = "register_gated_paywalls") {
+            Superwall.instance.register(event = "register_gated_paywall") {
                 val alertController = AlertControllerFactory.make(
                     context = context,
                     title = "Feature Launched",
