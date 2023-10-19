@@ -1,5 +1,6 @@
 package com.superwall.sdk.models.triggers
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 
@@ -18,6 +19,7 @@ data class RawInterval(
 data class TriggerRuleOccurrence(
     val key: String,
     var maxCount: Int,
+    @SerialName("interval")
     val rawInterval: RawInterval
 ) {
     @Transient
