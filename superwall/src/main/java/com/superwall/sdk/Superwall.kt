@@ -15,6 +15,7 @@ import com.superwall.sdk.delegate.SuperwallDelegateJava
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.dependencies.DependencyContainer
 import com.superwall.sdk.misc.SerialTaskManager
+import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.PresentationItems
 import com.superwall.sdk.paywall.presentation.internal.dismiss
@@ -24,8 +25,10 @@ import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerEventDelegate
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.*
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.filterNotNull
 import java.util.*
 
 public class Superwall(context: Context, apiKey: String, purchaseController: PurchaseController?) :
@@ -114,6 +117,11 @@ public class Superwall(context: Context, apiKey: String, purchaseController: Pur
         }
     }
 
+
+    protected val _setup = MutableStateFlow<Boolean?>(null)
+    val isSetup: Flow<Boolean> get() = _setup.filterNotNull()
+
+
     lateinit var dependencyContainer: DependencyContainer
 
     /// Used to serially execute register calls.
@@ -122,8 +130,9 @@ public class Superwall(context: Context, apiKey: String, purchaseController: Pur
     fun setup() {
         this.dependencyContainer = DependencyContainer(context, purchaseController, options)
 
-
         CoroutineScope(Dispatchers.IO).launch {
+            // We're all setup, this allows everything else to reference the dependency container
+            _setup.emit(true)
             dependencyContainer.storage.configure(apiKey = apiKey)
             dependencyContainer.storage.recordAppInstall {
                 track(event = it)
