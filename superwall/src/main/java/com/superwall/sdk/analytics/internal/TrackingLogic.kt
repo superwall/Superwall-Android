@@ -112,7 +112,6 @@ sealed class TrackingLogic {
                 return ImplicitTriggerOutcome.DeepLinkTrigger
             }
 
-            println("canTriggerPaywall: ${event.rawName} $triggers")
             if (!triggers.contains(event.rawName)) {
                 println("!! canTriggerPaywall: triggers.contains(event.rawName) ${event.rawName} $triggers")
                 return ImplicitTriggerOutcome.DontTriggerPaywall

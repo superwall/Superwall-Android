@@ -9,7 +9,7 @@ object TaskRetryLogic {
     fun delay(
         attempt: Int,
         maxRetries: Int
-    ): ULong? {
+    ): Long? {
         if (attempt > maxRetries) {
             return null
         }
@@ -19,7 +19,6 @@ object TaskRetryLogic {
         val attemptRatio = attempt.toDouble() / maxRetries.toDouble()
         val delay = initialDelay.pow(multiplier + attemptRatio) + jitter
 
-        val oneSecond = 1_000_000_000.0
-        return (oneSecond * delay * 1000).toULong()
+        return (delay * 1000).toLong()
     }
 }

@@ -1,29 +1,9 @@
 package com.superwall.superapp
 
-import android.app.Activity
-import android.content.Context
-import android.util.Log
-import com.android.billingclient.api.*
 import com.superwall.sdk.Superwall
-import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
-import com.superwall.sdk.config.options.SuperwallOptions
-import com.superwall.sdk.delegate.PurchaseResult
-import com.superwall.sdk.delegate.RestorationResult
-import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.delegate.SuperwallDelegate
-import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.paywall.presentation.register
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
-
-
-
 
 class MainApplication : android.app.Application(), SuperwallDelegate {
     override fun onCreate() {

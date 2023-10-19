@@ -62,6 +62,7 @@ open class Network(
 
     //    @MainActor
     suspend fun getConfig(
+        isRetryingCallback: () -> Unit
 //        injectedApplicationStatePublisher: (Flow<UIApplication.State>)? = null
     ): Config {
         // TODO: ApplicationStatePublisher
@@ -72,7 +73,7 @@ open class Network(
 //        applicationStatePublisher
 //            .flowOn(Dispatchers.Main)
 //            .filter { it != UIApplication.State.BACKGROUND }
-//            .first()
+//            .throwableFirst()
 
         return try {
             val requestId = UUID.randomUUID().toString()
@@ -80,10 +81,11 @@ open class Network(
                 Endpoint.config(
                     factory = factory,
                     requestId = requestId
-                )
+                ),
+                isRetryingCallback = isRetryingCallback
             )
             config.requestId = requestId
-            config
+            return config
         } catch (error: Throwable) {
             Logger.debug(
                 logLevel = LogLevel.error,

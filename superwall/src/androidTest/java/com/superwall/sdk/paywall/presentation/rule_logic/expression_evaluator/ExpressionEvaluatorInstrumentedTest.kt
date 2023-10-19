@@ -69,8 +69,6 @@ class ExpressionEvaluatorInstrumentedTest {
             )
         )
 
-        println("result: $result")
-
         assert(result == TriggerRuleOutcome.match(rule = rule))
     }
 

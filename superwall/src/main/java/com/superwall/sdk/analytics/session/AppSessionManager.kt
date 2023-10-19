@@ -11,11 +11,13 @@ import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.config.ConfigManager
+import com.superwall.sdk.config.models.getConfig
 import com.superwall.sdk.storage.Storage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.launch
 import java.util.*
 
@@ -72,8 +74,8 @@ class AppSessionManager(
 
     fun listenForAppSessionTimeout() {
         CoroutineScope(Dispatchers.Main).launch {
-            configManager.config
-                .filterNotNull()
+            configManager.configState
+                .mapNotNull { it.getSuccess()?.getConfig() }
                 .collect { config ->
                     appSessionTimeout = config.appSessionTimeout
 

@@ -4,8 +4,10 @@ package com.superwall.sdk.network.session
 import LogLevel
 import LogScope
 import Logger
+import com.superwall.sdk.misc.retrying
 import com.superwall.sdk.models.SerializableEntity
 import com.superwall.sdk.network.Endpoint
+import kotlinx.coroutines.Dispatchers
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNamingStrategy
 import java.net.HttpURLConnection
@@ -73,7 +75,10 @@ class CustomHttpUrlConnection {
 
 
     @Throws(NetworkError::class)
-    suspend inline fun <reified Response : SerializableEntity> request(endpoint: Endpoint<Response>): Response {
+    suspend inline fun <reified Response : SerializableEntity> request(
+        endpoint: Endpoint<Response>,
+        noinline  isRetryingCallback: (() -> Unit)? = null
+    ): Response {
         val request = endpoint.makeRequest() ?: throw NetworkError.Unknown()
 
         val auth =
@@ -89,7 +94,14 @@ class CustomHttpUrlConnection {
         )
 
         val startTime = System.currentTimeMillis()
-        val responseCode = request.responseCode
+
+        val responseCode: Int = retrying(
+            coroutineContext = Dispatchers.IO,
+            maxRetryCount = endpoint.retryCount,
+            isRetryingCallback = isRetryingCallback
+        ) {
+            request.responseCode
+        }
 
         var responseMessage: String? = null
         if (responseCode == HttpURLConnection.HTTP_OK) {
@@ -100,7 +112,6 @@ class CustomHttpUrlConnection {
             request.disconnect()
             throw NetworkError.Unknown()
         }
-
 
         val requestDuration = (System.currentTimeMillis() - startTime) / 1000.0
         val requestId = try {

@@ -118,10 +118,6 @@ public class Superwall(context: Context, apiKey: String, purchaseController: Pur
     }
 
 
-    protected val _setup = MutableStateFlow<Boolean?>(null)
-    val isSetup: Flow<Boolean> get() = _setup.filterNotNull()
-
-
     lateinit var dependencyContainer: DependencyContainer
 
     /// Used to serially execute register calls.
@@ -131,8 +127,6 @@ public class Superwall(context: Context, apiKey: String, purchaseController: Pur
         this.dependencyContainer = DependencyContainer(context, purchaseController, options)
 
         CoroutineScope(Dispatchers.IO).launch {
-            // We're all setup, this allows everything else to reference the dependency container
-            _setup.emit(true)
             dependencyContainer.storage.configure(apiKey = apiKey)
             dependencyContainer.storage.recordAppInstall {
                 track(event = it)

@@ -39,7 +39,6 @@ class TransactionManager(
         val product = storeKitManager.productsById[productId] ?: return
 
         val activity = activityLifecycleTracker.getCurrentActivity() ?: return
-        println("currentActivity: $activity")
 
         prepareToStartTransaction(product, paywallViewController)
 

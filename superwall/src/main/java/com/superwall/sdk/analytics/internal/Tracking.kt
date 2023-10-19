@@ -29,10 +29,6 @@ import kotlinx.serialization.json.JsonObject
 import java.util.*
 
 suspend fun Superwall.track(event: Trackable): TrackingResult {
-
-    // Wait for _setup
-    Superwall.instance.isSetup.first()
-
     // Get parameters to be sent to the delegate and stored in an event.
     // now with Date
     val eventCreatedAt = Date()
@@ -106,7 +102,7 @@ private suspend fun Superwall.internallyHandleImplicitTrigger(
     // TODO: https://linear.app/superwall/issue/SW-2414/[android]-wait-for-sub-status
     try {
         waitForSubsStatusAndConfig(request, null)
-    } catch (e: Exception) {
+    } catch (e: Throwable) {
         logErrors(request, e)
         return@withContext
     }

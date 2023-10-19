@@ -28,7 +28,6 @@ suspend fun Superwall.getPaywallComponents(
     publisher: MutableSharedFlow<PaywallState>? = null
 ): PaywallComponents {
     waitForSubsStatusAndConfig(request, publisher)
-
     // TODO:
 //    val debugInfo = logPresentation(request)
     val debugInfo = emptyMap<String, Any>()
@@ -48,7 +47,7 @@ suspend fun Superwall.getPaywallComponents(
 
     val paywallViewController = getPaywallViewController(request, rulesOutcome, debugInfo, publisher)
 
-    val presenter = getPresenterIfNecessary(paywallViewController, rulesOutcome, request, debugInfo, publisher)
+    val presenter = getPresenterIfNecessary(paywallViewController, rulesOutcome, request, publisher)
 
     confirmPaywallAssignment(rulesOutcome.confirmableAssignment, request, request.flags.isDebuggerLaunched)
 

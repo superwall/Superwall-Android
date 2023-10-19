@@ -28,7 +28,8 @@ data class Endpoint<Response : SerializableEntity>(
     var method: HttpMethod = HttpMethod.GET,
     var requestId: String = UUID.randomUUID().toString(),
     var isForDebugging: Boolean = false,
-    val factory: ApiFactory
+    val factory: ApiFactory,
+    val retryCount: Int = 6
 ) {
     enum class HttpMethod(val method: String) {
         GET("GET"),
@@ -76,9 +77,6 @@ data class Endpoint<Response : SerializableEntity>(
             outputStream.write(components.bodyData)
             outputStream.close()
         }
-
-
-
 
         connection.requestMethod = method.method
 

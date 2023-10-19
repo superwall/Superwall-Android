@@ -343,7 +343,7 @@ class DependencyContainer(
         val deviceInfo = makeDeviceInfo()
         return ConfigLogic.getStaticPaywall(
             withId = paywallId,
-            config = configManager.config.value,
+            config = configManager.config,
             deviceLocale = deviceInfo.locale
         )
     }
@@ -368,11 +368,11 @@ class DependencyContainer(
     }
 
     override fun makeFeatureFlags(): FeatureFlags? {
-        return configManager.config.value?.featureFlags
+        return configManager.config?.featureFlags
     }
 
     override fun makeComputedPropertyRequests(): List<ComputedPropertyRequest> {
-        return configManager.config.value?.allComputedProperties ?: emptyList()
+        return configManager.config?.allComputedProperties ?: emptyList()
     }
 
     override suspend fun makeIdentityInfo(): IdentityInfo {

@@ -1,7 +1,9 @@
 package com.superwall.sdk.config
 
 import androidx.test.platform.app.InstrumentationRegistry
+import com.superwall.sdk.config.models.ConfigState
 import com.superwall.sdk.dependencies.DependencyContainer
+import com.superwall.sdk.misc.Result
 import com.superwall.sdk.models.assignment.Assignment
 import com.superwall.sdk.models.assignment.ConfirmableAssignment
 import com.superwall.sdk.models.config.Config
@@ -14,6 +16,7 @@ import com.superwall.sdk.network.NetworkMock
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.StorageMock
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.*
@@ -28,8 +31,8 @@ class ConfigManagerUnderTest(
     network = network,
 ) {
 
-    fun setConfig(config: Config) {
-        _config.value = config
+    suspend fun setConfig(config: Config) {
+        configState.emit(Result.Success(ConfigState.Retrieved(config)))
     }
 }
 
@@ -37,7 +40,6 @@ class ConfigManagerTests {
 
     @Test
     fun test_confirmAssignment() = runTest {
-
         // get context
         val context = InstrumentationRegistry.getInstrumentation().targetContext
 
@@ -88,6 +90,7 @@ class ConfigManagerTests {
 
         val job = launch {
             configManager.getAssignments()
+            ensureActive()
             // Make sure we never get here...
             assert(false)
         }
@@ -153,8 +156,6 @@ class ConfigManagerTests {
 
         val variantOption = VariantOption.stub().apply { id = variantId }
         configManager.setConfig(
-
-
             Config.stub().apply {
                 triggers = setOf(
                     Trigger.stub().apply {

@@ -56,5 +56,4 @@ data class Config(
             )
         }
     }
-
 }

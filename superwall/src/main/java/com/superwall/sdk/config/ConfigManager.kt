@@ -3,7 +3,11 @@ package com.superwall.sdk.config
 import LogLevel
 import LogScope
 import Logger
+import com.superwall.sdk.config.models.ConfigState
+import com.superwall.sdk.config.models.getConfig
 import com.superwall.sdk.config.options.SuperwallOptions
+import com.superwall.sdk.misc.Result
+import com.superwall.sdk.misc.awaitFirstValidConfig
 import com.superwall.sdk.models.assignment.AssignmentPostback
 import com.superwall.sdk.models.assignment.ConfirmableAssignment
 import com.superwall.sdk.models.config.Config
@@ -30,11 +34,17 @@ open class ConfigManager(
 ) {
     var options = SuperwallOptions()
 
-    protected val _config = MutableStateFlow<Config?>(null)
-    val config: StateFlow<Config?> get() = _config
+    // The configuration of the Superwall dashboard
+    val configState = MutableStateFlow<Result<ConfigState>>(Result.Success(ConfigState.Retrieving))
+
+    // Convenience variable to access config
+    val config: Config?
+        get() = configState.value.getSuccess()?.getConfig()
 
     // A flow that emits just once only when `config` is non-`nil`.
-    val hasConfig: Flow<Config> = config.filterNotNull()
+    val hasConfig: Flow<Config> = configState
+        .mapNotNull { it.getSuccess()?.getConfig() }
+        .take(1)
 
     // A dictionary of triggers by their event name.
     private var _triggersByEventName = mutableMapOf<String, Trigger>()
@@ -64,7 +74,11 @@ open class ConfigManager(
     suspend fun fetchConfiguration() {
         coroutineScope {
             try {
-                val config = network.getConfig()
+                val config = network.getConfig() {
+                    launch {
+                        configState.emit(Result.Success(ConfigState.Retrying))
+                    }
+                }
                 launch { sendProductsBack(config) }
 
                 Logger.debug(
@@ -75,12 +89,13 @@ open class ConfigManager(
 
                 triggersByEventName = ConfigLogic.getTriggersByEventName(config.triggers)
                 choosePaywallVariants(config.triggers)
-                this@ConfigManager._config.value = config
+                configState.emit(Result.Success(ConfigState.Retrieved(config)))
 
                 // TODO: Re-enable those params
 //                storeKitManager.loadPurchasedProducts()
                 launch { preloadPaywalls() }
             } catch (e: Exception) {
+                configState.emit(Result.Failure(e))
                 Logger.debug(
                     logLevel = LogLevel.error,
                     scope = LogScope.superwallCore,
@@ -93,7 +108,7 @@ open class ConfigManager(
     }
 
     fun reset() {
-        val config = config.value ?: return
+        val config = configState.value.getSuccess()?.getConfig() ?: return
 
         unconfirmedAssignments = mutableMapOf()
         choosePaywallVariants(config.triggers)
@@ -110,10 +125,9 @@ open class ConfigManager(
     }
 
     suspend fun getAssignments() {
-        // Wait for a config to be available
-        val config = config.first { it != null }
+        val config = configState.awaitFirstValidConfig() ?: return
 
-        config!!.triggers.takeUnless { it.isEmpty() }?.let { triggers ->
+        config.triggers.takeUnless { it.isEmpty() }?.let { triggers ->
             try {
                 val assignments = network.getAssignments()
 
@@ -127,7 +141,7 @@ open class ConfigManager(
                 }
 
 //                if (Superwall.shared.options.paywalls.shouldPreload) {
-                GlobalScope.launch(Dispatchers.IO) { preloadAllPaywalls() }
+                CoroutineScope(Dispatchers.IO).launch { preloadAllPaywalls() }
 //                }
             } catch (e: Exception) {
                 Logger.debug(
@@ -164,8 +178,8 @@ open class ConfigManager(
     }
 
     // Preloading Paywalls
-    suspend private fun getTreatmentPaywallIds(triggers: Set<Trigger>): Set<String> {
-        val config = config.filterNotNull().first() ?: return emptySet()
+    private fun getTreatmentPaywallIds(triggers: Set<Trigger>): Set<String> {
+        val config = configState.value.getSuccess()?.getConfig() ?: return emptySet()
         val preloadableTriggers = ConfigLogic.filterTriggers(triggers, config.preloadingDisabled)
         if (preloadableTriggers.isEmpty()) return emptySet()
         val confirmedAssignments = storage.getConfirmedAssignments()
@@ -185,7 +199,8 @@ open class ConfigManager(
 
     // Preloads paywalls referenced by triggers.
     private suspend fun preloadAllPaywalls() = coroutineScope {
-        val config = config.filterNotNull().first()
+        val config = configState.awaitFirstValidConfig() ?: return@coroutineScope
+
         val triggers = ConfigLogic.filterTriggers(config.triggers, config.preloadingDisabled)
         val confirmedAssignments = storage.getConfirmedAssignments()
         val paywallIds = ConfigLogic.getAllActiveTreatmentPaywallIds(
@@ -198,7 +213,7 @@ open class ConfigManager(
 
     // Preloads paywalls referenced by the provided triggers.
     suspend fun preloadPaywallsByNames(eventNames: Set<String>) = coroutineScope {
-        val config = config.filterNotNull().first()
+        val config = configState.awaitFirstValidConfig() ?: return@coroutineScope
         val triggersToPreload = config.triggers.filter { eventNames.contains(it.eventName) }
         val triggerPaywallIdentifiers = getTreatmentPaywallIds(triggersToPreload.toSet())
         preloadPaywalls(triggerPaywallIdentifiers)

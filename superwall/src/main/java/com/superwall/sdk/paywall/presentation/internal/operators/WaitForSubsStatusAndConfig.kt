@@ -5,12 +5,14 @@ import LogScope
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
+import com.superwall.sdk.config.models.ConfigState
+import com.superwall.sdk.config.models.getConfig
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.dependencies.DependencyContainer
+import com.superwall.sdk.misc.Result
 import com.superwall.sdk.paywall.presentation.internal.InternalPresentationLogic
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatus
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatusReason
-import com.superwall.sdk.paywall.presentation.internal.PresentationPipelineError
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.paywall.presentation.internal.userIsSubscribed
@@ -18,21 +20,13 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.cancel
 import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import java.util.TimerTask
 
 // Kotlin version of `waitForSubsStatusAndConfig` function
 internal suspend fun Superwall.waitForSubsStatusAndConfig(
@@ -80,67 +74,71 @@ internal suspend fun Superwall.waitForSubsStatusAndConfig(
         timeout = 5000
     )
     subscriptionStatusTask.cancelTimeout()
-    val config = dependencyContainer.configManager.config.value
+
+    val configState = dependencyContainer.configManager.configState
 
     if (subscriptionStatusTask.value == SubscriptionStatus.ACTIVE) {
-        if (config == null) {
-            val result = getValueWithTimeout(
-                task = {
-                    try {
-                        dependencyContainer.configManager.config.first()
-                    } catch (e: CancellationException) {
-                        CoroutineScope(Dispatchers.Default).launch {
-                            val trackedEvent = InternalSuperwallEvent.PresentationRequest(
-                                eventData = request.presentationInfo.eventData,
-                                type = request.flags.type,
-                                status = PaywallPresentationRequestStatus.Timeout,
-                                statusReason = PaywallPresentationRequestStatusReason.NoConfig(),
-                                factory = dependencyContainer
+        if (configState.value.getSuccess()?.getConfig() == null) {
+            if (configState.value.getSuccess() is ConfigState.Retrieving) {
+                // If config is nil and we're still retrieving, wait for <=1 second.
+                // At 1s we cancel the task and check config again.
+                val result = getValueWithTimeout(
+                    task = {
+                        try {
+                            configState
+                                .first { result ->
+                                    if (result is Result.Failure) throw result.error
+                                    result.getSuccess()?.getConfig() != null
+                                }
+                        } catch (e: CancellationException) {
+                            CoroutineScope(Dispatchers.Default).launch {
+                                val trackedEvent = InternalSuperwallEvent.PresentationRequest(
+                                    eventData = request.presentationInfo.eventData,
+                                    type = request.flags.type,
+                                    status = PaywallPresentationRequestStatus.Timeout,
+                                    statusReason = PaywallPresentationRequestStatusReason.NoConfig(),
+                                    factory = dependencyContainer
+                                )
+                                track(trackedEvent)
+                            }
+                            Logger.debug(
+                                logLevel = LogLevel.info,
+                                scope = LogScope.paywallPresentation,
+                                message = "Timeout: The config could not be retrieved in a reasonable time for a subscribed user."
                             )
-                            track(trackedEvent)
+                            throw userIsSubscribed(paywallStatePublisher)
                         }
-                        Logger.debug(
-                            logLevel = LogLevel.info,
-                            scope = LogScope.paywallPresentation,
-                            message = "Timeout: The config could not be retrieved in a reasonable time for a subscribed user."
-                        )
-                        throw userIsSubscribed(paywallStatePublisher)
-                    }
-                },
-                timeout = 1000
-            )
-            result.cancelTimeout()
-            // TODO: Implement a status for getting config. If still in a retrieving state do above. If retrying or anything else and no config, do below. Currently it will wait for 1s every time there's no config.
-            // If the user is subscribed and there's no config (for whatever reason),
-            // just call the feature block.
-            //throw userIsSubscribed(paywallStatePublisher)
+                    },
+                    timeout = 1000
+                )
+                result.cancelTimeout()
+            } else {
+                // If the user is subscribed and there's no config (for whatever reason),
+                // just call the feature block.
+                throw userIsSubscribed(paywallStatePublisher)
+            }
         } else {
             // If the user is subscribed and there is config, continue.
         }
     } else {
-        val result = getValueWithTimeout(
-            task = {
-                try {
-                    dependencyContainer.configManager.config
-                        .filterNotNull()
-                        .first()
-                } catch (e: CancellationException) {
-                    // If config completely dies, then throw an error
-                    val error = InternalPresentationLogic.presentationError(
-                            domain = "SWKPresentationError",
-                        code = 104,
-                        title = "No Config",
-                        value = "Trying to present paywall without the Superwall config."
-                    )
-                    val state = PaywallState.PresentationError(error)
-                    paywallStatePublisher?.emit(state)
-                    throw PaywallPresentationRequestStatusReason.NoConfig()
+        try {
+            configState
+                .first { result ->
+                    if (result is Result.Failure) throw result.error
+                    result.getSuccess()?.getConfig() != null
                 }
-            },
-            timeout = 15000
-        )
-        result.cancelTimeout()
-        val config = result.value
+        } catch (e: Exception) {
+            // If config completely dies, then throw an error
+            val error = InternalPresentationLogic.presentationError(
+                domain = "SWKPresentationError",
+                code = 104,
+                title = "No Config",
+                value = "Trying to present paywall without the Superwall config."
+            )
+            val state = PaywallState.PresentationError(error)
+            paywallStatePublisher?.emit(state)
+            throw PaywallPresentationRequestStatusReason.NoConfig()
+        }
     }
 
     // Get the identity. This may or may not wait depending on whether the dev

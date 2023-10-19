@@ -14,6 +14,8 @@ import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.config.ConfigManager
+import com.superwall.sdk.config.models.getConfig
+import com.superwall.sdk.misc.awaitFirstValidConfig
 import com.superwall.sdk.misc.sha256MappedToRange
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.storage.AliasId
@@ -29,6 +31,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -104,8 +107,6 @@ class IdentityManager(
             _aliasId = IdentityLogic.generateAlias()
             storage.save(_aliasId, AliasId)
             extraAttributes["aliasId"] = _aliasId
-        } else {
-            this._aliasId = aliasId
         }
 
         val seed = storage.get(Seed)
@@ -113,8 +114,6 @@ class IdentityManager(
             _seed = IdentityLogic.generateSeed()
             storage.save(_seed, Seed)
             extraAttributes["seed"] = _seed
-        } else {
-            this._seed = seed
         }
 
         if (extraAttributes.isNotEmpty()) {
@@ -158,9 +157,9 @@ class IdentityManager(
 
                     _appUserId = sanitizedUserId
 
-                    val config = configManager.config
+                    val config = configManager.configState.awaitFirstValidConfig()
 
-                    if (config?.value?.featureFlags?.enableUserIdSeed == true) {
+                    if (config?.featureFlags?.enableUserIdSeed == true) {
                         userId.sha256MappedToRange()?.let { seed ->
                             _seed = seed
                         }

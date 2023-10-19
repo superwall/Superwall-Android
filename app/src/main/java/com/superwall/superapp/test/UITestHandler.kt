@@ -677,11 +677,10 @@ class UITestHandler {
         }
 
         // TODO: Test 38 & 39, & 40 need to be able to present modally and swipe to dismiss implemented.
-        // TODO: Tests 41 - 48 require a feature block
 
         // Warning: Change `subscribed` param to product id
-        suspend fun executeRegisterFeatureClosureTest(subscribed: Boolean, gated: Boolean) {
-            var currentSubscriptionStatus = Superwall.instance.subscriptionStatus.value
+        private suspend fun executeRegisterFeatureClosureTest(subscribed: Boolean, gated: Boolean) {
+            val currentSubscriptionStatus = Superwall.instance.subscriptionStatus.value
 
             if (subscribed) {
                 // Set user subscribed
