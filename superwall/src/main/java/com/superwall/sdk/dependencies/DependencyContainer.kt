@@ -73,7 +73,8 @@ class DependencyContainer(
     PaywallRequestManagerDepFactory, VariablesFactory,
     StoreTransactionFactory, Storage.Factory, InternalSuperwallEvent.PresentationRequest.Factory,
     ViewControllerFactory, PaywallManager.Factory, OptionsFactory, TriggerFactory,
-    TransactionVerifierFactory, TransactionManager.Factory, PaywallViewController.Factory {
+    TransactionVerifierFactory, TransactionManager.Factory, PaywallViewController.Factory,
+    ConfigManager.Factory {
 
     var network: Network
     override lateinit var api: Api
@@ -105,21 +106,35 @@ class DependencyContainer(
             javaPurchaseController = null,
             context
         )
+        storeKitManager = StoreKitManager(context, purchaseController)
 
         delegateAdapter = SuperwallDelegateAdapter()
-
         storage = Storage(context = context, factory = this)
         network = Network(factory = this)
 
-        deviceHelper = DeviceHelper(context = context, storage, factory = this)
+        paywallRequestManager = PaywallRequestManager(
+            storeKitManager = storeKitManager,
+            network = network,
+            factory = this
+        )
+        paywallManager = PaywallManager(
+            paywallRequestManager = paywallRequestManager,
+            factory = this,
+        )
 
         configManager = ConfigManager(
             storage = storage,
-            network = network
+            network = network,
+            factory = this,
+            paywallManager = paywallManager
         )
 
-        // TODO: Pass in config manager
+        // TODO: Pass in config manager network options
         api = Api(networkEnvironment = SuperwallOptions.NetworkEnvironment.Release())
+
+        deviceHelper = DeviceHelper(context = context, storage = storage, factory = this)
+
+        queue = EventsQueue(context, configManager = configManager, network = network)
 
         identityManager = IdentityManager(
             storage = storage,
@@ -145,20 +160,6 @@ class DependencyContainer(
         CoroutineScope(Dispatchers.Main).launch {
             ProcessLifecycleOwner.get().lifecycle.addObserver(appSessionManager)
         }
-
-        storeKitManager = StoreKitManager(context, purchaseController)
-
-        paywallRequestManager = PaywallRequestManager(
-            storeKitManager = storeKitManager,
-            network = network,
-            factory = this
-        )
-        paywallManager = PaywallManager(
-            paywallRequestManager = paywallRequestManager,
-            factory = this,
-        )
-
-        queue = EventsQueue(context, configManager = configManager, network = network)
 
         transactionManager = TransactionManager(
             storeKitManager = storeKitManager,

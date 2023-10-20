@@ -6,6 +6,7 @@ import com.superwall.sdk.dependencies.ViewControllerFactory
 import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.paywall.request.PaywallRequestManager
 import com.superwall.sdk.paywall.vc.PaywallViewController
+import com.superwall.sdk.paywall.vc.delegate.PaywallLoadingState
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegateAdapter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
@@ -59,8 +60,8 @@ class PaywallManager(
             locale = deviceInfo.locale
         )
 
-        cache.getPaywallViewController(cacheKey)?.let { viewController ->
-            if (!request.isDebuggerLaunched) {
+        if (!request.isDebuggerLaunched) {
+            cache.getPaywallViewController(cacheKey)?.let { viewController ->
                 if (!isPreloading) {
                     viewController.delegate = delegate
                     viewController.paywall.update(paywall)
@@ -80,6 +81,9 @@ class PaywallManager(
             // Only preload if it's actually gonna present the view.
             // Not if we're just checking its result
             // TODO: Handle the preloading
+            if (paywallViewController.loadingState is PaywallLoadingState.Unknown) {
+                paywallViewController.loadWebView()
+            }
 //            paywallViewController.loadViewIfNeeded()
         }
 

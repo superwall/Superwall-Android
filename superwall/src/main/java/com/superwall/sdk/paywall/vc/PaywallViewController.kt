@@ -129,7 +129,7 @@ class PaywallViewController(
         set(value) {
             val oldValue = field
             field = value
-            if (value != oldValue) {
+            if (value::class != oldValue::class) {
                 loadingStateDidChange(oldValue)
             }
         }
@@ -394,7 +394,9 @@ class PaywallViewController(
         // Assert if no `request`
         fatalAssert(request != null, "Must be presenting a PaywallViewController with a `request` instance.")
 
-        loadWebView()
+        if (loadingState is PaywallLoadingState.Unknown) {
+            loadWebView()
+        }
     }
 
     /// Lets the view controller know that presentation has finished.
@@ -612,7 +614,7 @@ class PaywallViewController(
         }
     }
 
-    private fun loadWebView() {
+    fun loadWebView() {
         val url = paywall.url
 
         if (paywall.webviewLoadingInfo.startAt == null) {

@@ -6,6 +6,8 @@ import Logger
 import com.superwall.sdk.config.models.ConfigState
 import com.superwall.sdk.config.models.getConfig
 import com.superwall.sdk.config.options.SuperwallOptions
+import com.superwall.sdk.dependencies.DeviceInfoFactory
+import com.superwall.sdk.dependencies.RequestFactory
 import com.superwall.sdk.misc.Result
 import com.superwall.sdk.misc.awaitFirstValidConfig
 import com.superwall.sdk.models.assignment.AssignmentPostback
@@ -15,6 +17,8 @@ import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.models.triggers.Trigger
 import com.superwall.sdk.network.Network
+import com.superwall.sdk.paywall.manager.PaywallManager
+import com.superwall.sdk.paywall.request.ResponseIdentifiers
 import com.superwall.sdk.storage.Storage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -29,9 +33,10 @@ open class ConfigManager(
     private val storage: Storage,
     private val network: Network,
     options: SuperwallOptions? = null,
-//    private val paywallManager: PaywallManager,
-//    private val factory: RequestFactory & DeviceInfoFactory
+    private val paywallManager: PaywallManager,
+    private val factory: Factory
 ) {
+    interface Factory: RequestFactory, DeviceInfoFactory {}
     var options = SuperwallOptions()
 
     // The configuration of the Superwall dashboard
@@ -221,17 +226,31 @@ open class ConfigManager(
 
     // Preloads paywalls referenced by triggers.
     private fun preloadPaywalls(paywallIdentifiers: Set<String>) {
-        // TODO: Re-enable this
-//        paywallIdentifiers.forEach { identifier ->
-//            launch {
-//                val request = factory.makePaywallRequest(null, ResponseIdentifiers(paywallId = identifier), null, false)
-//                val _ = try {
-//                    paywallManager.getPaywallViewController(request, true, null)
-//                } catch (e: Exception) {
-//                    null
-//                }
-//            }
-//        }
+        paywallIdentifiers.forEach { identifier ->
+            CoroutineScope(Dispatchers.IO).launch {
+                val request = factory.makePaywallRequest(
+                    eventData = null,
+                    responseIdentifiers = ResponseIdentifiers(
+                        paywallId = identifier,
+                        experiment = null
+                    ),
+                    overrides = null,
+                    isDebuggerLaunched = false,
+                    presentationSourceType = null,
+                    retryCount = 6
+                )
+                try {
+                    paywallManager.getPaywallViewController(
+                        request = request,
+                        isForPresentation = true,
+                        isPreloading = true,
+                        delegate = null
+                    )
+                } catch (e: Exception) {
+                    null
+                }
+            }
+        }
     }
 
     // This sends product data back to the dashboard.

@@ -27,7 +27,7 @@ interface Loggable {
             val output: MutableList<String> = mutableListOf()
             val dumping: MutableMap<String, Any> = mutableMapOf()
 
-            message?.let { output.add(it) }
+            message.let { output.add(it) }
 
             info?.let {
                 output.add(it.toString())
