@@ -60,7 +60,7 @@ suspend fun Superwall.track(event: Trackable): TrackingResult {
         createdAt = eventCreatedAt
     )
     dependencyContainer.queue.enqueue(event = eventData)
-    dependencyContainer.storage.coreDataManager.saveEventData(eventData, null)
+    dependencyContainer.storage.coreDataManager.saveEventData(eventData)
 
     if (event.canImplicitlyTriggerPaywall) {
         CoroutineScope(Dispatchers.IO).launch {

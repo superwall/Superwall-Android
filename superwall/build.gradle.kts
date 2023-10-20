@@ -13,6 +13,7 @@ buildscript {
 plugins {
     id("com.android.library")
     kotlin("android")
+    kotlin("kapt")
     kotlin("plugin.serialization") version "1.8.21"
     // Maven publishing
     id("maven-publish")
@@ -127,6 +128,9 @@ tasks.register("generateBuildInfo") {
 
 dependencies {
     implementation("androidx.lifecycle:lifecycle-process:2.2.0")
+    implementation("androidx.room:room-runtime:2.3.0")
+    kapt("androidx.room:room-compiler:2.3.0")
+
     // Billing
     implementation(libs.billing)
 
