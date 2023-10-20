@@ -44,7 +44,6 @@ class SWWebView(
         addJavascriptInterface(messageHandler, "SWAndroid")
 
         val webSettings = this.settings
-
         webSettings.javaScriptEnabled = true
         webSettings.setSupportZoom(false)
         webSettings.builtInZoomControls = false
@@ -63,7 +62,6 @@ class SWWebView(
 
         // Set a WebViewClient
         this.webViewClient = object : WebViewClient() {
-
             override fun shouldOverrideUrlLoading(
                 view: WebView?,
                 request: WebResourceRequest?

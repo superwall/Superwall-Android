@@ -1,6 +1,7 @@
 package com.superwall.sdk.models.paywall
 
 import ComputedPropertyRequest
+import com.superwall.sdk.config.models.OnDeviceCaching
 import com.superwall.sdk.config.models.Survey
 import com.superwall.sdk.dependencies.TriggerSessionManagerFactory
 import com.superwall.sdk.models.SerializableEntity
@@ -65,6 +66,11 @@ data class Paywall(
 
     @SerialName("computedProperties")
     var computedPropertyRequests: List<ComputedPropertyRequest> = emptyList(),
+
+    /**
+     * Indicates whether the caching of the paywall is enabled or not.
+      */
+    var onDeviceCache: OnDeviceCaching = OnDeviceCaching.Disabled,
 
     @kotlinx.serialization.Transient()
     var experiment: Experiment? = null,

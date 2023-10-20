@@ -15,6 +15,11 @@ import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.view.Window
 import android.view.WindowManager
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
+import android.webkit.WebSettings
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import android.widget.FrameLayout
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.browser.customtabs.CustomTabsIntent
@@ -23,6 +28,7 @@ import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEventObjc
 import com.superwall.sdk.analytics.trigger_session.LoadState
+import com.superwall.sdk.config.models.OnDeviceCaching
 import com.superwall.sdk.dependencies.TriggerFactory
 import com.superwall.sdk.dependencies.TriggerSessionManagerFactory
 import com.superwall.sdk.game.GameControllerDelegate
@@ -208,7 +214,6 @@ class PaywallViewController(
         this.paywallStatePublisher = paywallStatePublisher
         this.unsavedOccurrence = unsavedOccurrence
     }
-
 
     fun present(
         presenter: Activity,
@@ -616,7 +621,7 @@ class PaywallViewController(
 
     fun loadWebView() {
         val url = paywall.url
-
+    println("*** HEY!")
         if (paywall.webviewLoadingInfo.startAt == null) {
             paywall.webviewLoadingInfo.startAt = Date()
         }
@@ -635,13 +640,13 @@ class PaywallViewController(
             )
         }
 
-        // TODO: Enable webview caching
-//        if (Superwall.instance.options.paywalls.useCachedTemplates) {
-//            val request = Request.Builder().url(url).cacheControl(CacheControl.FORCE_CACHE).build()
-//            webView.loadUrl(request)
-//        } else {
+        if (paywall.onDeviceCache is OnDeviceCaching.Enabled) {
+            webView.settings.cacheMode = WebSettings.LOAD_CACHE_ELSE_NETWORK
+        } else {
+            webView.settings.cacheMode = WebSettings.LOAD_DEFAULT
+        }
+
         webView.loadUrl(url.toString())
-//        }
 
         loadingState = PaywallLoadingState.LoadingURL()
     }
