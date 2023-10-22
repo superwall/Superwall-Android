@@ -1,0 +1,17 @@
+name: Echo Hello on Release
+
+on:
+  push:
+  release:
+    types: [created]
+
+jobs:
+  notify_pwn:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository Dispatch
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          token: ${{ secrets.MAIN_REPO_PAT }}
+          repository: superwall-me/paywall-next
+          event-type: android-release
