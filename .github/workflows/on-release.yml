@@ -1,7 +1,6 @@
 name: Notify android release
 
 on:
-  push:
   release:
     types: [created]
 
