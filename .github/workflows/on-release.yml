@@ -1,4 +1,4 @@
-name: Echo Hello on Release
+name: Notify android release
 
 on:
   push:
@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Repository Dispatch
-        uses: peter-evans/repository-dispatch@v2
+        uses: peter-evans/repository-dispatch@98b1133981c5060126325c279a8840c1711a9fe0
         with:
           token: ${{ secrets.MAIN_REPO_PAT }}
           repository: superwall-me/paywall-next
