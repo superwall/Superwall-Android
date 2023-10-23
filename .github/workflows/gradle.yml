@@ -103,6 +103,8 @@ jobs:
         fi
 
     - name: slack-send
+      # Only notify on a new tag
+      if: steps.check-tag.outputs.tag-exists == 'false'
       uses: slackapi/slack-github-action@v1.24.0
       with:
         payload: |
