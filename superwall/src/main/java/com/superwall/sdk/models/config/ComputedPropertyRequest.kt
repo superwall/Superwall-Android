@@ -32,11 +32,21 @@ data class ComputedPropertyRequest(
         val calendarComponent: Int
             get() = when (this) {
                 MINUTES_SINCE -> Calendar.MINUTE
-                HOURS_SINCE -> Calendar.HOUR
+                HOURS_SINCE -> Calendar.HOUR_OF_DAY
                 DAYS_SINCE -> Calendar.DAY_OF_MONTH
                 MONTHS_SINCE -> Calendar.MONTH
                 YEARS_SINCE -> Calendar.YEAR
             }
+
+        fun dateComponent(components: Map<Int, Int>): Int? {
+            return when (this) {
+                MINUTES_SINCE -> components[Calendar.MINUTE]
+                HOURS_SINCE -> components[Calendar.HOUR_OF_DAY]
+                DAYS_SINCE -> components[Calendar.DAY_OF_MONTH]
+                MONTHS_SINCE -> components[Calendar.MONTH]
+                YEARS_SINCE -> components[Calendar.YEAR]
+            }
+        }
 
         fun dateComponent(date: Date): Int {
             val calendar = Calendar.getInstance()

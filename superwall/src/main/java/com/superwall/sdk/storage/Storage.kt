@@ -22,7 +22,7 @@ open class Storage(
     /// The disk cache.
     private val cache: Cache = Cache(context = context),
     /// The interface that manages core data.
-    val coreDataManager: CoreDataManager = CoreDataManager()
+    val coreDataManager: CoreDataManager = CoreDataManager(context = context)
 ) {
     interface Factory: DeviceHelperFactory, HasExternalPurchaseControllerFactory {}
 

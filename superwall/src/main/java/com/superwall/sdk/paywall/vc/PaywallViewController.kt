@@ -420,7 +420,7 @@ class PaywallViewController(
         }
 
         unsavedOccurrence?.let {
-            storage.coreDataManager.save(triggerRuleOccurrence = it, completion = null)
+            storage.coreDataManager.save(triggerRuleOccurrence = it)
             unsavedOccurrence = null
         }
 

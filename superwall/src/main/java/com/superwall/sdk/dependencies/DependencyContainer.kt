@@ -67,7 +67,7 @@ import kotlinx.coroutines.withContext
 class DependencyContainer(
     val context: Context,
     purchaseController: PurchaseController? = null,
-    options: SuperwallOptions = SuperwallOptions()
+    options: SuperwallOptions?
 ) : ApiFactory, DeviceInfoFactory, AppManagerDelegate, RequestFactory, TriggerSessionManagerFactory,
     RuleAttributesFactory, DeviceHelper.Factory, CacheFactory,
     PaywallRequestManagerDepFactory, VariablesFactory,
@@ -125,12 +125,12 @@ class DependencyContainer(
         configManager = ConfigManager(
             storage = storage,
             network = network,
+            options = options,
             factory = this,
             paywallManager = paywallManager
         )
 
-        // TODO: Pass in config manager network options
-        api = Api(networkEnvironment = SuperwallOptions.NetworkEnvironment.Release())
+        api = Api(networkEnvironment = configManager.options.networkEnvironment)
 
         deviceHelper = DeviceHelper(context = context, storage = storage, factory = this)
 

@@ -28,7 +28,7 @@ class MainApplication : android.app.Application(), SuperwallDelegate {
 
         Superwall.configure(
             this,
-            "pk_5f6d9ae96b889bc2c36ca0f2368de2c4c3d5f6119aacd3d2",
+            "pk_2d1d31d50d50fa0ba0bcbae41c3f970d63db413a7e1150db",
             purchaseController
         )
         Superwall.instance.delegate = this

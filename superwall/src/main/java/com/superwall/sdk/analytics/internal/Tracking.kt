@@ -60,7 +60,7 @@ suspend fun Superwall.track(event: Trackable): TrackingResult {
         createdAt = eventCreatedAt
     )
     dependencyContainer.queue.enqueue(event = eventData)
-    dependencyContainer.storage.coreDataManager.saveEventData(eventData, null)
+    dependencyContainer.storage.coreDataManager.saveEventData(eventData)
 
     if (event.canImplicitlyTriggerPaywall) {
         CoroutineScope(Dispatchers.IO).launch {
@@ -99,7 +99,6 @@ private suspend fun Superwall.internallyHandleImplicitTrigger(
         type = PresentationRequestType.Presentation
     )
 
-    // TODO: https://linear.app/superwall/issue/SW-2414/[android]-wait-for-sub-status
     try {
         waitForSubsStatusAndConfig(request, null)
     } catch (e: Throwable) {
