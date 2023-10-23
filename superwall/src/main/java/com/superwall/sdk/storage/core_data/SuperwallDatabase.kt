@@ -10,12 +10,12 @@ import com.superwall.sdk.storage.core_data.entities.ManagedEventDataDao
 import com.superwall.sdk.storage.core_data.entities.ManagedTriggerRuleOccurrence
 import com.superwall.sdk.storage.core_data.entities.ManagedTriggerRuleOccurrenceDao
 
+@TypeConverters(Converters::class)
 @Database(
     entities = [ManagedEventData::class, ManagedTriggerRuleOccurrence::class],
     version = 1,
     exportSchema = false
 )
-@TypeConverters(Converters::class)
 abstract class SuperwallDatabase : RoomDatabase() {
     abstract fun managedEventDataDao(): ManagedEventDataDao
     abstract fun managedTriggerRuleOccurrenceDao(): ManagedTriggerRuleOccurrenceDao

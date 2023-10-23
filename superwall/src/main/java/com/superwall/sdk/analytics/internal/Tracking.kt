@@ -99,7 +99,6 @@ private suspend fun Superwall.internallyHandleImplicitTrigger(
         type = PresentationRequestType.Presentation
     )
 
-    // TODO: https://linear.app/superwall/issue/SW-2414/[android]-wait-for-sub-status
     try {
         waitForSubsStatusAndConfig(request, null)
     } catch (e: Throwable) {

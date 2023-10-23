@@ -504,7 +504,7 @@ class UITestHandler {
                     "NOT see an alert when you close the paywall."
         )
         suspend fun test26() {
-            Superwall.instance.register(event = "register_gated_paywall") {
+            Superwall.instance.register(event = "register_gated_paywalls") {
                 val alertController = AlertControllerFactory.make(
                     context = context,
                     title = "Feature Launched",
@@ -1336,10 +1336,20 @@ class UITestHandler {
                     "Verify that paywall does not load (only 1 paywall can be displayed at once).",
             testCaseType = TestCaseType.Android
         )
-
         suspend fun testAndroid4() {
             val intent = Intent(context, ComposeActivity::class.java)
             context.startActivity(intent)
+        }
+
+        var testAndroid9Info = UITestInfo(
+            9,
+            "Tap launch button. It should display the paywall. Tap again and it should NOT " +
+                    "display again. You will need to delete and reinstall the app to test this again. " +
+                    "This tests the occurrence limit.",
+            testCaseType = TestCaseType.Android
+        )
+        suspend fun testAndroid9() {
+            Superwall.instance.register(event = "one_time_occurrence")
         }
     }
 }

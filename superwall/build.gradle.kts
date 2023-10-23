@@ -127,9 +127,10 @@ tasks.register("generateBuildInfo") {
 
 
 dependencies {
-    implementation("androidx.lifecycle:lifecycle-process:2.2.0")
-    implementation("androidx.room:room-runtime:2.3.0")
-    kapt("androidx.room:room-compiler:2.3.0")
+    implementation("androidx.lifecycle:lifecycle-process:2.5.0")
+    implementation("androidx.room:room-runtime:2.5.2")
+    implementation("androidx.room:room-ktx:2.5.2")
+    kapt("androidx.room:room-compiler:2.5.2")
 
     // Billing
     implementation(libs.billing)

@@ -31,21 +31,34 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.filterNotNull
 import java.util.*
 
-public class Superwall(context: Context, apiKey: String, purchaseController: PurchaseController?) :
+public class Superwall(
+    context: Context,
+    apiKey: String,
+    purchaseController: PurchaseController?,
+    options: SuperwallOptions?
+) :
     PaywallViewControllerEventDelegate {
-    var apiKey: String = apiKey
-    var context: Context = context
-    var purchaseController: PurchaseController? = purchaseController
+    private var apiKey: String = apiKey
+    internal var context: Context = context
+    private var purchaseController: PurchaseController? = purchaseController
+    private var _options: SuperwallOptions? = options
 
+    private var billingController = BillingController(context)
 
-    var billingController = BillingController(context)
+    internal val presentationItems: PresentationItems = PresentationItems()
 
-
-    val presentationItems: PresentationItems = PresentationItems()
-
-    /// The presented paywall view controller.
+    /**
+     * The presented paywall view controller.
+     */
     val paywallViewController: PaywallViewController?
         get() = dependencyContainer.paywallManager.presentedViewController
+
+    /**
+     * A convenience variable to access and change the paywall options that you passed
+     * to `configure(apiKey:purchaseController:options:)`.
+     */
+    val options: SuperwallOptions
+        get() = dependencyContainer.configManager.options
 
     /// Determines whether a paywall is being presented.
     val isPaywallPresented: Boolean
@@ -87,7 +100,7 @@ public class Superwall(context: Context, apiKey: String, purchaseController: Pur
     /// to receive a callback with the new value every time it changes.
     ///
     /// To learn more, see [Purchases and Subscription Status](https://docs.superwall.com/docs/advanced-configuration).
-    public fun setSubscriptionStatus(subscriptionStatus: SubscriptionStatus) {
+    fun setSubscriptionStatus(subscriptionStatus: SubscriptionStatus) {
         _subscriptionStatus.value = subscriptionStatus
     }
 
@@ -105,26 +118,44 @@ public class Superwall(context: Context, apiKey: String, purchaseController: Pur
     companion object {
         var initialized: Boolean = false
         lateinit var instance: Superwall
-        public fun configure(
+
+        /** Configures a shared instance of `Superwall` for use throughout your app.
+         *
+         * Call this as soon as your app finishes launching in `application(_:didFinishLaunchingWithOptions:)`.
+         * Check out [Configuring the SDK](https://docs.superwall.com/docs/configuring-the-sdk) for information about
+         * how to configure the SDK.
+         *
+         * Parameters:
+         *   - `apiKey`: Your Public API Key that you can get from the Superwall dashboard settings. If you don't have
+         *   an account, you can [sign up for free](https://superwall.com/sign-up).
+         *   - `purchaseController`: An object that conforms to ``PurchaseController``. You must implement this to
+         *   handle all subscription-related logic yourself. You'll need to also set the ``subscriptionStatus`` every time the user's
+         *   subscription status changes. You can read more about that in [Purchases and Subscription Status](https://docs.superwall.com/docs/advanced-configuration).
+         *   - options: An optional ``SuperwallOptions`` object which allows you to customise the appearance and behavior
+         *   of the paywall.
+         * Returns: The configured ``Superwall`` instance.
+        */
+        fun configure(
             applicationContext: Context,
             apiKey: String,
-            purchaseController: PurchaseController? = null
+            purchaseController: PurchaseController,
+            options: SuperwallOptions? = null,
         ) {
             // setup the SDK using that API Key
-            instance = Superwall(applicationContext, apiKey, purchaseController)
+            instance = Superwall(applicationContext, apiKey, purchaseController, options)
             instance.setup()
             initialized = true
         }
     }
 
 
-    lateinit var dependencyContainer: DependencyContainer
+    internal lateinit var dependencyContainer: DependencyContainer
 
     /// Used to serially execute register calls.
-    val serialTaskManager = SerialTaskManager()
+    internal val serialTaskManager = SerialTaskManager()
 
-    fun setup() {
-        this.dependencyContainer = DependencyContainer(context, purchaseController, options)
+    internal fun setup() {
+        this.dependencyContainer = DependencyContainer(context, purchaseController, _options)
 
         CoroutineScope(Dispatchers.IO).launch {
             dependencyContainer.storage.configure(apiKey = apiKey)
@@ -285,9 +316,6 @@ public class Superwall(context: Context, apiKey: String, purchaseController: Pur
 //        }
 //
 //    }
-
-
-    var options: SuperwallOptions = SuperwallOptions()
 
     //region Deep Links
     /// Handles a deep link sent to your app to open a preview of your paywall.
