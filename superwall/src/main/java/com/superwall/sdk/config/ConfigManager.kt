@@ -145,9 +145,9 @@ open class ConfigManager(
                     )
                 }
 
-//                if (Superwall.shared.options.paywalls.shouldPreload) {
-                CoroutineScope(Dispatchers.IO).launch { preloadAllPaywalls() }
-//                }
+                if (options.paywalls.shouldPreload) {
+                    CoroutineScope(Dispatchers.IO).launch { preloadAllPaywalls() }
+                }
             } catch (e: Exception) {
                 Logger.debug(
                     logLevel = LogLevel.error,
@@ -198,7 +198,7 @@ open class ConfigManager(
 
     // Preloads paywalls.
     private suspend fun preloadPaywalls() = coroutineScope {
-//        if (!Superwall.shared.options.paywalls.shouldPreload) return@coroutineScope
+        if (!options.paywalls.shouldPreload) return@coroutineScope
         preloadAllPaywalls()
     }
 
