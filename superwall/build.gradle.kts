@@ -20,7 +20,7 @@ plugins {
 }
 
 
-version = "1.0.0-alpha09"
+version = "1.0.0-alpha10"
 
 android {
     compileSdk = 33

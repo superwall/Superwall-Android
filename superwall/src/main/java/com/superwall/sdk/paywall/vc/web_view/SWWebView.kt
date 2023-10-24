@@ -35,7 +35,7 @@ interface SWWebViewDelegate : _SWWebViewDelegate, PaywallMessageHandlerDelegate
 class SWWebView(
     context: Context,
     private val sessionEventsManager: SessionEventsManager,
-    private val messageHandler: PaywallMessageHandler
+    val messageHandler: PaywallMessageHandler
 ) : WebView(context) {
     var delegate: SWWebViewDelegate? = null
 

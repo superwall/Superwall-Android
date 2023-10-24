@@ -57,6 +57,7 @@ import com.superwall.sdk.paywall.vc.Survey.SurveyPresentationResult
 import com.superwall.sdk.paywall.vc.delegate.PaywallLoadingState
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegateAdapter
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerEventDelegate
+import com.superwall.sdk.paywall.vc.web_view.PaywallMessage
 import com.superwall.sdk.paywall.vc.web_view.SWWebView
 import com.superwall.sdk.paywall.vc.web_view.SWWebViewDelegate
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallMessageHandlerDelegate
@@ -263,6 +264,10 @@ class PaywallViewController(
         paywall.closeReason = PaywallCloseReason.None
 
         Superwall.instance.dependencyContainer.delegateAdapter.willPresentPaywall(info)
+
+        if (loadingState is PaywallLoadingState.Ready) {
+            webView.messageHandler.handle(PaywallMessage.TemplateParamsAndUserAttributes)
+        }
 
         presentationWillPrepare = false
     }

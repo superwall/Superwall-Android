@@ -18,13 +18,11 @@ import com.superwall.sdk.BuildConfig
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.dependencies.IdentityInfoFactory
 import com.superwall.sdk.dependencies.LocaleIdentifierFactory
-import com.superwall.sdk.misc.VersionHelper
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.paywall.vc.web_view.templating.models.DeviceTemplate
 import com.superwall.sdk.storage.Storage
 import java.text.SimpleDateFormat
 import java.util.*
-import com.superwall.sdk.misc.sdkVersion
 import com.superwall.sdk.storage.LastPaywallView
 import com.superwall.sdk.storage.TotalPaywallViews
 import java.time.Duration
@@ -356,7 +354,7 @@ class DeviceHelper(
         return output
     }
 
-    suspend fun getTemplateDevice(): Map<String, Any> {
+    private suspend fun getTemplateDevice(): Map<String, Any> {
         val identityInfo = factory.makeIdentityInfo()
         val aliases = listOf(identityInfo.aliasId)
 
@@ -400,7 +398,6 @@ class DeviceHelper(
             appBuildStringNumber = appBuildString.toInt()
         )
 
-        val map = deviceTemplate.toDictionary()
-        return map
+        return deviceTemplate.toDictionary()
     }
 }

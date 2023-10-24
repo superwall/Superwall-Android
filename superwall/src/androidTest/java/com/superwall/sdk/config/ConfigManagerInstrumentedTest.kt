@@ -13,6 +13,7 @@ import com.superwall.sdk.models.triggers.TriggerRule
 import com.superwall.sdk.models.triggers.VariantOption
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.network.NetworkMock
+import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.StorageMock
 import kotlinx.coroutines.delay
@@ -26,9 +27,13 @@ import org.junit.Test
 class ConfigManagerUnderTest(
     private val storage: Storage,
     private val network: Network,
+    private val paywallManager: PaywallManager,
+    private val factory: Factory,
 ) : ConfigManager(
     storage = storage,
     network = network,
+    paywallManager = paywallManager,
+    factory = factory
 ) {
 
     suspend fun setConfig(config: Config) {
@@ -51,7 +56,7 @@ class ConfigManagerTests {
             paywallId = "jkl"
         )
         val assignment = ConfirmableAssignment(experimentId = experimentId, variant = variant)
-        val dependencyContainer = DependencyContainer(context)
+        val dependencyContainer = DependencyContainer(context, null, null)
         val network = NetworkMock(factory = dependencyContainer)
         val storage = StorageMock(context = context)
         val configManager = ConfigManager(
@@ -59,8 +64,8 @@ class ConfigManagerTests {
 //            storeKitManager = dependencyContainer.storeKitManager,
             storage = storage,
             network = network,
-//            paywallManagerger = dependencyContainer.paywallManager,
-//            factory = dependencyContainer
+            paywallManager = dependencyContainer.paywallManager,
+            factory = dependencyContainer
         )
         configManager.confirmAssignment(assignment)
 
@@ -76,7 +81,7 @@ class ConfigManagerTests {
         // get context
         val context = InstrumentationRegistry.getInstrumentation().targetContext
 
-        val dependencyContainer = DependencyContainer(context)
+        val dependencyContainer = DependencyContainer(context, null, null)
         val network = NetworkMock(factory = dependencyContainer)
         val storage = StorageMock(context = context)
         val configManager = ConfigManager(
@@ -84,8 +89,8 @@ class ConfigManagerTests {
 //            storeKitManager = dependencyContainer.storeKitManager,
             storage = storage,
             network = network,
-//            paywallManager = dependencyContainer.paywallManager,
-//            factory = dependencyContainer
+            paywallManager = dependencyContainer.paywallManager,
+            factory = dependencyContainer
         )
 
         val job = launch {
@@ -109,15 +114,15 @@ class ConfigManagerTests {
         // get context
         val context = InstrumentationRegistry.getInstrumentation().targetContext
 
-        val dependencyContainer = DependencyContainer(context)
+        val dependencyContainer = DependencyContainer(context, null, null)
         val network = NetworkMock(factory = dependencyContainer)
         val storage = StorageMock(context = context)
         val configManager = ConfigManagerUnderTest(
 //            storeKitManager = dependencyContainer.storeKitManager,
             storage = storage,
             network = network,
-//            paywallManager = dependencyContainer.paywallManager,
-//            factory = dependencyContainer
+            paywallManager = dependencyContainer.paywallManager,
+            factory = dependencyContainer
         )
         configManager.setConfig(
             Config.stub().apply { this.triggers = emptySet() }
@@ -135,15 +140,15 @@ class ConfigManagerTests {
         // get context
         val context = InstrumentationRegistry.getInstrumentation().targetContext
 
-        val dependencyContainer = DependencyContainer(context)
+        val dependencyContainer = DependencyContainer(context, null, null)
         val network = NetworkMock(factory = dependencyContainer)
         val storage = StorageMock(context = context)
         val configManager = ConfigManagerUnderTest(
 //            storeKitManager = dependencyContainer.storeKitManager,
             storage = storage,
             network = network,
-//            paywallManager = dependencyContainer.paywallManager,
-//            factory = dependencyContainer
+            paywallManager = dependencyContainer.paywallManager,
+            factory = dependencyContainer
         )
 
         val variantId = "variantId"
