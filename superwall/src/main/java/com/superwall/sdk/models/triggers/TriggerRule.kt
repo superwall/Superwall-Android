@@ -55,7 +55,7 @@ data class TriggerRule(
     val expression: String? = null,
     val expressionJs: String? = null,
     val occurrence: TriggerRuleOccurrence? = null,
-    @SerialName("computedProperties")
+    @SerialName("computed_properties")
     val computedPropertyRequests: List<ComputedPropertyRequest> = emptyList()
 ) {
 

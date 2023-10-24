@@ -139,8 +139,6 @@ class CoreDataManager(
             }
 
             return request.type.dateComponent(componentsMap)
-
-
         } catch (error: Exception) {
             Logger.debug(
                 logLevel = LogLevel.error,

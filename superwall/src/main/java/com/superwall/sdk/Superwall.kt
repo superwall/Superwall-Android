@@ -31,7 +31,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.filterNotNull
 import java.util.*
 
-public class Superwall(
+class Superwall(
     context: Context,
     apiKey: String,
     purchaseController: PurchaseController?,

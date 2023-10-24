@@ -1,4 +1,9 @@
+import com.superwall.sdk.config.models.SurveyShowCondition
+import com.superwall.sdk.config.models.SurveyShowConditionSerializer
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Serializer
 import java.util.Calendar
 import java.util.Date
 
@@ -13,11 +18,21 @@ data class ComputedPropertyRequest(
     /**
      * The type of device property to compute.
      */
+    @Serializable(with = ComputedPropertyRequestTypeSerializer::class)
     enum class ComputedPropertyRequestType(val rawValue: String) {
+        @SerialName("MINUTES_SINCE")
         MINUTES_SINCE("MINUTES_SINCE"),
+
+        @SerialName("HOUSE_SINCE")
         HOURS_SINCE("HOURS_SINCE"),
+
+        @SerialName("DAYS_SINCE")
         DAYS_SINCE("DAYS_SINCE"),
+
+        @SerialName("MONTHS_SINCE")
         MONTHS_SINCE("MONTHS_SINCE"),
+
+        @SerialName("YEARS_SINCE")
         YEARS_SINCE("YEARS_SINCE");
 
         val prefix: String
@@ -47,18 +62,21 @@ data class ComputedPropertyRequest(
                 YEARS_SINCE -> components[Calendar.YEAR]
             }
         }
+    }
 
-        fun dateComponent(date: Date): Int {
-            val calendar = Calendar.getInstance()
-            calendar.time = date
-            return calendar.get(calendarComponent)
+    @Serializer(forClass = ComputedPropertyRequestType::class)
+    object ComputedPropertyRequestTypeSerializer : KSerializer<ComputedPropertyRequestType> {
+        override fun serialize(
+            encoder: kotlinx.serialization.encoding.Encoder,
+            value: ComputedPropertyRequestType
+        ) {
+            encoder.encodeString(value.rawValue)
         }
 
-        companion object {
-            fun fromRawValue(value: String): ComputedPropertyRequestType? {
-                return values().find { it.rawValue == value }
-                    ?: throw IllegalArgumentException("Unsupported computed property type.")
-            }
+        override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): ComputedPropertyRequestType {
+            val rawValue = decoder.decodeString()
+            return ComputedPropertyRequestType.values().find { it.rawValue == rawValue }
+                ?: throw IllegalArgumentException("Unsupported computed property type.")
         }
     }
 }

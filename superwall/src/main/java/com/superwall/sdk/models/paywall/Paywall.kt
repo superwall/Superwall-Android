@@ -38,7 +38,7 @@ data class Paywall(
     ),
 
     @SerialName("presentation_style_v2")
-    private val presensentationStyle: String,
+    private val presentationStyle: String,
 
     private val presentationCondition: String,
 
@@ -64,7 +64,7 @@ data class Paywall(
 
     var featureGating: FeatureGatingBehavior = FeatureGatingBehavior.NonGated,
 
-    @SerialName("computedProperties")
+    @SerialName("computed_properties")
     var computedPropertyRequests: List<ComputedPropertyRequest> = emptyList(),
 
     /**
@@ -87,7 +87,7 @@ data class Paywall(
     init {
         productIds = products.map { it.id }
         presentation = Presentation(
-            style = PaywallPresentationStyle.valueOf(presensentationStyle.uppercase()),
+            style = PaywallPresentationStyle.valueOf(presentationStyle.uppercase()),
             condition = PresentationCondition.valueOf(presentationCondition.uppercase())
         )
     }
@@ -166,7 +166,7 @@ data class Paywall(
                     PaywallPresentationStyle.MODAL,
                     PresentationCondition.CHECK_USER_SUBSCRIPTION
                 ),
-                presensentationStyle = "MODAL",
+                presentationStyle = "MODAL",
                 presentationCondition = "CHECK_USER_SUBSCRIPTION",
                 backgroundColorHex = "000000",
                 products = arrayListOf(),

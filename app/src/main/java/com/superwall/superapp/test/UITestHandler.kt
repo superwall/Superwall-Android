@@ -1351,5 +1351,28 @@ class UITestHandler {
         suspend fun testAndroid9() {
             Superwall.instance.register(event = "one_time_occurrence")
         }
+
+        var testAndroid18Info = UITestInfo(
+            18,
+            "Tap launch button. It should display the paywall. Tap again and it should NOT " +
+                    "display again within a minute, printing a NoRuleMatch in the console. After a " +
+                    "minute, tap again, and it should show. You will need to delete and reinstall " +
+                    "the app to test this again.",
+            testCaseType = TestCaseType.Android
+        )
+        suspend fun testAndroid18() {
+            Superwall.instance.register(event = "once_a_minute")
+        }
+
+        var testAndroid19Info = UITestInfo(
+            19,
+            "Tap launch button. The paywall should not display until one day or longer has " +
+                    "passed since the last once_a_minute event. You'll get a NoRuleMatch in the " +
+                    "console.",
+            testCaseType = TestCaseType.Android
+        )
+        suspend fun testAndroid19() {
+            Superwall.instance.register(event = "one_day_since_last_event")
+        }
     }
 }
