@@ -86,7 +86,7 @@ jobs:
       # if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       run: |
         if [ "${{ steps.check-tag.outputs.tag-exists }}" == "false" ]; then
-          ./gradlew publish -Paws_access_key_id=$AWS_ACCESS_KEY_ID -Paws_secret_access_key=$AWS_SECRET_ACCESS_KEY
+          ./gradlew publish -Paws_access_key_id=$AWS_ACCESS_KEY_ID -Paws_secret_access_key=$AWS_SECRET_ACCESS_KEY --debug
         fi
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
