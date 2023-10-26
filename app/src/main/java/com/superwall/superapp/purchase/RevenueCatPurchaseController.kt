@@ -38,6 +38,9 @@ interface PurchaseCompletion {
     var customerInfo: CustomerInfo
 }
 
+// Create a custom exception class that wraps PurchasesError
+private class PurchasesException(val purchasesError: PurchasesError) : Exception(purchasesError.toString())
+
 suspend fun Purchases.awaitPurchase(activity: Activity, storeProduct: StoreProduct): PurchaseCompletion {
     val deferred = CompletableDeferred<PurchaseCompletion>()
     purchase(PurchaseParams.Builder(activity, storeProduct).build(), object : PurchaseCallback {
@@ -49,7 +52,7 @@ suspend fun Purchases.awaitPurchase(activity: Activity, storeProduct: StoreProdu
         }
 
         override fun onError(error: PurchasesError, p1: Boolean) {
-            deferred.completeExceptionally(Exception(error.toString()))
+            deferred.completeExceptionally(PurchasesException(error))
         }
     })
     return deferred.await()
@@ -108,19 +111,18 @@ class RevenueCatPurchaseController(val context: Context): PurchaseController, Up
         val products = Purchases.sharedInstance.awaitProducts(listOf(product.sku))
         val product = products.firstOrNull()
             ?: return PurchaseResult.Failed(Exception("Product not found"))
-        try {
+        return try {
             Purchases.sharedInstance.awaitPurchase(activity, product)
-        } catch (e: Throwable) {
-            val purchasesError = e as? PurchasesError
-            if (purchasesError?.code == PurchasesErrorCode.PurchaseCancelledError) {
+            PurchaseResult.Purchased()
+        } catch (e: PurchasesException) {
+            if (e.purchasesError.code === PurchasesErrorCode.PurchaseCancelledError) {
                 // Purchase was cancelled by the user
-                return PurchaseResult.Cancelled()
+                PurchaseResult.Cancelled()
             } else {
                 // Some other error occurred
-                return PurchaseResult.Failed(e)
+                PurchaseResult.Failed(e)
             }
         }
-        return PurchaseResult.Purchased()
     }
 
     /**

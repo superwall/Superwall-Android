@@ -1374,5 +1374,30 @@ class UITestHandler {
         suspend fun testAndroid19() {
             Superwall.instance.register(event = "one_day_since_last_event")
         }
+
+        var testAndroid20Info = UITestInfo(
+            20,
+            "Non-recurring product purchase. Purchase the product and",
+            testCaseType = TestCaseType.Android
+        )
+        suspend fun testAndroid20() {
+            // Create a mock Superwall delegate
+            val delegate = MockSuperwallDelegate()
+
+            // Set delegate
+            Superwall.instance.delegate = delegate
+
+            // Respond to Superwall events
+            delegate.handleSuperwallEvent { eventInfo ->
+                when (eventInfo.event) {
+                    is SuperwallEvent.NonRecurringProductPurchase -> {
+                        println("!!! Android TEST 20 !!! Non recurring product purchase")
+                    }
+                    else -> return@handleSuperwallEvent
+                }
+            }
+
+            Superwall.instance.register(event = "non_recurring_product")
+        }
     }
 }

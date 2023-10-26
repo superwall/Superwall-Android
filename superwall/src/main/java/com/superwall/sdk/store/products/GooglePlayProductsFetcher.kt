@@ -131,57 +131,82 @@ open class GooglePlayProductsFetcher(var context: Context) : ProductsFetcher,
 
 
     open suspend fun queryProductDetails(productIds: List<String>): Map<String, Result<RawStoreProduct>> {
-        // Wait for connection
         println("!! Waiting for connection ${Thread.currentThread().name}")
         _isConnected.first { it }
         println("!! Connected ${Thread.currentThread().name}")
 
+        val deferredSubs = CompletableDeferred<Map<String, Result<RawStoreProduct>>>()
+        val deferredInApp = CompletableDeferred<Map<String, Result<RawStoreProduct>>>()
 
-        val deferred = CompletableDeferred<Map<String, Result<RawStoreProduct>>>()
+        val skuList = ArrayList(productIds)
 
-        val skuList = ArrayList<String>()
-        skuList.addAll(productIds)
-        val params = SkuDetailsParams.newBuilder()
-        params.setSkusList(skuList).setType(BillingClient.SkuType.SUBS)
+        val subsParams = SkuDetailsParams.newBuilder().setSkusList(skuList).setType(BillingClient.SkuType.SUBS)
+        val inAppParams = SkuDetailsParams.newBuilder().setSkusList(skuList).setType(BillingClient.SkuType.INAPP)
 
-        println("!! Querying product details for ${productIds.size} products, prodcuts: ${productIds},  ${Thread.currentThread().name}")
+        println("!! Querying subscription product details for ${productIds.size} products, products: ${productIds},  ${Thread.currentThread().name}")
+        billingClient.querySkuDetailsAsync(subsParams.build()) { billingResult, skuDetailsList ->
+            deferredSubs.complete(handleSkuDetailsResponse(productIds, billingResult, skuDetailsList))
+        }
 
-        billingClient.querySkuDetailsAsync(params.build()) { billingResult, skuDetailsList ->
+        println("!! Querying in-app product details for ${productIds.size} products, products: ${productIds},  ${Thread.currentThread().name}")
+        billingClient.querySkuDetailsAsync(inAppParams.build()) { billingResult, skuDetailsList ->
+            deferredInApp.complete(handleSkuDetailsResponse(productIds, billingResult, skuDetailsList))
+        }
 
-            println("!! Got product details for ${productIds.size} products, prodcuts: ${productIds}, billingResult: ${billingResult}, skuDetailsList: ${skuDetailsList}  ${Thread.currentThread().name}\"")
+        val subsResults = deferredSubs.await()
+        val inAppResults = deferredInApp.await()
 
-            if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && skuDetailsList != null) {
+        val combinedResults = mutableMapOf<String, Result<RawStoreProduct>>()
 
-                var foundProducts = skuDetailsList.map { it.sku }
-                var missingProducts = productIds.filter { !foundProducts.contains(it) }
-
-                var results = skuDetailsList.associateBy { it.sku }
-                    .mapValues { Result.Success(RawStoreProduct(it.value)) }
-                    .toMutableMap() as MutableMap<String, Result<RawStoreProduct>>
-
-                // For all missing products add error
-                missingProducts.forEach { missingProductId ->
-                    results[missingProductId] =
-                        Result.Error(Exception("Failed to query product details"))
-                }
-
-                deferred.complete(
-                    results.toMap()
-                )
-            } else {
-
-                // Fail all of them
-                val failed: Map<String, Result<RawStoreProduct>> =
-                    productIds.map { it to Result.Error<RawStoreProduct>(Exception("Failed to query product details")) }
-                        .toMap()
-
-                deferred.complete(failed)
+        // First, populate the map with successes from both sets
+        for ((key, value) in subsResults) {
+            if (value is Result.Success) {
+                combinedResults[key] = value
+            }
+        }
+        for ((key, value) in inAppResults) {
+            if (value is Result.Success) {
+                combinedResults[key] = value
             }
         }
 
-        val value = deferred.await()
-        println("!! Returning product details for ${productIds.size} products, prodcuts: ${productIds}, value: ${value}  ${Thread.currentThread().name}\"")
-        return value
+        // Now, populate any remaining keys with failures, but only if the key hasn't been populated already
+        for ((key, value) in subsResults) {
+            combinedResults.getOrPut(key) { value }
+        }
+        for ((key, value) in inAppResults) {
+            combinedResults.getOrPut(key) { value }
+        }
+
+        println("!! Returning product details for ${productIds.size} products ${combinedResults}, ${Thread.currentThread().name}\"")
+
+        return combinedResults
+    }
+
+    private fun handleSkuDetailsResponse(
+        productIds: List<String>,
+        billingResult: BillingResult,
+        skuDetailsList: List<SkuDetails>?
+    ): Map<String, Result<RawStoreProduct>> {
+        println("!! Got product details for ${productIds.size} products, produtcs: ${productIds}, billingResult: ${billingResult}, skuDetailsList: ${skuDetailsList}  ${Thread.currentThread().name}\"")
+
+        if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && skuDetailsList != null) {
+            var foundProducts = skuDetailsList.map { it.sku }
+            var missingProducts = productIds.filter { !foundProducts.contains(it) }
+
+            var results = skuDetailsList.associateBy { it.sku }
+                .mapValues { Result.Success(RawStoreProduct(it.value)) }
+                .toMutableMap() as MutableMap<String, Result<RawStoreProduct>>
+
+            missingProducts.forEach { missingProductId ->
+                results[missingProductId] = Result.Error(Exception("Failed to query product details"))
+            }
+
+            return results.toMap()
+        } else {
+            return productIds.map { it to Result.Error<RawStoreProduct>(Exception("Failed to query product details")) }
+                .toMap()
+        }
     }
 
     override fun onPurchasesUpdated(p0: BillingResult, p1: MutableList<Purchase>?) {

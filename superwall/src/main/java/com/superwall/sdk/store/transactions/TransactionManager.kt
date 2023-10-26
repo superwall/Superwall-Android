@@ -35,7 +35,6 @@ class TransactionManager(
     private var lastPaywallViewController: PaywallViewController? = null
 
     suspend fun purchase(productId: String, paywallViewController: PaywallViewController) {
-        print("purchase, $productId")
         val product = storeKitManager.productsById[productId] ?: return
 
         val activity = activityLifecycleTracker.getCurrentActivity() ?: return
@@ -291,7 +290,7 @@ class TransactionManager(
     }
 
     // ... and so on for the other methods ...
-    suspend fun trackTransactionDidSucceed(
+    private suspend fun trackTransactionDidSucceed(
         transaction: StoreTransactionType?,
         product: StoreProduct
     ) {
