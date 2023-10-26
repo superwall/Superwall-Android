@@ -40,9 +40,9 @@
 🆓 | Trial start rate tracking - know and measure your trial start rate out of the box
 📊 | Analytics - automatic calculation of metrics like conversion and views
 ✏️ | A/B Testing - automatically calculate metrics for different paywalls
-📝 | [Online documentation](https://docs.superwall.com/docs) up to date
-🔀 | [Integrations](https://docs.superwall.com/docs) - over a dozen integrations to easily send conversion data where you need it
-💯 | Well maintained - [frequent releases](https://github.com/superwall-me/Superwall-iOS/releases)
+📝 | [Online documentation](https://superwall.com/docs/android-beta) up to date
+🔀 | [Integrations](https://superwall.com/docs/android-beta) - over a dozen integrations to easily send conversion data where you need it
+💯 | Well maintained - [frequent releases](https://github.com/superwall-me/Superwall-Android/releases)
 📮 | Great support - email a founder: jake@superwall.com
 
 ## Installation
@@ -77,7 +77,7 @@ The preferred installation method is with [Gradle](https://superwall.com/docs/in
 
 ## Getting Started
 
-[Sign up for a free account on Superwall](https://superwall.com/sign-up) and [read our docs](https://superwall.com/docs).
+[Sign up for a free account on Superwall](https://superwall.com/sign-up) and [read our docs](https://superwall.com/docs/android-beta).
 
 <!-- TODO: Re-enable this once we have the example apps -->
 <!--
