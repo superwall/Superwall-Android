@@ -58,32 +58,32 @@ jobs:
         path: "superwall/build/version.json"
         prop_path: "version"
 
-    # Only try to publish if we're on main
-    - name: Check if tag exists
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-      id: check-tag
-      run: |
-        EXISTS=$(git tag -l | grep -Fxq "${{steps.version.outputs.prop}}" && echo 'true' || echo 'false')
-        echo "::set-output name=tag-exists::$EXISTS"
+    # # Only try to publish if we're on main
+    # - name: Check if tag exists
+    #   if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    #   id: check-tag
+    #   run: |
+    #     EXISTS=$(git tag -l | grep -Fxq "${{steps.version.outputs.prop}}" && echo 'true' || echo 'false')
+    #     echo "::set-output name=tag-exists::$EXISTS"
 
-    - name: Tag
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-      run: |
-        if [ "${{ steps.check-tag.outputs.tag-exists }}" == "false" ]; then
-          sudo git config --global user.name 'Jake'
-          sudo git config --global user.email 'jakemor@users.noreply.github.com'
-          sudo git pull
-          echo "\n\n\n- - - - - VERSION - - - - -\n\n\n"
-          echo ${{steps.version.outputs.prop}}
-          echo "\n\n\n- - - - - END VERSION - - - - -\n\n\n"
-          sudo git tag -a ${{steps.version.outputs.prop}} -m "tags with latest version"
-          sudo git push --tags
-          sudo git checkout -b release/${{steps.version.outputs.prop}}
-          sudo git push -u origin release/${{steps.version.outputs.prop}}
-        fi
+    # - name: Tag
+    #   if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    #   run: |
+    #     if [ "${{ steps.check-tag.outputs.tag-exists }}" == "false" ]; then
+    #       sudo git config --global user.name 'Jake'
+    #       sudo git config --global user.email 'jakemor@users.noreply.github.com'
+    #       sudo git pull
+    #       echo "\n\n\n- - - - - VERSION - - - - -\n\n\n"
+    #       echo ${{steps.version.outputs.prop}}
+    #       echo "\n\n\n- - - - - END VERSION - - - - -\n\n\n"
+    #       sudo git tag -a ${{steps.version.outputs.prop}} -m "tags with latest version"
+    #       sudo git push --tags
+    #       sudo git checkout -b release/${{steps.version.outputs.prop}}
+    #       sudo git push -u origin release/${{steps.version.outputs.prop}}
+    #     fi
 
     - name: Deploy
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      # if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       run: |
         if [ "${{ steps.check-tag.outputs.tag-exists }}" == "false" ]; then
           ./gradlew publish -Paws_access_key_id=$AWS_ACCESS_KEY_ID -Paws_secret_access_key=$AWS_SECRET_ACCESS_KEY
@@ -92,25 +92,25 @@ jobs:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
-    - name: Determine prerelease status
-      id: prerelease
-      run: |
-        VERSION=${{steps.version.outputs.prop}}
-        if [[ "$VERSION" == *"-alpha"* || "$VERSION" == *"-beta"* || "$VERSION" == *"-rc"* ]]; then
-          echo "::set-output name=status::true"
-        else
-          echo "::set-output name=status::false"
-        fi
+    # - name: Determine prerelease status
+    #   id: prerelease
+    #   run: |
+    #     VERSION=${{steps.version.outputs.prop}}
+    #     if [[ "$VERSION" == *"-alpha"* || "$VERSION" == *"-beta"* || "$VERSION" == *"-rc"* ]]; then
+    #       echo "::set-output name=status::true"
+    #     else
+    #       echo "::set-output name=status::false"
+    #     fi
 
-    - name: slack-send
-      # Only notify on a new tag
-      if: steps.check-tag.outputs.tag-exists == 'false'
-      uses: slackapi/slack-github-action@v1.24.0
-      with:
-        payload: |
-          {
-            "text": "Please create a new Android Release! https://github.com/superwall-me/Superwall-Android/releases/new?tag=${{steps.version.outputs.prop}}&prerelease=${{steps.prerelease.outputs.status}}"
-          }
-      env:
-        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
-        SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+    # - name: slack-send
+    #   # Only notify on a new tag
+    #   if: steps.check-tag.outputs.tag-exists == 'false'
+    #   uses: slackapi/slack-github-action@v1.24.0
+    #   with:
+    #     payload: |
+    #       {
+    #         "text": "Please create a new Android Release! https://github.com/superwall-me/Superwall-Android/releases/new?tag=${{steps.version.outputs.prop}}&prerelease=${{steps.prerelease.outputs.status}}"
+    #       }
+    #   env:
+    #     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+    #     SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
