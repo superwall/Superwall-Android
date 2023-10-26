@@ -70,7 +70,6 @@ class IdentityManager(
 
     suspend fun getUserAttributes(): Map<String, Any> = withContext(scope.coroutineContext) {
         return@withContext mutex.withLock {
-            println("!!! GET user attributes: $_userAttributes")
             _userAttributes
         }
     }
@@ -130,7 +129,6 @@ class IdentityManager(
         scope.launch {
             IdentityLogic.sanitize(userId)?.let { sanitizedUserId ->
                 mutex.withLock {
-                    println("inside the identify lock")
                     if (_appUserId == sanitizedUserId) return@withLock
 
                     identityFlow.emit(false)
@@ -145,9 +143,7 @@ class IdentityManager(
                     val config = configManager.configState.awaitFirstValidConfig()
 
                     if (config?.featureFlags?.enableUserIdSeed == true) {
-                        println("!!! HMMM")
                         sanitizedUserId.sha256MappedToRange()?.let { seed ->
-                            println("!!! SANITIZESSEED $seed")
                             _seed = seed
                         }
                     }
@@ -220,7 +216,6 @@ class IdentityManager(
     private fun _reset() {
         _appUserId = null
         _aliasId = IdentityLogic.generateAlias()
-        println("!!! RESETTING")
         _seed = IdentityLogic.generateSeed()
         _userAttributes = emptyMap()
         saveIds()
@@ -259,7 +254,6 @@ class IdentityManager(
                 Superwall.instance.track(trackableEvent)
             }
         }
-        println("!!! NOW MERGING ATTRIBUTES $mergedAttributes")
         storage.save(mergedAttributes, UserAttributes)
         _userAttributes = mergedAttributes
     }

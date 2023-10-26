@@ -2,7 +2,7 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall-me/Superwall-Android/releases) on GitHub.
 
-## 1.0.0-alpha.12
+## 1.0.0-alpha.13
 
 ### Fixes
 

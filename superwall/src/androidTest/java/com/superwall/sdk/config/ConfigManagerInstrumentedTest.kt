@@ -69,7 +69,8 @@ class ConfigManagerTests {
         )
         configManager.confirmAssignment(assignment)
 
-        delay(200)
+        // Adding a delay because confirming assignments is on a queue
+        delay(500)
 
         assertTrue(network.assignmentsConfirmed)
         assertEquals(storage.getConfirmedAssignments()[experimentId], variant)
