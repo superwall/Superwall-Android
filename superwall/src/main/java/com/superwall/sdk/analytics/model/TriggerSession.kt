@@ -9,7 +9,7 @@ import kotlinx.serialization.json.*
 import java.util.*
 
 @Serializable
-data class TriggerSession(
+internal data class TriggerSession(
     @SerialName("trigger_session_id") var id: String = UUID.randomUUID().toString(),
     @SerialName("config_request_id") val configRequestId: String,
     @SerialName("trigger_session_start_ts")

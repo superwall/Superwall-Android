@@ -24,7 +24,7 @@ import kotlinx.coroutines.*
 import java.net.URL
 import java.util.*
 
-interface PaywallMessageHandlerDelegate {
+internal interface PaywallMessageHandlerDelegate {
     val request: PresentationRequest?
     var paywall: Paywall
     val info: PaywallInfo
@@ -38,7 +38,7 @@ interface PaywallMessageHandlerDelegate {
     fun presentSafariExternal(url: String)
 }
 
-class PaywallMessageHandler(
+internal class PaywallMessageHandler(
     private val sessionEventsManager: SessionEventsManager,
     private val factory: VariablesFactory
 ) {

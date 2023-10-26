@@ -28,7 +28,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
 import java.util.*
 
-suspend fun Superwall.track(event: Trackable): TrackingResult {
+internal suspend fun Superwall.track(event: Trackable): TrackingResult {
     // Get parameters to be sent to the delegate and stored in an event.
     // now with Date
     val eventCreatedAt = Date()
@@ -78,7 +78,7 @@ suspend fun Superwall.track(event: Trackable): TrackingResult {
     return result
 }
 
-suspend fun Superwall.handleImplicitTrigger(
+internal suspend fun Superwall.handleImplicitTrigger(
     event: Trackable,
     eventData: EventData
 ) = withContext(Dispatchers.Main) {

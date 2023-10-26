@@ -26,13 +26,13 @@ import kotlinx.coroutines.launch
 import java.util.*
 
 
-interface _SWWebViewDelegate {
+internal interface _SWWebViewDelegate {
     val info: PaywallInfo
 }
 
-interface SWWebViewDelegate : _SWWebViewDelegate, PaywallMessageHandlerDelegate
+internal interface SWWebViewDelegate : _SWWebViewDelegate, PaywallMessageHandlerDelegate
 
-class SWWebView(
+internal class SWWebView(
     context: Context,
     private val sessionEventsManager: SessionEventsManager,
     val messageHandler: PaywallMessageHandler

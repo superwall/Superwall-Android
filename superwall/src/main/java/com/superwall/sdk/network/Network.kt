@@ -16,7 +16,7 @@ import com.superwall.sdk.network.session.CustomHttpUrlConnection
 import java.util.*
 
 
-open class Network(
+internal class Network(
     private val urlSession: CustomHttpUrlConnection = CustomHttpUrlConnection(),
     private val factory: ApiFactory
 ) {

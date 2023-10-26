@@ -6,8 +6,8 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import java.util.*
 
-@kotlinx.serialization.Serializable
-data class EventData(
+@Serializable
+internal data class EventData(
     @SerialName("event_id")
     val id: String = UUID.randomUUID().toString(),
     @SerialName("event_name")

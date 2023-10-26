@@ -17,18 +17,18 @@ import com.superwall.sdk.models.triggers.UnmatchedRule
 import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.ExpressionEvaluator
 import com.superwall.sdk.storage.Storage
 
-data class RuleEvaluationOutcome(
+internal data class RuleEvaluationOutcome(
     val confirmableAssignment: ConfirmableAssignment? = null,
     val unsavedOccurrence: TriggerRuleOccurrence? = null,
     val triggerResult: InternalTriggerResult
 )
 
-sealed class RuleMatchOutcome {
+internal sealed class RuleMatchOutcome {
     data class Matched(val item: MatchedItem) : RuleMatchOutcome()
     data class NoMatchingRules(val unmatchedRules: List<UnmatchedRule>) : RuleMatchOutcome()
 }
 
-class RuleLogic(
+internal class RuleLogic(
     private val context: Context,
     private val configManager: ConfigManager,
     private val storage: Storage,

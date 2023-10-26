@@ -27,7 +27,7 @@ enum class LoadState {
 
 
 // TODO: https://linear.app/superwall/issue/SW-2366/[android]-implement-triggersessionmanager
-class TriggerSessionManager(
+internal class TriggerSessionManager(
     val storage: Storage,
     val configManager: ConfigManager,
     val appSessionManager: AppSessionManager,

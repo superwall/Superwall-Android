@@ -2,7 +2,7 @@ package com.superwall.sdk.analytics.internal
 
 import com.superwall.sdk.models.events.EventData
 
-data class TrackingResult(
+internal data class TrackingResult(
     var data: EventData,
     val parameters: TrackingParameters
 ) {

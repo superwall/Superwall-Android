@@ -64,7 +64,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class DependencyContainer(
+internal class DependencyContainer(
     val context: Context,
     purchaseController: PurchaseController? = null,
     options: SuperwallOptions?

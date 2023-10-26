@@ -28,7 +28,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 // TODO: Re-enable those params
-open class ConfigManager(
+internal class ConfigManager(
 //    private val storeKitManager: StoreKitManager,
     private val storage: Storage,
     private val network: Network,

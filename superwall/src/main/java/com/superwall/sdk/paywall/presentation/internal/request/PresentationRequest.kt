@@ -52,7 +52,7 @@ sealed class PresentationRequestType {
 }
 
 
-data class PresentationRequest(
+internal data class PresentationRequest(
     val presentationInfo: PresentationInfo,
     var presenter: Activity? = null,
     var paywallOverrides: PaywallOverrides? = null,

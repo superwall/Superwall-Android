@@ -27,10 +27,10 @@ import com.superwall.sdk.storage.LastPaywallView
 import com.superwall.sdk.storage.TotalPaywallViews
 import java.time.Duration
 
-class DeviceHelper(
+internal class DeviceHelper(
     private val context: Context,
     val storage: Storage,
-    val factory: DeviceHelper.Factory
+    val factory: Factory
 ) {
     interface Factory: IdentityInfoFactory, LocaleIdentifierFactory {}
 

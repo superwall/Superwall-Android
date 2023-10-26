@@ -9,7 +9,7 @@ import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import kotlinx.coroutines.flow.MutableStateFlow
 
-suspend fun Superwall.checkDebuggerPresentation(
+internal suspend fun Superwall.checkDebuggerPresentation(
     request: PresentationRequest,
     paywallStatePublisher: MutableStateFlow<PaywallState>
 ) {

@@ -17,14 +17,7 @@ import com.superwall.sdk.paywall.vc.PaywallViewController
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
 
-data class PresentablePipelineOutput(
-    val debugInfo: Map<String, Any>,
-    val paywallViewController: PaywallViewController,
-    val presenter: Activity,
-    val confirmableAssignment: ConfirmableAssignment?
-)
-
-suspend fun Superwall.getPresenterIfNecessary(
+internal suspend fun Superwall.getPresenterIfNecessary(
     paywallViewController: PaywallViewController,
     rulesOutcome: RuleEvaluationOutcome,
     request: PresentationRequest,

@@ -10,14 +10,7 @@ import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.rule_logic.RuleEvaluationOutcome
 import com.superwall.sdk.paywall.presentation.rule_logic.RuleLogic
 
-// Defining the data class equivalent of the struct in Swift
-data class AssignmentPipelineOutput(
-    val triggerResult: TriggerResult,
-    var confirmableAssignment: ConfirmableAssignment?,
-    val debugInfo: Map<String, Any>
-)
-
-suspend fun Superwall.evaluateRules(request: PresentationRequest): RuleEvaluationOutcome {
+internal suspend fun Superwall.evaluateRules(request: PresentationRequest): RuleEvaluationOutcome {
     val eventData = request.presentationInfo.eventData
 
     return if (eventData != null) {

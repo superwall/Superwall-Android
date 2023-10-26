@@ -12,7 +12,7 @@ import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
  * paywall present even if the user is subscribed. We only know the overrides
  * at this point.
  */
-fun Superwall.confirmPaywallAssignment(
+internal fun Superwall.confirmPaywallAssignment(
     confirmableAssignment: ConfirmableAssignment?,
     request: PresentationRequest,
     isDebuggerLaunched: Boolean,

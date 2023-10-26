@@ -26,7 +26,7 @@ interface AppManagerDelegate {
 }
 
 //
-class AppSessionManager(
+internal class AppSessionManager(
     private val context: Context,
     private val configManager: ConfigManager,
     private val storage: Storage,

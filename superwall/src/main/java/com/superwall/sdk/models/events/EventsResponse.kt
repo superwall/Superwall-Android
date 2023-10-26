@@ -11,7 +11,7 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 
 @Serializable
-data class EventsResponse(
+internal data class EventsResponse(
     val status: Status,
     val invalidIndexes: List<Int>? = null
 ) : SerializableEntity {
@@ -21,7 +21,7 @@ data class EventsResponse(
     }
 }
 
-object StatusSerializer : KSerializer<EventsResponse.Status> {
+internal object StatusSerializer : KSerializer<EventsResponse.Status> {
     override val descriptor: SerialDescriptor =
         PrimitiveSerialDescriptor("Status", PrimitiveKind.STRING)
 

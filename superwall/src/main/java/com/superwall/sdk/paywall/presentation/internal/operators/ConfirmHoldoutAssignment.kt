@@ -7,7 +7,7 @@ import com.superwall.sdk.models.triggers.TriggerResult
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.rule_logic.RuleEvaluationOutcome
 
-fun Superwall.confirmHoldoutAssignment(
+internal fun Superwall.confirmHoldoutAssignment(
     request: PresentationRequest,
     rulesOutcome: RuleEvaluationOutcome,
     dependencyContainer: DependencyContainer? = null

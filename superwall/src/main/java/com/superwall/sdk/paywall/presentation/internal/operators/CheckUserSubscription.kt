@@ -10,7 +10,7 @@ import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
 
-suspend fun Superwall.checkUserSubscription(
+internal suspend fun Superwall.checkUserSubscription(
     request: PresentationRequest,
     triggerResult: InternalTriggerResult,
     paywallStatePublisher: MutableSharedFlow<PaywallState>? = null

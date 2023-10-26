@@ -6,7 +6,7 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.*
 
-class PaywallViewControllerCache(private val deviceLocaleString: String) {
+internal class PaywallViewControllerCache(private val deviceLocaleString: String) {
 
     private var _activePaywallVcKey: String? = null
     private val cache = ConcurrentHashMap<String, PaywallViewController>()

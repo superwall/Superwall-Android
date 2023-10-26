@@ -38,7 +38,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.Executors
 
-class IdentityManager(
+internal class IdentityManager(
     private val deviceHelper: DeviceHelper,
     private val storage: Storage,
     private val configManager: ConfigManager

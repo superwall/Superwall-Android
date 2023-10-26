@@ -9,7 +9,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class Config(
+internal data class Config(
     @SerialName("triggerOptions") var triggers: Set<Trigger>,
     @SerialName("paywallResponses") var paywalls: List<Paywall>,
     var logLevel: Int,

@@ -18,7 +18,7 @@ import kotlinx.coroutines.withContext
 typealias PaywallStatePublisher = Flow<PaywallState>
 
 @Throws(Throwable::class)
-suspend fun Superwall.internallyPresent(
+internal suspend fun Superwall.internallyPresent(
     request: PresentationRequest,
     publisher: MutableSharedFlow<PaywallState>
 ) {

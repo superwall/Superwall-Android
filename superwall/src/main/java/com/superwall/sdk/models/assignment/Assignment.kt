@@ -23,4 +23,4 @@ package com.superwall.sdk.models.assignment
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class Assignment(var experimentId: String, var variantId: String)
+internal data class Assignment(var experimentId: String, var variantId: String)

@@ -37,7 +37,7 @@ suspend fun Superwall.dismiss() = withContext(Dispatchers.Main) {
     completionSignal.await()
 }
 
-suspend fun Superwall.dismissForNextPaywall() = withContext(Dispatchers.Main) {
+internal suspend fun Superwall.dismissForNextPaywall() = withContext(Dispatchers.Main) {
     val completionSignal = CompletableDeferred<Unit>()
 
     paywallViewController?.let {

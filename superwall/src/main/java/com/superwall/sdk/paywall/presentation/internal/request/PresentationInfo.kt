@@ -7,11 +7,11 @@ import com.superwall.sdk.models.events.EventData
 // EventData should be defined in Kotlin before this.
 // Assuming it is defined, and it contains a property 'name'
 
-sealed class PresentationInfo {
+internal sealed class PresentationInfo {
 
-    data class ImplicitTrigger(override val eventData: EventData) : PresentationInfo()
-    data class ExplicitTrigger(override val eventData: EventData) : PresentationInfo()
-    data class FromIdentifier(
+    internal data class ImplicitTrigger(override val eventData: EventData) : PresentationInfo()
+    internal data class ExplicitTrigger(override val eventData: EventData) : PresentationInfo()
+    internal data class FromIdentifier(
         override val identifier: String,
         override val freeTrialOverride: Boolean
     ) : PresentationInfo()
@@ -29,7 +29,7 @@ sealed class PresentationInfo {
             else -> null
         }
 
-    val eventName: String?
+    internal val eventName: String?
         get() = when (this) {
             is ImplicitTrigger -> eventData.name
             is ExplicitTrigger -> eventData.name
@@ -42,7 +42,7 @@ sealed class PresentationInfo {
             else -> null
         }
 
-    val triggerType: TriggerSessionTrigger.TriggerType
+    internal val triggerType: TriggerSessionTrigger.TriggerType
         get() = when (this) {
             is ImplicitTrigger -> TriggerSessionTrigger.TriggerType.IMPLICIT
             else -> TriggerSessionTrigger.TriggerType.EXPLICIT

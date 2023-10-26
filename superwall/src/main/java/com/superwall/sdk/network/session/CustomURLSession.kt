@@ -12,7 +12,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNamingStrategy
 import java.net.HttpURLConnection
 
-sealed class NetworkError(message: String) : Throwable(message) {
+internal sealed class NetworkError(message: String) : Throwable(message) {
     class Unknown : NetworkError("An unknown error occurred.")
     class NotAuthenticated : NetworkError("Unauthorized.")
     class Decoding : NetworkError("Decoding error.")
@@ -21,7 +21,7 @@ sealed class NetworkError(message: String) : Throwable(message) {
 }
 
 
-class CustomHttpUrlConnection {
+internal class CustomHttpUrlConnection {
 
 
     val json = Json {

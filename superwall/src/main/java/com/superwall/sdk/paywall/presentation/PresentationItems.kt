@@ -11,7 +11,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
-class PresentationItems {
+internal class PresentationItems {
     private var _last: LastPresentationItems? = null
     private val lastMutex = Mutex()
 
@@ -34,7 +34,7 @@ class PresentationItems {
 }
 
 // Items involved in the last successful paywall presentation request.
-data class LastPresentationItems(
+internal data class LastPresentationItems(
     // The last paywall presentation request.
     val request: PresentationRequest,
 

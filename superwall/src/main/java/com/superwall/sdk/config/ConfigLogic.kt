@@ -8,7 +8,7 @@ import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.triggers.*
 import java.util.*
 
-object ConfigLogic {
+internal object ConfigLogic {
     sealed class TriggerRuleError : Exception() {
         object NoVariantsFound : TriggerRuleError()
         object InvalidState : TriggerRuleError()

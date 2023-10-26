@@ -11,7 +11,7 @@ import com.superwall.sdk.paywall.vc.PaywallViewController
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 
-data class PaywallComponents(
+internal data class PaywallComponents(
     val viewController: PaywallViewController,
     val presenter: Activity?,
     val rulesOutcome: RuleEvaluationOutcome,
@@ -19,7 +19,7 @@ data class PaywallComponents(
 )
 
 @Throws(Throwable::class)
-suspend fun Superwall.getPaywall(
+internal suspend fun Superwall.getPaywall(
     request: PresentationRequest,
     publisher: MutableSharedFlow<PaywallState> = MutableSharedFlow()
 ): PaywallViewController {

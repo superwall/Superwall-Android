@@ -6,7 +6,7 @@ import com.superwall.sdk.models.paywall.PaywallProducts
 /**
  * A request to get a paywall.
  */
-data class PaywallRequest(
+internal data class PaywallRequest(
     /**
      * The event data.
      */

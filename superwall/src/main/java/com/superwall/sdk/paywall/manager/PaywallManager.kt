@@ -12,7 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
 
-class PaywallManager(
+internal class PaywallManager(
     private val factory: PaywallManager.Factory,
     private val paywallRequestManager: PaywallRequestManager
 ) {

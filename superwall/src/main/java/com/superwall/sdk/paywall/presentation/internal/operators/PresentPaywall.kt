@@ -32,7 +32,7 @@ import kotlinx.coroutines.withContext
  *
  * @return A publisher that contains info for the next pipeline operator.
  */
-suspend fun Superwall.presentPaywallViewController(
+internal suspend fun Superwall.presentPaywallViewController(
     paywallViewController: PaywallViewController,
     presenter: Activity,
     unsavedOccurrence: TriggerRuleOccurrence?,

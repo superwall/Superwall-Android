@@ -6,7 +6,7 @@ import com.superwall.sdk.models.config.Config
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 
-suspend fun Flow<Result<ConfigState>>.awaitFirstValidConfig(): Config? {
+internal suspend fun Flow<Result<ConfigState>>.awaitFirstValidConfig(): Config? {
     return try {
         first { result ->
             if (result is Result.Failure) return@first false

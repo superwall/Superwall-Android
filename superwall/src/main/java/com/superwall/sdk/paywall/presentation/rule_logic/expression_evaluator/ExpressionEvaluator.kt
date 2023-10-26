@@ -21,7 +21,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
-class ExpressionEvaluator(
+internal class ExpressionEvaluator(
     private val context: Context,
     private val storage: Storage,
     private val factory: RuleAttributesFactory

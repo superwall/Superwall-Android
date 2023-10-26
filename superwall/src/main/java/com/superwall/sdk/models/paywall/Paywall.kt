@@ -20,10 +20,10 @@ import java.net.URL
 import java.util.*
 
 @Serializable
-data class Paywalls(val paywalls: List<Paywall>)
+internal data class Paywalls(val paywalls: List<Paywall>)
 
 @Serializable
-data class Paywall(
+internal data class Paywall(
     @SerialName("id")
     val databaseId: String,
     var identifier: String,

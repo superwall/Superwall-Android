@@ -5,16 +5,16 @@ import android.util.Log
 import org.json.JSONObject
 import java.net.URL
 
-data class WrappedPaywallMessages(
+internal data class WrappedPaywallMessages(
     var version: Int = 1,
     val payload: PayloadMessages
 )
 
-data class PayloadMessages(
+internal data class PayloadMessages(
     val messages: List<PaywallMessage>
 )
 
-sealed class PaywallMessage {
+internal sealed class PaywallMessage {
     data class OnReady(val paywallJsVersion: String) : PaywallMessage()
     object TemplateParamsAndUserAttributes : PaywallMessage()
     object Close : PaywallMessage()
@@ -26,7 +26,7 @@ sealed class PaywallMessage {
     data class Custom(val data: String) : PaywallMessage()
 }
 
-fun parseWrappedPaywallMessages(jsonString: String): WrappedPaywallMessages {
+internal fun parseWrappedPaywallMessages(jsonString: String): WrappedPaywallMessages {
     Log.d("SWWebViewInterface", jsonString)
     val jsonObject = JSONObject(jsonString)
     val version = jsonObject.optInt("version", 1)

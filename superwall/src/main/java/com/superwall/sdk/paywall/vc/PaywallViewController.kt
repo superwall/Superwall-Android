@@ -74,21 +74,25 @@ import java.net.URL
 import java.util.*
 
 
-class PaywallViewController(
+class PaywallViewController internal constructor(
     context: Context,
-    override var paywall: Paywall,
-    val eventDelegate: PaywallViewControllerEventDelegate? = null,
-    var delegate: PaywallViewControllerDelegateAdapter? = null,
-    val deviceHelper: DeviceHelper,
-    val factory: Factory,
-    val storage: Storage,
-    val paywallManager: PaywallManager,
-    override val webView: SWWebView,
-    val cache: PaywallViewControllerCache?,
+    private var paywall: Paywall,
+    private val eventDelegate: PaywallViewControllerEventDelegate? = null,
+    private var delegate: PaywallViewControllerDelegateAdapter? = null,
+    private val deviceHelper: DeviceHelper,
+    private val factory: Factory,
+    private val storage: Storage,
+    private val paywallManager: PaywallManager,
+    val webView: SWWebView,
+    private val cache: PaywallViewControllerCache?,
     private val loadingViewController: LoadingViewController = LoadingViewController(context)
-) : FrameLayout(context), PaywallMessageHandlerDelegate, SWWebViewDelegate, ActivityEncapsulatable, GameControllerDelegate {
-    interface Factory: TriggerSessionManagerFactory, TriggerFactory {}
+) : FrameLayout(context), SWWebViewDelegate, ActivityEncapsulatable, GameControllerDelegate {
+    internal interface Factory: TriggerSessionManagerFactory, TriggerFactory {}
     //region Public properties
+
+    private val internalDelegate: PaywallMessageHandlerDelegate = object : PaywallMessageHandlerDelegate {
+        override var paywall: Paywall = // some initialization
+    }
 
     // MUST be set prior to presentation
     override var request: PresentationRequest? = null
@@ -216,7 +220,7 @@ class PaywallViewController(
         this.unsavedOccurrence = unsavedOccurrence
     }
 
-    fun present(
+    internal fun present(
         presenter: Activity,
         request: PresentationRequest,
         unsavedOccurrence: TriggerRuleOccurrence?,
@@ -744,11 +748,11 @@ class PaywallViewController(
 
 }
 
-interface ActivityEncapsulatable {
+internal interface ActivityEncapsulatable {
     var encapsulatingActivity: Activity?
 }
 
-class SuperwallPaywallActivity : Activity() {
+internal class SuperwallPaywallActivity : Activity() {
     companion object {
         private const val VIEW_KEY = "viewKey"
         private const val PRESENTATION_STYLE_KEY = "presentationStyleKey"

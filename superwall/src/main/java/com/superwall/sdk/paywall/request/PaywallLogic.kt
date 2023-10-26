@@ -28,7 +28,7 @@ data class ProductProcessingOutcome(
     var isFreeTrialAvailable: Boolean
 )
 
-object PaywallLogic {
+internal object PaywallLogic {
     fun requestHash(
         identifier: String? = null,
         event: EventData? = null,

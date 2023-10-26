@@ -16,7 +16,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.*
 import java.util.Date
 
-open class Storage(
+internal class Storage(
     context: Context,
     private val factory: Storage.Factory,
     /// The disk cache.

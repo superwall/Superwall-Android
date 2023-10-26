@@ -39,7 +39,7 @@ package com.superwall.sdk.models.assignment
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class AssignmentPostback(val assignments: MutableList<Assignment>) {
+internal data class AssignmentPostback(val assignments: MutableList<Assignment>) {
     companion object {
         fun create(confirmableAssignment: ConfirmableAssignment): AssignmentPostback {
             val assignments = mutableListOf<Assignment>()

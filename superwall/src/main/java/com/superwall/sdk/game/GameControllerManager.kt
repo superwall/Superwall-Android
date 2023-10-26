@@ -3,11 +3,11 @@ package com.superwall.sdk.game
 import android.view.KeyEvent
 import android.view.MotionEvent
 
-interface GameControllerDelegate {
+internal interface GameControllerDelegate {
     fun gameControllerEventDidOccur(event: GameControllerEvent)
 }
 
-class GameControllerManager {
+internal class GameControllerManager {
     companion object {
         public var shared = GameControllerManager()
     }

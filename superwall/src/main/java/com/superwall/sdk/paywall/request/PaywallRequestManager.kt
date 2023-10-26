@@ -19,12 +19,12 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.*
 
-interface PaywallRequestManagerDepFactory : DeviceInfoFactory,
+internal interface PaywallRequestManagerDepFactory : DeviceInfoFactory,
     TriggerSessionManagerFactory,
     ConfigManagerFactory
 
 
-class PaywallRequestManager(
+internal class PaywallRequestManager(
     private val storeKitManager: StoreKitManager,
     private val network: Network,
     private val factory: PaywallRequestManagerDepFactory

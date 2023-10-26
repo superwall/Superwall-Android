@@ -31,7 +31,7 @@ import com.superwall.sdk.store.transactions.GoogleBillingTransactionVerifier
 import kotlinx.coroutines.flow.StateFlow
 
 
-interface ApiFactory {
+internal interface ApiFactory {
     // TODO: Think of an alternative way such that we don't need to do this:
     // swiftlint:disable implicitly_unwrapped_optional
     var api: Api
@@ -50,26 +50,26 @@ interface ApiFactory {
 }
 
 
-interface DeviceInfoFactory {
+internal interface DeviceInfoFactory {
     fun makeDeviceInfo(): DeviceInfo
 }
 
-interface FeatureFlagsFactory {
+internal interface FeatureFlagsFactory {
     fun makeFeatureFlags(): FeatureFlags?
 }
 
-interface ComputedPropertyRequestsFactory {
+internal interface ComputedPropertyRequestsFactory {
     fun makeComputedPropertyRequests(): List<ComputedPropertyRequest>
 }
 
-interface TriggerSessionManagerFactory {
+internal interface TriggerSessionManagerFactory {
     fun makeTriggerSessionManager(): TriggerSessionManager
     fun getTriggerSessionManager(): TriggerSessionManager
 }
 
 
 // RequestFactory interface
-interface RequestFactory {
+internal interface RequestFactory {
     fun makePaywallRequest(
         eventData: EventData?,
         responseIdentifiers: ResponseIdentifiers,
@@ -91,36 +91,36 @@ interface RequestFactory {
 }
 
 
-interface RuleAttributesFactory {
+internal interface RuleAttributesFactory {
     suspend fun makeRuleAttributes(
         event: EventData?,
         computedPropertyRequests: List<ComputedPropertyRequest>
     ): Map<String, Any>
 }
 
-interface IdentityInfoFactory {
+internal interface IdentityInfoFactory {
     suspend fun makeIdentityInfo(): IdentityInfo
 }
 
-interface LocaleIdentifierFactory {
+internal interface LocaleIdentifierFactory {
     fun makeLocaleIdentifier(): String?
 }
 
 
-interface TransactionVerifierFactory {
+internal interface TransactionVerifierFactory {
     fun makeTransactionVerifier(): GoogleBillingTransactionVerifier
 }
 
-interface DeviceHelperFactory {
+internal interface DeviceHelperFactory {
     fun makeDeviceInfo(): DeviceInfo
     fun makeIsSandbox(): Boolean
 }
 
-interface HasExternalPurchaseControllerFactory {
+internal interface HasExternalPurchaseControllerFactory {
     fun makeHasExternalPurchaseController(): Boolean
 }
 
-interface ViewControllerFactory {
+internal interface ViewControllerFactory {
     // NOTE: THIS MUST BE EXECUTED ON THE MAIN THREAD (no way to enforce in Kotlin)
     suspend fun makePaywallViewController(
         paywall: Paywall,
@@ -152,11 +152,11 @@ interface ViewControllerFactory {
 //}
 
 
-interface CacheFactory {
+internal interface CacheFactory {
     fun makeCache(): PaywallViewControllerCache
 }
 
-interface VariablesFactory {
+internal interface VariablesFactory {
     suspend fun makeJsonVariables(
         productVariables: List<ProductVariable>?,
         computedPropertyRequests: List<ComputedPropertyRequest>,
@@ -164,7 +164,7 @@ interface VariablesFactory {
     ): JsonVariables
 }
 
-interface ConfigManagerFactory {
+internal interface ConfigManagerFactory {
     fun makeStaticPaywall(paywallId: String?): Paywall?
 }
 
@@ -172,14 +172,14 @@ interface ConfigManagerFactory {
 //    fun makeSK1ProductPurchaser(): ProductPurchaserSK1
 //}
 
-interface StoreTransactionFactory {
+internal interface StoreTransactionFactory {
     suspend fun makeStoreTransaction(transaction: Purchase): StoreTransactionType
 }
 
-interface OptionsFactory {
+internal interface OptionsFactory {
     suspend fun makeSuperwallOptions(): SuperwallOptions
 }
 
-interface  TriggerFactory {
+internal interface  TriggerFactory {
     suspend fun makeTriggers(): Set<String>
 }

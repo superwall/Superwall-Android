@@ -11,7 +11,7 @@ import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
 import kotlinx.coroutines.*
 import kotlin.coroutines.CoroutineContext
 
-interface SessionEventsDelegate {
+internal interface SessionEventsDelegate {
     val triggerSession: TriggerSessionManager
 
     suspend fun enqueue(triggerSession: TriggerSession)
@@ -21,7 +21,7 @@ interface SessionEventsDelegate {
 
 // TODO: Re-enable session stuff
 
-class SessionEventsManager(
+internal class SessionEventsManager(
 //    private val queue: SessionEnqueuable,
     private val storage: Storage,
     private val network: Network,

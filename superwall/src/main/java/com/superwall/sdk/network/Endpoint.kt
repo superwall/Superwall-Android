@@ -22,7 +22,7 @@ import java.util.*
 data class URLQueryItem(val name: String, val value: String)
 
 
-data class Endpoint<Response : SerializableEntity>(
+internal data class Endpoint<Response : SerializableEntity>(
     val components: Components? = null,
     val url: URL? = null,
     var method: HttpMethod = HttpMethod.GET,

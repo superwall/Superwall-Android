@@ -8,7 +8,7 @@ import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 
 // File.kt
 
-fun Superwall.logPresentation(request: PresentationRequest, message: String): Map<String, Any> {
+internal fun Superwall.logPresentation(request: PresentationRequest, message: String): Map<String, Any> {
     val eventData = request.presentationInfo.eventData
     val debugInfo: Map<String, Any> = mapOf(
         "on" to request.presenter.toString(),

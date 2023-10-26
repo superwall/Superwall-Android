@@ -23,7 +23,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
  * @throws PresentationPipelineError object associated with stages of the pipeline.
  */
 @Throws(Throwable::class)
-suspend fun Superwall.getPaywallComponents(
+internal suspend fun Superwall.getPaywallComponents(
     request: PresentationRequest,
     publisher: MutableSharedFlow<PaywallState>? = null
 ): PaywallComponents {

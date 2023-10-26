@@ -13,7 +13,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 
-fun Superwall.logErrors(
+internal fun Superwall.logErrors(
     request: PresentationRequest,
     error: Throwable
 ) {

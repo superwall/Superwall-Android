@@ -15,9 +15,8 @@ import kotlinx.serialization.Serializable
 import java.net.URL
 import java.util.*
 
-
 @Serializable
-data class PaywallInfo(
+data class PaywallInfo internal constructor(
     val databaseId: String,
     val identifier: String,
     val name: String,
@@ -48,9 +47,9 @@ data class PaywallInfo(
     val featureGatingBehavior: FeatureGatingBehavior,
     val closeReason: PaywallCloseReason?,
     val surveys: List<Survey>,
-    val factory: TriggerSessionManagerFactory
+    internal val factory: TriggerSessionManagerFactory
 ) {
-    constructor(
+    internal constructor(
         databaseId: String,
         identifier: String,
         name: String,
@@ -119,7 +118,7 @@ data class PaywallInfo(
         surveys = surveys
     )
 
-    fun eventParams(
+    internal fun eventParams(
         product: StoreProduct? = null,
         otherParams: Map<String, Any?>? = null
     ): Map<String, Any> {
@@ -195,7 +194,7 @@ data class PaywallInfo(
     }
 
     /// Parameters that can be used in rules.
-    fun customParams(): MutableMap<String, Any> {
+    internal fun customParams(): MutableMap<String, Any> {
         val output: MutableMap<String, Any?> = mutableMapOf(
             "paywall_id" to databaseId,
             "paywall_name" to name,
