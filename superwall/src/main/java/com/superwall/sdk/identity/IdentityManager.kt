@@ -104,14 +104,12 @@ class IdentityManager(
 
         val aliasId = storage.get(AliasId)
         if (aliasId == null) {
-            _aliasId = IdentityLogic.generateAlias()
             storage.save(_aliasId, AliasId)
             extraAttributes["aliasId"] = _aliasId
         }
 
         val seed = storage.get(Seed)
         if (seed == null) {
-            _seed = IdentityLogic.generateSeed()
             storage.save(_seed, Seed)
             extraAttributes["seed"] = _seed
         }

@@ -89,7 +89,7 @@ class InternalPurchaseController(
         if (kotlinPurchaseController != null) {
             return kotlinPurchaseController.purchase(activity, product)
         } else if (javaPurchaseController != null) {
-            return suspendCoroutine<PurchaseResult> { continuation ->
+            return suspendCoroutine { continuation ->
                 javaPurchaseController.purchase(product) { result ->
                     continuation.resume(result)
                 }
