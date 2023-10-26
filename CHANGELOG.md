@@ -2,6 +2,12 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall-me/Superwall-Android/releases) on GitHub.
 
+## 1.0.0-alpha.12
+
+### Fixes
+
+- Fixes concurrency issues when setting and retrieving values like the appUserId and seed.
+
 ## 1.0.0-alpha.11
 
 ### Fixes

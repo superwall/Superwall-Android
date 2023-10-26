@@ -182,7 +182,7 @@ class DependencyContainer(
             "X-Platform" to "iOS",
             "X-Platform-Environment" to "SDK",
             // TODO: Add app user id: https://linear.app/superwall/issue/SW-2365/[android]-add-appuserid
-            "X-App-User-ID" to (identityManager.appUserId ?: ""),
+            "X-App-User-ID" to (identityManager.getAppUserId() ?: ""),
             "X-Alias-ID" to identityManager.getAliasId(),
             "X-URL-Scheme" to deviceHelper.urlScheme,
             "X-Vendor-ID" to deviceHelper.vendorId,
@@ -379,7 +379,7 @@ class DependencyContainer(
     override suspend fun makeIdentityInfo(): IdentityInfo {
         return IdentityInfo(
             aliasId = identityManager.getAliasId(),
-            appUserId = identityManager.appUserId,
+            appUserId = identityManager.getAppUserId(),
         )
     }
 

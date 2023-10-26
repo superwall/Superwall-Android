@@ -114,7 +114,6 @@ class Superwall(
     )
     val subscriptionStatus: StateFlow<SubscriptionStatus> get() = _subscriptionStatus
 
-
     companion object {
         var initialized: Boolean = false
         lateinit var instance: Superwall

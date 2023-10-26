@@ -1,12 +1,5 @@
 package com.superwall.sdk.identity
 
-//import com.superwall.sdk.config.ConfigManager
-//import com.superwall.sdk.network.device.DeviceHelper
-//import com.superwall.sdk.storage.Storage
-//import kotlinx.coroutines.*
-//import kotlinx.coroutines.sync.Mutex
-//import kotlinx.coroutines.sync.withLock
-//import kotlinx.coroutines.flow.*
 import LogLevel
 import LogScope
 import Logger
@@ -14,7 +7,6 @@ import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.config.ConfigManager
-import com.superwall.sdk.config.models.getConfig
 import com.superwall.sdk.misc.awaitFirstValidConfig
 import com.superwall.sdk.misc.sha256MappedToRange
 import com.superwall.sdk.network.device.DeviceHelper
@@ -31,11 +23,10 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.mapNotNull
-import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import java.util.concurrent.Executors
 
 class IdentityManager(
@@ -44,38 +35,32 @@ class IdentityManager(
     private val configManager: ConfigManager
 ) {
     private var _appUserId: String? = storage.get(AppUserId)
-        set(value) {
-            field = value
-            saveIds()
+    suspend fun getAppUserId(): String? = withContext(scope.coroutineContext) {
+        return@withContext mutex.withLock {
+            _appUserId
         }
-    val appUserId: String? get() = _appUserId
+    }
 
     private var _aliasId: String =
         storage.get(AliasId) ?: IdentityLogic.generateAlias()
-        set(value) {
-            field = value
-            saveIds()
-        }
-    suspend fun getAliasId(): String {
-        return mutex.withLock {
+
+    suspend fun getAliasId(): String = withContext(scope.coroutineContext) {
+        return@withContext mutex.withLock {
             _aliasId
         }
     }
 
     private var _seed: Int =
         storage.get(Seed) ?: IdentityLogic.generateSeed()
-        set(value) {
-            field = value
-            saveIds()
-        }
-    suspend fun getSeed(): Int {
-        return mutex.withLock {
+
+    suspend fun getSeed(): Int = withContext(scope.coroutineContext) {
+        return@withContext mutex.withLock {
             _seed
         }
     }
 
-    suspend fun getUserId(): String {
-        return mutex.withLock {
+    suspend fun getUserId(): String = withContext(scope.coroutineContext) {
+        return@withContext mutex.withLock {
             _appUserId ?: _aliasId
         }
     }
@@ -83,8 +68,9 @@ class IdentityManager(
     private var _userAttributes: Map<String, Any> =
         storage.get(UserAttributes) ?: emptyMap()
 
-    suspend fun getUserAttributes(): Map<String, Any> {
-        return mutex.withLock {
+    suspend fun getUserAttributes(): Map<String, Any> = withContext(scope.coroutineContext) {
+        return@withContext mutex.withLock {
+            println("!!! GET user attributes: $_userAttributes")
             _userAttributes
         }
     }
@@ -144,6 +130,7 @@ class IdentityManager(
         scope.launch {
             IdentityLogic.sanitize(userId)?.let { sanitizedUserId ->
                 mutex.withLock {
+                    println("inside the identify lock")
                     if (_appUserId == sanitizedUserId) return@withLock
 
                     identityFlow.emit(false)
@@ -158,10 +145,14 @@ class IdentityManager(
                     val config = configManager.configState.awaitFirstValidConfig()
 
                     if (config?.featureFlags?.enableUserIdSeed == true) {
-                        userId.sha256MappedToRange()?.let { seed ->
+                        println("!!! HMMM")
+                        sanitizedUserId.sha256MappedToRange()?.let { seed ->
+                            println("!!! SANITIZESSEED $seed")
                             _seed = seed
                         }
                     }
+
+                    saveIds()
 
                     if (options?.restorePaywallAssignments == true) {
                         configManager.getAssignments()
@@ -185,24 +176,28 @@ class IdentityManager(
         scope.launch { identityFlow.emit(true) }
     }
 
+    /**
+     * Saves the `aliasId`, `seed` and `appUserId` to storage and user attributes.
+      */
     private fun saveIds() {
-        scope.launch {
-            mutex.withLock {
-                _appUserId?.let {
-                    storage.save(it, AppUserId)
-                }
-                storage.save(_aliasId, AliasId)
-                storage.save(_seed, Seed)
-
-                val newUserAttributes = mutableMapOf(
-                    "aliasId" to _aliasId,
-                    "seed" to _seed
-                )
-                _appUserId?.let { newUserAttributes["appUserId"] = it }
-
-                mergeUserAttributes(newUserAttributes)
-            }
+        // This is not wrapped in a scope/mutex because is
+        // called from the didSet of vars, who are already
+        // being set within the queue.
+        _appUserId?.let {
+            storage.save(it, AppUserId)
         }
+        storage.save(_aliasId, AliasId)
+        storage.save(_seed, Seed)
+
+        val newUserAttributes = mutableMapOf(
+            "aliasId" to _aliasId,
+            "seed" to _seed
+        )
+        _appUserId?.let { newUserAttributes["appUserId"] = it }
+
+        _mergeUserAttributes(
+            newUserAttributes = newUserAttributes
+        )
     }
 
     fun reset(duringIdentify: Boolean) {
@@ -225,8 +220,10 @@ class IdentityManager(
     private fun _reset() {
         _appUserId = null
         _aliasId = IdentityLogic.generateAlias()
+        println("!!! RESETTING")
         _seed = IdentityLogic.generateSeed()
         _userAttributes = emptyMap()
+        saveIds()
     }
 
     fun mergeUserAttributes(
@@ -262,7 +259,7 @@ class IdentityManager(
                 Superwall.instance.track(trackableEvent)
             }
         }
-
+        println("!!! NOW MERGING ATTRIBUTES $mergedAttributes")
         storage.save(mergedAttributes, UserAttributes)
         _userAttributes = mergedAttributes
     }

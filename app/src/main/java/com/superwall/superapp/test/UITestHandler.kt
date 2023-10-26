@@ -1234,16 +1234,13 @@ class UITestHandler {
 
         var test72Info = UITestInfo(
             72,
-            "Check that calling identify restores the seed value. This is async and " +
+            "Check that calling identify restores the seed value to 2. This is async and " +
                     "dependent on config so needs to sleep after calling identify. You should see " +
-                    "\"!!! seed - 1: X\", where X is a seed number. Then \"!!! seed - 2: X\"."
+                    "\"!!! seed - 1: 2\", where 2 is a seed number. Then \"!!! user ID: abc\", then " +
+                    " \"!!! seed - 2: 2\"."
         )
-
         suspend fun test72() {
-            // TODO: This fails to have the same userId after resetting and identifying.
             Superwall.instance.identify(userId = "abc")
-
-            delay(1000)
 
             var seed = Superwall.instance.getUserAttributes()["seed"]
             println("!!! seed - 1: $seed")
@@ -1252,11 +1249,11 @@ class UITestHandler {
 
             Superwall.instance.identify(userId = "abc")
 
-            delay(1000)
+            val appUserId = Superwall.instance.getUserAttributes()["appUserId"]
+            println("!!! user ID: $appUserId")
 
             seed = Superwall.instance.getUserAttributes()["seed"]
             println("!!! seed - 2: $seed")
-
         }
 
         // TODO: Test 73 needs touches_began implemented.
