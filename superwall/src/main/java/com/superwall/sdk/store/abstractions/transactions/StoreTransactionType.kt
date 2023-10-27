@@ -35,11 +35,11 @@ object StoreTransactionStateSerializer : KSerializer<StoreTransactionState> {
     override fun serialize(encoder: Encoder, value: StoreTransactionState) {
         // Transform the object to a lowercase string representation
         val str = when (value) {
-            is StoreTransactionState.Purchasing -> "purchasing"
-            is StoreTransactionState.Purchased -> "purchased"
-            is StoreTransactionState.Failed -> "failed"
-            is StoreTransactionState.Restored -> "restored"
-            is StoreTransactionState.Deferred -> "deferred"
+            is StoreTransactionState.Purchasing -> "PURCHASING"
+            is StoreTransactionState.Purchased -> "PURCHASED"
+            is StoreTransactionState.Failed -> "FAILED"
+            is StoreTransactionState.Restored -> "RESTORED"
+            is StoreTransactionState.Deferred -> "DEFERRED"
         }
         encoder.encodeString(str)
     }
@@ -47,11 +47,11 @@ object StoreTransactionStateSerializer : KSerializer<StoreTransactionState> {
     override fun deserialize(decoder: Decoder): StoreTransactionState {
         // Convert back from string to object
         return when (val str = decoder.decodeString()) {
-            "purchasing" -> StoreTransactionState.Purchasing
-            "purchased" -> StoreTransactionState.Purchased
-            "failed" -> StoreTransactionState.Failed
-            "restored" -> StoreTransactionState.Restored
-            "deferred" -> StoreTransactionState.Deferred
+            "PURCHASING" -> StoreTransactionState.Purchasing
+            "PURCHASED" -> StoreTransactionState.Purchased
+            "FAILED" -> StoreTransactionState.Failed
+            "RESTORED" -> StoreTransactionState.Restored
+            "DEFERRED" -> StoreTransactionState.Deferred
             else -> throw SerializationException("Unknown string value: $str")
         }
     }

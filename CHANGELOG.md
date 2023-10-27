@@ -2,6 +2,16 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall-me/Superwall-Android/releases) on GitHub.
 
+## 1.0.0-alpha.14
+
+### Enhancements
+
+- Adds in product information to transactions.
+
+### Fixes
+
+- Changes transaction state to uppercase
+
 ## 1.0.0-alpha.13
 
 ### Fixes
