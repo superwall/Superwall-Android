@@ -179,7 +179,7 @@ class DependencyContainer(
         val auth = "Bearer $key"
         val headers = mapOf<String, String>(
             "Authorization" to auth,
-            "X-Platform" to "iOS",
+            "X-Platform" to "Android",
             "X-Platform-Environment" to "SDK",
             // TODO: Add app user id: https://linear.app/superwall/issue/SW-2365/[android]-add-appuserid
             "X-App-User-ID" to (identityManager.getAppUserId() ?: ""),
