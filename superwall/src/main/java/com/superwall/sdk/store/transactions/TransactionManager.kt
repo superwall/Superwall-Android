@@ -23,7 +23,7 @@ import com.superwall.sdk.paywall.vc.PaywallViewController
 import com.superwall.sdk.paywall.vc.delegate.PaywallLoadingState
 import com.superwall.sdk.store.StoreKitManager
 import com.superwall.sdk.store.abstractions.product.StoreProduct
-import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
+import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import kotlinx.coroutines.*
 
 class TransactionManager(
@@ -285,7 +285,7 @@ class TransactionManager(
 
     // ... and so on for the other methods ...
     private suspend fun trackTransactionDidSucceed(
-        transaction: StoreTransactionType?,
+        transaction: StoreTransaction?,
         product: StoreProduct
     ) {
         val paywallViewController = lastPaywallViewController ?: return

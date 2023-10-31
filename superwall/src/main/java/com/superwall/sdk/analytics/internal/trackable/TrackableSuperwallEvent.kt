@@ -20,7 +20,7 @@ import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationReques
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.vc.Survey.SurveyPresentationResult
 import com.superwall.sdk.store.abstractions.product.StoreProduct
-import com.superwall.sdk.store.abstractions.transactions.GoogleBillingPurchaseTransaction
+import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
 import com.superwall.sdk.store.transactions.TransactionError
 import kotlinx.serialization.json.*
@@ -359,7 +359,7 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
         val state: State,
         val paywallInfo: PaywallInfo,
         val product: StoreProduct?,
-        val model: StoreTransactionType?
+        val model: StoreTransaction?
     ) : TrackableSuperwallEvent {
         sealed class State {
             class Start(val product: StoreProduct) : State()
@@ -417,7 +417,7 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
                         val json = Json { encodeDefaults = true }
                         // TODO: Figure out how to get this to work with kotlinx.serialization
                         val jsonObject: JsonObject =
-                            json.encodeToJsonElement(model as GoogleBillingPurchaseTransaction).jsonObject
+                            json.encodeToJsonElement(model).jsonObject
 
                         val modelMap: Map<String, Any> = jsonObject.mapValues { entry ->
                             when (val value = entry.value) {

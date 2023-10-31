@@ -2,14 +2,18 @@ package com.superwall.sdk.store.abstractions.transactions
 
 import com.superwall.sdk.models.serialization.DateSerializer
 import com.superwall.sdk.models.serialization.UUIDSerializer
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.util.*
 
 @Serializable
 class StoreTransaction(
-    private val transaction: StoreTransactionType,
+    private val transaction: GoogleBillingPurchaseTransaction,
+    @SerialName("config_request_id")
     val configRequestId: String,
+    @SerialName("app_session_id")
     val appSessionId: String,
+    @SerialName("trigger_session_id")
     val triggerSessionId: String?
 ) : StoreTransactionType {
     val id = UUID.randomUUID().toString()

@@ -13,6 +13,7 @@ import com.superwall.sdk.analytics.model.TriggerSession
 import com.superwall.sdk.analytics.session.AppSession
 import com.superwall.sdk.analytics.session.AppSessionManager
 import com.superwall.sdk.config.ConfigManager
+import com.superwall.sdk.config.models.getConfig
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.identity.IdentityManager
 import com.superwall.sdk.models.config.Config
@@ -22,6 +23,12 @@ import com.superwall.sdk.models.triggers.TriggerResult
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.abstractions.product.StoreProduct
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.launch
 import java.util.UUID
 
 enum class LoadState {
@@ -47,27 +54,20 @@ class TriggerSessionManager(
      */
     var activeTriggerSession: Pair<String, String>? = null
 
-    var configListener: Any? = null
-    // TODO: Re-enable
-//    var transactionCount: TriggerSession.Transaction.Count? = null
-
-    fun listenForConfig() {
-        // implementation
+    init {
+        CoroutineScope(Dispatchers.IO).launch {
+            listenForConfig()
+        }
+    }
+    private suspend fun listenForConfig() {
+        configManager.configState
+            .mapNotNull { it.getSuccess()?.getConfig() }
+            .collect { config ->
+                createSessions(config)
+            }
     }
 
-    fun addObservers() {
-        // implementation
-    }
-
-    fun willEnterForeground() {
-        // implementation
-    }
-
-    fun didEnterBackground() {
-        // implementation
-    }
-
-    suspend fun createSessions(config: Config) {
+    private fun createSessions(config: Config) {
         // Loop through triggers and create a session ID for each.
         for (trigger in config.triggers) {
             pendingTriggerSessionIds[trigger.eventName] = UUID.randomUUID().toString()
