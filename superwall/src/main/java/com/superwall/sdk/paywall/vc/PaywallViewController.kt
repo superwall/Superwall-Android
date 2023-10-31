@@ -453,8 +453,6 @@ class PaywallViewController(
     private var initialOrientation: Int? = null
 
     private suspend fun trackOpen() {
-        val triggerSessionManager = factory.getTriggerSessionManager()
-        triggerSessionManager.trackPaywallOpen()
         storage.trackPaywallOpen()
         val trackedEvent = InternalSuperwallEvent.PaywallOpen(info)
         Superwall.instance.track(trackedEvent)
@@ -468,7 +466,7 @@ class PaywallViewController(
             surveyPresentationResult
         )
         Superwall.instance.track(trackedEvent)
-        triggerSessionManager.trackPaywallClose()
+        triggerSessionManager.endSession()
     }
 
     override fun eventDidOccur(paywallEvent: PaywallWebEvent) {
@@ -637,12 +635,6 @@ class PaywallViewController(
                 paywallInfo = this@PaywallViewController.info
             )
             Superwall.instance.track(trackedEvent)
-
-            val triggerSessionManager = factory.getTriggerSessionManager()
-            triggerSessionManager.trackWebviewLoad(
-                forPaywallId = info.databaseId,
-                state = LoadState.START
-            )
         }
 
         if (paywall.onDeviceCache is OnDeviceCaching.Enabled) {

@@ -149,11 +149,6 @@ class PaywallMessageHandler(
                     paywallInfo = paywallInfo
                 )
                 Superwall.instance.track(trackedEvent)
-
-                sessionEventsManager.triggerSession.trackWebviewLoad(
-                    forPaywallId = paywallInfo.databaseId,
-                    state = LoadState.END
-                )
             }
         }
 

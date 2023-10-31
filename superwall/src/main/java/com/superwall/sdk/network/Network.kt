@@ -152,9 +152,9 @@ open class Network(
         }
     }
 
-    open suspend fun getAssignments(): List<Assignment> {
+    suspend fun getAssignments(): List<Assignment> {
         return try {
-            val result = urlSession.request<ConfirmedAssignmentResponse>(
+            val result = urlSession.request(
                 Endpoint.assignments(factory = factory)
             )
             result.assignments

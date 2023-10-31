@@ -12,6 +12,7 @@ import com.superwall.sdk.dependencies.FeatureFlagsFactory
 import com.superwall.sdk.dependencies.RuleAttributesFactory
 import com.superwall.sdk.models.config.FeatureFlags
 import com.superwall.sdk.models.events.EventData
+import com.superwall.sdk.models.triggers.InternalTriggerResult
 import com.superwall.sdk.models.triggers.TriggerResult
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatus
@@ -223,14 +224,14 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
     }
 
     class TriggerFire(
-        val triggerResult: TriggerResult,
+        val triggerResult: InternalTriggerResult,
         val triggerName: String,
         override var customParameters: HashMap<String, Any> = HashMap(),
         private val sessionEventsManager: SessionEventsManager
     ) : InternalSuperwallEvent(
         SuperwallEvent.TriggerFire(
             eventName = triggerName,
-            result = triggerResult
+            result = triggerResult.toPublicType()
         )
     ) {
         override suspend fun getSuperwallParameters(): HashMap<String, Any> {
@@ -238,26 +239,25 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
                 "trigger_name" to triggerName
             )
 
-            // TODO: Fix trigger session
-//            val triggerSession = sessionEventsManager.triggerSession.activeTriggerSession
-//            if (triggerSession != null) {
-//                params["trigger_session_id"] = triggerSession.id
-//            }
+            val triggerSessionId = sessionEventsManager.triggerSession.activeTriggerSession
+            if (triggerSessionId != null) {
+                params["trigger_session_id"] = triggerSessionId
+            }
 
             return when (triggerResult) {
-                is TriggerResult.NoRuleMatch -> {
+                is InternalTriggerResult.NoRuleMatch -> {
                     params.apply {
                         this["result"] = "no_rule_match"
                     }
                 }
-                is TriggerResult.Holdout -> {
+                is InternalTriggerResult.Holdout -> {
                     params.apply {
                         this["variant_id"] = triggerResult.experiment.variant.id
                         this["experiment_id"] = triggerResult.experiment.id
                         this["result"] = "holdout"
                     }
                 }
-                is TriggerResult.Paywall -> {
+                is InternalTriggerResult.Paywall -> {
                     params.apply {
                         this["variant_id"] = triggerResult.experiment.variant.id
                         this["experiment_id"] = triggerResult.experiment.id
@@ -266,12 +266,12 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
                         this["result"] = "present"
                     }
                 }
-                is TriggerResult.EventNotFound -> {
+                is InternalTriggerResult.EventNotFound -> {
                     params.apply {
                         this["result"] = "eventNotFound"
                     }
                 }
-                is TriggerResult.Error -> {
+                is InternalTriggerResult.Error -> {
                     params.apply {
                         this["result"] = "error"
                     }

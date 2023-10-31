@@ -53,6 +53,7 @@ import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.InternalPurchaseController
 import com.superwall.sdk.store.StoreKitManager
 import com.superwall.sdk.store.abstractions.transactions.GoogleBillingPurchaseTransaction
+import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
 import com.superwall.sdk.store.transactions.GoogleBillingTransactionVerifier
 import com.superwall.sdk.store.transactions.TransactionManager
@@ -181,7 +182,6 @@ class DependencyContainer(
             "Authorization" to auth,
             "X-Platform" to "Android",
             "X-Platform-Environment" to "SDK",
-            // TODO: Add app user id: https://linear.app/superwall/issue/SW-2365/[android]-add-appuserid
             "X-App-User-ID" to (identityManager.getAppUserId() ?: ""),
             "X-Alias-ID" to identityManager.getAliasId(),
             "X-URL-Scheme" to deviceHelper.urlScheme,
@@ -256,7 +256,6 @@ class DependencyContainer(
     override fun makeCache(): PaywallViewControllerCache {
         return PaywallViewControllerCache(deviceHelper.locale)
     }
-
 
     override fun makeDeviceInfo(): DeviceInfo {
         return DeviceInfo(
@@ -407,9 +406,15 @@ class DependencyContainer(
         return variables
     }
 
-    override suspend fun makeStoreTransaction(transaction: Purchase): StoreTransactionType {
-        return GoogleBillingPurchaseTransaction(
-            transaction = transaction,
+    override suspend fun makeStoreTransaction(transaction: Purchase): StoreTransaction {
+        val triggerSessionId =  sessionEventsManager.triggerSession.activeTriggerSession?.first
+        return StoreTransaction(
+            GoogleBillingPurchaseTransaction(
+                transaction = transaction,
+            ),
+            configRequestId = configManager.config?.requestId ?: "",
+            appSessionId = appSessionManager.appSession.id,
+            triggerSessionId = triggerSessionId
         )
     }
 
