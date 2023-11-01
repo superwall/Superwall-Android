@@ -7,7 +7,7 @@ import java.time.Period
 import java.time.temporal.ChronoUnit
 import java.util.*
 
-data class SubscriptionPeriod(val value: Int, val unit: Unit, val locale: Locale = Locale.getDefault(), val pricingFactor: Long = 1_000_000) {
+data class SubscriptionPeriod(val value: Int, val unit: Unit, val currency: Currency, val pricingFactor: Long = 1_000_000) {
     enum class Unit {
         day,
         week,
@@ -41,7 +41,7 @@ data class SubscriptionPeriod(val value: Int, val unit: Unit, val locale: Locale
     }
 
     companion object {
-        fun from(subscriptionPeriodString: String): SubscriptionPeriod? {
+        fun from(subscriptionPeriodString: String, currency: Currency): SubscriptionPeriod? {
             val period = try {
                 Period.parse(subscriptionPeriodString)
             } catch (e: Exception) {
@@ -53,13 +53,14 @@ data class SubscriptionPeriod(val value: Int, val unit: Unit, val locale: Locale
             val days = (totalDays % 7).toInt()
 
             return when {
-                period.years > 0 -> SubscriptionPeriod(period.years, Unit.year)
+                period.years > 0 -> SubscriptionPeriod(period.years, Unit.year, currency)
                 period.toTotalMonths() > 0 -> SubscriptionPeriod(
                     period.toTotalMonths().toInt(),
-                    Unit.month
+                    Unit.month,
+                    currency
                 )
-                weeks > 0 -> SubscriptionPeriod(weeks, Unit.week)
-                days > 0 -> SubscriptionPeriod(days, Unit.day)
+                weeks > 0 -> SubscriptionPeriod(weeks, Unit.week, currency)
+                days > 0 -> SubscriptionPeriod(days, Unit.day, currency)
                 else -> null
             }?.normalized()
         }
@@ -152,7 +153,7 @@ data class SubscriptionPeriod(val value: Int, val unit: Unit, val locale: Locale
         }
 
         val numberFormatter = DecimalFormat.getCurrencyInstance()
-        numberFormatter.currency = Currency.getInstance(locale)
+        numberFormatter.currency = currency
         return numberFormatter.format(pricePerDay(rawPrice))
     }
 
@@ -162,7 +163,7 @@ data class SubscriptionPeriod(val value: Int, val unit: Unit, val locale: Locale
         }
 
         val numberFormatter = DecimalFormat.getCurrencyInstance()
-        numberFormatter.currency = Currency.getInstance(locale)
+        numberFormatter.currency = currency
         return numberFormatter.format(pricePerWeek(price))
     }
 
@@ -172,7 +173,7 @@ data class SubscriptionPeriod(val value: Int, val unit: Unit, val locale: Locale
         }
 
         val numberFormatter = DecimalFormat.getCurrencyInstance()
-        numberFormatter.currency = Currency.getInstance(locale)
+        numberFormatter.currency = currency
         return numberFormatter.format(pricePerMonth(price))
     }
 
@@ -182,7 +183,7 @@ data class SubscriptionPeriod(val value: Int, val unit: Unit, val locale: Locale
         }
 
         val numberFormatter = DecimalFormat.getCurrencyInstance()
-        numberFormatter.currency = Currency.getInstance(locale)
+        numberFormatter.currency = currency
         return numberFormatter.format(pricePerYear(price))
     }
 
@@ -223,7 +224,7 @@ data class SubscriptionPeriod(val value: Int, val unit: Unit, val locale: Locale
         }
     }
 
-    fun _truncateDecimal(decimal: BigDecimal, places: Int = Currency.getInstance(Locale.getDefault()).defaultFractionDigits ?: 2): BigDecimal {
+    fun _truncateDecimal(decimal: BigDecimal, places: Int = currency.defaultFractionDigits ?: 2): BigDecimal {
         // First we need to divide by the main google product scaling factor
 
 
