@@ -115,14 +115,25 @@ class DeviceHelper(
 
     private val _locale: Locale = Locale.getDefault()
 
+    private val _currency: Currency?
+        get() {
+            return try {
+                Currency.getInstance(_locale)
+            } catch (e: Exception) {
+                null
+            }
+        }
+
+
+
     val languageCode: String
         get() = _locale.language
 
     val currencyCode: String
-        get() = Currency.getInstance(_locale).currencyCode
+        get() = _currency?.currencyCode ?: ""
 
     val currencySymbol: String
-        get() = Currency.getInstance(_locale).symbol
+        get() = _currency?.symbol ?: ""
 
     val secondsFromGMT: String
         get() = (TimeZone.getDefault().rawOffset / 1000).toString()

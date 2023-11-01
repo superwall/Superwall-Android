@@ -184,7 +184,7 @@ class DependencyContainer(
         val auth = "Bearer $key"
         val headers = mapOf<String, String>(
             "Authorization" to auth,
-            "X-Platform" to "Android",
+            "X-Platform" to "iOS",
             "X-Platform-Environment" to "SDK",
             "X-App-User-ID" to (identityManager.getAppUserId() ?: ""),
             "X-Alias-ID" to identityManager.getAliasId(),

@@ -50,7 +50,14 @@ class StoreProduct(
 //        get() = TODO("This information is not available in SkuDetails")
 
     override val subscriptionPeriod: SubscriptionPeriod?
-        get() = SubscriptionPeriod.from(rawStoreProduct.skuDetails.subscriptionPeriod)
+        get() {
+            return try {
+                SubscriptionPeriod.from(rawStoreProduct.skuDetails.freeTrialPeriod, Currency.getInstance(rawStoreProduct.skuDetails.priceCurrencyCode))
+            } catch (e: Exception) {
+                null
+            }
+        }
+
 
     override val localizedPrice: String
         get() = rawStoreProduct.skuDetails.price
@@ -106,7 +113,17 @@ class StoreProduct(
      * The trial subscription period of the product.
      */
     val trialSubscriptionPeriod: SubscriptionPeriod?
-        get() = SubscriptionPeriod.from(rawStoreProduct.skuDetails.freeTrialPeriod)
+        get() {
+            return try {
+                SubscriptionPeriod.from(
+                    rawStoreProduct.skuDetails.freeTrialPeriod,
+                    Currency.getInstance(rawStoreProduct.skuDetails.priceCurrencyCode)
+                )
+            } catch (e: Exception) {
+                null
+            }
+        }
+
 
     override val hasFreeTrial: Boolean
         get() = rawStoreProduct.skuDetails.freeTrialPeriod.isNotEmpty()
