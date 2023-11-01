@@ -264,7 +264,7 @@ class PaywallViewController(
         paywall.closeReason = PaywallCloseReason.None
 
         Superwall.instance.dependencyContainer.delegateAdapter.willPresentPaywall(info)
-
+        webView.scrollTo(0, 0)
         if (loadingState is PaywallLoadingState.Ready) {
             webView.messageHandler.handle(PaywallMessage.TemplateParamsAndUserAttributes)
         }
