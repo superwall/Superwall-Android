@@ -334,7 +334,6 @@ class DependencyContainer(
             sessionEventsManager = sessionEventsManager,
             storage = storage,
             configManager = configManager,
-            appSessionManager = appSessionManager,
             identityManager = identityManager
         )
     }
@@ -411,7 +410,7 @@ class DependencyContainer(
     }
 
     override suspend fun makeStoreTransaction(transaction: Purchase): StoreTransaction {
-        val triggerSessionId =  sessionEventsManager.triggerSession.activeTriggerSession?.first
+        val triggerSessionId =  sessionEventsManager.triggerSession.activeTriggerSession?.sessionId
         return StoreTransaction(
             GoogleBillingPurchaseTransaction(
                 transaction = transaction,

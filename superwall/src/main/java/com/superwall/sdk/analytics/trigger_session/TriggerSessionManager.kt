@@ -1,32 +1,20 @@
 package com.superwall.sdk.analytics.trigger_session
 
-
-import android.app.Activity
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.SessionEventsDelegate
 import com.superwall.sdk.analytics.SessionEventsManager
-import com.superwall.sdk.analytics.internal.TrackingResult
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
-import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.analytics.model.TriggerSession
-import com.superwall.sdk.analytics.session.AppSession
-import com.superwall.sdk.analytics.session.AppSessionManager
 import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.config.models.getConfig
-import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.identity.IdentityManager
 import com.superwall.sdk.models.config.Config
-import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.triggers.InternalTriggerResult
-import com.superwall.sdk.models.triggers.TriggerResult
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.storage.Storage
-import com.superwall.sdk.store.abstractions.product.StoreProduct
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -37,12 +25,12 @@ enum class LoadState {
     FAIL
 }
 
+data class ActiveTriggerSession(val sessionId: String, val eventName: String)
 
 // TODO: https://linear.app/superwall/issue/SW-2366/[android]-implement-triggersessionmanager
 class TriggerSessionManager(
     val storage: Storage,
     val configManager: ConfigManager,
-    val appSessionManager: AppSessionManager,
     val identityManager: IdentityManager,
     val delegate: SessionEventsDelegate,
     val sessionEventsManager: SessionEventsManager
@@ -52,7 +40,7 @@ class TriggerSessionManager(
     /**
      * The active trigger session tuple in format (sessionId, eventName)
      */
-    var activeTriggerSession: Pair<String, String>? = null
+    var activeTriggerSession: ActiveTriggerSession? = null
 
     init {
         CoroutineScope(Dispatchers.IO).launch {
@@ -87,7 +75,10 @@ class TriggerSessionManager(
             triggerResult = triggerResult?.toPublicType()
         ) ?: return null
 
-        activeTriggerSession = Pair(sessionId, eventName)
+        activeTriggerSession = ActiveTriggerSession(
+            sessionId = sessionId,
+            eventName = eventName
+        )
         pendingTriggerSessionIds[eventName] = null
 
         triggerResult?.let {
@@ -116,7 +107,7 @@ class TriggerSessionManager(
         activeTriggerSession = currentTriggerSession
 
         // Recreate a pending trigger session
-        pendingTriggerSessionIds[currentTriggerSession.second] = UUID.randomUUID().toString()
+        pendingTriggerSessionIds[currentTriggerSession.eventName] = UUID.randomUUID().toString()
 
         activeTriggerSession = null
     }
