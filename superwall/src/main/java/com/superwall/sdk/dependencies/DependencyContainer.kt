@@ -171,7 +171,7 @@ class DependencyContainer(
 
         // Calling this just to initialise the trigger session manager so it can start listening
         // to config.
-        makeTriggerSessionManager()
+        sessionEventsManager.triggerSession
     }
 
 
@@ -410,7 +410,7 @@ class DependencyContainer(
     }
 
     override suspend fun makeStoreTransaction(transaction: Purchase): StoreTransaction {
-        val triggerSessionId =  sessionEventsManager.triggerSession.activeTriggerSession?.sessionId
+        val triggerSessionId =  sessionEventsManager.triggerSession.getActiveTriggerSession()?.sessionId
         return StoreTransaction(
             GoogleBillingPurchaseTransaction(
                 transaction = transaction,

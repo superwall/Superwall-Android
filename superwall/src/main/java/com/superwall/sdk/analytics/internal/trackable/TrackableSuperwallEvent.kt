@@ -239,7 +239,7 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
                 "trigger_name" to triggerName
             )
 
-            val triggerSessionId = sessionEventsManager.triggerSession.activeTriggerSession
+            val triggerSessionId = sessionEventsManager.triggerSession.getActiveTriggerSession()?.sessionId
             if (triggerSessionId != null) {
                 params["trigger_session_id"] = triggerSessionId
             }

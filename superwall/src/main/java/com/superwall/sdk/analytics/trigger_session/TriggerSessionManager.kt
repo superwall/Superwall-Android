@@ -17,6 +17,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.newSingleThreadContext
+import kotlinx.coroutines.withContext
 import java.util.UUID
 
 enum class LoadState {
@@ -35,15 +37,20 @@ class TriggerSessionManager(
     val delegate: SessionEventsDelegate,
     val sessionEventsManager: SessionEventsManager
 ) {
+    private val singleThreadContext = newSingleThreadContext(name = "TriggerSessionManagerThread")
     val pendingTriggerSessionIds: MutableMap<String, String?> = mutableMapOf()
 
     /**
      * The active trigger session tuple in format (sessionId, eventName)
      */
-    var activeTriggerSession: ActiveTriggerSession? = null
+    suspend fun getActiveTriggerSession(): ActiveTriggerSession? = withContext(singleThreadContext) {
+        return@withContext activeTriggerSession
+    }
+
+    private var activeTriggerSession: ActiveTriggerSession? = null
 
     init {
-        CoroutineScope(Dispatchers.IO).launch {
+        CoroutineScope(singleThreadContext).launch {
             listenForConfig()
         }
     }
@@ -65,15 +72,15 @@ class TriggerSessionManager(
     suspend fun activateSession(
         presentationInfo: PresentationInfo,
         triggerResult: InternalTriggerResult? = null,
-    ): String? {
-        val eventName = presentationInfo.eventName ?: return null
+    ): String? = withContext(singleThreadContext) {
+        val eventName = presentationInfo.eventName ?: return@withContext null
 
-        val sessionId = pendingTriggerSessionIds[eventName] ?: return null
+        val sessionId = pendingTriggerSessionIds[eventName] ?: return@withContext null
 
         val outcome = TriggerSessionManagerLogic.outcome(
             presentationInfo = presentationInfo,
             triggerResult = triggerResult?.toPublicType()
-        ) ?: return null
+        ) ?: return@withContext null
 
         activeTriggerSession = ActiveTriggerSession(
             sessionId = sessionId,
@@ -98,13 +105,11 @@ class TriggerSessionManager(
             TriggerSession.PresentationOutcome.PAYWALL -> {}
         }
 
-        return sessionId
+        return@withContext sessionId
     }
 
-    fun endSession() {
-        val currentTriggerSession = activeTriggerSession ?: return
-
-        activeTriggerSession = currentTriggerSession
+    fun endSession() = CoroutineScope(singleThreadContext).launch {
+        val currentTriggerSession = activeTriggerSession ?: return@launch
 
         // Recreate a pending trigger session
         pendingTriggerSessionIds[currentTriggerSession.eventName] = UUID.randomUUID().toString()
