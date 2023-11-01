@@ -93,10 +93,7 @@ class PaywallRequestManager(
 
     suspend fun getRawPaywall(request: PaywallRequest): Paywall {
         println("!!getRawPaywall - ${request.responseIdentifiers.paywallId}")
-        trackResponseStarted(
-            paywallId = request.responseIdentifiers.paywallId,
-            event = request.eventData
-        )
+        trackResponseStarted(event = request.eventData)
         val paywall = getPaywallResponse(request)
 
         val paywallInfo = paywall.getInfo(
@@ -123,11 +120,6 @@ class PaywallRequestManager(
                 event = event
             )
         } catch (error: Exception) {
-            val triggerSessionManager = factory.getTriggerSessionManager()
-            triggerSessionManager.trackPaywallResponseLoad(
-                forPaywallId = request.responseIdentifiers.paywallId,
-                state = LoadState.FAIL
-            )
             val errorResponse = PaywallLogic.handlePaywallError(
                 error,
                 event
@@ -147,15 +139,9 @@ class PaywallRequestManager(
     }
 
     // MARK: - Analytics
-    private suspend fun PaywallRequestManager.trackResponseStarted(
-        paywallId: String?,
+    private suspend fun trackResponseStarted(
         event: EventData?
     ) {
-        val triggerSessionManager = factory.getTriggerSessionManager()
-        triggerSessionManager.trackPaywallResponseLoad(
-            forPaywallId = paywallId,
-            state = LoadState.START
-        )
         val trackedEvent = InternalSuperwallEvent.PaywallLoad(
             state = InternalSuperwallEvent.PaywallLoad.State.Start(),
             eventData = event
@@ -163,7 +149,7 @@ class PaywallRequestManager(
         Superwall.instance.track(trackedEvent)
     }
 
-    private suspend fun PaywallRequestManager.trackResponseLoaded(
+    private suspend fun trackResponseLoaded(
         paywallInfo: PaywallInfo,
         event: EventData?
     ) {
@@ -172,12 +158,6 @@ class PaywallRequestManager(
             eventData = event
         )
         Superwall.instance.track(responseLoadEvent)
-
-        val triggerSessionManager = factory.getTriggerSessionManager()
-        triggerSessionManager.trackPaywallResponseLoad(
-            forPaywallId = paywallInfo.databaseId,
-            state = LoadState.END
-        )
     }
 
 
@@ -238,9 +218,6 @@ class PaywallRequestManager(
             request.eventData
         )
         Superwall.instance.track(productLoadEvent)
-
-        val triggerSessionManager = factory.getTriggerSessionManager()
-        triggerSessionManager.trackProductsLoad(paywallInfo.databaseId, LoadState.START)
         return paywall
     }
 
@@ -251,17 +228,12 @@ class PaywallRequestManager(
             eventData = event
         )
         Superwall.instance.track(productLoadEvent)
-
-        val triggerSessionManager = factory.getTriggerSessionManager()
-        triggerSessionManager.trackProductsLoad(paywallInfo.databaseId, LoadState.FAIL)
     }
 
     private suspend fun trackProductsLoadFinish(paywall: Paywall, event: EventData?): Paywall {
         var paywall = paywall
         paywall.productsLoadingInfo.endAt = Date()
         val paywallInfo = paywall.getInfo(event, factory)
-        val triggerSessionManager = factory.getTriggerSessionManager()
-        triggerSessionManager.trackProductsLoad(paywallInfo.databaseId, LoadState.END)
         val productLoadEvent = InternalSuperwallEvent.PaywallProductsLoad(
             state = InternalSuperwallEvent.PaywallProductsLoad.State.Complete(),
             paywallInfo,

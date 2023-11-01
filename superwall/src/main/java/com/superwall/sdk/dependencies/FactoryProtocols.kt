@@ -26,6 +26,7 @@ import com.superwall.sdk.paywall.vc.PaywallViewController
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegateAdapter
 import com.superwall.sdk.paywall.vc.web_view.templating.models.JsonVariables
 import com.superwall.sdk.storage.Storage
+import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
 import com.superwall.sdk.store.transactions.GoogleBillingTransactionVerifier
 import kotlinx.coroutines.flow.StateFlow
@@ -173,7 +174,7 @@ interface ConfigManagerFactory {
 //}
 
 interface StoreTransactionFactory {
-    suspend fun makeStoreTransaction(transaction: Purchase): StoreTransactionType
+    suspend fun makeStoreTransaction(transaction: Purchase): StoreTransaction
 }
 
 interface OptionsFactory {

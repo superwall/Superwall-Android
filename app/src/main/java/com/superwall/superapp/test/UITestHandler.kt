@@ -33,7 +33,6 @@ class UITestHandler {
             "Uses the identify function. Should see the name 'Jack' in the paywall."
         )
         suspend fun test0() {
-            // TODO: The name doesn't display
             Superwall.instance.identify(userId = "test0")
             Superwall.instance.setUserAttributes(attributes = mapOf("first_name" to "Jack"))
             Superwall.instance.register(event = "present_data")

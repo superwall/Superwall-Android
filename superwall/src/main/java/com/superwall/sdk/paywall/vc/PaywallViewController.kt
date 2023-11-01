@@ -264,7 +264,7 @@ class PaywallViewController(
         paywall.closeReason = PaywallCloseReason.None
 
         Superwall.instance.dependencyContainer.delegateAdapter.willPresentPaywall(info)
-
+        webView.scrollTo(0, 0)
         if (loadingState is PaywallLoadingState.Ready) {
             webView.messageHandler.handle(PaywallMessage.TemplateParamsAndUserAttributes)
         }
@@ -434,7 +434,6 @@ class PaywallViewController(
         Superwall.instance.dependencyContainer.delegateAdapter.didPresentPaywall(info)
 
         CoroutineScope(Dispatchers.IO).launch {
-            print("*** TRACK OPEN*** ")
             trackOpen()
         }
 
@@ -453,8 +452,6 @@ class PaywallViewController(
     private var initialOrientation: Int? = null
 
     private suspend fun trackOpen() {
-        val triggerSessionManager = factory.getTriggerSessionManager()
-        triggerSessionManager.trackPaywallOpen()
         storage.trackPaywallOpen()
         val trackedEvent = InternalSuperwallEvent.PaywallOpen(info)
         Superwall.instance.track(trackedEvent)
@@ -468,7 +465,7 @@ class PaywallViewController(
             surveyPresentationResult
         )
         Superwall.instance.track(trackedEvent)
-        triggerSessionManager.trackPaywallClose()
+        triggerSessionManager.endSession()
     }
 
     override fun eventDidOccur(paywallEvent: PaywallWebEvent) {
@@ -626,7 +623,6 @@ class PaywallViewController(
 
     fun loadWebView() {
         val url = paywall.url
-    println("*** HEY!")
         if (paywall.webviewLoadingInfo.startAt == null) {
             paywall.webviewLoadingInfo.startAt = Date()
         }
@@ -637,12 +633,6 @@ class PaywallViewController(
                 paywallInfo = this@PaywallViewController.info
             )
             Superwall.instance.track(trackedEvent)
-
-            val triggerSessionManager = factory.getTriggerSessionManager()
-            triggerSessionManager.trackWebviewLoad(
-                forPaywallId = info.databaseId,
-                state = LoadState.START
-            )
         }
 
         if (paywall.onDeviceCache is OnDeviceCaching.Enabled) {

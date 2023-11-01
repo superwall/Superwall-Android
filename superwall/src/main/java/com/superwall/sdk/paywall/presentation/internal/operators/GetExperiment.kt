@@ -82,8 +82,7 @@ private suspend fun Superwall.activateSession(
     }
     val sessionEventsManager = dependencyContainer.sessionEventsManager
     sessionEventsManager?.triggerSession?.activateSession(
-        forPresentationInfo = request.presentationInfo,
-        on = request.presenter,
+        presentationInfo = request.presentationInfo,
         triggerResult = rulesOutcome.triggerResult
     )
 }

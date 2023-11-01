@@ -24,6 +24,7 @@ data class PaywallInfo(
     @Serializable(with = URLSerializer::class)
     val url: URL,
     val experiment: Experiment?,
+    val triggerSessionId: String?,
     val products: List<Product>,
     val productIds: List<String>,
     val presentedByEventWithName: String?,
@@ -67,6 +68,7 @@ data class PaywallInfo(
         productsLoadFailTime: Date?,
         productsLoadCompleteTime: Date?,
         experiment: Experiment? = null,
+        triggerSessionId: String? = null,
         paywalljsVersion: String? = null,
         isFreeTrialAvailable: Boolean,
         presentationSourceType: String? = null,
@@ -83,6 +85,7 @@ data class PaywallInfo(
         presentedByEventAt = eventData?.createdAt?.toString(),
         presentedByEventWithId = eventData?.id?.lowercase(),
         experiment = experiment,
+        triggerSessionId = triggerSessionId,
         paywalljsVersion = paywalljsVersion,
         products = products,
         productIds = products.map { it.id },
@@ -142,20 +145,13 @@ data class PaywallInfo(
             "paywall_products_load_complete_time" to productsLoadCompleteTime,
             "paywall_products_load_fail_time" to productsLoadFailTime,
             "paywall_products_load_duration" to productsLoadDuration,
+            "trigger_session_id" to triggerSessionId,
+            "experiment_id" to experiment?.id,
+            "variant_id" to experiment?.variant?.id
         )
         params.values.removeAll { it == null }
         val filteredParams = params as MutableMap<String, Any>
         output.putAll(filteredParams)
-
-        // TODO: Re-enable this
-//        val triggerSessionManager = factory.getTriggerSessionManager()
-//        val triggerSession = triggerSessionManager.activeTriggerSession
-//
-//        if (triggerSession?.paywall?.databaseId == this.databaseId) {
-//            output["trigger_session_id"] = triggerSession.id
-//            output["experiment_id"] = triggerSession.trigger.experiment?.id
-//            output["variant_id"] = triggerSession.trigger.experiment?.variant?.id
-//        }
 
         val loadingVars = mutableMapOf<String, Any>()
         for (key in output.keys) {

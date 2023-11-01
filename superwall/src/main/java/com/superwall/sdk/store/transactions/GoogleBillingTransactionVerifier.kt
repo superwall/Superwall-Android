@@ -4,8 +4,9 @@ import android.content.Context
 import android.util.Log
 import com.android.billingclient.api.*
 import com.superwall.sdk.delegate.InternalPurchaseResult
+import com.superwall.sdk.dependencies.StoreTransactionFactory
 import com.superwall.sdk.store.abstractions.transactions.GoogleBillingPurchaseTransaction
-import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
+import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -57,13 +58,13 @@ class GoogleBillingTransactionVerifier(var context: Context) : PurchasesUpdatedL
     private val purchaseResults = MutableStateFlow<InternalPurchaseResult?>(null)
 
     suspend fun getLatestTransaction(
-        productId: String
-    ): StoreTransactionType? {
+        factory: StoreTransactionFactory
+    ): StoreTransaction? {
         // Get the latest from purchaseResults
         purchaseResults.asStateFlow().filter { it != null }.first().let { purchaseResult ->
             return when (purchaseResult) {
                 is InternalPurchaseResult.Purchased -> {
-                    return purchaseResult.storeTransaction
+                    return factory.makeStoreTransaction(purchaseResult.purchase)
                 }
                 is InternalPurchaseResult.Cancelled -> {
                     null
@@ -82,11 +83,7 @@ class GoogleBillingTransactionVerifier(var context: Context) : PurchasesUpdatedL
                 println("Purchase: $purchase")
                 scope.launch {
                     purchaseResults.emit(
-                        InternalPurchaseResult.Purchased(
-                            storeTransaction = GoogleBillingPurchaseTransaction(
-                                purchase
-                            )
-                        )
+                        InternalPurchaseResult.Purchased(purchase)
                     )
                 }
             }

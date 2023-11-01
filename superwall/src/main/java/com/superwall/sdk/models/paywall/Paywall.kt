@@ -76,6 +76,9 @@ data class Paywall(
     var experiment: Experiment? = null,
 
     @kotlinx.serialization.Transient()
+    var triggerSessionId: String? = null,
+
+    @kotlinx.serialization.Transient()
     var closeReason: PaywallCloseReason = PaywallCloseReason.None,
 
     /**
@@ -144,6 +147,7 @@ data class Paywall(
             productsLoadFailTime = productsLoadingInfo.failAt,
             productsLoadCompleteTime = productsLoadingInfo.endAt,
             experiment = experiment,
+            triggerSessionId = triggerSessionId,
             paywalljsVersion = paywalljsVersion,
             isFreeTrialAvailable = isFreeTrialAvailable,
             factory = factory,

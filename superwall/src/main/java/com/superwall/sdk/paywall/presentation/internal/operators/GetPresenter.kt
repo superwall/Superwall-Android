@@ -46,11 +46,11 @@ suspend fun Superwall.getPresenterIfNecessary(
 
     when (request.flags.type) {
         is PresentationRequestType.GetPaywall -> {
-            activateSession(
+            val sessionId = activateSession(
                 request = request,
-                paywall = paywallViewController.paywall,
                 triggerResult = rulesOutcome.triggerResult
             )
+            paywallViewController.paywall.triggerSessionId = sessionId
             return null
         }
 
@@ -60,26 +60,23 @@ suspend fun Superwall.getPresenterIfNecessary(
         else -> Unit
     }
 
-    activateSession(
+    val sessionId = activateSession(
         request = request,
-        paywall = paywallViewController.paywall,
         triggerResult = rulesOutcome.triggerResult
     )
+    paywallViewController.paywall.triggerSessionId = sessionId
 
     return dependencyContainer.activityLifecycleTracker.getCurrentActivity()
 }
 
 
-private fun Superwall.activateSession(
+private suspend fun Superwall.activateSession(
     request: PresentationRequest,
-    paywall: Paywall,
     triggerResult: InternalTriggerResult
-) {
+): String? {
     val sessionEventsManager = dependencyContainer.sessionEventsManager
-    sessionEventsManager?.triggerSession?.activateSession(
+    return sessionEventsManager?.triggerSession?.activateSession(
         request.presentationInfo,
-        request.presenter,
-        paywall,
         triggerResult
     )
 }

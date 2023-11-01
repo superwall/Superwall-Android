@@ -13,6 +13,7 @@ import com.superwall.sdk.dependencies.DeviceHelperFactory
 import com.superwall.sdk.dependencies.IdentityInfoFactory
 import com.superwall.sdk.dependencies.LocaleIdentifierFactory
 import com.superwall.sdk.dependencies.OptionsFactory
+import com.superwall.sdk.dependencies.StoreTransactionFactory
 import com.superwall.sdk.dependencies.TransactionVerifierFactory
 import com.superwall.sdk.dependencies.TriggerFactory
 import com.superwall.sdk.misc.ActivityLifecycleTracker
@@ -22,7 +23,7 @@ import com.superwall.sdk.paywall.vc.PaywallViewController
 import com.superwall.sdk.paywall.vc.delegate.PaywallLoadingState
 import com.superwall.sdk.store.StoreKitManager
 import com.superwall.sdk.store.abstractions.product.StoreProduct
-import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
+import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import kotlinx.coroutines.*
 
 class TransactionManager(
@@ -31,7 +32,7 @@ class TransactionManager(
     private val activityLifecycleTracker: ActivityLifecycleTracker,
     private val factory: Factory
 ) {
-    interface Factory: OptionsFactory, TriggerFactory, TransactionVerifierFactory {}
+    interface Factory: OptionsFactory, TriggerFactory, TransactionVerifierFactory, StoreTransactionFactory {}
     private var lastPaywallViewController: PaywallViewController? = null
 
     suspend fun purchase(productId: String, paywallViewController: PaywallViewController) {
@@ -114,7 +115,6 @@ class TransactionManager(
 
             // Assuming Superwall.shared.track and sessionEventsManager.triggerSession.trackTransactionError are suspend functions
             Superwall.instance.track(trackedEvent)
-            sessionEventsManager.triggerSession.trackTransactionError()
         }
     }
 
@@ -133,8 +133,6 @@ class TransactionManager(
         }
 
         val paywallInfo = paywallViewController.info
-
-        sessionEventsManager.triggerSession.trackBeginTransaction(product)
         val trackedEvent = InternalSuperwallEvent.Transaction(
             InternalSuperwallEvent.Transaction.State.Start(product),
             paywallInfo,
@@ -170,7 +168,7 @@ class TransactionManager(
 
         val transactionVerifier = factory.makeTransactionVerifier()
         val transaction = transactionVerifier.getLatestTransaction(
-            product.productIdentifier
+            factory = factory
         )
 
         transaction?.let {
@@ -214,7 +212,6 @@ class TransactionManager(
             null
         )
         Superwall.instance.track(trackedEvent)
-        sessionEventsManager.triggerSession.trackTransactionAbandon()
 
         withContext(Dispatchers.Main) {
             paywallViewController.loadingState = PaywallLoadingState.Ready()
@@ -241,7 +238,6 @@ class TransactionManager(
             null
         )
         Superwall.instance.track(trackedEvent)
-        sessionEventsManager.triggerSession.trackPendingTransaction()
 
         paywallViewController.presentAlert(
             "Waiting for Approval",
@@ -280,8 +276,6 @@ class TransactionManager(
             null
         )
         Superwall.instance.track(trackedEvent)
-        sessionEventsManager.triggerSession.trackTransactionError()
-
 
         paywallViewController.presentAlert(
             "An error occurred",
@@ -291,7 +285,7 @@ class TransactionManager(
 
     // ... and so on for the other methods ...
     private suspend fun trackTransactionDidSucceed(
-        transaction: StoreTransactionType?,
+        transaction: StoreTransaction?,
         product: StoreProduct
     ) {
         val paywallViewController = lastPaywallViewController ?: return
@@ -300,14 +294,6 @@ class TransactionManager(
         val didStartFreeTrial = product.hasFreeTrial && paywallShowingFreeTrial
 
         val paywallInfo = paywallViewController.info
-
-        transaction?.let {
-            sessionEventsManager.triggerSession.trackTransactionSucceeded(
-                withId = it.storeTransactionId,
-                forProduct = product,
-                isFreeTrialAvailable = didStartFreeTrial
-            )
-        }
 
         val trackedEvent = InternalSuperwallEvent.Transaction(
             InternalSuperwallEvent.Transaction.State.Complete(product, transaction),

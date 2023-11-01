@@ -148,7 +148,7 @@ open class ConfigManager(
                 if (options.paywalls.shouldPreload) {
                     CoroutineScope(Dispatchers.IO).launch { preloadAllPaywalls() }
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 Logger.debug(
                     logLevel = LogLevel.error,
                     scope = LogScope.configManager,

@@ -133,11 +133,6 @@ class SWWebView(
 
         val paywallInfo = delegate?.info ?: return
 
-        sessionEventsManager.triggerSession.trackWebviewLoad(
-            forPaywallId = paywallInfo.databaseId,
-            state = LoadState.FAIL
-        )
-
         val trackedEvent = InternalSuperwallEvent.PaywallWebviewLoad(
             state = InternalSuperwallEvent.PaywallWebviewLoad.State.Fail(),
             paywallInfo = paywallInfo
