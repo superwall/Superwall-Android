@@ -6,6 +6,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ### Enhancements
 
+- Adds `trigger_session_id` to Superwall Events.
 - Resets the scroll position of the paywall on close.
 
 ### Fixes

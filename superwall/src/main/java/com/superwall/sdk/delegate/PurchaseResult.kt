@@ -1,9 +1,9 @@
 package com.superwall.sdk.delegate
 
-import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
+import com.android.billingclient.api.Purchase
 
 sealed class InternalPurchaseResult {
-    data class Purchased(val storeTransaction: StoreTransactionType?) : InternalPurchaseResult()
+    data class Purchased(val purchase: Purchase) : InternalPurchaseResult()
     object Restored : InternalPurchaseResult()
     object Cancelled : InternalPurchaseResult()
     object Pending : InternalPurchaseResult()

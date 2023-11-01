@@ -12,6 +12,7 @@ import com.superwall.sdk.dependencies.FeatureFlagsFactory
 import com.superwall.sdk.dependencies.RuleAttributesFactory
 import com.superwall.sdk.models.config.FeatureFlags
 import com.superwall.sdk.models.events.EventData
+import com.superwall.sdk.models.triggers.InternalTriggerResult
 import com.superwall.sdk.models.triggers.TriggerResult
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatus
@@ -19,7 +20,7 @@ import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationReques
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.vc.Survey.SurveyPresentationResult
 import com.superwall.sdk.store.abstractions.product.StoreProduct
-import com.superwall.sdk.store.abstractions.transactions.GoogleBillingPurchaseTransaction
+import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
 import com.superwall.sdk.store.transactions.TransactionError
 import kotlinx.serialization.json.*
@@ -223,14 +224,14 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
     }
 
     class TriggerFire(
-        val triggerResult: TriggerResult,
+        val triggerResult: InternalTriggerResult,
         val triggerName: String,
         override var customParameters: HashMap<String, Any> = HashMap(),
         private val sessionEventsManager: SessionEventsManager
     ) : InternalSuperwallEvent(
         SuperwallEvent.TriggerFire(
             eventName = triggerName,
-            result = triggerResult
+            result = triggerResult.toPublicType()
         )
     ) {
         override suspend fun getSuperwallParameters(): HashMap<String, Any> {
@@ -238,26 +239,25 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
                 "trigger_name" to triggerName
             )
 
-            // TODO: Fix trigger session
-//            val triggerSession = sessionEventsManager.triggerSession.activeTriggerSession
-//            if (triggerSession != null) {
-//                params["trigger_session_id"] = triggerSession.id
-//            }
+            val triggerSessionId = sessionEventsManager.triggerSession.getActiveTriggerSession()?.sessionId
+            if (triggerSessionId != null) {
+                params["trigger_session_id"] = triggerSessionId
+            }
 
             return when (triggerResult) {
-                is TriggerResult.NoRuleMatch -> {
+                is InternalTriggerResult.NoRuleMatch -> {
                     params.apply {
                         this["result"] = "no_rule_match"
                     }
                 }
-                is TriggerResult.Holdout -> {
+                is InternalTriggerResult.Holdout -> {
                     params.apply {
                         this["variant_id"] = triggerResult.experiment.variant.id
                         this["experiment_id"] = triggerResult.experiment.id
                         this["result"] = "holdout"
                     }
                 }
-                is TriggerResult.Paywall -> {
+                is InternalTriggerResult.Paywall -> {
                     params.apply {
                         this["variant_id"] = triggerResult.experiment.variant.id
                         this["experiment_id"] = triggerResult.experiment.id
@@ -266,12 +266,12 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
                         this["result"] = "present"
                     }
                 }
-                is TriggerResult.EventNotFound -> {
+                is InternalTriggerResult.EventNotFound -> {
                     params.apply {
                         this["result"] = "eventNotFound"
                     }
                 }
-                is TriggerResult.Error -> {
+                is InternalTriggerResult.Error -> {
                     params.apply {
                         this["result"] = "error"
                     }
@@ -359,7 +359,7 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
         val state: State,
         val paywallInfo: PaywallInfo,
         val product: StoreProduct?,
-        val model: StoreTransactionType?
+        val model: StoreTransaction?
     ) : TrackableSuperwallEvent {
         sealed class State {
             class Start(val product: StoreProduct) : State()
@@ -417,7 +417,7 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
                         val json = Json { encodeDefaults = true }
                         // TODO: Figure out how to get this to work with kotlinx.serialization
                         val jsonObject: JsonObject =
-                            json.encodeToJsonElement(model as GoogleBillingPurchaseTransaction).jsonObject
+                            json.encodeToJsonElement(model).jsonObject
 
                         val modelMap: Map<String, Any> = jsonObject.mapValues { entry ->
                             when (val value = entry.value) {

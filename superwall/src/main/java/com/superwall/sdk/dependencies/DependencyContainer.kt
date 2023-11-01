@@ -53,6 +53,7 @@ import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.InternalPurchaseController
 import com.superwall.sdk.store.StoreKitManager
 import com.superwall.sdk.store.abstractions.transactions.GoogleBillingPurchaseTransaction
+import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
 import com.superwall.sdk.store.transactions.GoogleBillingTransactionVerifier
 import com.superwall.sdk.store.transactions.TransactionManager
@@ -167,6 +168,10 @@ class DependencyContainer(
             activityLifecycleTracker,
             factory = this
         )
+
+        // Calling this just to initialise the trigger session manager so it can start listening
+        // to config.
+        sessionEventsManager.triggerSession
     }
 
 
@@ -181,7 +186,6 @@ class DependencyContainer(
             "Authorization" to auth,
             "X-Platform" to "iOS",
             "X-Platform-Environment" to "SDK",
-            // TODO: Add app user id: https://linear.app/superwall/issue/SW-2365/[android]-add-appuserid
             "X-App-User-ID" to (identityManager.getAppUserId() ?: ""),
             "X-Alias-ID" to identityManager.getAliasId(),
             "X-URL-Scheme" to deviceHelper.urlScheme,
@@ -257,7 +261,6 @@ class DependencyContainer(
         return PaywallViewControllerCache(deviceHelper.locale)
     }
 
-
     override fun makeDeviceInfo(): DeviceInfo {
         return DeviceInfo(
             appInstalledAtString = deviceHelper.appInstalledAtString,
@@ -331,7 +334,6 @@ class DependencyContainer(
             sessionEventsManager = sessionEventsManager,
             storage = storage,
             configManager = configManager,
-            appSessionManager = appSessionManager,
             identityManager = identityManager
         )
     }
@@ -407,9 +409,15 @@ class DependencyContainer(
         return variables
     }
 
-    override suspend fun makeStoreTransaction(transaction: Purchase): StoreTransactionType {
-        return GoogleBillingPurchaseTransaction(
-            transaction = transaction,
+    override suspend fun makeStoreTransaction(transaction: Purchase): StoreTransaction {
+        val triggerSessionId =  sessionEventsManager.triggerSession.getActiveTriggerSession()?.sessionId
+        return StoreTransaction(
+            GoogleBillingPurchaseTransaction(
+                transaction = transaction,
+            ),
+            configRequestId = configManager.config?.requestId ?: "",
+            appSessionId = appSessionManager.appSession.id,
+            triggerSessionId = triggerSessionId
         )
     }
 
