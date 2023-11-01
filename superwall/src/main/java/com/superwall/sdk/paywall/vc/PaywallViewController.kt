@@ -434,7 +434,6 @@ class PaywallViewController(
         Superwall.instance.dependencyContainer.delegateAdapter.didPresentPaywall(info)
 
         CoroutineScope(Dispatchers.IO).launch {
-            print("*** TRACK OPEN*** ")
             trackOpen()
         }
 
@@ -624,7 +623,6 @@ class PaywallViewController(
 
     fun loadWebView() {
         val url = paywall.url
-    println("*** HEY!")
         if (paywall.webviewLoadingInfo.startAt == null) {
             paywall.webviewLoadingInfo.startAt = Date()
         }
