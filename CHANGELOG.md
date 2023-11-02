@@ -2,6 +2,12 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall-me/Superwall-Android/releases) on GitHub.
 
+## 1.0.0-alpha.15
+
+### Fixes
+
+- Fixes an issue where reset wasn't clearing web view data from memory.
+
 ## 1.0.0-alpha.14
 
 ### Enhancements
