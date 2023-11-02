@@ -4,9 +4,11 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## 1.0.0-alpha.15
 
+
 ### Fixes
 
 - Fixes an issue where reset wasn't clearing web view data from memory.
+- Fixes issue where the loading indicator was still showing when the `transactionBackgroundView` was set to `NONE`.
 
 ## 1.0.0-alpha.14
 
