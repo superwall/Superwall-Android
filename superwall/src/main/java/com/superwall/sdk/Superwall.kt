@@ -15,7 +15,6 @@ import com.superwall.sdk.delegate.SuperwallDelegateJava
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.dependencies.DependencyContainer
 import com.superwall.sdk.misc.SerialTaskManager
-import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.PresentationItems
 import com.superwall.sdk.paywall.presentation.internal.dismiss
@@ -24,11 +23,10 @@ import com.superwall.sdk.paywall.vc.PaywallViewController
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerEventDelegate
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.*
+import com.superwall.sdk.store.ExternalNativePurchaseController
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.filterNotNull
 import java.util.*
 
 class Superwall(
@@ -137,10 +135,10 @@ class Superwall(
         fun configure(
             applicationContext: Context,
             apiKey: String,
-            purchaseController: PurchaseController,
+            purchaseController: PurchaseController? = null,
             options: SuperwallOptions? = null,
         ) {
-            // setup the SDK using that API Key
+            val purchaseController = purchaseController ?: ExternalNativePurchaseController(context = applicationContext)
             instance = Superwall(applicationContext, apiKey, purchaseController, options)
             instance.setup()
             initialized = true
