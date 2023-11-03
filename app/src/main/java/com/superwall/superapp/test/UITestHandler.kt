@@ -1325,16 +1325,6 @@ class UITestHandler {
             Superwall.instance.register(event = "price_readout")
         }
 
-        var testAndroid0Info = UITestInfo(
-            0,
-            "NOTE: Must use `Android Main screen` API key. Present the paywall and make a purchase.",
-            testCaseType = TestCaseType.Android
-        )
-
-        suspend fun testAndroid0() {
-            Superwall.instance.register(event = "another_paywall")
-        }
-
         var testAndroid4Info = UITestInfo(
             4,
             "NOTE: Must use `Android Main screen` API key. Launch compose debug screen: " +
