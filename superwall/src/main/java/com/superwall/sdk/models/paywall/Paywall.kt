@@ -20,7 +20,7 @@ import java.net.URL
 import java.util.*
 
 @Serializable
-data class Paywalls(val paywalls: List<Paywall>)
+data class Paywalls(val paywalls: List<Paywall>): SerializableEntity
 
 @Serializable
 data class Paywall(

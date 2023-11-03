@@ -9,6 +9,7 @@ import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.events.EventsRequest
 import com.superwall.sdk.models.events.EventsResponse
 import com.superwall.sdk.models.paywall.Paywall
+import com.superwall.sdk.models.paywall.Paywalls
 import com.superwall.sdk.models.postback.PostBackResponse
 import com.superwall.sdk.models.postback.Postback
 import kotlinx.coroutines.coroutineScope
@@ -209,6 +210,18 @@ data class Endpoint<Response : SerializableEntity>(
 //            }
 //        }
 
+        fun paywalls(factory: ApiFactory): Endpoint<Paywalls> {
+            val baseHost = factory.api.base.host
+            return Endpoint(
+                components = Components(
+                    host = baseHost,
+                    path = Api.version1 + "paywalls"
+                ),
+                method = HttpMethod.GET,
+                isForDebugging = true,
+                factory = factory
+            )
+        }
 
         fun paywall(
             identifier: String? = null,
