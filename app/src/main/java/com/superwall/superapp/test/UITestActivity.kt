@@ -61,6 +61,7 @@ fun UITestTable() {
     }
 
     val tests = mapOf(
+        UITestHandler.testAndroid0Info to { CoroutineScope(Dispatchers.IO).launch { UITestHandler.testAndroid0() } },
         UITestHandler.test0Info to { CoroutineScope(Dispatchers.IO).launch { UITestHandler.test0() } },
         UITestHandler.test1Info to { CoroutineScope(Dispatchers.IO).launch { UITestHandler.test1() } },
         UITestHandler.test2Info to { CoroutineScope(Dispatchers.IO).launch { UITestHandler.test2() } },
