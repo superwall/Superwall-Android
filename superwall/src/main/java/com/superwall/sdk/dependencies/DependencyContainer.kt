@@ -22,6 +22,7 @@ import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.identity.IdentityInfo
 import com.superwall.sdk.identity.IdentityManager
 import com.superwall.sdk.misc.ActivityLifecycleTracker
+import com.superwall.sdk.misc.ActivityProvider
 import com.superwall.sdk.misc.VersionHelper
 import com.superwall.sdk.misc.sdkVersion
 import com.superwall.sdk.models.config.FeatureFlags
@@ -68,7 +69,8 @@ import kotlinx.coroutines.withContext
 class DependencyContainer(
     val context: Context,
     purchaseController: PurchaseController? = null,
-    options: SuperwallOptions?
+    options: SuperwallOptions?,
+    var activityProvider: ActivityProvider?
 ) : ApiFactory, DeviceInfoFactory, AppManagerDelegate, RequestFactory, TriggerSessionManagerFactory,
     RuleAttributesFactory, DeviceHelper.Factory, CacheFactory,
     PaywallRequestManagerDepFactory, VariablesFactory,
@@ -90,17 +92,25 @@ class DependencyContainer(
     var paywallManager: PaywallManager
     var paywallRequestManager: PaywallRequestManager
     var storeKitManager: StoreKitManager
-    val activityLifecycleTracker: ActivityLifecycleTracker
     val transactionManager: TransactionManager
 
     init {
         // TODO: Add delegate adapter
 
-        activityLifecycleTracker = ActivityLifecycleTracker()
-        // onto
-        (context.applicationContext as Application).registerActivityLifecycleCallbacks(
-            activityLifecycleTracker
-        )
+        // If activity provider exists, let it be. Otherwise, create our own.
+        val activityProvider: ActivityProvider
+
+        if (this.activityProvider == null) {
+            val activityLifecycleTracker = ActivityLifecycleTracker()
+
+            (context.applicationContext as Application).registerActivityLifecycleCallbacks(
+                activityLifecycleTracker
+            )
+            activityProvider = activityLifecycleTracker
+            this.activityProvider = activityProvider
+        } else {
+           activityProvider = this.activityProvider!!
+        }
 
         var purchaseController = InternalPurchaseController(
             kotlinPurchaseController = purchaseController,
@@ -165,7 +175,7 @@ class DependencyContainer(
         transactionManager = TransactionManager(
             storeKitManager = storeKitManager,
             sessionEventsManager,
-            activityLifecycleTracker,
+            activityProvider,
             factory = this
         )
 
@@ -173,7 +183,6 @@ class DependencyContainer(
         // to config.
         sessionEventsManager.triggerSession
     }
-
 
     override suspend fun makeHeaders(
         isForDebugging: Boolean,

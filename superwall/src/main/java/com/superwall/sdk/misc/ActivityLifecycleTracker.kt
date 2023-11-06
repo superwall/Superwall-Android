@@ -4,14 +4,8 @@ import android.app.Activity
 import android.app.Application
 import android.os.Bundle
 
-class ActivityLifecycleTracker constructor() : Application.ActivityLifecycleCallbacks {
-
+class ActivityLifecycleTracker : Application.ActivityLifecycleCallbacks, ActivityProvider {
     private var currentActivity: Activity? = null
-
-    companion object {
-        // TODO: Remove this
-        val instance: ActivityLifecycleTracker by lazy { ActivityLifecycleTracker() }
-    }
 
     override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
         println("!! onActivityCreated: $activity")
@@ -40,7 +34,7 @@ class ActivityLifecycleTracker constructor() : Application.ActivityLifecycleCall
         }
     }
 
-    fun getCurrentActivity(): Activity? {
+    override fun getCurrentActivity(): Activity? {
         println("!! getCurrentActivity: $currentActivity")
         return currentActivity
     }
