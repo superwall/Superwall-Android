@@ -2,13 +2,25 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall-me/Superwall-Android/releases) on GitHub.
 
-## 1.0.0-alpha.15
+## 1.0.0-alpha.18
 
+### Enhancements
+
+- Adds the ability to provide an `ActivityProvider` when configuring the SDK. This is an interface 
+containing the function `getCurrentActivity()`, which Superwall will use to present paywalls from. 
+You would typically conform an `ActivityLifecycleTracker` to this interface.
 
 ### Fixes
 
-- Fixes an issue where reset wasn't clearing web view data from memory.
-- Fixes issue where the loading indicator was still showing when the `transactionBackgroundView` was set to `NONE`.
+- Fixes a crash when storing a `List` to user attributes and if that List or a Map had a null value.
+
+## 1.0.0-alpha.17
+
+### Enhancements
+
+- Adds automatic purchase controller
+- Improves memory handling for webviews
+- Hides the loading indicator on a paywall if transactionBackgroundView is set to NONE
 
 ## 1.0.0-alpha.14
 

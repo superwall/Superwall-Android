@@ -14,8 +14,8 @@ import com.superwall.sdk.delegate.SuperwallDelegate
 import com.superwall.sdk.delegate.SuperwallDelegateJava
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.dependencies.DependencyContainer
+import com.superwall.sdk.misc.ActivityProvider
 import com.superwall.sdk.misc.SerialTaskManager
-import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.PresentationItems
 import com.superwall.sdk.paywall.presentation.internal.dismiss
@@ -24,24 +24,25 @@ import com.superwall.sdk.paywall.vc.PaywallViewController
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerEventDelegate
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.*
+import com.superwall.sdk.store.ExternalNativePurchaseController
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.filterNotNull
 import java.util.*
 
 class Superwall(
     context: Context,
     apiKey: String,
     purchaseController: PurchaseController?,
-    options: SuperwallOptions?
+    options: SuperwallOptions?,
+    activityProvider: ActivityProvider?
 ) :
     PaywallViewControllerEventDelegate {
     private var apiKey: String = apiKey
     internal var context: Context = context
     private var purchaseController: PurchaseController? = purchaseController
     private var _options: SuperwallOptions? = options
+    private var activityProvider = activityProvider
 
     private var billingController = BillingController(context)
 
@@ -137,11 +138,18 @@ class Superwall(
         fun configure(
             applicationContext: Context,
             apiKey: String,
-            purchaseController: PurchaseController,
+            purchaseController: PurchaseController? = null,
             options: SuperwallOptions? = null,
+            activityProvider: ActivityProvider? = null
         ) {
-            // setup the SDK using that API Key
-            instance = Superwall(applicationContext, apiKey, purchaseController, options)
+            val purchaseController = purchaseController ?: ExternalNativePurchaseController(context = applicationContext)
+            instance = Superwall(
+                context = applicationContext,
+                apiKey = apiKey,
+                purchaseController = purchaseController,
+                options = options,
+                activityProvider = activityProvider
+            )
             instance.setup()
             initialized = true
         }
@@ -154,7 +162,12 @@ class Superwall(
     internal val serialTaskManager = SerialTaskManager()
 
     internal fun setup() {
-        this.dependencyContainer = DependencyContainer(context, purchaseController, _options)
+        this.dependencyContainer = DependencyContainer(
+            context = context,
+            purchaseController = purchaseController,
+            options = _options,
+            activityProvider = activityProvider
+        )
 
         CoroutineScope(Dispatchers.IO).launch {
             dependencyContainer.storage.configure(apiKey = apiKey)
