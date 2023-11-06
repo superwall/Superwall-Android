@@ -4,6 +4,12 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## 1.0.0-alpha.18
 
+### Enhancements
+
+- Adds the ability to provide an `ActivityProvider` when configuring the SDK. This is an interface 
+containing the function `getCurrentActivity()`, which Superwall will use to present paywalls from. 
+You would typically conform an `ActivityLifecycleTracker` to this interface.
+
 ### Fixes
 
 - Fixes a crash when storing a `List` to user attributes and if that List or a Map had a null value.

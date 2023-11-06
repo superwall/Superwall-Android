@@ -14,6 +14,7 @@ import com.superwall.sdk.delegate.SuperwallDelegate
 import com.superwall.sdk.delegate.SuperwallDelegateJava
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.dependencies.DependencyContainer
+import com.superwall.sdk.misc.ActivityProvider
 import com.superwall.sdk.misc.SerialTaskManager
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.PresentationItems
@@ -33,13 +34,15 @@ class Superwall(
     context: Context,
     apiKey: String,
     purchaseController: PurchaseController?,
-    options: SuperwallOptions?
+    options: SuperwallOptions?,
+    activityProvider: ActivityProvider?
 ) :
     PaywallViewControllerEventDelegate {
     private var apiKey: String = apiKey
     internal var context: Context = context
     private var purchaseController: PurchaseController? = purchaseController
     private var _options: SuperwallOptions? = options
+    private var activityProvider = activityProvider
 
     private var billingController = BillingController(context)
 
@@ -137,9 +140,16 @@ class Superwall(
             apiKey: String,
             purchaseController: PurchaseController? = null,
             options: SuperwallOptions? = null,
+            activityProvider: ActivityProvider? = null
         ) {
             val purchaseController = purchaseController ?: ExternalNativePurchaseController(context = applicationContext)
-            instance = Superwall(applicationContext, apiKey, purchaseController, options)
+            instance = Superwall(
+                context = applicationContext,
+                apiKey = apiKey,
+                purchaseController = purchaseController,
+                options = options,
+                activityProvider = activityProvider
+            )
             instance.setup()
             initialized = true
         }
@@ -152,7 +162,12 @@ class Superwall(
     internal val serialTaskManager = SerialTaskManager()
 
     internal fun setup() {
-        this.dependencyContainer = DependencyContainer(context, purchaseController, _options)
+        this.dependencyContainer = DependencyContainer(
+            context = context,
+            purchaseController = purchaseController,
+            options = _options,
+            activityProvider = activityProvider
+        )
 
         CoroutineScope(Dispatchers.IO).launch {
             dependencyContainer.storage.configure(apiKey = apiKey)

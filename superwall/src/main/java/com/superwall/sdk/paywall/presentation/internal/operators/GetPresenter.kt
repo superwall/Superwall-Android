@@ -66,7 +66,7 @@ suspend fun Superwall.getPresenterIfNecessary(
     )
     paywallViewController.paywall.triggerSessionId = sessionId
 
-    return dependencyContainer.activityLifecycleTracker.getCurrentActivity()
+    return dependencyContainer.activityProvider?.getCurrentActivity()
 }
 
 
