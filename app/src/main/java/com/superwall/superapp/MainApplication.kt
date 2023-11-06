@@ -6,10 +6,8 @@ import com.superwall.sdk.delegate.SuperwallDelegate
 import com.superwall.sdk.paywall.presentation.register
 
 class MainApplication : android.app.Application(), SuperwallDelegate {
-    override fun onCreate() {
-        super.onCreate()
-
-        val purchaseController =  RevenueCatPurchaseController(this)
+    companion object {
+        const val CONSTANT_API_KEY = "pk_d1f0959f70c761b1d55bb774a03e22b2b6ed290ce6561f85"
 
         /*
         Copy and paste the following API keys to switch between apps.
@@ -25,10 +23,32 @@ class MainApplication : android.app.Application(), SuperwallDelegate {
             TransacionFail: pk_b6cd945401435766da627080a3fbe349adb2dcd69ab767f3
             SurveyResponse: pk_3698d9fe123f1e4aa8014ceca111096ca06fd68d31d9e662
          */
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+
+        configureWithAutomaticInitialization()
+//        configureWithRevenueCatInitialization()
+    }
+
+    fun configureWithAutomaticInitialization() {
+        Superwall.configure(
+            this,
+            CONSTANT_API_KEY,
+        )
+        Superwall.instance.delegate = this
+
+        // Make sure we enable the game controller
+        Superwall.instance.options.isGameControllerEnabled = true
+    }
+
+    fun configureWithRevenueCatInitialization() {
+        val purchaseController =  RevenueCatPurchaseController(this)
 
         Superwall.configure(
             this,
-            "pk_2d1d31d50d50fa0ba0bcbae41c3f970d63db413a7e1150db",
+            CONSTANT_API_KEY,
             purchaseController
         )
         Superwall.instance.delegate = this
