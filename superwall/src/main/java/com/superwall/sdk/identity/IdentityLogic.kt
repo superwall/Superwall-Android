@@ -29,24 +29,25 @@ object IdentityLogic {
     ): MutableMap<String, Any> {
         val mergedAttributes = oldAttributes.toMutableMap()
 
-        for (key in newAttributes.keys) {
-            if (key == "\$is_standard_event") {
-                continue
-            }
-            if (key == "\$application_installed_at") {
+        for (entry in newAttributes.entries) {
+            val key = entry.key
+            if (key == "\$is_standard_event" || key == "\$application_installed_at") {
                 continue
             }
 
-            var key = key
-
-            if (key.startsWith("\$")) { // replace dollar signs
-                key = key.replace("\$", "")
+            var transformedKey = key
+            if (transformedKey.startsWith("\$")) { // replace dollar signs
+                transformedKey = transformedKey.replace("\$", "")
             }
-            val value = newAttributes[key]
-            if (value != null) {
-                mergedAttributes[key] = value
-            } else {
-                mergedAttributes.remove(key)
+
+            when (val value = entry.value) {
+                is List<*> -> mergedAttributes[transformedKey] = value.filterNotNull()
+                is Map<*, *> -> {
+                    val nonNullMap = value.filterValues { it != null }
+                    mergedAttributes[transformedKey] = nonNullMap.filterKeys { it != null }
+                }
+                null -> mergedAttributes.remove(transformedKey)
+                else -> mergedAttributes[transformedKey] = value
             }
         }
 

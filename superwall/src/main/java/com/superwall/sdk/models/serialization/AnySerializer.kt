@@ -31,25 +31,17 @@ object AnySerializer : KSerializer<Any> {
             is Float -> encoder.encodeFloat(value)
             is Double -> encoder.encodeDouble(value)
             is List<*> -> {
-                val composite = encoder.beginCollection(listDescriptor, value.size)
-                value.forEachIndexed { index, item ->
-                    if (item != null) {
-                        val serializer = serializerFor(item)
-                        composite.encodeSerializableElement(listDescriptor, index, serializer, item)
-                    }
-                }
-                composite.endStructure(listDescriptor)
+                val nonNullList = value.filterNotNull()
+                val serializer = ListSerializer(AnySerializer)
+                encoder.encodeSerializableValue(serializer, nonNullList)
             }
-
             is Map<*, *> -> {
-                val composite = encoder.beginStructure(mapDescriptor)
-                value.entries.forEachIndexed { index, entry ->
-                    if (entry.value != null) {
-                        val serializer = serializerFor(entry.value!!)
-                        composite.encodeSerializableElement(mapDescriptor, index, serializer, entry.value!!)
-                    }
-                }
-                composite.endStructure(mapDescriptor)
+                val convertedMap = value.entries
+                    .filter { it.value != null }
+                    .associate { it.key.toString() to it.value!! }
+
+                val mapSerializer = MapSerializer(String.serializer(), AnySerializer)
+                encoder.encodeSerializableValue(mapSerializer, convertedMap)
             }
             null -> encoder.encodeNull()
             else -> {
@@ -62,41 +54,45 @@ object AnySerializer : KSerializer<Any> {
     override fun deserialize(decoder: Decoder): Any {
         val input = decoder as? JsonDecoder
             ?: throw SerializationException("This class can be loaded only by Json")
-        val element = input.decodeJsonElement()
-        return when {
-            element is JsonPrimitive -> {
-                when {
-                    element.isString -> element.content
-                    element.booleanOrNull != null -> element.boolean
-                    element.intOrNull != null -> element.int
-                    element.longOrNull != null -> element.long
-                    element.doubleOrNull != null -> element.double
-                    else -> throw SerializationException("Unknown primitive type")
-                }
-            }
 
-            element is JsonObject -> {
-                val map = mutableMapOf<String, Any>()
-                element.forEach { (key, value) ->
-                    map[key] = when {
-                        value is JsonPrimitive && value.isString -> value.content
-                        value is JsonPrimitive && value.booleanOrNull != null -> value.boolean
-                        value is JsonPrimitive && value.intOrNull != null -> value.int
-                        value is JsonPrimitive && value.longOrNull != null -> value.long
-                        value is JsonPrimitive && value.doubleOrNull != null -> value.double
-                        value is JsonObject -> deserialize(Json.decodeFromString(value.toString()))
-                        value is JsonArray -> value.map { deserialize(Json.decodeFromString(it.toString())) }
-                        else -> throw SerializationException("Unknown type in JsonObject")
-                    }
-                }
-                map
-            }
-
-            element is JsonArray -> {
-                element.map { deserialize(Json.decodeFromString(it.toString())) }
-            }
-
+        return when (val element = input.decodeJsonElement()) {
+            is JsonPrimitive -> deserializePrimitive(element)
+            is JsonObject -> deserializeObject(element)
+            is JsonArray -> deserializeArray(element)
             else -> throw SerializationException("Unknown type")
+        }
+    }
+
+    private fun deserializePrimitive(element: JsonPrimitive): Any {
+        return when {
+            element.isString -> element.content
+            element.booleanOrNull != null -> element.boolean
+            element.intOrNull != null -> element.int
+            element.longOrNull != null -> element.long
+            element.doubleOrNull != null -> element.double
+            else -> throw SerializationException("Unknown primitive type")
+        }
+    }
+
+    private fun deserializeObject(element: JsonObject): Map<String, Any> {
+        return element.mapValues { (_, value) ->
+            when (value) {
+                is JsonPrimitive -> deserializePrimitive(value)
+                is JsonObject -> deserializeObject(value)
+                is JsonArray -> deserializeArray(value)
+                else -> throw SerializationException("Unknown type in JsonObject")
+            }
+        }
+    }
+
+    private fun deserializeArray(element: JsonArray): List<Any> {
+        return element.map { item ->
+            when (item) {
+                is JsonPrimitive -> deserializePrimitive(item)
+                is JsonObject -> deserializeObject(item)
+                is JsonArray -> deserializeArray(item)
+                else -> throw SerializationException("Unknown type in JsonArray")
+            }
         }
     }
 
