@@ -29,6 +29,7 @@ import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEventObjc
 import com.superwall.sdk.analytics.trigger_session.LoadState
 import com.superwall.sdk.config.models.OnDeviceCaching
+import com.superwall.sdk.config.options.PaywallOptions
 import com.superwall.sdk.dependencies.TriggerFactory
 import com.superwall.sdk.dependencies.TriggerSessionManagerFactory
 import com.superwall.sdk.game.GameControllerDelegate
@@ -498,6 +499,10 @@ class PaywallViewController(
     }
 
     private fun showLoadingView() {
+        val transactionBackgroundView = Superwall.instance.options.paywalls.transactionBackgroundView
+        if (transactionBackgroundView != PaywallOptions.TransactionBackgroundView.SPINNER) {
+            return
+        }
         loadingViewController.visibility = View.VISIBLE
     }
 

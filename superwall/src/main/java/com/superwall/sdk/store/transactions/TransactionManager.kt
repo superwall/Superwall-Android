@@ -17,6 +17,7 @@ import com.superwall.sdk.dependencies.StoreTransactionFactory
 import com.superwall.sdk.dependencies.TransactionVerifierFactory
 import com.superwall.sdk.dependencies.TriggerFactory
 import com.superwall.sdk.misc.ActivityLifecycleTracker
+import com.superwall.sdk.misc.ActivityProvider
 import com.superwall.sdk.paywall.presentation.internal.dismiss
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.vc.PaywallViewController
@@ -29,7 +30,7 @@ import kotlinx.coroutines.*
 class TransactionManager(
     private val storeKitManager: StoreKitManager,
     private val sessionEventsManager: SessionEventsManager,
-    private val activityLifecycleTracker: ActivityLifecycleTracker,
+    private val activityProvider: ActivityProvider,
     private val factory: Factory
 ) {
     interface Factory: OptionsFactory, TriggerFactory, TransactionVerifierFactory, StoreTransactionFactory {}
@@ -38,7 +39,7 @@ class TransactionManager(
     suspend fun purchase(productId: String, paywallViewController: PaywallViewController) {
         val product = storeKitManager.productsById[productId] ?: return
 
-        val activity = activityLifecycleTracker.getCurrentActivity() ?: return
+        val activity = activityProvider.getCurrentActivity() ?: return
 
         prepareToStartTransaction(product, paywallViewController)
 

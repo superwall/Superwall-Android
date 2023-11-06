@@ -12,6 +12,12 @@ class PaywallViewControllerCache(private val deviceLocaleString: String) {
     private val cache = ConcurrentHashMap<String, PaywallViewController>()
     private val singleThreadContext = newSingleThreadContext("com.superwall.paywallcache")
 
+    fun getAllPaywallViewControllers(): List<PaywallViewController>  {
+        return runBlocking(singleThreadContext) {
+            cache.values.toList()
+        }
+    }
+
     var activePaywallVcKey: String?
         get() = runBlocking(singleThreadContext) { _activePaywallVcKey }
         set(value) {
