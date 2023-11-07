@@ -60,13 +60,13 @@ interface AppCompatActivityEncapsulatable {
     var encapsulatingActivity: AppCompatActivity?
 }
 
-internal class DebugViewController(
+class DebugViewController(
     context: Context,
     private val storeKitManager: StoreKitManager,
     private val network: Network,
     private val paywallRequestManager: PaywallRequestManager,
     private val paywallManager: PaywallManager,
-   // private val debugManager: DebugManager,
+    private val debugManager: DebugManager,
     private val factory: Factory
 ) : ConstraintLayout(context), AppCompatActivityEncapsulatable {
     interface Factory: RequestFactory, ViewControllerFactory {}
@@ -78,15 +78,17 @@ internal class DebugViewController(
     // The full screen activity instance if this view controller has been presented in one.
     override var encapsulatingActivity: AppCompatActivity? = null
 
-    private var paywallDatabaseId: String? = null
+    internal var paywallDatabaseId: String? = null
     private var paywallIdentifier: String? = null
     private var initialLocaleIdentifier: String? = null
     private var previewViewContent: View? = null
     private var paywalls: List<Paywall> = emptyList()
     private var paywall: Paywall? = null
+    internal var isActive = false
 
     private val logoImageView: ImageView by lazy {
         ImageView(context).apply {
+            id = View.generateViewId()
             val superwallLogo = ContextCompat.getDrawable(context, R.drawable.superwall_logo)
             setImageDrawable(superwallLogo)
             scaleType = ImageView.ScaleType.FIT_CENTER
@@ -98,6 +100,7 @@ internal class DebugViewController(
     }
     private val exitButton: Button by lazy {
         Button(context).apply {
+            id = View.generateViewId()
             val exitImage = ContextCompat.getDrawable(context, R.drawable.exit)
             background = exitImage
             alpha = 0.5f // equivalent to UIColor.white.withAlphaComponent(0.5)
@@ -107,6 +110,7 @@ internal class DebugViewController(
     }
     private val consoleButton: Button by lazy {
         Button(context).apply {
+            id = View.generateViewId()
             val debuggerImage = ContextCompat.getDrawable(context, R.drawable.debugger)
             background = debuggerImage
             alpha = 0.5f
@@ -116,6 +120,7 @@ internal class DebugViewController(
     }
     private val activityIndicator: ProgressBar by lazy {
         ProgressBar(context).apply {
+            id = View.generateViewId()
             isIndeterminate = true
             visibility = View.VISIBLE
             layoutParams = LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT)
@@ -126,6 +131,7 @@ internal class DebugViewController(
 
     private val bottomButton: Button by lazy {
         Button(context).apply {
+            id = View.generateViewId()
             text = "Preview"
             textSize = 17f
             setTypeface(null, Typeface.BOLD)
@@ -149,6 +155,7 @@ internal class DebugViewController(
 
     private val previewPickerButton: Button by lazy {
         Button(context).apply {
+            id = View.generateViewId()
             text = ""
             textSize = 14f
             setTypeface(null, Typeface.BOLD)
@@ -172,6 +179,7 @@ internal class DebugViewController(
 
     private val previewContainerView: ConstraintLayout by lazy {
         ConstraintLayout(context).apply {
+            id = View.generateViewId()
             // shouldAnimateLightly = true
             isFocusable = true // Depending on the view's properties, you might need to set focusability
             layoutParams = ViewGroup.LayoutParams(
@@ -456,6 +464,7 @@ internal class DebugViewController(
                 "products",
                 ArrayList(products)
             )
+            putExtra("PARENT_ACTIVITY", this::class.java.simpleName)
         }
         context.startActivity(intent)
     }
@@ -654,10 +663,20 @@ internal class DebugViewControllerActivity : AppCompatActivity() {
         setContentView(view)
     }
 
+    override fun onStart() {
+        super.onStart()
+
+        val debugViewController = contentView as? DebugViewController ?: return
+
+        debugViewController.isActive = true
+    }
+
     override fun onStop() {
         super.onStop()
 
         val debugViewController = contentView as? DebugViewController ?: return
+
+        debugViewController.isActive = false
 
         CoroutineScope(Dispatchers.IO).launch {
             debugViewController.viewDidDisappear()

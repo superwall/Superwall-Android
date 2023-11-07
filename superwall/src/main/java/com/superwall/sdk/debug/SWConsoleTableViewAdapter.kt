@@ -6,9 +6,20 @@ import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 
-class TableViewAdapter(private var data: List<Pair<String, String>>) : RecyclerView.Adapter<TableViewAdapter.ViewHolder>() {
-    fun updateData(newData: Map<String, String>) {
-        data = newData
+class TableViewAdapter(
+    private var data: MutableList<Map.Entry<String, String>>,
+    private var pickerRow: Int
+) : RecyclerView.Adapter<TableViewAdapter.ViewHolder>() {
+    fun updateData(newData: Map<String, String>, pickerRow: Int) {
+        this.pickerRow = pickerRow
+        data.clear()
+
+        newData.forEach { attribute ->
+            data.add(attribute)
+        }
+
+        data.sortWith(compareBy { it.key })
+
         notifyDataSetChanged()
     }
 
@@ -18,9 +29,18 @@ class TableViewAdapter(private var data: List<Pair<String, String>>) : RecyclerV
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+        val productLevels = listOf("primary", "secondary", "tertiary")
+        var selectedProduct: String? = null
+
+        if (pickerRow < productLevels.size) {
+            selectedProduct = productLevels[pickerRow]
+        }
+
         val (key, value) = data[position]
+
         holder.text1.text = value
-        holder.text2.text = "{{ $key }}"
+        val text: String = selectedProduct?.let { "$it.$key" } ?: key
+        holder.text2.text = "{{ $text }}"
     }
 
     override fun getItemCount() = data.size

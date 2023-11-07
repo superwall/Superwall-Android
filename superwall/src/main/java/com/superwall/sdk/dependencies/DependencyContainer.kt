@@ -16,6 +16,8 @@ import com.superwall.sdk.analytics.trigger_session.TriggerSessionManager
 import com.superwall.sdk.config.ConfigLogic
 import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.config.options.SuperwallOptions
+import com.superwall.sdk.debug.DebugManager
+import com.superwall.sdk.debug.DebugViewController
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.delegate.SuperwallDelegateAdapter
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
@@ -77,7 +79,7 @@ class DependencyContainer(
     StoreTransactionFactory, Storage.Factory, InternalSuperwallEvent.PresentationRequest.Factory,
     ViewControllerFactory, PaywallManager.Factory, OptionsFactory, TriggerFactory,
     TransactionVerifierFactory, TransactionManager.Factory, PaywallViewController.Factory,
-    ConfigManager.Factory {
+    ConfigManager.Factory, DebugViewController.Factory {
 
     var network: Network
     override lateinit var api: Api
@@ -89,6 +91,7 @@ class DependencyContainer(
     var sessionEventsManager: SessionEventsManager
     var delegateAdapter: SuperwallDelegateAdapter
     var queue: EventsQueue
+    var debugManager: DebugManager
     var paywallManager: PaywallManager
     var paywallRequestManager: PaywallRequestManager
     var storeKitManager: StoreKitManager
@@ -166,6 +169,12 @@ class DependencyContainer(
             storage = storage,
             configManager = configManager,
             delegate = this
+        )
+
+        debugManager = DebugManager(
+            context = context,
+            storage = storage,
+            factory = this
         )
 
         CoroutineScope(Dispatchers.Main).launch {
@@ -264,6 +273,21 @@ class DependencyContainer(
             return@withContext paywallViewController
         }
 
+    }
+
+    override fun makeDebugViewController(id: String?): DebugViewController {
+        val viewController = DebugViewController(
+            context = context,
+            storeKitManager = storeKitManager,
+            network = network,
+            paywallRequestManager = paywallRequestManager,
+            paywallManager = paywallManager,
+            debugManager = debugManager,
+            factory = this
+        )
+        viewController.paywallDatabaseId = id
+        // Note: Modal presentation style is an iOS concept. In Android, you might handle this differently.
+        return viewController
     }
 
     override fun makeCache(): PaywallViewControllerCache {

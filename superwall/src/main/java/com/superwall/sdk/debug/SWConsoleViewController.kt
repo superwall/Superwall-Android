@@ -17,7 +17,6 @@ class SWConsoleActivity : AppCompatActivity() {
     private lateinit var productAdapter: ArrayAdapter<String>
     private lateinit var tableViewAdapter: TableViewAdapter
     private var products: List<StoreProduct> = listOf()
-    private var tableViewCellData: List<Pair<String, String>> = listOf()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,9 +39,7 @@ class SWConsoleActivity : AppCompatActivity() {
         productPicker.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>, view: View, position: Int, id: Long) {
                 // When a product is selected, update the RecyclerView with its attributes
-                val product = products[position]
-                val hi = product.attributes
-                tableViewAdapter.updateData(products[position].attributes)
+                tableViewAdapter.updateData(products[position].attributes, position)
             }
 
             override fun onNothingSelected(parent: AdapterView<*>) {
@@ -56,7 +53,7 @@ class SWConsoleActivity : AppCompatActivity() {
 
     private fun setupTableView() {
         tableView.layoutManager = LinearLayoutManager(this)
-        tableViewAdapter = TableViewAdapter(emptyList())
+        tableViewAdapter = TableViewAdapter(mutableListOf(), 0)
         tableView.adapter = tableViewAdapter
     }
 }

@@ -144,11 +144,10 @@ class PaywallViewController(
 
     /// Determines whether the paywall is presented or not.
     override val isActive: Boolean
-        get() = isPresented || isBeingPresented
+        get() = isPresented
 
     /// Defines whether the view controller is being presented or not.
     private var isPresented = false
-    private var isBeingPresented = false
     private var presentationWillPrepare = true
     private var presentationDidFinishPrepare = false
 

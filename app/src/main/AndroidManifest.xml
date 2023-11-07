@@ -51,5 +51,7 @@
             android:configChanges="orientation|screenSize|keyboardHidden|screenLayout|smallestScreenSize">
             <!-- screenLayout can trigger on a tablet when orientation changes. smallestScreenSize will trigger when entering split screen on a tablet -->
         </activity>
+        <activity android:name="com.superwall.sdk.debug.DebugViewControllerActivity">
+        </activity>
     </application>
 </manifest>
