@@ -90,7 +90,7 @@ class AppSessionManager(
 
     private fun sessionCouldRefresh() {
         detectNewSession()
-       // trackAppLaunch()
+       trackAppLaunch()
         // TODO: Figure out if this is the right dispatch queue
         GlobalScope.launch {
             storage.recordFirstSeenTracked()

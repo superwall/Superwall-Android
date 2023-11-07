@@ -2,6 +2,12 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall-me/Superwall-Android/releases) on GitHub.
 
+## 1.0.0-alpha.19
+
+### Fixes
+
+- Fixes `app_launch` event not triggering
+
 ## 1.0.0-alpha.18
 
 ### Enhancements
