@@ -50,10 +50,19 @@ import kotlinx.coroutines.launch
 import java.util.UUID
 import Logger
 import android.graphics.Outline
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffColorFilter
 import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.GradientDrawable
 import android.net.Uri
+import android.os.Looper
+import android.util.DisplayMetrics
 import android.view.ViewOutlineProvider
+import android.widget.ImageButton
+import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import com.superwall.sdk.debug.localizations.SWLocalizationActivity
 
 interface AppCompatActivityEncapsulatable {
@@ -61,7 +70,7 @@ interface AppCompatActivityEncapsulatable {
 }
 
 class DebugViewController(
-    context: Context,
+    private val context: Context,
     private val storeKitManager: StoreKitManager,
     private val network: Network,
     private val paywallRequestManager: PaywallRequestManager,
@@ -98,26 +107,68 @@ class DebugViewController(
             layoutParams = LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT)
         }
     }
-    private val exitButton: Button by lazy {
-        Button(context).apply {
+    private val exitButton: LinearLayout by lazy {
+        LinearLayout(context).apply {
             id = View.generateViewId()
-            val exitImage = ContextCompat.getDrawable(context, R.drawable.exit)
-            background = exitImage
-            alpha = 0.5f // equivalent to UIColor.white.withAlphaComponent(0.5)
-            layoutParams = LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT)
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+
+            val imageView = ImageView(context).apply {
+                // Apply a color filter with full opacity to test visibility
+                val debuggerImage = ContextCompat.getDrawable(context, R.drawable.exit)?.mutate()
+                debuggerImage?.colorFilter = PorterDuffColorFilter(Color.WHITE, PorterDuff.Mode.SRC_ATOP)
+                setImageDrawable(debuggerImage)
+                scaleType = ImageView.ScaleType.FIT_CENTER
+
+                // Apply alpha to the ImageView if needed
+                alpha = 0.5f
+
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+            }
+            addView(imageView)
+
             setOnClickListener { pressedExitButton() }
         }
     }
-    private val consoleButton: Button by lazy {
-        Button(context).apply {
+
+    private val consoleButton: LinearLayout by lazy {
+        LinearLayout(context).apply {
             id = View.generateViewId()
-            val debuggerImage = ContextCompat.getDrawable(context, R.drawable.debugger)
-            background = debuggerImage
-            alpha = 0.5f
-            layoutParams = LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT)
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+
+            val imageView = ImageView(context).apply {
+                // Apply a color filter with full opacity to test visibility
+                val debuggerImage = ContextCompat.getDrawable(context, R.drawable.debugger)?.mutate()
+                debuggerImage?.colorFilter = PorterDuffColorFilter(Color.WHITE, PorterDuff.Mode.SRC_ATOP)
+                setImageDrawable(debuggerImage)
+                scaleType = ImageView.ScaleType.FIT_CENTER
+
+                // Apply alpha to the ImageView if needed
+                alpha = 0.5f
+
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+            }
+            addView(imageView)
+
             setOnClickListener { pressedConsoleButton() }
         }
     }
+
     private val activityIndicator: ProgressBar by lazy {
         ProgressBar(context).apply {
             id = View.generateViewId()
@@ -129,53 +180,101 @@ class DebugViewController(
     private val primaryColor = Color.parseColor("#75FFF1")
     private val lightBackgroundColor = Color.parseColor("#181A1E")
 
-    private val bottomButton: Button by lazy {
-        Button(context).apply {
+    private val bottomButton: LinearLayout by lazy {
+        id = View.generateViewId()
+        LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            isClickable = true
             id = View.generateViewId()
-            text = "Preview"
-            textSize = 17f
-            setTypeface(null, Typeface.BOLD)
-            setBackgroundColor(Color.parseColor("#203133"))
-            setTextColor(primaryColor)
-            layoutParams = ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-
-            val image = ContextCompat.getDrawable(context, R.drawable.play_button)?.apply {
-                setTint(primaryColor)
+            isFocusable = true
+            val backgroundDrawable = GradientDrawable().apply {
+                setColor(Color.parseColor("#203133")) // Background color
+                cornerRadius = 70f // Set the corner radius for rounded corners
             }
-            setCompoundDrawablesWithIntrinsicBounds(image, null, null, null)
-            compoundDrawablePadding = 8 // or whatever space you need
-            setPadding(0, -1, 0, 0)
+            background = backgroundDrawable // Set the drawable as button background
 
-            setOnClickListener { pressedBottomButton() }
+            val playImageView = ImageView(context).apply {
+                id = View.generateViewId()
+                scaleType = ImageView.ScaleType.FIT_CENTER
+                setImageResource(R.drawable.play_button)
+                setColorFilter(primaryColor) // Set the color of the play button
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    rightMargin = 8 // You can adjust the margin to control the space between the image and the text
+                }
+            }
+            addView(playImageView)
+
+            val previewTextView = TextView(context).apply {
+                id = View.generateViewId()
+                text = "Preview"
+                textSize = 17f // Set your text size
+                setTypeface(null, Typeface.BOLD)
+                setTextColor(primaryColor) // Set your text color
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+            }
+            addView(previewTextView)
+
+            setPadding(32, 16, 32, 16) // Add padding as needed
+
+            setOnClickListener {
+                // Handle your click events here
+                pressedBottomButton()
+            }
         }
     }
 
-    private val previewPickerButton: Button by lazy {
-        Button(context).apply {
+    private lateinit var previewTextView: TextView
+    private val previewPickerButton: LinearLayout by lazy {
+        LinearLayout(context).apply {
             id = View.generateViewId()
-            text = ""
-            textSize = 14f
-            setTypeface(null, Typeface.BOLD)
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
             setBackgroundColor(lightBackgroundColor)
-            setTextColor(primaryColor)
-            setPadding(0, 0, 10, 0)
             layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
             )
 
-            val image = ContextCompat.getDrawable(context, R.drawable.down_arrow)?.apply {
-                setTint(primaryColor)
+            previewTextView = TextView(context).apply {
+                id = View.generateViewId()
+                text = ""
+                textSize = 14f // Set your text size
+                setTypeface(null, Typeface.BOLD)
+                setTextColor(primaryColor)
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
             }
-            setCompoundDrawablesWithIntrinsicBounds(null, null, image, null)
-            compoundDrawablePadding = 8 // or whatever space you need
+            addView(previewTextView)
+
+            val arrowImageView = ImageView(context).apply {
+                id = View.generateViewId()
+                setImageResource(R.drawable.down_arrow)
+                scaleType = ImageView.ScaleType.FIT_CENTER
+                setColorFilter(primaryColor) // Set the color of the play button
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    leftMargin = 8 // You can adjust the margin to control the space between the text and the image
+                }
+            }
+            addView(arrowImageView)
+
+            setPadding(10, 10, 10, 10) // Adjust padding as needed
 
             setOnClickListener { pressedPreview() }
         }
     }
+
 
     private val previewContainerView: ConstraintLayout by lazy {
         ConstraintLayout(context).apply {
@@ -227,22 +326,24 @@ class DebugViewController(
         constraintSet.connect(previewContainerView.id, ConstraintSet.START, ConstraintSet.PARENT_ID, ConstraintSet.START)
         constraintSet.connect(previewContainerView.id, ConstraintSet.END, ConstraintSet.PARENT_ID, ConstraintSet.END)
         constraintSet.connect(previewContainerView.id, ConstraintSet.TOP, logoImageView.id, ConstraintSet.BOTTOM, 25)
-        constraintSet.connect(previewContainerView.id, ConstraintSet.BOTTOM, bottomButton.id, ConstraintSet.TOP, -30)
+        constraintSet.connect(previewContainerView.id, ConstraintSet.BOTTOM, bottomButton.id, ConstraintSet.TOP, 30)
 
-        // Constraints for logoImageView
-        constraintSet.constrainWidth(logoImageView.id, ConstraintSet.MATCH_CONSTRAINT)
-        constraintSet.constrainHeight(logoImageView.id, 20)
-        constraintSet.connect(logoImageView.id, ConstraintSet.TOP, ConstraintSet.PARENT_ID, ConstraintSet.TOP, 20)
-        constraintSet.connect(logoImageView.id, ConstraintSet.START, ConstraintSet.PARENT_ID, ConstraintSet.START)
-        constraintSet.connect(logoImageView.id, ConstraintSet.END, ConstraintSet.PARENT_ID, ConstraintSet.END)
+        // Constraints for logoImageView (Centered horizontally at the top)
+        constraintSet.constrainWidth(logoImageView.id, ConstraintSet.WRAP_CONTENT)
+        constraintSet.constrainHeight(logoImageView.id, 80)
+        constraintSet.connect(logoImageView.id, ConstraintSet.TOP, ConstraintSet.PARENT_ID, ConstraintSet.TOP, 80)
+        constraintSet.connect(logoImageView.id, ConstraintSet.START, consoleButton.id, ConstraintSet.END)
+        constraintSet.connect(logoImageView.id, ConstraintSet.END, exitButton.id, ConstraintSet.START)
 
-        // Constraints for consoleButton
-        constraintSet.connect(consoleButton.id, ConstraintSet.END, bottomButton.id, ConstraintSet.START)
-        constraintSet.connect(consoleButton.id, ConstraintSet.TOP, logoImageView.id, ConstraintSet.TOP)
+        // Constraints for consoleButton (Top Left)
+        constraintSet.connect(consoleButton.id, ConstraintSet.START, ConstraintSet.PARENT_ID, ConstraintSet.START, 80)
+        constraintSet.connect(consoleButton.id, ConstraintSet.TOP, ConstraintSet.PARENT_ID, ConstraintSet.TOP, 80)
+        constraintSet.constrainWidth(consoleButton.id, 80)
 
-        // Constraints for exitButton
-        constraintSet.connect(exitButton.id, ConstraintSet.START, bottomButton.id, ConstraintSet.END)
-        constraintSet.connect(exitButton.id, ConstraintSet.TOP, logoImageView.id, ConstraintSet.TOP)
+        // Constraints for exitButton (Top Right)
+        constraintSet.connect(exitButton.id, ConstraintSet.END, ConstraintSet.PARENT_ID, ConstraintSet.END, 80)
+        constraintSet.connect(exitButton.id, ConstraintSet.TOP, ConstraintSet.PARENT_ID, ConstraintSet.TOP, 80)
+        constraintSet.constrainWidth(exitButton.id, 80)
 
         // Constraints for activityIndicator
         constraintSet.connect(activityIndicator.id, ConstraintSet.START, previewContainerView.id, ConstraintSet.START)
@@ -250,17 +351,18 @@ class DebugViewController(
         constraintSet.connect(activityIndicator.id, ConstraintSet.TOP, previewContainerView.id, ConstraintSet.TOP)
         constraintSet.connect(activityIndicator.id, ConstraintSet.BOTTOM, previewContainerView.id, ConstraintSet.BOTTOM)
 
+
         // Constraints for bottomButton
-        constraintSet.connect(bottomButton.id, ConstraintSet.START, ConstraintSet.PARENT_ID, ConstraintSet.START)
-        constraintSet.connect(bottomButton.id, ConstraintSet.END, ConstraintSet.PARENT_ID, ConstraintSet.END)
-        constraintSet.constrainHeight(bottomButton.id, 64)
-        constraintSet.connect(bottomButton.id, ConstraintSet.BOTTOM, ConstraintSet.PARENT_ID, ConstraintSet.BOTTOM, -10)
+        constraintSet.connect(bottomButton.id, ConstraintSet.START, ConstraintSet.PARENT_ID, ConstraintSet.START, 80)
+        constraintSet.connect(bottomButton.id, ConstraintSet.END, ConstraintSet.PARENT_ID, ConstraintSet.END, 80)
+        constraintSet.constrainHeight(bottomButton.id, 180)
+        constraintSet.connect(bottomButton.id, ConstraintSet.BOTTOM, ConstraintSet.PARENT_ID, ConstraintSet.BOTTOM, 60)
 
         // Constraints for previewPickerButton
-        constraintSet.connect(previewPickerButton.id, ConstraintSet.START, previewContainerView.id, ConstraintSet.START)
-        constraintSet.connect(previewPickerButton.id, ConstraintSet.END, previewContainerView.id, ConstraintSet.END)
-        constraintSet.constrainHeight(previewPickerButton.id, 26)
-        constraintSet.connect(previewPickerButton.id, ConstraintSet.BOTTOM, previewContainerView.id, ConstraintSet.BOTTOM)
+        constraintSet.connect(previewPickerButton.id, ConstraintSet.START, previewContainerView.id, ConstraintSet.START, 15)
+        constraintSet.connect(previewPickerButton.id, ConstraintSet.END, previewContainerView.id, ConstraintSet.END, 15)
+        constraintSet.constrainHeight(previewPickerButton.id, 86)
+        constraintSet.connect(previewPickerButton.id, ConstraintSet.BOTTOM, bottomButton.id, ConstraintSet.TOP, 50)
 
         // Apply all the constraints
         constraintSet.applyTo(this)
@@ -276,7 +378,7 @@ class DebugViewController(
             try {
                 paywalls = network.getPaywalls()
                 finishLoadingPreview()
-            } catch (error: Exception) {
+            } catch (error: Throwable) {
                 Logger.debug(
                     logLevel = LogLevel.error,
                     scope = LogScope.debugViewController,
@@ -311,10 +413,10 @@ class DebugViewController(
             paywall.productVariables = productVariables
 
             this.paywall = paywall
-            previewPickerButton.text = paywall.name
+            previewTextView.text = paywall.name
           //  activityIndicator.stopAnimating()
             addPaywallPreview()
-        } catch (error: Exception) {
+        } catch (error: Throwable) {
             Logger.debug(
                 logLevel = LogLevel.error,
                 scope = LogScope.debugViewController,
@@ -410,9 +512,7 @@ class DebugViewController(
     }
 
     private fun pressedExitButton() {
-        CoroutineScope(Dispatchers.IO).launch {
-          //  debugManager.closeDebugger(animated = false)
-        }
+        encapsulatingActivity?.finish()
     }
 
     fun pressedConsoleButton() {
@@ -506,7 +606,7 @@ class DebugViewController(
         message: String?,
         options: List<AlertOption> = emptyList()
     ) {
-        val builder = AlertDialog.Builder(context) // 'this' should be the Context, adjust as necessary
+        val builder = AlertDialog.Builder(context)
         builder.setTitle(title)
         builder.setMessage(message)
 
@@ -637,13 +737,13 @@ internal class DebugViewControllerActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        AppCompatDelegate.setCompatVectorFromResourcesEnabled(true)
 
         val key = intent.getStringExtra(VIEW_KEY)
         if (key == null) {
             finish() // Close the activity if there's no key
             return
         }
-
         val view = ViewStorage.retrieveView(key) ?: run {
             finish() // Close the activity if the view associated with the key is not found
             return
@@ -661,6 +761,7 @@ internal class DebugViewControllerActivity : AppCompatActivity() {
 
         // Now add
         setContentView(view)
+        supportActionBar?.hide()
     }
 
     override fun onStart() {

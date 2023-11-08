@@ -18,7 +18,7 @@ internal class ConfigLogicTest {
             fail("Should have produced an error")
         } catch (error: ConfigLogic.TriggerRuleError) {
             assertEquals(error, ConfigLogic.TriggerRuleError.NoVariantsFound)
-        } catch (error: Exception) {
+        } catch (error: Throwable) {
             fail("Should have produced a no variant error")
         }
     }
@@ -33,7 +33,7 @@ internal class ConfigLogicTest {
             assertEquals(options.first().toVariant(), variant)
         } catch (error: ConfigLogic.TriggerRuleError) {
             assertEquals(error, ConfigLogic.TriggerRuleError.InvalidState)
-        } catch (error: Exception) {
+        } catch (error: Throwable) {
             fail("Should have produced a no variant error")
         }
     }
@@ -48,7 +48,7 @@ internal class ConfigLogicTest {
         try {
             val variant = ConfigLogic.chooseVariant(variants, randomiser = { 0 })
             assertEquals(variants.first().toVariant(), variant)
-        } catch (error: Exception) {
+        } catch (error: Throwable) {
             fail("Should have worked")
         }
     }

@@ -119,7 +119,7 @@ class PaywallRequestManager(
                 identifier = paywallId,
                 event = event
             )
-        } catch (error: Exception) {
+        } catch (error: Throwable) {
             val errorResponse = PaywallLogic.handlePaywallError(
                 error,
                 event
@@ -167,7 +167,7 @@ class PaywallRequestManager(
         paywall = trackProductsLoadStart(paywall, request)
         paywall = try {
             getProducts(paywall, request)
-        } catch (error: Exception) {
+        } catch (error: Throwable) {
             throw error
         }
         paywall = trackProductsLoadFinish(paywall, request.eventData)
@@ -199,7 +199,7 @@ class PaywallRequestManager(
             paywall.isFreeTrialAvailable = outcome.isFreeTrialAvailable
 
             return paywall
-        } catch (error: Exception) {
+        } catch (error: Throwable) {
             paywall.productsLoadingInfo.failAt = Date()
             val paywallInfo = paywall.getInfo(request.eventData, factory)
             trackProductLoadFail(paywallInfo, request.eventData)
