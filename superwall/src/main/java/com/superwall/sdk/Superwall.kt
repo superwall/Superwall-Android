@@ -339,6 +339,9 @@ class Superwall(
 
     //endregion
 
+    // Add a private variable for the purchase task
+    private var purchaseTask: Job? = null
+
     override suspend fun eventDidOccur(
         paywallEvent: PaywallWebEvent,
         paywallViewController: PaywallViewController
@@ -360,10 +363,21 @@ class Superwall(
                     )
                 }
                 is InitiatePurchase -> {
-                    dependencyContainer.transactionManager.purchase(
-                        paywallEvent.productId,
-                        paywallViewController
-                    )
+                    if (purchaseTask != null) {
+                        // If a purchase is already in progress, do not start another
+                        return@withContext
+                    }
+                    purchaseTask = launch {
+                        try {
+                            dependencyContainer.transactionManager.purchase(
+                                paywallEvent.productId,
+                                paywallViewController
+                            )
+                        } finally {
+                            // Ensure the task is cleared once the purchase is complete or if an error occurs
+                            purchaseTask = null
+                        }
+                    }
                 }
                 is InitiateRestore -> {
                     dependencyContainer.storeKitManager.purchaseController.tryToRestore(paywallViewController)
