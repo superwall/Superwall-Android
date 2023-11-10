@@ -21,6 +21,7 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
+import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.browser.customtabs.CustomTabsIntent
 import com.superwall.sdk.Superwall
@@ -743,7 +744,7 @@ interface ActivityEncapsulatable {
     var encapsulatingActivity: Activity?
 }
 
-class SuperwallPaywallActivity : Activity() {
+class SuperwallPaywallActivity : AppCompatActivity() {
     companion object {
         private const val VIEW_KEY = "viewKey"
         private const val PRESENTATION_STYLE_KEY = "presentationStyleKey"
@@ -776,6 +777,7 @@ class SuperwallPaywallActivity : Activity() {
         super.onCreate(savedInstanceState)
         AppCompatDelegate.setCompatVectorFromResourcesEnabled(true)
 
+
         val key = intent.getStringExtra(VIEW_KEY)
         if (key == null) {
             finish() // Close the activity if there's no key
@@ -797,6 +799,10 @@ class SuperwallPaywallActivity : Activity() {
 
         // Now add
         setContentView(view)
+
+        try {
+            supportActionBar?.hide()
+        } catch(e: Throwable) {}
 
         // TODO: handle animation and style from `presentationStyleOverride`
         when (intent.getSerializableExtra(PRESENTATION_STYLE_KEY) as? PaywallPresentationStyle) {
