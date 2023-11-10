@@ -20,5 +20,9 @@ class LoadingViewController(context: Context) : FrameLayout(context) {
 
         // Add the ProgressBar to this view
         addView(progressBar)
+
+        // Set an OnTouchListener that does nothing but consume touch events
+        // to prevent taps from reaching the view this loading indicator obstructs
+        setOnTouchListener { _, _ -> true }
     }
 }
