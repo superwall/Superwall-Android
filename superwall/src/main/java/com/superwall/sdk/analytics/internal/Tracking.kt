@@ -29,6 +29,10 @@ import kotlinx.serialization.json.JsonObject
 import java.util.*
 
 suspend fun Superwall.track(event: Trackable): TrackingResult {
+    // Wait for the SDK to be fully initialized
+    Superwall.hasInitialized.first()
+
+
     // Get parameters to be sent to the delegate and stored in an event.
     // now with Date
     val eventCreatedAt = Date()
