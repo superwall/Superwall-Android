@@ -2,6 +2,12 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall-me/Superwall-Android/releases) on GitHub.
 
+## 1.0.0-alpha.21
+
+### Fixes
+
+- Changes Activity to AppCompatActivity
+
 ## 1.0.0-alpha.20
 
 ### Enhancements
