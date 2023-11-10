@@ -8,6 +8,7 @@ import android.net.Uri
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.billing.BillingController
+import com.superwall.sdk.config.models.getConfig
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.delegate.SuperwallDelegate
@@ -16,6 +17,7 @@ import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.dependencies.DependencyContainer
 import com.superwall.sdk.misc.ActivityProvider
 import com.superwall.sdk.misc.SerialTaskManager
+import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.PresentationItems
 import com.superwall.sdk.paywall.presentation.internal.dismiss
@@ -26,8 +28,13 @@ import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.*
 import com.superwall.sdk.store.ExternalNativePurchaseController
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.flow.take
 import java.util.*
 
 class Superwall(
@@ -117,6 +124,15 @@ class Superwall(
 
     companion object {
         var initialized: Boolean = false
+
+        val _hasInitialized = MutableStateFlow<Boolean>(false)
+
+        // A flow that emits just once only when `hasInitialized` is non-`nil`.
+        val hasInitialized: Flow<Boolean> = _hasInitialized
+            .filter { it }
+            .take(1)
+
+
         lateinit var instance: Superwall
 
         /** Configures a shared instance of `Superwall` for use throughout your app.
@@ -152,6 +168,10 @@ class Superwall(
             )
             instance.setup()
             initialized = true
+            // Ping everyone about the initialization
+            CoroutineScope(Dispatchers.Main).launch {
+                _hasInitialized.emit(true)
+            }
         }
     }
 
