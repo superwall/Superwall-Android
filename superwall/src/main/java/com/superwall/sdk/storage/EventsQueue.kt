@@ -17,6 +17,8 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 
 @OptIn(ExperimentalCoroutinesApi::class)
+// TODO: Ensure this uses/acts as an actor similar to iOS
+// https://linear.app/superwall/issue/SW-2570/%5Bandroid%5D-ensure-eventsqueue-is-threaded-properly-as-an-actor
 class EventsQueue(
     private val context: Context,
     private val network: Network,
