@@ -29,6 +29,8 @@ enum class LoadState {
 
 data class ActiveTriggerSession(val sessionId: String, val eventName: String)
 
+// TODO: Ensure this uses/acts as an actor similar to iOS
+// https://linear.app/superwall/issue/SW-2571/%5Bandroid%5D-ensure-triggersessionmanager-is-threaded-properly-as-an
 // TODO: https://linear.app/superwall/issue/SW-2366/[android]-implement-triggersessionmanager
 class TriggerSessionManager(
     val storage: Storage,
