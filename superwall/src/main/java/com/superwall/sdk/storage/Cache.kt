@@ -1,5 +1,7 @@
 package com.superwall.sdk.storage
 
+import LogScope
+import Logger
 import android.content.Context
 import com.superwall.sdk.storage.memory.LRUCache
 import com.superwall.sdk.storage.memory.PerpetualCache
@@ -58,11 +60,22 @@ class Cache(
             runBlocking(ioQueue) {
                 val file = File(storable.path(context = context))
                 if (file.exists()) {
-                    val jsonString = file.readText(Charsets.UTF_8)
-                    data = Json.decodeFromString(storable.serializer, jsonString)
-                    data?.let {
-                        memCache[storable.key] = it
+                    var jsonString = ""
+                    try {
+                        jsonString = file.readText(Charsets.UTF_8)
+                        data = Json.decodeFromString(storable.serializer, jsonString)
+                        data?.let {
+                            memCache[storable.key] = it
+                        }
+                    } catch (e: Throwable) {
+                        Logger.debug(
+                            logLevel = LogLevel.error,
+                            LogScope.cache,
+                            message = "Unable to read key: ${storable.key}, got $jsonString",
+                            error = e
+                        )
                     }
+
                 }
             }
         }
