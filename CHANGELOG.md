@@ -2,6 +2,13 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall-me/Superwall-Android/releases) on GitHub.
 
+## 1.0.0-alpha.23
+
+### Fixes
+
+- Fixes an issue where calling `identify` right after `configure` would hang b/c network requests need to access the user id to add to headers. 
+- Fixes a potential crash when loading data from disk 
+
 ## 1.0.0-alpha.22
 
 ### Fixes
