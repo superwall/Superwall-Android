@@ -4,6 +4,7 @@ import ComputedPropertyRequest
 import android.app.Activity
 import com.android.billingclient.api.Purchase
 import com.superwall.sdk.analytics.trigger_session.TriggerSessionManager
+import com.superwall.sdk.billing.GoogleBillingWrapper
 import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.delegate.SubscriptionStatus
@@ -27,8 +28,6 @@ import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegateAdapte
 import com.superwall.sdk.paywall.vc.web_view.templating.models.JsonVariables
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
-import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
-import com.superwall.sdk.store.transactions.GoogleBillingTransactionVerifier
 import kotlinx.coroutines.flow.StateFlow
 
 
@@ -109,7 +108,7 @@ interface LocaleIdentifierFactory {
 
 
 interface TransactionVerifierFactory {
-    fun makeTransactionVerifier(): GoogleBillingTransactionVerifier
+    fun makeTransactionVerifier(): GoogleBillingWrapper
 }
 
 interface DeviceHelperFactory {

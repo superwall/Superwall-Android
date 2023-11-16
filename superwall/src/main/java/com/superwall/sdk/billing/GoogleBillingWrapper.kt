@@ -8,8 +8,17 @@ import com.android.billingclient.api.BillingClientStateListener
 import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.PurchasesUpdatedListener
+import com.superwall.sdk.delegate.InternalPurchaseResult
+import com.superwall.sdk.dependencies.StoreTransactionFactory
+import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlin.math.min
 
 private const val RECONNECT_TIMER_START_MILLISECONDS = 1L * 1000L
@@ -30,9 +39,11 @@ open class GoogleBillingWrapper(open val context: Context, open val mainHandler:
     @Volatile
     var billingClient: BillingClient? = null
 
-
     // how long before the data source tries to reconnect to Google play
     private var reconnectMilliseconds = RECONNECT_TIMER_START_MILLISECONDS
+
+    // Setup mutable state flow for purchase results
+    private val purchaseResults = MutableStateFlow<InternalPurchaseResult?>(null)
 
     fun startConnection(force: Boolean = false) {
         synchronized(this@GoogleBillingWrapper) {
@@ -97,10 +108,6 @@ open class GoogleBillingWrapper(open val context: Context, open val mainHandler:
             reconnectMilliseconds * 2,
             RECONNECT_TIMER_MAX_TIME_MILLISECONDS,
         )
-    }
-
-    override fun onPurchasesUpdated(p0: BillingResult, p1: MutableList<Purchase>?) {
-        // Expecting implementation in subclass
     }
 
     override fun onBillingServiceDisconnected() {
@@ -193,5 +200,49 @@ open class GoogleBillingWrapper(open val context: Context, open val mainHandler:
             LogScope.productsManager,
             "Billing client not ready",
         )
+    }
+
+    override fun onPurchasesUpdated(result: BillingResult, purchases: MutableList<Purchase>?) {
+        println("onPurchasesUpdated: $result")
+        if (result.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
+            for (purchase in purchases) {
+                println("Purchase: $purchase")
+                CoroutineScope(Dispatchers.IO).launch {
+                    purchaseResults.emit(
+                        InternalPurchaseResult.Purchased(purchase)
+                    )
+                }
+            }
+        } else if (result.responseCode == BillingClient.BillingResponseCode.USER_CANCELED) {
+            CoroutineScope(Dispatchers.IO).launch {
+                purchaseResults.emit(InternalPurchaseResult.Cancelled)
+            }
+
+            println("User cancelled purchase")
+        } else {
+            CoroutineScope(Dispatchers.IO).launch {
+                purchaseResults.emit(InternalPurchaseResult.Failed(Exception(result.responseCode.toString())))
+            }
+            println("Purchase failed")
+        }
+    }
+
+    suspend fun getLatestTransaction(
+        factory: StoreTransactionFactory
+    ): StoreTransaction? {
+        // Get the latest from purchaseResults
+        purchaseResults.asStateFlow().filter { it != null }.first().let { purchaseResult ->
+            return when (purchaseResult) {
+                is InternalPurchaseResult.Purchased -> {
+                    return factory.makeStoreTransaction(purchaseResult.purchase)
+                }
+                is InternalPurchaseResult.Cancelled -> {
+                    null
+                }
+                else -> {
+                    null
+                }
+            }
+        }
     }
 }

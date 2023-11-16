@@ -13,6 +13,7 @@ import com.superwall.sdk.analytics.session.AppManagerDelegate
 import com.superwall.sdk.analytics.session.AppSession
 import com.superwall.sdk.analytics.session.AppSessionManager
 import com.superwall.sdk.analytics.trigger_session.TriggerSessionManager
+import com.superwall.sdk.billing.GoogleBillingWrapper
 import com.superwall.sdk.config.ConfigLogic
 import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.config.options.SuperwallOptions
@@ -23,8 +24,6 @@ import com.superwall.sdk.identity.IdentityInfo
 import com.superwall.sdk.identity.IdentityManager
 import com.superwall.sdk.misc.ActivityLifecycleTracker
 import com.superwall.sdk.misc.ActivityProvider
-import com.superwall.sdk.misc.VersionHelper
-import com.superwall.sdk.misc.sdkVersion
 import com.superwall.sdk.models.config.FeatureFlags
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
@@ -55,13 +54,11 @@ import com.superwall.sdk.store.InternalPurchaseController
 import com.superwall.sdk.store.StoreKitManager
 import com.superwall.sdk.store.abstractions.transactions.GoogleBillingPurchaseTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
-import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
-import com.superwall.sdk.store.transactions.GoogleBillingTransactionVerifier
+import com.superwall.sdk.store.products.GooglePlayProductsFetcher
 import com.superwall.sdk.store.transactions.TransactionManager
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -93,6 +90,8 @@ class DependencyContainer(
     var paywallRequestManager: PaywallRequestManager
     var storeKitManager: StoreKitManager
     val transactionManager: TransactionManager
+    val googleBillingWrapper: GoogleBillingWrapper
+    val productsFetcher: GooglePlayProductsFetcher
 
     init {
         // TODO: Add delegate adapter
@@ -112,12 +111,15 @@ class DependencyContainer(
            activityProvider = this.activityProvider!!
         }
 
+        googleBillingWrapper = GoogleBillingWrapper(context)
+        productsFetcher = GooglePlayProductsFetcher(context, googleBillingWrapper)
+
         var purchaseController = InternalPurchaseController(
             kotlinPurchaseController = purchaseController,
             javaPurchaseController = null,
             context
         )
-        storeKitManager = StoreKitManager(context, purchaseController)
+        storeKitManager = StoreKitManager(context, purchaseController, productsFetcher)
 
         delegateAdapter = SuperwallDelegateAdapter()
         storage = Storage(context = context, factory = this)
@@ -430,8 +432,8 @@ class DependencyContainer(
         )
     }
 
-    override  fun makeTransactionVerifier(): GoogleBillingTransactionVerifier {
-        return storeKitManager.purchaseController.transactionVerifier
+    override  fun makeTransactionVerifier(): GoogleBillingWrapper {
+        return googleBillingWrapper
     }
 
     override suspend fun makeSuperwallOptions(): SuperwallOptions {
