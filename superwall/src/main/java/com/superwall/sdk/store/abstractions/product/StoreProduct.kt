@@ -52,12 +52,29 @@ class StoreProduct(
     override val subscriptionPeriod: SubscriptionPeriod?
         get() {
             return try {
-                SubscriptionPeriod.from(rawStoreProduct.skuDetails.freeTrialPeriod, Currency.getInstance(rawStoreProduct.skuDetails.priceCurrencyCode))
+                SubscriptionPeriod.from(
+                    rawStoreProduct.skuDetails.subscriptionPeriod,
+                    Currency.getInstance(rawStoreProduct.skuDetails.priceCurrencyCode)
+                )
             } catch (e: Exception) {
                 null
             }
         }
 
+    /**
+     * The trial subscription period of the product.
+     */
+    val trialSubscriptionPeriod: SubscriptionPeriod?
+        get() {
+            return try {
+                SubscriptionPeriod.from(
+                    rawStoreProduct.skuDetails.freeTrialPeriod,
+                    Currency.getInstance(rawStoreProduct.skuDetails.priceCurrencyCode)
+                )
+            } catch (e: Exception) {
+                null
+            }
+        }
 
     override val localizedPrice: String
         get() = rawStoreProduct.skuDetails.price
@@ -108,21 +125,6 @@ class StoreProduct(
 
     override val yearlyPrice: String
         get() = subscriptionPeriod?.yearlyPrice(price) ?: "n/a"
-
-    /**
-     * The trial subscription period of the product.
-     */
-    val trialSubscriptionPeriod: SubscriptionPeriod?
-        get() {
-            return try {
-                SubscriptionPeriod.from(
-                    rawStoreProduct.skuDetails.freeTrialPeriod,
-                    Currency.getInstance(rawStoreProduct.skuDetails.priceCurrencyCode)
-                )
-            } catch (e: Exception) {
-                null
-            }
-        }
 
 
     override val hasFreeTrial: Boolean
