@@ -15,7 +15,6 @@ import com.superwall.sdk.paywall.presentation.internal.dismiss
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.vc.PaywallViewController
 import com.superwall.sdk.paywall.vc.delegate.PaywallLoadingState
-import com.superwall.sdk.store.transactions.GoogleBillingTransactionVerifier
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
@@ -26,7 +25,6 @@ class InternalPurchaseController(
 ): PurchaseController {
     val hasExternalPurchaseController: Boolean
         get() = kotlinPurchaseController != null || javaPurchaseController != null
-    val transactionVerifier = GoogleBillingTransactionVerifier(context)
 
     suspend fun tryToRestore(paywallViewController: PaywallViewController) {
         Logger.debug(

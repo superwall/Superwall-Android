@@ -91,9 +91,9 @@ class StoreKitManager(private val context: Context) : StoreKitManagerInterface {
 
 class StoreKitManager(
     private val context: Context,
-    val purchaseController: InternalPurchaseController
+    val purchaseController: InternalPurchaseController,
+    val productFetcher: GooglePlayProductsFetcher
 ) : ProductsFetcher {
-    private val productFetcher = GooglePlayProductsFetcher(context)
     private val receiptManager by lazy { ReceiptManager(delegate = this) }
 
     var productsById: MutableMap<String, StoreProduct> = mutableMapOf()

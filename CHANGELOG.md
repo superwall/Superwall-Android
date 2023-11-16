@@ -2,6 +2,11 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall-me/Superwall-Android/releases) on GitHub.
 
+## 1.0.0-alpha.26
+
+### Fixes
+- Additional fixes to make Google billing more robust.
+
 ## 1.0.0-alpha.25
 
 ### Fixes 

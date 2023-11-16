@@ -19,7 +19,7 @@ sealed class Result<T> {
 private const val RECONNECT_TIMER_START_MILLISECONDS = 1L * 1000L
 private const val RECONNECT_TIMER_MAX_TIME_MILLISECONDS = 1000L * 60L * 15L // 15 minutes
 
-open class GooglePlayProductsFetcher(override var context: Context) : GoogleBillingWrapper(context = context), ProductsFetcher,
+open class GooglePlayProductsFetcher(var context: Context, var billingWrapper: GoogleBillingWrapper) : ProductsFetcher,
     PurchasesUpdatedListener {
 
     sealed class Result<T> {
@@ -104,14 +104,14 @@ open class GooglePlayProductsFetcher(override var context: Context) : GoogleBill
         val inAppParams = SkuDetailsParams.newBuilder().setSkusList(skuList).setType(BillingClient.SkuType.INAPP)
 
         println("!! Querying subscription product details for ${productIds.size} products, products: ${productIds},  ${Thread.currentThread().name}")
-        waitForConnectedClient{
+        billingWrapper.waitForConnectedClient{
             querySkuDetailsAsync(subsParams.build()) { billingResult, skuDetailsList ->
                 deferredSubs.complete(handleSkuDetailsResponse(productIds, billingResult, skuDetailsList))
             }
         }
 
         println("!! Querying in-app product details for ${productIds.size} products, products: ${productIds},  ${Thread.currentThread().name}")
-        waitForConnectedClient {
+        billingWrapper.waitForConnectedClient {
             querySkuDetailsAsync(inAppParams.build()) { billingResult, skuDetailsList ->
                 deferredInApp.complete(handleSkuDetailsResponse(productIds, billingResult, skuDetailsList))
             }
