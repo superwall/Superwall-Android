@@ -3,6 +3,7 @@ package com.superwall.sdk.store.products
 import android.content.Context
 import android.util.Log
 import com.android.billingclient.api.*
+import com.superwall.sdk.billing.GoogleBillingWrapper
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.coordinator.ProductsFetcher
@@ -15,8 +16,10 @@ sealed class Result<T> {
     data class Waiting<T>(val startedAt: Int) : Result<T>()
 }
 
+private const val RECONNECT_TIMER_START_MILLISECONDS = 1L * 1000L
+private const val RECONNECT_TIMER_MAX_TIME_MILLISECONDS = 1000L * 60L * 15L // 15 minutes
 
-open class GooglePlayProductsFetcher(var context: Context) : ProductsFetcher,
+open class GooglePlayProductsFetcher(override var context: Context) : GoogleBillingWrapper(context = context), ProductsFetcher,
     PurchasesUpdatedListener {
 
     sealed class Result<T> {
@@ -26,56 +29,12 @@ open class GooglePlayProductsFetcher(var context: Context) : ProductsFetcher,
     }
 
 
-    private lateinit var billingClient: BillingClient
-    private val _isConnected = MutableStateFlow(false)
-    val isConnected = _isConnected.asStateFlow()
-
     // Create a map with product id to status
     private val _results = MutableStateFlow<Map<String, Result<RawStoreProduct>>>(emptyMap())
     val results: StateFlow<Map<String, Result<RawStoreProduct>>> = _results
 
     // Create a supervisor job
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-
-    init {
-        billingClient = BillingClient.newBuilder(context)
-            .setListener(this)
-            .enablePendingPurchases()
-            .build()
-
-
-        scope.launch {
-            startConnection()
-        }
-    }
-
-
-    private suspend fun startConnection() {
-        billingClient.startConnection(object : BillingClientStateListener {
-            override fun onBillingSetupFinished(billingResult: BillingResult) {
-                Log.d(
-                    "!!!BillingController",
-                    "Billing client setup finished".plus(billingResult.responseCode)
-                )
-                if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                    // The billing client is ready. You can query purchases here.
-                    Log.d("!!!BillingController", "Billing client connected")
-                    _isConnected.value = true
-                } else {
-                    Log.d("!!!BillingController", "Billing client failed to connect")
-                }
-            }
-
-            override fun onBillingServiceDisconnected() {
-                Log.d("!!!BillingController", "Billing client service  disconnected...")
-                // Try to restart the connection if it was lost.
-
-                scope.launch {
-                    startConnection()
-                }
-            }
-        })
-    }
 
 
     protected fun request(productIds: List<String>) {
@@ -131,10 +90,11 @@ open class GooglePlayProductsFetcher(var context: Context) : ProductsFetcher,
 
 
     open suspend fun queryProductDetails(productIds: List<String>): Map<String, Result<RawStoreProduct>> {
-        println("!! Waiting for connection ${Thread.currentThread().name}")
-        _isConnected.first { it }
-        println("!! Connected ${Thread.currentThread().name}")
+        if (productIds.isEmpty()) {
+            return emptyMap()
+        }
 
+        // Make sure we've tried to connect
         val deferredSubs = CompletableDeferred<Map<String, Result<RawStoreProduct>>>()
         val deferredInApp = CompletableDeferred<Map<String, Result<RawStoreProduct>>>()
 
@@ -144,13 +104,17 @@ open class GooglePlayProductsFetcher(var context: Context) : ProductsFetcher,
         val inAppParams = SkuDetailsParams.newBuilder().setSkusList(skuList).setType(BillingClient.SkuType.INAPP)
 
         println("!! Querying subscription product details for ${productIds.size} products, products: ${productIds},  ${Thread.currentThread().name}")
-        billingClient.querySkuDetailsAsync(subsParams.build()) { billingResult, skuDetailsList ->
-            deferredSubs.complete(handleSkuDetailsResponse(productIds, billingResult, skuDetailsList))
+        waitForConnectedClient{
+            querySkuDetailsAsync(subsParams.build()) { billingResult, skuDetailsList ->
+                deferredSubs.complete(handleSkuDetailsResponse(productIds, billingResult, skuDetailsList))
+            }
         }
 
         println("!! Querying in-app product details for ${productIds.size} products, products: ${productIds},  ${Thread.currentThread().name}")
-        billingClient.querySkuDetailsAsync(inAppParams.build()) { billingResult, skuDetailsList ->
-            deferredInApp.complete(handleSkuDetailsResponse(productIds, billingResult, skuDetailsList))
+        waitForConnectedClient {
+            querySkuDetailsAsync(inAppParams.build()) { billingResult, skuDetailsList ->
+                deferredInApp.complete(handleSkuDetailsResponse(productIds, billingResult, skuDetailsList))
+            }
         }
 
         val subsResults = deferredSubs.await()
@@ -226,43 +190,4 @@ open class GooglePlayProductsFetcher(var context: Context) : ProductsFetcher,
             }
         }.toSet()
     }
-//
-//    suspend fun products(
-//        identifiers: Set<String>,
-//        forPaywall: String?
-//    ): Set<StoreProduct>  {
-//
-//
-//
-//        // Make sure it's connected before we do anything
-//        Log.d("!!!BillingController", "Waiting for connection...")
-//        isConnected.filter { it }.first()
-//        Log.d("!!!BillingController", "Connected!")
-//
-//        return suspendCancellableCoroutine { cancellableContinuation ->
-//
-//
-//
-//            val params = SkuDetailsParams.newBuilder()
-//                .setSkusList(identifiers.toList())
-//                .setType(BillingClient.SkuType.SUBS)
-//                .build()
-//
-//            billingClient.querySkuDetailsAsync(params) { billingResult, skuDetailsList ->
-//                // Process the result.
-//                Log.d("!!!BillingController", "Got sku details: $skuDetailsList")
-//                if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-//
-//                    cancellableContinuation.resume()
-//                } else {
-//                    cancellableContinuation.resumeWithException(Exception("Failed to get sku details"))
-//                }
-//            }
-//
-//        }
-//    }
-//
-//    override fun onPurchasesUpdated(p0: BillingResult, p1: MutableList<Purchase>?) {
-//        TODO("Not yet implemented")
-//    }
 }
