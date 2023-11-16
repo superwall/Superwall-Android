@@ -7,8 +7,6 @@ import android.content.Context
 import android.net.Uri
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
-import com.superwall.sdk.billing.BillingController
-import com.superwall.sdk.config.models.getConfig
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.delegate.SuperwallDelegate
@@ -17,7 +15,6 @@ import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.dependencies.DependencyContainer
 import com.superwall.sdk.misc.ActivityProvider
 import com.superwall.sdk.misc.SerialTaskManager
-import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.PresentationItems
 import com.superwall.sdk.paywall.presentation.internal.dismiss
@@ -32,8 +29,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.take
 import java.util.*
 
@@ -50,8 +45,6 @@ class Superwall(
     private var purchaseController: PurchaseController? = purchaseController
     private var _options: SuperwallOptions? = options
     private var activityProvider = activityProvider
-
-    private var billingController = BillingController(context)
 
     internal val presentationItems: PresentationItems = PresentationItems()
 
