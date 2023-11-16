@@ -2,6 +2,12 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall-me/Superwall-Android/releases) on GitHub.
 
+## 1.0.0-alpha.24
+
+### Fixes
+
+- Fixes an issue that could cause "n/a" to be displayed on a paywall in place of the proper subscription period string.
+
 ## 1.0.0-alpha.23
 
 ### Fixes
