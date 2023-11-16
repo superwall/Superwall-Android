@@ -31,34 +31,34 @@ val mockSku = """{
 class MockSkuDetails(jsonDetails: String) : SkuDetails(jsonDetails) {
 
 }
-
-class ProductFetcherUnderTest(context: Context) : GooglePlayProductsFetcher(context = context) {
-
-    // We're going to override the query async method to return a list of products
-    // that we define in the test
-
-    public var productIdsToReturn: Map<String, Result<RawStoreProduct>> = emptyMap()
-
-
-    public var queryProductDetailsCalls: List<List<String>> = emptyList()
-
-    override suspend fun queryProductDetails(productIds: List<String>): Map<String, Result<RawStoreProduct>> {
-        queryProductDetailsCalls = queryProductDetailsCalls + listOf(productIds)
-        delay(1000 + (Math.random() * 1000).toLong())
-
-        // Filter productIdsToReturn, and add success if not found
-        val result = productIds.map { productId ->
-            val product = productIdsToReturn[productId]
-            if (product != null) {
-                productId to product
-            } else {
-                productId to Result.Success(RawStoreProduct(skuDetails = MockSkuDetails(mockSku)))
-            }
-        }.toMap()
-        return result
-    }
-
-}
+//
+//class ProductFetcherUnderTest(context: Context) : GooglePlayProductsFetcher(context = context) {
+//
+//    // We're going to override the query async method to return a list of products
+//    // that we define in the test
+//
+//    public var productIdsToReturn: Map<String, Result<RawStoreProduct>> = emptyMap()
+//
+//
+//    public var queryProductDetailsCalls: List<List<String>> = emptyList()
+//
+//    override suspend fun queryProductDetails(productIds: List<String>): Map<String, Result<RawStoreProduct>> {
+//        queryProductDetailsCalls = queryProductDetailsCalls + listOf(productIds)
+//        delay(1000 + (Math.random() * 1000).toLong())
+//
+//        // Filter productIdsToReturn, and add success if not found
+//        val result = productIds.map { productId ->
+//            val product = productIdsToReturn[productId]
+//            if (product != null) {
+//                productId to product
+//            } else {
+//                productId to Result.Success(RawStoreProduct(skuDetails = MockSkuDetails(mockSku)))
+//            }
+//        }.toMap()
+//        return result
+//    }
+//
+//}
 
 // TODO: https://linear.app/superwall/issue/SW-2368/[android]-fix-product-fetcher-tests
 //@RunWith(AndroidJUnit4::class)

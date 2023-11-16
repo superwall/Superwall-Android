@@ -26,6 +26,7 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.io.IOException
 
 // TODO: Re-enable those params
 open class ConfigManager(
@@ -95,9 +96,6 @@ open class ConfigManager(
                 triggersByEventName = ConfigLogic.getTriggersByEventName(config.triggers)
                 choosePaywallVariants(config.triggers)
                 configState.emit(Result.Success(ConfigState.Retrieved(config)))
-
-                // TODO: Re-enable those params
-//                storeKitManager.loadPurchasedProducts()
                 launch { preloadPaywalls() }
             } catch (e: Exception) {
                 configState.emit(Result.Failure(e))

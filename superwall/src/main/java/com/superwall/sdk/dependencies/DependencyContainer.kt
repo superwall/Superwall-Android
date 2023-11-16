@@ -13,6 +13,7 @@ import com.superwall.sdk.analytics.session.AppManagerDelegate
 import com.superwall.sdk.analytics.session.AppSession
 import com.superwall.sdk.analytics.session.AppSessionManager
 import com.superwall.sdk.analytics.trigger_session.TriggerSessionManager
+import com.superwall.sdk.billing.SharedGoogleBillingClientWrapper
 import com.superwall.sdk.config.ConfigLogic
 import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.config.options.SuperwallOptions
@@ -77,6 +78,7 @@ class DependencyContainer(
     StoreTransactionFactory, Storage.Factory, InternalSuperwallEvent.PresentationRequest.Factory,
     ViewControllerFactory, PaywallManager.Factory, OptionsFactory, TriggerFactory,
     TransactionVerifierFactory, TransactionManager.Factory, PaywallViewController.Factory,
+    SharedBillingClientWrapperFactory,
     ConfigManager.Factory {
 
     var network: Network
@@ -93,10 +95,10 @@ class DependencyContainer(
     var paywallRequestManager: PaywallRequestManager
     var storeKitManager: StoreKitManager
     val transactionManager: TransactionManager
+    val billingClientWrapper: SharedGoogleBillingClientWrapper
 
     init {
         // TODO: Add delegate adapter
-
         // If activity provider exists, let it be. Otherwise, create our own.
         val activityProvider: ActivityProvider
 
@@ -112,12 +114,14 @@ class DependencyContainer(
            activityProvider = this.activityProvider!!
         }
 
+        billingClientWrapper = SharedGoogleBillingClientWrapper(context)
+
         var purchaseController = InternalPurchaseController(
             kotlinPurchaseController = purchaseController,
             javaPurchaseController = null,
             context
         )
-        storeKitManager = StoreKitManager(context, purchaseController)
+        storeKitManager = StoreKitManager(context, purchaseController, this)
 
         delegateAdapter = SuperwallDelegateAdapter()
         storage = Storage(context = context, factory = this)
@@ -440,5 +444,9 @@ class DependencyContainer(
 
     override suspend fun makeTriggers(): Set<String> {
         return configManager.triggersByEventName.keys
+    }
+
+    override fun getSharedBillingClientWrapper(): SharedGoogleBillingClientWrapper {
+        return billingClientWrapper
     }
 }

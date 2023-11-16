@@ -4,6 +4,7 @@ import ComputedPropertyRequest
 import android.app.Activity
 import com.android.billingclient.api.Purchase
 import com.superwall.sdk.analytics.trigger_session.TriggerSessionManager
+import com.superwall.sdk.billing.SharedGoogleBillingClientWrapper
 import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.delegate.SubscriptionStatus
@@ -183,4 +184,8 @@ interface OptionsFactory {
 
 interface  TriggerFactory {
     suspend fun makeTriggers(): Set<String>
+}
+
+interface SharedBillingClientWrapperFactory {
+    fun getSharedBillingClientWrapper(): SharedGoogleBillingClientWrapper
 }

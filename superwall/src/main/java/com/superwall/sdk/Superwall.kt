@@ -7,7 +7,6 @@ import android.content.Context
 import android.net.Uri
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
-import com.superwall.sdk.billing.BillingController
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.delegate.SuperwallDelegate
@@ -43,8 +42,6 @@ class Superwall(
     private var purchaseController: PurchaseController? = purchaseController
     private var _options: SuperwallOptions? = options
     private var activityProvider = activityProvider
-
-    private var billingController = BillingController(context)
 
     internal val presentationItems: PresentationItems = PresentationItems()
 
