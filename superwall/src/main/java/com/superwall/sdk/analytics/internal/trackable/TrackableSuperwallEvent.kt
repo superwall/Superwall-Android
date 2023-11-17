@@ -407,39 +407,31 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
 
         override suspend fun getSuperwallParameters(): HashMap<String, Any> {
             return when (state) {
+                is State.Restore -> {
+                    var eventParams = HashMap(paywallInfo.eventParams(product))
+                    model?.toDictionary()?.let { transactionDict ->
+                        eventParams.putAll(transactionDict)
+                    }
+                    eventParams["restore_via_purchase_attempt"] = model != null
+                    return eventParams
+                }
                 is State.Start,
                 is State.Abandon,
                 is State.Complete,
-                is State.Restore,
                 is State.Timeout -> {
-                    var eventParams = paywallInfo.eventParams(product).toMutableMap()
-                    if (model != null) {
-                        val json = Json { encodeDefaults = true }
-                        // TODO: Figure out how to get this to work with kotlinx.serialization
-                        val jsonObject: JsonObject =
-                            json.encodeToJsonElement(model).jsonObject
-
-                        val modelMap: Map<String, Any> = jsonObject.mapValues { entry ->
-                            when (val value = entry.value) {
-                                is JsonPrimitive -> value.content // Handle other primitive types as needed
-                                else -> value // Handle complex objects if necessary
-                            }
-                        }
-                        eventParams.putAll(modelMap)
+                    var eventParams = HashMap(paywallInfo.eventParams(product))
+                    model?.toDictionary()?.let { transactionDict ->
+                        eventParams.putAll(transactionDict)
                     }
-                    HashMap(eventParams)
+                    return eventParams
                 }
                 is State.Fail -> {
                     when (state.error) {
                         is TransactionError.Failure,
                         is TransactionError.Pending -> {
                             val message = state.error.message
-                            HashMap(
-                                paywallInfo.eventParams(
-                                    product,
-                                    otherParams = mapOf("message" to message)
-                                )
-                            )
+                            var eventParams = HashMap(paywallInfo.eventParams(product, otherParams = mapOf("message" to message)))
+                            return eventParams
                         }
                     }
                 }

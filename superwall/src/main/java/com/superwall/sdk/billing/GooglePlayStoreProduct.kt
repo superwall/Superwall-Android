@@ -18,7 +18,7 @@ class GooglePlayStoreProduct(private val skuDetails: SkuDetails) : StoreProductT
         get() = null
 
     override val swProductTemplateVariablesJson: Map<String, Any>
-        get() = emptyMap() // Replace with actual JSON
+        get() = emptyMap() // TODO: (?) Replace with actual JSON
 
 //    override val swProduct: SWProduct
 //        get() = SWProduct() // Replace with actual SWProduct
