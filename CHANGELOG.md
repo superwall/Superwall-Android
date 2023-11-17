@@ -6,6 +6,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ### Fixes
 - Additional fixes to make Google billing more robust.
+- Fixes an issue that causes `transaction_complete` events to fail.
 
 ## 1.0.0-alpha.25
 
