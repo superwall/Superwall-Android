@@ -3,11 +3,8 @@ package com.superwall.sdk.paywall.vc.web_view.templating.models
 import com.superwall.sdk.models.product.ProductType
 import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.models.serialization.AnySerializer
-import com.superwall.sdk.models.serialization.jsonStringToDictionary
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 
 @Serializable
 data class Variables(
@@ -38,19 +35,10 @@ data class Variables(
     }
 
     fun templated(): JsonVariables {
-        val variables = this.toDictionary()
-
         return JsonVariables(
             eventName = "template_variables",
             variables = this
         )
-    }
-
-    fun toDictionary(): Map<String, Any> {
-        val json = Json { encodeDefaults = true }
-        val jsonString = json.encodeToString(this)
-        val dictionary = jsonString.jsonStringToDictionary()
-        return dictionary
     }
 }
 

@@ -5,6 +5,7 @@ import LogScope
 import Logger
 import com.superwall.sdk.config.models.Survey
 import com.superwall.sdk.dependencies.TriggerSessionManagerFactory
+import com.superwall.sdk.misc.camelCaseToSnakeCase
 import com.superwall.sdk.models.config.FeatureGatingBehavior
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.product.Product
@@ -169,15 +170,14 @@ data class PaywallInfo(
             info = loadingVars
         )
 
-        // TODO: Re-enable store product
-//        product?.let {
-//            output["product_id"] = it.productIdentifier
-//            for (key in it.attributes.keys) {
-//                it.attributes[key]?.let { value ->
-//                    output["product_${key.camelCaseToSnakeCase()}"] = value
-//                }
-//            }
-//        }
+        product?.let {
+            output["product_id"] = it.productIdentifier
+            for (key in it.attributes.keys) {
+                it.attributes[key]?.let { value ->
+                    output["product_${key.camelCaseToSnakeCase()}"] = value
+                }
+            }
+        }
 
         otherParams?.let {
             for (key in it.keys) {
