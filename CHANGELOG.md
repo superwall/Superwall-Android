@@ -9,6 +9,9 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 - Paywalls are only preloaded if their associated rules can match.
 - Adds status bar to full screen paywalls.
 
+### Fixes
+
+- Fixes issue where holdouts were still matching even if the limit set for their corresponding rules were exceeded.
 
 ## 1.0.0-alpha.26
 

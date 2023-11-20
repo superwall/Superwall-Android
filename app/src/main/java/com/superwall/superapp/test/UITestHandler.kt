@@ -1325,6 +1325,16 @@ class UITestHandler {
             Superwall.instance.register(event = "price_readout")
         }
 
+        var test83Info = UITestInfo(
+            83,
+            "The first time launch is tapped you will land in holdout. Check Skipped paywall " +
+                    "for holdout printed in console. Tapping launch again will present paywall. Will " +
+                    "need to delete app to be able to do it again as it uses limits."
+        )
+        suspend fun test83() {
+            Superwall.instance.register(event = "holdout_one_time_occurrence")
+        }
+
         var testAndroid4Info = UITestInfo(
             4,
             "NOTE: Must use `Android Main screen` API key. Launch compose debug screen: " +
