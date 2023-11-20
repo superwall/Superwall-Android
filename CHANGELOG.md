@@ -2,6 +2,12 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall-me/Superwall-Android/releases) on GitHub.
 
+## 1.0.0-alpha.27
+
+### Enhancements
+
+- Paywalls are only preloaded if their associated rules can match.
+
 ## 1.0.0-alpha.26
 
 ### Fixes

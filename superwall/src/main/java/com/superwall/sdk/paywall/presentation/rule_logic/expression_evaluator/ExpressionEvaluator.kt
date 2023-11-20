@@ -21,11 +21,18 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
+interface ExpressionEvaluating {
+    suspend fun evaluateExpression(
+        rule: TriggerRule,
+        eventData: EventData?
+    ): TriggerRuleOutcome
+}
+
 class ExpressionEvaluator(
     private val context: Context,
     private val storage: Storage,
     private val factory: RuleAttributesFactory
-) {
+): ExpressionEvaluating {
 
     companion object {
         public var sharedWebView: WebView? = null
@@ -47,9 +54,9 @@ class ExpressionEvaluator(
         }
     }
 
-    suspend fun evaluateExpression(
+    override suspend fun evaluateExpression(
         rule: TriggerRule,
-        eventData: EventData
+        eventData: EventData?
     ): TriggerRuleOutcome {
         // Expression matches all
         if (rule.expressionJs == null && rule.expression == null) {
@@ -83,7 +90,7 @@ class ExpressionEvaluator(
 
     private suspend fun getBase64Params(
         rule: TriggerRule,
-        eventData: EventData
+        eventData: EventData?
     ): String? {
         val jsonAttributes = factory.makeRuleAttributes(eventData, rule.computedPropertyRequests)
 

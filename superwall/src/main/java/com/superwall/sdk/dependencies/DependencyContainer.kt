@@ -136,6 +136,7 @@ class DependencyContainer(
         )
 
         configManager = ConfigManager(
+            context = context,
             storage = storage,
             network = network,
             options = options,

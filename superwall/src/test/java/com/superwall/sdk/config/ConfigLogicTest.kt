@@ -147,7 +147,7 @@ internal class ConfigLogicTest {
 
     @Test
     fun test_getRulesPerTriggerGroup_noTriggers() {
-        val rules = ConfigLogic.getRulesPerTriggerGroup(
+        val rules = ConfigLogic.getRulesPerCampaign(
             emptySet()
         )
         assertTrue(rules.isEmpty())
@@ -158,7 +158,7 @@ internal class ConfigLogicTest {
         val trigger = Trigger.stub().apply {
             rules = emptyList()
         }
-        val rules = ConfigLogic.getRulesPerTriggerGroup(setOf(trigger))
+        val rules = ConfigLogic.getRulesPerCampaign(setOf(trigger))
         assertTrue(rules.isEmpty())
     }
 
@@ -180,7 +180,7 @@ internal class ConfigLogicTest {
                 experimentGroupId = "2"
             })
         }
-        val rules = ConfigLogic.getRulesPerTriggerGroup(setOf(trigger1, trigger2, trigger3))
+        val rules = ConfigLogic.getRulesPerCampaign(setOf(trigger1, trigger2, trigger3))
         assertEquals(2, rules.size)
         assertTrue(rules.contains(trigger3.rules))
         assertTrue(rules.contains(trigger1.rules))

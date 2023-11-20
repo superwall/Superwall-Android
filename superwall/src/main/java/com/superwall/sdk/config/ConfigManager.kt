@@ -3,11 +3,13 @@ package com.superwall.sdk.config
 import LogLevel
 import LogScope
 import Logger
+import android.content.Context
 import com.superwall.sdk.config.models.ConfigState
 import com.superwall.sdk.config.models.getConfig
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.dependencies.DeviceInfoFactory
 import com.superwall.sdk.dependencies.RequestFactory
+import com.superwall.sdk.dependencies.RuleAttributesFactory
 import com.superwall.sdk.misc.Result
 import com.superwall.sdk.misc.awaitFirstValidConfig
 import com.superwall.sdk.models.assignment.AssignmentPostback
@@ -18,17 +20,20 @@ import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.models.triggers.Trigger
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.paywall.manager.PaywallManager
+import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.ExpressionEvaluator
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
 import com.superwall.sdk.storage.Storage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 // TODO: Re-enable those params
 open class ConfigManager(
+    private val context: Context,
 //    private val storeKitManager: StoreKitManager,
     private val storage: Storage,
     private val network: Network,
@@ -36,7 +41,7 @@ open class ConfigManager(
     private val paywallManager: PaywallManager,
     private val factory: Factory
 ) {
-    interface Factory: RequestFactory, DeviceInfoFactory {}
+    interface Factory: RequestFactory, DeviceInfoFactory, RuleAttributesFactory {}
     var options = SuperwallOptions()
 
     // The configuration of the Superwall dashboard
@@ -61,6 +66,8 @@ open class ConfigManager(
 
     // A memory store of assignments that are yet to be confirmed.
     private var _unconfirmedAssignments = mutableMapOf<ExperimentID, Experiment.Variant>()
+    private var currentPreloadingTask: Job? = null
+
     var unconfirmedAssignments: Map<ExperimentID, Experiment.Variant>
         get() = _unconfirmedAssignments
         set(value) {
@@ -202,18 +209,38 @@ open class ConfigManager(
         preloadAllPaywalls()
     }
 
-    // Preloads paywalls referenced by triggers.
-    private suspend fun preloadAllPaywalls() = coroutineScope {
-        val config = configState.awaitFirstValidConfig() ?: return@coroutineScope
 
-        val triggers = ConfigLogic.filterTriggers(config.triggers, config.preloadingDisabled)
-        val confirmedAssignments = storage.getConfirmedAssignments()
-        val paywallIds = ConfigLogic.getAllActiveTreatmentPaywallIds(
-            triggers,
-            confirmedAssignments,
-            unconfirmedAssignments
-        )
-        preloadPaywalls(paywallIds)
+    // Preloads paywalls referenced by triggers.
+    suspend fun preloadAllPaywalls() {
+        if (currentPreloadingTask != null) {
+            return
+        }
+
+        currentPreloadingTask = coroutineScope {
+            launch {
+                val config = configState.awaitFirstValidConfig() ?: return@launch
+
+                val expressionEvaluator = ExpressionEvaluator(
+                    context = context,
+                    storage = storage,
+                    factory = factory
+                )
+                val triggers = ConfigLogic.filterTriggers(
+                    config.triggers,
+                    preloadingDisabled = config.preloadingDisabled
+                )
+                val confirmedAssignments = storage.getConfirmedAssignments()
+                val paywallIds = ConfigLogic.getAllActiveTreatmentPaywallIds(
+                    triggers = triggers,
+                    confirmedAssignments = confirmedAssignments,
+                    unconfirmedAssignments = unconfirmedAssignments,
+                    expressionEvaluator = expressionEvaluator
+                )
+                preloadPaywalls(paywallIdentifiers = paywallIds)
+
+                currentPreloadingTask = null
+            }
+        }
     }
 
     // Preloads paywalls referenced by the provided triggers.
@@ -225,29 +252,31 @@ open class ConfigManager(
     }
 
     // Preloads paywalls referenced by triggers.
-    private fun preloadPaywalls(paywallIdentifiers: Set<String>) {
-        paywallIdentifiers.forEach { identifier ->
-            CoroutineScope(Dispatchers.IO).launch {
-                val request = factory.makePaywallRequest(
-                    eventData = null,
-                    responseIdentifiers = ResponseIdentifiers(
-                        paywallId = identifier,
-                        experiment = null
-                    ),
-                    overrides = null,
-                    isDebuggerLaunched = false,
-                    presentationSourceType = null,
-                    retryCount = 6
-                )
-                try {
-                    paywallManager.getPaywallViewController(
-                        request = request,
-                        isForPresentation = true,
-                        isPreloading = true,
-                        delegate = null
+    private suspend fun preloadPaywalls(paywallIdentifiers: Set<String>) {
+        coroutineScope {
+            paywallIdentifiers.forEach { identifier ->
+                launch {
+                    val request = factory.makePaywallRequest(
+                        eventData = null,
+                        responseIdentifiers = ResponseIdentifiers(
+                            paywallId = identifier,
+                            experiment = null
+                        ),
+                        overrides = null,
+                        isDebuggerLaunched = false,
+                        presentationSourceType = null,
+                        retryCount = 6
                     )
-                } catch (e: Exception) {
-                    null
+                    try {
+                        paywallManager.getPaywallViewController(
+                            request = request,
+                            isForPresentation = true,
+                            isPreloading = true,
+                            delegate = null
+                        )
+                    } catch (e: Exception) {
+                        null
+                    }
                 }
             }
         }
