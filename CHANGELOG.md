@@ -7,6 +7,8 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 ### Enhancements
 
 - Paywalls are only preloaded if their associated rules can match.
+- Adds status bar to full screen paywalls.
+
 
 ## 1.0.0-alpha.26
 
