@@ -3,23 +3,21 @@ package com.superwall.sdk.paywall.vc
 import LogLevel
 import LogScope
 import Logger
-import android.app.Activity
 import android.R
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.view.Window
+import android.view.WindowInsetsController
 import android.view.WindowManager
-import android.webkit.WebResourceRequest
-import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import android.widget.FrameLayout
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
@@ -28,7 +26,6 @@ import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEventObjc
-import com.superwall.sdk.analytics.trigger_session.LoadState
 import com.superwall.sdk.config.models.OnDeviceCaching
 import com.superwall.sdk.config.options.PaywallOptions
 import com.superwall.sdk.dependencies.TriggerFactory
@@ -38,6 +35,7 @@ import com.superwall.sdk.game.GameControllerEvent
 import com.superwall.sdk.game.GameControllerManager
 import com.superwall.sdk.misc.AlertControllerFactory
 import com.superwall.sdk.misc.isDarkColor
+import com.superwall.sdk.misc.isLightColor
 import com.superwall.sdk.misc.readableOverlayColor
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.PaywallPresentationStyle
@@ -69,7 +67,6 @@ import com.superwall.sdk.view.fatalAssert
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import java.net.MalformedURLException
 import java.net.URL
@@ -178,8 +175,8 @@ class PaywallViewController(
         // Add the webView
         addView(webView)
 
-        val backgroundColor = Color.parseColor(paywall.backgroundColorHex)
         // Add the shimmer view and hide it
+        val backgroundColor = paywall.backgroundColor
         this.shimmerView = ShimmerView(
             context,
             backgroundColor,
@@ -188,7 +185,6 @@ class PaywallViewController(
         )
         addView(shimmerView)
         hideShimmerView()
-
 
         // Add the loading view and hide it
         addView(loadingViewController)
@@ -748,17 +744,20 @@ class SuperwallPaywallActivity : AppCompatActivity() {
     companion object {
         private const val VIEW_KEY = "viewKey"
         private const val PRESENTATION_STYLE_KEY = "presentationStyleKey"
+        private const val IS_LIGHT_BACKGROUND_KEY = "isLightBackgroundKey"
 
         fun startWithView(
             context: Context,
-            view: View,
-            presentationStyleOverride: PaywallPresentationStyle? = null) {
+            view: PaywallViewController,
+            presentationStyleOverride: PaywallPresentationStyle? = null
+            ) {
             val key = UUID.randomUUID().toString()
             ViewStorage.storeView(key, view)
 
             val intent = Intent(context, SuperwallPaywallActivity::class.java).apply {
                 putExtra(VIEW_KEY, key)
                 putExtra(PRESENTATION_STYLE_KEY, presentationStyleOverride)
+                putExtra(IS_LIGHT_BACKGROUND_KEY, view.paywall.backgroundColor.isLightColor())
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
             }
 
@@ -775,8 +774,30 @@ class SuperwallPaywallActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         AppCompatDelegate.setCompatVectorFromResourcesEnabled(true)
 
+        // Show content behind the status bar
+        window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+        window.statusBarColor = Color.TRANSPARENT
+        window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS)
+        window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val isLightBackground = intent.getBooleanExtra(IS_LIGHT_BACKGROUND_KEY, false)
+            if (isLightBackground == true) {
+                window.insetsController?.let {
+                    it.setSystemBarsAppearance(
+                        WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
+                        WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+                    )
+
+                }
+            }
+        }
+
+        requestWindowFeature(Window.FEATURE_NO_TITLE)
 
         val key = intent.getStringExtra(VIEW_KEY)
         if (key == null) {
@@ -793,11 +814,6 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             view.encapsulatingActivity = this
         }
 
-        requestWindowFeature(Window.FEATURE_NO_TITLE)
-        window.setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
-            WindowManager.LayoutParams.FLAG_FULLSCREEN)
-
-        // Now add
         setContentView(view)
 
         try {

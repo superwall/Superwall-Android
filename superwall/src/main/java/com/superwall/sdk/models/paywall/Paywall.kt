@@ -18,6 +18,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.net.URL
 import java.util.*
+import android.graphics.Color
 
 @Serializable
 data class Paywalls(val paywalls: List<Paywall>)
@@ -87,6 +88,10 @@ data class Paywall(
     var surveys: List<Survey> = emptyList()
 
 ) : SerializableEntity {
+    val backgroundColor: Int by lazy {
+        Color.parseColor(this.backgroundColorHex)
+    }
+
     init {
         productIds = products.map { it.id }
         presentation = Presentation(
