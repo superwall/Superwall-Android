@@ -2,6 +2,12 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall-me/Superwall-Android/releases) on GitHub.
 
+## 1.0.0-alpha.28
+
+### Enhancements
+
+- Adds support for localized paywalls.
+
 ## 1.0.0-alpha.27
 
 ### Enhancements

@@ -45,7 +45,7 @@ class TransactionManager(
 
         val result = storeKitManager.purchaseController.purchase(
             activity,
-            product.rawStoreProduct.skuDetails
+            product.rawStoreProduct.underlyingSkuDetails
         )
 
         when (result) {
