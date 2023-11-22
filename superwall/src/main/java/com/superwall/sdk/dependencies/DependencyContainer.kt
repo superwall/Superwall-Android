@@ -78,7 +78,7 @@ class DependencyContainer(
 
     var network: Network
     override lateinit var api: Api
-    var deviceHelper: DeviceHelper
+    override lateinit var deviceHelper: DeviceHelper
     override lateinit var storage: Storage
     override lateinit var configManager: ConfigManager
     override lateinit var identityManager: IdentityManager
