@@ -115,6 +115,7 @@ interface TransactionVerifierFactory {
 interface DeviceHelperFactory {
     fun makeDeviceInfo(): DeviceInfo
     fun makeIsSandbox(): Boolean
+    suspend fun makeSessionDeviceAttributes(): HashMap<String, Any>
 }
 
 interface HasExternalPurchaseControllerFactory {

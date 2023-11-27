@@ -2,6 +2,12 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall-me/Superwall-Android/releases) on GitHub.
 
+## 1.0.0-alpha.29
+
+### Enhancements
+
+- #SW-2600: Backport device attributes
+
 ## 1.0.0-alpha.28
 
 ### Enhancements
