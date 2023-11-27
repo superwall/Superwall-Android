@@ -1,5 +1,6 @@
 package com.superwall.sdk.config
 
+import android.content.Context
 import androidx.test.platform.app.InstrumentationRegistry
 import com.superwall.sdk.config.models.ConfigState
 import com.superwall.sdk.dependencies.DependencyContainer
@@ -25,11 +26,13 @@ import org.junit.Test
 
 
 class ConfigManagerUnderTest(
+    private val context: Context,
     private val storage: Storage,
     private val network: Network,
     private val paywallManager: PaywallManager,
     private val factory: Factory,
 ) : ConfigManager(
+    context = context,
     storage = storage,
     network = network,
     paywallManager = paywallManager,
@@ -56,10 +59,11 @@ class ConfigManagerTests {
             paywallId = "jkl"
         )
         val assignment = ConfirmableAssignment(experimentId = experimentId, variant = variant)
-        val dependencyContainer = DependencyContainer(context, null, null)
+        val dependencyContainer = DependencyContainer(context, null, null, activityProvider = null)
         val network = NetworkMock(factory = dependencyContainer)
         val storage = StorageMock(context = context)
         val configManager = ConfigManager(
+            context = context,
             options = null,
 //            storeKitManager = dependencyContainer.storeKitManager,
             storage = storage,
@@ -82,12 +86,12 @@ class ConfigManagerTests {
         // get context
         val context = InstrumentationRegistry.getInstrumentation().targetContext
 
-        val dependencyContainer = DependencyContainer(context, null, null)
+        val dependencyContainer = DependencyContainer(context, null, null, activityProvider = null)
         val network = NetworkMock(factory = dependencyContainer)
         val storage = StorageMock(context = context)
         val configManager = ConfigManager(
+            context = context,
             options = null,
-//            storeKitManager = dependencyContainer.storeKitManager,
             storage = storage,
             network = network,
             paywallManager = dependencyContainer.paywallManager,
@@ -115,11 +119,11 @@ class ConfigManagerTests {
         // get context
         val context = InstrumentationRegistry.getInstrumentation().targetContext
 
-        val dependencyContainer = DependencyContainer(context, null, null)
+        val dependencyContainer = DependencyContainer(context, null, null, activityProvider = null)
         val network = NetworkMock(factory = dependencyContainer)
         val storage = StorageMock(context = context)
         val configManager = ConfigManagerUnderTest(
-//            storeKitManager = dependencyContainer.storeKitManager,
+            context = context,
             storage = storage,
             network = network,
             paywallManager = dependencyContainer.paywallManager,
@@ -141,11 +145,11 @@ class ConfigManagerTests {
         // get context
         val context = InstrumentationRegistry.getInstrumentation().targetContext
 
-        val dependencyContainer = DependencyContainer(context, null, null)
+        val dependencyContainer = DependencyContainer(context, null, null, activityProvider = null)
         val network = NetworkMock(factory = dependencyContainer)
         val storage = StorageMock(context = context)
         val configManager = ConfigManagerUnderTest(
-//            storeKitManager = dependencyContainer.storeKitManager,
+            context = context,
             storage = storage,
             network = network,
             paywallManager = dependencyContainer.paywallManager,

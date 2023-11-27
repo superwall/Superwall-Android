@@ -10,10 +10,8 @@ import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.dependencies.ComputedPropertyRequestsFactory
 import com.superwall.sdk.dependencies.FeatureFlagsFactory
 import com.superwall.sdk.dependencies.RuleAttributesFactory
-import com.superwall.sdk.models.config.FeatureFlags
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.triggers.InternalTriggerResult
-import com.superwall.sdk.models.triggers.TriggerResult
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatus
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatusReason
@@ -23,8 +21,6 @@ import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
 import com.superwall.sdk.store.transactions.TransactionError
-import kotlinx.serialization.json.*
-import java.net.URL
 
 
 interface TrackableSuperwallEvent : Trackable {
@@ -220,6 +216,15 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
         InternalSuperwallEvent(SuperwallEvent.SessionStart()) {
         override suspend fun getSuperwallParameters(): HashMap<String, Any> {
             return HashMap()
+        }
+    }
+
+    class DeviceAttributes(
+        val deviceAttributes: HashMap<String, Any>,
+        override var customParameters: HashMap<String, Any> = HashMap()
+    ) : InternalSuperwallEvent(SuperwallEvent.DeviceAttributes(attributes = deviceAttributes)) {
+        override suspend fun getSuperwallParameters(): HashMap<String, Any> {
+            return deviceAttributes
         }
     }
 
