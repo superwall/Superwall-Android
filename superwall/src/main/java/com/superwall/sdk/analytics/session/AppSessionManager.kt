@@ -1,22 +1,17 @@
 package com.superwall.sdk.analytics.session
 
-import android.content.BroadcastReceiver
 import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
 import androidx.lifecycle.DefaultLifecycleObserver
-import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.config.models.getConfig
+import com.superwall.sdk.dependencies.DeviceHelperFactory
 import com.superwall.sdk.storage.Storage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.launch
 import java.util.*
@@ -30,8 +25,10 @@ class AppSessionManager(
     private val context: Context,
     private val configManager: ConfigManager,
     private val storage: Storage,
-    private val delegate: AppManagerDelegate
+    private val delegate: AppSessionManager.Factory
 ) : DefaultLifecycleObserver {
+    interface Factory: AppManagerDelegate, DeviceHelperFactory {}
+
     var appSessionTimeout: Long? = null
 
     var appSession = AppSession()
@@ -90,9 +87,8 @@ class AppSessionManager(
 
     private fun sessionCouldRefresh() {
         detectNewSession()
-       trackAppLaunch()
-        // TODO: Figure out if this is the right dispatch queue
-        GlobalScope.launch {
+        trackAppLaunch()
+        CoroutineScope(Dispatchers.IO).launch {
             storage.recordFirstSeenTracked()
         }
     }
@@ -106,7 +102,11 @@ class AppSessionManager(
         if (didStartNewSession) {
             appSession = AppSession()
             CoroutineScope(Dispatchers.IO).launch {
+                val attributes = delegate.makeSessionDeviceAttributes()
                 Superwall.instance.track(InternalSuperwallEvent.SessionStart())
+                Superwall.instance.track(InternalSuperwallEvent.DeviceAttributes(
+                    deviceAttributes = attributes
+                ))
             }
         } else {
             appSession.endAt = null

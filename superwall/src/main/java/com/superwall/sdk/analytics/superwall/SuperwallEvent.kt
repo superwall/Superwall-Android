@@ -55,6 +55,12 @@ sealed class SuperwallEvent {
             get() = "session_start"
     }
 
+    /// When device attributes are sent to the backend.
+    data class DeviceAttributes(val attributes: Map<String, Any>) : SuperwallEvent() {
+        override val rawName: String
+            get() = "device_attributes"
+    }
+
     /// When the user's subscription status changes.
     class SubscriptionStatusDidChange() : SuperwallEvent() {
         override val rawName: String
