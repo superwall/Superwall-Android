@@ -7,7 +7,6 @@ import kotlinx.serialization.Serializable
 //@Serializable
 //data class StoreProduct(val productIdentifier: String)
 
-@Serializable
 class PaywallProducts(
     val primary: StoreProduct? = null,
     val secondary: StoreProduct? = null,

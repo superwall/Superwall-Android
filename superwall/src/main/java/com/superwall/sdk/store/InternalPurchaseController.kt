@@ -2,6 +2,7 @@ package com.superwall.sdk.store
 
 import android.app.Activity
 import android.content.Context
+import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.SkuDetails
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
@@ -78,7 +79,7 @@ class InternalPurchaseController(
         }
     }
 
-    override suspend fun purchase(activity: Activity, product: SkuDetails): PurchaseResult {
+    override suspend fun purchase(activity: Activity, product: ProductDetails): PurchaseResult {
         // TODO: Await beginPurchase with purchasing coordinator: https://linear.app/superwall/issue/SW-2415/[android]-implement-purchasingcoordinator
 
         if (kotlinPurchaseController != null) {

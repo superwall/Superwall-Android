@@ -25,7 +25,7 @@ class StoreTransaction(
     val id = UUID.randomUUID().toString()
 
     override val transactionDate: Date? get() = transaction.transactionDate
-    override val originalTransactionIdentifier: String get() = transaction.originalTransactionIdentifier
+    override val originalTransactionIdentifier: String? get() = transaction.originalTransactionIdentifier
     override val state: StoreTransactionState get() = transaction.state
     override val storeTransactionId: String? get() = transaction.storeTransactionId
     override val payment: StorePayment? get() = transaction.payment

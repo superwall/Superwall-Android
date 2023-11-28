@@ -2,9 +2,11 @@ package com.superwall.sdk.delegate.subscription_controller
 
 import android.app.Activity
 import androidx.annotation.MainThread
+import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.SkuDetails
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
+import com.superwall.sdk.store.products.ProductIds
 
 /**
  * The interface that handles Superwall's subscription-related logic.
@@ -27,12 +29,12 @@ interface PurchaseController {
      * Add your purchase logic here and return its result. You can use Android's Billing APIs,
      * or if you use RevenueCat, you can call [`Purchases.shared.purchase(product)`](https://revenuecat.github.io/purchases-android-docs/documentation/revenuecat/purchases/purchase(product,completion)).
      *
-     * @param product The `SkuDetails` the user would like to purchase.
+     * @param product The `ProductDetails` the user would like to purchase.
      * @return A `PurchaseResult` object, which is the result of your purchase logic.
      * **Note**: Make sure you handle all cases of `PurchaseResult`.
      */
     @MainThread
-    suspend fun purchase(activity: Activity, product: SkuDetails): PurchaseResult
+    suspend fun purchase(activity: Activity, product: ProductDetails): PurchaseResult
 
     /**
      * Called when the user initiates a restore.

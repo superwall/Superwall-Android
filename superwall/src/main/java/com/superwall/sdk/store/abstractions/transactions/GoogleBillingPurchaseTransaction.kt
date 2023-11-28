@@ -19,7 +19,7 @@ data class GoogleBillingPurchaseTransaction(
     override val transactionDate: Date?,
 
     @SerialName("original_transaction_identifier")
-    override val originalTransactionIdentifier: String,
+    override val originalTransactionIdentifier: String?,
 
     @SerialName("state")
     override val state: StoreTransactionState,

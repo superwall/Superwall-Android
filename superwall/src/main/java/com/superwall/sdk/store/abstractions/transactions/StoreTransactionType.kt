@@ -13,7 +13,7 @@ import java.util.*
 
 interface StoreTransactionType {
     val transactionDate: Date?
-    val originalTransactionIdentifier: String
+    val originalTransactionIdentifier: String?
     val state: StoreTransactionState
     val storeTransactionId: String?
     val payment: StorePayment?

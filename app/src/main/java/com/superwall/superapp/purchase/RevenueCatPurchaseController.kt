@@ -2,7 +2,9 @@ package com.superwall.superapp
 
 import android.app.Activity
 import android.content.Context
+import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.SkuDetails
+import com.android.billingclient.api.UserChoiceDetails.Product
 import com.revenuecat.purchases.*
 import com.revenuecat.purchases.interfaces.GetStoreProductsCallback
 import com.revenuecat.purchases.interfaces.PurchaseCallback
@@ -107,8 +109,8 @@ class RevenueCatPurchaseController(val context: Context): PurchaseController, Up
     /**
      * Initiate a purchase
      */
-    override suspend fun purchase(activity: Activity, product: SkuDetails): PurchaseResult {
-        val products = Purchases.sharedInstance.awaitProducts(listOf(product.sku))
+    override suspend fun purchase(activity: Activity, product: ProductDetails): PurchaseResult {
+        val products = Purchases.sharedInstance.awaitProducts(listOf(product.productId))
         val product = products.firstOrNull()
             ?: return PurchaseResult.Failed(Exception("Product not found"))
         return try {

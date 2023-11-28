@@ -63,11 +63,15 @@ class ExternalNativePurchaseController(var context: Context) : PurchaseControlle
 
     //region PurchaseController
 
-    override suspend fun purchase(activity: Activity, product: SkuDetails): PurchaseResult {
-        val flowParams = BillingFlowParams.newBuilder()
-            .setSkuDetails(product)
+    override suspend fun purchase(activity: Activity, product: ProductDetails): PurchaseResult {
+        val productDetailsParams = BillingFlowParams.ProductDetailsParams.newBuilder()
+            .setProductDetails(product)
             .build()
 
+        val flowParams = BillingFlowParams.newBuilder()
+            .setProductDetailsParamsList(listOf(productDetailsParams))
+            .build()
+        
         Logger.debug(
             logLevel = LogLevel.info,
             scope = LogScope.nativePurchaseController,

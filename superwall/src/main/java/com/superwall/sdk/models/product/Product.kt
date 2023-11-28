@@ -20,5 +20,5 @@ enum class ProductType {
 @Serializable
 data class Product(
     @SerialName("product") val type: ProductType,
-    @SerialName("productId") val id: String
+    @SerialName("product_id_android") val id: String
 )
