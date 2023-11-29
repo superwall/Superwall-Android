@@ -18,12 +18,21 @@ import java.util.*
 @Serializable
 sealed class OfferType {
     object Auto : OfferType()
-    data class Offer(val id: String) : OfferType()
+    data class Offer(override val id: String) : OfferType()
+
+    open val id: String?
+        get() = when (this) {
+            is Offer -> id
+            else -> null
+        }
 }
+
 
 class StoreProduct(
     val rawStoreProduct: RawStoreProduct
 ) : StoreProductType {
+    override val fullIdentifier: String
+        get() = rawStoreProduct.fullIdentifier
 
     override val productIdentifier: String
         get() = rawStoreProduct.productIdentifier

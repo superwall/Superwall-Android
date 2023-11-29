@@ -3,8 +3,6 @@ package com.superwall.superapp
 import android.app.Activity
 import android.content.Context
 import com.android.billingclient.api.ProductDetails
-import com.android.billingclient.api.SkuDetails
-import com.android.billingclient.api.UserChoiceDetails.Product
 import com.revenuecat.purchases.*
 import com.revenuecat.purchases.interfaces.GetStoreProductsCallback
 import com.revenuecat.purchases.interfaces.PurchaseCallback
@@ -12,6 +10,7 @@ import com.revenuecat.purchases.interfaces.ReceiveCustomerInfoCallback
 import com.revenuecat.purchases.interfaces.UpdatedCustomerInfoListener
 import com.revenuecat.purchases.models.StoreProduct
 import com.revenuecat.purchases.models.StoreTransaction
+import com.revenuecat.purchases.models.SubscriptionOption
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
@@ -75,7 +74,6 @@ suspend fun Purchases.awaitRestoration(): CustomerInfo {
 }
 
 class RevenueCatPurchaseController(val context: Context): PurchaseController, UpdatedCustomerInfoListener {
-
     init {
         Purchases.logLevel = LogLevel.DEBUG
         Purchases.configure(PurchasesConfiguration.Builder(context, "goog_DCSOujJzRNnPmxdgjOwdOOjwilC").build())
@@ -109,23 +107,70 @@ class RevenueCatPurchaseController(val context: Context): PurchaseController, Up
     /**
      * Initiate a purchase
      */
-    override suspend fun purchase(activity: Activity, product: ProductDetails): PurchaseResult {
-        val products = Purchases.sharedInstance.awaitProducts(listOf(product.productId))
-        val product = products.firstOrNull()
-            ?: return PurchaseResult.Failed(Exception("Product not found"))
-        return try {
-            Purchases.sharedInstance.awaitPurchase(activity, product)
-            PurchaseResult.Purchased()
-        } catch (e: PurchasesException) {
-            if (e.purchasesError.code === PurchasesErrorCode.PurchaseCancelledError) {
-                // Purchase was cancelled by the user
-                PurchaseResult.Cancelled()
-            } else {
-                // Some other error occurred
-                PurchaseResult.Failed(e)
-            }
+    override suspend fun purchase(
+        activity: Activity,
+        productDetails: ProductDetails,
+        basePlanId: String?,
+        offerId: String?
+    ): PurchaseResult {
+        val products = Purchases.sharedInstance.awaitProducts(listOf(productDetails.productId))
+        val product = products.firstOrNull() ?: return PurchaseResult.Failed("Product not found")
+
+        return when (product.type) {
+            ProductType.SUBS, ProductType.UNKNOWN -> handleSubscription(activity, product, basePlanId, offerId)
+            ProductType.INAPP -> handleInAppPurchase(activity, product)
         }
     }
+
+    private fun buildSubscriptionOptionId(basePlanId: String?, offerId: String?): String =
+        buildString {
+            basePlanId?.let { append("$it") }
+            offerId?.let { append(":$it") }
+        }
+
+    private suspend fun handleSubscription(
+        activity: Activity,
+        storeProduct: StoreProduct,
+        basePlanId: String?,
+        offerId: String?
+    ): PurchaseResult {
+        storeProduct.subscriptionOptions?.let { subscriptionOptions ->
+            val subscriptionOptionId = buildSubscriptionOptionId(basePlanId, offerId)
+            val subscriptionOption = subscriptionOptions.firstOrNull { it.id == subscriptionOptionId }
+                ?: subscriptionOptions.defaultOffer
+
+            println("!!! RevenueCat Subscription Options $subscriptionOptions")
+            if (subscriptionOption != null) {
+                return purchaseSubscription(activity, subscriptionOption)
+            }
+        }
+        return PurchaseResult.Failed("Valid subscription option not found for product.")
+    }
+
+    private suspend fun purchaseSubscription(activity: Activity, subscriptionOption: SubscriptionOption): PurchaseResult {
+        val deferred = CompletableDeferred<PurchaseResult>()
+        Purchases.sharedInstance.purchaseWith(
+            PurchaseParams.Builder(activity, subscriptionOption).build(),
+            onError = { error, userCancelled ->
+                deferred.complete(if (userCancelled) PurchaseResult.Cancelled() else PurchaseResult.Failed(error.message))
+            },
+            onSuccess = { _, _ ->
+                deferred.complete(PurchaseResult.Purchased())
+            }
+        )
+        return deferred.await()
+    }
+
+    private suspend fun handleInAppPurchase(activity: Activity, storeProduct: StoreProduct): PurchaseResult =
+        try {
+            Purchases.sharedInstance.awaitPurchase(activity, storeProduct)
+            PurchaseResult.Purchased()
+        } catch (e: PurchasesException) {
+            when (e.purchasesError.code) {
+                PurchasesErrorCode.PurchaseCancelledError -> PurchaseResult.Cancelled()
+                else -> PurchaseResult.Failed(e.message ?: "Purchase failed due to an unknown error")
+            }
+        }
 
     /**
      * Restore purchases

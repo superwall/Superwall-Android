@@ -4,6 +4,7 @@ import java.math.BigDecimal
 import java.util.*
 
 interface StoreProductType {
+    val fullIdentifier: String
     val productIdentifier: String
     val price: BigDecimal
     val localizedPrice: String

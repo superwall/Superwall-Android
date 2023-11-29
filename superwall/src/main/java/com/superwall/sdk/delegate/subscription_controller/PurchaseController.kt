@@ -29,12 +29,19 @@ interface PurchaseController {
      * Add your purchase logic here and return its result. You can use Android's Billing APIs,
      * or if you use RevenueCat, you can call [`Purchases.shared.purchase(product)`](https://revenuecat.github.io/purchases-android-docs/documentation/revenuecat/purchases/purchase(product,completion)).
      *
-     * @param product The `ProductDetails` the user would like to purchase.
+     * @param productDefaults The `ProductDetails` the user would like to purchase.
+     * @param basePlanId An optional base plan identifier of the product that's being purchased.
+     * @param offerId An optional offer identifier of the product that's being purchased.
      * @return A `PurchaseResult` object, which is the result of your purchase logic.
      * **Note**: Make sure you handle all cases of `PurchaseResult`.
      */
     @MainThread
-    suspend fun purchase(activity: Activity, product: ProductDetails): PurchaseResult
+    suspend fun purchase(
+        activity: Activity,
+        productDetails: ProductDetails,
+        basePlanId: String?,
+        offerId: String?
+    ): PurchaseResult
 
     /**
      * Called when the user initiates a restore.

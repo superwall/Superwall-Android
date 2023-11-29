@@ -198,8 +198,7 @@ class PaywallRequestManager(
             val outcome = PaywallLogic.getVariablesAndFreeTrial(
                 result.products,
                 result.productsById,
-                request.overrides.isFreeTrial,
-                { id -> storeKitManager.isFreeTrialAvailable(id) }
+                request.overrides.isFreeTrial
             )
             paywall.productVariables = outcome.productVariables
 //            paywall.swProductVariablesTemplate = outcome.swProductVariablesTemplate

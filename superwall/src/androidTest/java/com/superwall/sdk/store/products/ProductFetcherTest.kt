@@ -52,7 +52,11 @@ class ProductFetcherUnderTest(context: Context) : GooglePlayProductsFetcher(cont
             if (product != null) {
                 productId to product
             } else {
-                productId to Result.Success(RawStoreProduct(skuDetails = MockSkuDetails(mockSku)))
+                productId to Result.Success(
+                    RawStoreProduct(
+                        underlyingProductDetails = MockSkuDetails(mockSku)
+                    )
+                )
             }
         }.toMap()
         return result

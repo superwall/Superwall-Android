@@ -79,14 +79,19 @@ class InternalPurchaseController(
         }
     }
 
-    override suspend fun purchase(activity: Activity, product: ProductDetails): PurchaseResult {
+    override suspend fun purchase(
+        activity: Activity,
+        productDetails: ProductDetails,
+        basePlanId: String?,
+        offerId: String?
+    ): PurchaseResult {
         // TODO: Await beginPurchase with purchasing coordinator: https://linear.app/superwall/issue/SW-2415/[android]-implement-purchasingcoordinator
 
         if (kotlinPurchaseController != null) {
-            return kotlinPurchaseController.purchase(activity, product)
+            return kotlinPurchaseController.purchase(activity, productDetails, basePlanId, offerId)
         } else if (javaPurchaseController != null) {
             return suspendCoroutine { continuation ->
-                javaPurchaseController.purchase(product) { result ->
+                javaPurchaseController.purchase(productDetails, basePlanId, offerId) { result ->
                     continuation.resume(result)
                 }
             }
@@ -118,7 +123,7 @@ class InternalPurchaseController(
         if (kotlinPurchaseController != null) {
             return kotlinPurchaseController.restorePurchases()
         } else if (javaPurchaseController != null) {
-            return suspendCoroutine<RestorationResult> { continuation ->
+            return suspendCoroutine { continuation ->
                 javaPurchaseController.restorePurchases { result, error ->
                     if (error == null) {
                         continuation.resume(result)

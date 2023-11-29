@@ -17,8 +17,9 @@ import java.util.Locale
 
 class RawStoreProduct(
     val underlyingProductDetails: ProductDetails,
-    private val basePlanId: String?,
-    private val offerType: OfferType?
+    override val fullIdentifier: String,
+    val basePlanId: String?,
+    val offerType: OfferType?
 ) : StoreProductType {
     @Transient
     private val priceFormatterProvider = PriceFormatterProvider()
@@ -209,7 +210,7 @@ class RawStoreProduct(
         return BigDecimal(pricingPhase).divide(BigDecimal(1_000_000), 6, RoundingMode.DOWN)
     }
 
-    override val hasFreeTrial: Boolean
+        override val hasFreeTrial: Boolean
         get() {
             if (underlyingProductDetails.oneTimePurchaseOfferDetails != null) {
                 return false
@@ -251,18 +252,16 @@ class RawStoreProduct(
             } ?: BigDecimal.ZERO
         }
 
-    private fun getSelectedOffer(): SubscriptionOfferDetails? {
+    fun getSelectedOffer(): SubscriptionOfferDetails? {
         if (underlyingProductDetails.oneTimePurchaseOfferDetails != null) {
             return null
         }
         // Retrieve the subscription offer details from the product details
         val subscriptionOfferDetails = underlyingProductDetails.subscriptionOfferDetails ?: return null
 
-        // TODO: Deal with one time offer here
-        // If there's no base plan ID, just return the first offer (there should only be one).
-        // TODO: Test that subscriptionOfferDetails only returns one offer when no base plan ID set.
+        // If there's no base plan ID, return the first base plan we come across.
         if (basePlanId == null) {
-            return subscriptionOfferDetails.firstOrNull()
+            return subscriptionOfferDetails.firstOrNull { it.pricingPhases.pricingPhaseList.size == 1 }
         }
 
         // Get the offers that match the given base plan ID.

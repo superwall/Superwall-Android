@@ -5,7 +5,6 @@ import com.android.billingclient.api.*
 import com.superwall.sdk.billing.GoogleBillingWrapper
 import com.superwall.sdk.store.abstractions.product.OfferType
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
-import com.superwall.sdk.store.abstractions.product.SerializableProductDetails
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.coordinator.ProductsFetcher
 import kotlinx.coroutines.*
@@ -21,11 +20,15 @@ private const val RECONNECT_TIMER_START_MILLISECONDS = 1L * 1000L
 private const val RECONNECT_TIMER_MAX_TIME_MILLISECONDS = 1000L * 60L * 15L // 15 minutes
 
 data class ProductIds(
+    val subscriptionId: String,
     val basePlanId: String?,
-    val offerType: OfferType?
+    val offerType: OfferType?,
+    val fullId: String
 ) {
     companion object {
-        fun from(components: List<String>): ProductIds {
+        fun from(productId: String): ProductIds {
+            val components = productId.split(":")
+            val subscriptionId = components.getOrNull(0) ?: ""
             val basePlanId = components.getOrNull(1)
             val offerId = components.getOrNull(2)
             var offerType: OfferType? = null
@@ -35,7 +38,12 @@ data class ProductIds(
             } else if (offerId != null) {
                 offerType = OfferType.Offer(id = offerId)
             }
-            return ProductIds(basePlanId, offerType)
+            return ProductIds(
+                subscriptionId = subscriptionId,
+                basePlanId = basePlanId,
+                offerType = offerType,
+                fullId = productId
+            )
         }
     }
 }
@@ -60,43 +68,62 @@ open class GooglePlayProductsFetcher(var context: Context, var billingWrapper: G
 
     protected fun request(productIds: List<String>) {
         scope.launch {
+            // Get the current results from _results value
             val currentResults = _results.value
-
             println("!!! Current results ${currentResults.size}")
 
-            var subscriptionIdsToLoad: List<String> = emptyList()
+            // Initialize a set to hold unique subscription IDs to be loaded
+            var subscriptionIdsToLoad: Set<String> = emptySet()
+
+            // Iterate through each product ID
             productIds.forEach { productId ->
+                // Check if the result for the current product ID is already available
                 val result = currentResults[productId]
                 println("Result for $productId is $result ${Thread.currentThread().name}")
+
+                // If the result is null, process the product ID
                 if (result == null) {
-                    val components = productId.split(":")
-                    val subscriptionId = components.getOrNull(0) ?: ""
-                    productIdsBySubscriptionId[subscriptionId] = ProductIds.from(components)
-                    subscriptionIdsToLoad = subscriptionIdsToLoad + subscriptionId
+                    // Parse the product ID into a ProductIds object
+                    val productIds = ProductIds.from(productId)
+                    // Map the subscription ID to its corresponding ProductIds object
+                    productIdsBySubscriptionId[productIds.subscriptionId] = productIds
+                    // Add the subscription ID to the set of IDs to load
+                    subscriptionIdsToLoad = subscriptionIdsToLoad + productIds.subscriptionId
                 }
             }
 
-            print("!!! Requesting ${subscriptionIdsToLoad.size} products")
+            println("!!! Requesting ${subscriptionIdsToLoad.size} products")
 
-            if (!subscriptionIdsToLoad.isEmpty()) {
+            // Check if there are any subscription IDs to load
+            if (subscriptionIdsToLoad.isNotEmpty()) {
+                // Emit a waiting result for each subscription ID to load
                 _results.emit(
-                    _results.value + subscriptionIdsToLoad.map {
-                        it to Result.Waiting(
-                            startedAt = System.currentTimeMillis().toInt()
-                        )
+                    _results.value + subscriptionIdsToLoad.associateWith {
+                        Result.Waiting(startedAt = System.currentTimeMillis().toInt())
                     }
                 )
 
-                println("!! Querying product details for ${subscriptionIdsToLoad.size} products, prodcuts: ${subscriptionIdsToLoad} ${Thread.currentThread().name}")
+                // Log the querying of product details
+                println("!! Querying product details for ${subscriptionIdsToLoad.size} products, products: ${subscriptionIdsToLoad} ${Thread.currentThread().name}")
+
+                // Perform the network request to get product details
                 val networkResult = runBlocking {
-                    queryProductDetails(subscriptionIdsToLoad)
+                    queryProductDetails(subscriptionIdsToLoad.toList())
                 }
                 println("!! networkResult: ${networkResult} ${Thread.currentThread().name}")
-                _results.emit(
-                    _results.value + networkResult.mapValues { it.value }
-                )
-            }
 
+                // Update the results with the network query results, mapped to full product IDs
+                val updatedResults = networkResult.entries.associate { (subscriptionId, result) ->
+                    // Retrieve the full product ID using the subscription ID
+                    val fullProductId = productIdsBySubscriptionId[subscriptionId]?.fullId ?: subscriptionId
+                    // Associate the full product ID with the query result
+                    println("!!!! ASSOCIATE $fullProductId")
+                    fullProductId to result
+                }
+
+                // Emit the updated results to _results
+                _results.emit(_results.value + updatedResults)
+            }
         }
     }
 
@@ -110,7 +137,6 @@ open class GooglePlayProductsFetcher(var context: Context, var billingWrapper: G
         }.first { it == true }
         return _results.value.filterKeys { it in productIds }
     }
-
 
     open suspend fun queryProductDetails(productIds: List<String>): Map<String, Result<RawStoreProduct>> {
         if (productIds.isEmpty()) {
@@ -207,6 +233,7 @@ open class GooglePlayProductsFetcher(var context: Context, var billingWrapper: G
                     Result.Success(
                         RawStoreProduct(
                             underlyingProductDetails = productDetails,
+                            fullIdentifier = productIds?.fullId ?: "",
                             basePlanId = productIds?.basePlanId,
                             offerType = productIds?.offerType
                          )

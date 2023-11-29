@@ -139,7 +139,7 @@ class StoreKitManager(
         val productsById = processingResult.substituteProductsById.toMutableMap()
 
         for (product in products) {
-            val productIdentifier = product.productIdentifier
+            val productIdentifier = product.fullIdentifier
             productsById[productIdentifier] = product
             this.productsById[productIdentifier] = product
         }
@@ -157,7 +157,7 @@ class StoreKitManager(
         var products: MutableList<Product> = responseProducts.toMutableList()
 
         fun storeAndSubstitute(product: StoreProduct, type: ProductType, index: Int) {
-            val id = product.productIdentifier
+            val id = product.fullIdentifier
             substituteProductsById[id] = product
             this.productsById[id] = product
             val product = Product(type = type, id = id)
@@ -206,10 +206,6 @@ class StoreKitManager(
         receiptManager.loadPurchasedProducts()
     }
 
-    suspend fun isFreeTrialAvailable(product: StoreProduct): Boolean {
-        return receiptManager.isFreeTrialAvailable(product)
-    }
-
     override suspend fun products(
         identifiers: Set<String>,
         paywallName: String?
@@ -220,4 +216,3 @@ class StoreKitManager(
         )
     }
 }
-

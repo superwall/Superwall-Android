@@ -8,6 +8,7 @@ import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
+import com.superwall.sdk.store.abstractions.product.StoreProduct
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -16,7 +17,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class ExternalNativePurchaseController(var context: Context) : PurchaseController, PurchasesUpdatedListener {
-
     private var billingClient: BillingClient = BillingClient.newBuilder(context)
         .setListener(this)
         .enablePendingPurchases()
@@ -63,9 +63,20 @@ class ExternalNativePurchaseController(var context: Context) : PurchaseControlle
 
     //region PurchaseController
 
-    override suspend fun purchase(activity: Activity, product: ProductDetails): PurchaseResult {
+    override suspend fun purchase(
+        activity: Activity,
+        productDetails: ProductDetails,
+        basePlanId: String?,
+        offerId: String?
+    ): PurchaseResult {
+        val offerToken = productDetails.subscriptionOfferDetails
+            ?.firstOrNull { it.offerId == offerId }
+            ?.offerToken
+            ?: ""
+
         val productDetailsParams = BillingFlowParams.ProductDetailsParams.newBuilder()
-            .setProductDetails(product)
+            .setProductDetails(productDetails)
+            .setOfferToken(offerToken)
             .build()
 
         val flowParams = BillingFlowParams.newBuilder()
@@ -90,7 +101,7 @@ class ExternalNativePurchaseController(var context: Context) : PurchaseControlle
         billingClient.launchBillingFlow(activity, flowParams)
 
         // Wait until a purchase result is emitted before returning the result
-        val value =  purchaseResults.first { it != null } ?: PurchaseResult.Failed(Exception("Purchase failed"))
+        val value =  purchaseResults.first { it != null } ?: PurchaseResult.Failed("Purchase failed")
 
         return value
     }
@@ -120,7 +131,7 @@ class ExternalNativePurchaseController(var context: Context) : PurchaseControlle
 
             // For all other response codes, create a Failed result with an exception
             else -> {
-                PurchaseResult.Failed(Exception(billingResult.responseCode.toString()))
+                PurchaseResult.Failed(billingResult.responseCode.toString())
             }
         }
 

@@ -13,8 +13,8 @@ class PaywallProducts(
     val tertiary: StoreProduct? = null
 ) {
     val ids: List<String> = listOfNotNull(
-        primary?.productIdentifier,
-        secondary?.productIdentifier,
-        tertiary?.productIdentifier
+        primary?.fullIdentifier,
+        secondary?.fullIdentifier,
+        tertiary?.fullIdentifier
     )
 }
