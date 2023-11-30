@@ -38,13 +38,12 @@ class RawStoreProduct(
                 return BigDecimal(offerDetails.priceAmountMicros).divide(BigDecimal(1_000_000), 6, RoundingMode.DOWN)
             }
 
-            return basePriceForSelectedOffer().divide(BigDecimal(1_000_000), 6, RoundingMode.DOWN)
+            return basePriceForSelectedOffer()
         }
 
     override val localizedPrice: String
         get() {
-            val basePrice = basePriceForSelectedOffer()
-            return priceFormatter?.format(basePrice) ?: ""
+            return priceFormatter?.format(price) ?: ""
         }
 
     override val localizedSubscriptionPeriod: String
@@ -198,7 +197,6 @@ class RawStoreProduct(
             }
 
             val subscriptionPeriod = this.subscriptionPeriod ?: return "n/a"
-
             val pricePerYear = subscriptionPeriod.pricePerYear(basePrice)
 
             return priceFormatter?.format(pricePerYear) ?: "n/a"
@@ -207,7 +205,7 @@ class RawStoreProduct(
     private fun basePriceForSelectedOffer(): BigDecimal {
         val selectedOffer = getSelectedOffer() ?: return BigDecimal.ZERO
         val pricingPhase = selectedOffer.pricingPhases.pricingPhaseList.last().priceAmountMicros
-        return BigDecimal(pricingPhase).divide(BigDecimal(1_000_000), 6, RoundingMode.DOWN)
+        return BigDecimal(pricingPhase).divide(BigDecimal(1_000_000), 2, RoundingMode.DOWN)
     }
 
         override val hasFreeTrial: Boolean

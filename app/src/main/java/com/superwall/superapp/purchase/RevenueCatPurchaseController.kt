@@ -11,6 +11,7 @@ import com.revenuecat.purchases.interfaces.UpdatedCustomerInfoListener
 import com.revenuecat.purchases.models.StoreProduct
 import com.revenuecat.purchases.models.StoreTransaction
 import com.revenuecat.purchases.models.SubscriptionOption
+import com.revenuecat.purchases.models.googleProduct
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
@@ -114,7 +115,12 @@ class RevenueCatPurchaseController(val context: Context): PurchaseController, Up
         offerId: String?
     ): PurchaseResult {
         val products = Purchases.sharedInstance.awaitProducts(listOf(productDetails.productId))
-        val product = products.firstOrNull() ?: return PurchaseResult.Failed("Product not found")
+
+        // Choose the product which matches the given base plan.
+        // If no base plan set, select first product
+        val product = products.firstOrNull { it.googleProduct?.basePlanId == basePlanId }
+            ?: products.firstOrNull()
+            ?: return PurchaseResult.Failed("Product not found")
 
         return when (product.type) {
             ProductType.SUBS, ProductType.UNKNOWN -> handleSubscription(activity, product, basePlanId, offerId)
