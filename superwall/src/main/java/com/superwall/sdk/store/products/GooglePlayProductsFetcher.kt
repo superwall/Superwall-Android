@@ -48,7 +48,10 @@ data class ProductIds(
     }
 }
 
-open class GooglePlayProductsFetcher(var context: Context, var billingWrapper: GoogleBillingWrapper) : ProductsFetcher,
+open class GooglePlayProductsFetcher(
+    var context: Context,
+    var billingWrapper: GoogleBillingWrapper
+) : ProductsFetcher,
     PurchasesUpdatedListener {
 
     sealed class Result<T> {
@@ -170,7 +173,7 @@ open class GooglePlayProductsFetcher(var context: Context, var billingWrapper: G
             .build()
 
         println("!! Querying subscription product details for ${productIds.size} products, products: ${productIds},  ${Thread.currentThread().name}")
-        billingWrapper.waitForConnectedClient{
+        billingWrapper.waitForConnectedClient {
             queryProductDetailsAsync(subsParams) { billingResult, productDetailsList ->
                 val resultMap =
                     handleProductDetailsResponse(productIds, billingResult, productDetailsList)
@@ -230,6 +233,10 @@ open class GooglePlayProductsFetcher(var context: Context, var billingWrapper: G
             val results = productDetailsList.associateBy { it.productId }
                 .mapValues { (_, productDetails) ->
                     val productIds = productIdsBySubscriptionId[productDetails.productId]
+
+                    if (productDetails.productId == "com.ui_tests.quarterly2") {
+                        println("")
+                    }
                     Result.Success(
                         RawStoreProduct(
                             underlyingProductDetails = productDetails,
@@ -258,8 +265,7 @@ open class GooglePlayProductsFetcher(var context: Context, var billingWrapper: G
 
 
     override suspend fun products(
-        identifiers: Set<String>,
-        paywallName: String?
+        identifiers: Set<String>
     ): Set<StoreProduct> {
         val productResults = _products(identifiers.toList())
         return productResults.values.mapNotNull {

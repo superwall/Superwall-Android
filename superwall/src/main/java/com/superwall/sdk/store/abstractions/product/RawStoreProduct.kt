@@ -10,6 +10,7 @@ import java.math.RoundingMode
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.time.Duration
+import java.time.Period
 import java.util.Calendar
 import java.util.Currency
 import java.util.Date
@@ -246,17 +247,16 @@ class RawStoreProduct(
             // Check for discounted phase
             val discountedPhase = pricingWithoutBase.firstOrNull { it.priceAmountMicros > 0 }
             return discountedPhase?.let {
-                BigDecimal(it.priceAmountMicros).divide(BigDecimal(1_000_000), 6, RoundingMode.DOWN)
+                BigDecimal(it.priceAmountMicros).divide(BigDecimal(1_000_000), 2, RoundingMode.DOWN)
             } ?: BigDecimal.ZERO
         }
 
-    fun getSelectedOffer(): SubscriptionOfferDetails? {
+    private fun getSelectedOffer(): SubscriptionOfferDetails? {
         if (underlyingProductDetails.oneTimePurchaseOfferDetails != null) {
             return null
         }
         // Retrieve the subscription offer details from the product details
         val subscriptionOfferDetails = underlyingProductDetails.subscriptionOfferDetails ?: return null
-
         // If there's no base plan ID, return the first base plan we come across.
         if (basePlanId == null) {
             return subscriptionOfferDetails.firstOrNull { it.pricingPhases.pricingPhaseList.size == 1 }
@@ -278,8 +278,7 @@ class RawStoreProduct(
                     // Ignore base plan
                     .filter { it.pricingPhases.pricingPhaseList.size != 1 }
                     // Ignore those with a tag that contains "ignore-offer"
-                    .filter { !it.offerTags.contains("-ignore-offer") }
-
+                    .filter { !it.offerTags.any { it.contains("-ignore-offer") }}
                 return findLongestFreeTrial(validOffers) ?: findLowestNonFreeOffer(validOffers) ?: basePlan
             }
             is OfferType.Offer -> {
@@ -300,19 +299,22 @@ class RawStoreProduct(
                 .firstOrNull {
                     it.priceAmountMicros == 0L
                 }?.let { pricingPhase ->
-                    Pair(offer, Duration.parse(pricingPhase.billingPeriod).toDays())
+                    val period = Period.parse(pricingPhase.billingPeriod)
+                    val totalDays = period.toTotalMonths() * 30 + period.days
+                    Pair(offer, totalDays)
                 }
         }.maxByOrNull { it.second }?.first
     }
 
     private fun findLowestNonFreeOffer(offers: List<SubscriptionOfferDetails>): SubscriptionOfferDetails? {
-        return offers.mapNotNull { offer ->
+        val hi = offers.mapNotNull { offer ->
             offer.pricingPhases.pricingPhaseList.dropLast(1).firstOrNull {
                 it.priceAmountMicros > 0L
             }?.let { pricingPhase ->
                 Pair(offer, pricingPhase.priceAmountMicros)
             }
         }.minByOrNull { it.second }?.first
+        return hi
     }
 
     override val trialPeriodEndDate: Date?
@@ -456,12 +458,12 @@ class RawStoreProduct(
             return priceFormatter?.format(0) ?: "$0.00"
         }
 
-        val introMonthlyPrice = pricePerUnit(
+        val introPrice = pricePerUnit(
             unit = unit,
             pricingPhase = pricingPhase
         )
 
-        return priceFormatter?.format(introMonthlyPrice) ?: "$0.00"
+        return priceFormatter?.format(introPrice) ?: "$0.00"
     }
 
     private fun pricePerUnit(
@@ -485,16 +487,22 @@ class RawStoreProduct(
             } catch (e: Exception) {
                 null
             }
+            // TODO: THE PERIODSPERUNIT IS WRONG
+            val periodPerUnit2 = periodsPerUnit(unit)
             val introPeriods = periodsPerUnit(unit).multiply(BigDecimal(pricingPhase.billingCycleCount))
                 .multiply(BigDecimal(trialSubscriptionPeriod?.value ?: 0))
-
+            println(unit.toString())
+            println(introPeriods)
+            println(periodPerUnit2)
+            println(trialSubscriptionPeriod?.value)
+            println(pricingPhase.billingCycleCount)
             val introPayment: BigDecimal
             if (introPeriods < BigDecimal.ONE) {
                 // If less than 1, it means the intro period doesn't exceed a full unit.
                 introPayment = introCost
             } else {
                 // Otherwise, divide the total cost by the normalized intro periods.
-                introPayment = introCost.divide(introPeriods, RoundingMode.DOWN)
+                introPayment = introCost.divide(introPeriods, 2, RoundingMode.DOWN)
             }
 
             return introPayment
@@ -514,7 +522,7 @@ class RawStoreProduct(
             }
             SubscriptionPeriod.Unit.week -> {
                 when (trialSubscriptionPeriod?.unit) {
-                    SubscriptionPeriod.Unit.day -> BigDecimal(1) / BigDecimal(7)
+                    SubscriptionPeriod.Unit.day -> BigDecimal(1).divide(BigDecimal(7), 6, RoundingMode.DOWN)
                     SubscriptionPeriod.Unit.week -> BigDecimal(1)
                     SubscriptionPeriod.Unit.month -> BigDecimal(4)
                     SubscriptionPeriod.Unit.year -> BigDecimal(52)
@@ -523,8 +531,8 @@ class RawStoreProduct(
             }
             SubscriptionPeriod.Unit.month -> {
                 when (trialSubscriptionPeriod?.unit) {
-                    SubscriptionPeriod.Unit.day -> BigDecimal(1) / BigDecimal(30)
-                    SubscriptionPeriod.Unit.week -> BigDecimal(1) / BigDecimal(4)
+                    SubscriptionPeriod.Unit.day -> BigDecimal(1).divide(BigDecimal(30), 6, RoundingMode.DOWN)
+                    SubscriptionPeriod.Unit.week -> BigDecimal(1).divide(BigDecimal(4), 6, RoundingMode.DOWN)
                     SubscriptionPeriod.Unit.month -> BigDecimal(1)
                     SubscriptionPeriod.Unit.year -> BigDecimal(12)
                     else -> BigDecimal.ZERO
@@ -532,10 +540,10 @@ class RawStoreProduct(
             }
             SubscriptionPeriod.Unit.year -> {
                 when (trialSubscriptionPeriod?.unit) {
-                    SubscriptionPeriod.Unit.day -> BigDecimal(1) / BigDecimal(365)
-                    SubscriptionPeriod.Unit.week -> BigDecimal(1) / BigDecimal(52)
-                    SubscriptionPeriod.Unit.month -> BigDecimal(1) / BigDecimal(12)
-                    SubscriptionPeriod.Unit.year -> BigDecimal(1)
+                    SubscriptionPeriod.Unit.day -> BigDecimal(1).divide(BigDecimal(365), 6, RoundingMode.DOWN)
+                    SubscriptionPeriod.Unit.week -> BigDecimal(1).divide(BigDecimal(52), 6, RoundingMode.DOWN)
+                    SubscriptionPeriod.Unit.month -> BigDecimal(1).divide(BigDecimal(12), 6, RoundingMode.DOWN)
+                    SubscriptionPeriod.Unit.year -> BigDecimal.ONE
                     else -> BigDecimal.ZERO
                 }
             }

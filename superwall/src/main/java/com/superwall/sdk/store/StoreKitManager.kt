@@ -105,7 +105,7 @@ class StoreKitManager(
     )
 
     suspend fun getProductVariables(paywall: Paywall): List<ProductVariable> {
-        val output = getProducts(paywall.productIds, paywall.name)
+        val output = getProducts(paywall.productIds)
 
         val variables = paywall.products.mapNotNull { product ->
             output.productsById[product.id]?.let { storeProduct ->
@@ -121,7 +121,6 @@ class StoreKitManager(
 
     suspend fun getProducts(
         responseProductIds: List<String>,
-        paywallName: String? = null,
         responseProducts: List<Product> = emptyList(),
         substituteProducts: PaywallProducts? = null
     ): GetProductsResponse {
@@ -132,8 +131,7 @@ class StoreKitManager(
         )
 
         val products = products(
-            identifiers = processingResult.productIdsToLoad,
-            paywallName
+            identifiers = processingResult.productIdsToLoad
         )
 
         val productsById = processingResult.substituteProductsById.toMutableMap()
@@ -207,12 +205,10 @@ class StoreKitManager(
     }
 
     override suspend fun products(
-        identifiers: Set<String>,
-        paywallName: String?
+        identifiers: Set<String>
     ): Set<StoreProduct> {
         return productFetcher.products(
-            identifiers = identifiers,
-            paywallName
+            identifiers = identifiers
         )
     }
 }

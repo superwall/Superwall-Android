@@ -6,6 +6,7 @@ import com.superwall.sdk.dependencies.RuleAttributesFactory
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.MatchedItem
+import com.superwall.sdk.models.triggers.TriggerPreloadBehavior
 import com.superwall.sdk.models.triggers.TriggerRule
 import com.superwall.sdk.models.triggers.TriggerRuleOutcome
 import com.superwall.sdk.models.triggers.UnmatchedRule
@@ -58,6 +59,10 @@ class ExpressionEvaluatorInstrumentedTest {
             ),
             expression = "user.id == '123'",
             expressionJs = null,
+            preload = TriggerRule.TriggerPreload(
+                behavior = TriggerPreloadBehavior.ALWAYS,
+                requiresReEvaluation = false
+            )
         )
 
         val result = expressionEvaluator.evaluateExpression(
@@ -97,6 +102,10 @@ class ExpressionEvaluatorInstrumentedTest {
             ),
             expression = null,
             expressionJs = "function superwallEvaluator(){ return true }; superwallEvaluator",
+            preload = TriggerRule.TriggerPreload(
+                behavior = TriggerPreloadBehavior.ALWAYS,
+                requiresReEvaluation = false
+            )
         )
 
         val falseRule = TriggerRule(
@@ -112,6 +121,10 @@ class ExpressionEvaluatorInstrumentedTest {
             ),
             expression = null,
             expressionJs = "function superwallEvaluator(){ return false }; superwallEvaluator",
+            preload = TriggerRule.TriggerPreload(
+                behavior = TriggerPreloadBehavior.ALWAYS,
+                requiresReEvaluation = false
+            )
         )
 
         var trueResult = expressionEvaluator.evaluateExpression(
@@ -166,7 +179,11 @@ class ExpressionEvaluatorInstrumentedTest {
                 )
             ),
             expression = "user.id == '123'",
-            expressionJs = null
+            expressionJs = null,
+            preload = TriggerRule.TriggerPreload(
+                behavior = TriggerPreloadBehavior.ALWAYS,
+                requiresReEvaluation = false
+            )
         )
 
         val falseRule = TriggerRule(
@@ -182,6 +199,10 @@ class ExpressionEvaluatorInstrumentedTest {
             ),
             expression = null,
             expressionJs = "function() { return false; }",
+            preload = TriggerRule.TriggerPreload(
+                behavior = TriggerPreloadBehavior.ALWAYS,
+                requiresReEvaluation = false
+            )
         )
 
 
@@ -247,6 +268,10 @@ class ExpressionEvaluatorInstrumentedTest {
             ),
             expression = null,
             expressionJs = null,
+            preload = TriggerRule.TriggerPreload(
+                behavior = TriggerPreloadBehavior.ALWAYS,
+                requiresReEvaluation = false
+            )
         )
 
         val result = expressionEvaluator.evaluateExpression(

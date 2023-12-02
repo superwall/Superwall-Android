@@ -12,8 +12,7 @@ interface ProductPurchaser {
 interface ProductsFetcher {
     // Fetches a set of products from their identifiers.
     suspend fun products(
-        identifiers: Set<String>,
-        paywallName: String? = null
+        identifiers: Set<String>
     ): Set<StoreProduct>
 }
 

@@ -188,7 +188,6 @@ class PaywallRequestManager(
         try {
             val result = storeKitManager.getProducts(
                 paywall.productIds,
-                paywall.name,
                 paywall.products,
                 request.overrides.products
             )

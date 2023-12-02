@@ -73,7 +73,9 @@ android {
         jvmTarget = "1.8"
     }
 
-    testOptions { }
+    packagingOptions {
+        resources.excludes += "META-INF/LICENSE.md"
+    }
 
     publishing {
         singleVariant("release") {
@@ -161,6 +163,7 @@ dependencies {
     // Test
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.mockk)
     // ??? Not sure if we need this
     // testImplementation("org.json:json:20210307")
 
