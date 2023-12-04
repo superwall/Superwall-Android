@@ -36,7 +36,7 @@ class RawStoreProduct(
     override val price: BigDecimal
         get() {
             underlyingProductDetails.oneTimePurchaseOfferDetails?.let { offerDetails ->
-                return BigDecimal(offerDetails.priceAmountMicros).divide(BigDecimal(1_000_000), 6, RoundingMode.DOWN)
+                return BigDecimal(offerDetails.priceAmountMicros).divide(BigDecimal(1_000_000), 2, RoundingMode.DOWN)
             }
 
             return basePriceForSelectedOffer()
@@ -228,9 +228,6 @@ class RawStoreProduct(
 
     override val trialPeriodPrice: BigDecimal
         get() {
-
-            // Handle one-time purchase
-            // TODO: Handle oneTimePurchaseOfferDetails correctly
             if (underlyingProductDetails.oneTimePurchaseOfferDetails != null) {
                 return BigDecimal.ZERO
             }
@@ -258,6 +255,7 @@ class RawStoreProduct(
         // Retrieve the subscription offer details from the product details
         val subscriptionOfferDetails = underlyingProductDetails.subscriptionOfferDetails ?: return null
         // If there's no base plan ID, return the first base plan we come across.
+        // This may not be the one they want but so be it.
         if (basePlanId == null) {
             return subscriptionOfferDetails.firstOrNull { it.pricingPhases.pricingPhaseList.size == 1 }
         }
@@ -282,8 +280,8 @@ class RawStoreProduct(
                 return findLongestFreeTrial(validOffers) ?: findLowestNonFreeOffer(validOffers) ?: basePlan
             }
             is OfferType.Offer -> {
-                // If an offer ID is given, return that one.
-                return offersForBasePlan.firstOrNull { it.offerId == offerType.id }
+                // If an offer ID is given, return that one. Otherwise fallback to base plan.
+                return offersForBasePlan.firstOrNull { it.offerId == offerType.id } ?: basePlan
             }
             else -> {
                 // If no offer specified, return base plan.
@@ -423,6 +421,9 @@ class RawStoreProduct(
 
     override val currencyCode: String?
         get() {
+            if (underlyingProductDetails.oneTimePurchaseOfferDetails != null) {
+                return underlyingProductDetails.oneTimePurchaseOfferDetails?.priceCurrencyCode
+            }
             val selectedOffer = getSelectedOffer() ?: return null
             return selectedOffer.pricingPhases.pricingPhaseList.last().priceCurrencyCode
         }
@@ -487,15 +488,9 @@ class RawStoreProduct(
             } catch (e: Exception) {
                 null
             }
-            // TODO: THE PERIODSPERUNIT IS WRONG
-            val periodPerUnit2 = periodsPerUnit(unit)
             val introPeriods = periodsPerUnit(unit).multiply(BigDecimal(pricingPhase.billingCycleCount))
                 .multiply(BigDecimal(trialSubscriptionPeriod?.value ?: 0))
-            println(unit.toString())
-            println(introPeriods)
-            println(periodPerUnit2)
-            println(trialSubscriptionPeriod?.value)
-            println(pricingPhase.billingCycleCount)
+
             val introPayment: BigDecimal
             if (introPeriods < BigDecimal.ONE) {
                 // If less than 1, it means the intro period doesn't exceed a full unit.

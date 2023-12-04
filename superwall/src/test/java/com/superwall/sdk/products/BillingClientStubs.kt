@@ -2,12 +2,12 @@ package com.superwall.sdk.products
 
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.ProductDetails
+import com.android.billingclient.api.ProductDetails.OneTimePurchaseOfferDetails
 import com.android.billingclient.api.ProductDetails.PricingPhase
 import com.android.billingclient.api.ProductDetails.RecurrenceMode
 import io.mockk.every
 import io.mockk.mockk
 
-// TODO: Move this to testImplementation rather than androidTestImplementation
 fun mockProductDetails(
     productId: String = "sample_product_id",
     @BillingClient.ProductType type: String = BillingClient.ProductType.SUBS,
@@ -27,6 +27,15 @@ fun mockProductDetails(
     every { getOneTimePurchaseOfferDetails() } returns oneTimePurchaseOfferDetails
     every { getSubscriptionOfferDetails() } returns subscriptionOfferDetails
     every { zza() } returns "mock-package-name" // This seems to return the packageName property from the response json
+}
+
+fun mockOneTimePurchaseOfferDetails(
+    price: Double = 4.99,
+    priceCurrencyCodeValue: String = "USD",
+): OneTimePurchaseOfferDetails = mockk<OneTimePurchaseOfferDetails>().apply {
+    every { formattedPrice } returns "${'$'}$price"
+    every { priceAmountMicros } returns price.times(1_000_000).toLong()
+    every { priceCurrencyCode } returns priceCurrencyCodeValue
 }
 
 fun mockSubscriptionOfferDetails(

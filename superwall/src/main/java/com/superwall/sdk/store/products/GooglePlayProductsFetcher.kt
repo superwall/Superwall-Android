@@ -233,10 +233,6 @@ open class GooglePlayProductsFetcher(
             val results = productDetailsList.associateBy { it.productId }
                 .mapValues { (_, productDetails) ->
                     val productIds = productIdsBySubscriptionId[productDetails.productId]
-
-                    if (productDetails.productId == "com.ui_tests.quarterly2") {
-                        println("")
-                    }
                     Result.Success(
                         RawStoreProduct(
                             underlyingProductDetails = productDetails,
