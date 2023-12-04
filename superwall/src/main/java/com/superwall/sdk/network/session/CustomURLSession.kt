@@ -116,7 +116,7 @@ class CustomHttpUrlConnection {
         val requestDuration = (System.currentTimeMillis() - startTime) / 1000.0
         val requestId = try {
             getRequestId(request, auth, requestDuration)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             throw NetworkError.Unknown()
         }
 

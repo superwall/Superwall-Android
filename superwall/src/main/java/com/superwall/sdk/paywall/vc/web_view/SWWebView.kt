@@ -58,8 +58,12 @@ class SWWebView(
 
         this.setBackgroundColor(Color.TRANSPARENT)
 
-        this.webChromeClient = WebChromeClient()
-
+        this.webChromeClient = object : WebChromeClient() {
+            override fun onConsoleMessage(consoleMessage: ConsoleMessage): Boolean {
+                // Don't log anything
+                return true
+            }
+        }
         // Set a WebViewClient
         this.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(
@@ -107,7 +111,6 @@ class SWWebView(
         return true
     }
 
-
     override fun loadUrl(url: String) {
         // Parse the url and add the query parameter
         val uri = Uri.parse(url)
@@ -126,7 +129,6 @@ class SWWebView(
 
         super.loadUrl(urlString)
     }
-
 
     private suspend fun trackPaywallError() {
         delegate?.paywall?.webviewLoadingInfo?.failAt = Date()

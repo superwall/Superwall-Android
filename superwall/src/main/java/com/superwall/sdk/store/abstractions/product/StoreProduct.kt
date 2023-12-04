@@ -1,6 +1,8 @@
 package com.superwall.sdk.store.abstractions.product
 
 
+import com.android.billingclient.api.BillingClient.ProductType
+import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.SkuDetails
 import com.superwall.sdk.contrib.threeteen.AmountFormats
 import kotlinx.serialization.KSerializer
@@ -13,28 +15,30 @@ import java.math.RoundingMode
 import java.text.SimpleDateFormat
 import java.util.*
 
-@Serializer(forClass = SkuDetails::class)
-object SkuDetailsSerializer : KSerializer<SkuDetails> {
-    override fun serialize(encoder: Encoder, value: SkuDetails) {
-        encoder.encodeString(value.price)  // replace "property" with actual property name
-    }
+@Serializable
+sealed class OfferType {
+    object Auto : OfferType()
+    data class Offer(override val id: String) : OfferType()
 
-    override fun deserialize(decoder: Decoder): SkuDetails {
-        val property = decoder.decodeString()
-        return SkuDetails(property)  // replace with actual SkuDetails constructor
-    }
+    open val id: String?
+        get() = when (this) {
+            is Offer -> id
+            else -> null
+        }
 }
 
-@Serializable
+
 class StoreProduct(
     val rawStoreProduct: RawStoreProduct
 ) : StoreProductType {
+    override val fullIdentifier: String
+        get() = rawStoreProduct.fullIdentifier
 
     override val productIdentifier: String
         get() = rawStoreProduct.productIdentifier
 
     override val price: BigDecimal
-        get() = rawStoreProduct.price
+        get()  = rawStoreProduct.price
 
     override val localizedPrice: String
         get() = rawStoreProduct.localizedPrice

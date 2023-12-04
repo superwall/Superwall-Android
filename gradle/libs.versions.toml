@@ -1,7 +1,8 @@
 [versions]
-billing_version = "5.2.1"
+billing_version = "6.1.0"
 browser_version = "1.5.0"
 gradle_plugin_version = "7.4.2"
+mockk = "1.13.8"
 revenue_cat_version = "6.0.0"
 compose_version = "2022.10.00"
 kotlinx_serialization_json_version = "1.5.1"
@@ -21,6 +22,7 @@ test_runner_version = "1.4.0"
 test_rules_version = "1.4.0"
 kotlin = "1.8.21"
 kotlinx_coroutines_core_version = "1.7.1"
+mockk_version = "1.12.8"
 
 
 [libraries]
@@ -58,6 +60,7 @@ gson = { module = "com.google.code.gson:gson", version.ref = "gson_version" }
 # Test
 junit = { module = "junit:junit", version.ref = "junit_version" }
 kotlinx_coroutines_test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx_coroutines_test_version" }
+mockk = { module = "io.mockk:mockk", version.ref = "mockk_version" }
 
 # Test (Android)
 test_ext_junit = { module = "androidx.test.ext:junit", version.ref = "test_ext_junit_version" }

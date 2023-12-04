@@ -44,14 +44,14 @@ sealed class PurchaseResult {
      *
      * Send the `Exception` back to the relevant method to alert the user.
      */
-    data class Failed(val error: Throwable) : PurchaseResult()
+    data class Failed(val errorMessage: String) : PurchaseResult()
 
     override fun equals(other: Any?): Boolean {
         return when {
             this is Cancelled && other is Cancelled -> true
             this is Purchased && other is Purchased -> true
             this is Pending && other is Pending -> true
-            this is Failed && other is Failed -> this.error.message == other.error.message
+            this is Failed && other is Failed -> this.errorMessage == other.errorMessage
             else -> false
         }
     }

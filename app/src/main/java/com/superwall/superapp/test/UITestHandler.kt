@@ -1303,7 +1303,7 @@ class UITestHandler {
                 when (eventInfo.event) {
                     is SuperwallEvent.TransactionComplete -> {
                         val transaction = (eventInfo.event as SuperwallEvent.TransactionComplete).transaction == null
-                        val productId = (eventInfo.event as SuperwallEvent.TransactionComplete).product.productIdentifier
+                        val productId = (eventInfo.event as SuperwallEvent.TransactionComplete).product.fullIdentifier
                         val paywallId = (eventInfo.event as SuperwallEvent.TransactionComplete).paywallInfo.identifier
 
                         println("!!! TEST 75 !!! TransactionComplete. Transaction nil? $transaction, $productId, $paywallId")
