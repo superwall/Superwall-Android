@@ -101,7 +101,7 @@ class ExternalNativePurchaseController(var context: Context) : PurchaseControlle
         billingClient.launchBillingFlow(activity, flowParams)
 
         // Wait until a purchase result is emitted before returning the result
-        val value =  purchaseResults.first { it != null } ?: PurchaseResult.Failed("Purchase failed")
+        val value = purchaseResults.first { it != null } ?: PurchaseResult.Failed("Purchase failed")
 
         return value
     }

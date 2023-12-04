@@ -114,13 +114,15 @@ class RevenueCatPurchaseController(val context: Context): PurchaseController, Up
         basePlanId: String?,
         offerId: String?
     ): PurchaseResult {
+        // Find products matching productId from RevenueCat
         val products = Purchases.sharedInstance.awaitProducts(listOf(productDetails.productId))
 
         // Choose the product which matches the given base plan.
-        // If no base plan set, select first product
+        // If no base plan set, select first product or fail.
         val product = products.firstOrNull { it.googleProduct?.basePlanId == basePlanId }
             ?: products.firstOrNull()
             ?: return PurchaseResult.Failed("Product not found")
+
 
         return when (product.type) {
             ProductType.SUBS, ProductType.UNKNOWN -> handleSubscription(activity, product, basePlanId, offerId)
@@ -141,11 +143,15 @@ class RevenueCatPurchaseController(val context: Context): PurchaseController, Up
         offerId: String?
     ): PurchaseResult {
         storeProduct.subscriptionOptions?.let { subscriptionOptions ->
+            // If subscription option exists, concatenate base + offer ID.
             val subscriptionOptionId = buildSubscriptionOptionId(basePlanId, offerId)
+
+            // Find first subscription option that matches the subscription option ID or default
+            // to letting revenuecat choose.
             val subscriptionOption = subscriptionOptions.firstOrNull { it.id == subscriptionOptionId }
                 ?: subscriptionOptions.defaultOffer
 
-            println("!!! RevenueCat Subscription Options $subscriptionOptions")
+            // Purchase subscription option, otherwise fail.
             if (subscriptionOption != null) {
                 return purchaseSubscription(activity, subscriptionOption)
             }
