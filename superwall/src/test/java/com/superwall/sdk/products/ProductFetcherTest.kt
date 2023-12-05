@@ -279,7 +279,7 @@ class ProductFetcherInstrumentedTest {
      */
 
     @Test
-    fun test_storeProduct_basePlan_withFreeTrialOffer() = runTest {
+    fun test_storeProduct_basePlan_withFreeTrialOffer() {
         // subscription + base plan + offer: Free Trial phase
         val storeProduct = StoreProduct(
             rawStoreProduct = RawStoreProduct(
@@ -327,7 +327,7 @@ class ProductFetcherInstrumentedTest {
     }
 
     @Test
-    fun test_storeProduct_basePlan_withFreeTrialOfferAndPaid() = runTest {
+    fun test_storeProduct_basePlan_withFreeTrialOfferAndPaid() {
         // subscription + base plan + offer: Free Trial Phase + Paid Phase in one offer
         val storeProduct = StoreProduct(
             rawStoreProduct = RawStoreProduct(
@@ -375,7 +375,7 @@ class ProductFetcherInstrumentedTest {
     }
 
     @Test
-    fun test_storeProduct_basePlan_withPaidOffer() = runTest {
+    fun test_storeProduct_basePlan_withPaidOffer() {
         // subscription + base plan + offer: Free Trial phase
         val storeProduct = StoreProduct(
             rawStoreProduct = RawStoreProduct(
@@ -423,7 +423,7 @@ class ProductFetcherInstrumentedTest {
     }
 
     @Test
-    fun test_storeProduct_basePlan_autoOffer_threeFreeTrials() = runTest {
+    fun test_storeProduct_basePlan_autoOffer_threeFreeTrials() {
         // subscription + base plan + auto-offer: one with free trial 1 year but with sw-ignore-offer tag,
         //                                        one with free trial 1 month, <- Chooses this one
         //                                        one with free trial 1 week
@@ -473,7 +473,7 @@ class ProductFetcherInstrumentedTest {
     }
 
     @Test
-    fun test_storeProduct_basePlan_autoOffer_twoPaidOffers() = runTest {
+    fun test_storeProduct_basePlan_autoOffer_twoPaidOffers() {
         // subscription + base plan + auto-offer: one with paid offer 5.99,
         //                                        one with paid offer 1.99 <- chooses this one
         val storeProduct = StoreProduct(
@@ -524,7 +524,7 @@ class ProductFetcherInstrumentedTest {
     }
 
     @Test
-    fun test_storeProduct_basePlan_autoOffer_noOffers() = runTest {
+    fun test_storeProduct_basePlan_autoOffer_noOffers() {
         // subscription + base plan + auto-offer
         val storeProduct = StoreProduct(
             rawStoreProduct = RawStoreProduct(
@@ -567,7 +567,7 @@ class ProductFetcherInstrumentedTest {
     }
 
     @Test
-    fun test_storeProduct_basePlan() = runTest {
+    fun test_storeProduct_basePlan() {
         // subscription + base plan
         val storeProduct = StoreProduct(
             rawStoreProduct = RawStoreProduct(
@@ -610,7 +610,7 @@ class ProductFetcherInstrumentedTest {
     }
 
     @Test
-    fun test_storeProduct_basePlan_invalidOfferId() = runTest {
+    fun test_storeProduct_basePlan_invalidOfferId() {
         // subscription + base plan + offer: Offer not found
         val storeProduct = StoreProduct(
             rawStoreProduct = RawStoreProduct(
@@ -653,7 +653,7 @@ class ProductFetcherInstrumentedTest {
     }
 
     @Test
-    fun test_storeProduct_subscriptionOnly() = runTest {
+    fun test_storeProduct_subscriptionOnly() {
         // subscription
         // Note: This returns the wrong one. We expect 18.99, as that's the backwards compatible one
         // However, there's no way of us knowing this so we just pick the first base plan we come
@@ -699,7 +699,7 @@ class ProductFetcherInstrumentedTest {
     }
 
     @Test
-    fun test_storeProduct_oneTimePurchase() = runTest {
+    fun test_storeProduct_oneTimePurchase() {
         // One-time purchase
         val storeProduct = StoreProduct(
             rawStoreProduct = RawStoreProduct(
