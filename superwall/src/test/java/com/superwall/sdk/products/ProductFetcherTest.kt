@@ -4,7 +4,6 @@ import android.content.Context
 import com.android.billingclient.api.BillingClient.ProductType
 import com.android.billingclient.api.ProductDetails.OneTimePurchaseOfferDetails
 import com.android.billingclient.api.ProductDetails.RecurrenceMode
-import com.android.billingclient.api.SkuDetails
 import com.superwall.sdk.billing.GoogleBillingWrapper
 import com.superwall.sdk.store.abstractions.product.OfferType
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
@@ -20,64 +19,6 @@ import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-
-// Mock implementation of SkuDetails from Google Billing 4.0
-
-val mockSku = """{
-    "productId": "premium_subscription",
-    "type": "subs",
-    "price": "$9.99",
-    "price_amount_micros": 9990000,
-    "price_currency_code": "USD",
-    "title": "Premium Subscription",
-    "description": "Unlock all premium features with this subscription.",
-    "subscriptionPeriod": "P1M",
-    "freeTrialPeriod": "P7D",
-    "introductoryPrice": "$4.99",
-    "introductoryPriceCycles": 1,
-    "introductoryPrice_period": "P1M"
-}
-"""
-
-class MockSkuDetails(jsonDetails: String) : SkuDetails(jsonDetails) {
-
-}
-
-class ProductFetcherUnderTest(
-    context: Context,
-    billingWrapper: GoogleBillingWrapper
-) : GooglePlayProductsFetcher(
-    context = context,
-    billingWrapper = billingWrapper
-) {
-    // We're going to override the query async method to return a list of products
-    // that we define in the test
-//    var productIdsToReturn: Map<String, Result<RawStoreProduct>> = emptyMap()
-//    var queryProductDetailsCalls: List<List<String>> = emptyList()
-//
-//    override suspend fun queryProductDetails(productIds: List<String>): Map<String, Result<RawStoreProduct>> {
-//        queryProductDetailsCalls = queryProductDetailsCalls + listOf(productIds)
-//        delay(1000 + (Math.random() * 1000).toLong())
-//
-//        // Filter productIdsToReturn, and add success if not found
-//        val result = productIds.map { productId ->
-//            val product = productIdsToReturn[productId]
-//            if (product != null) {
-//                productId to product
-//            } else {
-//                productId to Result.Success(
-//                    RawStoreProduct(
-//                        underlyingProductDetails = MockSkuDetails(mockSku)
-//                    )
-//                )
-//            }
-//        }.toMap()
-//        return result
-//    }
-
-}
-
-// TODO: https://linear.app/superwall/issue/SW-2368/[android]-fix-product-fetcher-tests
 
 class ProductFetcherInstrumentedTest {
     private val oneTimePurchaseProduct = mockProductDetails(
