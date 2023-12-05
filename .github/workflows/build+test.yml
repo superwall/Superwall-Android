@@ -29,7 +29,7 @@ jobs:
       uses: actions/setup-java@v3
       with:
         distribution: 'zulu' # See 'Supported distributions' for available options
-        java-version: '11'
+        java-version: '17'
         cache: 'gradle'
 
     # Allow us to run the command
