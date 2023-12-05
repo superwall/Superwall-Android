@@ -30,7 +30,7 @@ jobs:
       with:
         distribution: 'zulu' # See 'Supported distributions' for available options
         java-version: '17'
-        cache: 'gradle'
+        cache: 'gradle-1'
 
     # Allow us to run the command
     - name: Change wrapper permissions
