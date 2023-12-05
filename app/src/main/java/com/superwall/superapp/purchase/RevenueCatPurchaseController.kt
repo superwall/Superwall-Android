@@ -123,7 +123,6 @@ class RevenueCatPurchaseController(val context: Context): PurchaseController, Up
             ?: products.firstOrNull()
             ?: return PurchaseResult.Failed("Product not found")
 
-
         return when (product.type) {
             ProductType.SUBS, ProductType.UNKNOWN -> handleSubscription(activity, product, basePlanId, offerId)
             ProductType.INAPP -> handleInAppPurchase(activity, product)

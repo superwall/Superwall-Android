@@ -20,235 +20,247 @@ class RawStoreProduct(
     val underlyingProductDetails: ProductDetails,
     override val fullIdentifier: String,
     val basePlanId: String?,
-    val offerType: OfferType?
+    private val offerType: OfferType?
 ) : StoreProductType {
     @Transient
     private val priceFormatterProvider = PriceFormatterProvider()
 
-    private val priceFormatter: NumberFormat?
-        get() = currencyCode?.let {
+    private val priceFormatter by lazy {
+        currencyCode?.let {
             priceFormatterProvider.priceFormatter(it)
         }
+    }
 
-    override val productIdentifier: String
-        get() = underlyingProductDetails.productId
+    internal val offerId: String? by lazy {
+        selectedOffer?.offerId
+    }
 
-    override val price: BigDecimal
-        get() {
-            underlyingProductDetails.oneTimePurchaseOfferDetails?.let { offerDetails ->
-                return BigDecimal(offerDetails.priceAmountMicros).divide(BigDecimal(1_000_000), 2, RoundingMode.DOWN)
-            }
+    private val selectedOffer: SubscriptionOfferDetails? by lazy {
+        getSelectedOfferDetails()
+    }
 
-            return basePriceForSelectedOffer()
-        }
+    private val basePriceForSelectedOffer by lazy {
+        val selectedOffer = selectedOffer ?: return@lazy BigDecimal.ZERO
+        val pricingPhase = selectedOffer.pricingPhases.pricingPhaseList.last().priceAmountMicros
+        BigDecimal(pricingPhase).divide(BigDecimal(1_000_000), 2, RoundingMode.DOWN)
+    }
 
-    override val localizedPrice: String
-        get() {
-            return priceFormatter?.format(price) ?: ""
-        }
+    private val selectedOfferPricingPhase by lazy {
+        // Get the selected offer; return null if it's null.
+        val selectedOffer = selectedOffer ?: return@lazy null
 
-    override val localizedSubscriptionPeriod: String
-        get() = subscriptionPeriod?.let {
+        // Find the first free trial phase or discounted phase.
+        selectedOffer.pricingPhases.pricingPhaseList
+            .firstOrNull { it.priceAmountMicros == 0L }
+            ?: selectedOffer.pricingPhases.pricingPhaseList
+                .dropLast(1)
+                .firstOrNull { it.priceAmountMicros != 0L }
+
+    }
+
+    override val productIdentifier by lazy {
+        underlyingProductDetails.productId
+    }
+
+    override val price by lazy {
+        underlyingProductDetails.oneTimePurchaseOfferDetails?.let { offerDetails ->
+            BigDecimal(offerDetails.priceAmountMicros).divide(BigDecimal(1_000_000), 2, RoundingMode.DOWN)
+        } ?: basePriceForSelectedOffer
+    }
+
+    override val localizedPrice by lazy {
+        priceFormatter?.format(price) ?: ""
+    }
+
+    override val localizedSubscriptionPeriod by lazy {
+        subscriptionPeriod?.let {
             AmountFormats.wordBased(it.toPeriod(), Locale.getDefault())
         } ?: ""
+    }
 
-    override val period: String
-        get() {
-            return subscriptionPeriod?.let {
-                return when (it.unit) {
-                    SubscriptionPeriod.Unit.day -> if (it.value == 7) "week" else "day"
-                    SubscriptionPeriod.Unit.week -> "week"
-                    SubscriptionPeriod.Unit.month -> when (it.value) {
-                        2 -> "2 months"
-                        3 -> "quarter"
-                        6 -> "6 months"
-                        else -> "month"
-                    }
-                    SubscriptionPeriod.Unit.year -> "year"
+    override val period: String by lazy {
+        subscriptionPeriod?.let {
+            when (it.unit) {
+                SubscriptionPeriod.Unit.day -> if (it.value == 7) "week" else "day"
+                SubscriptionPeriod.Unit.week -> "week"
+                SubscriptionPeriod.Unit.month -> when (it.value) {
+                    2 -> "2 months"
+                    3 -> "quarter"
+                    6 -> "6 months"
+                    else -> "month"
                 }
-            } ?: ""
-        }
 
-    override val periodly: String
-        get() {
-            return subscriptionPeriod?.let {
-                return when (it.unit) {
-                    SubscriptionPeriod.Unit.month -> when (it.value) {
-                        2, 6 -> "every $period"
-                        else -> "${period}ly"
-                    }
+                SubscriptionPeriod.Unit.year -> "year"
+            }
+        } ?: ""
+    }
+
+    override val periodly: String by lazy {
+        subscriptionPeriod?.let {
+            when (it.unit) {
+                SubscriptionPeriod.Unit.month -> when (it.value) {
+                    2, 6 -> "every $period"
                     else -> "${period}ly"
                 }
-            } ?: ""
-        }
+                else -> "${period}ly"
+            }
+        } ?: ""
+    }
 
-    override val periodWeeks: Int
-        get() = subscriptionPeriod?.let {
+    override val periodWeeks by lazy {
+        subscriptionPeriod?.let {
             val numberOfUnits = it.value
             when (it.unit) {
                 SubscriptionPeriod.Unit.day -> (1 * numberOfUnits) / 7
                 SubscriptionPeriod.Unit.week -> numberOfUnits
                 SubscriptionPeriod.Unit.month -> 4 * numberOfUnits
                 SubscriptionPeriod.Unit.year -> 52 * numberOfUnits
-                else -> 0
             }
         } ?: 0
+    }
 
-    override val periodWeeksString: String
-        get() = periodWeeks.toString()
+    override val periodWeeksString by lazy {
+        periodWeeks.toString()
+    }
 
-    override val periodMonths: Int
-        get() = subscriptionPeriod?.let {
+    override val periodMonths by lazy {
+        subscriptionPeriod?.let {
             val numberOfUnits = it.value
             when (it.unit) {
                 SubscriptionPeriod.Unit.day -> numberOfUnits / 30
                 SubscriptionPeriod.Unit.week -> numberOfUnits / 4
                 SubscriptionPeriod.Unit.month -> numberOfUnits
                 SubscriptionPeriod.Unit.year -> 12 * numberOfUnits
-                else -> 0
             }
         } ?: 0
+    }
 
-    override val periodMonthsString: String
-        get() =  periodMonths.toString()
+    override val periodMonthsString: String by lazy {
+        periodMonths.toString()
+    }
 
-    override val periodYears: Int
-        get() = subscriptionPeriod?.let {
+    override val periodYears by lazy {
+        subscriptionPeriod?.let {
             val numberOfUnits = it.value
             when (it.unit) {
                 SubscriptionPeriod.Unit.day -> numberOfUnits / 365
                 SubscriptionPeriod.Unit.week -> numberOfUnits / 52
                 SubscriptionPeriod.Unit.month -> numberOfUnits / 12
                 SubscriptionPeriod.Unit.year -> numberOfUnits
-                else -> 0
             }
         } ?: 0
-
-    override val periodYearsString: String
-        get() = periodYears.toString()
-
-    override val periodDays: Int
-        get() {
-            return subscriptionPeriod?.let {
-                val numberOfUnits = it.value
-
-                return when (it.unit) {
-                    SubscriptionPeriod.Unit.day -> 1 * numberOfUnits
-                    SubscriptionPeriod.Unit.month -> 30 * numberOfUnits  // Assumes 30 days in a month
-                    SubscriptionPeriod.Unit.week -> 7 * numberOfUnits   // Assumes 7 days in a week
-                    SubscriptionPeriod.Unit.year -> 365 * numberOfUnits // Assumes 365 days in a year
-                }
-            } ?: 0
-        }
-
-    override val periodDaysString: String
-        get() = periodDays.toString()
-
-    override val dailyPrice: String
-        get() {
-            val basePrice = basePriceForSelectedOffer()
-
-            if (basePrice == BigDecimal.ZERO) {
-                return priceFormatter?.format(BigDecimal.ZERO) ?: "$0.00"
-            }
-
-            val subscriptionPeriod = this.subscriptionPeriod ?: return "n/a"
-
-            val pricePerDay = subscriptionPeriod.pricePerDay(basePrice)
-
-            return priceFormatter?.format(pricePerDay) ?: "n/a"
-        }
-
-    override val weeklyPrice: String
-        get() {
-            val basePrice = basePriceForSelectedOffer()
-
-            if (basePrice == BigDecimal.ZERO) {
-                return priceFormatter?.format(BigDecimal.ZERO) ?: "$0.00"
-            }
-
-            val subscriptionPeriod = this.subscriptionPeriod ?: return "n/a"
-
-            val pricePerWeek = subscriptionPeriod.pricePerWeek(basePrice)
-
-            return priceFormatter?.format(pricePerWeek) ?: "n/a"
-        }
-
-    override val monthlyPrice: String
-        get() {
-            val basePrice = basePriceForSelectedOffer()
-
-            if (basePrice == BigDecimal.ZERO) {
-                return priceFormatter?.format(BigDecimal.ZERO) ?: "$0.00"
-            }
-
-            val subscriptionPeriod = this.subscriptionPeriod ?: return "n/a"
-
-            val pricePerMonth = subscriptionPeriod.pricePerMonth(basePrice)
-
-            return priceFormatter?.format(pricePerMonth) ?: "n/a"
-        }
-
-    override val yearlyPrice: String
-        get() {
-            val basePrice = basePriceForSelectedOffer()
-
-            if (basePrice == BigDecimal.ZERO) {
-                return priceFormatter?.format(BigDecimal.ZERO) ?: "$0.00"
-            }
-
-            val subscriptionPeriod = this.subscriptionPeriod ?: return "n/a"
-            val pricePerYear = subscriptionPeriod.pricePerYear(basePrice)
-
-            return priceFormatter?.format(pricePerYear) ?: "n/a"
-        }
-
-    private fun basePriceForSelectedOffer(): BigDecimal {
-        val selectedOffer = getSelectedOffer() ?: return BigDecimal.ZERO
-        val pricingPhase = selectedOffer.pricingPhases.pricingPhaseList.last().priceAmountMicros
-        return BigDecimal(pricingPhase).divide(BigDecimal(1_000_000), 2, RoundingMode.DOWN)
     }
 
-        override val hasFreeTrial: Boolean
-        get() {
-            if (underlyingProductDetails.oneTimePurchaseOfferDetails != null) {
-                return false
+    override val periodYearsString by lazy {
+        periodYears.toString()
+    }
+
+    override val periodDays by lazy {
+        subscriptionPeriod?.let {
+            val numberOfUnits = it.value
+            when (it.unit) {
+                SubscriptionPeriod.Unit.day -> 1 * numberOfUnits
+                SubscriptionPeriod.Unit.month -> 30 * numberOfUnits  // Assumes 30 days in a month
+                SubscriptionPeriod.Unit.week -> 7 * numberOfUnits   // Assumes 7 days in a week
+                SubscriptionPeriod.Unit.year -> 365 * numberOfUnits // Assumes 365 days in a year
             }
+        } ?: 0
+    }
 
-            val selectedOffer = getSelectedOffer() ?: return false
+    override val periodDaysString by lazy {
+        periodDays.toString()
+    }
 
-            // Check for free trial phase in pricing phases, excluding the base pricing
-            return selectedOffer.pricingPhases.pricingPhaseList
-                .dropLast(1)
-                .any { it.priceAmountMicros == 0L }
+    override val dailyPrice by lazy {
+        val basePrice = basePriceForSelectedOffer
+
+        if (basePrice == BigDecimal.ZERO) {
+            return@lazy priceFormatter?.format(BigDecimal.ZERO) ?: "$0.00"
+        }
+        val subscriptionPeriod = this.subscriptionPeriod ?: return@lazy "n/a"
+
+        val pricePerDay = subscriptionPeriod.pricePerDay(basePrice)
+
+        priceFormatter?.format(pricePerDay) ?: "n/a"
+    }
+
+    override val weeklyPrice by lazy {
+        val basePrice = basePriceForSelectedOffer
+
+        if (basePrice == BigDecimal.ZERO) {
+            return@lazy priceFormatter?.format(BigDecimal.ZERO) ?: "$0.00"
+        }
+        val subscriptionPeriod = this.subscriptionPeriod ?: return@lazy "n/a"
+        val pricePerWeek = subscriptionPeriod.pricePerWeek(basePrice)
+        priceFormatter?.format(pricePerWeek) ?: "n/a"
+    }
+
+    override val monthlyPrice by lazy {
+        val basePrice = basePriceForSelectedOffer
+
+        if (basePrice == BigDecimal.ZERO) {
+            return@lazy priceFormatter?.format(BigDecimal.ZERO) ?: "$0.00"
         }
 
-    override val localizedTrialPeriodPrice: String
-        get() = priceFormatter?.format(trialPeriodPrice) ?: "$0.00"
+        val subscriptionPeriod = this.subscriptionPeriod ?: return@lazy "n/a"
 
-    override val trialPeriodPrice: BigDecimal
-        get() {
-            if (underlyingProductDetails.oneTimePurchaseOfferDetails != null) {
-                return BigDecimal.ZERO
-            }
+        val pricePerMonth = subscriptionPeriod.pricePerMonth(basePrice)
 
-            val selectedOffer = getSelectedOffer() ?: return BigDecimal.ZERO
+        priceFormatter?.format(pricePerMonth) ?: "n/a"
+    }
 
-            val pricingWithoutBase = selectedOffer.pricingPhases.pricingPhaseList.dropLast(1)
-            if (pricingWithoutBase.isEmpty()) return BigDecimal.ZERO
+    override val yearlyPrice by lazy {
+        val basePrice = basePriceForSelectedOffer
 
-            // Check for free trial phase
-            val freeTrialPhase = pricingWithoutBase.firstOrNull { it.priceAmountMicros == 0L }
-            if (freeTrialPhase != null) return BigDecimal.ZERO
-
-            // Check for discounted phase
-            val discountedPhase = pricingWithoutBase.firstOrNull { it.priceAmountMicros > 0 }
-            return discountedPhase?.let {
-                BigDecimal(it.priceAmountMicros).divide(BigDecimal(1_000_000), 2, RoundingMode.DOWN)
-            } ?: BigDecimal.ZERO
+        if (basePrice == BigDecimal.ZERO) {
+            return@lazy priceFormatter?.format(BigDecimal.ZERO) ?: "$0.00"
         }
 
-    private fun getSelectedOffer(): SubscriptionOfferDetails? {
+        val subscriptionPeriod = this.subscriptionPeriod ?: return@lazy "n/a"
+        val pricePerYear = subscriptionPeriod.pricePerYear(basePrice)
+
+        priceFormatter?.format(pricePerYear) ?: "n/a"
+    }
+
+    override val hasFreeTrial by lazy {
+        if (underlyingProductDetails.oneTimePurchaseOfferDetails != null) {
+            return@lazy false
+        }
+
+        val selectedOffer = selectedOffer ?: return@lazy false
+
+        // Check for free trial phase in pricing phases, excluding the base pricing
+        selectedOffer.pricingPhases.pricingPhaseList
+            .dropLast(1)
+            .any { it.priceAmountMicros == 0L }
+    }
+
+    override val localizedTrialPeriodPrice by lazy {
+        priceFormatter?.format(trialPeriodPrice) ?: "$0.00"
+    }
+
+    override val trialPeriodPrice by lazy {
+        if (underlyingProductDetails.oneTimePurchaseOfferDetails != null) {
+            return@lazy BigDecimal.ZERO
+        }
+
+        val selectedOffer = selectedOffer ?: return@lazy BigDecimal.ZERO
+
+        val pricingWithoutBase = selectedOffer.pricingPhases.pricingPhaseList.dropLast(1)
+        if (pricingWithoutBase.isEmpty()) return@lazy BigDecimal.ZERO
+
+        // Check for free trial phase
+        val freeTrialPhase = pricingWithoutBase.firstOrNull { it.priceAmountMicros == 0L }
+        if (freeTrialPhase != null) return@lazy BigDecimal.ZERO
+
+        // Check for discounted phase
+        val discountedPhase = pricingWithoutBase.firstOrNull { it.priceAmountMicros > 0 }
+        discountedPhase?.let {
+            BigDecimal(it.priceAmountMicros).divide(BigDecimal(1_000_000), 2, RoundingMode.DOWN)
+        } ?: BigDecimal.ZERO
+    }
+
+    private fun getSelectedOfferDetails(): SubscriptionOfferDetails? {
         if (underlyingProductDetails.oneTimePurchaseOfferDetails != null) {
             return null
         }
@@ -266,28 +278,41 @@ class RawStoreProduct(
         // In offers that match base plan, if there's only 1 pricing phase then this offer represents the base plan.
         val basePlan = offersForBasePlan.firstOrNull { it.pricingPhases.pricingPhaseList.size == 1 } ?: return null
 
-        when (offerType) {
+        return when (offerType) {
             is OfferType.Auto -> {
-                // For automatically selecting an offer:
-                //  - Filters out offers with "ignore-offer" tag
-                //  - Uses offer with longest free trial or cheapest first phase
-                //  - Falls back to use base plan
-                val validOffers = offersForBasePlan
-                    // Ignore base plan
-                    .filter { it.pricingPhases.pricingPhaseList.size != 1 }
-                    // Ignore those with a tag that contains "ignore-offer"
-                    .filter { !it.offerTags.any { it.contains("-ignore-offer") }}
-                return findLongestFreeTrial(validOffers) ?: findLowestNonFreeOffer(validOffers) ?: basePlan
+                automaticallySelectOffer() ?: basePlan
             }
             is OfferType.Offer -> {
                 // If an offer ID is given, return that one. Otherwise fallback to base plan.
-                return offersForBasePlan.firstOrNull { it.offerId == offerType.id } ?: basePlan
+                offersForBasePlan.firstOrNull { it.offerId == offerType.id } ?: basePlan
             }
             else -> {
                 // If no offer specified, return base plan.
-                return basePlan
+                basePlan
             }
         }
+    }
+
+    /**
+     * For automatically selecting an offer:
+     *   - Filters out offers with "-ignore-offer" tag
+     *   - Uses offer with longest free trial or cheapest first phase
+     *   - Falls back to use base plan
+     */
+    private fun automaticallySelectOffer(): SubscriptionOfferDetails? {
+        // Retrieve the subscription offer details from the product details
+        val subscriptionOfferDetails = underlyingProductDetails.subscriptionOfferDetails ?: return null
+
+        // Get the offers that match the given base plan ID.
+        val offersForBasePlan = subscriptionOfferDetails.filter { it.basePlanId == basePlanId }
+
+        val validOffers = offersForBasePlan
+            // Ignore base plan
+            .filter { it.pricingPhases.pricingPhaseList.size != 1 }
+            // Ignore those with a tag that contains "ignore-offer"
+            .filter { !it.offerTags.any { it.contains("-ignore-offer") }}
+
+        return findLongestFreeTrial(validOffers) ?: findLowestNonFreeOffer(validOffers)
     }
 
     private fun findLongestFreeTrial(offers: List<SubscriptionOfferDetails>): SubscriptionOfferDetails? {
@@ -315,8 +340,8 @@ class RawStoreProduct(
         return hi
     }
 
-    override val trialPeriodEndDate: Date?
-        get() = trialSubscriptionPeriod?.let {
+    override val trialPeriodEndDate by lazy {
+        trialSubscriptionPeriod?.let {
             val calendar = Calendar.getInstance()
             when (it.unit) {
                 SubscriptionPeriod.Unit.day -> calendar.add(Calendar.DAY_OF_YEAR, it.value)
@@ -326,50 +351,51 @@ class RawStoreProduct(
             }
             calendar.time
         }
+    }
 
-    override val trialPeriodEndDateString: String
-        get() = trialPeriodEndDate?.let {
+    override val trialPeriodEndDateString by lazy {
+        trialPeriodEndDate?.let {
             val dateFormatter = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
             dateFormatter.format(it)
         } ?: ""
+    }
 
-    override val trialPeriodDays: Int
-        get() {
-            return trialSubscriptionPeriod?.let {
-                val numberOfUnits = it.value
+    override val trialPeriodDays by lazy {
+        trialSubscriptionPeriod?.let {
+            val numberOfUnits = it.value
 
-                return when (it.unit) {
-                    SubscriptionPeriod.Unit.day -> 1 * numberOfUnits
-                    SubscriptionPeriod.Unit.month -> 30 * numberOfUnits  // Assumes 30 days in a month
-                    SubscriptionPeriod.Unit.week -> 7 * numberOfUnits   // Assumes 7 days in a week
-                    SubscriptionPeriod.Unit.year -> 365 * numberOfUnits // Assumes 365 days in a year
-                    else -> 0
-                }
-            } ?: 0
-        }
-
-    override val trialPeriodDaysString: String
-        get() = trialPeriodDays.toString()
-
-    override val trialPeriodWeeks: Int
-        get() {
-            val trialPeriod = trialSubscriptionPeriod ?: return 0
-            val numberOfUnits = trialPeriod.value
-
-            return when (trialPeriod.unit) {
-                SubscriptionPeriod.Unit.day -> numberOfUnits / 7
-                SubscriptionPeriod.Unit.month -> 4 * numberOfUnits  // Assumes 4 weeks in a month
-                SubscriptionPeriod.Unit.week -> 1 * numberOfUnits
-                SubscriptionPeriod.Unit.year -> 52 * numberOfUnits  // Assumes 52 weeks in a year
-                else -> 0
+            when (it.unit) {
+                SubscriptionPeriod.Unit.day -> 1 * numberOfUnits
+                SubscriptionPeriod.Unit.month -> 30 * numberOfUnits  // Assumes 30 days in a month
+                SubscriptionPeriod.Unit.week -> 7 * numberOfUnits   // Assumes 7 days in a week
+                SubscriptionPeriod.Unit.year -> 365 * numberOfUnits // Assumes 365 days in a year
             }
+        } ?: 0
+    }
+
+    override val trialPeriodDaysString by lazy {
+        trialPeriodDays.toString()
+    }
+
+    override val trialPeriodWeeks by lazy {
+        val trialPeriod = trialSubscriptionPeriod ?: return@lazy 0
+        val numberOfUnits = trialPeriod.value
+
+        when (trialPeriod.unit) {
+            SubscriptionPeriod.Unit.day -> numberOfUnits / 7
+            SubscriptionPeriod.Unit.month -> 4 * numberOfUnits  // Assumes 4 weeks in a month
+            SubscriptionPeriod.Unit.week -> 1 * numberOfUnits
+            SubscriptionPeriod.Unit.year -> 52 * numberOfUnits  // Assumes 52 weeks in a year
+            else -> 0
         }
+    }
 
-    override val trialPeriodWeeksString: String
-        get() = trialPeriodWeeks.toString()
+    override val trialPeriodWeeksString by lazy {
+        trialPeriodWeeks.toString()
+    }
 
-    override val trialPeriodMonths: Int
-        get() = trialSubscriptionPeriod?.let {
+    override val trialPeriodMonths by lazy {
+        trialSubscriptionPeriod?.let {
             val numberOfUnits = it.value
             when (it.unit) {
                 SubscriptionPeriod.Unit.day -> numberOfUnits / 30
@@ -379,12 +405,14 @@ class RawStoreProduct(
                 else -> 0
             }
         } ?: 0
+    }
 
-    override val trialPeriodMonthsString: String
-        get() = trialPeriodMonths.toString()
+    override val trialPeriodMonthsString by lazy {
+        trialPeriodMonths.toString()
+    }
 
-    override val trialPeriodYears: Int
-        get() = trialSubscriptionPeriod?.let {
+    override val trialPeriodYears by lazy {
+        trialSubscriptionPeriod?.let {
             val numberOfUnits = it.value
             when (it.unit) {
                 SubscriptionPeriod.Unit.day -> numberOfUnits / 365
@@ -394,66 +422,67 @@ class RawStoreProduct(
                 else -> 0
             }
         } ?: 0
+    }
 
-    override val trialPeriodYearsString: String
-        get() = trialPeriodYears.toString()
+    override val trialPeriodYearsString by lazy {
+        trialPeriodYears.toString()
+    }
 
-    override val trialPeriodText: String
-        get() {
-            val trialPeriod = trialSubscriptionPeriod ?: return ""
-            val units = trialPeriod.value
+    override val trialPeriodText by lazy {
+        val trialPeriod = trialSubscriptionPeriod ?: return@lazy ""
+        val units = trialPeriod.value
 
-            return when (trialPeriod.unit) {
-                SubscriptionPeriod.Unit.day -> "${units}-day"
-                SubscriptionPeriod.Unit.month -> "${units * 30}-day"
-                SubscriptionPeriod.Unit.week -> "${units * 7}-day"
-                SubscriptionPeriod.Unit.year -> "${units * 365}-day"
-            }
+        when (trialPeriod.unit) {
+            SubscriptionPeriod.Unit.day -> "${units}-day"
+            SubscriptionPeriod.Unit.month -> "${units * 30}-day"
+            SubscriptionPeriod.Unit.week -> "${units * 7}-day"
+            SubscriptionPeriod.Unit.year -> "${units * 365}-day"
         }
+    }
 
     // TODO: Differs from iOS, using device locale here instead of product locale
-    override val locale: String
-        get() = Locale.getDefault().toString()
+    override val locale by lazy {
+        Locale.getDefault().toString()
+    }
 
     // TODO: Differs from iOS, using device language code here instead of product language code
-    override val languageCode: String?
-        get() = Locale.getDefault().language
+    override val languageCode: String? by lazy {
+        Locale.getDefault().language
+    }
 
-    override val currencyCode: String?
-        get() {
-            if (underlyingProductDetails.oneTimePurchaseOfferDetails != null) {
-                return underlyingProductDetails.oneTimePurchaseOfferDetails?.priceCurrencyCode
-            }
-            val selectedOffer = getSelectedOffer() ?: return null
-            return selectedOffer.pricingPhases.pricingPhaseList.last().priceCurrencyCode
+    override val currencyCode by lazy {
+        if (underlyingProductDetails.oneTimePurchaseOfferDetails != null) {
+            return@lazy underlyingProductDetails.oneTimePurchaseOfferDetails?.priceCurrencyCode
+        }
+        val selectedOffer = selectedOffer ?: return@lazy null
+        selectedOffer.pricingPhases.pricingPhaseList.last().priceCurrencyCode
+    }
+
+    override val currencySymbol by lazy {
+        currencyCode?.let { Currency.getInstance(it).symbol }
+    }
+
+    override val regionCode: String? by lazy {
+        Locale.getDefault().country
+    }
+
+    override val subscriptionPeriod by lazy {
+        if (underlyingProductDetails.oneTimePurchaseOfferDetails != null) {
+            return@lazy null
         }
 
-    override val currencySymbol: String?
-        get() {
-            return currencyCode?.let { Currency.getInstance(it).symbol }
+        val selectedOffer = selectedOffer ?: return@lazy null
+        val baseBillingPeriod = selectedOffer.pricingPhases.pricingPhaseList.last().billingPeriod
+
+        try {
+            SubscriptionPeriod.from(baseBillingPeriod)
+        } catch (e: Exception) {
+            null
         }
-
-    override val regionCode: String?
-        get() = Locale.getDefault().country
-
-    override val subscriptionPeriod: SubscriptionPeriod?
-        get() {
-            if (underlyingProductDetails.oneTimePurchaseOfferDetails != null) {
-                return null
-            }
-
-            val selectedOffer = getSelectedOffer() ?: return null
-            val baseBillingPeriod = selectedOffer.pricingPhases.pricingPhaseList.last().billingPeriod
-
-            return try {
-                SubscriptionPeriod.from(baseBillingPeriod)
-            } catch (e: Exception) {
-                null
-            }
-        }
+    }
 
     override fun trialPeriodPricePerUnit(unit: SubscriptionPeriod.Unit): String {
-        val pricingPhase = getSelectedOfferPricingPhase() ?: return priceFormatter?.format(0) ?: "$0.00"
+        val pricingPhase = selectedOfferPricingPhase ?: return priceFormatter?.format(0) ?: "$0.00"
 
         if (pricingPhase.priceAmountMicros == 0L) {
             return priceFormatter?.format(0) ?: "$0.00"
@@ -479,7 +508,7 @@ class RawStoreProduct(
             val introCost = trialPeriodPrice.multiply(BigDecimal(pricingPhase.billingCycleCount))
 
             // The number of total units normalized to the unit you want.
-            val billingPeriod = getSelectedOfferPricingPhase()?.billingPeriod
+            val billingPeriod = selectedOfferPricingPhase?.billingPeriod
 
             // Attempt to create a SubscriptionPeriod from billingPeriod.
             // Return null if there's an exception or if billingPeriod is null.
@@ -545,40 +574,20 @@ class RawStoreProduct(
         }
     }
 
-
-    private fun getSelectedOfferPricingPhase(): PricingPhase? {
-        // Get the selected offer; return null if it's null.
-        val selectedOffer = getSelectedOffer() ?: return null
-
-        // Find the first free trial phase or discounted phase.
-        return selectedOffer.pricingPhases.pricingPhaseList
-            .firstOrNull { it.priceAmountMicros == 0L }
-            ?: selectedOffer.pricingPhases.pricingPhaseList
-                .dropLast(1)
-                .firstOrNull { it.priceAmountMicros != 0L }
-    }
-
-    val trialSubscriptionPeriod: SubscriptionPeriod?
-        get() {
-            // If oneTimePurchaseOfferDetails is not null, return null for trial subscription period.
-            if (underlyingProductDetails.oneTimePurchaseOfferDetails != null) {
-                return null
-            }
-
-            val billingPeriod = getSelectedOfferPricingPhase()?.billingPeriod
-
-            // Attempt to create a SubscriptionPeriod from billingPeriod.
-            // Return null if there's an exception or if billingPeriod is null.
-            return try {
-                billingPeriod?.let { SubscriptionPeriod.from(it) }
-            } catch (e: Exception) {
-                null
-            }
+    private val trialSubscriptionPeriod by lazy {
+        // If oneTimePurchaseOfferDetails is not null, return null for trial subscription period.
+        if (underlyingProductDetails.oneTimePurchaseOfferDetails != null) {
+            return@lazy null
         }
+
+        val billingPeriod = selectedOfferPricingPhase?.billingPeriod
+
+        // Attempt to create a SubscriptionPeriod from billingPeriod.
+        // Return null if there's an exception or if billingPeriod is null.
+        try {
+            billingPeriod?.let { SubscriptionPeriod.from(it) }
+        } catch (e: Exception) {
+            null
+        }
+    }
 }
-
-val SkuDetails.priceValue: BigDecimal
-    get() = BigDecimal(priceAmountMicros).divide(BigDecimal(1_000_000), 6, RoundingMode.DOWN)
-
-val SkuDetails.introductoryPriceValue: BigDecimal
-    get() = BigDecimal(introductoryPriceAmountMicros).divide(BigDecimal(1_000_000), 6, RoundingMode.DOWN)

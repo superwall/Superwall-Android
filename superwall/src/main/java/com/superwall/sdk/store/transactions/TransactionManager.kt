@@ -53,7 +53,7 @@ class TransactionManager(
         val result = storeKitManager.purchaseController.purchase(
             activity = activity,
             productDetails = productDetails,
-            offerId = rawStoreProduct.offerType?.id,
+            offerId = rawStoreProduct.offerId,
             basePlanId = rawStoreProduct.basePlanId
         )
 
