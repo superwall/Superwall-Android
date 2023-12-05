@@ -6,7 +6,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ### Breaking Changes
 
-- Changes the `PurchaseController` purchase function to `purchase(activity:productDetails:basePlanId:offerId:)`. 
+- #SW-2218: Changes the `PurchaseController` purchase function to `purchase(activity:productDetails:basePlanId:offerId:)`. 
 This adds support for purchasing offers and base plans.
 
 ### Enhancements
