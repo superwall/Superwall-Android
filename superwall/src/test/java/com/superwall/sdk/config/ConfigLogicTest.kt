@@ -7,6 +7,7 @@ import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.triggers.*
 import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.ExpressionEvaluating
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -208,7 +209,7 @@ internal class ConfigLogicTest {
     fun test_assignVariants_noTriggers() {
         // Given
         val confirmedAssignments = mutableMapOf(
-            "exp1" as ExperimentID to Experiment.Variant(
+            "exp1" to Experiment.Variant(
                 id = "1",
                 type = Experiment.Variant.VariantType.TREATMENT,
                 paywallId = "abc"
@@ -230,7 +231,7 @@ internal class ConfigLogicTest {
     fun test_chooseAssignments_noRules() {
         // Given
         val confirmedAssignments = mutableMapOf(
-            "exp1" as ExperimentID to Experiment.Variant(
+            "exp1" to Experiment.Variant(
                 id = "1",
                 type = Experiment.Variant.VariantType.TREATMENT,
                 paywallId = "abc"
@@ -579,7 +580,7 @@ internal class ConfigLogicTest {
     }
 
     @Test
-    fun `test getStaticPaywall shortLocaleNotContainedInConfig`() {
+    fun test_getStaticPaywall_shortLocaleNotContainedInConfig() {
         val paywallId = "abc"
         val locale = "de_DE"
         val config: Config = Config.stub().apply {
@@ -601,7 +602,7 @@ internal class ConfigLogicTest {
     }
 
     @Test
-    fun `test getStaticPaywallResponse shortLocaleContainedInConfig`() {
+    fun test_GetStaticPaywallResponse_ShortLocaleContainedInConfig() {
         val paywallId = "abc"
         val locale = "de_DE"
         val config: Config = Config.stub()
@@ -624,7 +625,7 @@ internal class ConfigLogicTest {
     }
 
     @Test
-    suspend fun test_getAllActiveTreatmentPaywallIds_onlyConfirmedAssignments_treatment() {
+    fun test_getAllActiveTreatmentPaywallIds_onlyConfirmedAssignments_treatment() = runTest {
         val paywallId1 = "abc"
         val experiment1 = "def"
 
@@ -657,7 +658,7 @@ internal class ConfigLogicTest {
 
 
     @Test
-    suspend fun test_getAllActiveTreatmentPaywallIds_onlyConfirmedAssignments_treatment_multipleTriggerSameGroupId() {
+    fun test_getAllActiveTreatmentPaywallIds_onlyConfirmedAssignments_treatment_multipleTriggerSameGroupId() = runTest {
         val paywallId1 = "abc"
         val experiment1 = "def"
 
@@ -698,7 +699,7 @@ internal class ConfigLogicTest {
     }
 
     @Test
-    suspend fun test_getAllActiveTreatmentPaywallIds_onlyConfirmedAssignments_holdout() {
+    fun test_getAllActiveTreatmentPaywallIds_onlyConfirmedAssignments_holdout() = runTest {
         val experiment1 = "def"
 
         val triggers = setOf(
@@ -730,7 +731,7 @@ internal class ConfigLogicTest {
 
 
     @Test
-    suspend fun test_getAllActiveTreatmentPaywallIds_onlyConfirmedAssignments_filterOldOnes() {
+    fun test_getAllActiveTreatmentPaywallIds_onlyConfirmedAssignments_filterOldOnes() = runTest {
         val paywallId1 = "abc"
         val experiment1 = "def"
         val paywallId2 = "efg"
@@ -769,7 +770,7 @@ internal class ConfigLogicTest {
     }
 
     @Test
-    suspend fun test_getAllActiveTreatmentPaywallIds_confirmedAndUnconfirmedAssignments_filterOldOnes() {
+    fun test_getAllActiveTreatmentPaywallIds_confirmedAndUnconfirmedAssignments_filterOldOnes() = runTest {
         val paywallId1 = "abc"
         val experiment1 = "def"
         val paywallId2 = "efg"
