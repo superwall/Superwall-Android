@@ -1,24 +1,21 @@
 package com.superwall.sdk.products
 
-import android.content.Context
+import android.content.res.Resources
 import com.android.billingclient.api.BillingClient.ProductType
-import com.android.billingclient.api.ProductDetails.OneTimePurchaseOfferDetails
 import com.android.billingclient.api.ProductDetails.RecurrenceMode
-import com.superwall.sdk.billing.GoogleBillingWrapper
 import com.superwall.sdk.store.abstractions.product.OfferType
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.product.SubscriptionPeriod
-import com.superwall.sdk.store.products.GooglePlayProductsFetcher
 import kotlinx.coroutines.*
-import kotlinx.coroutines.test.runTest
 import org.junit.Test
-import org.junit.runner.RunWith
 import java.math.BigDecimal
-import java.text.SimpleDateFormat
+import java.security.AccessController.getContext
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.util.Currency
 import java.util.Locale
+
 
 class ProductFetcherInstrumentedTest {
     private val oneTimePurchaseProduct = mockProductDetails(
@@ -261,6 +258,9 @@ class ProductFetcherInstrumentedTest {
         ),
         title = "com.ui_tests.quarterly2 (com.superwall.superapp (unreviewed))"
     )
+    val currencySymbol by lazy {
+        Currency.getInstance("USD").symbol
+    }
 
     /**
      * subscription + base plan + offer: Free Trial phase ----> DONE
@@ -293,11 +293,11 @@ class ProductFetcherInstrumentedTest {
         assert(storeProduct.productIdentifier == "com.ui_tests.quarterly2")
         assert(storeProduct.fullIdentifier == "com.ui_tests.quarterly2:test-2:free-trial-offer")
         assert(storeProduct.currencyCode == "USD")
-        assert(storeProduct.currencySymbol == "US$") // This actually just returns "$" in the main app.
-        assert(storeProduct.dailyPrice == "US$0.33")
-        assert(storeProduct.weeklyPrice == "US$2.49")
-        assert(storeProduct.monthlyPrice == "US$9.99")
-        assert(storeProduct.yearlyPrice == "US$119.88")
+        assert(storeProduct.currencySymbol == currencySymbol) // This actually just returns "$" in the main app.
+        assert(storeProduct.dailyPrice == "${currencySymbol}0.33")
+        assert(storeProduct.weeklyPrice == "${currencySymbol}2.49")
+        assert(storeProduct.monthlyPrice == "${currencySymbol}9.99")
+        assert(storeProduct.yearlyPrice == "${currencySymbol}119.88")
         assert(storeProduct.periodDays == 30)
         assert(storeProduct.periodMonths == 1)
         assert(storeProduct.periodWeeks == 4)
@@ -313,11 +313,11 @@ class ProductFetcherInstrumentedTest {
         val defaultLocale = Locale.getDefault().toString()
         assert(storeProduct.locale == defaultLocale) // Change this depending on what your computer is set
         assert(storeProduct.trialPeriodPrice == BigDecimal.ZERO)
-        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.day) == "US$0.00")
-        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.month) == "US$0.00")
-        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.week) == "US$0.00")
-        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.year) == "US$0.00")
-        assert(storeProduct.localizedTrialPeriodPrice == "US$0.00")
+        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.day) == "${currencySymbol}0.00")
+        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.month) == "${currencySymbol}0.00")
+        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.week) == "${currencySymbol}0.00")
+        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.year) == "${currencySymbol}0.00")
+        assert(storeProduct.localizedTrialPeriodPrice == "${currencySymbol}0.00")
 
         val currentDate = LocalDate.now()
         val dateIn30Days = currentDate.plusMonths(1)
@@ -341,11 +341,11 @@ class ProductFetcherInstrumentedTest {
         assert(storeProduct.productIdentifier == "com.ui_tests.quarterly2")
         assert(storeProduct.fullIdentifier == "com.ui_tests.quarterly2:test-2:trial-and-paid-offer")
         assert(storeProduct.currencyCode == "USD")
-        assert(storeProduct.currencySymbol == "US$") // This actually just returns "$" in the main app.
-        assert(storeProduct.dailyPrice == "US$0.33")
-        assert(storeProduct.weeklyPrice == "US$2.49")
-        assert(storeProduct.monthlyPrice == "US$9.99")
-        assert(storeProduct.yearlyPrice == "US$119.88")
+        assert(storeProduct.currencySymbol == currencySymbol) // This actually just returns "$" in the main app.
+        assert(storeProduct.dailyPrice == "${currencySymbol}0.33")
+        assert(storeProduct.weeklyPrice == "${currencySymbol}2.49")
+        assert(storeProduct.monthlyPrice == "${currencySymbol}9.99")
+        assert(storeProduct.yearlyPrice == "${currencySymbol}119.88")
         assert(storeProduct.periodDays == 30)
         assert(storeProduct.periodMonths == 1)
         assert(storeProduct.periodWeeks == 4)
@@ -361,11 +361,11 @@ class ProductFetcherInstrumentedTest {
         val defaultLocale = Locale.getDefault().toString()
         assert(storeProduct.locale == defaultLocale) // Change this depending on what your computer is set
         assert(storeProduct.trialPeriodPrice == BigDecimal.ZERO)
-        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.day) == "US$0.00")
-        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.month) == "US$0.00")
-        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.week) == "US$0.00")
-        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.year) == "US$0.00")
-        assert(storeProduct.localizedTrialPeriodPrice == "US$0.00")
+        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.day) == "${currencySymbol}0.00")
+        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.month) == "${currencySymbol}0.00")
+        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.week) == "${currencySymbol}0.00")
+        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.year) == "${currencySymbol}0.00")
+        assert(storeProduct.localizedTrialPeriodPrice == "${currencySymbol}0.00")
 
         val currentDate = LocalDate.now()
         val dateIn30Days = currentDate.plusMonths(1)
@@ -389,11 +389,11 @@ class ProductFetcherInstrumentedTest {
         assert(storeProduct.productIdentifier == "com.ui_tests.quarterly2")
         assert(storeProduct.fullIdentifier == "com.ui_tests.quarterly2:test-4:paid-offer")
         assert(storeProduct.currencyCode == "USD")
-        assert(storeProduct.currencySymbol == "US$") // This actually just returns "$" in the main app.
-        assert(storeProduct.dailyPrice == "US$0.29")
-        assert(storeProduct.weeklyPrice == "US$2.24")
-        assert(storeProduct.monthlyPrice == "US$8.99")
-        assert(storeProduct.yearlyPrice == "US$107.88")
+        assert(storeProduct.currencySymbol == "${currencySymbol}") // This actually just returns "$" in the main app.
+        assert(storeProduct.dailyPrice == "${currencySymbol}0.29")
+        assert(storeProduct.weeklyPrice == "${currencySymbol}2.24")
+        assert(storeProduct.monthlyPrice == "${currencySymbol}8.99")
+        assert(storeProduct.yearlyPrice == "${currencySymbol}107.88")
         assert(storeProduct.periodDays == 30)
         assert(storeProduct.periodMonths == 1)
         assert(storeProduct.periodWeeks == 4)
@@ -409,11 +409,11 @@ class ProductFetcherInstrumentedTest {
         val defaultLocale = Locale.getDefault().toString()
         assert(storeProduct.locale == defaultLocale) // Change this depending on what your computer is set
         assert(storeProduct.trialPeriodPrice == BigDecimal("6.74"))
-        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.day) == "US$0.22")
-        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.month) == "US$6.74")
-        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.week) == "US$1.68")
-        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.year) == "US$20.22")
-        assert(storeProduct.localizedTrialPeriodPrice == "US$6.74")
+        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.day) == "${currencySymbol}0.22")
+        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.month) == "${currencySymbol}6.74")
+        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.week) == "${currencySymbol}1.68")
+        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.year) == "${currencySymbol}20.22")
+        assert(storeProduct.localizedTrialPeriodPrice == "${currencySymbol}6.74")
 
         val currentDate = LocalDate.now()
         val dateIn30Days = currentDate.plusMonths(1)
@@ -439,11 +439,11 @@ class ProductFetcherInstrumentedTest {
         assert(storeProduct.productIdentifier == "com.ui_tests.quarterly2")
         assert(storeProduct.fullIdentifier == "com.ui_tests.quarterly2:test-2:sw-auto")
         assert(storeProduct.currencyCode == "USD")
-        assert(storeProduct.currencySymbol == "US$") // This actually just returns "$" in the main app.
-        assert(storeProduct.dailyPrice == "US$0.33")
-        assert(storeProduct.weeklyPrice == "US$2.49")
-        assert(storeProduct.monthlyPrice == "US$9.99")
-        assert(storeProduct.yearlyPrice == "US$119.88")
+        assert(storeProduct.currencySymbol == "${currencySymbol}") // This actually just returns "$" in the main app.
+        assert(storeProduct.dailyPrice == "${currencySymbol}0.33")
+        assert(storeProduct.weeklyPrice == "${currencySymbol}2.49")
+        assert(storeProduct.monthlyPrice == "${currencySymbol}9.99")
+        assert(storeProduct.yearlyPrice == "${currencySymbol}119.88")
         assert(storeProduct.periodDays == 30)
         assert(storeProduct.periodMonths == 1)
         assert(storeProduct.periodWeeks == 4)
@@ -459,11 +459,11 @@ class ProductFetcherInstrumentedTest {
         val defaultLocale = Locale.getDefault().toString()
         assert(storeProduct.locale == defaultLocale) // Change this depending on what your computer is set
         assert(storeProduct.trialPeriodPrice == BigDecimal.ZERO)
-        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.day) == "US$0.00")
-        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.month) == "US$0.00")
-        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.week) == "US$0.00")
-        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.year) == "US$0.00")
-        assert(storeProduct.localizedTrialPeriodPrice == "US$0.00")
+        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.day) == "${currencySymbol}0.00")
+        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.month) == "${currencySymbol}0.00")
+        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.week) == "${currencySymbol}0.00")
+        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.year) == "${currencySymbol}0.00")
+        assert(storeProduct.localizedTrialPeriodPrice == "${currencySymbol}0.00")
 
         val currentDate = LocalDate.now()
         val dateIn30Days = currentDate.plusMonths(1)
@@ -488,11 +488,11 @@ class ProductFetcherInstrumentedTest {
         assert(storeProduct.productIdentifier == "com.ui_tests.quarterly2")
         assert(storeProduct.fullIdentifier == "com.ui_tests.quarterly2:test-3:sw-auto")
         assert(storeProduct.currencyCode == "USD")
-        assert(storeProduct.currencySymbol == "US$") // This actually just returns "$" in the main app.
-        assert(storeProduct.dailyPrice == "US$0.09")
-        assert(storeProduct.weeklyPrice == "US$0.74")
-        assert(storeProduct.monthlyPrice == "US$2.99")
-        assert(storeProduct.yearlyPrice == "US$35.88")
+        assert(storeProduct.currencySymbol == "${currencySymbol}") // This actually just returns "$" in the main app.
+        assert(storeProduct.dailyPrice == "${currencySymbol}0.09")
+        assert(storeProduct.weeklyPrice == "${currencySymbol}0.74")
+        assert(storeProduct.monthlyPrice == "${currencySymbol}2.99")
+        assert(storeProduct.yearlyPrice == "${currencySymbol}35.88")
         assert(storeProduct.periodDays == 30)
         assert(storeProduct.periodMonths == 1)
         assert(storeProduct.periodWeeks == 4)
@@ -510,11 +510,11 @@ class ProductFetcherInstrumentedTest {
         assert(storeProduct.locale == defaultLocale) // Change this depending on what your computer is set
 
         assert(storeProduct.trialPeriodPrice == BigDecimal("1.99"))
-        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.day) == "US$0.06")
-        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.month) == "US$1.99")
-        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.week) == "US$0.49")
-        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.year) == "US$1.99")
-        assert(storeProduct.localizedTrialPeriodPrice == "US$1.99")
+        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.day) == "${currencySymbol}0.06")
+        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.month) == "${currencySymbol}1.99")
+        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.week) == "${currencySymbol}0.49")
+        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.year) == "${currencySymbol}1.99")
+        assert(storeProduct.localizedTrialPeriodPrice == "${currencySymbol}1.99")
 
         val currentDate = LocalDate.now()
         val dateIn30Days = currentDate.plusMonths(1)
@@ -538,11 +538,11 @@ class ProductFetcherInstrumentedTest {
         assert(storeProduct.productIdentifier == "com.ui_tests.quarterly2")
         assert(storeProduct.fullIdentifier == "com.ui_tests.quarterly2:test-5:sw-auto")
         assert(storeProduct.currencyCode == "USD")
-        assert(storeProduct.currencySymbol == "US$") // This actually just returns "$" in the main app.
-        assert(storeProduct.dailyPrice == "US$0.01")
-        assert(storeProduct.weeklyPrice == "US$0.07")
-        assert(storeProduct.monthlyPrice == "US$0.33")
-        assert(storeProduct.yearlyPrice == "US$3.99")
+        assert(storeProduct.currencySymbol == "${currencySymbol}") // This actually just returns "$" in the main app.
+        assert(storeProduct.dailyPrice == "${currencySymbol}0.01")
+        assert(storeProduct.weeklyPrice == "${currencySymbol}0.07")
+        assert(storeProduct.monthlyPrice == "${currencySymbol}0.33")
+        assert(storeProduct.yearlyPrice == "${currencySymbol}3.99")
         assert(storeProduct.periodDays == 365)
         assert(storeProduct.periodMonths == 12)
         assert(storeProduct.periodWeeks == 52)
@@ -558,11 +558,11 @@ class ProductFetcherInstrumentedTest {
         val defaultLocale = Locale.getDefault().toString()
         assert(storeProduct.locale == defaultLocale) // Change this depending on what your computer is set
         assert(storeProduct.trialPeriodPrice == BigDecimal.ZERO)
-        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.day) == "US$0.00")
-        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.month) == "US$0.00")
-        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.week) == "US$0.00")
-        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.year) == "US$0.00")
-        assert(storeProduct.localizedTrialPeriodPrice == "US$0.00")
+        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.day) == "${currencySymbol}0.00")
+        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.month) == "${currencySymbol}0.00")
+        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.week) == "${currencySymbol}0.00")
+        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.year) == "${currencySymbol}0.00")
+        assert(storeProduct.localizedTrialPeriodPrice == "${currencySymbol}0.00")
         assert(storeProduct.trialPeriodEndDateString.isEmpty())
     }
 
@@ -581,11 +581,11 @@ class ProductFetcherInstrumentedTest {
         assert(storeProduct.productIdentifier == "com.ui_tests.quarterly2")
         assert(storeProduct.fullIdentifier == "com.ui_tests.quarterly2:test-5")
         assert(storeProduct.currencyCode == "USD")
-        assert(storeProduct.currencySymbol == "US$") // This actually just returns "$" in the main app.
-        assert(storeProduct.dailyPrice == "US$0.01")
-        assert(storeProduct.weeklyPrice == "US$0.07")
-        assert(storeProduct.monthlyPrice == "US$0.33")
-        assert(storeProduct.yearlyPrice == "US$3.99")
+        assert(storeProduct.currencySymbol == "${currencySymbol}") // This actually just returns "$" in the main app.
+        assert(storeProduct.dailyPrice == "${currencySymbol}0.01")
+        assert(storeProduct.weeklyPrice == "${currencySymbol}0.07")
+        assert(storeProduct.monthlyPrice == "${currencySymbol}0.33")
+        assert(storeProduct.yearlyPrice == "${currencySymbol}3.99")
         assert(storeProduct.periodDays == 365)
         assert(storeProduct.periodMonths == 12)
         assert(storeProduct.periodWeeks == 52)
@@ -601,11 +601,11 @@ class ProductFetcherInstrumentedTest {
         val defaultLocale = Locale.getDefault().toString()
         assert(storeProduct.locale == defaultLocale) // Change this depending on what your computer is set
         assert(storeProduct.trialPeriodPrice == BigDecimal.ZERO)
-        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.day) == "US$0.00")
-        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.month) == "US$0.00")
-        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.week) == "US$0.00")
-        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.year) == "US$0.00")
-        assert(storeProduct.localizedTrialPeriodPrice == "US$0.00")
+        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.day) == "${currencySymbol}0.00")
+        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.month) == "${currencySymbol}0.00")
+        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.week) == "${currencySymbol}0.00")
+        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.year) == "${currencySymbol}0.00")
+        assert(storeProduct.localizedTrialPeriodPrice == "${currencySymbol}0.00")
         assert(storeProduct.trialPeriodEndDateString.isEmpty())
     }
 
@@ -624,11 +624,11 @@ class ProductFetcherInstrumentedTest {
         assert(storeProduct.productIdentifier == "com.ui_tests.quarterly2")
         assert(storeProduct.fullIdentifier == "com.ui_tests.quarterly2:test-5")
         assert(storeProduct.currencyCode == "USD")
-        assert(storeProduct.currencySymbol == "US$") // This actually just returns "$" in the main app.
-        assert(storeProduct.dailyPrice == "US$0.01")
-        assert(storeProduct.weeklyPrice == "US$0.07")
-        assert(storeProduct.monthlyPrice == "US$0.33")
-        assert(storeProduct.yearlyPrice == "US$3.99")
+        assert(storeProduct.currencySymbol == "${currencySymbol}") // This actually just returns "$" in the main app.
+        assert(storeProduct.dailyPrice == "${currencySymbol}0.01")
+        assert(storeProduct.weeklyPrice == "${currencySymbol}0.07")
+        assert(storeProduct.monthlyPrice == "${currencySymbol}0.33")
+        assert(storeProduct.yearlyPrice == "${currencySymbol}3.99")
         assert(storeProduct.periodDays == 365)
         assert(storeProduct.periodMonths == 12)
         assert(storeProduct.periodWeeks == 52)
@@ -644,11 +644,11 @@ class ProductFetcherInstrumentedTest {
         val defaultLocale = Locale.getDefault().toString()
         assert(storeProduct.locale == defaultLocale) // Change this depending on what your computer is set
         assert(storeProduct.trialPeriodPrice == BigDecimal.ZERO)
-        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.day) == "US$0.00")
-        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.month) == "US$0.00")
-        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.week) == "US$0.00")
-        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.year) == "US$0.00")
-        assert(storeProduct.localizedTrialPeriodPrice == "US$0.00")
+        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.day) == "${currencySymbol}0.00")
+        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.month) == "${currencySymbol}0.00")
+        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.week) == "${currencySymbol}0.00")
+        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.year) == "${currencySymbol}0.00")
+        assert(storeProduct.localizedTrialPeriodPrice == "${currencySymbol}0.00")
         assert(storeProduct.trialPeriodEndDateString.isEmpty())
     }
 
@@ -670,11 +670,11 @@ class ProductFetcherInstrumentedTest {
         assert(storeProduct.productIdentifier == "com.ui_tests.quarterly2")
         assert(storeProduct.fullIdentifier == "com.ui_tests.quarterly2")
         assert(storeProduct.currencyCode == "USD")
-        assert(storeProduct.currencySymbol == "US$") // This actually just returns "$" in the main app.
-        assert(storeProduct.dailyPrice == "US$0.33")
-        assert(storeProduct.weeklyPrice == "US$2.49")
-        assert(storeProduct.monthlyPrice == "US$9.99")
-        assert(storeProduct.yearlyPrice == "US$119.88")
+        assert(storeProduct.currencySymbol == "${currencySymbol}") // This actually just returns "$" in the main app.
+        assert(storeProduct.dailyPrice == "${currencySymbol}0.33")
+        assert(storeProduct.weeklyPrice == "${currencySymbol}2.49")
+        assert(storeProduct.monthlyPrice == "${currencySymbol}9.99")
+        assert(storeProduct.yearlyPrice == "${currencySymbol}119.88")
         assert(storeProduct.periodDays == 30)
         assert(storeProduct.periodMonths == 1)
         assert(storeProduct.periodWeeks == 4)
@@ -690,11 +690,11 @@ class ProductFetcherInstrumentedTest {
         val defaultLocale = Locale.getDefault().toString()
         assert(storeProduct.locale == defaultLocale) // Change this depending on what your computer is set
         assert(storeProduct.trialPeriodPrice == BigDecimal.ZERO)
-        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.day) == "US$0.00")
-        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.month) == "US$0.00")
-        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.week) == "US$0.00")
-        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.year) == "US$0.00")
-        assert(storeProduct.localizedTrialPeriodPrice == "US$0.00")
+        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.day) == "${currencySymbol}0.00")
+        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.month) == "${currencySymbol}0.00")
+        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.week) == "${currencySymbol}0.00")
+        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.year) == "${currencySymbol}0.00")
+        assert(storeProduct.localizedTrialPeriodPrice == "${currencySymbol}0.00")
         assert(storeProduct.trialPeriodEndDateString.isEmpty())
     }
 
@@ -713,11 +713,11 @@ class ProductFetcherInstrumentedTest {
         assert(storeProduct.productIdentifier == "pro_test_8999_year")
         assert(storeProduct.fullIdentifier == "pro_test_8999_year")
         assert(storeProduct.currencyCode == "USD")
-        assert(storeProduct.currencySymbol == "US$") // This actually just returns "$" in the main app.
-        assert(storeProduct.dailyPrice == "US$0.00")
-        assert(storeProduct.weeklyPrice == "US$0.00")
-        assert(storeProduct.monthlyPrice == "US$0.00")
-        assert(storeProduct.yearlyPrice == "US$0.00")
+        assert(storeProduct.currencySymbol == "${currencySymbol}") // This actually just returns "$" in the main app.
+        assert(storeProduct.dailyPrice == "${currencySymbol}0.00")
+        assert(storeProduct.weeklyPrice == "${currencySymbol}0.00")
+        assert(storeProduct.monthlyPrice == "${currencySymbol}0.00")
+        assert(storeProduct.yearlyPrice == "${currencySymbol}0.00")
         assert(storeProduct.periodDays == 0)
         assert(storeProduct.periodMonths == 0)
         assert(storeProduct.periodWeeks == 0)
@@ -733,11 +733,11 @@ class ProductFetcherInstrumentedTest {
         val defaultLocale = Locale.getDefault().toString()
         assert(storeProduct.locale == defaultLocale) // Change this depending on what your computer is set
         assert(storeProduct.trialPeriodPrice == BigDecimal.ZERO)
-        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.day) == "US$0.00")
-        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.month) == "US$0.00")
-        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.week) == "US$0.00")
-        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.year) == "US$0.00")
-        assert(storeProduct.localizedTrialPeriodPrice == "US$0.00")
+        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.day) == "${currencySymbol}0.00")
+        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.month) == "${currencySymbol}0.00")
+        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.week) == "${currencySymbol}0.00")
+        assert(storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.year) == "${currencySymbol}0.00")
+        assert(storeProduct.localizedTrialPeriodPrice == "${currencySymbol}0.00")
         assert(storeProduct.trialPeriodEndDateString.isEmpty())
     }
 }
