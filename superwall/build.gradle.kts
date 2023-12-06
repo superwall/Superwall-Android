@@ -133,6 +133,7 @@ dependencies {
     implementation("androidx.room:room-ktx:2.5.2")
     kapt("androidx.room:room-compiler:2.5.2")
 
+    implementation("org.threeten:threetenbp:1.6.8")
     // Billing
     implementation(libs.billing)
 

@@ -1,11 +1,9 @@
 package com.superwall.sdk.store.abstractions.product
 
+import org.threeten.bp.Period
 import java.math.BigDecimal
 import java.math.RoundingMode
-import java.text.DecimalFormat
-import java.time.Period
-import java.time.temporal.ChronoUnit
-import java.util.*
+
 
 data class SubscriptionPeriod(val value: Int, val unit: Unit) {
     enum class Unit {

@@ -810,6 +810,8 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             return
         }
 
+        (view.parent as? ViewGroup)?.removeView(view)
+
         if (view is ActivityEncapsulatable) {
             view.encapsulatingActivity = this
         }
