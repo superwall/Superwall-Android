@@ -12,7 +12,7 @@ class PaywallProductTest {
     @Test
     fun `test parsing of config`() {
         val productString = """
-            {"product":  "primary", "product_id":  "abc-def"}
+            {"product":  "primary", "product_id":  "abc-def:ghi:jkl", "product_id_android":  "abc-def:ghi:jkl"}
         """.trimIndent()
 
 
@@ -22,7 +22,7 @@ class PaywallProductTest {
         }
         val product = json.decodeFromString<Product>(productString)
         assert(product != null)
-        assert(product.id == "abc-def")
+        assert(product.id == "abc-def:ghi:jkl")
         assert(product.type == ProductType.PRIMARY)
     }
 }

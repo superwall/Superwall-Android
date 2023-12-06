@@ -15,6 +15,7 @@ import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.network.Api
+import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.network.device.DeviceInfo
 import com.superwall.sdk.paywall.manager.PaywallViewControllerCache
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
@@ -38,7 +39,7 @@ interface ApiFactory {
     var storage: Storage
 
     //    var storage: Storage! { get }
-//    var deviceHelper: DeviceHelper! { get }
+    var deviceHelper: DeviceHelper
     var configManager: ConfigManager
     var identityManager: IdentityManager
     // swiftlint:enable implicitly_unwrapped_optional
@@ -114,6 +115,7 @@ interface TransactionVerifierFactory {
 interface DeviceHelperFactory {
     fun makeDeviceInfo(): DeviceInfo
     fun makeIsSandbox(): Boolean
+    suspend fun makeSessionDeviceAttributes(): HashMap<String, Any>
 }
 
 interface HasExternalPurchaseControllerFactory {

@@ -3,13 +3,31 @@ package com.superwall.sdk.config
 import com.superwall.sdk.models.assignment.Assignment
 import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.models.config.PreloadingDisabled
+import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.triggers.*
+import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.ExpressionEvaluating
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.*
 import org.junit.Test
 
-
 internal class ConfigLogicTest {
+    private var expressionEvaluator = ExpressionEvaluatorMock()
+    class ExpressionEvaluatorMock: ExpressionEvaluating {
+        override suspend fun evaluateExpression(
+            rule: TriggerRule,
+            eventData: EventData?
+        ): TriggerRuleOutcome {
+            return TriggerRuleOutcome.match(
+                rule = TriggerRule(
+                    experimentId = "1",
+                    experimentGroupId = "2",
+                    variants = listOf(),
+                    preload = TriggerRule.TriggerPreload(behavior = TriggerPreloadBehavior.ALWAYS)
+                )
+            )
+        }
+    }
 
     @Test
     fun test_chooseVariant_noVariants() {
@@ -147,7 +165,7 @@ internal class ConfigLogicTest {
 
     @Test
     fun test_getRulesPerTriggerGroup_noTriggers() {
-        val rules = ConfigLogic.getRulesPerTriggerGroup(
+        val rules = ConfigLogic.getRulesPerCampaign(
             emptySet()
         )
         assertTrue(rules.isEmpty())
@@ -158,7 +176,7 @@ internal class ConfigLogicTest {
         val trigger = Trigger.stub().apply {
             rules = emptyList()
         }
-        val rules = ConfigLogic.getRulesPerTriggerGroup(setOf(trigger))
+        val rules = ConfigLogic.getRulesPerCampaign(setOf(trigger))
         assertTrue(rules.isEmpty())
     }
 
@@ -180,7 +198,7 @@ internal class ConfigLogicTest {
                 experimentGroupId = "2"
             })
         }
-        val rules = ConfigLogic.getRulesPerTriggerGroup(setOf(trigger1, trigger2, trigger3))
+        val rules = ConfigLogic.getRulesPerCampaign(setOf(trigger1, trigger2, trigger3))
         assertEquals(2, rules.size)
         assertTrue(rules.contains(trigger3.rules))
         assertTrue(rules.contains(trigger1.rules))
@@ -191,7 +209,7 @@ internal class ConfigLogicTest {
     fun test_assignVariants_noTriggers() {
         // Given
         val confirmedAssignments = mutableMapOf(
-            "exp1" as ExperimentID to Experiment.Variant(
+            "exp1" to Experiment.Variant(
                 id = "1",
                 type = Experiment.Variant.VariantType.TREATMENT,
                 paywallId = "abc"
@@ -213,7 +231,7 @@ internal class ConfigLogicTest {
     fun test_chooseAssignments_noRules() {
         // Given
         val confirmedAssignments = mutableMapOf(
-            "exp1" as ExperimentID to Experiment.Variant(
+            "exp1" to Experiment.Variant(
                 id = "1",
                 type = Experiment.Variant.VariantType.TREATMENT,
                 paywallId = "abc"
@@ -230,7 +248,6 @@ internal class ConfigLogicTest {
         assert(variant.unconfirmed.isEmpty())
         assert(variant.confirmed == confirmedAssignments)
     }
-
 
     @Test
     fun test_chooseAssignments_variantAsOfYetUnconfirmed() {
@@ -563,7 +580,7 @@ internal class ConfigLogicTest {
     }
 
     @Test
-    fun `test getStaticPaywall shortLocaleNotContainedInConfig`() {
+    fun test_getStaticPaywall_shortLocaleNotContainedInConfig() {
         val paywallId = "abc"
         val locale = "de_DE"
         val config: Config = Config.stub().apply {
@@ -585,7 +602,7 @@ internal class ConfigLogicTest {
     }
 
     @Test
-    fun `test getStaticPaywallResponse shortLocaleContainedInConfig`() {
+    fun test_GetStaticPaywallResponse_ShortLocaleContainedInConfig() {
         val paywallId = "abc"
         val locale = "de_DE"
         val config: Config = Config.stub()
@@ -608,7 +625,7 @@ internal class ConfigLogicTest {
     }
 
     @Test
-    fun test_getAllActiveTreatmentPaywallIds_onlyConfirmedAssignments_treatment() {
+    fun test_getAllActiveTreatmentPaywallIds_onlyConfirmedAssignments_treatment() = runTest {
         val paywallId1 = "abc"
         val experiment1 = "def"
 
@@ -631,16 +648,17 @@ internal class ConfigLogicTest {
             )
         )
         val ids = ConfigLogic.getAllActiveTreatmentPaywallIds(
-            fromTriggers = triggers,
+            triggers = triggers,
             confirmedAssignments = confirmedAssignments,
-            unconfirmedAssignments = emptyMap()
+            unconfirmedAssignments = emptyMap(),
+            expressionEvaluator = expressionEvaluator
         )
         assertEquals(ids, setOf(paywallId1))
     }
 
 
     @Test
-    fun test_getAllActiveTreatmentPaywallIds_onlyConfirmedAssignments_treatment_multipleTriggerSameGroupId() {
+    fun test_getAllActiveTreatmentPaywallIds_onlyConfirmedAssignments_treatment_multipleTriggerSameGroupId() = runTest {
         val paywallId1 = "abc"
         val experiment1 = "def"
 
@@ -672,15 +690,16 @@ internal class ConfigLogicTest {
             )
         )
         val ids = ConfigLogic.getAllActiveTreatmentPaywallIds(
-            fromTriggers = triggers,
+            triggers = triggers,
             confirmedAssignments = confirmedAssignments,
-            unconfirmedAssignments = emptyMap()
+            unconfirmedAssignments = emptyMap(),
+            expressionEvaluator = expressionEvaluator
         )
         assertEquals(ids, setOf(paywallId1))
     }
 
     @Test
-    fun test_getAllActiveTreatmentPaywallIds_onlyConfirmedAssignments_holdout() {
+    fun test_getAllActiveTreatmentPaywallIds_onlyConfirmedAssignments_holdout() = runTest {
         val experiment1 = "def"
 
         val triggers = setOf(
@@ -702,16 +721,17 @@ internal class ConfigLogicTest {
             )
         )
         val ids = ConfigLogic.getAllActiveTreatmentPaywallIds(
-            fromTriggers = triggers,
+            triggers = triggers,
             confirmedAssignments = confirmedAssignments,
-            unconfirmedAssignments = emptyMap()
+            unconfirmedAssignments = emptyMap(),
+            expressionEvaluator = expressionEvaluator
         )
         assertTrue(ids.isEmpty())
     }
 
 
     @Test
-    fun test_getAllActiveTreatmentPaywallIds_onlyConfirmedAssignments_filterOldOnes() {
+    fun test_getAllActiveTreatmentPaywallIds_onlyConfirmedAssignments_filterOldOnes() = runTest {
         val paywallId1 = "abc"
         val experiment1 = "def"
         val paywallId2 = "efg"
@@ -741,15 +761,16 @@ internal class ConfigLogicTest {
             )
         )
         val ids = ConfigLogic.getAllActiveTreatmentPaywallIds(
-            fromTriggers = triggers,
+            triggers = triggers,
             confirmedAssignments = confirmedAssignments,
-            unconfirmedAssignments = emptyMap()
+            unconfirmedAssignments = emptyMap(),
+            expressionEvaluator = expressionEvaluator
         )
         assertEquals(ids, setOf(paywallId1))
     }
 
     @Test
-    fun test_getAllActiveTreatmentPaywallIds_confirmedAndUnconfirmedAssignments_filterOldOnes() {
+    fun test_getAllActiveTreatmentPaywallIds_confirmedAndUnconfirmedAssignments_filterOldOnes() = runTest {
         val paywallId1 = "abc"
         val experiment1 = "def"
         val paywallId2 = "efg"
@@ -792,7 +813,7 @@ internal class ConfigLogicTest {
             )
         )
         val ids = ConfigLogic.getAllActiveTreatmentPaywallIds(
-            fromTriggers = triggers,
+            triggers = triggers,
             confirmedAssignments = confirmedAssignments,
             unconfirmedAssignments = mapOf(
                 experiment3 to Experiment.Variant(
@@ -800,7 +821,8 @@ internal class ConfigLogicTest {
                     Experiment.Variant.VariantType.TREATMENT,
                     paywallId3
                 )
-            )
+            ),
+            expressionEvaluator = expressionEvaluator
         )
         assertEquals(ids, setOf(paywallId1, paywallId3))
     }

@@ -7,15 +7,14 @@ import kotlinx.serialization.Serializable
 //@Serializable
 //data class StoreProduct(val productIdentifier: String)
 
-@Serializable
 class PaywallProducts(
     val primary: StoreProduct? = null,
     val secondary: StoreProduct? = null,
     val tertiary: StoreProduct? = null
 ) {
     val ids: List<String> = listOfNotNull(
-        primary?.productIdentifier,
-        secondary?.productIdentifier,
-        tertiary?.productIdentifier
+        primary?.fullIdentifier,
+        secondary?.fullIdentifier,
+        tertiary?.fullIdentifier
     )
 }

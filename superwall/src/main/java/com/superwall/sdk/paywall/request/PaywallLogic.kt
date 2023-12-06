@@ -92,8 +92,7 @@ object PaywallLogic {
     suspend fun getVariablesAndFreeTrial(
         products: List<Product>,
         productsById: Map<String, StoreProduct>,
-        isFreeTrialAvailableOverride: Boolean?,
-        isFreeTrialAvailable: suspend (StoreProduct) -> Boolean
+        isFreeTrialAvailableOverride: Boolean?
     ): ProductProcessingOutcome {
         val productVariables = mutableListOf<ProductVariable>()
         val swTemplateProductVariables = mutableListOf<ProductVariable>()
@@ -116,7 +115,7 @@ object PaywallLogic {
 //            swTemplateProductVariables.add(swTemplateProductVariable)
 
             if (!hasFreeTrial) {
-                hasFreeTrial = isFreeTrialAvailable(storeProduct)
+                hasFreeTrial = storeProduct.hasFreeTrial
             }
         }
 

@@ -2,6 +2,25 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall-me/Superwall-Android/releases) on GitHub.
 
+## 1.0.0-alpha.27
+
+### Breaking Changes
+
+- #SW-2218: Changes the `PurchaseController` purchase function to `purchase(activity:productDetails:basePlanId:offerId:)`. 
+This adds support for purchasing offers and base plans.
+
+### Enhancements
+
+- #SW-2600: Backport device attributes
+- Adds support for localized paywalls.
+- Paywalls are only preloaded if their associated rules can match.
+- Adds status bar to full screen paywalls.
+
+### Fixes
+
+- Fixes issue where holdouts were still matching even if the limit set for their corresponding rules were exceeded.
+- #SW-2584: Fixes issue where prices with non-terminating decimals were causing products to fail to load.
+
 ## 1.0.0-alpha.26
 
 ### Fixes

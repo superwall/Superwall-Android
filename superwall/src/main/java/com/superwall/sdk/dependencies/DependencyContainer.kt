@@ -74,11 +74,11 @@ class DependencyContainer(
     StoreTransactionFactory, Storage.Factory, InternalSuperwallEvent.PresentationRequest.Factory,
     ViewControllerFactory, PaywallManager.Factory, OptionsFactory, TriggerFactory,
     TransactionVerifierFactory, TransactionManager.Factory, PaywallViewController.Factory,
-    ConfigManager.Factory {
+    ConfigManager.Factory, AppSessionManager.Factory {
 
     var network: Network
     override lateinit var api: Api
-    var deviceHelper: DeviceHelper
+    override lateinit var deviceHelper: DeviceHelper
     override lateinit var storage: Storage
     override lateinit var configManager: ConfigManager
     override lateinit var identityManager: IdentityManager
@@ -136,6 +136,7 @@ class DependencyContainer(
         )
 
         configManager = ConfigManager(
+            context = context,
             storage = storage,
             network = network,
             options = options,
@@ -281,6 +282,19 @@ class DependencyContainer(
 
     override fun makeIsSandbox(): Boolean {
         return deviceHelper.isSandbox
+    }
+
+    override suspend fun makeSessionDeviceAttributes(): HashMap<String, Any> {
+        val attributes = deviceHelper.getTemplateDevice().toMutableMap()
+
+        attributes.remove("utcDate")
+        attributes.remove("localDate")
+        attributes.remove("localTime")
+        attributes.remove("utcTime")
+        attributes.remove("utcDateTime")
+        attributes.remove("localDateTime")
+
+        return HashMap(attributes)
     }
 
     override fun makeHasExternalPurchaseController(): Boolean {

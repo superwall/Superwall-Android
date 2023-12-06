@@ -171,7 +171,7 @@ data class PaywallInfo(
         )
 
         product?.let {
-            output["product_id"] = it.productIdentifier
+            output["product_id"] = it.fullIdentifier
             for (key in it.attributes.keys) {
                 it.attributes[key]?.let { value ->
                     output["product_${key.camelCaseToSnakeCase()}"] = value

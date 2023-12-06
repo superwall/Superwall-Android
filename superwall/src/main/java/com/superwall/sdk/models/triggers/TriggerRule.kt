@@ -1,8 +1,17 @@
 package com.superwall.sdk.models.triggers
 
 import ComputedPropertyRequest
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.Serializer
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.descriptors.buildClassSerialDescriptor
+import kotlinx.serialization.descriptors.element
+import kotlinx.serialization.encoding.CompositeDecoder
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
 
 data class UnmatchedRule(
     val source: Source,
@@ -48,6 +57,13 @@ sealed class TriggerRuleOutcome {
 }
 
 @Serializable
+enum class TriggerPreloadBehavior(val rawValue: String) {
+    @SerialName("IF_TRUE") IF_TRUE("IF_TRUE"),
+    @SerialName("ALWAYS") ALWAYS("ALWAYS"),
+    @SerialName("NEVER") NEVER("NEVER");
+}
+
+@Serializable
 data class TriggerRule(
     var experimentId: String,
     var experimentGroupId: String,
@@ -56,8 +72,56 @@ data class TriggerRule(
     val expressionJs: String? = null,
     val occurrence: TriggerRuleOccurrence? = null,
     @SerialName("computed_properties")
-    val computedPropertyRequests: List<ComputedPropertyRequest> = emptyList()
+    val computedPropertyRequests: List<ComputedPropertyRequest> = emptyList(),
+    val preload: TriggerPreload
 ) {
+
+    @Serializable(with = TriggerPreloadSerializer::class)
+    data class TriggerPreload(
+        var behavior: TriggerPreloadBehavior,
+        val requiresReEvaluation: Boolean? = null
+    )
+
+    object TriggerPreloadSerializer : KSerializer<TriggerPreload> {
+        override val descriptor: SerialDescriptor = buildClassSerialDescriptor("TriggerPreload") {
+            element<String>("behavior")
+            element<Boolean>("requiresReEvaluation", isOptional = true)
+        }
+
+        override fun serialize(encoder: Encoder, value: TriggerPreload) {
+            val compositeOutput = encoder.beginStructure(descriptor)
+            compositeOutput.encodeStringElement(descriptor, 0, value.behavior.rawValue)
+            if (value.requiresReEvaluation != null) {
+                compositeOutput.encodeBooleanElement(descriptor, 1, value.requiresReEvaluation)
+            }
+            compositeOutput.endStructure(descriptor)
+        }
+
+
+        override fun deserialize(decoder: Decoder): TriggerPreload {
+            val dec = decoder.beginStructure(descriptor)
+            var behavior: TriggerPreloadBehavior? = null
+            var requiresReevaluation: Boolean? = null
+
+            loop@ while (true) {
+                when (val i = dec.decodeElementIndex(descriptor)) {
+                    CompositeDecoder.DECODE_DONE -> break@loop
+                    0 -> behavior = TriggerPreloadBehavior.valueOf(dec.decodeStringElement(descriptor, i).uppercase())
+                    1 -> requiresReevaluation = dec.decodeBooleanElement(descriptor, i)
+                    else -> throw SerializationException("Unknown index $i")
+                }
+            }
+            dec.endStructure(descriptor)
+
+            val finalBehavior = behavior ?: throw SerializationException("Behavior is missing")
+            if (requiresReevaluation == true) {
+                return TriggerPreload(TriggerPreloadBehavior.ALWAYS, requiresReevaluation)
+            }
+
+            return TriggerPreload(finalBehavior, requiresReevaluation)
+        }
+
+    }
 
     val experiment: RawExperiment
         get() {
@@ -83,7 +147,8 @@ data class TriggerRule(
             expression = null,
             expressionJs = null,
             occurrence = null,
-            computedPropertyRequests = emptyList()
+            computedPropertyRequests = emptyList(),
+            preload = TriggerPreload(behavior = TriggerPreloadBehavior.ALWAYS)
         )
     }
 }
