@@ -10,10 +10,8 @@ import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.dependencies.ComputedPropertyRequestsFactory
 import com.superwall.sdk.dependencies.FeatureFlagsFactory
 import com.superwall.sdk.dependencies.RuleAttributesFactory
-import com.superwall.sdk.models.config.FeatureFlags
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.triggers.InternalTriggerResult
-import com.superwall.sdk.models.triggers.TriggerResult
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatus
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatusReason
@@ -23,8 +21,6 @@ import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
 import com.superwall.sdk.store.transactions.TransactionError
-import kotlinx.serialization.json.*
-import java.net.URL
 
 
 interface TrackableSuperwallEvent : Trackable {
@@ -223,6 +219,15 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
         }
     }
 
+    class DeviceAttributes(
+        val deviceAttributes: HashMap<String, Any>,
+        override var customParameters: HashMap<String, Any> = HashMap()
+    ) : InternalSuperwallEvent(SuperwallEvent.DeviceAttributes(attributes = deviceAttributes)) {
+        override suspend fun getSuperwallParameters(): HashMap<String, Any> {
+            return deviceAttributes
+        }
+    }
+
     class TriggerFire(
         val triggerResult: InternalTriggerResult,
         val triggerName: String,
@@ -407,39 +412,31 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
 
         override suspend fun getSuperwallParameters(): HashMap<String, Any> {
             return when (state) {
+                is State.Restore -> {
+                    var eventParams = HashMap(paywallInfo.eventParams(product))
+                    model?.toDictionary()?.let { transactionDict ->
+                        eventParams.putAll(transactionDict)
+                    }
+                    eventParams["restore_via_purchase_attempt"] = model != null
+                    return eventParams
+                }
                 is State.Start,
                 is State.Abandon,
                 is State.Complete,
-                is State.Restore,
                 is State.Timeout -> {
-                    var eventParams = paywallInfo.eventParams(product).toMutableMap()
-                    if (model != null) {
-                        val json = Json { encodeDefaults = true }
-                        // TODO: Figure out how to get this to work with kotlinx.serialization
-                        val jsonObject: JsonObject =
-                            json.encodeToJsonElement(model).jsonObject
-
-                        val modelMap: Map<String, Any> = jsonObject.mapValues { entry ->
-                            when (val value = entry.value) {
-                                is JsonPrimitive -> value.content // Handle other primitive types as needed
-                                else -> value // Handle complex objects if necessary
-                            }
-                        }
-                        eventParams.putAll(modelMap)
+                    var eventParams = HashMap(paywallInfo.eventParams(product))
+                    model?.toDictionary()?.let { transactionDict ->
+                        eventParams.putAll(transactionDict)
                     }
-                    HashMap(eventParams)
+                    return eventParams
                 }
                 is State.Fail -> {
                     when (state.error) {
                         is TransactionError.Failure,
                         is TransactionError.Pending -> {
                             val message = state.error.message
-                            HashMap(
-                                paywallInfo.eventParams(
-                                    product,
-                                    otherParams = mapOf("message" to message)
-                                )
-                            )
+                            var eventParams = HashMap(paywallInfo.eventParams(product, otherParams = mapOf("message" to message)))
+                            return eventParams
                         }
                     }
                 }

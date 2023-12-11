@@ -7,7 +7,6 @@ import android.content.Context
 import android.net.Uri
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
-import com.superwall.sdk.billing.BillingController
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.delegate.SuperwallDelegate
@@ -26,8 +25,11 @@ import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.*
 import com.superwall.sdk.store.ExternalNativePurchaseController
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.take
 import java.util.*
 
 class Superwall(
@@ -43,8 +45,6 @@ class Superwall(
     private var purchaseController: PurchaseController? = purchaseController
     private var _options: SuperwallOptions? = options
     private var activityProvider = activityProvider
-
-    private var billingController = BillingController(context)
 
     internal val presentationItems: PresentationItems = PresentationItems()
 
@@ -117,6 +117,15 @@ class Superwall(
 
     companion object {
         var initialized: Boolean = false
+
+        private val _hasInitialized = MutableStateFlow<Boolean>(false)
+
+        // A flow that emits just once only when `hasInitialized` is non-`nil`.
+        val hasInitialized: Flow<Boolean> = _hasInitialized
+            .filter { it }
+            .take(1)
+
+
         lateinit var instance: Superwall
 
         /** Configures a shared instance of `Superwall` for use throughout your app.
@@ -152,6 +161,10 @@ class Superwall(
             )
             instance.setup()
             initialized = true
+            // Ping everyone about the initialization
+            CoroutineScope(Dispatchers.Main).launch {
+                _hasInitialized.emit(true)
+            }
         }
     }
 
@@ -351,6 +364,9 @@ class Superwall(
 
     //endregion
 
+    // Add a private variable for the purchase task
+    private var purchaseTask: Job? = null
+
     override suspend fun eventDidOccur(
         paywallEvent: PaywallWebEvent,
         paywallViewController: PaywallViewController
@@ -372,10 +388,21 @@ class Superwall(
                     )
                 }
                 is InitiatePurchase -> {
-                    dependencyContainer.transactionManager.purchase(
-                        paywallEvent.productId,
-                        paywallViewController
-                    )
+                    if (purchaseTask != null) {
+                        // If a purchase is already in progress, do not start another
+                        return@withContext
+                    }
+                    purchaseTask = launch {
+                        try {
+                            dependencyContainer.transactionManager.purchase(
+                                paywallEvent.productId,
+                                paywallViewController
+                            )
+                        } finally {
+                            // Ensure the task is cleared once the purchase is complete or if an error occurs
+                            purchaseTask = null
+                        }
+                    }
                 }
                 is InitiateRestore -> {
                     dependencyContainer.storeKitManager.purchaseController.tryToRestore(paywallViewController)

@@ -1,13 +1,19 @@
 package com.superwall.sdk.store.abstractions.transactions
 
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import com.superwall.sdk.models.serialization.DateSerializer
 import com.superwall.sdk.models.serialization.UUIDSerializer
+import com.superwall.sdk.models.serialization.jsonStringToDictionary
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.util.*
 
 @Serializable
 class StoreTransaction(
+    @Transient
     private val transaction: GoogleBillingPurchaseTransaction,
     @SerialName("config_request_id")
     val configRequestId: String,
@@ -19,7 +25,7 @@ class StoreTransaction(
     val id = UUID.randomUUID().toString()
 
     override val transactionDate: Date? get() = transaction.transactionDate
-    override val originalTransactionIdentifier: String get() = transaction.originalTransactionIdentifier
+    override val originalTransactionIdentifier: String? get() = transaction.originalTransactionIdentifier
     override val state: StoreTransactionState get() = transaction.state
     override val storeTransactionId: String? get() = transaction.storeTransactionId
     override val payment: StorePayment? get() = transaction.payment
@@ -36,6 +42,32 @@ class StoreTransaction(
     override val revocationDate: Date? get() = transaction.revocationDate
     @Serializable(with = UUIDSerializer::class)
     override val appAccountToken: UUID? get() = transaction.appAccountToken
+
+//    fun toDictionary(): Map<String, Any> {
+//        val json = Json { encodeDefaults = true }
+//        val jsonString = json.encodeToString(this)
+//        val dictionary = jsonString.jsonStringToDictionary()
+//        return dictionary
+//    }
+
+    // TODO: The above should be working, but is somehow serializing `transaction` as a nested type
+    //  even though it's marked as `Transient` and `private`, and failing to serialize the
+    //  overrides. Flattening manually for now.
+    fun toDictionary(): Map<String, Any?> {
+        val json = Json { encodeDefaults = true }
+        val jsonString = json.encodeToString(this)
+        val dictionary = jsonString.jsonStringToDictionary().toMutableMap()
+
+        val transactionMap = dictionary["transaction"] as? Map<String, Any>
+        transactionMap?.let {
+            // Remove the 'transaction' entry and add all its contents to the top level
+            dictionary.remove("transaction")
+            dictionary.putAll(it)
+        }
+
+        return dictionary
+    }
+
 }
 
 

@@ -1,6 +1,8 @@
 package com.superwall.sdk.store.abstractions.product
 
 
+import com.android.billingclient.api.BillingClient.ProductType
+import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.SkuDetails
 import com.superwall.sdk.contrib.threeteen.AmountFormats
 import kotlinx.serialization.KSerializer
@@ -10,205 +12,145 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import java.math.BigDecimal
 import java.math.RoundingMode
-import java.text.DecimalFormat
 import java.text.SimpleDateFormat
 import java.util.*
 
-@Serializer(forClass = SkuDetails::class)
-object SkuDetailsSerializer : KSerializer<SkuDetails> {
-    override fun serialize(encoder: Encoder, value: SkuDetails) {
-        encoder.encodeString(value.price)  // replace "property" with actual property name
-    }
+@Serializable
+sealed class OfferType {
+    object Auto : OfferType()
+    data class Offer(override val id: String) : OfferType()
 
-    override fun deserialize(decoder: Decoder): SkuDetails {
-        val property = decoder.decodeString()
-        return SkuDetails(property)  // replace with actual SkuDetails constructor
-    }
+    open val id: String?
+        get() = when (this) {
+            is Offer -> id
+            else -> null
+        }
 }
 
-@Serializable
-data class RawStoreProduct(@Serializable(with = SkuDetailsSerializer::class) val skuDetails: SkuDetails)
 
-// TODO: Fill in all these with appropirate implementations
-
-@Serializable
 class StoreProduct(
     val rawStoreProduct: RawStoreProduct
 ) : StoreProductType {
+    override val fullIdentifier: String
+        get() = rawStoreProduct.fullIdentifier
 
     override val productIdentifier: String
-        get() = rawStoreProduct.skuDetails.sku
+        get() = rawStoreProduct.productIdentifier
 
     override val price: BigDecimal
-        get() = BigDecimal(rawStoreProduct.skuDetails.priceAmountMicros).divide(BigDecimal(1_000_000), 6, RoundingMode.DOWN)
-
-    val trialPrice: BigDecimal
-        get() = BigDecimal(rawStoreProduct.skuDetails.introductoryPriceAmountMicros).divide(BigDecimal(1_000_000), 6, RoundingMode.DOWN)
-
-    override val subscriptionGroupIdentifier: String?
-        get() = ""
-//        get() = TODO("This information is not available in SkuDetails")
-
-    override val subscriptionPeriod: SubscriptionPeriod?
-        get() {
-            return try {
-                SubscriptionPeriod.from(rawStoreProduct.skuDetails.freeTrialPeriod, Currency.getInstance(rawStoreProduct.skuDetails.priceCurrencyCode))
-            } catch (e: Exception) {
-                null
-            }
-        }
-
+        get()  = rawStoreProduct.price
 
     override val localizedPrice: String
-        get() = rawStoreProduct.skuDetails.price
+        get() = rawStoreProduct.localizedPrice
 
     override val localizedSubscriptionPeriod: String
-        get() =  if (subscriptionPeriod != null)  AmountFormats.wordBased(
-            subscriptionPeriod?.toPeriod()!!, Locale.getDefault()
-        ) else ""
+        get() = rawStoreProduct.localizedSubscriptionPeriod
 
     override val period: String
-        get() = subscriptionPeriod?.period ?: ""
+        get() = rawStoreProduct.period
 
     override val periodly: String
-        get() = subscriptionPeriod?.periodly ?: ""
+        get() = rawStoreProduct.periodly
 
     override val periodWeeks: Int
-        get() = subscriptionPeriod?.periodWeeks ?: 0
+        get() = rawStoreProduct.periodWeeks
 
     override val periodWeeksString: String
-        get() = periodWeeks.toString()
+        get() = rawStoreProduct.periodWeeksString
 
     override val periodMonths: Int
-        get() = subscriptionPeriod?.periodMonths ?: 0
+        get() = rawStoreProduct.periodMonths
 
     override val periodMonthsString: String
-        get() = periodMonths.toString()
+        get() = rawStoreProduct.periodMonthsString
 
     override val periodYears: Int
-        get() = subscriptionPeriod?.periodYears ?: 0
+        get() = rawStoreProduct.periodYears
 
     override val periodYearsString: String
-        get() = periodYears.toString()
+        get() = rawStoreProduct.periodYearsString
 
     override val periodDays: Int
-        get() = subscriptionPeriod?.periodDays ?: 0
+        get() = rawStoreProduct.periodDays
 
     override val periodDaysString: String
-        get() = periodDays.toString()
+        get() = rawStoreProduct.periodDaysString
 
     override val dailyPrice: String
-        get() = subscriptionPeriod?.dailyPrice(price) ?: "n/a"
+        get() = rawStoreProduct.dailyPrice
 
     override val weeklyPrice: String
-        get() = subscriptionPeriod?.weeklyPrice(price) ?: "n/a"
+        get() = rawStoreProduct.weeklyPrice
 
     override val monthlyPrice: String
-        get() = subscriptionPeriod?.monthlyPrice(price) ?: "n/a"
+        get() = rawStoreProduct.monthlyPrice
 
     override val yearlyPrice: String
-        get() = subscriptionPeriod?.yearlyPrice(price) ?: "n/a"
-
-    /**
-     * The trial subscription period of the product.
-     */
-    val trialSubscriptionPeriod: SubscriptionPeriod?
-        get() {
-            return try {
-                SubscriptionPeriod.from(
-                    rawStoreProduct.skuDetails.freeTrialPeriod,
-                    Currency.getInstance(rawStoreProduct.skuDetails.priceCurrencyCode)
-                )
-            } catch (e: Exception) {
-                null
-            }
-        }
-
+        get() = rawStoreProduct.yearlyPrice
 
     override val hasFreeTrial: Boolean
-        get() = rawStoreProduct.skuDetails.freeTrialPeriod.isNotEmpty()
-
-    override val trialPeriodEndDate: Date?
-        get() = if (trialSubscriptionPeriod != null)  {
-            val calendar = Calendar.getInstance()
-            when (trialSubscriptionPeriod!!.unit) {
-                SubscriptionPeriod.Unit.day -> calendar.add(Calendar.DAY_OF_YEAR, trialSubscriptionPeriod!!.value)
-                SubscriptionPeriod.Unit.week -> calendar.add(Calendar.WEEK_OF_YEAR, trialSubscriptionPeriod!!.value)
-                SubscriptionPeriod.Unit.month -> calendar.add(Calendar.MONTH, trialSubscriptionPeriod!!.value)
-                SubscriptionPeriod.Unit.year -> calendar.add(Calendar.YEAR, trialSubscriptionPeriod!!.value)
-            }
-            calendar.time
-        } else {
-            null
-        }
-
-    override val trialPeriodEndDateString: String
-        get() = if (trialPeriodEndDate != null) {
-            val dateFormatter = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
-            dateFormatter.format(trialPeriodEndDate!!)
-        } else {
-            ""
-        }
-
-    override val trialPeriodDays: Int
-        get() =
-            trialSubscriptionPeriod?.periodDays ?:  0
-
-    override val trialPeriodDaysString: String
-        get() = trialPeriodDays.toString()
-
-    override val trialPeriodWeeks: Int
-        get() {
-            val trialPeriod = trialSubscriptionPeriod ?: return 0
-            val numberOfUnits = trialPeriod.value
-
-            return when (trialPeriod.unit) {
-                SubscriptionPeriod.Unit.day -> numberOfUnits / 7
-                SubscriptionPeriod.Unit.month -> 4 * numberOfUnits  // Assumes 4 weeks in a month
-                SubscriptionPeriod.Unit.week -> 1 * numberOfUnits
-                SubscriptionPeriod.Unit.year -> 52 * numberOfUnits  // Assumes 52 weeks in a year
-                else -> 0
-            }
-        }
-
-    override val trialPeriodWeeksString: String
-        get() = trialPeriodWeeks.toString()
-
-    override val trialPeriodMonths: Int
-        get() =
-            trialSubscriptionPeriod?.periodMonths ?:  0
-
-    override val trialPeriodMonthsString: String
-        get() = trialPeriodMonths.toString()
-
-    override val trialPeriodYears: Int
-        get() =
-            trialSubscriptionPeriod?.periodYears ?:  0
-
-    override val trialPeriodYearsString: String
-        get() = trialPeriodYears.toString()
-
-    override val trialPeriodText: String
-        get() = trialSubscriptionPeriod?.period ?: ""
+        get() = rawStoreProduct.hasFreeTrial
 
     override val localizedTrialPeriodPrice: String
-        get() = rawStoreProduct.skuDetails.introductoryPrice
+        get() = rawStoreProduct.localizedTrialPeriodPrice
+
+    override val trialPeriodPrice: BigDecimal
+        get() = rawStoreProduct.trialPeriodPrice
+
+    override val trialPeriodEndDate: Date?
+        get() = rawStoreProduct.trialPeriodEndDate
+
+    override val trialPeriodEndDateString: String
+        get() = rawStoreProduct.trialPeriodEndDateString
+
+    override val trialPeriodDays: Int
+        get() = rawStoreProduct.trialPeriodDays
+
+    override val trialPeriodDaysString: String
+        get() = rawStoreProduct.trialPeriodDaysString
+
+    override val trialPeriodWeeks: Int
+        get() = rawStoreProduct.trialPeriodWeeks
+
+    override val trialPeriodWeeksString: String
+        get() = rawStoreProduct.trialPeriodWeeksString
+
+    override val trialPeriodMonths: Int
+        get() = rawStoreProduct.trialPeriodMonths
+
+    override val trialPeriodMonthsString: String
+        get() = rawStoreProduct.trialPeriodMonthsString
+
+    override val trialPeriodYears: Int
+        get() = rawStoreProduct.trialPeriodYears
+
+    override val trialPeriodYearsString: String
+        get() = rawStoreProduct.trialPeriodYearsString
+
+    override val trialPeriodText: String
+        get() = rawStoreProduct.trialPeriodText
 
     override val locale: String
-        get() = Locale.getDefault().toString()
+        get() = rawStoreProduct.locale
 
     override val languageCode: String?
-        get() = Locale.getDefault().language
+        get() = rawStoreProduct.languageCode
 
     override val currencyCode: String?
-        get() = rawStoreProduct.skuDetails.priceCurrencyCode
+        get() = rawStoreProduct.currencyCode
 
     override val currencySymbol: String?
-        get() = Currency.getInstance(rawStoreProduct.skuDetails.priceCurrencyCode).symbol
+        get() = rawStoreProduct.currencySymbol
 
     override val regionCode: String?
-        get() = Locale.getDefault().country
+        get() = rawStoreProduct.regionCode
 
+    override val subscriptionPeriod: SubscriptionPeriod?
+        get() = rawStoreProduct.subscriptionPeriod
+
+    override fun trialPeriodPricePerUnit(unit: SubscriptionPeriod.Unit): String {
+        return rawStoreProduct.trialPeriodPricePerUnit(unit)
+    }
 
     val attributes: Map<String, String>
         get() {
@@ -224,12 +166,12 @@ class StoreProduct(
             attributes["dailyPrice"] = dailyPrice
             attributes["monthlyPrice"] = monthlyPrice
             attributes["yearlyPrice"] = yearlyPrice
-            attributes["rawTrialPeriodPrice"] = trialPrice.toString()
+            attributes["rawTrialPeriodPrice"] = trialPeriodPrice.toString()
             attributes["trialPeriodPrice"] = localizedTrialPeriodPrice
-            attributes["trialPeriodDailyPrice"] = trialSubscriptionPeriod?.dailyPrice(trialPrice) ?: "n/a"
-            attributes["trialPeriodWeeklyPrice"] = trialSubscriptionPeriod?.weeklyPrice(trialPrice) ?: "n/a"
-            attributes["trialPeriodMonthlyPrice"] = trialSubscriptionPeriod?.monthlyPrice(trialPrice) ?: "n/a"
-            attributes["trialPeriodYearlyPrice"] = trialSubscriptionPeriod?.yearlyPrice(trialPrice) ?: "n/a"
+            attributes["trialPeriodDailyPrice"] = trialPeriodPricePerUnit(SubscriptionPeriod.Unit.day)
+            attributes["trialPeriodWeeklyPrice"] = trialPeriodPricePerUnit(SubscriptionPeriod.Unit.week)
+            attributes["trialPeriodMonthlyPrice"] = trialPeriodPricePerUnit(SubscriptionPeriod.Unit.month)
+            attributes["trialPeriodYearlyPrice"] = trialPeriodPricePerUnit(SubscriptionPeriod.Unit.year)
             attributes["trialPeriodDays"] = trialPeriodDaysString
             attributes["trialPeriodWeeks"] = trialPeriodWeeksString
             attributes["trialPeriodMonths"] = trialPeriodMonthsString
@@ -248,5 +190,4 @@ class StoreProduct(
 
             return attributes
         }
-
 }

@@ -26,16 +26,16 @@ internal suspend fun Superwall.getPaywallViewController(
     rulesOutcome: RuleEvaluationOutcome,
     debugInfo: Map<String, Any>,
     paywallStatePublisher: MutableSharedFlow<PaywallState>? = null,
-    dependencyContainer: DependencyContainer? = null
+    dependencyContainer: DependencyContainer
 ): PaywallViewController {
     val experiment = getExperiment(
         request = request,
         rulesOutcome = rulesOutcome,
         debugInfo = debugInfo,
-        paywallStatePublisher = paywallStatePublisher
+        paywallStatePublisher = paywallStatePublisher,
+        storage = dependencyContainer.storage
     )
 
-    val container = dependencyContainer ?: this.dependencyContainer
     val responseIdentifiers = ResponseIdentifiers(
         paywallId = experiment.variant.paywallId,
         experiment = experiment
@@ -48,7 +48,7 @@ internal suspend fun Superwall.getPaywallViewController(
         requestRetryCount = 0
     }
 
-    val paywallRequest = container.makePaywallRequest(
+    val paywallRequest = dependencyContainer.makePaywallRequest(
         eventData = request.presentationInfo.eventData,
         responseIdentifiers = responseIdentifiers,
         overrides = PaywallRequest.Overrides(
@@ -64,7 +64,7 @@ internal suspend fun Superwall.getPaywallViewController(
                 && request.flags.type != PresentationRequestType.GetPresentationResult
         val delegate = request.flags.type.paywallVcDelegateAdapter
 
-        container.paywallManager.getPaywallViewController(
+        dependencyContainer.paywallManager.getPaywallViewController(
             request = paywallRequest,
             isForPresentation = isForPresentation,
             isPreloading = false,

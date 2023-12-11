@@ -4,6 +4,7 @@ import ComputedPropertyRequest
 import android.app.Activity
 import com.android.billingclient.api.Purchase
 import com.superwall.sdk.analytics.trigger_session.TriggerSessionManager
+import com.superwall.sdk.billing.GoogleBillingWrapper
 import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.debug.DebugViewController
@@ -15,6 +16,7 @@ import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.network.Api
+import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.network.device.DeviceInfo
 import com.superwall.sdk.paywall.manager.PaywallViewControllerCache
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
@@ -28,8 +30,6 @@ import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegateAdapte
 import com.superwall.sdk.paywall.vc.web_view.templating.models.JsonVariables
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
-import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
-import com.superwall.sdk.store.transactions.GoogleBillingTransactionVerifier
 import kotlinx.coroutines.flow.StateFlow
 
 
@@ -40,7 +40,7 @@ interface ApiFactory {
     var storage: Storage
 
     //    var storage: Storage! { get }
-//    var deviceHelper: DeviceHelper! { get }
+    var deviceHelper: DeviceHelper
     var configManager: ConfigManager
     var identityManager: IdentityManager
     // swiftlint:enable implicitly_unwrapped_optional
@@ -110,12 +110,13 @@ interface LocaleIdentifierFactory {
 
 
 interface TransactionVerifierFactory {
-    fun makeTransactionVerifier(): GoogleBillingTransactionVerifier
+    fun makeTransactionVerifier(): GoogleBillingWrapper
 }
 
 interface DeviceHelperFactory {
     fun makeDeviceInfo(): DeviceInfo
     fun makeIsSandbox(): Boolean
+    suspend fun makeSessionDeviceAttributes(): HashMap<String, Any>
 }
 
 interface HasExternalPurchaseControllerFactory {

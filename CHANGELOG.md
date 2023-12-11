@@ -2,6 +2,80 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall-me/Superwall-Android/releases) on GitHub.
 
+## 1.0.0-alpha.28
+
+### Fixes
+
+- SW-2615: Fixes crash on Android versions <8 when accessing the Android 8+ only class Period.
+- SW-2616: Fixes crash where the `PaywallViewController` was sometimes being added to a new parent view before
+being removed from it's existing parent view.
+
+## 1.0.0-alpha.27
+
+### Breaking Changes
+
+- #SW-2218: Changes the `PurchaseController` purchase function to `purchase(activity:productDetails:basePlanId:offerId:)`. 
+This adds support for purchasing offers and base plans.
+
+### Enhancements
+
+- #SW-2600: Backport device attributes
+- Adds support for localized paywalls.
+- Paywalls are only preloaded if their associated rules can match.
+- Adds status bar to full screen paywalls.
+
+### Fixes
+
+- Fixes issue where holdouts were still matching even if the limit set for their corresponding rules were exceeded.
+- #SW-2584: Fixes issue where prices with non-terminating decimals were causing products to fail to load.
+
+## 1.0.0-alpha.26
+
+### Fixes
+- Additional fixes to make Google billing more robust.
+- Fixes an issue that causes `transaction_complete` events to fail.
+
+## 1.0.0-alpha.25
+
+### Fixes 
+
+- Fixes [Google Billing Crash on Samsung devices](https://community.revenuecat.com/sdks-51/how-to-fix-crash-too-many-bind-requests-999-for-service-intent-inappbillingservice-3317). 
+
+## 1.0.0-alpha.24
+
+### Fixes
+
+- Fixes an issue that could cause "n/a" to be displayed on a paywall in place of the proper subscription period string.
+
+## 1.0.0-alpha.23
+
+### Fixes
+
+- Fixes an issue where calling `identify` right after `configure` would hang b/c network requests need to access the user id to add to headers. 
+- Fixes a potential crash when loading data from disk 
+
+## 1.0.0-alpha.22
+
+### Fixes
+
+- Fixes threading issue
+
+## 1.0.0-alpha.21
+
+### Fixes
+
+- Changes Activity to AppCompatActivity
+
+## 1.0.0-alpha.20
+
+### Enhancements
+
+### Fixes
+
+- Fixes `app_open` race condition
+- Prevents calling purchase twice
+- Disables interactivity during purchase
+
 ## 1.0.0-alpha.19
 
 ### Fixes

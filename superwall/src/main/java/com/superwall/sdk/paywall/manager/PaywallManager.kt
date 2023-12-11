@@ -11,7 +11,6 @@ import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegateAdapte
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
 
 class PaywallManager(
@@ -23,7 +22,6 @@ class PaywallManager(
     var presentedViewController: PaywallViewController? = null
         get() = cache.activePaywallViewController
 
-    private val queue = Mutex()
     private var _cache: PaywallViewControllerCache? = null
 
     private val cache: PaywallViewControllerCache

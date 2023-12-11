@@ -3,6 +3,7 @@ package com.superwall.sdk.store.transactions
 import LogLevel
 import LogScope
 import Logger
+import com.android.billingclient.api.ProductDetails
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.SessionEventsManager
 import com.superwall.sdk.analytics.internal.track
@@ -25,6 +26,7 @@ import com.superwall.sdk.paywall.vc.delegate.PaywallLoadingState
 import com.superwall.sdk.store.StoreKitManager
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
+import com.superwall.sdk.store.products.ProductIds
 import kotlinx.coroutines.*
 
 class TransactionManager(
@@ -36,16 +38,23 @@ class TransactionManager(
     interface Factory: OptionsFactory, TriggerFactory, TransactionVerifierFactory, StoreTransactionFactory {}
     private var lastPaywallViewController: PaywallViewController? = null
 
-    suspend fun purchase(productId: String, paywallViewController: PaywallViewController) {
+    suspend fun purchase(
+        productId: String,
+        paywallViewController: PaywallViewController
+    ) {
         val product = storeKitManager.productsById[productId] ?: return
-
+        val rawStoreProduct = product.rawStoreProduct
+        println("!!! Purchasing product ${rawStoreProduct.hasFreeTrial}")
+        val productDetails = rawStoreProduct.underlyingProductDetails
         val activity = activityProvider.getCurrentActivity() ?: return
 
         prepareToStartTransaction(product, paywallViewController)
 
         val result = storeKitManager.purchaseController.purchase(
-            activity,
-            product.rawStoreProduct.skuDetails
+            activity = activity,
+            productDetails = productDetails,
+            offerId = rawStoreProduct.offerId,
+            basePlanId = rawStoreProduct.basePlanId
         )
 
         when (result) {
@@ -60,18 +69,18 @@ class TransactionManager(
 
                 if (shouldShowPurchaseFailureAlert && !transactionFailExists) {
                     trackFailure(
-                        result.error,
+                        result.errorMessage,
                         product,
                         paywallViewController
                     )
                     presentAlert(
-                        Error(result.error),
+                        Error(result.errorMessage),
                         product,
                         paywallViewController
                     )
                 } else {
                     trackFailure(
-                        result.error,
+                        result.errorMessage,
                         product,
                         paywallViewController
                     )
@@ -88,7 +97,7 @@ class TransactionManager(
     }
 
     private fun trackFailure(
-        error: Throwable,
+        errorMessage: String,
         product: StoreProduct,
         paywallViewController: PaywallViewController
     ) {
@@ -96,19 +105,18 @@ class TransactionManager(
         Logger.debug(
             logLevel = LogLevel.debug,
             scope = LogScope.paywallTransactions,
-            message = "Transaction Error",
+            message = "Transaction Error: $errorMessage",
             info = mapOf(
-                "product_id" to product.productIdentifier,
+                "product_id" to product.fullIdentifier,
                 "paywall_vc" to paywallViewController
-            ),
-            error = error
+            )
         )
 
         // Launch a coroutine to handle async tasks
         CoroutineScope(Dispatchers.Default).launch {
             val paywallInfo = paywallViewController.info
             val trackedEvent = InternalSuperwallEvent.Transaction(
-                state =  InternalSuperwallEvent.Transaction.State.Fail(TransactionError.Failure(error.localizedMessage, product)),
+                state =  InternalSuperwallEvent.Transaction.State.Fail(TransactionError.Failure(errorMessage, product)),
                 paywallInfo = paywallInfo,
                 product = product,
                 model = null
@@ -160,7 +168,7 @@ class TransactionManager(
                 LogScope.paywallTransactions,
                 "Transaction Succeeded",
                 mapOf(
-                    "product_id" to product.productIdentifier,
+                    "product_id" to product.fullIdentifier,
                     "paywall_vc" to paywallViewController
                 ),
                 null
@@ -183,7 +191,7 @@ class TransactionManager(
         if (Superwall.instance.options.paywalls.automaticallyDismiss) {
             Superwall.instance.dismiss(
                 paywallViewController,
-                PaywallResult.Purchased(product.productIdentifier)
+                PaywallResult.Purchased(product.fullIdentifier)
             )
         }
     }
@@ -198,7 +206,7 @@ class TransactionManager(
                 LogScope.paywallTransactions,
                 "Transaction Abandoned",
                 mapOf(
-                    "product_id" to product.productIdentifier,
+                    "product_id" to product.fullIdentifier,
                     "paywall_vc" to paywallViewController
                 ),
                 null
@@ -257,7 +265,7 @@ class TransactionManager(
                 LogScope.paywallTransactions,
                 "Transaction Error",
                 mapOf(
-                    "product_id" to product.productIdentifier,
+                    "product_id" to product.fullIdentifier,
                     "paywall_vc" to paywallViewController
                 ),
                 error

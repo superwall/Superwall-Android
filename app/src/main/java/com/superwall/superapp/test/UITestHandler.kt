@@ -1303,7 +1303,7 @@ class UITestHandler {
                 when (eventInfo.event) {
                     is SuperwallEvent.TransactionComplete -> {
                         val transaction = (eventInfo.event as SuperwallEvent.TransactionComplete).transaction == null
-                        val productId = (eventInfo.event as SuperwallEvent.TransactionComplete).product.productIdentifier
+                        val productId = (eventInfo.event as SuperwallEvent.TransactionComplete).product.fullIdentifier
                         val paywallId = (eventInfo.event as SuperwallEvent.TransactionComplete).paywallInfo.identifier
 
                         println("!!! TEST 75 !!! TransactionComplete. Transaction nil? $transaction, $productId, $paywallId")
@@ -1323,6 +1323,16 @@ class UITestHandler {
 
         suspend fun test82() {
             Superwall.instance.register(event = "price_readout")
+        }
+
+        var test83Info = UITestInfo(
+            83,
+            "The first time launch is tapped you will land in holdout. Check Skipped paywall " +
+                    "for holdout printed in console. Tapping launch again will present paywall. Will " +
+                    "need to delete app to be able to do it again as it uses limits."
+        )
+        suspend fun test83() {
+            Superwall.instance.register(event = "holdout_one_time_occurrence")
         }
 
         var testAndroid4Info = UITestInfo(

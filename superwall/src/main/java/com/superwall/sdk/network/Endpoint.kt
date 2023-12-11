@@ -270,37 +270,31 @@ data class Endpoint<Response : SerializableEntity>(
             // parameters will cause issues
             val queryItems = mutableListOf(URLQueryItem("pk", factory.storage.apiKey))
 
-            // TODO: Localization
-            /*
-
             // In the config endpoint we return all the locales, this code will check if:
             // 1. The device locale (ex: en_US) exists in the locales list
             // 2. The shortened device locale (ex: en) exists in the locale list
             // If either exist (preferring the most specific) include the locale in the
             // the url as a query param.
             factory.configManager.config?.let { config ->
-                when {
-                    config.locales.contains(factory.deviceHelper.locale) -> {
+                if (config.locales.contains(factory.deviceHelper.locale)) {
+                    val localeQuery = URLQueryItem(
+                        name = "locale",
+                        value = factory.deviceHelper.locale
+                    )
+                    queryItems.add(localeQuery)
+                } else {
+                    val shortLocale = factory.deviceHelper.locale.split("_")[0]
+                    if (config.locales.contains(shortLocale)) {
                         val localeQuery = URLQueryItem(
                             name = "locale",
-                            value = factory.deviceHelper.locale
+                            value = shortLocale
                         )
                         queryItems.add(localeQuery)
                     }
-                    else -> {
-                        val shortLocale = factory.deviceHelper.locale.split("_")[0]
-                        if (config.locales.contains(shortLocale)) {
-                            val localeQuery = URLQueryItem(
-                                name = "locale",
-                                value = shortLocale
-                            )
-                            queryItems.add(localeQuery)
-                        }
-                    }
+                    return@let
                 }
             }
 
-            */
             val baseHost = factory.api.base.host
 
             return Endpoint(

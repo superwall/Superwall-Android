@@ -128,43 +128,57 @@ class IdentityManager(
     fun identify(userId: String, options: IdentityOptions? = null) {
         scope.launch {
             IdentityLogic.sanitize(userId)?.let { sanitizedUserId ->
-                mutex.withLock {
-                    if (_appUserId == sanitizedUserId) return@withLock
-
-                    identityFlow.emit(false)
-
-                    val oldUserId = _appUserId
-                    if (oldUserId != null && sanitizedUserId != oldUserId) {
-                        Superwall.instance.reset(duringIdentify = true)
+                mutex.lock()
+                if (_appUserId == sanitizedUserId || sanitizedUserId == "") {
+                    if (sanitizedUserId == "") {
+                        Logger.debug(
+                            logLevel = LogLevel.error,
+                            scope = LogScope.identityManager,
+                            message = "The provided userId was empty."
+                        )
                     }
+                    mutex.unlock()
+                    return@launch
+                }
 
-                    _appUserId = sanitizedUserId
+                identityFlow.emit(false)
 
-                    val config = configManager.configState.awaitFirstValidConfig()
+                val oldUserId = _appUserId
+                if (oldUserId != null && sanitizedUserId != oldUserId) {
+                    Superwall.instance.reset(duringIdentify = true)
+                }
 
-                    if (config?.featureFlags?.enableUserIdSeed == true) {
-                        sanitizedUserId.sha256MappedToRange()?.let { seed ->
-                            _seed = seed
-                        }
-                    }
+                _appUserId = sanitizedUserId
 
-                    saveIds()
+                // If we haven't gotten config yet, we need
+                // to leave this open to grab the appUserId for headers
+                mutex.unlock()
+                val config = configManager.configState.awaitFirstValidConfig()
+                mutex.lock()
 
-                    if (options?.restorePaywallAssignments == true) {
-                        configManager.getAssignments()
-                        didSetIdentity()
-                    } else {
-                        async {
-                            configManager.getAssignments()
-                            didSetIdentity()
-                        }
+                if (config?.featureFlags?.enableUserIdSeed == true) {
+                    sanitizedUserId.sha256MappedToRange()?.let { seed ->
+                        _seed = seed
                     }
                 }
-            } ?: Logger.debug(
-                logLevel = LogLevel.error,
-                scope = LogScope.identityManager,
-                message = "The provided userId was empty."
-            )
+
+                saveIds()
+
+                if (options?.restorePaywallAssignments == true) {
+                    mutex.unlock()
+                    configManager.getAssignments()
+                    mutex.lock()
+                    didSetIdentity()
+                } else {
+                    // This we don't have to worry about doing the lock & unlock
+                    // b/c we're not awaiting the deferral
+                    async {
+                        configManager.getAssignments()
+                        didSetIdentity()
+                    }
+                }
+                mutex.unlock()
+            }
         }
     }
 

@@ -2,6 +2,7 @@ package com.superwall.sdk.store
 
 import android.app.Activity
 import android.content.Context
+import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.SkuDetails
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
@@ -15,7 +16,6 @@ import com.superwall.sdk.paywall.presentation.internal.dismiss
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.vc.PaywallViewController
 import com.superwall.sdk.paywall.vc.delegate.PaywallLoadingState
-import com.superwall.sdk.store.transactions.GoogleBillingTransactionVerifier
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
@@ -26,7 +26,6 @@ class InternalPurchaseController(
 ): PurchaseController {
     val hasExternalPurchaseController: Boolean
         get() = kotlinPurchaseController != null || javaPurchaseController != null
-    val transactionVerifier = GoogleBillingTransactionVerifier(context)
 
     suspend fun tryToRestore(paywallViewController: PaywallViewController) {
         Logger.debug(
@@ -80,14 +79,19 @@ class InternalPurchaseController(
         }
     }
 
-    override suspend fun purchase(activity: Activity, product: SkuDetails): PurchaseResult {
+    override suspend fun purchase(
+        activity: Activity,
+        productDetails: ProductDetails,
+        basePlanId: String?,
+        offerId: String?
+    ): PurchaseResult {
         // TODO: Await beginPurchase with purchasing coordinator: https://linear.app/superwall/issue/SW-2415/[android]-implement-purchasingcoordinator
 
         if (kotlinPurchaseController != null) {
-            return kotlinPurchaseController.purchase(activity, product)
+            return kotlinPurchaseController.purchase(activity, productDetails, basePlanId, offerId)
         } else if (javaPurchaseController != null) {
             return suspendCoroutine { continuation ->
-                javaPurchaseController.purchase(product) { result ->
+                javaPurchaseController.purchase(productDetails, basePlanId, offerId) { result ->
                     continuation.resume(result)
                 }
             }
@@ -119,7 +123,7 @@ class InternalPurchaseController(
         if (kotlinPurchaseController != null) {
             return kotlinPurchaseController.restorePurchases()
         } else if (javaPurchaseController != null) {
-            return suspendCoroutine<RestorationResult> { continuation ->
+            return suspendCoroutine { continuation ->
                 javaPurchaseController.restorePurchases { result, error ->
                     if (error == null) {
                         continuation.resume(result)

@@ -19,7 +19,7 @@ plugins {
     id("maven-publish")
 }
 
-version = "1.0.0-alpha.19"
+version = "1.0.0-alpha.28"
 
 android {
     compileSdk = 33
@@ -73,7 +73,9 @@ android {
         jvmTarget = "1.8"
     }
 
-    testOptions { }
+    packagingOptions {
+        resources.excludes += "META-INF/LICENSE.md"
+    }
 
     publishing {
         singleVariant("release") {
@@ -131,6 +133,7 @@ dependencies {
     implementation("androidx.room:room-ktx:2.5.2")
     kapt("androidx.room:room-compiler:2.5.2")
 
+    implementation("org.threeten:threetenbp:1.6.8")
     // Billing
     implementation(libs.billing)
 
@@ -161,6 +164,7 @@ dependencies {
     // Test
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.mockk)
     // ??? Not sure if we need this
     // testImplementation("org.json:json:20210307")
 

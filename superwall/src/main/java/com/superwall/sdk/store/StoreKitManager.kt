@@ -91,9 +91,9 @@ class StoreKitManager(private val context: Context) : StoreKitManagerInterface {
 
 class StoreKitManager(
     private val context: Context,
-    val purchaseController: InternalPurchaseController
+    val purchaseController: InternalPurchaseController,
+    val productFetcher: GooglePlayProductsFetcher
 ) : ProductsFetcher {
-    private val productFetcher = GooglePlayProductsFetcher(context)
     private val receiptManager by lazy { ReceiptManager(delegate = this) }
 
     var productsById: MutableMap<String, StoreProduct> = mutableMapOf()
@@ -105,7 +105,7 @@ class StoreKitManager(
     )
 
     suspend fun getProductVariables(paywall: Paywall): List<ProductVariable> {
-        val output = getProducts(paywall.productIds, paywall.name)
+        val output = getProducts(paywall.productIds)
 
         val variables = paywall.products.mapNotNull { product ->
             output.productsById[product.id]?.let { storeProduct ->
@@ -121,7 +121,6 @@ class StoreKitManager(
 
     suspend fun getProducts(
         responseProductIds: List<String>,
-        paywallName: String? = null,
         responseProducts: List<Product> = emptyList(),
         substituteProducts: PaywallProducts? = null
     ): GetProductsResponse {
@@ -132,14 +131,13 @@ class StoreKitManager(
         )
 
         val products = products(
-            identifiers = processingResult.productIdsToLoad,
-            paywallName
+            identifiers = processingResult.productIdsToLoad
         )
 
         val productsById = processingResult.substituteProductsById.toMutableMap()
 
         for (product in products) {
-            val productIdentifier = product.productIdentifier
+            val productIdentifier = product.fullIdentifier
             productsById[productIdentifier] = product
             this.productsById[productIdentifier] = product
         }
@@ -157,7 +155,7 @@ class StoreKitManager(
         var products: MutableList<Product> = responseProducts.toMutableList()
 
         fun storeAndSubstitute(product: StoreProduct, type: ProductType, index: Int) {
-            val id = product.productIdentifier
+            val id = product.fullIdentifier
             substituteProductsById[id] = product
             this.productsById[id] = product
             val product = Product(type = type, id = id)
@@ -206,18 +204,11 @@ class StoreKitManager(
         receiptManager.loadPurchasedProducts()
     }
 
-    suspend fun isFreeTrialAvailable(product: StoreProduct): Boolean {
-        return receiptManager.isFreeTrialAvailable(product)
-    }
-
     override suspend fun products(
-        identifiers: Set<String>,
-        paywallName: String?
+        identifiers: Set<String>
     ): Set<StoreProduct> {
         return productFetcher.products(
-            identifiers = identifiers,
-            paywallName
+            identifiers = identifiers
         )
     }
 }
-

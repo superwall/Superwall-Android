@@ -6,6 +6,7 @@ import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.models.config.PreloadingDisabled
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.triggers.*
+import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.ExpressionEvaluating
 import java.util.*
 
 object ConfigLogic {
@@ -70,7 +71,7 @@ object ConfigLogic {
         throw TriggerRuleError.InvalidState
     }
 
-    fun getRulesPerTriggerGroup(triggers: Set<Trigger>): Set<List<TriggerRule>> {
+    fun getRulesPerCampaign(triggers: Set<Trigger>): Set<List<TriggerRule>> {
         val groupIds: MutableSet<String> = mutableSetOf()
         val groupedTriggerRules: MutableSet<List<TriggerRule>> = mutableSetOf()
         for (trigger in triggers) {
@@ -97,7 +98,7 @@ object ConfigLogic {
         var confirmedAssignments = confirmedAssignments.toMutableMap()
         var unconfirmedAssignments: MutableMap<ExperimentID, Experiment.Variant> = mutableMapOf()
 
-        val groupedTriggerRules = getRulesPerTriggerGroup(fromTriggers)
+        val groupedTriggerRules = getRulesPerCampaign(fromTriggers)
 
         for (ruleGroup in groupedTriggerRules) {
             for (rule in ruleGroup) {
@@ -209,30 +210,60 @@ object ConfigLogic {
         }
     }
 
-    fun getAllActiveTreatmentPaywallIds(
-        fromTriggers: Set<Trigger>,
-        confirmedAssignments: Map<ExperimentID, Experiment.Variant>,
-        unconfirmedAssignments: Map<ExperimentID, Experiment.Variant>
+    suspend fun getAllActiveTreatmentPaywallIds(
+        triggers: Set<Trigger>,
+        confirmedAssignments: Map<String, Experiment.Variant>,
+        unconfirmedAssignments: Map<String, Experiment.Variant>,
+        expressionEvaluator: ExpressionEvaluating
     ): Set<String> {
-        val triggers = fromTriggers
         var confirmedAssignments = confirmedAssignments.toMutableMap()
 
+        // Getting the set of experiment IDs from confirmed assignments
         val confirmedExperimentIds = confirmedAssignments.keys.toSet()
-        val groupedTriggerRules = getRulesPerTriggerGroup(triggers)
-        val triggerExperimentIds =
-            groupedTriggerRules.flatMap { it.map { rule -> rule.experiment.id } }.toSet()
-        val oldExperimentIds = confirmedExperimentIds - triggerExperimentIds
+        val triggerRulesPerCampaign = getRulesPerCampaign(triggers)
 
-        for (id in oldExperimentIds) {
+        // Initialize sets to keep track of all experiment IDs and the ones to be skipped
+        val allExperimentIds = mutableSetOf<String>()
+        val skippedExperimentIds = mutableSetOf<String>()
+
+        // Loop through all the rules and check their preloading behavior
+        triggerRulesPerCampaign.forEach { campaignRules ->
+            campaignRules.forEach { rule ->
+                allExperimentIds.add(rule.experiment.id)
+
+                // Check the preloading behavior of each rule
+                when (rule.preload.behavior) {
+                    TriggerPreloadBehavior.IF_TRUE -> {
+                        val outcome = expressionEvaluator.evaluateExpression(
+                            rule = rule,
+                            eventData = null
+                        )
+                        if (outcome is TriggerRuleOutcome.NoMatch) {
+                            skippedExperimentIds.add(rule.experiment.id)
+                        }
+                    }
+                    TriggerPreloadBehavior.ALWAYS -> {}
+                    TriggerPreloadBehavior.NEVER -> skippedExperimentIds.add(rule.experiment.id)
+                }
+            }
+        }
+
+        // Remove any confirmed experiment IDs that are no longer part of a trigger
+        val unusedExperimentIds = confirmedExperimentIds.subtract(allExperimentIds)
+        unusedExperimentIds.forEach { id ->
             confirmedAssignments.remove(id)
         }
 
-        val confirmedVariants = confirmedAssignments.values.toList()
-        val unconfirmedVariants = unconfirmedAssignments.values.toList()
-        val mergedVariants = confirmedVariants + unconfirmedVariants
-        val identifiers = mutableSetOf<String>()
+        // Combine confirmed and unconfirmed assignments, removing the skipped ones
+        val mergedAssignments = (confirmedAssignments + unconfirmedAssignments).toMutableMap()
+        skippedExperimentIds.forEach { id ->
+            mergedAssignments.remove(id)
+        }
+        val preloadableVariants = mergedAssignments.values
 
-        for (variant in mergedVariants) {
+        // Select only the variants that will result in a paywall
+        val identifiers = mutableSetOf<String>()
+        preloadableVariants.forEach { variant ->
             if (variant.type == Experiment.Variant.VariantType.TREATMENT && variant.paywallId != null) {
                 identifiers.add(variant.paywallId)
             }
@@ -248,7 +279,7 @@ object ConfigLogic {
     ): Set<String> {
         val triggers = forTriggers
         val mergedAssignments = confirmedAssignments + unconfirmedAssignments
-        val groupedTriggerRules = getRulesPerTriggerGroup(triggers)
+        val groupedTriggerRules = getRulesPerCampaign(triggers)
         val triggerExperimentIds = groupedTriggerRules.flatMap { it.map { it.experiment.id } }
 
         val identifiers = mutableSetOf<String>()

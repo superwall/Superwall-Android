@@ -365,7 +365,7 @@ class DeviceHelper(
         return output
     }
 
-    private suspend fun getTemplateDevice(): Map<String, Any> {
+    suspend fun getTemplateDevice(): Map<String, Any> {
         val identityInfo = factory.makeIdentityInfo()
         val aliases = listOf(identityInfo.aliasId)
 

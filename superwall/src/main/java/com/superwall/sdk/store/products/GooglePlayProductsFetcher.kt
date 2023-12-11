@@ -1,8 +1,9 @@
 package com.superwall.sdk.store.products
 
 import android.content.Context
-import android.util.Log
 import com.android.billingclient.api.*
+import com.superwall.sdk.billing.GoogleBillingWrapper
+import com.superwall.sdk.store.abstractions.product.OfferType
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.coordinator.ProductsFetcher
@@ -15,8 +16,42 @@ sealed class Result<T> {
     data class Waiting<T>(val startedAt: Int) : Result<T>()
 }
 
+private const val RECONNECT_TIMER_START_MILLISECONDS = 1L * 1000L
+private const val RECONNECT_TIMER_MAX_TIME_MILLISECONDS = 1000L * 60L * 15L // 15 minutes
 
-open class GooglePlayProductsFetcher(var context: Context) : ProductsFetcher,
+data class ProductIds(
+    val subscriptionId: String,
+    val basePlanId: String?,
+    val offerType: OfferType?,
+    val fullId: String
+) {
+    companion object {
+        fun from(productId: String): ProductIds {
+            val components = productId.split(":")
+            val subscriptionId = components.getOrNull(0) ?: ""
+            val basePlanId = components.getOrNull(1)
+            val offerId = components.getOrNull(2)
+            var offerType: OfferType? = null
+
+            if (offerId == "sw-auto") {
+                offerType = OfferType.Auto
+            } else if (offerId != null) {
+                offerType = OfferType.Offer(id = offerId)
+            }
+            return ProductIds(
+                subscriptionId = subscriptionId,
+                basePlanId = basePlanId,
+                offerType = offerType,
+                fullId = productId
+            )
+        }
+    }
+}
+
+open class GooglePlayProductsFetcher(
+    var context: Context,
+    var billingWrapper: GoogleBillingWrapper
+) : ProductsFetcher,
     PurchasesUpdatedListener {
 
     sealed class Result<T> {
@@ -26,95 +61,72 @@ open class GooglePlayProductsFetcher(var context: Context) : ProductsFetcher,
     }
 
 
-    private lateinit var billingClient: BillingClient
-    private val _isConnected = MutableStateFlow(false)
-    val isConnected = _isConnected.asStateFlow()
-
     // Create a map with product id to status
     private val _results = MutableStateFlow<Map<String, Result<RawStoreProduct>>>(emptyMap())
     val results: StateFlow<Map<String, Result<RawStoreProduct>>> = _results
+    var productIdsBySubscriptionId: MutableMap<String, ProductIds> = mutableMapOf()
 
     // Create a supervisor job
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    init {
-        billingClient = BillingClient.newBuilder(context)
-            .setListener(this)
-            .enablePendingPurchases()
-            .build()
-
-
-        scope.launch {
-            startConnection()
-        }
-    }
-
-
-    private suspend fun startConnection() {
-        billingClient.startConnection(object : BillingClientStateListener {
-            override fun onBillingSetupFinished(billingResult: BillingResult) {
-                Log.d(
-                    "!!!BillingController",
-                    "Billing client setup finished".plus(billingResult.responseCode)
-                )
-                if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                    // The billing client is ready. You can query purchases here.
-                    Log.d("!!!BillingController", "Billing client connected")
-                    _isConnected.value = true
-                } else {
-                    Log.d("!!!BillingController", "Billing client failed to connect")
-                }
-            }
-
-            override fun onBillingServiceDisconnected() {
-                Log.d("!!!BillingController", "Billing client service  disconnected...")
-                // Try to restart the connection if it was lost.
-
-                scope.launch {
-                    startConnection()
-                }
-            }
-        })
-    }
-
-
     protected fun request(productIds: List<String>) {
         scope.launch {
-
+            // Get the current results from _results value
             val currentResults = _results.value
-
             println("!!! Current results ${currentResults.size}")
 
-            var productIdsToLoad: List<String> = emptyList()
+            // Initialize a set to hold unique subscription IDs to be loaded
+            var subscriptionIdsToLoad: Set<String> = emptySet()
+
+            // Iterate through each product ID
             productIds.forEach { productId ->
+                // Check if the result for the current product ID is already available
                 val result = currentResults[productId]
                 println("Result for $productId is $result ${Thread.currentThread().name}")
+
+                // If the result is null, process the product ID
                 if (result == null) {
-                    productIdsToLoad = productIdsToLoad + productId
+                    // Parse the product ID into a ProductIds object
+                    val productIds = ProductIds.from(productId)
+                    // Map the subscription ID to its corresponding ProductIds object
+                    productIdsBySubscriptionId[productIds.subscriptionId] = productIds
+                    // Add the subscription ID to the set of IDs to load
+                    subscriptionIdsToLoad = subscriptionIdsToLoad + productIds.subscriptionId
                 }
             }
 
-            print("!!! Requesting ${productIdsToLoad.size} products")
+            println("!!! Requesting ${subscriptionIdsToLoad.size} products")
 
-            if (!productIdsToLoad.isEmpty()) {
+            // Check if there are any subscription IDs to load
+            if (subscriptionIdsToLoad.isNotEmpty()) {
+                // Emit a waiting result for each subscription ID to load
                 _results.emit(
-                    _results.value + productIdsToLoad.map {
-                        it to Result.Waiting(
-                            startedAt = System.currentTimeMillis().toInt()
-                        )
+                    _results.value + subscriptionIdsToLoad.associateWith {
+                        Result.Waiting(startedAt = System.currentTimeMillis().toInt())
                     }
                 )
 
-                println("!! Querying product details for ${productIdsToLoad.size} products, prodcuts: ${productIdsToLoad} ${Thread.currentThread().name}")
+                // Log the querying of product details
+                println("!! Querying product details for ${subscriptionIdsToLoad.size} products, products: ${subscriptionIdsToLoad} ${Thread.currentThread().name}")
+
+                // Perform the network request to get product details
                 val networkResult = runBlocking {
-                    queryProductDetails(productIdsToLoad)
+                    queryProductDetails(subscriptionIdsToLoad.toList())
                 }
                 println("!! networkResult: ${networkResult} ${Thread.currentThread().name}")
-                _results.emit(
-                    _results.value + networkResult.mapValues { it.value }
-                )
-            }
 
+                // Update the results with the network query results, mapped to full product IDs
+                val updatedResults = networkResult.entries.associate { (subscriptionId, result) ->
+                    // Retrieve the full product ID using the subscription ID
+                    val fullProductId = productIdsBySubscriptionId[subscriptionId]?.fullId ?: subscriptionId
+                    // Associate the full product ID with the query result
+                    println("!!!! ASSOCIATE $fullProductId")
+                    fullProductId to result
+                }
+
+                // Emit the updated results to _results
+                _results.emit(_results.value + updatedResults)
+            }
         }
     }
 
@@ -129,28 +141,53 @@ open class GooglePlayProductsFetcher(var context: Context) : ProductsFetcher,
         return _results.value.filterKeys { it in productIds }
     }
 
-
     open suspend fun queryProductDetails(productIds: List<String>): Map<String, Result<RawStoreProduct>> {
-        println("!! Waiting for connection ${Thread.currentThread().name}")
-        _isConnected.first { it }
-        println("!! Connected ${Thread.currentThread().name}")
+        if (productIds.isEmpty()) {
+            return emptyMap()
+        }
 
+        // Make sure we've tried to connect
         val deferredSubs = CompletableDeferred<Map<String, Result<RawStoreProduct>>>()
         val deferredInApp = CompletableDeferred<Map<String, Result<RawStoreProduct>>>()
 
-        val skuList = ArrayList(productIds)
+        val subsParams = QueryProductDetailsParams.newBuilder()
+            .setProductList(
+                productIds.map { productId ->
+                    QueryProductDetailsParams.Product.newBuilder()
+                        .setProductId(productId)
+                        .setProductType(BillingClient.ProductType.SUBS)
+                        .build()
+                }
+            )
+            .build()
 
-        val subsParams = SkuDetailsParams.newBuilder().setSkusList(skuList).setType(BillingClient.SkuType.SUBS)
-        val inAppParams = SkuDetailsParams.newBuilder().setSkusList(skuList).setType(BillingClient.SkuType.INAPP)
+        val inAppParams = QueryProductDetailsParams.newBuilder()
+            .setProductList(
+                productIds.map { productId ->
+                    QueryProductDetailsParams.Product.newBuilder()
+                        .setProductId(productId)
+                        .setProductType(BillingClient.ProductType.INAPP)
+                        .build()
+                }
+            )
+            .build()
 
         println("!! Querying subscription product details for ${productIds.size} products, products: ${productIds},  ${Thread.currentThread().name}")
-        billingClient.querySkuDetailsAsync(subsParams.build()) { billingResult, skuDetailsList ->
-            deferredSubs.complete(handleSkuDetailsResponse(productIds, billingResult, skuDetailsList))
+        billingWrapper.waitForConnectedClient {
+            queryProductDetailsAsync(subsParams) { billingResult, productDetailsList ->
+                val resultMap =
+                    handleProductDetailsResponse(productIds, billingResult, productDetailsList)
+                deferredSubs.complete(resultMap) // Or deferredInApp depending on the product type
+            }
         }
 
         println("!! Querying in-app product details for ${productIds.size} products, products: ${productIds},  ${Thread.currentThread().name}")
-        billingClient.querySkuDetailsAsync(inAppParams.build()) { billingResult, skuDetailsList ->
-            deferredInApp.complete(handleSkuDetailsResponse(productIds, billingResult, skuDetailsList))
+        billingWrapper.waitForConnectedClient {
+            queryProductDetailsAsync(inAppParams) { billingResult, productDetailsList ->
+                val resultMap =
+                    handleProductDetailsResponse(productIds, billingResult, productDetailsList)
+                deferredInApp.complete(resultMap) // Or deferredInApp depending on the product type
+            }
         }
 
         val subsResults = deferredSubs.await()
@@ -183,19 +220,28 @@ open class GooglePlayProductsFetcher(var context: Context) : ProductsFetcher,
         return combinedResults
     }
 
-    private fun handleSkuDetailsResponse(
+    private fun handleProductDetailsResponse(
         productIds: List<String>,
         billingResult: BillingResult,
-        skuDetailsList: List<SkuDetails>?
+        productDetailsList: List<ProductDetails>?
     ): Map<String, Result<RawStoreProduct>> {
-        println("!! Got product details for ${productIds.size} products, produtcs: ${productIds}, billingResult: ${billingResult}, skuDetailsList: ${skuDetailsList}  ${Thread.currentThread().name}\"")
+        println("!! Got product details for ${productIds.size} products, products: ${productIds}, billingResult: ${billingResult}, productDetailsList: ${productDetailsList}  ${Thread.currentThread().name}\"")
 
-        if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && skuDetailsList != null) {
-            var foundProducts = skuDetailsList.map { it.sku }
-            var missingProducts = productIds.filter { !foundProducts.contains(it) }
-
-            var results = skuDetailsList.associateBy { it.sku }
-                .mapValues { Result.Success(RawStoreProduct(it.value)) }
+        if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && productDetailsList != null) {
+            val foundProducts = productDetailsList.map { it.productId }
+            val missingProducts = productIds.filter { !foundProducts.contains(it) }
+            val results = productDetailsList.associateBy { it.productId }
+                .mapValues { (_, productDetails) ->
+                    val productIds = productIdsBySubscriptionId[productDetails.productId]
+                    Result.Success(
+                        RawStoreProduct(
+                            underlyingProductDetails = productDetails,
+                            fullIdentifier = productIds?.fullId ?: "",
+                            basePlanId = productIds?.basePlanId,
+                            offerType = productIds?.offerType
+                         )
+                    )
+                }
                 .toMutableMap() as MutableMap<String, Result<RawStoreProduct>>
 
             missingProducts.forEach { missingProductId ->
@@ -215,8 +261,7 @@ open class GooglePlayProductsFetcher(var context: Context) : ProductsFetcher,
 
 
     override suspend fun products(
-        identifiers: Set<String>,
-        paywallName: String?
+        identifiers: Set<String>
     ): Set<StoreProduct> {
         val productResults = _products(identifiers.toList())
         return productResults.values.mapNotNull {
@@ -226,43 +271,4 @@ open class GooglePlayProductsFetcher(var context: Context) : ProductsFetcher,
             }
         }.toSet()
     }
-//
-//    suspend fun products(
-//        identifiers: Set<String>,
-//        forPaywall: String?
-//    ): Set<StoreProduct>  {
-//
-//
-//
-//        // Make sure it's connected before we do anything
-//        Log.d("!!!BillingController", "Waiting for connection...")
-//        isConnected.filter { it }.first()
-//        Log.d("!!!BillingController", "Connected!")
-//
-//        return suspendCancellableCoroutine { cancellableContinuation ->
-//
-//
-//
-//            val params = SkuDetailsParams.newBuilder()
-//                .setSkusList(identifiers.toList())
-//                .setType(BillingClient.SkuType.SUBS)
-//                .build()
-//
-//            billingClient.querySkuDetailsAsync(params) { billingResult, skuDetailsList ->
-//                // Process the result.
-//                Log.d("!!!BillingController", "Got sku details: $skuDetailsList")
-//                if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-//
-//                    cancellableContinuation.resume()
-//                } else {
-//                    cancellableContinuation.resumeWithException(Exception("Failed to get sku details"))
-//                }
-//            }
-//
-//        }
-//    }
-//
-//    override fun onPurchasesUpdated(p0: BillingResult, p1: MutableList<Purchase>?) {
-//        TODO("Not yet implemented")
-//    }
 }

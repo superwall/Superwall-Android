@@ -1,7 +1,7 @@
 package com.superwall.sdk.contrib.threeteen
 
+import org.threeten.bp.Period
 import java.time.Duration
-import java.time.Period
 import java.time.format.DateTimeParseException
 import java.util.*
 import java.util.function.Function

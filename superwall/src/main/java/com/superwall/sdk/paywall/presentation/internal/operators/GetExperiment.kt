@@ -10,6 +10,7 @@ import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallSkippedReason
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.paywall.presentation.rule_logic.RuleEvaluationOutcome
+import com.superwall.sdk.storage.Storage
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -32,6 +33,7 @@ suspend fun Superwall.getExperiment(
     rulesOutcome: RuleEvaluationOutcome,
     debugInfo: Map<String, Any>,
     paywallStatePublisher: MutableSharedFlow<PaywallState>? = null,
+    storage: Storage
 ): Experiment {
     val errorType: PresentationPipelineError
 
@@ -41,6 +43,9 @@ suspend fun Superwall.getExperiment(
         }
         is InternalTriggerResult.Holdout -> {
             activateSession(request, rulesOutcome)
+            rulesOutcome.unsavedOccurrence?.let {
+                storage.coreDataManager.save(triggerRuleOccurrence = it)
+            }
             errorType = PaywallPresentationRequestStatusReason.Holdout(rulesOutcome.triggerResult.experiment)
             paywallStatePublisher?.emit(PaywallState.Skipped(PaywallSkippedReason.Holdout(rulesOutcome.triggerResult.experiment)))
         }

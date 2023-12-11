@@ -1,5 +1,6 @@
 package com.superwall.sdk.delegate.subscription_controller
 
+import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.SkuDetails
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
@@ -24,15 +25,18 @@ interface PurchaseControllerJava {
      * Add your purchase logic here and call the completion lambda with the result. You can use Google's Play Billing APIs,
      * or if you use RevenueCat, you can call `Purchases.instance.purchase(product)`.
      * - Parameters:
-     *   - product: The `SKProduct` the user would like to purchase.
-     *   - completion: A lambda the accepts a `PurchaseResultJava` object and an optional `Throwable`.
+     *   @param productDetails The `ProductDetails` the user would like to purchase.
+     *   @param basePlanId An optional base plan identifier of the product that's being purchased.
+     *   @param offerId An optional offer identifier of the product that's being purchased.
      *   Call this with the result of your purchase logic. When you pass a `.failed` result, make sure you also pass
      *   the error.
      *    **Note:** Make sure you handle all cases of `PurchaseResultJava`.
      */
     fun purchase(
-            product: SkuDetails,
-            completion: (PurchaseResult) -> Unit
+        productDetails: ProductDetails,
+        basePlanId: String?,
+        offerId: String?,
+        completion: (PurchaseResult) -> Unit
     )
 
     /**

@@ -14,6 +14,10 @@ class StorageFactoryMock : Storage.Factory {
         return true
     }
 
+    override suspend fun makeSessionDeviceAttributes(): HashMap<String, Any> {
+        return hashMapOf()
+    }
+
     override fun makeHasExternalPurchaseController(): Boolean {
         return true
     }

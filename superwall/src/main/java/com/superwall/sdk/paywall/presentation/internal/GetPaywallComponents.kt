@@ -45,7 +45,7 @@ suspend fun Superwall.getPaywallComponents(
 
     confirmHoldoutAssignment(request = request, rulesOutcome = rulesOutcome)
 
-    val paywallViewController = getPaywallViewController(request, rulesOutcome, debugInfo, publisher)
+    val paywallViewController = getPaywallViewController(request, rulesOutcome, debugInfo, publisher, dependencyContainer)
 
     val presenter = getPresenterIfNecessary(paywallViewController, rulesOutcome, request, publisher)
 

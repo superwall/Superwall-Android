@@ -70,20 +70,6 @@ class ReceiptManager(
         return@coroutineScope emptySet()
     }
 
-    fun isFreeTrialAvailable(product: StoreProduct): Boolean {
-//        if (!product.hasFreeTrial) {
-//            return false
-//        }
-//        return if (product.subscriptionGroupIdentifier != null && purchasedSubscriptionGroupIds != null) {
-//            !purchasedSubscriptionGroupIds!!.contains(product.subscriptionGroupIdentifier)
-//        } else {
-//            !hasPurchasedProduct(product.productIdentifier)
-//        }
-        // SW-2218
-        // https://linear.app/superwall/issue/SW-2218/%5Bandroid%5D-%5Bv0%5D-replace-receipt-validation-with-google-play-billing
-        return true
-    }
-
     suspend fun refreshReceipt() {
         Logger.debug(
             logLevel = LogLevel.debug,
