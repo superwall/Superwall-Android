@@ -118,7 +118,7 @@ class Superwall(
     companion object {
         var initialized: Boolean = false
 
-        val _hasInitialized = MutableStateFlow<Boolean>(false)
+        private val _hasInitialized = MutableStateFlow<Boolean>(false)
 
         // A flow that emits just once only when `hasInitialized` is non-`nil`.
         val hasInitialized: Flow<Boolean> = _hasInitialized

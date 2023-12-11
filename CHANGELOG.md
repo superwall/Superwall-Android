@@ -2,6 +2,14 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall-me/Superwall-Android/releases) on GitHub.
 
+## 1.0.0-alpha.28
+
+### Fixes
+
+- SW-2615: Fixes crash on Android versions <8 when accessing the Android 8+ only class Period.
+- SW-2616: Fixes crash where the `PaywallViewController` was sometimes being added to a new parent view before
+being removed from it's existing parent view.
+
 ## 1.0.0-alpha.27
 
 ### Breaking Changes
