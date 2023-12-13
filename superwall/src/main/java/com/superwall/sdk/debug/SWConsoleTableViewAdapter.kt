@@ -5,6 +5,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import com.superwall.sdk.R
 
 class TableViewAdapter(
     private var data: MutableList<Map.Entry<String, String>>,
@@ -24,7 +25,7 @@ class TableViewAdapter(
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        val view = LayoutInflater.from(parent.context).inflate(android.R.layout.simple_list_item_2, parent, false)
+        val view = LayoutInflater.from(parent.context).inflate(R.layout.custom_list_item, parent, false)
         return ViewHolder(view)
     }
 
@@ -46,7 +47,7 @@ class TableViewAdapter(
     override fun getItemCount() = data.size
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        var text1: TextView = view.findViewById(android.R.id.text1)
-        var text2: TextView = view.findViewById(android.R.id.text2)
+        var text1: TextView = view.findViewById(R.id.text1)
+        var text2: TextView = view.findViewById(R.id.text2)
     }
 }

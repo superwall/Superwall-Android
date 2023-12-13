@@ -4,6 +4,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.superwall.sdk.R
 
@@ -33,6 +34,10 @@ class LocalizationAdapter(
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val titleTextView: TextView = itemView.findViewById(R.id.title_text_view)
         private val localeRecyclerView: RecyclerView = itemView.findViewById(R.id.locale_recycler_view)
+
+        init {
+            localeRecyclerView.layoutManager = LinearLayoutManager(itemView.context)
+        }
 
         fun bind(grouping: LocalizationGrouping, onLocaleSelected: (String) -> Unit) {
             titleTextView.text = grouping.title

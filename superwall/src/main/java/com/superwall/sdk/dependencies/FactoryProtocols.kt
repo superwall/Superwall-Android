@@ -167,7 +167,10 @@ interface VariablesFactory {
 }
 
 interface ConfigManagerFactory {
-    fun makeStaticPaywall(paywallId: String?): Paywall?
+    fun makeStaticPaywall(
+        paywallId: String?,
+        isDebuggerLaunched: Boolean
+    ): Paywall?
 }
 
 //interface ProductPurchaserFactory {

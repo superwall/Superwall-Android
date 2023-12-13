@@ -184,32 +184,6 @@ data class Endpoint<Response : SerializableEntity>(
             )
         }
 
-//        fun paywall(
-//            identifier: String? = null,
-//            event: EventData? = null,
-//            factory: ApiFactory
-//        ): Endpoint<Paywall> {
-//            var bodyData: String? = null
-//
-//            return when {
-//                identifier != null -> {
-//                    paywallByIdentifier(identifier, factory)
-//                }
-//                event != null -> {
-//                    val bodyDict = mapOf("event" to event.jsonData)
-//                    val json = Json { encodeDefaults = true }
-//                    bodyData = json.encodeToString(bodyDict).toSnakeCase()
-//                    createEndpointWithBodyData(bodyData, factory)
-//                }
-//                else -> {
-//                    val body = PaywallRequestBody(appUserId = factory.identityManager.userId)
-//                    val json = Json { encodeDefaults = true }
-//                    bodyData = json.encodeToString(body).toSnakeCase()
-//                    createEndpointWithBodyData(bodyData, factory)
-//                }
-//            }
-//        }
-
         fun paywalls(factory: ApiFactory): Endpoint<Paywalls> {
             val baseHost = factory.api.base.host
             return Endpoint(
@@ -239,27 +213,6 @@ data class Endpoint<Response : SerializableEntity>(
                 }
             }
         }
-//                    event != null -> {
-//                        val bodyDict = mapOf("event" to event.jsonData)
-//                        JSONEncoder.toSnakeCase.encode(bodyDict)
-//                    }
-//                    else -> {
-//                        val body = PaywallRequestBody(appUserId = factory.identityManager.userId)
-//                        JSONEncoder.toSnakeCase.encode(body)
-//                    }
-//                }
-//                val baseHost = factory.api.base.host
-//
-//                return Endpoint(
-//                    components = Components(
-//                        host = baseHost,
-//                        path = Api.version1 + "paywall",
-//                        bodyData = bodyData
-//                    ),
-//                    method = HttpMethod.POST,
-//                    factory = factory
-//                )
-//            }
 
         private fun paywall(
             identifier: String,

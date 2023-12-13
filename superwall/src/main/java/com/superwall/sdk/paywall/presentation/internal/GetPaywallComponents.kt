@@ -2,6 +2,7 @@ package com.superwall.sdk.paywall.presentation.internal
 
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.paywall.presentation.get_paywall.PaywallComponents
+import com.superwall.sdk.paywall.presentation.internal.operators.checkDebuggerPresentation
 import com.superwall.sdk.paywall.presentation.internal.operators.checkUserSubscription
 import com.superwall.sdk.paywall.presentation.internal.operators.confirmHoldoutAssignment
 import com.superwall.sdk.paywall.presentation.internal.operators.confirmPaywallAssignment
@@ -32,8 +33,7 @@ suspend fun Superwall.getPaywallComponents(
 //    val debugInfo = logPresentation(request)
     val debugInfo = emptyMap<String, Any>()
 
-    // TODO:
-//        checkDebuggerPresentation(request, publisher)
+    checkDebuggerPresentation(request, publisher)
 
     val rulesOutcome = evaluateRules(request)
 

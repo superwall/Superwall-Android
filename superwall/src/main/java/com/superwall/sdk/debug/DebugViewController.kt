@@ -64,6 +64,7 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import com.superwall.sdk.debug.localizations.SWLocalizationActivity
+import kotlinx.coroutines.withContext
 
 interface AppCompatActivityEncapsulatable {
     var encapsulatingActivity: AppCompatActivity?
@@ -281,9 +282,9 @@ class DebugViewController(
             id = View.generateViewId()
             // shouldAnimateLightly = true
             isFocusable = true // Depending on the view's properties, you might need to set focusability
-            layoutParams = ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, // or any specific size you want
-                ViewGroup.LayoutParams.WRAP_CONTENT
+            layoutParams = LayoutParams(
+                LayoutParams.MATCH_CONSTRAINT,
+                LayoutParams.MATCH_CONSTRAINT
             )
             setOnClickListener { pressedPreview() }
         }
@@ -297,9 +298,9 @@ class DebugViewController(
         }
     }
 
-    fun viewDidDisappear() {
+    fun viewDestroyed() {
         paywallManager.resetCache()
-        //debugManager.isDebuggerLaunched = false
+        debugManager.isDebuggerLaunched = false
         Superwall.instance.options.localeIdentifier = initialLocaleIdentifier
     }
 
@@ -312,8 +313,9 @@ class DebugViewController(
         addView(consoleButton, layoutParams)
         addView(exitButton, layoutParams)
         addView(bottomButton, layoutParams)
-        addView(previewPickerButton, layoutParams)
         addView(previewContainerView, layoutParams)
+        addView(previewPickerButton, layoutParams)
+        previewContainerView.clipToOutline = false
 
         // Setting background color
         setBackgroundColor(lightBackgroundColor)
@@ -327,9 +329,10 @@ class DebugViewController(
         constraintSet.connect(previewContainerView.id, ConstraintSet.END, ConstraintSet.PARENT_ID, ConstraintSet.END)
         constraintSet.connect(previewContainerView.id, ConstraintSet.TOP, logoImageView.id, ConstraintSet.BOTTOM, 25)
         constraintSet.connect(previewContainerView.id, ConstraintSet.BOTTOM, bottomButton.id, ConstraintSet.TOP, 30)
+        constraintSet.constrainHeight(previewContainerView.id, 0)
 
         // Constraints for logoImageView (Centered horizontally at the top)
-        constraintSet.constrainWidth(logoImageView.id, ConstraintSet.WRAP_CONTENT)
+        constraintSet.constrainWidth(logoImageView.id, ConstraintSet.MATCH_CONSTRAINT)
         constraintSet.constrainHeight(logoImageView.id, 80)
         constraintSet.connect(logoImageView.id, ConstraintSet.TOP, ConstraintSet.PARENT_ID, ConstraintSet.TOP, 80)
         constraintSet.connect(logoImageView.id, ConstraintSet.START, consoleButton.id, ConstraintSet.END)
@@ -351,7 +354,6 @@ class DebugViewController(
         constraintSet.connect(activityIndicator.id, ConstraintSet.TOP, previewContainerView.id, ConstraintSet.TOP)
         constraintSet.connect(activityIndicator.id, ConstraintSet.BOTTOM, previewContainerView.id, ConstraintSet.BOTTOM)
 
-
         // Constraints for bottomButton
         constraintSet.connect(bottomButton.id, ConstraintSet.START, ConstraintSet.PARENT_ID, ConstraintSet.START, 80)
         constraintSet.connect(bottomButton.id, ConstraintSet.END, ConstraintSet.PARENT_ID, ConstraintSet.END, 80)
@@ -369,9 +371,12 @@ class DebugViewController(
     }
 
     suspend fun loadPreview() {
-        activityIndicator.visibility = View.VISIBLE
-        previewViewContent?.let { view ->
-            (view.parent as? ViewGroup)?.removeView(view)
+        withContext(Dispatchers.Main) {
+            activityIndicator.visibility = View.VISIBLE
+
+            previewViewContent?.let { view ->
+                (view.parent as? ViewGroup)?.removeView(view)
+            }
         }
 
         if (paywalls.isEmpty()) {
@@ -413,9 +418,11 @@ class DebugViewController(
             paywall.productVariables = productVariables
 
             this.paywall = paywall
-            previewTextView.text = paywall.name
-          //  activityIndicator.stopAnimating()
-            addPaywallPreview()
+            withContext(Dispatchers.Main) {
+                previewTextView.text = paywall.name
+                activityIndicator.visibility = View.INVISIBLE
+                addPaywallPreview()
+            }
         } catch (error: Throwable) {
             Logger.debug(
                 logLevel = LogLevel.error,
@@ -427,7 +434,6 @@ class DebugViewController(
     }
 
     suspend fun addPaywallPreview() {
-        // TODO: Change this
         val paywall = paywall ?: return
 
         val paywallVc = factory.makePaywallViewController(
@@ -439,12 +445,13 @@ class DebugViewController(
         previewViewContent = paywallVc
 
         paywallVc.apply {
-            layoutParams = ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
+            layoutParams = LayoutParams(
+                LayoutParams.MATCH_PARENT,
+                LayoutParams.MATCH_PARENT
             )
-            isEnabled = false
         }
+
+        paywallVc.interceptTouchEvents = true
 
         val constraints = ConstraintSet().apply {
             clone(previewContainerView)
@@ -457,14 +464,15 @@ class DebugViewController(
 
         paywallVc.apply {
             clipToOutline = true
-            background = ColorDrawable(Color.WHITE)
-            outlineProvider = object : ViewOutlineProvider() {
-                override fun getOutline(view: View?, outline: Outline?) {
-                    outline?.setRoundRect(0, 0, view!!.width, view.height, 52f)
-                }
-            }
             alpha = 0.0f
         }
+        val borderDrawable = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            setColor(Color.WHITE) // Background color
+            cornerRadius = 52f // Corner radius
+            setStroke(2, Color.WHITE) // Border width and color
+        }
+        paywallVc.background = borderDrawable
 
         val ratio = previewContainerView.height.toFloat() / rootView.height.toFloat()
 
@@ -504,11 +512,10 @@ class DebugViewController(
         }
 
         presentAlert(
-            title = null,
-            message = "Your Paywalls",
+            title = "Your Paywalls",
+            message = null,
             options = options
         )
-
     }
 
     private fun pressedExitButton() {
@@ -529,12 +536,12 @@ class DebugViewController(
         } catch (e: PackageManager.NameNotFoundException) {}
         val version = BuildConfig.SDK_VERSION
 
-        val message = "Superwall v$version | App v$releaseVersionNumber ($versionCode)"
+        val title = "Superwall v$version | App v$releaseVersionNumber ($versionCode)"
 
         // Assuming you have a showOptionsAlert function
         presentAlert(
-            title = null,
-            message = message,
+            title = title,
+            message = null,
             options = listOf(
                 AlertOption("Localization", ::showLocalizationPicker),
                 AlertOption("Templates", ::showConsole)
@@ -554,19 +561,16 @@ class DebugViewController(
         }
 
         val (productsById, _) = storeKitManager.getProducts(
-            responseProductIds = paywall.productIds,
-            paywallName = paywall.name
+            responseProductIds = paywall.productIds
         )
         val products = paywall.productIds.mapNotNull { productsById[it] }
+        SWConsoleActivity.products = products
+        val activity = encapsulatingActivity.let { it } ?: return
 
-        val intent = Intent(context, SWConsoleActivity::class.java).apply {
-            putExtra(
-                "products",
-                ArrayList(products)
-            )
+        val intent = Intent(activity, SWConsoleActivity::class.java).apply {
             putExtra("PARENT_ACTIVITY", this::class.java.simpleName)
         }
-        context.startActivity(intent)
+        activity.startActivity(intent)
     }
 
     private fun showLocalizationPicker() {
@@ -575,14 +579,15 @@ class DebugViewController(
             // Handle the locale identifier
             Superwall.instance.options.localeIdentifier = locale
             // Continue with any other operations after locale selection
-            CoroutineScope(Dispatchers.Main).launch {
+            CoroutineScope(Dispatchers.IO).launch {
                 loadPreview()
             }
         }
+        val activity = encapsulatingActivity.let { it } ?: return
 
         // Start the localization activity
-        val intent = Intent(context, SWLocalizationActivity::class.java)
-        context.startActivity(intent)
+        val intent = Intent(activity, SWLocalizationActivity::class.java)
+        activity.startActivity(intent)
     }
 
     fun pressedBottomButton() {
@@ -606,7 +611,9 @@ class DebugViewController(
         message: String?,
         options: List<AlertOption> = emptyList()
     ) {
-        val builder = AlertDialog.Builder(context)
+        val activity = encapsulatingActivity.let { it } ?: return
+
+        val builder = AlertDialog.Builder(activity)
         builder.setTitle(title)
         builder.setMessage(message)
 
@@ -778,14 +785,16 @@ internal class DebugViewControllerActivity : AppCompatActivity() {
         val debugViewController = contentView as? DebugViewController ?: return
 
         debugViewController.isActive = false
-
-        CoroutineScope(Dispatchers.IO).launch {
-            debugViewController.viewDidDisappear()
-        }
     }
 
     override fun onDestroy() {
         super.onDestroy()
+
+        val debugViewController = contentView as? DebugViewController ?: return
+
+        CoroutineScope(Dispatchers.IO).launch {
+            debugViewController.viewDestroyed()
+        }
 
         // Clear reference to activity in the view
         (contentView as? ActivityEncapsulatable)?.encapsulatingActivity = null

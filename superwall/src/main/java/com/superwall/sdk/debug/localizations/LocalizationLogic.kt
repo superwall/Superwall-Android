@@ -8,21 +8,24 @@ object LocalizationLogic {
         popularLocales: List<String>
     ): List<LocalizationOption> {
         val localizations = mutableListOf<LocalizationOption>()
-        // TODO: Will this have an issue?:
-        val currentLocale = Locale.getDefault()
 
         for (localeId in localeIds) {
             // Get language
-            val localizedLanguage = currentLocale.getDisplayLanguage(Locale(localeId)) ?: continue
-
-            // Get country
+            var localizedLanguage = ""
             val locale = Locale(localeId)
             val localeIdComponents = localeId.split("_")
+
+            when {
+                locale.displayLanguage.isNotEmpty() -> localizedLanguage = locale.displayLanguage
+                localeIdComponents.size > 1 -> localizedLanguage = Locale("", localeIdComponents.first()).displayLanguage
+            }
+
+            // Get country
             var country: String? = null
 
             when {
-                locale.country.isNotEmpty() -> country = currentLocale.getDisplayCountry(locale)
-                localeIdComponents.size > 1 -> country = currentLocale.getDisplayCountry(Locale("", localeIdComponents.last()))
+                locale.displayCountry.isNotEmpty() -> country = locale.displayCountry
+                localeIdComponents.size > 1 -> country = Locale("", localeIdComponents.last()).displayCountry
             }
 
             val localizationOption = LocalizationOption(

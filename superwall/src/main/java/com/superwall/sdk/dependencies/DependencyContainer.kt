@@ -365,9 +365,7 @@ class DependencyContainer(
             presenter = presenter,
             paywallOverrides = paywallOverrides,
             flags = PresentationRequest.Flags(
-                // TODO: (PresentationCritical) debug manager
-//                isDebuggerLaunched = isDebuggerLaunched ?: debugManager.isDebuggerLaunched,
-                isDebuggerLaunched = isDebuggerLaunched ?: false,
+                isDebuggerLaunched = isDebuggerLaunched ?: debugManager.isDebuggerLaunched,
                 // TODO: (PresentationCritical) Fix subscription status
                 subscriptionStatus = subscriptionStatus ?: Superwall.instance.subscriptionStatus,
 //                subscriptionStatus = subscriptionStatus!!,
@@ -391,7 +389,13 @@ class DependencyContainer(
         return sessionEventsManager.triggerSession
     }
 
-    override fun makeStaticPaywall(paywallId: String?): Paywall? {
+    override fun makeStaticPaywall(
+        paywallId: String?,
+        isDebuggerLaunched: Boolean
+    ): Paywall? {
+        if (isDebuggerLaunched) {
+            return null
+        }
         val deviceInfo = makeDeviceInfo()
         return ConfigLogic.getStaticPaywall(
             withId = paywallId,

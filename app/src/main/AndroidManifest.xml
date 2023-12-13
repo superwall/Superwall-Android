@@ -53,5 +53,10 @@
         </activity>
         <activity android:name="com.superwall.sdk.debug.DebugViewControllerActivity">
         </activity>
+        <activity android:name="com.superwall.sdk.debug.localizations.SWLocalizationActivity">
+        </activity>
+        <activity android:name="com.superwall.sdk.debug.SWConsoleActivity">
+        </activity>
+
     </application>
 </manifest>

@@ -1,9 +1,14 @@
 package com.superwall.sdk.debug
 
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
+import android.view.Menu
+import android.view.MenuItem
 import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
+import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.RecyclerView
 import com.superwall.sdk.store.abstractions.product.StoreProduct
@@ -16,22 +21,24 @@ class SWConsoleActivity : AppCompatActivity() {
     private lateinit var tableView: RecyclerView
     private lateinit var productAdapter: ArrayAdapter<String>
     private lateinit var tableViewAdapter: TableViewAdapter
-    private var products: List<StoreProduct> = listOf()
+
+    companion object {
+        var products: List<StoreProduct> = listOf()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_console)
+        supportActionBar?.title = "Template Variables"
+        supportActionBar?.setBackgroundDrawable(ColorDrawable(Color.BLACK))
 
         productPicker = findViewById(R.id.productPicker)
         tableView = findViewById(R.id.console_recycler_view) // Replace with your actual RecyclerView ID
 
-        products = intent.getSerializableExtra("products") as? List<StoreProduct>
-            ?: throw IllegalArgumentException("Products not provided")
-
         // Set up the Spinner with the product names or identifiers
         productAdapter = ArrayAdapter(
             this,
-            android.R.layout.simple_spinner_item,
+            R.layout.spinner_item,
             products.map { it.productIdentifier }
         )
         productAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
@@ -49,6 +56,21 @@ class SWConsoleActivity : AppCompatActivity() {
 
         // Set up the RecyclerView to display the attributes of the selected product
         setupTableView()
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.menu_console, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.action_done -> {
+                finish() // Close the activity
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
     }
 
     private fun setupTableView() {

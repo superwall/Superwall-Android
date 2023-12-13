@@ -37,7 +37,8 @@ class SWLocalizationActivity : AppCompatActivity(), SearchView.OnQueryTextListen
 
     private fun setupRecyclerView() {
         adapter = LocalizationAdapter(rowModels) { locale ->
-            completion(locale)
+            finish()
+            completion?.invoke(locale)
         }
 
         recyclerView.layoutManager = LinearLayoutManager(this)
