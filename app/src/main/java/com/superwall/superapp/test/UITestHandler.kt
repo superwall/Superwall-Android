@@ -1405,5 +1405,15 @@ class UITestHandler {
 
             Superwall.instance.register(event = "non_recurring_product")
         }
+
+        var testAndroid21Info = UITestInfo(
+            21,
+            "Tap launch button. Paywall should display. Tests that paywalls with products " +
+                    "that have base plans and offerIds works.",
+            testCaseType = TestCaseType.Android
+        )
+        suspend fun testAndroid21() {
+            Superwall.instance.register(event = "subs_baseplan_offer_with_free_trial")
+        }
     }
 }
