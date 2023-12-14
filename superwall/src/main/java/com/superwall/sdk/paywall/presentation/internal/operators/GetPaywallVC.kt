@@ -79,7 +79,7 @@ internal suspend fun Superwall.getPaywallViewController(
     }
 }
 
-private suspend fun Superwall.presentationFailure(
+private suspend fun presentationFailure(
     error: Exception,
     request: PresentationRequest,
     debugInfo: Map<String, Any>,

@@ -89,7 +89,10 @@ class DeviceHelper(
         }
 
     val locale: String
-        get() = Locale.getDefault().toString()
+        get() {
+            val localeIdentifier = factory.makeLocaleIdentifier()
+            return localeIdentifier ?: Locale.getDefault().toString()
+        }
 
     val appVersion: String
         get() = try {

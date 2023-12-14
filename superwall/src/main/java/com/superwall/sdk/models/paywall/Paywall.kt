@@ -21,7 +21,7 @@ import java.util.*
 import android.graphics.Color
 
 @Serializable
-data class Paywalls(val paywalls: List<Paywall>)
+data class Paywalls(val paywalls: List<Paywall>): SerializableEntity
 
 @Serializable
 data class Paywall(

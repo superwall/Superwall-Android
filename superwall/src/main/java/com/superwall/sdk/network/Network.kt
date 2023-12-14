@@ -12,6 +12,7 @@ import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.events.EventsRequest
 import com.superwall.sdk.models.events.EventsResponse
 import com.superwall.sdk.models.paywall.Paywall
+import com.superwall.sdk.models.paywall.Paywalls
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
 import java.util.*
 
@@ -152,7 +153,24 @@ open class Network(
         }
     }
 
-    open suspend fun getAssignments(): List<Assignment> {
+    suspend fun getPaywalls(): List<Paywall> {
+        return try {
+            val paywalls = urlSession.request(
+                Endpoint.paywalls(factory = factory)
+            )
+            return paywalls.paywalls
+        } catch (error: Throwable) {
+            Logger.debug(
+                logLevel = LogLevel.error,
+                scope = LogScope.network,
+                message = "Request Failed: /paywalls",
+                error = error
+            )
+            throw error
+        }
+    }
+
+    suspend fun getAssignments(): List<Assignment> {
         return try {
             val result = urlSession.request(
                 Endpoint.assignments(factory = factory)

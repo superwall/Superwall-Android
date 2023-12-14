@@ -11,6 +11,7 @@ import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
@@ -119,6 +120,8 @@ class PaywallViewController(
     /// Defines when Safari is presenting in app.
     internal var isSafariVCPresented = false
 
+    internal var interceptTouchEvents = false
+
     /// Whether the survey was shown, not shown, or in a holdout. Defaults to not shown.
     private var surveyPresentationResult: SurveyPresentationResult = SurveyPresentationResult.NOSHOW
 
@@ -142,11 +145,10 @@ class PaywallViewController(
 
     /// Determines whether the paywall is presented or not.
     override val isActive: Boolean
-        get() = isPresented || isBeingPresented
+        get() = isPresented
 
     /// Defines whether the view controller is being presented or not.
     private var isPresented = false
-    private var isBeingPresented = false
     private var presentationWillPrepare = true
     private var presentationDidFinishPrepare = false
 
@@ -174,6 +176,9 @@ class PaywallViewController(
     init {
         // Add the webView
         addView(webView)
+
+
+        id = View.generateViewId()
 
         // Add the shimmer view and hide it
         val backgroundColor = paywall.backgroundColor
@@ -244,6 +249,10 @@ class PaywallViewController(
         }
         shimmerView.checkForOrientationChanges()
         presentationWillBegin()
+    }
+
+    override fun onInterceptTouchEvent(ev: MotionEvent?): Boolean {
+        return interceptTouchEvents
     }
 
     private fun presentationWillBegin() {
@@ -400,7 +409,7 @@ class PaywallViewController(
         super.onAttachedToWindow()
 
         // Assert if no `request`
-        fatalAssert(request != null, "Must be presenting a PaywallViewController with a `request` instance.")
+       // fatalAssert(request != null, "Must be presenting a PaywallViewController with a `request` instance.")
 
         if (loadingState is PaywallLoadingState.Unknown) {
             loadWebView()

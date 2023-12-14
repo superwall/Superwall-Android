@@ -40,7 +40,7 @@ class CoreDataManager(
 
                 // Call the completion (note: still on a bg thread)
                 completion?.invoke(managedEventData)
-            } catch (error: Exception) {
+            } catch (error: Throwable) {
                 Logger.debug(
                     logLevel = LogLevel.error,
                     scope = LogScope.coreData,
@@ -65,7 +65,7 @@ class CoreDataManager(
                 superwallDatabase.managedTriggerRuleOccurrenceDao().insert(managedRuleOccurrence)
 
                 completion?.invoke(managedRuleOccurrence)
-            } catch (error: Exception) {
+            } catch (error: Throwable) {
                 Logger.debug(
                     logLevel = LogLevel.error,
                     scope = LogScope.coreData,
@@ -81,7 +81,7 @@ class CoreDataManager(
             try {
                 superwallDatabase.managedTriggerRuleOccurrenceDao().deleteAll()
                 superwallDatabase.managedEventDataDao().deleteAll()
-            } catch (error: Exception) {
+            } catch (error: Throwable) {
                 Logger.debug(
                     logLevel = LogLevel.error,
                     scope = LogScope.coreData,
@@ -139,7 +139,7 @@ class CoreDataManager(
             }
 
             return request.type.dateComponent(componentsMap)
-        } catch (error: Exception) {
+        } catch (error: Throwable) {
             Logger.debug(
                 logLevel = LogLevel.error,
                 scope = LogScope.coreData,

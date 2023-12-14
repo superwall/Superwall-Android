@@ -13,7 +13,7 @@ import com.superwall.sdk.store.abstractions.product.StoreProduct
 
 data class ResponseIdentifiers(
     val paywallId: String?,
-    var experiment: Experiment?
+    var experiment: Experiment? = null
 ) {
     companion object {
         val none: ResponseIdentifiers
