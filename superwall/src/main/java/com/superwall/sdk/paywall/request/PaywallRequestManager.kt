@@ -62,7 +62,7 @@ class PaywallRequestManager(
             val rawPaywall = getRawPaywall(request)
             val finalPaywall = addProducts(rawPaywall, request)
 
-            saveRequestHash(requestHash, finalPaywall, !request.isDebuggerLaunched)
+            saveRequestHash(requestHash, finalPaywall, request.isDebuggerLaunched)
 
             deferredTask.complete(finalPaywall)
         } catch (error: Throwable) {
@@ -89,11 +89,11 @@ class PaywallRequestManager(
     private suspend fun saveRequestHash(
         requestHash: String,
         paywall: Paywall,
-        debuggerNotLaunched: Boolean
+        isDebuggerLaunched: Boolean
     ) = withContext(singleThreadContext) {
-        if (debuggerNotLaunched) {
+        activeTasks.remove(requestHash)
+        if (!isDebuggerLaunched) {
             paywallsByHash[requestHash] = paywall
-            activeTasks.remove(requestHash)
         }
     }
 
@@ -115,18 +115,20 @@ class PaywallRequestManager(
         return@withContext paywall
     }
 
-    private suspend fun PaywallRequestManager.getPaywallResponse(request: PaywallRequest): Paywall = withContext(singleThreadContext) {
+    private suspend fun getPaywallResponse(request: PaywallRequest): Paywall = withContext(singleThreadContext) {
         val responseLoadStartTime = Date()
         val paywallId = request.responseIdentifiers.paywallId
         val event = request.eventData
-        val paywall: Paywall
 
-        paywall = try {
-            factory.makeStaticPaywall(paywallId = paywallId) ?: network.getPaywall(
+        val paywall: Paywall = try {
+            factory.makeStaticPaywall(
+                paywallId = paywallId,
+                isDebuggerLaunched = request.isDebuggerLaunched
+            ) ?: network.getPaywall(
                 identifier = paywallId,
                 event = event
             )
-        } catch (error: Exception) {
+        } catch (error: Throwable) {
             val errorResponse = PaywallLogic.handlePaywallError(
                 error,
                 event
@@ -174,7 +176,7 @@ class PaywallRequestManager(
         paywall = trackProductsLoadStart(paywall, request)
         paywall = try {
             getProducts(paywall, request)
-        } catch (error: Exception) {
+        } catch (error: Throwable) {
             throw error
         }
         paywall = trackProductsLoadFinish(paywall, request.eventData)

@@ -359,8 +359,7 @@ class Superwall(
         }
 
         // TODO: https://linear.app/superwall/issue/SW-2340/[android]-add-debug-manager
-//        return dependencyContainer.debugManager.handleDeepLink(url = url)
-        return false
+        return dependencyContainer.debugManager.handle(deepLinkUrl = uri)
     }
 
     //endregion

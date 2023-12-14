@@ -7,6 +7,7 @@ import com.superwall.sdk.analytics.trigger_session.TriggerSessionManager
 import com.superwall.sdk.billing.GoogleBillingWrapper
 import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.config.options.SuperwallOptions
+import com.superwall.sdk.debug.DebugViewController
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.identity.IdentityInfo
 import com.superwall.sdk.identity.IdentityManager
@@ -130,8 +131,7 @@ interface ViewControllerFactory {
         delegate: PaywallViewControllerDelegateAdapter?
     ): PaywallViewController
 
-    // TODO: (Debug)
-//    fun makeDebugViewController(id: String?): DebugViewController
+    fun makeDebugViewController(id: String?): DebugViewController
 }
 
 
@@ -167,7 +167,10 @@ interface VariablesFactory {
 }
 
 interface ConfigManagerFactory {
-    fun makeStaticPaywall(paywallId: String?): Paywall?
+    fun makeStaticPaywall(
+        paywallId: String?,
+        isDebuggerLaunched: Boolean
+    ): Paywall?
 }
 
 //interface ProductPurchaserFactory {
