@@ -2,6 +2,18 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall-me/Superwall-Android/releases) on GitHub.
 
+## 1.0.0-alpha.30
+
+### Enhancements
+
+- The SDK now includes a paywall debugger, meaning you can scan the QR code of any paywall in the 
+editor to preview it on device. You can change its localization, view product attributes, and view
+the paywall with or without a trial.
+
+### Fixes
+
+- More bug fixes relating to the loading of products.
+
 ## 1.0.0-alpha.29
 
 ### Fixes
