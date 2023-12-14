@@ -2,6 +2,13 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall-me/Superwall-Android/releases) on GitHub.
 
+## 1.0.0-alpha.29
+
+### Fixes
+
+- SW-2631: Fixes issue where paywalls weren't showing if the products within them had a base plan or
+offer ID set.
+
 ## 1.0.0-alpha.28
 
 ### Fixes
