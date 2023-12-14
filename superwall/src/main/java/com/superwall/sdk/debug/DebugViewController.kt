@@ -327,26 +327,26 @@ class DebugViewController(
         // Applying constraints to previewContainerView
         constraintSet.connect(previewContainerView.id, ConstraintSet.START, ConstraintSet.PARENT_ID, ConstraintSet.START)
         constraintSet.connect(previewContainerView.id, ConstraintSet.END, ConstraintSet.PARENT_ID, ConstraintSet.END)
-        constraintSet.connect(previewContainerView.id, ConstraintSet.TOP, logoImageView.id, ConstraintSet.BOTTOM, 25)
-        constraintSet.connect(previewContainerView.id, ConstraintSet.BOTTOM, bottomButton.id, ConstraintSet.TOP, 30)
+        constraintSet.connect(previewContainerView.id, ConstraintSet.TOP, logoImageView.id, ConstraintSet.BOTTOM, dpToPx(5))
+        constraintSet.connect(previewContainerView.id, ConstraintSet.BOTTOM, bottomButton.id, ConstraintSet.TOP, dpToPx(5))
         constraintSet.constrainHeight(previewContainerView.id, 0)
 
         // Constraints for logoImageView (Centered horizontally at the top)
         constraintSet.constrainWidth(logoImageView.id, ConstraintSet.MATCH_CONSTRAINT)
-        constraintSet.constrainHeight(logoImageView.id, 80)
-        constraintSet.connect(logoImageView.id, ConstraintSet.TOP, ConstraintSet.PARENT_ID, ConstraintSet.TOP, 80)
+        constraintSet.constrainHeight(logoImageView.id, dpToPx(20))
+        constraintSet.connect(logoImageView.id, ConstraintSet.TOP, ConstraintSet.PARENT_ID, ConstraintSet.TOP, dpToPx(30))
         constraintSet.connect(logoImageView.id, ConstraintSet.START, consoleButton.id, ConstraintSet.END)
         constraintSet.connect(logoImageView.id, ConstraintSet.END, exitButton.id, ConstraintSet.START)
 
         // Constraints for consoleButton (Top Left)
-        constraintSet.connect(consoleButton.id, ConstraintSet.START, ConstraintSet.PARENT_ID, ConstraintSet.START, 80)
-        constraintSet.connect(consoleButton.id, ConstraintSet.TOP, ConstraintSet.PARENT_ID, ConstraintSet.TOP, 80)
-        constraintSet.constrainWidth(consoleButton.id, 80)
+        constraintSet.connect(consoleButton.id, ConstraintSet.START, ConstraintSet.PARENT_ID, ConstraintSet.START, dpToPx(25))
+        constraintSet.connect(consoleButton.id, ConstraintSet.TOP, ConstraintSet.PARENT_ID, ConstraintSet.TOP, dpToPx(30))
+        constraintSet.constrainWidth(consoleButton.id, dpToPx(44))
 
         // Constraints for exitButton (Top Right)
-        constraintSet.connect(exitButton.id, ConstraintSet.END, ConstraintSet.PARENT_ID, ConstraintSet.END, 80)
-        constraintSet.connect(exitButton.id, ConstraintSet.TOP, ConstraintSet.PARENT_ID, ConstraintSet.TOP, 80)
-        constraintSet.constrainWidth(exitButton.id, 80)
+        constraintSet.connect(exitButton.id, ConstraintSet.END, ConstraintSet.PARENT_ID, ConstraintSet.END, dpToPx(25))
+        constraintSet.connect(exitButton.id, ConstraintSet.TOP, ConstraintSet.PARENT_ID, ConstraintSet.TOP, dpToPx(30))
+        constraintSet.constrainWidth(exitButton.id, dpToPx(44))
 
         // Constraints for activityIndicator
         constraintSet.connect(activityIndicator.id, ConstraintSet.START, previewContainerView.id, ConstraintSet.START)
@@ -355,19 +355,23 @@ class DebugViewController(
         constraintSet.connect(activityIndicator.id, ConstraintSet.BOTTOM, previewContainerView.id, ConstraintSet.BOTTOM)
 
         // Constraints for bottomButton
-        constraintSet.connect(bottomButton.id, ConstraintSet.START, ConstraintSet.PARENT_ID, ConstraintSet.START, 80)
-        constraintSet.connect(bottomButton.id, ConstraintSet.END, ConstraintSet.PARENT_ID, ConstraintSet.END, 80)
-        constraintSet.constrainHeight(bottomButton.id, 180)
-        constraintSet.connect(bottomButton.id, ConstraintSet.BOTTOM, ConstraintSet.PARENT_ID, ConstraintSet.BOTTOM, 60)
+        constraintSet.connect(bottomButton.id, ConstraintSet.START, ConstraintSet.PARENT_ID, ConstraintSet.START, dpToPx(25))
+        constraintSet.connect(bottomButton.id, ConstraintSet.END, ConstraintSet.PARENT_ID, ConstraintSet.END, dpToPx(25))
+        constraintSet.constrainHeight(bottomButton.id, dpToPx(60))
+        constraintSet.connect(bottomButton.id, ConstraintSet.BOTTOM, ConstraintSet.PARENT_ID, ConstraintSet.BOTTOM, dpToPx(30))
 
         // Constraints for previewPickerButton
-        constraintSet.connect(previewPickerButton.id, ConstraintSet.START, previewContainerView.id, ConstraintSet.START, 15)
-        constraintSet.connect(previewPickerButton.id, ConstraintSet.END, previewContainerView.id, ConstraintSet.END, 15)
-        constraintSet.constrainHeight(previewPickerButton.id, 86)
-        constraintSet.connect(previewPickerButton.id, ConstraintSet.BOTTOM, bottomButton.id, ConstraintSet.TOP, 50)
+        constraintSet.connect(previewPickerButton.id, ConstraintSet.START, previewContainerView.id, ConstraintSet.START, dpToPx(25))
+        constraintSet.connect(previewPickerButton.id, ConstraintSet.END, previewContainerView.id, ConstraintSet.END, dpToPx(25))
+        constraintSet.constrainHeight(previewPickerButton.id, dpToPx(30))
+        constraintSet.connect(previewPickerButton.id, ConstraintSet.BOTTOM, bottomButton.id, ConstraintSet.TOP, dpToPx(10))
 
         // Apply all the constraints
         constraintSet.applyTo(this)
+    }
+
+    fun dpToPx(dp: Int): Int {
+        return (dp * resources.displayMetrics.density).toInt()
     }
 
     suspend fun loadPreview() {
