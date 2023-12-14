@@ -6,7 +6,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ### Enhancements
 
-- The SDK now includes a paywall debugger, meaning you can scan the QR code of any paywall in the 
+- SW-2154: The SDK now includes a paywall debugger, meaning you can scan the QR code of any paywall in the 
 editor to preview it on device. You can change its localization, view product attributes, and view
 the paywall with or without a trial.
 
