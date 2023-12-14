@@ -64,7 +64,7 @@ open class GooglePlayProductsFetcher(
     // Create a map with product id to status
     private val _results = MutableStateFlow<Map<String, Result<RawStoreProduct>>>(emptyMap())
     val results: StateFlow<Map<String, Result<RawStoreProduct>>> = _results
-    var productIdsBySubscriptionId: MutableMap<String, ProductIds> = mutableMapOf()
+    private var productIdsBySubscriptionId: MutableMap<String, MutableList<ProductIds>> = mutableMapOf()
 
     // Create a supervisor job
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -80,18 +80,20 @@ open class GooglePlayProductsFetcher(
 
             // Iterate through each product ID
             productIds.forEach { productId ->
+                // Parse the full product ID into a ProductIds object
+                val productIds = ProductIds.from(productId)
+
                 // Check if the result for the current product ID is already available
-                val result = currentResults[productId]
+                val result = currentResults[productIds.fullId]
                 println("Result for $productId is $result ${Thread.currentThread().name}")
 
                 // If the result is null, process the product ID
                 if (result == null) {
-                    // Parse the product ID into a ProductIds object
-                    val productIds = ProductIds.from(productId)
-                    // Map the subscription ID to its corresponding ProductIds object
-                    productIdsBySubscriptionId[productIds.subscriptionId] = productIds
+                    val subscriptionId = productIds.subscriptionId
+                    // Append the product ID to the list of productIds mapped to the subscription ID.
+                    productIdsBySubscriptionId.getOrPut(subscriptionId) { mutableListOf() }.add(productIds)
                     // Add the subscription ID to the set of IDs to load
-                    subscriptionIdsToLoad = subscriptionIdsToLoad + productIds.subscriptionId
+                    subscriptionIdsToLoad = subscriptionIdsToLoad + subscriptionId
                 }
             }
 
@@ -99,9 +101,9 @@ open class GooglePlayProductsFetcher(
 
             // Check if there are any subscription IDs to load
             if (subscriptionIdsToLoad.isNotEmpty()) {
-                // Emit a waiting result for each subscription ID to load
+                // Emit a waiting result for each full product id.
                 _results.emit(
-                    _results.value + subscriptionIdsToLoad.associateWith {
+                    _results.value + productIdsBySubscriptionId.values.flatten().map { it.fullId }.associateWith {
                         Result.Waiting(startedAt = System.currentTimeMillis().toInt())
                     }
                 )
@@ -115,17 +117,8 @@ open class GooglePlayProductsFetcher(
                 }
                 println("!! networkResult: ${networkResult} ${Thread.currentThread().name}")
 
-                // Update the results with the network query results, mapped to full product IDs
-                val updatedResults = networkResult.entries.associate { (subscriptionId, result) ->
-                    // Retrieve the full product ID using the subscription ID
-                    val fullProductId = productIdsBySubscriptionId[subscriptionId]?.fullId ?: subscriptionId
-                    // Associate the full product ID with the query result
-                    println("!!!! ASSOCIATE $fullProductId")
-                    fullProductId to result
-                }
-
                 // Emit the updated results to _results
-                _results.emit(_results.value + updatedResults)
+                _results.emit(_results.value + networkResult)
             }
         }
     }
@@ -141,8 +134,8 @@ open class GooglePlayProductsFetcher(
         return _results.value.filterKeys { it in productIds }
     }
 
-    open suspend fun queryProductDetails(productIds: List<String>): Map<String, Result<RawStoreProduct>> {
-        if (productIds.isEmpty()) {
+    open suspend fun queryProductDetails(subscriptionIds: List<String>): Map<String, Result<RawStoreProduct>> {
+        if (subscriptionIds.isEmpty()) {
             return emptyMap()
         }
 
@@ -152,7 +145,7 @@ open class GooglePlayProductsFetcher(
 
         val subsParams = QueryProductDetailsParams.newBuilder()
             .setProductList(
-                productIds.map { productId ->
+                subscriptionIds.map { productId ->
                     QueryProductDetailsParams.Product.newBuilder()
                         .setProductId(productId)
                         .setProductType(BillingClient.ProductType.SUBS)
@@ -163,7 +156,7 @@ open class GooglePlayProductsFetcher(
 
         val inAppParams = QueryProductDetailsParams.newBuilder()
             .setProductList(
-                productIds.map { productId ->
+                subscriptionIds.map { productId ->
                     QueryProductDetailsParams.Product.newBuilder()
                         .setProductId(productId)
                         .setProductType(BillingClient.ProductType.INAPP)
@@ -172,20 +165,20 @@ open class GooglePlayProductsFetcher(
             )
             .build()
 
-        println("!! Querying subscription product details for ${productIds.size} products, products: ${productIds},  ${Thread.currentThread().name}")
+        println("!! Querying subscription product details for ${subscriptionIds.size} products, products: ${subscriptionIds},  ${Thread.currentThread().name}")
         billingWrapper.waitForConnectedClient {
             queryProductDetailsAsync(subsParams) { billingResult, productDetailsList ->
                 val resultMap =
-                    handleProductDetailsResponse(productIds, billingResult, productDetailsList)
+                    handleProductDetailsResponse(subscriptionIds, billingResult, productDetailsList)
                 deferredSubs.complete(resultMap) // Or deferredInApp depending on the product type
             }
         }
 
-        println("!! Querying in-app product details for ${productIds.size} products, products: ${productIds},  ${Thread.currentThread().name}")
+        println("!! Querying in-app product details for ${subscriptionIds.size} products, products: ${subscriptionIds},  ${Thread.currentThread().name}")
         billingWrapper.waitForConnectedClient {
             queryProductDetailsAsync(inAppParams) { billingResult, productDetailsList ->
                 val resultMap =
-                    handleProductDetailsResponse(productIds, billingResult, productDetailsList)
+                    handleProductDetailsResponse(subscriptionIds, billingResult, productDetailsList)
                 deferredInApp.complete(resultMap) // Or deferredInApp depending on the product type
             }
         }
@@ -215,43 +208,52 @@ open class GooglePlayProductsFetcher(
             combinedResults.getOrPut(key) { value }
         }
 
-        println("!! Returning product details for ${productIds.size} products ${combinedResults}, ${Thread.currentThread().name}\"")
+        println("!! Returning product details for ${subscriptionIds.size} products ${combinedResults}, ${Thread.currentThread().name}\"")
 
         return combinedResults
     }
 
     private fun handleProductDetailsResponse(
-        productIds: List<String>,
+        subscriptionIds: List<String>,
         billingResult: BillingResult,
         productDetailsList: List<ProductDetails>?
     ): Map<String, Result<RawStoreProduct>> {
-        println("!! Got product details for ${productIds.size} products, products: ${productIds}, billingResult: ${billingResult}, productDetailsList: ${productDetailsList}  ${Thread.currentThread().name}\"")
+        println("!! Got product details for ${subscriptionIds.size} products, products: ${subscriptionIds}, billingResult: ${billingResult}, productDetailsList: ${productDetailsList}  ${Thread.currentThread().name}\"")
 
         if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && productDetailsList != null) {
             val foundProducts = productDetailsList.map { it.productId }
-            val missingProducts = productIds.filter { !foundProducts.contains(it) }
-            val results = productDetailsList.associateBy { it.productId }
-                .mapValues { (_, productDetails) ->
-                    val productIds = productIdsBySubscriptionId[productDetails.productId]
-                    Result.Success(
-                        RawStoreProduct(
-                            underlyingProductDetails = productDetails,
-                            fullIdentifier = productIds?.fullId ?: "",
-                            basePlanId = productIds?.basePlanId,
-                            offerType = productIds?.offerType
-                         )
-                    )
+            val missingProducts = subscriptionIds.filter { !foundProducts.contains(it) }
+            val subscriptionIdToResult = productDetailsList
+                .flatMap { productDetails ->
+                    productIdsBySubscriptionId[productDetails.productId]?.map { productId ->
+                        productId.fullId to Result.Success(
+                            RawStoreProduct(
+                                underlyingProductDetails = productDetails,
+                                fullIdentifier = productId.fullId ?: "",
+                                basePlanId = productId.basePlanId,
+                                offerType = productId.offerType
+                            )
+                        )
+                    } ?: emptyList()
                 }
+                .toMap()
                 .toMutableMap() as MutableMap<String, Result<RawStoreProduct>>
 
             missingProducts.forEach { missingProductId ->
-                results[missingProductId] = Result.Error(Exception("Failed to query product details"))
+                productIdsBySubscriptionId[missingProductId]?.forEach { product ->
+                    subscriptionIdToResult[product.fullId] = Result.Error(Exception("Failed to query product details"))
+                }
             }
 
-            return results.toMap()
+            return subscriptionIdToResult.toMap()
         } else {
-            return productIds.map { it to Result.Error<RawStoreProduct>(Exception("Failed to query product details")) }
-                .toMap()
+            val results: MutableMap<String, Result<RawStoreProduct>> = mutableMapOf()
+            subscriptionIds.forEach { subscriptionId ->
+                productIdsBySubscriptionId[subscriptionId]?.forEach { product ->
+                    results[product.fullId] = Result.Error(Exception("Failed to query product details"))
+                }
+            }
+            return results
         }
     }
 
