@@ -2,6 +2,13 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall-me/Superwall-Android/releases) on GitHub.
 
+## 1.0.0-alpha.31
+
+### Fixes
+
+- SW-2635: Fixes crash that sometimes occurred if an app was trying to get Superwall's paywall 
+configuration in the background.
+
 ## 1.0.0-alpha.30
 
 ### Enhancements

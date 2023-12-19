@@ -14,6 +14,8 @@ import com.superwall.sdk.models.events.EventsResponse
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.Paywalls
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import java.util.*
 
 
@@ -66,15 +68,10 @@ open class Network(
         isRetryingCallback: () -> Unit
 //        injectedApplicationStatePublisher: (Flow<UIApplication.State>)? = null
     ): Config {
-        // TODO: ApplicationStatePublisher
-//        // Suspend until app is in foreground.
-//        val applicationStatePublisher =
-//            injectedApplicationStatePublisher ?: this.applicationStatePublisher
-//
-//        applicationStatePublisher
-//            .flowOn(Dispatchers.Main)
-//            .filter { it != UIApplication.State.BACKGROUND }
-//            .throwableFirst()
+        // Wait until the app is not in the background.
+        factory.appLifecycleObserver
+            .isInBackground.filter { !it }
+            .first()
 
         return try {
             val requestId = UUID.randomUUID().toString()

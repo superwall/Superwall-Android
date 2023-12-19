@@ -3,21 +3,16 @@ package com.superwall.sdk.store.transactions
 import LogLevel
 import LogScope
 import Logger
-import com.android.billingclient.api.ProductDetails
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.SessionEventsManager
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEventObjc
 import com.superwall.sdk.delegate.PurchaseResult
-import com.superwall.sdk.dependencies.DeviceHelperFactory
-import com.superwall.sdk.dependencies.IdentityInfoFactory
-import com.superwall.sdk.dependencies.LocaleIdentifierFactory
 import com.superwall.sdk.dependencies.OptionsFactory
 import com.superwall.sdk.dependencies.StoreTransactionFactory
 import com.superwall.sdk.dependencies.TransactionVerifierFactory
 import com.superwall.sdk.dependencies.TriggerFactory
-import com.superwall.sdk.misc.ActivityLifecycleTracker
 import com.superwall.sdk.misc.ActivityProvider
 import com.superwall.sdk.paywall.presentation.internal.dismiss
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
@@ -26,7 +21,6 @@ import com.superwall.sdk.paywall.vc.delegate.PaywallLoadingState
 import com.superwall.sdk.store.StoreKitManager
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
-import com.superwall.sdk.store.products.ProductIds
 import kotlinx.coroutines.*
 
 class TransactionManager(

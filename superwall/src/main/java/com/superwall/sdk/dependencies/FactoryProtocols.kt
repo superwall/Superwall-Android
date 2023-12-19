@@ -11,6 +11,7 @@ import com.superwall.sdk.debug.DebugViewController
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.identity.IdentityInfo
 import com.superwall.sdk.identity.IdentityManager
+import com.superwall.sdk.misc.AppLifecycleObserver
 import com.superwall.sdk.models.config.FeatureFlags
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
@@ -35,7 +36,6 @@ import kotlinx.coroutines.flow.StateFlow
 
 interface ApiFactory {
     // TODO: Think of an alternative way such that we don't need to do this:
-    // swiftlint:disable implicitly_unwrapped_optional
     var api: Api
     var storage: Storage
 
@@ -43,7 +43,7 @@ interface ApiFactory {
     var deviceHelper: DeviceHelper
     var configManager: ConfigManager
     var identityManager: IdentityManager
-    // swiftlint:enable implicitly_unwrapped_optional
+    var appLifecycleObserver: AppLifecycleObserver
 
     suspend fun makeHeaders(
         isForDebugging: Boolean,

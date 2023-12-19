@@ -4,7 +4,7 @@ import android.app.Activity
 import android.app.Application
 import android.os.Bundle
 
-class ActivityLifecycleTracker : Application.ActivityLifecycleCallbacks, ActivityProvider {
+class CurrentActivityTracker : Application.ActivityLifecycleCallbacks, ActivityProvider {
     private var currentActivity: Activity? = null
 
     override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
