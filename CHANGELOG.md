@@ -6,7 +6,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ### Enhancements
 
-- Adds `Restored` to `PurchaseResult`.
+- SW-2638: Adds `Restored` to `PurchaseResult`.
 
 ### Fixes
 
