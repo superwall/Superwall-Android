@@ -193,6 +193,7 @@ class DependencyContainer(
 
         transactionManager = TransactionManager(
             storeKitManager = storeKitManager,
+            purchaseController = purchaseController,
             sessionEventsManager,
             activityProvider,
             factory = this

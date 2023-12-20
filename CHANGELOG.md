@@ -4,6 +4,10 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## 1.0.0-alpha.31
 
+### Enhancements
+
+- SW-2638: Adds `Restored` to `PurchaseResult`.
+
 ### Fixes
 
 - SW-2635: Fixes crash that sometimes occurred if an app was trying to get Superwall's paywall 

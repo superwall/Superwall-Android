@@ -9,6 +9,9 @@ import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEventObjc
 import com.superwall.sdk.delegate.PurchaseResult
+import com.superwall.sdk.delegate.RestorationResult
+import com.superwall.sdk.delegate.SubscriptionStatus
+import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.dependencies.OptionsFactory
 import com.superwall.sdk.dependencies.StoreTransactionFactory
 import com.superwall.sdk.dependencies.TransactionVerifierFactory
@@ -25,6 +28,7 @@ import kotlinx.coroutines.*
 
 class TransactionManager(
     private val storeKitManager: StoreKitManager,
+    private val purchaseController: PurchaseController,
     private val sessionEventsManager: SessionEventsManager,
     private val activityProvider: ActivityProvider,
     private val factory: Factory
@@ -54,6 +58,12 @@ class TransactionManager(
         when (result) {
             is PurchaseResult.Purchased -> {
                 didPurchase(product, paywallViewController)
+            }
+            is PurchaseResult.Restored -> {
+                didRestore(
+                    product = product,
+                    paywallViewController = paywallViewController
+                )
             }
             is PurchaseResult.Failed -> {
                 val superwallOptions = factory.makeSuperwallOptions()
@@ -87,6 +97,41 @@ class TransactionManager(
             is PurchaseResult.Cancelled -> {
                 trackCancelled(product, paywallViewController)
             }
+        }
+    }
+
+    private suspend fun didRestore(
+        product: StoreProduct? = null,
+        paywallViewController: PaywallViewController
+    ) {
+        val purchasingCoordinator = factory.makeTransactionVerifier()
+        var transaction: StoreTransaction? = null
+        val restoreType: RestoreType
+
+        if (product != null) {
+            // Product exists so much have been via a purchase of a specific product.
+            transaction = purchasingCoordinator.getLatestTransaction(
+                factory = factory
+            )
+            restoreType = RestoreType.ViaPurchase(transaction)
+        } else {
+            // Otherwise it was a generic restore.
+            restoreType = RestoreType.ViaRestore
+        }
+
+        val paywallInfo = paywallViewController.info
+
+        val trackedEvent = InternalSuperwallEvent.Transaction(
+            state = InternalSuperwallEvent.Transaction.State.Restore(restoreType),
+            paywallInfo = paywallInfo,
+            product = product,
+            model = null
+        )
+        Superwall.instance.track(trackedEvent)
+
+        val superwallOptions = factory.makeSuperwallOptions()
+        if (superwallOptions.paywalls.automaticallyDismiss) {
+            Superwall.instance.dismiss(paywallViewController, result = PaywallResult.Restored())
         }
     }
 
@@ -246,6 +291,42 @@ class TransactionManager(
             "Waiting for Approval",
             "Thank you! This purchase is pending approval from your parent. Please try again once it is approved."
         )
+    }
+
+    suspend fun tryToRestore(paywallViewController: PaywallViewController) {
+        Logger.debug(
+            logLevel = LogLevel.debug,
+            scope = LogScope.paywallTransactions,
+            message = "Attempting Restore"
+        )
+
+        paywallViewController.loadingState = PaywallLoadingState.LoadingPurchase()
+
+        val restorationResult = purchaseController.restorePurchases()
+
+        val hasRestored = restorationResult is RestorationResult.Restored
+        val isUserSubscribed = Superwall.instance.subscriptionStatus.value == SubscriptionStatus.ACTIVE
+
+        if (hasRestored && isUserSubscribed) {
+            Logger.debug(
+                logLevel = LogLevel.debug,
+                scope = LogScope.paywallTransactions,
+                message = "Transactions Restored"
+            )
+            didRestore(paywallViewController = paywallViewController)
+        } else {
+            Logger.debug(
+                logLevel = LogLevel.debug,
+                scope = LogScope.paywallTransactions,
+                message = "Transactions Failed to Restore"
+            )
+
+            paywallViewController.presentAlert(
+                title = Superwall.instance.options.paywalls.restoreFailed.title,
+                message = Superwall.instance.options.paywalls.restoreFailed.message,
+                closeActionTitle = Superwall.instance.options.paywalls.restoreFailed.closeButtonTitle
+            )
+        }
     }
 
     private suspend fun presentAlert(
