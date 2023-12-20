@@ -87,8 +87,6 @@ open class GooglePlayProductsFetcher(
                 // Check if the result for the current full product ID is already available
                 val result = currentResults[productIds.fullId]
 
-                println("Result for $productId is $result ${Thread.currentThread().name}")
-
                 // If the result is null, process the product ID
                 if (result == null) {
                     val subscriptionId = productIds.subscriptionId
@@ -101,7 +99,7 @@ open class GooglePlayProductsFetcher(
                 }
             }
 
-           // println("!!! Requesting ${subscriptionIdsToLoad.size} products")
+            println("!!! Requesting ${productIdsToLoad.size} products")
 
             // Check if there are any product IDs to load
             if (productIdsToLoad.isNotEmpty()) {
@@ -116,7 +114,7 @@ open class GooglePlayProductsFetcher(
 
                 // Perform the network request to get product details using the subscription id.
                 val networkResult = runBlocking {
-                    val subscriptionIdsToLoad = productIdsToLoad.map { it.subscriptionId }.toList()
+                    val subscriptionIdsToLoad = productIdsToLoad.map { it.subscriptionId }.distinct()
                     queryProductDetails(subscriptionIdsToLoad)
                 }
                 println("!! networkResult: ${networkResult} ${Thread.currentThread().name}")
@@ -230,9 +228,6 @@ open class GooglePlayProductsFetcher(
 
             val subscriptionIdToResult = productDetailsList
                 .flatMap { productDetails ->
-                    if (productDetails.productId == "com.ui_tests.monthly") {
-    println("Hmm")
-                    }
                     productIdsBySubscriptionId[productDetails.productId]?.map { productId ->
                         productId.fullId to Result.Success(
                             RawStoreProduct(

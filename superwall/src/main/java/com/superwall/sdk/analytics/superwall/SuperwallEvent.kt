@@ -9,6 +9,7 @@ import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationReques
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatusReason
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
+import com.superwall.sdk.store.transactions.RestoreType
 import com.superwall.sdk.store.transactions.TransactionError
 import java.net.URL
 
@@ -160,7 +161,10 @@ sealed class SuperwallEvent {
     }
 
     /// When the user successfully restores their purchases.
-    data class TransactionRestore(val paywallInfo: PaywallInfo) : SuperwallEvent() {
+    data class TransactionRestore(
+        val restoreType: RestoreType,
+        val paywallInfo: PaywallInfo
+    ) : SuperwallEvent() {
         override val rawName: String
             get() = "transaction_restore"
     }

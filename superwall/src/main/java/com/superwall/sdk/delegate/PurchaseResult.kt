@@ -40,6 +40,11 @@ sealed class PurchaseResult {
     class Pending : PurchaseResult()
 
     /**
+     * The product was restored.
+     */
+    class Restored : PurchaseResult()
+
+    /**
      * The purchase failed for a reason other than the user cancelling or the payment pending.
      *
      * Send the `Exception` back to the relevant method to alert the user.
