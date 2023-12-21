@@ -27,58 +27,6 @@ class InternalPurchaseController(
     val hasExternalPurchaseController: Boolean
         get() = kotlinPurchaseController != null || javaPurchaseController != null
 
-    suspend fun tryToRestore(paywallViewController: PaywallViewController) {
-        Logger.debug(
-            logLevel = LogLevel.debug,
-            scope = LogScope.paywallTransactions,
-            message = "Attempting Restore"
-        )
-
-        paywallViewController.loadingState = PaywallLoadingState.LoadingPurchase()
-
-        val restorationResult = restorePurchases()
-
-        val hasRestored = restorationResult is RestorationResult.Restored
-        val isUserSubscribed = Superwall.instance.subscriptionStatus.value == SubscriptionStatus.ACTIVE
-
-        if (hasRestored && isUserSubscribed) {
-            Logger.debug(
-                logLevel = LogLevel.debug,
-                scope = LogScope.paywallTransactions,
-                message = "Transactions Restored"
-            )
-            transactionWasRestored(paywallViewController)
-        } else {
-            Logger.debug(
-                logLevel = LogLevel.debug,
-                scope = LogScope.paywallTransactions,
-                message = "Transactions Failed to Restore"
-            )
-
-            paywallViewController.presentAlert(
-                title = Superwall.instance.options.paywalls.restoreFailed.title,
-                message = Superwall.instance.options.paywalls.restoreFailed.message,
-                closeActionTitle = Superwall.instance.options.paywalls.restoreFailed.closeButtonTitle
-            )
-        }
-    }
-
-    private suspend fun transactionWasRestored(paywallViewController: PaywallViewController) {
-        val paywallInfo = paywallViewController.info
-
-        val trackedEvent = InternalSuperwallEvent.Transaction(
-            state = InternalSuperwallEvent.Transaction.State.Restore(),
-            paywallInfo = paywallInfo,
-            product = null,
-            model = null
-        )
-        Superwall.instance.track(trackedEvent)
-
-        if (Superwall.instance.options.paywalls.automaticallyDismiss) {
-            Superwall.instance.dismiss(paywallViewController, result = PaywallResult.Restored())
-        }
-    }
-
     override suspend fun purchase(
         activity: Activity,
         productDetails: ProductDetails,

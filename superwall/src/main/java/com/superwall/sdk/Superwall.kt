@@ -405,7 +405,7 @@ class Superwall(
                     }
                 }
                 is InitiateRestore -> {
-                    dependencyContainer.storeKitManager.purchaseController.tryToRestore(paywallViewController)
+                    dependencyContainer.transactionManager.tryToRestore(paywallViewController)
                 }
                 is OpenedURL -> {
                     dependencyContainer.delegateAdapter.paywallWillOpenURL(url = paywallEvent.url)

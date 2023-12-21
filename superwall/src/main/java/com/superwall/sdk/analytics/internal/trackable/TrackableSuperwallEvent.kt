@@ -20,6 +20,7 @@ import com.superwall.sdk.paywall.vc.Survey.SurveyPresentationResult
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
+import com.superwall.sdk.store.transactions.RestoreType
 import com.superwall.sdk.store.transactions.TransactionError
 
 
@@ -372,8 +373,7 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
             class Abandon(val product: StoreProduct) : State()
             class Complete(val product: StoreProduct, val transaction: StoreTransactionType?) :
                 State()
-
-            class Restore : State()
+            class Restore(val restoreType: RestoreType) : State()
             class Timeout : State()
         }
 
@@ -401,7 +401,10 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
                     product = state.product,
                     paywallInfo = paywallInfo
                 )
-                is State.Restore -> SuperwallEvent.TransactionRestore(paywallInfo = paywallInfo)
+                is State.Restore -> SuperwallEvent.TransactionRestore(
+                    restoreType = state.restoreType,
+                    paywallInfo = paywallInfo
+                )
                 is State.Timeout -> SuperwallEvent.TransactionTimeout(paywallInfo = paywallInfo)
             }
         override val rawName: String

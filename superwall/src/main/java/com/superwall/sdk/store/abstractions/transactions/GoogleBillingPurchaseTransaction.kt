@@ -58,8 +58,7 @@ data class GoogleBillingPurchaseTransaction(
     @SerialName("app_account_token")
     override val appAccountToken: UUID?,
 
-    @Transient
-    override var payment: StorePayment? = null
+    override var payment: StorePayment
 ) : StoreTransactionType {
 
     constructor(transaction: Purchase) : this(

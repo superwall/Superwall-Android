@@ -24,8 +24,9 @@ import com.superwall.sdk.delegate.SuperwallDelegateAdapter
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.identity.IdentityInfo
 import com.superwall.sdk.identity.IdentityManager
-import com.superwall.sdk.misc.ActivityLifecycleTracker
+import com.superwall.sdk.misc.CurrentActivityTracker
 import com.superwall.sdk.misc.ActivityProvider
+import com.superwall.sdk.misc.AppLifecycleObserver
 import com.superwall.sdk.models.config.FeatureFlags
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
@@ -84,6 +85,7 @@ class DependencyContainer(
     override lateinit var storage: Storage
     override lateinit var configManager: ConfigManager
     override lateinit var identityManager: IdentityManager
+    override var appLifecycleObserver: AppLifecycleObserver = AppLifecycleObserver()
     var appSessionManager: AppSessionManager
     var sessionEventsManager: SessionEventsManager
     var delegateAdapter: SuperwallDelegateAdapter
@@ -99,16 +101,21 @@ class DependencyContainer(
     init {
         // TODO: Add delegate adapter
 
+        // For tracking when the app enters the background.
+        CoroutineScope(Dispatchers.Main).launch {
+            ProcessLifecycleOwner.get().lifecycle.addObserver(appLifecycleObserver)
+        }
+
         // If activity provider exists, let it be. Otherwise, create our own.
         val activityProvider: ActivityProvider
 
         if (this.activityProvider == null) {
-            val activityLifecycleTracker = ActivityLifecycleTracker()
+            val currentActivityTracker = CurrentActivityTracker()
 
             (context.applicationContext as Application).registerActivityLifecycleCallbacks(
-                activityLifecycleTracker
+                currentActivityTracker
             )
-            activityProvider = activityLifecycleTracker
+            activityProvider = currentActivityTracker
             this.activityProvider = activityProvider
         } else {
            activityProvider = this.activityProvider!!
@@ -186,6 +193,7 @@ class DependencyContainer(
 
         transactionManager = TransactionManager(
             storeKitManager = storeKitManager,
+            purchaseController = purchaseController,
             sessionEventsManager,
             activityProvider,
             factory = this

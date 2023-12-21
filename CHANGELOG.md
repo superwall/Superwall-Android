@@ -2,6 +2,20 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall-me/Superwall-Android/releases) on GitHub.
 
+## 1.0.0-alpha.31
+
+### Enhancements
+
+- SW-2638: Adds `Restored` to `PurchaseResult`.
+- SW-2644: Adds `RestoreType` to `SuperwallEvent.TransactionRestore`.
+- SW-2643: Makes `storePayment` non-optional for a `StoreTransaction`.
+- SW-2642: Adds `productIdentifier` to `StorePayment`.
+
+### Fixes
+
+- SW-2635: Fixes crash that sometimes occurred if an app was trying to get Superwall's paywall 
+configuration in the background.
+
 ## 1.0.0-alpha.30
 
 ### Enhancements

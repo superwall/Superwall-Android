@@ -183,7 +183,7 @@ open class GoogleBillingWrapper(open val context: Context, open val mainHandler:
     }
 
 
-    public suspend fun waitForConnectedClient(receivingFunction: BillingClient.() -> Unit) {
+    suspend fun waitForConnectedClient(receivingFunction: BillingClient.() -> Unit) {
         // Call this every time to make sure we're waiting for the client to connect
         startConnectionOnMainThread(0)
         isConnected.first { it }
