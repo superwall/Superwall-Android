@@ -7,6 +7,9 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 ### Enhancements
 
 - SW-2638: Adds `Restored` to `PurchaseResult`.
+- SW-2644: Adds `RestoreType` to `SuperwallEvent.TransactionRestore`.
+- SW-2643: Makes `storePayment` non-optional for a `StoreTransaction`.
+- SW-2642: Adds `productIdentifier` to `StorePayment`.
 
 ### Fixes
 
