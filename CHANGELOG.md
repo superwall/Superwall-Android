@@ -2,6 +2,13 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall-me/Superwall-Android/releases) on GitHub.
 
+## 1.0.0-alpha.32
+
+### Fixes
+
+- SW-2640: Adds `computedPropertyRequests` to `PaywallInfo`.
+- SW-2641: Makes `closeReason` in `PaywallInfo` non-optional.
+
 ## 1.0.0-alpha.31
 
 ### Enhancements

@@ -1,5 +1,6 @@
 package com.superwall.sdk.paywall.presentation
 
+import ComputedPropertyRequest
 import LogLevel
 import LogScope
 import Logger
@@ -48,7 +49,8 @@ data class PaywallInfo(
     val paywalljsVersion: String?,
     val isFreeTrialAvailable: Boolean,
     val featureGatingBehavior: FeatureGatingBehavior,
-    val closeReason: PaywallCloseReason?,
+    val closeReason: PaywallCloseReason,
+    val computedPropertyRequests: List<ComputedPropertyRequest>,
     val surveys: List<Survey>,
     val factory: TriggerSessionManagerFactory
 ) {
@@ -75,7 +77,8 @@ data class PaywallInfo(
         presentationSourceType: String? = null,
         factory: TriggerSessionManagerFactory,
         featureGatingBehavior: FeatureGatingBehavior = FeatureGatingBehavior.NonGated,
-        closeReason: PaywallCloseReason? = null,
+        computedPropertyRequests: List<ComputedPropertyRequest>,
+        closeReason: PaywallCloseReason,
         surveys: List<Survey>
     ) : this(
         databaseId = databaseId,
@@ -119,6 +122,7 @@ data class PaywallInfo(
             }
         },
         factory = factory,
+        computedPropertyRequests = computedPropertyRequests,
         closeReason = closeReason,
         surveys = surveys
     )
