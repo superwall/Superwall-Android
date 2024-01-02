@@ -80,7 +80,7 @@ internal suspend fun Superwall.getPaywallViewController(
 }
 
 private suspend fun presentationFailure(
-    error: Exception,
+    error: Throwable,
     request: PresentationRequest,
     debugInfo: Map<String, Any>,
     paywallStatePublisher: MutableSharedFlow<PaywallState>?
