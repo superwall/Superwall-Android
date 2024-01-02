@@ -55,7 +55,7 @@ class ReceiptManager(
 //                }
 //                this@ReceiptManager.purchasedSubscriptionGroupIds = purchasedSubscriptionGroupIds
 //                products
-//            } catch (e: Exception) {
+//            } catch (e: Throwable) {
 //                null
 //            }
 //        } ?: run {

@@ -476,7 +476,7 @@ class RawStoreProduct(
 
         try {
             SubscriptionPeriod.from(baseBillingPeriod)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             null
         }
     }
@@ -514,7 +514,7 @@ class RawStoreProduct(
             // Return null if there's an exception or if billingPeriod is null.
             val trialSubscriptionPeriod = try {
                 billingPeriod?.let { SubscriptionPeriod.from(it) }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 null
             }
             val introPeriods = periodsPerUnit(unit).multiply(BigDecimal(pricingPhase.billingCycleCount))
@@ -586,7 +586,7 @@ class RawStoreProduct(
         // Return null if there's an exception or if billingPeriod is null.
         try {
             billingPeriod?.let { SubscriptionPeriod.from(it) }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             null
         }
     }

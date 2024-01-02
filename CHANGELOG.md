@@ -4,10 +4,14 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## 1.0.0-alpha.32
 
-### Fixes
+### Enhancements
 
 - SW-2640: Adds `computedPropertyRequests` to `PaywallInfo`.
 - SW-2641: Makes `closeReason` in `PaywallInfo` non-optional.
+
+### Fixes
+
+- Fixes issue where thrown exceptions weren't always being caught.
 
 ## 1.0.0-alpha.31
 

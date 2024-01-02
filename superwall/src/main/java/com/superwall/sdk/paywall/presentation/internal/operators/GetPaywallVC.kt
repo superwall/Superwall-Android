@@ -70,7 +70,7 @@ internal suspend fun Superwall.getPaywallViewController(
             isPreloading = false,
             delegate = delegate
         )
-    } catch (e: Exception) {
+    } catch (e: Throwable) {
         if (subscriptionStatus == SubscriptionStatus.ACTIVE) {
             throw userIsSubscribed(paywallStatePublisher)
         } else {

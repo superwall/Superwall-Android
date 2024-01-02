@@ -674,7 +674,7 @@ class PaywallViewController(
                 scope = LogScope.paywallViewController,
                 message = "Invalid URL provided for \"Open In-App URL\" click behavior."
             )
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Logger.debug(
                 logLevel = LogLevel.debug,
                 scope = LogScope.paywallViewController,
@@ -695,7 +695,7 @@ class PaywallViewController(
                 scope = LogScope.paywallViewController,
                 message = "Invalid URL provided for \"Open External URL\" click behavior."
             )
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Logger.debug(
                 logLevel = LogLevel.debug,
                 scope = LogScope.paywallViewController,

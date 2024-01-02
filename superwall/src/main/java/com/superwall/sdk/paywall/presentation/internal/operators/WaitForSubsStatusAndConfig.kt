@@ -127,7 +127,7 @@ internal suspend fun Superwall.waitForSubsStatusAndConfig(
                     if (result is Result.Failure) throw result.error
                     result.getSuccess()?.getConfig() != null
                 }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             // If config completely dies, then throw an error
             val error = InternalPresentationLogic.presentationError(
                 domain = "SWKPresentationError",

@@ -122,7 +122,7 @@ class DeviceHelper(
         get() {
             return try {
                 Currency.getInstance(_locale)
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 null
             }
         }
