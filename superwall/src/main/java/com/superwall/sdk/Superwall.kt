@@ -306,6 +306,13 @@ class Superwall(
         }
     }
 
+    /**
+     * Do not use this function, this is for internal use only.
+     */
+    fun setPlatformWrapper(wrapper: String) {
+        dependencyContainer.deviceHelper.platformWrapper = wrapper
+    }
+
 
     //    // MARK: - Reset
 

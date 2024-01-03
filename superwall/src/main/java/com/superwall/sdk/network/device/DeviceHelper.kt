@@ -115,6 +115,7 @@ class DeviceHelper(
     val vendorId: String
         get() = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
 
+    var platformWrapper: String = ""
 
     private val _locale: Locale = Locale.getDefault()
 
