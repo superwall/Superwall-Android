@@ -1,8 +1,11 @@
 package com.superwall.sdk.store.transactions.notifications
 
+import android.Manifest
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.work.Worker
@@ -25,7 +28,15 @@ internal class NotificationWorker(
             .setPriority(NotificationCompat.PRIORITY_HIGH)
 
         with(NotificationManagerCompat.from(applicationContext)) {
-            // Ignore error here, we check permissions before getting here.
+            // This will always succeed, we just need to add this check for permissions before
+            // continuing otherwise the compiler will mess up on the CI.
+            if (ActivityCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                return Result.failure()
+            }
             notify(notificationId, builder.build())
         }
 
