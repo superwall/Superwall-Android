@@ -9,11 +9,10 @@ import androidx.work.Worker
 import androidx.work.WorkerParameters
 import com.superwall.sdk.paywall.vc.SuperwallPaywallActivity
 
-class NotificationWorker(
+internal class NotificationWorker(
     val context: Context,
     workerParams: WorkerParameters
 ) : Worker(context, workerParams) {
-
     override fun doWork(): Result {
         val notificationId = inputData.getInt("id", 0)
         val title = inputData.getString("title")

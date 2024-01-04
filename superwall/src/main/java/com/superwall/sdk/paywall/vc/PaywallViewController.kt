@@ -763,8 +763,8 @@ class SuperwallPaywallActivity : AppCompatActivity() {
     companion object {
         private const val REQUEST_CODE_NOTIFICATION_PERMISSION = 1001
         const val NOTIFICATION_CHANNEL_ID = "com.superwall.android.notifications"
-        const val NOTIFICATION_CHANNEL_NAME = "Trial Reminder Notifications"
-        const val NOTIFICATION_CHANNEL_DESCRIPTION = "Notifications sent when a free trial is about to end."
+        private const val NOTIFICATION_CHANNEL_NAME = "Trial Reminder Notifications"
+        private const val NOTIFICATION_CHANNEL_DESCRIPTION = "Notifications sent when a free trial is about to end."
         private const val VIEW_KEY = "viewKey"
         private const val PRESENTATION_STYLE_KEY = "presentationStyleKey"
         private const val IS_LIGHT_BACKGROUND_KEY = "isLightBackgroundKey"

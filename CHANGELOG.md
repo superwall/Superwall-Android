@@ -7,6 +7,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 ### Enhancements
 
 - SW-2214: Adds ability to use free trial notifications with a paywall.
+- Adds `cancelAllScheduledNotifications()` to cancel any scheduled free trial notifications.
 - SW-2640: Adds `computedPropertyRequests` to `PaywallInfo`.
 - SW-2641: Makes `closeReason` in `PaywallInfo` non-optional.
 

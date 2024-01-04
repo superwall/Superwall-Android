@@ -7,11 +7,10 @@ import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.superwall.sdk.dependencies.DeviceHelperFactory
 import com.superwall.sdk.models.paywall.LocalNotification
+import com.superwall.sdk.paywall.vc.SuperwallPaywallActivity
 import java.util.concurrent.TimeUnit
 
-class NotificationScheduler(
-    val context: Context
-) {
+internal class NotificationScheduler {
     companion object {
         fun scheduleNotifications(
             notifications: List<LocalNotification>,
@@ -49,6 +48,7 @@ class NotificationScheduler(
                 val notificationWork = OneTimeWorkRequestBuilder<NotificationWorker>()
                     .setInitialDelay(delay, TimeUnit.MILLISECONDS)
                     .setInputData(data)
+                    .addTag(SuperwallPaywallActivity.NOTIFICATION_CHANNEL_ID)
                     .build()
 
                 workManager.enqueue(notificationWork)

@@ -5,6 +5,7 @@ import LogScope
 import Logger
 import android.content.Context
 import android.net.Uri
+import androidx.work.WorkManager
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.config.options.SuperwallOptions
@@ -20,6 +21,7 @@ import com.superwall.sdk.paywall.presentation.PresentationItems
 import com.superwall.sdk.paywall.presentation.internal.dismiss
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.vc.PaywallViewController
+import com.superwall.sdk.paywall.vc.SuperwallPaywallActivity
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerEventDelegate
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.*
@@ -190,106 +192,8 @@ class Superwall(
             // Implicitly wait
             dependencyContainer.configManager.fetchConfiguration()
             dependencyContainer.identityManager.configure()
-//
-//                await MainActor.run {
-//                    completion?()
-//                }
         }
-//
-//        private convenience init(
-//            apiKey: String,
-//            swiftPurchaseController: PurchaseController? = nil,
-//        objcPurchaseController: PurchaseControllerObjc? = nil,
-//        options: SuperwallOptions? = nil,
-//        completion: (() -> Void)?
-//        ) {
-//            let dependencyContainer = DependencyContainer(
-//                    swiftPurchaseController: swiftPurchaseController,
-//            objcPurchaseController: objcPurchaseController,
-//            options: options
-//            )
-//            self.init(dependencyContainer: dependencyContainer)
-//
-//            subscriptionStatus = dependencyContainer.storage.get(ActiveSubscriptionStatus.self) ?? .unknown
-//
-//            addListeners()
-//
-//            // This task runs on a background thread, even if called from a main thread.
-//            // This is because the function isn't marked to run on the main thread,
-//            // therefore, we don't need to make this detached.
-//            Task {
-//                dependencyContainer.storage.configure(apiKey: apiKey)
-//
-//                dependencyContainer.storage.recordAppInstall()
-//
-//                await dependencyContainer.configManager.fetchConfiguration()
-//                await dependencyContainer.identityManager.configure()
-//
-//                await MainActor.run {
-//                    completion?()
-//                }
-//            }
-//        }
-//
-//        Logger.debug(LogLevel.warn, LogScope.cache, "Hello")
-
-        // Called after the constructor to begin setting up the sdk
-//        Log.println(Log.INFO, "Superwall", "Superwall setup")
-
-//        // Make sure we start tacking the contexts so we know where to present the paywall
-//        // onto
-//        (contex.applicationContext as Application).registerActivityLifecycleCallbacks(
-//            ActivityLifecycleTracker.instance)
-//
-//
-//
-//        val scope = CoroutineScope(Dispatchers.IO)
-//
-//        val self = this
-//        scope.launch {
-//            self.dependencyContainer.network.getConfig()
-//        }
-
-        // Fetch the static configuration from the server
-//        Network.getStaticConfig {
-//            config ->
-//            Log.println(Log.INFO, "Superwall", "Superwall config: " + config)
-//            if (config != null) {
-//                // Save the config
-//                this.config = config
-//                postConfig()
-//                Log.println(Log.INFO, "Superwall", "Superwall config" + config)
-//            }
-//        }
     }
-
-//    protected var config: Config? = null
-//
-//    protected  var productMap: Map<String, SkuDetails> = mapOf()
-
-//    private fun postConfig() {
-//        // Post the config to the webview
-//        Log.println(Log.INFO, "Superwall", "Superwall post config")
-//
-//        // Load all the products using google play billing
-//        val productIds = config!!.paywalls.flatMap {
-//            paywall -> paywall.products.map { product -> product.id }
-//        }
-//        billingController.querySkuDetails(productIds as ArrayList<String>) {
-//            skuDetails ->
-//            Log.println(Log.INFO, "Superwall", "Superwall skuDetails: " + skuDetails)
-//            if (skuDetails != null) {
-//                // Save the skuDetails
-//                Log.println(Log.INFO, "Superwall", "Superwall skuDetails" + skuDetails)
-//                this.productMap = skuDetails.map { skuDetail -> skuDetail.sku to skuDetail }.toMap()
-//
-//            }
-//        }
-//
-//
-//
-//
-//    }
 
     /**
      * Toggles the paywall loading spinner on and off.
@@ -313,8 +217,11 @@ class Superwall(
         dependencyContainer.deviceHelper.platformWrapper = wrapper
     }
 
+    fun cancelAllScheduledNotifications() {
+        WorkManager.getInstance(context).cancelAllWorkByTag(SuperwallPaywallActivity.NOTIFICATION_CHANNEL_ID)
+    }
 
-    //    // MARK: - Reset
+    // MARK: - Reset
 
     /**
      * Resets the `userId`, on-device paywall assignments, and data stored
