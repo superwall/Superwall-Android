@@ -135,7 +135,7 @@ class CustomHttpUrlConnection {
 
         val value: Response? = try {
             this.json.decodeFromString<Response>(responseMessage)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Logger.debug(
                 LogLevel.error,
                 LogScope.network,

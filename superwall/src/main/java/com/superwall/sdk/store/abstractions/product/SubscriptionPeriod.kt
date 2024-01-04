@@ -42,7 +42,7 @@ data class SubscriptionPeriod(val value: Int, val unit: Unit) {
         fun from(subscriptionPeriodString: String): SubscriptionPeriod? {
             val period = try {
                 Period.parse(subscriptionPeriodString)
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 return null
             }
 

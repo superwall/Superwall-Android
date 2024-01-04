@@ -24,7 +24,7 @@ class SWWebViewInterface(delegate: PaywallMessageDelegate, private val context: 
         val wrappedPaywallMessages: WrappedPaywallMessages
         try {
             wrappedPaywallMessages = parseWrappedPaywallMessages(message)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e("SWWebViewInterface", "Error parsing message", e)
             return
         }

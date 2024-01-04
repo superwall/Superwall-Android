@@ -106,7 +106,7 @@ open class ConfigManager(
                 // TODO: Re-enable those params
 //                storeKitManager.loadPurchasedProducts()
                 launch { preloadPaywalls() }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 configState.emit(Result.Failure(e))
                 Logger.debug(
                     logLevel = LogLevel.error,
@@ -274,7 +274,7 @@ open class ConfigManager(
                             isPreloading = true,
                             delegate = null
                         )
-                    } catch (e: Exception) {
+                    } catch (e: Throwable) {
                         null
                     }
                 }

@@ -24,7 +24,7 @@ object DateSerializer : KSerializer<Date> {
     override fun deserialize(decoder: Decoder): Date {
         return try {
             dateFormat.get()!!.parse(decoder.decodeString())
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             throw IllegalArgumentException("Invalid date format", e)
         }!!
     }

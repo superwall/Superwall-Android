@@ -19,7 +19,7 @@ plugins {
     id("maven-publish")
 }
 
-version = "1.0.0-alpha.31"
+version = "1.0.0-alpha.32"
 
 android {
     compileSdk = 33
@@ -128,6 +128,7 @@ tasks.register("generateBuildInfo") {
 
 
 dependencies {
+    implementation("androidx.work:work-runtime-ktx:2.8.1")
     implementation("androidx.lifecycle:lifecycle-process:2.5.0")
     implementation("androidx.room:room-runtime:2.5.2")
     implementation("androidx.room:room-ktx:2.5.2")

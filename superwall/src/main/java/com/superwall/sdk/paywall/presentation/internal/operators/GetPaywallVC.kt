@@ -70,7 +70,7 @@ internal suspend fun Superwall.getPaywallViewController(
             isPreloading = false,
             delegate = delegate
         )
-    } catch (e: Exception) {
+    } catch (e: Throwable) {
         if (subscriptionStatus == SubscriptionStatus.ACTIVE) {
             throw userIsSubscribed(paywallStatePublisher)
         } else {
@@ -80,7 +80,7 @@ internal suspend fun Superwall.getPaywallViewController(
 }
 
 private suspend fun presentationFailure(
-    error: Exception,
+    error: Throwable,
     request: PresentationRequest,
     debugInfo: Map<String, Any>,
     paywallStatePublisher: MutableSharedFlow<PaywallState>?

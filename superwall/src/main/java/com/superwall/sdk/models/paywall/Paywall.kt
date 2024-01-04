@@ -68,6 +68,8 @@ data class Paywall(
     @SerialName("computed_properties")
     var computedPropertyRequests: List<ComputedPropertyRequest> = emptyList(),
 
+    var localNotifications: List<LocalNotification> = emptyList(),
+
     /**
      * Indicates whether the caching of the paywall is enabled or not.
       */
@@ -157,6 +159,8 @@ data class Paywall(
             isFreeTrialAvailable = isFreeTrialAvailable,
             factory = factory,
             featureGatingBehavior = featureGating,
+            localNotifications = localNotifications,
+            computedPropertyRequests = computedPropertyRequests,
             closeReason = closeReason,
             surveys = surveys
         )
@@ -187,7 +191,8 @@ data class Paywall(
                 swProductVariablesTemplate = arrayListOf(),
                 paywalljsVersion = "",
                 isFreeTrialAvailable = false,
-                featureGating = FeatureGatingBehavior.NonGated
+                featureGating = FeatureGatingBehavior.NonGated,
+                localNotifications = arrayListOf()
             )
         }
     }

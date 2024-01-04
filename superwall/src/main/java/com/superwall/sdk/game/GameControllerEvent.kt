@@ -19,7 +19,7 @@ data class GameControllerEvent(
             }.create()
             return try {
                 gson.toJson(this)
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 null
             }
         }

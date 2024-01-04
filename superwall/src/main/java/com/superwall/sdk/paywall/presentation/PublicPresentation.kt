@@ -137,7 +137,7 @@ private suspend fun Superwall.trackAndPresentPaywall(
 ) {
     try {
         TrackingLogic.checkNotSuperwallEvent(event)
-    } catch (e: Exception) {
+    } catch (e: Throwable) {
         return
     }
 

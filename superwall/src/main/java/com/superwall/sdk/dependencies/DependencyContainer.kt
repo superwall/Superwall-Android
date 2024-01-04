@@ -196,7 +196,8 @@ class DependencyContainer(
             purchaseController = purchaseController,
             sessionEventsManager,
             activityProvider,
-            factory = this
+            factory = this,
+            context = context
         )
 
         // Calling this just to initialise the trigger session manager so it can start listening
@@ -211,10 +212,11 @@ class DependencyContainer(
         // TODO: Add storage
         val key = if (isForDebugging) storage.debugKey else storage.apiKey
         val auth = "Bearer $key"
-        val headers = mapOf<String, String>(
+        val headers = mapOf(
             "Authorization" to auth,
             "X-Platform" to "iOS",
             "X-Platform-Environment" to "SDK",
+            "X-Platform-Wrapper" to deviceHelper.platformWrapper,
             "X-App-User-ID" to (identityManager.getAppUserId() ?: ""),
             "X-Alias-ID" to identityManager.getAliasId(),
             "X-URL-Scheme" to deviceHelper.urlScheme,

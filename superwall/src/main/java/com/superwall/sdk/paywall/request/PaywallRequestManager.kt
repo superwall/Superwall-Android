@@ -206,7 +206,7 @@ class PaywallRequestManager(
             paywall.isFreeTrialAvailable = outcome.isFreeTrialAvailable
 
             return@withContext paywall
-        } catch (error: Exception) {
+        } catch (error: Throwable) {
             paywall.productsLoadingInfo.failAt = Date()
             val paywallInfo = paywall.getInfo(request.eventData, factory)
             trackProductLoadFail(paywallInfo, request.eventData)

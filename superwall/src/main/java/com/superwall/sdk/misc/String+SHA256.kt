@@ -8,7 +8,7 @@ fun String.sha256(): ByteArray? {
         val digest = MessageDigest.getInstance("SHA-256")
         digest.update(this.toByteArray(Charsets.UTF_8))
         digest.digest()
-    } catch (e: Exception) {
+    } catch (e: Throwable) {
         null
     }
 }

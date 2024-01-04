@@ -85,7 +85,7 @@ internal class ConfigLogicTest {
 
             val variant = ConfigLogic.chooseVariant(options)
             assertEquals(options.first().toVariant(), variant)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             fail("Should have produced a no variant error")
         }
     }
@@ -109,7 +109,7 @@ internal class ConfigLogicTest {
             )
 
             assertEquals(options.last().toVariant(), variant)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             fail("Should have produced a no variant error")
         }
     }
@@ -133,7 +133,7 @@ internal class ConfigLogicTest {
             )
 
             assertEquals(options[1].toVariant(), variant)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             fail("Should have produced a no variant error")
         }
     }
@@ -157,7 +157,7 @@ internal class ConfigLogicTest {
             )
 
             assertEquals(options[0].toVariant(), variant)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             fail("Should have produced a no variant error")
         }
     }

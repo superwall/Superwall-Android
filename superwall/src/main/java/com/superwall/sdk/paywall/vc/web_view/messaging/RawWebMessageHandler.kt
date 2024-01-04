@@ -31,7 +31,7 @@ class RawWebMessageHandler(private val delegate: WebEventDelegate) : WebViewClie
 
         val wrappedPaywallMessages = try {
             parseWrappedPaywallMessages(bodyData.decodeToString())
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Logger.debug(
                 logLevel = LogLevel.warn,
                 scope = LogScope.paywallViewController,

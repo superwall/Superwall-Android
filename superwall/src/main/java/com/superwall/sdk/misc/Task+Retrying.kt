@@ -15,7 +15,7 @@ suspend fun <T> retrying(
     for (attempt in 0 until maxRetryCount) {
         try {
             return@withContext operation()
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             isRetryingCallback?.invoke()
             val delayTime = TaskRetryLogic.delay(attempt, maxRetryCount) ?: break
             delay(delayTime)

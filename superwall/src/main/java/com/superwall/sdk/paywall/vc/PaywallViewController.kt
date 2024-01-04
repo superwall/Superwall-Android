@@ -3,10 +3,14 @@ package com.superwall.sdk.paywall.vc
 import LogLevel
 import LogScope
 import Logger
+import android.Manifest
 import android.R
 import android.app.Activity
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Color
 import android.net.Uri
 import android.os.Build
@@ -23,12 +27,16 @@ import android.widget.FrameLayout
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.browser.customtabs.CustomTabsIntent
+import androidx.core.app.ActivityCompat
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEventObjc
 import com.superwall.sdk.config.models.OnDeviceCaching
 import com.superwall.sdk.config.options.PaywallOptions
+import com.superwall.sdk.dependencies.DeviceHelperFactory
 import com.superwall.sdk.dependencies.TriggerFactory
 import com.superwall.sdk.dependencies.TriggerSessionManagerFactory
 import com.superwall.sdk.game.GameControllerDelegate
@@ -38,6 +46,7 @@ import com.superwall.sdk.misc.AlertControllerFactory
 import com.superwall.sdk.misc.isDarkColor
 import com.superwall.sdk.misc.isLightColor
 import com.superwall.sdk.misc.readableOverlayColor
+import com.superwall.sdk.models.paywall.LocalNotification
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.PaywallPresentationStyle
 import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
@@ -64,6 +73,7 @@ import com.superwall.sdk.paywall.vc.web_view.SWWebViewDelegate
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallMessageHandlerDelegate
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent
 import com.superwall.sdk.storage.Storage
+import com.superwall.sdk.store.transactions.notifications.NotificationScheduler
 import com.superwall.sdk.view.fatalAssert
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -674,7 +684,7 @@ class PaywallViewController(
                 scope = LogScope.paywallViewController,
                 message = "Invalid URL provided for \"Open In-App URL\" click behavior."
             )
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Logger.debug(
                 logLevel = LogLevel.debug,
                 scope = LogScope.paywallViewController,
@@ -695,7 +705,7 @@ class PaywallViewController(
                 scope = LogScope.paywallViewController,
                 message = "Invalid URL provided for \"Open External URL\" click behavior."
             )
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Logger.debug(
                 logLevel = LogLevel.debug,
                 scope = LogScope.paywallViewController,
@@ -751,6 +761,10 @@ interface ActivityEncapsulatable {
 
 class SuperwallPaywallActivity : AppCompatActivity() {
     companion object {
+        private const val REQUEST_CODE_NOTIFICATION_PERMISSION = 1001
+        const val NOTIFICATION_CHANNEL_ID = "com.superwall.android.notifications"
+        private const val NOTIFICATION_CHANNEL_NAME = "Trial Reminder Notifications"
+        private const val NOTIFICATION_CHANNEL_DESCRIPTION = "Notifications sent when a free trial is about to end."
         private const val VIEW_KEY = "viewKey"
         private const val PRESENTATION_STYLE_KEY = "presentationStyleKey"
         private const val IS_LIGHT_BACKGROUND_KEY = "isLightBackgroundKey"
@@ -775,6 +789,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
     }
 
     private var contentView: View? = null
+    private var notificationPermissionCallback: NotificationPermissionCallback? = null
 
     override fun setContentView(view: View) {
         super.setContentView(view)
@@ -905,6 +920,86 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         // Clear the reference to the contentView
         contentView = null
     }
+
+    //region Notifications
+    interface NotificationPermissionCallback {
+        fun onPermissionResult(granted: Boolean)
+    }
+
+    fun attemptToScheduleNotifications(
+        notifications: List<LocalNotification>,
+        factory: DeviceHelperFactory,
+        context: Context
+    ) {
+        createNotificationChannel()
+
+        notificationPermissionCallback = object : NotificationPermissionCallback {
+            override fun onPermissionResult(granted: Boolean) {
+                if (granted) {
+                    NotificationScheduler.scheduleNotifications(
+                        notifications = notifications,
+                        factory = factory,
+                        context = context
+                    )
+                }
+            }
+        }
+
+        checkAndRequestNotificationPermissions(this, notificationPermissionCallback!!)
+    }
+
+    private fun createNotificationChannel() {
+        val importance = NotificationManager.IMPORTANCE_DEFAULT
+        val channel = NotificationChannel(
+            NOTIFICATION_CHANNEL_ID,
+            NOTIFICATION_CHANNEL_NAME,
+            importance
+        ).apply {
+            description = NOTIFICATION_CHANNEL_DESCRIPTION
+        }
+        channel.setShowBadge(false)
+        // Register the channel with the system
+        val notificationManager: NotificationManager =
+            getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.createNotificationChannel(channel)
+    }
+
+    private fun checkAndRequestNotificationPermissions(context: Context, callback: NotificationPermissionCallback) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                if (!ActivityCompat.shouldShowRequestPermissionRationale(context as Activity, Manifest.permission.POST_NOTIFICATIONS)) {
+                    // First time asking or user previously denied without 'Don't ask again'
+                    ActivityCompat.requestPermissions(context, arrayOf(Manifest.permission.POST_NOTIFICATIONS), REQUEST_CODE_NOTIFICATION_PERMISSION)
+                } else {
+                    // Permission previously denied with 'Don't ask again'
+                    callback.onPermissionResult(false)
+                }
+            } else {
+                callback.onPermissionResult(true)
+            }
+        } else {
+            callback.onPermissionResult(areNotificationsEnabled(context))
+        }
+    }
+
+    private fun areNotificationsEnabled(context: Context): Boolean {
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val channel = notificationManager.getNotificationChannel(NOTIFICATION_CHANNEL_ID)
+        if (channel?.importance == NotificationManager.IMPORTANCE_NONE) {
+            return false
+        }
+        return NotificationManagerCompat.from(context).areNotificationsEnabled()
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQUEST_CODE_NOTIFICATION_PERMISSION && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val isGranted = grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
+            // Invoke the callback here
+            notificationPermissionCallback?.onPermissionResult(isGranted)
+        }
+    }
+    //endregion
 }
 
 object ViewStorage {

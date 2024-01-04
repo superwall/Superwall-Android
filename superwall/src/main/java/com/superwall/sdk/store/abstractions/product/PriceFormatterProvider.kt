@@ -24,7 +24,7 @@ class PriceFormatterProvider {
     private fun currency(currencyCode: String): Currency? {
         return try {
             Currency.getInstance(currencyCode)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             null
         }
     }
@@ -35,7 +35,7 @@ var NumberFormat.currencyCode: String?
     set(value) {
         this.currency = try {
             if (value != null) Currency.getInstance(value) else null
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             null
         }
     }

@@ -2,6 +2,19 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall-me/Superwall-Android/releases) on GitHub.
 
+## 1.0.0-alpha.32
+
+### Enhancements
+
+- SW-2214: Adds ability to use free trial notifications with a paywall.
+- Adds `cancelAllScheduledNotifications()` to cancel any scheduled free trial notifications.
+- SW-2640: Adds `computedPropertyRequests` to `PaywallInfo`.
+- SW-2641: Makes `closeReason` in `PaywallInfo` non-optional.
+
+### Fixes
+
+- Fixes issue where thrown exceptions weren't always being caught.
+
 ## 1.0.0-alpha.31
 
 ### Enhancements

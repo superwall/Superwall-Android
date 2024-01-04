@@ -1,5 +1,6 @@
 package com.superwall.sdk.paywall.presentation
 
+import ComputedPropertyRequest
 import LogLevel
 import LogScope
 import Logger
@@ -8,6 +9,7 @@ import com.superwall.sdk.dependencies.TriggerSessionManagerFactory
 import com.superwall.sdk.misc.camelCaseToSnakeCase
 import com.superwall.sdk.models.config.FeatureGatingBehavior
 import com.superwall.sdk.models.events.EventData
+import com.superwall.sdk.models.paywall.LocalNotification
 import com.superwall.sdk.models.product.Product
 import com.superwall.sdk.models.serialization.URLSerializer
 import com.superwall.sdk.models.triggers.Experiment
@@ -48,7 +50,9 @@ data class PaywallInfo(
     val paywalljsVersion: String?,
     val isFreeTrialAvailable: Boolean,
     val featureGatingBehavior: FeatureGatingBehavior,
-    val closeReason: PaywallCloseReason?,
+    val closeReason: PaywallCloseReason,
+    val localNotifications: List<LocalNotification>,
+    val computedPropertyRequests: List<ComputedPropertyRequest>,
     val surveys: List<Survey>,
     val factory: TriggerSessionManagerFactory
 ) {
@@ -75,7 +79,9 @@ data class PaywallInfo(
         presentationSourceType: String? = null,
         factory: TriggerSessionManagerFactory,
         featureGatingBehavior: FeatureGatingBehavior = FeatureGatingBehavior.NonGated,
-        closeReason: PaywallCloseReason? = null,
+        localNotifications: List<LocalNotification>,
+        computedPropertyRequests: List<ComputedPropertyRequest>,
+        closeReason: PaywallCloseReason,
         surveys: List<Survey>
     ) : this(
         databaseId = databaseId,
@@ -119,6 +125,8 @@ data class PaywallInfo(
             }
         },
         factory = factory,
+        localNotifications = localNotifications,
+        computedPropertyRequests = computedPropertyRequests,
         closeReason = closeReason,
         surveys = surveys
     )
