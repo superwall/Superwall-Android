@@ -931,6 +931,8 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         factory: DeviceHelperFactory,
         context: Context
     ) {
+        if (notifications.isEmpty()) return
+
         createNotificationChannel()
 
         notificationPermissionCallback = object : NotificationPermissionCallback {
