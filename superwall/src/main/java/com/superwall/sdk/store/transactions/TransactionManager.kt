@@ -3,6 +3,7 @@ package com.superwall.sdk.store.transactions
 import LogLevel
 import LogScope
 import Logger
+import android.content.Context
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.SessionEventsManager
 import com.superwall.sdk.analytics.internal.track
@@ -12,14 +13,17 @@ import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
+import com.superwall.sdk.dependencies.DeviceHelperFactory
 import com.superwall.sdk.dependencies.OptionsFactory
 import com.superwall.sdk.dependencies.StoreTransactionFactory
 import com.superwall.sdk.dependencies.TransactionVerifierFactory
 import com.superwall.sdk.dependencies.TriggerFactory
 import com.superwall.sdk.misc.ActivityProvider
+import com.superwall.sdk.models.paywall.LocalNotificationType
 import com.superwall.sdk.paywall.presentation.internal.dismiss
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.vc.PaywallViewController
+import com.superwall.sdk.paywall.vc.SuperwallPaywallActivity
 import com.superwall.sdk.paywall.vc.delegate.PaywallLoadingState
 import com.superwall.sdk.store.StoreKitManager
 import com.superwall.sdk.store.abstractions.product.StoreProduct
@@ -31,9 +35,11 @@ class TransactionManager(
     private val purchaseController: PurchaseController,
     private val sessionEventsManager: SessionEventsManager,
     private val activityProvider: ActivityProvider,
-    private val factory: Factory
+    private val factory: Factory,
+    private val context: Context
 ) {
-    interface Factory: OptionsFactory, TriggerFactory, TransactionVerifierFactory, StoreTransactionFactory {}
+    interface Factory: OptionsFactory, TriggerFactory, TransactionVerifierFactory,
+        StoreTransactionFactory, DeviceHelperFactory {}
     private var lastPaywallViewController: PaywallViewController? = null
 
     suspend fun purchase(
@@ -399,10 +405,13 @@ class TransactionManager(
             val freeTrialEvent = InternalSuperwallEvent.FreeTrialStart(paywallInfo, product)
             Superwall.instance.track(freeTrialEvent)
 
-        // SW-2214
-        // https://linear.app/superwall/issue/SW-2214/%5Bandroid%5D-%5Bv2%5D-add-back-local-notifications
-        // val notifications = paywallInfo.localNotifications.filter { it.type == NotificationType.TRIAL_STARTED }
-        // NotificationScheduler.scheduleNotifications(notifications)
+            val notifications = paywallInfo.localNotifications.filter { it.type == LocalNotificationType.TrialStarted }
+            val paywallActivity = (paywallViewController.encapsulatingActivity as SuperwallPaywallActivity)
+            paywallActivity.attemptToScheduleNotifications(
+                notifications = notifications,
+                factory = factory,
+                context = context
+            )
         } else {
             val subscriptionEvent =
                 InternalSuperwallEvent.SubscriptionStart(paywallInfo, product)
