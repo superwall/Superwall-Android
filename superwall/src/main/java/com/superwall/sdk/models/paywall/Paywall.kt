@@ -68,7 +68,7 @@ data class Paywall(
     @SerialName("computed_properties")
     var computedPropertyRequests: List<ComputedPropertyRequest> = emptyList(),
 
-    var localNotifications: List<LocalNotification>,
+    var localNotifications: List<LocalNotification> = emptyList(),
 
     /**
      * Indicates whether the caching of the paywall is enabled or not.
