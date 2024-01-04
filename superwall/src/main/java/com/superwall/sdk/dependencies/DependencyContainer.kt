@@ -196,7 +196,8 @@ class DependencyContainer(
             purchaseController = purchaseController,
             sessionEventsManager,
             activityProvider,
-            factory = this
+            factory = this,
+            context = context
         )
 
         // Calling this just to initialise the trigger session manager so it can start listening

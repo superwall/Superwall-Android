@@ -1415,5 +1415,15 @@ class UITestHandler {
         suspend fun testAndroid21() {
             Superwall.instance.register(event = "subs_baseplan_offer_with_free_trial")
         }
+
+        var testAndroid22Info = UITestInfo(
+            22,
+            "Tap launch button. Paywall should display. Purchase then quit app. Notification" +
+                    " should appear after a minute.",
+            testCaseType = TestCaseType.Android
+        )
+        suspend fun testAndroid22() {
+            Superwall.instance.register(event = "notifications")
+        }
     }
 }
