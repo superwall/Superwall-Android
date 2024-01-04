@@ -2,6 +2,14 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall-me/Superwall-Android/releases) on GitHub.
 
+## 1.0.0-alpha.33
+
+### Fixes
+
+- Fixes issue where a user would be asked to enable notifications even if there weren't any attached 
+to the paywall. 
+
+
 ## 1.0.0-alpha.32
 
 ### Enhancements

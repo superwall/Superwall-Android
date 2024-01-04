@@ -17,8 +17,6 @@ internal class NotificationScheduler {
             factory: DeviceHelperFactory,
             context: Context
         ) {
-            if (notifications.isEmpty()) return
-
             val workManager = WorkManager.getInstance(context)
 
             notifications.forEach { notification ->
