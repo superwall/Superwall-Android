@@ -108,9 +108,17 @@ class Superwall(
     }
 
     /// Properties stored about the user, set using `setUserAttributes`.
-    suspend fun getUserAttributes(): Map<String, Any> {
-        return dependencyContainer.identityManager.getUserAttributes()
-    }
+    val userAttributes: Map<String, Any>
+        get() = dependencyContainer.identityManager.userAttributes
+
+    /**
+     * The current user's id.
+     *
+     * If you haven't called ``identify(userId:options:)``,
+     * this value will return an anonymous user id which is cached to disk
+      */
+    val userId: String
+        get() = dependencyContainer.identityManager.userId
 
     protected var _subscriptionStatus: MutableStateFlow<SubscriptionStatus> = MutableStateFlow(
         SubscriptionStatus.UNKNOWN

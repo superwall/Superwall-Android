@@ -1241,17 +1241,17 @@ class UITestHandler {
         suspend fun test72() {
             Superwall.instance.identify(userId = "abc")
 
-            var seed = Superwall.instance.getUserAttributes()["seed"]
+            var seed = Superwall.instance.userAttributes["seed"]
             println("!!! seed - 1: $seed")
 
             Superwall.instance.reset()
 
             Superwall.instance.identify(userId = "abc")
 
-            val appUserId = Superwall.instance.getUserAttributes()["appUserId"]
+            val appUserId = Superwall.instance.userAttributes["appUserId"]
             println("!!! user ID: $appUserId")
 
-            seed = Superwall.instance.getUserAttributes()["seed"]
+            seed = Superwall.instance.userAttributes["seed"]
             println("!!! seed - 2: $seed")
         }
 

@@ -167,7 +167,7 @@ class TransactionManager(
                 model = null
             )
 
-            // Assuming Superwall.shared.track and sessionEventsManager.triggerSession.trackTransactionError are suspend functions
+            // Assuming Superwall.instance.track and sessionEventsManager.triggerSession.trackTransactionError are suspend functions
             Superwall.instance.track(trackedEvent)
         }
     }

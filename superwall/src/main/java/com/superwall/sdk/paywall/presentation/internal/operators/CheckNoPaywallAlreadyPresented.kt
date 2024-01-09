@@ -19,7 +19,7 @@ suspend fun Superwall.checkNoPaywallAlreadyPresented(
             logLevel = LogLevel.error,
             scope = LogScope.paywallPresentation,
             message = "Paywall Already Presented",
-            info = mapOf("message" to "Superwall.shared.isPaywallPresented is true")
+            info = mapOf("message" to "Superwall.instance.isPaywallPresented is true")
         )
         val error = InternalPresentationLogic.presentationError(
             domain = "SWPresentationError",

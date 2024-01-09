@@ -55,7 +55,7 @@ import kotlinx.coroutines.flow.first
 //            var timeoutReason = ""
 //            val subscriptionStatus = request.flags.subscriptionStatus.first()
 //            if (subscriptionStatus == SubscriptionStatus.UNKNOWN) {
-//                timeoutReason += "\nSuperwall.shared.subscriptionStatus is currently \"unknown\". A paywall cannot show in this state."
+//                timeoutReason += "\nSuperwall.instance.subscriptionStatus is currently \"unknown\". A paywall cannot show in this state."
 //            }
 //            if (dependencyContainer.configManager.config == null) {
 //                timeoutReason += "\n The config for the user has not returned from the server."

@@ -23,7 +23,7 @@ fun Superwall.identify(userId: String, options: IdentityOptions? = null) {
 ///   "username": user.username,
 ///   "profilePic": user.profilePicUrl
 ///  ]
-///  await Superwall.shared.setUserAttributes(attributes)
+///  await Superwall.instance.setUserAttributes(attributes)
 ///  ```
 /// See [Setting User Attributes](https://docs.superwall.com/docs/setting-user-properties) for more.
 ///
