@@ -10,6 +10,8 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ### Enhancements
 
+- SW-2663: Adds `preloadAllPaywalls()` and `preloadPaywalls(eventNames:)` to be able to manually 
+preload paywalls.
 - SW-2665: Adds `Superwall.instance.userId` so you can access the current user's id.
 
 ### Fixes

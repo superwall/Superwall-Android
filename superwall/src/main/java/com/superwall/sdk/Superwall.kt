@@ -47,6 +47,8 @@ class Superwall(
     private var purchaseController: PurchaseController? = purchaseController
     private var _options: SuperwallOptions? = options
     private var activityProvider = activityProvider
+    // Add a private variable for the purchase task
+    private var purchaseTask: Job? = null
 
     internal val presentationItems: PresentationItems = PresentationItems()
 
@@ -286,8 +288,41 @@ class Superwall(
 
     //endregion
 
-    // Add a private variable for the purchase task
-    private var purchaseTask: Job? = null
+    //region Preloading
+
+    /**
+     * Preloads all paywalls that the user may see based on campaigns and triggers turned on in your
+     * Superwall dashboard.
+     *
+     * To use this, first set `PaywallOptions/shouldPreload`  to `false` when configuring the SDK.
+     * Then call this function when you would like preloading to begin.
+     * Note: This will not reload any paywalls you've already preloaded via `preloadPaywalls(forEvents:)`.
+      */
+    fun preloadAllPaywalls() {
+        CoroutineScope(Dispatchers.IO).launch {
+            dependencyContainer.configManager.preloadAllPaywalls()
+        }
+    }
+
+    /**
+     * Preloads paywalls for specific event names.
+     *
+     * To use this, first set `PaywallOptions/shouldPreload`  to `false` when configuring the SDK.
+     * Then call this function when you would like preloading to begin.
+     *
+     * Note: This will not reload any paywalls you've already preloaded.
+     *
+     * @param eventNames A set of names of events whose paywalls you want to preload.
+     */
+    fun preloadPaywalls(eventNames: Set<String>) {
+        CoroutineScope(Dispatchers.IO).launch {
+            dependencyContainer.configManager.preloadPaywallsByNames(
+                eventNames = eventNames
+            )
+        }
+    }
+
+    //endregion
 
     override suspend fun eventDidOccur(
         paywallEvent: PaywallWebEvent,
