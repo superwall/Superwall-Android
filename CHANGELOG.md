@@ -2,13 +2,32 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall-me/Superwall-Android/releases) on GitHub.
 
+## 1.0.0-alpha.34
+
+### Breaking Changes
+
+- Changes `Superwall.instance.getUserAttributes()` to `Superwall.instance.userAttributes`.
+- `SuperwallOptions.logging.logLevel` is now non-optional. Set it to `LogLevel.none` to prevent
+logs from being printed to the console.
+
+### Enhancements
+
+- SW-2663: Adds `preloadAllPaywalls()` and `preloadPaywalls(eventNames:)` to be able to manually 
+preload paywalls.
+- SW-2665: Adds `Superwall.instance.userId` so you can access the current user's id.
+- SW-2668: Adds `preferredLocale` and `preferredLanguageLocale` to the device attributes for use in rules.
+- Adds `Superwall.instance.logLevel` as a convenience variable to set and get the log level.
+
+### Fixes
+
+- SW-2664: Fixes race condition between resetting and presenting paywalls.
+
 ## 1.0.0-alpha.33
 
 ### Fixes
 
 - Fixes issue where a user would be asked to enable notifications even if there weren't any attached 
-to the paywall. 
-
+to the paywall.
 
 ## 1.0.0-alpha.32
 

@@ -58,7 +58,7 @@ internal suspend fun Superwall.waitForSubsStatusAndConfig(
                 Logger.debug(
                     logLevel = LogLevel.info,
                     scope = LogScope.paywallPresentation,
-                    message = "Timeout: Superwall.shared.subscriptionStatus has been \"unknown\" for " +
+                    message = "Timeout: Superwall.instance.subscriptionStatus has been \"unknown\" for " +
                             "over 5 seconds resulting in a failure."
                 )
                 val error = InternalPresentationLogic.presentationError(

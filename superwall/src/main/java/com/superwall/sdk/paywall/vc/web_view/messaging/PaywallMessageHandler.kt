@@ -271,7 +271,7 @@ class PaywallMessageHandler(
 
         var info: MutableMap<String, Any> = mutableMapOf(
             "self" to this,
-            "Superwall.shared.paywallViewController" to paywallDebugDescription,
+            "Superwall.instance.paywallViewController" to paywallDebugDescription,
             "event" to eventName
         )
         userInfo?.let {

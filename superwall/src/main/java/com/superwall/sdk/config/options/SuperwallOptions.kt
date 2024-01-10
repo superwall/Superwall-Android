@@ -77,7 +77,7 @@ class SuperwallOptions {
     // Configuration for printing to the console.
     class Logging {
         // Defines the minimum log level to print to the console. Defaults to `warn`.
-        var level: LogLevel? = LogLevel.warn
+        var level: LogLevel = LogLevel.warn
 
         // Defines the scope of logs to print to the console. Defaults to .all.
         var scopes: EnumSet<LogScope> = EnumSet.of(LogScope.all)

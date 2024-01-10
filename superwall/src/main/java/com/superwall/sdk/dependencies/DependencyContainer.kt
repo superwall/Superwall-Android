@@ -217,8 +217,8 @@ class DependencyContainer(
             "X-Platform" to "iOS",
             "X-Platform-Environment" to "SDK",
             "X-Platform-Wrapper" to deviceHelper.platformWrapper,
-            "X-App-User-ID" to (identityManager.getAppUserId() ?: ""),
-            "X-Alias-ID" to identityManager.getAliasId(),
+            "X-App-User-ID" to (identityManager.appUserId ?: ""),
+            "X-Alias-ID" to identityManager.aliasId,
             "X-URL-Scheme" to deviceHelper.urlScheme,
             "X-Vendor-ID" to deviceHelper.vendorId,
             "X-App-Version" to deviceHelper.appVersion,
@@ -418,7 +418,7 @@ class DependencyContainer(
         event: EventData?,
         computedPropertyRequests: List<ComputedPropertyRequest>
     ): Map<String, Any> {
-        val userAttributes = identityManager.getUserAttributes().toMutableMap()
+        val userAttributes = identityManager.userAttributes.toMutableMap()
         userAttributes.put("isLoggedIn", identityManager.isLoggedIn)
 
         val deviceAttributes = deviceHelper.getDeviceAttributes(
@@ -443,8 +443,8 @@ class DependencyContainer(
 
     override suspend fun makeIdentityInfo(): IdentityInfo {
         return IdentityInfo(
-            aliasId = identityManager.getAliasId(),
-            appUserId = identityManager.getAppUserId(),
+            aliasId = identityManager.aliasId,
+            appUserId = identityManager.appUserId,
         )
     }
 
@@ -465,7 +465,7 @@ class DependencyContainer(
         val variables = Variables(
             productVariables = productVariables ?: listOf<ProductVariable>(),
             params = event?.parameters ?: emptyMap(),
-            userAttributes = identityManager.getUserAttributes(),
+            userAttributes = identityManager.userAttributes,
             templateDeviceDictionary = templateDeviceDictionary
         ).templated()
 

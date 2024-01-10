@@ -2,7 +2,8 @@ enum class LogLevel(val level: Int) {
     debug(10),
     info(20),
     warn(30),
-    error(40);
+    error(40),
+    none(99);
 
     override fun toString(): String {
         return when (this) {
@@ -10,6 +11,7 @@ enum class LogLevel(val level: Int) {
             info -> "INFO"
             warn -> "WARN"
             error -> "ERROR"
+            none -> "NONE"
         }
     }
 
@@ -19,6 +21,7 @@ enum class LogLevel(val level: Int) {
             info -> "ℹ️"
             warn -> "⚠️"
             error -> "‼️"
+            none -> ""
         }
     }
 }

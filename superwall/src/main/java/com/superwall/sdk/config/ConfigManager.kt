@@ -209,7 +209,6 @@ open class ConfigManager(
         preloadAllPaywalls()
     }
 
-
     // Preloads paywalls referenced by triggers.
     suspend fun preloadAllPaywalls() {
         if (currentPreloadingTask != null) {

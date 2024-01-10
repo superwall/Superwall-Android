@@ -18,15 +18,14 @@ import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.UserAttributes
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.asCoroutineDispatcher
-import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.runBlocking
 import java.util.concurrent.Executors
 
 class IdentityManager(
@@ -35,54 +34,49 @@ class IdentityManager(
     private val configManager: ConfigManager
 ) {
     private var _appUserId: String? = storage.get(AppUserId)
-    suspend fun getAppUserId(): String? = withContext(scope.coroutineContext) {
-        return@withContext mutex.withLock {
+
+    val appUserId: String?
+        get() = runBlocking(queue) {
             _appUserId
         }
-    }
 
     private var _aliasId: String =
         storage.get(AliasId) ?: IdentityLogic.generateAlias()
 
-    suspend fun getAliasId(): String = withContext(scope.coroutineContext) {
-        return@withContext mutex.withLock {
+    val aliasId: String
+        get() = runBlocking(queue) {
             _aliasId
         }
-    }
 
     private var _seed: Int =
         storage.get(Seed) ?: IdentityLogic.generateSeed()
 
-    suspend fun getSeed(): Int = withContext(scope.coroutineContext) {
-        return@withContext mutex.withLock {
+    val seed: Int
+        get() = runBlocking(queue) {
             _seed
         }
-    }
 
-    suspend fun getUserId(): String = withContext(scope.coroutineContext) {
-        return@withContext mutex.withLock {
+    val userId: String
+        get() = runBlocking(queue) {
             _appUserId ?: _aliasId
         }
-    }
 
     private var _userAttributes: Map<String, Any> =
         storage.get(UserAttributes) ?: emptyMap()
 
-    suspend fun getUserAttributes(): Map<String, Any> = withContext(scope.coroutineContext) {
-        return@withContext mutex.withLock {
+    val userAttributes: Map<String, Any>
+        get() = runBlocking(queue) {
             _userAttributes
         }
-    }
 
     val isLoggedIn: Boolean get() = _appUserId != null
 
     private val identityFlow = MutableStateFlow(false)
-    val hasIdentity: StateFlow<Boolean> get() = identityFlow.asStateFlow()
+    val hasIdentity: Flow<Boolean> get() = identityFlow.asStateFlow().filter { it }
 
-    private val mutex = Mutex()
-
-    private val singleThreadDispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
-    private val scope = CoroutineScope(singleThreadDispatcher)
+    private val queue = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
+    private val scope = CoroutineScope(queue)
+    private val identityJobs = mutableListOf<Job>()
 
     init {
         val extraAttributes = mutableMapOf<String, Any>()
@@ -107,8 +101,8 @@ class IdentityManager(
         }
     }
 
-    public fun configure() {
-        scope.launch {
+    fun configure() {
+        CoroutineScope(queue).launch {
             val neverCalledStaticConfig = storage.neverCalledStaticConfig
             val isFirstAppOpen =
                 !(storage.get(DidTrackFirstSeen) ?: false)
@@ -128,7 +122,6 @@ class IdentityManager(
     fun identify(userId: String, options: IdentityOptions? = null) {
         scope.launch {
             IdentityLogic.sanitize(userId)?.let { sanitizedUserId ->
-                mutex.lock()
                 if (_appUserId == sanitizedUserId || sanitizedUserId == "") {
                     if (sanitizedUserId == "") {
                         Logger.debug(
@@ -137,7 +130,6 @@ class IdentityManager(
                             message = "The provided userId was empty."
                         )
                     }
-                    mutex.unlock()
                     return@launch
                 }
 
@@ -152,38 +144,39 @@ class IdentityManager(
 
                 // If we haven't gotten config yet, we need
                 // to leave this open to grab the appUserId for headers
-                mutex.unlock()
-                val config = configManager.configState.awaitFirstValidConfig()
-                mutex.lock()
+                identityJobs += CoroutineScope(Dispatchers.IO).launch {
+                    val config = configManager.configState.awaitFirstValidConfig()
 
-                if (config?.featureFlags?.enableUserIdSeed == true) {
-                    sanitizedUserId.sha256MappedToRange()?.let { seed ->
-                        _seed = seed
+                    if (config?.featureFlags?.enableUserIdSeed == true) {
+                        sanitizedUserId.sha256MappedToRange()?.let { seed ->
+                            _seed = seed
+                            saveIds()
+                        }
                     }
                 }
 
                 saveIds()
 
                 if (options?.restorePaywallAssignments == true) {
-                    mutex.unlock()
-                    configManager.getAssignments()
-                    mutex.lock()
-                    didSetIdentity()
-                } else {
-                    // This we don't have to worry about doing the lock & unlock
-                    // b/c we're not awaiting the deferral
-                    async {
+                    identityJobs += CoroutineScope(Dispatchers.IO).launch {
                         configManager.getAssignments()
                         didSetIdentity()
                     }
+                } else {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        configManager.getAssignments()
+                    }
+                    didSetIdentity()
                 }
-                mutex.unlock()
             }
         }
     }
 
     private fun didSetIdentity() {
-        scope.launch { identityFlow.emit(true) }
+        scope.launch {
+            identityJobs.forEach { it.join() }
+            identityFlow.emit(true)
+        }
     }
 
     /**
@@ -211,7 +204,7 @@ class IdentityManager(
     }
 
     fun reset(duringIdentify: Boolean) {
-        scope.launch {
+        CoroutineScope(Dispatchers.IO).launch {
             identityFlow.emit(false)
         }
 
@@ -219,10 +212,8 @@ class IdentityManager(
             _reset()
         } else {
             scope.launch {
-                mutex.withLock {
-                    _reset()
-                    didSetIdentity()
-                }
+                _reset()
+                didSetIdentity()
             }
         }
     }
@@ -240,12 +231,10 @@ class IdentityManager(
         shouldTrackMerge: Boolean = true
     ) {
         scope.launch {
-            mutex.withLock {
-                _mergeUserAttributes(
-                    newUserAttributes = newUserAttributes,
-                    shouldTrackMerge = shouldTrackMerge
-                )
-            }
+            _mergeUserAttributes(
+                newUserAttributes = newUserAttributes,
+                shouldTrackMerge = shouldTrackMerge
+            )
         }
     }
 
