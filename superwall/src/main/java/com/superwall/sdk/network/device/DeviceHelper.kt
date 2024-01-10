@@ -128,8 +128,6 @@ class DeviceHelper(
             }
         }
 
-
-
     val languageCode: String
         get() = _locale.language
 
@@ -383,7 +381,9 @@ class DeviceHelper(
             osVersion = osVersion,
             deviceModel = model,
             deviceLocale = locale,
+            preferredLocale = locale,
             deviceLanguageCode = languageCode,
+            preferredLanguageCode = languageCode,
             deviceCurrencyCode = currencyCode,
             deviceCurrencySymbol = currencySymbol,
             timezoneOffset = (TimeZone.getDefault().rawOffset) / 1000,
