@@ -14,7 +14,7 @@ interface PaywallViewControllerDelegate {
 }
 
 interface PaywallViewControllerEventDelegate {
-    suspend fun eventDidOccur(paywallEvent: PaywallWebEvent, on: PaywallViewController)
+    suspend fun eventDidOccur(paywallEvent: PaywallWebEvent, paywallViewController: PaywallViewController)
 }
 
 sealed class PaywallLoadingState {

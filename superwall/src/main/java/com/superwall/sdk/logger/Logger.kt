@@ -4,12 +4,14 @@ import com.superwall.sdk.config.options.SuperwallOptions
 interface Loggable {
     companion object {
         fun shouldPrint(logLevel: LogLevel, scope: LogScope): Boolean {
-            return true
             var logging: SuperwallOptions.Logging = SuperwallOptions.Logging()
             if (Superwall.initialized) {
                 logging = Superwall.instance.options.logging
             }
-            val exceedsCurrentLogLevel = logLevel.level >= (logging.level?.level ?: 99)
+            if (logging.level == LogLevel.none) {
+                return false
+            }
+            val exceedsCurrentLogLevel = logLevel.level >= logging.level.level
             val isInScope = logging.scopes.contains(scope)
             val allLogsActive = logging.scopes.contains(LogScope.all)
 

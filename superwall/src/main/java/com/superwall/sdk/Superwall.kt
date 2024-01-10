@@ -60,63 +60,90 @@ class Superwall(
 
     /**
      * A convenience variable to access and change the paywall options that you passed
-     * to `configure(apiKey:purchaseController:options:)`.
+     * to [configure].
      */
     val options: SuperwallOptions
         get() = dependencyContainer.configManager.options
 
-    /// Determines whether a paywall is being presented.
+    /**
+     * Specifies the detail of the logs returned from the SDK to the console.
+      */
+    var logLevel: LogLevel
+        get() = options.logging.level
+        set(newValue) {
+            options.logging.level = newValue
+        }
+
+    /**
+     * Determines whether a paywall is being presented.
+      */
     val isPaywallPresented: Boolean
         get() = paywallViewController != null
 
+    /**
+     * The delegate that handles Superwall lifecycle events.
+     */
     var delegate: SuperwallDelegate?
         get() = dependencyContainer.delegateAdapter.kotlinDelegate
         set(newValue) {
             dependencyContainer.delegateAdapter.kotlinDelegate = newValue
         }
 
+    /**
+     * Sets the Java delegate that handles Superwall lifecycle events.
+     */
     @JvmName("setDelegate")
     fun setJavaDelegate(newValue: SuperwallDelegateJava?) {
         dependencyContainer.delegateAdapter.javaDelegate = newValue
     }
 
+    /**
+     * Gets the Java delegate that handles Superwall lifecycle events.
+     */
     @JvmName("getDelegate")
     fun getJavaDelegate(): SuperwallDelegateJava? {
         return dependencyContainer.delegateAdapter.javaDelegate
     }
 
 
-    /// A published property that indicates the subscription status of the user.
-    ///
-    /// If you're handling subscription-related logic yourself, you must set this
-    /// property whenever the subscription status of a user changes.
-    /// However, if you're letting Superwall handle subscription-related logic, its value will
-    /// be synced with the user's purchases on device.
-    ///
-    /// Paywalls will not show until the subscription status has been established.
-    /// On first install, it's value will default to `.unknown`. Afterwards, it'll default
-    /// to its cached value.
-    ///
-    /// If you're using Combine or SwiftUI, you can subscribe or bind to it to get
-    /// notified whenever the user's subscription status changes.
-    ///
-    /// Otherwise, you can check the delegate function
-    /// ``SuperwallDelegate/subscriptionStatusDidChange(to:)-24teh``
-    /// to receive a callback with the new value every time it changes.
-    ///
-    /// To learn more, see [Purchases and Subscription Status](https://docs.superwall.com/docs/advanced-configuration).
+    /** A published property that indicates the subscription status of the user.
+     *
+     * If you're handling subscription-related logic yourself, you must set this
+     * property whenever the subscription status of a user changes.
+     *
+     * However, if you're letting Superwall handle subscription-related logic, its value will
+     * be synced with the user's purchases on device.
+     *
+     * Paywalls will not show until the subscription status has been established.
+     * On first install, it's value will default to [SubscriptionStatus.UNKNOWN]. Afterwards, it'll
+     * default to its cached value.
+     *
+     * You can observe [subscriptionStatus] to get notified whenever the user's subscription status
+     * changes.
+     *
+     * Otherwise, you can check the delegate function
+     * [SuperwallDelegate.subscriptionStatusDidChange]
+     * to receive a callback with the new value every time it changes.
+     *
+     * To learn more, see
+     * [Purchases and Subscription Status](https://docs.superwall.com/docs/advanced-configuration).
+     *
+     * @param subscriptionStatus The subscription status of the user.
+    */
     fun setSubscriptionStatus(subscriptionStatus: SubscriptionStatus) {
         _subscriptionStatus.value = subscriptionStatus
     }
 
-    /// Properties stored about the user, set using `setUserAttributes`.
+    /**
+     * Properties stored about the user, set using `setUserAttributes`.
+      */
     val userAttributes: Map<String, Any>
         get() = dependencyContainer.identityManager.userAttributes
 
     /**
      * The current user's id.
      *
-     * If you haven't called ``identify(userId:options:)``,
+     * If you haven't called `Superwall.identify(userId:options:)`,
      * this value will return an anonymous user id which is cached to disk
       */
     val userId: String
@@ -125,9 +152,18 @@ class Superwall(
     protected var _subscriptionStatus: MutableStateFlow<SubscriptionStatus> = MutableStateFlow(
         SubscriptionStatus.UNKNOWN
     )
+
+    /**
+     * A `StateFlow` of the subscription status of the user. Set this using
+     * [setSubscriptionStatus].
+     */
     val subscriptionStatus: StateFlow<SubscriptionStatus> get() = _subscriptionStatus
 
     companion object {
+        /** A variable that is only `true` if ``instance`` is available for use.
+         * Gets set to `true` immediately after
+         * [configure] is called.
+         */
         var initialized: Boolean = false
 
         private val _hasInitialized = MutableStateFlow<Boolean>(false)
@@ -137,24 +173,28 @@ class Superwall(
             .filter { it }
             .take(1)
 
-
         lateinit var instance: Superwall
 
-        /** Configures a shared instance of `Superwall` for use throughout your app.
+        /**
+         * Configures a shared instance of [Superwall] for use throughout your app.
          *
-         * Call this as soon as your app finishes launching in `application(_:didFinishLaunchingWithOptions:)`.
-         * Check out [Configuring the SDK](https://docs.superwall.com/docs/configuring-the-sdk) for information about
-         * how to configure the SDK.
+         * Call this as soon as your app finishes launching in `onCreate` in your `MainApplication`
+         * class.
+         * Check out [Configuring the SDK](https://docs.superwall.com/docs/configuring-the-sdk) for
+         * information about how to configure the SDK.
          *
-         * Parameters:
-         *   - `apiKey`: Your Public API Key that you can get from the Superwall dashboard settings. If you don't have
-         *   an account, you can [sign up for free](https://superwall.com/sign-up).
-         *   - `purchaseController`: An object that conforms to ``PurchaseController``. You must implement this to
-         *   handle all subscription-related logic yourself. You'll need to also set the ``subscriptionStatus`` every time the user's
-         *   subscription status changes. You can read more about that in [Purchases and Subscription Status](https://docs.superwall.com/docs/advanced-configuration).
-         *   - options: An optional ``SuperwallOptions`` object which allows you to customise the appearance and behavior
-         *   of the paywall.
-         * Returns: The configured ``Superwall`` instance.
+         * @param apiKey Your Public API Key that you can get from the Superwall dashboard
+         * settings. If you don't have an account, you can
+         * [sign up for free](https://superwall.com/sign-up).
+         * @param purchaseController An object that conforms to [PurchaseController]. You must
+         * implement this to handle all subscription-related logic yourself. You'll need to also
+         * call [setSubscriptionStatus] every time the user's subscription status changes. You can
+         * read more about that in
+         * [Purchases and Subscription Status](https://docs.superwall.com/docs/advanced-configuration).
+         * @param options An optional [SuperwallOptions] object which allows you to customise the
+         * appearance and behavior of the paywall.
+         *
+         * @return The configured [Superwall] instance.
         */
         fun configure(
             applicationContext: Context,
@@ -179,7 +219,6 @@ class Superwall(
             }
         }
     }
-
 
     internal lateinit var dependencyContainer: DependencyContainer
 
@@ -227,6 +266,9 @@ class Superwall(
         dependencyContainer.deviceHelper.platformWrapper = wrapper
     }
 
+    /**
+     * Removes all of Superwall's pending local notifications.
+     */
     fun cancelAllScheduledNotifications() {
         WorkManager.getInstance(context).cancelAllWorkByTag(SuperwallPaywallActivity.NOTIFICATION_CHANNEL_ID)
     }
@@ -234,14 +276,15 @@ class Superwall(
     // MARK: - Reset
 
     /**
-     * Resets the `userId`, on-device paywall assignments, and data stored
-     * by Superwall.
+     * Resets the [userId], on-device paywall assignments, and data stored by Superwall.
      */
     fun reset() {
         reset(duringIdentify = false)
     }
 
-    /// Asynchronously resets. Presentation of paywalls is suspended until reset completes.
+    /**
+     * Asynchronously resets. Presentation of paywalls is suspended until reset completes.
+      */
     internal fun reset(duringIdentify: Boolean) {
         dependencyContainer.identityManager.reset(duringIdentify)
         dependencyContainer.storage.reset()
@@ -250,39 +293,22 @@ class Superwall(
         dependencyContainer.configManager.reset()
     }
 
-//
-//    fun present() {
-//        // Present the Superwall
-//        Log.println(Log.INFO, "Superwall", "Superwall present")
-//
-//        // Find the first paywall in the config
-//        val paywall = config?.paywalls?.firstOrNull()
-//        if (paywall != null) {
-//            // Show the paywall
-//            Log.println(Log.INFO, "Superwall", "Superwall show paywall")
-//
-//
-//        }
-//
-//    }
-
     //region Deep Links
-    /// Handles a deep link sent to your app to open a preview of your paywall.
-    ///
-    /// You can preview your paywall on-device before going live by utilizing paywall previews. This uses a deep link to render a
-    /// preview of a paywall you've configured on the Superwall dashboard on your device. See
-    /// [In-App Previews](https://docs.superwall.com/docs/in-app-paywall-previews) for
-    /// more.
-    ///
-    /// - Parameters:
-    ///   - uri: The URL of the deep link.
-    /// - Returns: A `Bool` that is `true` if the deep link was handled.
+    /**
+     * Handles a deep link sent to your app to open a preview of your paywall.
+     *
+     * You can preview your paywall on-device before going live by utilizing paywall previews. This
+     * uses a deep link to render a preview of a paywall you've configured on the Superwall dashboard
+     * on your device. See [In-App Previews](https://docs.superwall.com/docs/in-app-paywall-previews)
+     * for more.
+     *
+     * @param uri The URL of the deep link.
+     * @return A `Boolean` that is `true` if the deep link was handled.
+     */
     fun handleDeepLink(uri: Uri): Boolean {
         CoroutineScope(Dispatchers.IO).launch {
             track(InternalSuperwallEvent.DeepLink(uri = uri))
         }
-
-        // TODO: https://linear.app/superwall/issue/SW-2340/[android]-add-debug-manager
         return dependencyContainer.debugManager.handle(deepLinkUrl = uri)
     }
 
@@ -296,7 +322,8 @@ class Superwall(
      *
      * To use this, first set `PaywallOptions/shouldPreload`  to `false` when configuring the SDK.
      * Then call this function when you would like preloading to begin.
-     * Note: This will not reload any paywalls you've already preloaded via `preloadPaywalls(forEvents:)`.
+     *
+     * Note: This will not reload any paywalls you've already preloaded via [preloadPaywalls].
       */
     fun preloadAllPaywalls() {
         CoroutineScope(Dispatchers.IO).launch {
@@ -321,7 +348,6 @@ class Superwall(
             )
         }
     }
-
     //endregion
 
     override suspend fun eventDidOccur(
