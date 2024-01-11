@@ -52,7 +52,7 @@ class StoreTransaction(
 
     // TODO: The above should be working, but is somehow serializing `transaction` as a nested type
     //  even though it's marked as `Transient` and `private`, and failing to serialize the
-    //  overrides. Flattening manually for now.
+    //  overrides. Flattening manually for now. Also flattening payment.
     fun toDictionary(): Map<String, Any?> {
         val json = Json { encodeDefaults = true }
         val jsonString = json.encodeToString(this)
@@ -63,6 +63,17 @@ class StoreTransaction(
             // Remove the 'transaction' entry and add all its contents to the top level
             dictionary.remove("transaction")
             dictionary.putAll(it)
+        }
+
+        val paymentMap = dictionary["payment"] as? Map<String, Any>
+        paymentMap?.let {
+            // Remove the 'payment' entry and add all its contents to the top level
+            dictionary.remove("payment")
+
+            // Append "payment_" to each key and add them to the dictionary
+            it.forEach { (key, value) ->
+                dictionary["payment_$key"] = value
+            }
         }
 
         return dictionary

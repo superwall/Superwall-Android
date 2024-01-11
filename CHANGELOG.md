@@ -2,6 +2,12 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall-me/Superwall-Android/releases) on GitHub.
 
+## 1.0.0-alpha.35
+
+### Fixes
+
+- Fixes issue where `transaction_complete` events were being rejected by the server.
+
 ## 1.0.0-alpha.34
 
 ### Breaking Changes
