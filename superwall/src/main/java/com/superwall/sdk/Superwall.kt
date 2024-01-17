@@ -25,28 +25,27 @@ import com.superwall.sdk.paywall.vc.SuperwallPaywallActivity
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerEventDelegate
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.*
+import com.superwall.sdk.storage.ActiveSubscriptionStatus
 import com.superwall.sdk.store.ExternalNativePurchaseController
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.take
 import java.util.*
 
 class Superwall(
-    context: Context,
-    apiKey: String,
-    purchaseController: PurchaseController?,
+    internal var context: Context,
+    private var apiKey: String,
+    private var purchaseController: PurchaseController?,
     options: SuperwallOptions?,
-    activityProvider: ActivityProvider?
+    private var activityProvider: ActivityProvider?,
+    private val completion: (() -> Unit)?
 ) :
     PaywallViewControllerEventDelegate {
-    private var apiKey: String = apiKey
-    internal var context: Context = context
-    private var purchaseController: PurchaseController? = purchaseController
     private var _options: SuperwallOptions? = options
-    private var activityProvider = activityProvider
     // Add a private variable for the purchase task
     private var purchaseTask: Job? = null
 
@@ -201,7 +200,8 @@ class Superwall(
             apiKey: String,
             purchaseController: PurchaseController? = null,
             options: SuperwallOptions? = null,
-            activityProvider: ActivityProvider? = null
+            activityProvider: ActivityProvider? = null,
+            completion: (() -> Unit)? = null
         ) {
             val purchaseController = purchaseController ?: ExternalNativePurchaseController(context = applicationContext)
             instance = Superwall(
@@ -209,9 +209,17 @@ class Superwall(
                 apiKey = apiKey,
                 purchaseController = purchaseController,
                 options = options,
-                activityProvider = activityProvider
+                activityProvider = activityProvider,
+                completion = completion
             )
             instance.setup()
+
+            Logger.debug(
+                logLevel = LogLevel.debug,
+                scope = LogScope.superwallCore,
+                message = "SDK Version - ${instance.dependencyContainer.deviceHelper.sdkVersion}"
+            )
+
             initialized = true
             // Ping everyone about the initialization
             CoroutineScope(Dispatchers.Main).launch {
@@ -233,6 +241,11 @@ class Superwall(
             activityProvider = activityProvider
         )
 
+        val cachedSubsStatus = dependencyContainer.storage.get(ActiveSubscriptionStatus) ?: SubscriptionStatus.UNKNOWN
+        setSubscriptionStatus(cachedSubsStatus)
+
+        addListeners()
+
         CoroutineScope(Dispatchers.IO).launch {
             dependencyContainer.storage.configure(apiKey = apiKey)
             dependencyContainer.storage.recordAppInstall {
@@ -241,6 +254,24 @@ class Superwall(
             // Implicitly wait
             dependencyContainer.configManager.fetchConfiguration()
             dependencyContainer.identityManager.configure()
+
+            CoroutineScope(Dispatchers.Main).launch {
+                completion?.invoke()
+            }
+        }
+    }
+
+    /// Listens to config and the subscription status
+    private fun addListeners() {
+        CoroutineScope(Dispatchers.IO).launch {
+            subscriptionStatus // Removes duplicates by default
+                .drop(1) // Drops the first item
+                .collect { newValue -> // Save and handle the new value
+                    dependencyContainer.storage.save(newValue, ActiveSubscriptionStatus)
+                    dependencyContainer.delegateAdapter.subscriptionStatusDidChange(newValue)
+                    val event = InternalSuperwallEvent.SubscriptionStatusDidChange(newValue)
+                    track(event)
+                }
         }
     }
 

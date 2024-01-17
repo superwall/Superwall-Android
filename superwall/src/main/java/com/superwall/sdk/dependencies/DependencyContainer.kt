@@ -238,6 +238,7 @@ class DependencyContainer(
             "X-Bundle-ID" to deviceHelper.bundleId,
             "X-Low-Power-Mode" to deviceHelper.isLowPowerModeEnabled.toString(),
             "X-Is-Sandbox" to deviceHelper.isSandbox.toString(),
+            "X-Subscription-Status" to Superwall.instance.subscriptionStatus.value.toString(),
             "Content-Type" to "application/json"
         )
 

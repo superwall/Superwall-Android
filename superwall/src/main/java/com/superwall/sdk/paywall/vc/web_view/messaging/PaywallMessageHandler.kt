@@ -45,7 +45,6 @@ class PaywallMessageHandler(
 
     public var delegate: PaywallMessageHandlerDelegate? = null
 
-
     @JavascriptInterface
     fun postMessage(message: String) {
 
@@ -76,12 +75,12 @@ class PaywallMessageHandler(
         println("!! PaywallMessageHandler: delegeate: $delegate")
         when (message) {
             is PaywallMessage.TemplateParamsAndUserAttributes ->
-                MainScope().launch { passTemplatesToWebView(paywall) }
+                CoroutineScope(Dispatchers.IO).launch { passTemplatesToWebView(paywall) }
             is PaywallMessage.OnReady -> {
                 delegate?.paywall?.paywalljsVersion = message.paywallJsVersion
                 val loadedAt = Date()
                 println("!!Ready!!")
-                MainScope().launch { didLoadWebView(paywall, loadedAt) }
+                CoroutineScope(Dispatchers.IO).launch { didLoadWebView(paywall, loadedAt) }
             }
             is PaywallMessage.Close -> {
                 hapticFeedback()
