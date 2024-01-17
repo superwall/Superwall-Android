@@ -2,6 +2,22 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall-me/Superwall-Android/releases) on GitHub.
 
+## 1.0.0-alpha.36
+
+### Enhancements
+
+- Adds `X-Subscription-Status` header to all requests.
+- Caches the last `subscriptionStatus`.
+- Adds `subscriptionStatus_didChange` event that is fired whenever the subscription status changes.
+- Calls the delegate method `subscriptionStatusDidChange` whenever the subscription status changes.
+- SW-2676: Adds a completion block to the `configure` method.
+
+### Fixes
+
+- Fixes issue where the main thread was blocked when accessing some properties internally.
+- SW-2679: Fixes issue where the `subscription_start` event was being fired even if a non-recurring product was
+purchased.
+
 ## 1.0.0-alpha.35
 
 ### Fixes

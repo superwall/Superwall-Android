@@ -399,23 +399,25 @@ class TransactionManager(
                 product
             )
             Superwall.instance.track(nonRecurringEvent)
-        }
-
-        if (didStartFreeTrial) {
-            val freeTrialEvent = InternalSuperwallEvent.FreeTrialStart(paywallInfo, product)
-            Superwall.instance.track(freeTrialEvent)
-
-            val notifications = paywallInfo.localNotifications.filter { it.type == LocalNotificationType.TrialStarted }
-            val paywallActivity = (paywallViewController.encapsulatingActivity as SuperwallPaywallActivity)
-            paywallActivity.attemptToScheduleNotifications(
-                notifications = notifications,
-                factory = factory,
-                context = context
-            )
         } else {
-            val subscriptionEvent =
-                InternalSuperwallEvent.SubscriptionStart(paywallInfo, product)
-            Superwall.instance.track(subscriptionEvent)
+            if (didStartFreeTrial) {
+                val freeTrialEvent = InternalSuperwallEvent.FreeTrialStart(paywallInfo, product)
+                Superwall.instance.track(freeTrialEvent)
+
+                val notifications =
+                    paywallInfo.localNotifications.filter { it.type == LocalNotificationType.TrialStarted }
+                val paywallActivity =
+                    (paywallViewController.encapsulatingActivity as SuperwallPaywallActivity)
+                paywallActivity.attemptToScheduleNotifications(
+                    notifications = notifications,
+                    factory = factory,
+                    context = context
+                )
+            } else {
+                val subscriptionEvent =
+                    InternalSuperwallEvent.SubscriptionStart(paywallInfo, product)
+                Superwall.instance.track(subscriptionEvent)
+            }
         }
 
         lastPaywallViewController = null
