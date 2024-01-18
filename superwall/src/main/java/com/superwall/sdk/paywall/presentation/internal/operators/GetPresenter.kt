@@ -66,7 +66,17 @@ suspend fun Superwall.getPresenterIfNecessary(
     )
     paywallViewController.paywall.triggerSessionId = sessionId
 
-    return dependencyContainer.activityProvider?.getCurrentActivity()
+    val currentActivity = dependencyContainer.activityProvider?.getCurrentActivity()
+
+    if (currentActivity == null) {
+        Logger.debug(
+            logLevel = LogLevel.error,
+            scope = LogScope.paywallPresentation,
+            message = "Current Activity is null, can't present paywall"
+        )
+        throw PaywallPresentationRequestStatusReason.NoPresenter()
+    }
+    return currentActivity
 }
 
 

@@ -84,7 +84,6 @@ open class GoogleBillingWrapper(open val context: Context, open val mainHandler:
         }
     }
 
-
     fun startConnectionOnMainThread(delayMilliseconds: Long, force: Boolean = false) {
         mainHandler.postDelayed(
             { startConnection() },

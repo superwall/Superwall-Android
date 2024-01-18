@@ -178,6 +178,23 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
             class Complete(val paywallInfo: PaywallInfo) : State()
         }
 
+        override val superwallEvent: SuperwallEvent
+            get() = when (state) {
+                is State.Start -> SuperwallEvent.PaywallResponseLoadStart(
+                    eventData?.name
+                )
+                is State.Complete -> SuperwallEvent.PaywallResponseLoadComplete(
+                    eventData?.name,
+                    state.paywallInfo
+                )
+                is State.Fail -> SuperwallEvent.PaywallResponseLoadFail(
+                    eventData?.name
+                )
+                is State.NotFound -> SuperwallEvent.PaywallResponseLoadNotFound(
+                    eventData?.name
+                )
+            }
+
         override val customParameters: Map<String, Any>
             get() = when (state) {
                 is State.Complete -> state.paywallInfo.customParams()
