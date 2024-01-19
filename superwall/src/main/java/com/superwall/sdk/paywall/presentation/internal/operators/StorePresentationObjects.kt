@@ -19,5 +19,5 @@ internal suspend fun Superwall.storePresentationObjects(
         request,
         paywallStatePublisher
     )
-    presentationItems.setLast(lastPaywallPresentation)
+    presentationItems.last = lastPaywallPresentation
 }

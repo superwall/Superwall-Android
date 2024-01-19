@@ -289,11 +289,11 @@ class PaywallViewController(
         presentationWillPrepare = false
     }
 
-    internal suspend fun viewWillDisappear() {
+    internal fun viewWillDisappear() {
         if (isSafariVCPresented) {
             return
         }
-        Superwall.instance.presentationItems.setPaywallInfo(info)
+        Superwall.instance.presentationItems.paywallInfo = info
         Superwall.instance.dependencyContainer.delegateAdapter.willDismissPaywall(info)
     }
 

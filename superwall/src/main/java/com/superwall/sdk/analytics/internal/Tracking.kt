@@ -123,7 +123,7 @@ private suspend fun Superwall.internallyHandleImplicitTrigger(
             dismiss()
         }
         TrackingLogic.ImplicitTriggerOutcome.ClosePaywallThenTriggerPaywall -> {
-            val lastPresentationItems = presentationItems.getLast() ?: return@withContext
+            val lastPresentationItems = presentationItems.last ?: return@withContext
             dismissForNextPaywall()
             statePublisher = lastPresentationItems.statePublisher
         }

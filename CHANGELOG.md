@@ -2,6 +2,14 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall-me/Superwall-Android/releases) on GitHub.
 
+## 1.0.0-alpha.38
+
+### Enhancements
+
+- SW-2682: Adds `Superwall.instance.latestPaywallInfo`, which you can use to get the `PaywallInfo` of
+the most recently presented view controller.
+- SW-2683: Adds `Superwall.instance.isLoggedIn`, which you can use to check if the user is logged in.
+
 ## 1.0.0-alpha.37
 
 ### Enhancements

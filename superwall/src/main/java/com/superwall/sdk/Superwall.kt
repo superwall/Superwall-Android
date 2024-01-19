@@ -17,6 +17,7 @@ import com.superwall.sdk.dependencies.DependencyContainer
 import com.superwall.sdk.misc.ActivityProvider
 import com.superwall.sdk.misc.SerialTaskManager
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
+import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.PresentationItems
 import com.superwall.sdk.paywall.presentation.internal.dismiss
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
@@ -147,6 +148,24 @@ class Superwall(
       */
     val userId: String
         get() = dependencyContainer.identityManager.userId
+
+    /**
+     * Indicates whether the user is logged in to Superwall.
+     *
+     * If you have previously called `identify(userId:options:)`, this will
+     * return `true`.
+    */
+    val isLoggedIn: Boolean
+        get() = dependencyContainer.identityManager.isLoggedIn
+
+    /**
+     * The `PaywallInfo` object of the most recently presented view controller.
+      */
+    val latestPaywallInfo: PaywallInfo?
+        get() {
+            val presentedPaywallInfo = dependencyContainer.paywallManager.presentedViewController?.info
+            return presentedPaywallInfo ?: presentationItems.paywallInfo
+        }
 
     protected var _subscriptionStatus: MutableStateFlow<SubscriptionStatus> = MutableStateFlow(
         SubscriptionStatus.UNKNOWN
