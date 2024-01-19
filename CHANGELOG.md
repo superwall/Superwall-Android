@@ -10,6 +10,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ### Fixes
 
+- Fixes bug where paywalls might not present on first app install.
 - Fixes bug where all `paywallResponseLoad_` events were being counted as `paywallResponseLoad_start`.
 
 ## 1.0.0-alpha.36
