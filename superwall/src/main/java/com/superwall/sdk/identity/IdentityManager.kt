@@ -102,7 +102,7 @@ class IdentityManager(
     }
 
     fun configure() {
-        CoroutineScope(queue).launch {
+        CoroutineScope(Dispatchers.IO).launch {
             val neverCalledStaticConfig = storage.neverCalledStaticConfig
             val isFirstAppOpen =
                 !(storage.get(DidTrackFirstSeen) ?: false)

@@ -2,6 +2,18 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall-me/Superwall-Android/releases) on GitHub.
 
+## 1.0.0-alpha.37
+
+### Enhancements
+
+- SW-2684: Adds error logging if the `currentActivity` is `null` when trying to present a paywall.
+
+### Fixes
+
+- Fixes bug where paywalls might not present on first app install.
+- Fixes bug where all `paywallResponseLoad_` events were being counted as `paywallResponseLoad_start`.
+- Adds ProGuard rule to prevent `DefaultLifecycleObserver` from being removed.
+
 ## 1.0.0-alpha.36
 
 ### Enhancements

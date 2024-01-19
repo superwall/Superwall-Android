@@ -14,6 +14,7 @@ import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.trigger_session.LoadState
 import com.superwall.sdk.dependencies.VariablesFactory
 import com.superwall.sdk.models.paywall.Paywall
+import com.superwall.sdk.models.serialization.jsonStringToDictionary
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.vc.delegate.PaywallLoadingState
@@ -21,7 +22,10 @@ import com.superwall.sdk.paywall.vc.web_view.PaywallMessage
 import com.superwall.sdk.paywall.vc.web_view.WrappedPaywallMessages
 import com.superwall.sdk.paywall.vc.web_view.parseWrappedPaywallMessages
 import kotlinx.coroutines.*
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.net.URL
+import java.nio.charset.StandardCharsets
 import java.util.*
 
 interface PaywallMessageHandlerDelegate {
@@ -91,6 +95,11 @@ class PaywallMessageHandler(
             is PaywallMessage.OpenDeepLink -> openDeepLink(URL(message.url.toString()))
             is PaywallMessage.Restore -> restorePurchases()
             is PaywallMessage.Purchase -> purchaseProduct(withId = message.productId)
+            is PaywallMessage.PaywallOpen -> {
+                CoroutineScope(Dispatchers.IO).launch {
+                    pass(eventName = "paywall_open", paywall = paywall)
+                }
+            }
             is PaywallMessage.Custom -> handleCustomEvent(message.data)
             else -> {
                 println("!! PaywallMessageHandler: Unknown message type: $message")
@@ -98,8 +107,25 @@ class PaywallMessageHandler(
         }
     }
 
+    private suspend fun pass(eventName: String, paywall: Paywall) {
+        val json = Json { encodeDefaults = true }
+        val eventList = listOf(
+                mapOf(
+                "event_name" to eventName,
+                "paywall_id" to paywall.databaseId,
+                "paywall_identifier" to paywall.identifier
+            )
+        )
+        val jsonString = json.encodeToString(eventList)
+
+        // Encode the JSON string to Base64
+        val base64Event = Base64.getEncoder().encodeToString(jsonString.toByteArray(StandardCharsets.UTF_8))
+
+        passMessageToWebView(base64String = base64Event)
+    }
+
     // Passes the templated variables and params to the webview.
-// This is called every paywall open incase variables like user attributes have changed.
+    // This is called every paywall open incase variables like user attributes have changed.
     private suspend fun passTemplatesToWebView(paywall: Paywall) {
         val eventData = delegate?.request?.presentationInfo?.eventData
         val templates = TemplateLogic.getBase64EncodedTemplates(
@@ -107,9 +133,12 @@ class PaywallMessageHandler(
             event = eventData,
             factory = factory
         )
+        passMessageToWebView(base64String = templates)
+    }
 
+    private suspend fun passMessageToWebView(base64String: String) {
         val templateScript = """
-      window.paywall.accept64('$templates');
+      window.paywall.accept64('$base64String');
     """
 
         Logger.debug(

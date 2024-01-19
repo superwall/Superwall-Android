@@ -470,6 +470,7 @@ class PaywallViewController(
 
     private suspend fun trackOpen() {
         storage.trackPaywallOpen()
+        webView.messageHandler.handle(PaywallMessage.PaywallOpen)
         val trackedEvent = InternalSuperwallEvent.PaywallOpen(info)
         Superwall.instance.track(trackedEvent)
     }

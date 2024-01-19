@@ -24,6 +24,7 @@ sealed class PaywallMessage {
     data class OpenDeepLink(val url: Uri) : PaywallMessage()
     data class Purchase(val product: String, val productId: String) : PaywallMessage()
     data class Custom(val data: String) : PaywallMessage()
+    object PaywallOpen : PaywallMessage()
 }
 
 fun parseWrappedPaywallMessages(jsonString: String): WrappedPaywallMessages {
