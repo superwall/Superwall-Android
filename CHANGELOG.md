@@ -2,6 +2,14 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall-me/Superwall-Android/releases) on GitHub.
 
+## 1.0.0-alpha.39
+
+### Fixes
+
+- Removes use of `USE_EXACT_ALARM` permission that was getting apps rejected.
+- Fixes issue with scheduling notifications. The paywall wasn't waiting to schedule notifications 
+before dismissal so the permissions wasn't always showing.
+
 ## 1.0.0-alpha.38
 
 ### Enhancements

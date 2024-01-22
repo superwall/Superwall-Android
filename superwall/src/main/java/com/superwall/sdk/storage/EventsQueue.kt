@@ -50,7 +50,7 @@ class EventsQueue(
         }
     }
 
-    private suspend fun addObserver() {
+    private fun addObserver() {
         val filter = IntentFilter().apply {
             addAction(Intent.ACTION_SCREEN_OFF)
         }
@@ -71,7 +71,7 @@ class EventsQueue(
         }
     }
 
-    private suspend fun flushInternal(depth: Int = 10) {
+    suspend fun flushInternal(depth: Int = 10) {
         val eventsToSend = mutableListOf<EventData>()
         var i = 0
         while (i < maxEventCount && elements.isNotEmpty()) {
