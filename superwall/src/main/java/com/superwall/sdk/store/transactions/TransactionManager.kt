@@ -25,6 +25,7 @@ import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.vc.PaywallViewController
 import com.superwall.sdk.paywall.vc.SuperwallPaywallActivity
 import com.superwall.sdk.paywall.vc.delegate.PaywallLoadingState
+import com.superwall.sdk.storage.EventsQueue
 import com.superwall.sdk.store.StoreKitManager
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
@@ -34,6 +35,7 @@ class TransactionManager(
     private val storeKitManager: StoreKitManager,
     private val purchaseController: PurchaseController,
     private val sessionEventsManager: SessionEventsManager,
+    private val eventsQueue: EventsQueue,
     private val activityProvider: ActivityProvider,
     private val factory: Factory,
     private val context: Context
@@ -392,6 +394,9 @@ class TransactionManager(
             transaction
         )
         Superwall.instance.track(trackedEvent)
+
+        // Immediately flush the events queue on transaction complete.
+        eventsQueue.flushInternal()
 
         if (product.subscriptionPeriod == null) {
             val nonRecurringEvent = InternalSuperwallEvent.NonRecurringProductPurchase(

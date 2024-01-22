@@ -89,7 +89,7 @@ class DependencyContainer(
     var appSessionManager: AppSessionManager
     var sessionEventsManager: SessionEventsManager
     var delegateAdapter: SuperwallDelegateAdapter
-    var queue: EventsQueue
+    var eventsQueue: EventsQueue
     var debugManager: DebugManager
     var paywallManager: PaywallManager
     var paywallRequestManager: PaywallRequestManager
@@ -158,7 +158,7 @@ class DependencyContainer(
 
         deviceHelper = DeviceHelper(context = context, storage = storage, factory = this)
 
-        queue = EventsQueue(context, configManager = configManager, network = network)
+        eventsQueue = EventsQueue(context, configManager = configManager, network = network)
 
         identityManager = IdentityManager(
             storage = storage,
@@ -195,6 +195,7 @@ class DependencyContainer(
             storeKitManager = storeKitManager,
             purchaseController = purchaseController,
             sessionEventsManager,
+            eventsQueue = eventsQueue,
             activityProvider,
             factory = this,
             context = context

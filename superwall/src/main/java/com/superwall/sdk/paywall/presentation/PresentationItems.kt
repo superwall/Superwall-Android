@@ -4,31 +4,42 @@ import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import java.util.concurrent.Executors
 
-class PresentationItems {
+internal class PresentationItems {
+    private val queue = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
+    private val scope = CoroutineScope(queue)
+
+    var last: LastPresentationItems?
+        get() = runBlocking(queue) { _last }
+        set(newValue) {
+            scope.launch {
+                _last = newValue
+            }
+        }
     private var _last: LastPresentationItems? = null
-    private val lastMutex = Mutex()
 
-    suspend fun getLast(): LastPresentationItems? = lastMutex.withLock { _last }
-    suspend fun setLast(value: LastPresentationItems?) = lastMutex.withLock { _last = value }
-
+    var paywallInfo: PaywallInfo?
+        get() = runBlocking(queue) { _paywallInfo }
+        set(newValue) {
+            scope.launch {
+                _paywallInfo = newValue
+            }
+        }
     private var _paywallInfo: PaywallInfo? = null
-    private val paywallInfoMutex = Mutex()
-
-    suspend fun getPaywallInfo(): PaywallInfo? = paywallInfoMutex.withLock { _paywallInfo }
-    suspend fun setPaywallInfo(value: PaywallInfo?) =
-        paywallInfoMutex.withLock { _paywallInfo = value }
 
     fun reset() {
-        CoroutineScope(Dispatchers.IO).launch {
-            lastMutex.withLock { _last = null }
-            paywallInfoMutex.withLock { _paywallInfo = null }
+        scope.launch {
+            _last = null
+            _paywallInfo = null
         }
     }
 }

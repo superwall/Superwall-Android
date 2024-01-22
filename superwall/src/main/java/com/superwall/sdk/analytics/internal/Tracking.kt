@@ -11,7 +11,6 @@ import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.paywall.presentation.dismiss
 import com.superwall.sdk.paywall.presentation.dismissForNextPaywall
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
-import com.superwall.sdk.paywall.presentation.internal.dismiss
 import com.superwall.sdk.paywall.presentation.internal.internallyPresent
 import com.superwall.sdk.paywall.presentation.internal.operators.logErrors
 import com.superwall.sdk.paywall.presentation.internal.operators.waitForSubsStatusAndConfig
@@ -20,12 +19,9 @@ import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.JsonObject
 import java.util.*
 
 suspend fun Superwall.track(event: Trackable): TrackingResult {
@@ -63,7 +59,7 @@ suspend fun Superwall.track(event: Trackable): TrackingResult {
         parameters = parameters.eventParams,
         createdAt = eventCreatedAt
     )
-    dependencyContainer.queue.enqueue(event = eventData)
+    dependencyContainer.eventsQueue.enqueue(event = eventData)
     dependencyContainer.storage.coreDataManager.saveEventData(eventData)
 
     if (event.canImplicitlyTriggerPaywall) {
@@ -75,11 +71,10 @@ suspend fun Superwall.track(event: Trackable): TrackingResult {
         }
     }
 
-    val result = TrackingResult(
+    return TrackingResult(
         data = eventData,
         parameters = parameters
     )
-    return result
 }
 
 suspend fun Superwall.handleImplicitTrigger(
@@ -123,7 +118,7 @@ private suspend fun Superwall.internallyHandleImplicitTrigger(
             dismiss()
         }
         TrackingLogic.ImplicitTriggerOutcome.ClosePaywallThenTriggerPaywall -> {
-            val lastPresentationItems = presentationItems.getLast() ?: return@withContext
+            val lastPresentationItems = presentationItems.last ?: return@withContext
             dismissForNextPaywall()
             statePublisher = lastPresentationItems.statePublisher
         }

@@ -82,6 +82,8 @@ import kotlinx.coroutines.launch
 import java.net.MalformedURLException
 import java.net.URL
 import java.util.*
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 
 
 class PaywallViewController(
@@ -289,11 +291,11 @@ class PaywallViewController(
         presentationWillPrepare = false
     }
 
-    internal suspend fun viewWillDisappear() {
+    internal fun viewWillDisappear() {
         if (isSafariVCPresented) {
             return
         }
-        Superwall.instance.presentationItems.setPaywallInfo(info)
+        Superwall.instance.presentationItems.paywallInfo = info
         Superwall.instance.dependencyContainer.delegateAdapter.willDismissPaywall(info)
     }
 
@@ -927,12 +929,15 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         fun onPermissionResult(granted: Boolean)
     }
 
-    fun attemptToScheduleNotifications(
+    suspend fun attemptToScheduleNotifications(
         notifications: List<LocalNotification>,
         factory: DeviceHelperFactory,
         context: Context
-    ) {
-        if (notifications.isEmpty()) return
+    ) = suspendCoroutine { continuation ->
+        if (notifications.isEmpty()) {
+            continuation.resume(Unit) // Resume immediately as there's nothing to schedule
+            return@suspendCoroutine
+        }
 
         createNotificationChannel()
 
@@ -945,11 +950,13 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                         context = context
                     )
                 }
+                continuation.resume(Unit) // Resume coroutine after processing
             }
         }
 
         checkAndRequestNotificationPermissions(this, notificationPermissionCallback!!)
     }
+
 
     private fun createNotificationChannel() {
         val importance = NotificationManager.IMPORTANCE_DEFAULT
