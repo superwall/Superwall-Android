@@ -189,7 +189,6 @@ class PaywallViewController(
         // Add the webView
         addView(webView)
 
-
         id = View.generateViewId()
 
         // Add the shimmer view and hide it
