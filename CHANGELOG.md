@@ -2,6 +2,13 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall-me/Superwall-Android/releases) on GitHub.
 
+## 1.0.0-alpha.40
+
+### Fixes
+
+- Fixes issue presenting paywalls to users who had their device language set to Russian, Polish or 
+Czech.
+
 ## 1.0.0-alpha.39
 
 ### Fixes

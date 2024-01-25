@@ -627,12 +627,10 @@ object AmountFormats {
         init {
             check(predicateStrs.size + 1 == text.size) { "Invalid word-based resource" }
             predicates = Stream.of<String>(*predicateStrs)
-                .map<IntPredicate> { predicateStr: String ->
-                    findPredicate(
-                        predicateStr
-                    )
+                .map { predicateStr ->
+                    findPredicate(predicateStr)
                 }
-                .toArray() as Array<IntPredicate>
+                .toArray { size -> arrayOfNulls<IntPredicate>(size) }
             this.text = text
         }
 
