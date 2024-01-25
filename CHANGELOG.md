@@ -4,7 +4,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## 1.0.0-alpha.39
 
-## Fixes
+### Fixes
 
 - Adds missing `presentationSourceType` to `PaywallInfo`.
 - Fixes issue where the status bar color was always dark regardless of paywall color. 
