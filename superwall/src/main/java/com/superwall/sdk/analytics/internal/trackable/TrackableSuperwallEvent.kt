@@ -574,7 +574,7 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
     ) {
         sealed class State {
             class Start : State()
-            class Fail : State()
+            class Fail(val errorMessage: String?) : State()
             class Complete : State()
         }
 
@@ -585,6 +585,7 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
                     paywallInfo
                 )
                 is State.Fail -> SuperwallEvent.PaywallProductsLoadFail(
+                    state.errorMessage,
                     eventData?.name,
                     paywallInfo
                 )
@@ -604,6 +605,16 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
             var params: HashMap<String, Any> = hashMapOf(
                 "is_triggered_from_event" to fromEvent
             )
+
+            when (state) {
+                is State.Fail -> {
+                    if (state.errorMessage != null) {
+                        params["error_message"] = state.errorMessage
+                    }
+                }
+                else -> Unit
+            }
+
             params.putAll(paywallInfo.eventParams())
             return params
         }

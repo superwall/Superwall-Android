@@ -157,15 +157,15 @@ data class Paywall(
             triggerSessionId = triggerSessionId,
             paywalljsVersion = paywalljsVersion,
             isFreeTrialAvailable = isFreeTrialAvailable,
+            presentationSourceType = presentationSourceType,
             factory = factory,
             featureGatingBehavior = featureGating,
+            closeReason = closeReason,
             localNotifications = localNotifications,
             computedPropertyRequests = computedPropertyRequests,
-            closeReason = closeReason,
             surveys = surveys
         )
     }
-
 
     companion object {
         fun stub(): Paywall {

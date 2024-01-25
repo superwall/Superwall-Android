@@ -253,7 +253,7 @@ open class GooglePlayProductsFetcher(
             val results: MutableMap<String, Result<RawStoreProduct>> = mutableMapOf()
             subscriptionIds.forEach { subscriptionId ->
                 productIdsBySubscriptionId[subscriptionId]?.forEach { product ->
-                    results[product.fullId] = Result.Error(Exception("Failed to query product details"))
+                    results[product.fullId] = Result.Error(Exception("Failed to query product details. Billing response code: ${billingResult.responseCode}"))
                 }
             }
             return results

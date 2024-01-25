@@ -3,9 +3,9 @@ package com.superwall.sdk.misc
 import android.graphics.Color
 
 fun Int.isDarkColor(): Boolean {
-    val red = Color.red(this)
-    val green = Color.green(this)
-    val blue = Color.blue(this)
+    val red = Color.red(this) / 255.0
+    val green = Color.green(this) / 255.0
+    val blue = Color.blue(this) / 255.0
 
     val lum = 0.2126f * red + 0.7152f * green + 0.0722f * blue
     return lum < 0.50

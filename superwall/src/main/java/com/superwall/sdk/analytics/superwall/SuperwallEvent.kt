@@ -251,6 +251,7 @@ sealed class SuperwallEvent {
 
     /// When the request to load the paywall's products failed.
     data class PaywallProductsLoadFail(
+        val errorMessage: String?,
         val triggeredEventName: String?,
         val paywallInfo: PaywallInfo
     ) : SuperwallEvent() {

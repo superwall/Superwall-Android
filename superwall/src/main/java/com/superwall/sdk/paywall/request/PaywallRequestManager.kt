@@ -209,7 +209,7 @@ class PaywallRequestManager(
         } catch (error: Throwable) {
             paywall.productsLoadingInfo.failAt = Date()
             val paywallInfo = paywall.getInfo(request.eventData, factory)
-            trackProductLoadFail(paywallInfo, request.eventData)
+            trackProductLoadFail(error.message, paywallInfo, request.eventData)
             throw error
         }
     }
@@ -228,9 +228,13 @@ class PaywallRequestManager(
         return@withContext paywall
     }
 
-    private suspend fun trackProductLoadFail(paywallInfo: PaywallInfo, event: EventData?) = withContext(singleThreadContext) {
+    private suspend fun trackProductLoadFail(
+        errorMessage: String?,
+        paywallInfo: PaywallInfo,
+        event: EventData?
+    ) = withContext(singleThreadContext) {
         val productLoadEvent = InternalSuperwallEvent.PaywallProductsLoad(
-            state = InternalSuperwallEvent.PaywallProductsLoad.State.Fail(),
+            state = InternalSuperwallEvent.PaywallProductsLoad.State.Fail(errorMessage),
             paywallInfo = paywallInfo,
             eventData = event
         )

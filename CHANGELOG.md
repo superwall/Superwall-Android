@@ -2,6 +2,14 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall-me/Superwall-Android/releases) on GitHub.
 
+## 1.0.0-alpha.39
+
+### Fixes
+
+- Adds missing `presentationSourceType` to `PaywallInfo`.
+- Fixes issue where the status bar color was always dark regardless of paywall color. 
+- Adds `TypeToken` to proguard rules to prevent r8 from 'optimizing' our code and causing a crash.
+
 ## 1.0.0-alpha.38
 
 ### Enhancements
