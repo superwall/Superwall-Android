@@ -7,7 +7,6 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 ### Fixes
 
 - Removes need for `SCHEDULED_EXACT_ALARM` permission in manifest.
-- Fixes issue with Gson serialization.
 
 ## 1.0.0-alpha.40
 
