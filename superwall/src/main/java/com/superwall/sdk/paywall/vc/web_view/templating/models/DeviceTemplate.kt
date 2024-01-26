@@ -1,6 +1,6 @@
 package com.superwall.sdk.paywall.vc.web_view.templating.models
 
-import com.superwall.sdk.models.serialization.jsonStringToDictionary
+import com.superwall.sdk.models.serialization.jsonStringToType
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -50,7 +50,6 @@ data class DeviceTemplate(
     fun toDictionary(): Map<String, Any> {
         val json = Json { encodeDefaults = true }
         val jsonString = json.encodeToString(this)
-        val dictionary = jsonString.jsonStringToDictionary()
-        return dictionary
+        return jsonString.jsonStringToType()
     }
 }
