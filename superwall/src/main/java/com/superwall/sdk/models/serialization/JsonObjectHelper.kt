@@ -6,8 +6,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-fun String.jsonStringToDictionary(): Map<String, Any> {
+inline fun <reified T> String.jsonStringToType(): T {
     val gson = Gson()
-    val type = object : TypeToken<Map<String, Any>>() {}.type
-    return gson.fromJson(this, type)
+    return gson.fromJson(this, object : TypeToken<T>() {}.type)
 }

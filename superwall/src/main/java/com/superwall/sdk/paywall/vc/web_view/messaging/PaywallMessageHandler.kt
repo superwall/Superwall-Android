@@ -11,10 +11,8 @@ import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.SessionEventsManager
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
-import com.superwall.sdk.analytics.trigger_session.LoadState
 import com.superwall.sdk.dependencies.VariablesFactory
 import com.superwall.sdk.models.paywall.Paywall
-import com.superwall.sdk.models.serialization.jsonStringToDictionary
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.vc.delegate.PaywallLoadingState

@@ -1,10 +1,8 @@
 package com.superwall.sdk.store.abstractions.transactions
 
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import com.superwall.sdk.models.serialization.DateSerializer
 import com.superwall.sdk.models.serialization.UUIDSerializer
-import com.superwall.sdk.models.serialization.jsonStringToDictionary
+import com.superwall.sdk.models.serialization.jsonStringToType
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
@@ -56,7 +54,7 @@ class StoreTransaction(
     fun toDictionary(): Map<String, Any?> {
         val json = Json { encodeDefaults = true }
         val jsonString = json.encodeToString(this)
-        val dictionary = jsonString.jsonStringToDictionary().toMutableMap()
+        val dictionary = jsonString.jsonStringToType<Map<String, Any>>().toMutableMap()
 
         val transactionMap = dictionary["transaction"] as? Map<String, Any>
         transactionMap?.let {

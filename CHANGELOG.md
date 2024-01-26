@@ -2,6 +2,12 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall-me/Superwall-Android/releases) on GitHub.
 
+## 1.0.0-alpha.41
+
+### Fixes
+
+- Removes need for `SCHEDULED_EXACT_ALARM` permission in manifest.
+
 ## 1.0.0-alpha.40
 
 ### Fixes

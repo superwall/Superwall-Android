@@ -19,7 +19,7 @@ plugins {
     id("maven-publish")
 }
 
-version = "1.0.0-alpha.40"
+version = "1.0.0-alpha.41"
 
 android {
     compileSdk = 33
