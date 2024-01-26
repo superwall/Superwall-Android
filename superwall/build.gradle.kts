@@ -19,7 +19,7 @@ plugins {
     id("maven-publish")
 }
 
-version = "1.0.0-alpha.41"
+version = "1.0.0-alpha.42"
 
 android {
     compileSdk = 33
@@ -36,6 +36,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
 
+        consumerProguardFile("proguard-rules.pro")
 
         val gitSha = project.exec {
             commandLine("git", "rev-parse", "--short", "HEAD")

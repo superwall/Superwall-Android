@@ -2,6 +2,12 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall-me/Superwall-Android/releases) on GitHub.
 
+## 1.0.0-alpha.42
+
+### Fixes
+
+- Makes sure client apps use our proguard file.
+
 ## 1.0.0-alpha.41
 
 ### Fixes
