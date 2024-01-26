@@ -57,17 +57,23 @@ class SuperwallDelegateAdapter {
             ?: javaDelegate?.subscriptionStatusDidChange(newValue)
     }
 
-    private fun handleLog(
+    fun handleLog(
         level: String,
         scope: String,
         message: String?,
         info: Map<String, Any>?,
         error: Throwable?
     ) {
-        Logger.debug(
-            logLevel = LogLevel.valueOf(level),
-            scope = LogScope.valueOf(scope),
-            message = message ?: "No message",
+        kotlinDelegate?.handleLog(
+            level = level,
+            scope = scope,
+            message = message,
+            info = info,
+            error = error
+        ) ?: javaDelegate?.handleLog(
+            level = level,
+            scope = scope,
+            message = message,
             info = info,
             error = error
         )

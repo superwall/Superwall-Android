@@ -2,6 +2,12 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall-me/Superwall-Android/releases) on GitHub.
 
+## 1.0.0-alpha.43
+
+### Enhancements
+
+- Adds `handleLog` to the `SuperwallDelegate`.
+
 ## 1.0.0-alpha.42
 
 ### Fixes
