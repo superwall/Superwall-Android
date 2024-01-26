@@ -41,16 +41,15 @@ interface Loggable {
                 dumping["error"] = it
             }
 
-            // TODO: Add logging to the delegate
-            // Launch a coroutine to handle the logging
-
-//                Superwall.instance.dependencyContainer.delegateAdapter.handleLog(
-//                    level = logLevel.toString(),
-//                    scope = scope.toString(),
-//                    message = message,
-//                    info = info,
-//                    error = error
-//                )
+            if (Superwall.initialized) {
+                Superwall.instance.dependencyContainer.delegateAdapter.handleLog(
+                    level = logLevel.toString(),
+                    scope = scope.toString(),
+                    message = message,
+                    info = info,
+                    error = error
+                )
+            }
 
             if (!shouldPrint(logLevel, scope)) {
                 return
