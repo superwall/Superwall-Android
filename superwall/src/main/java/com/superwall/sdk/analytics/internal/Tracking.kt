@@ -81,9 +81,9 @@ suspend fun Superwall.handleImplicitTrigger(
     event: Trackable,
     eventData: EventData
 ) = withContext(Dispatchers.Main) {
-    serialTaskManager.addTask {
+    serialTaskManager.addTask({
         internallyHandleImplicitTrigger(event, eventData)
-    }
+    }, event = event.rawName)
 }
 
 private suspend fun Superwall.internallyHandleImplicitTrigger(

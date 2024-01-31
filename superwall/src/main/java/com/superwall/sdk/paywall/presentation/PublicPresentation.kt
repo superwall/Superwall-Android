@@ -116,7 +116,7 @@ private fun Superwall.internallyRegister(
         }
     }
 
-    serialTaskManager.addTask {
+    serialTaskManager.addTask({
         collectionWillStart.await()
         trackAndPresentPaywall(
             event = event,
@@ -125,7 +125,7 @@ private fun Superwall.internallyRegister(
             isFeatureGatable = completion != null,
             publisher = publisher
         )
-    }
+    }, event = event)
 }
 
 private suspend fun Superwall.trackAndPresentPaywall(
