@@ -24,9 +24,11 @@ import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.Ex
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
 import com.superwall.sdk.storage.Storage
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -84,38 +86,36 @@ open class ConfigManager(
     // Remaining methods should be converted similarly, using Kotlin's coroutines for async tasks
     // and other relevant Kotlin features. Here's an example of one method:
     suspend fun fetchConfiguration() {
-        coroutineScope {
-            try {
-                val config = network.getConfig() {
-                    launch {
-                        configState.emit(Result.Success(ConfigState.Retrying))
-                    }
+        try {
+            val config = network.getConfig() {
+                CoroutineScope(Dispatchers.IO).launch {
+                    configState.emit(Result.Success(ConfigState.Retrying))
                 }
-                launch { sendProductsBack(config) }
-
-                Logger.debug(
-                    logLevel = LogLevel.debug,
-                    scope = LogScope.superwallCore,
-                    message = "Fetched Configuration: $config",
-                )
-
-                triggersByEventName = ConfigLogic.getTriggersByEventName(config.triggers)
-                choosePaywallVariants(config.triggers)
-                configState.emit(Result.Success(ConfigState.Retrieved(config)))
-
-                // TODO: Re-enable those params
-//                storeKitManager.loadPurchasedProducts()
-                launch { preloadPaywalls() }
-            } catch (e: Throwable) {
-                configState.emit(Result.Failure(e))
-                Logger.debug(
-                    logLevel = LogLevel.error,
-                    scope = LogScope.superwallCore,
-                    message = "Failed to Fetch Configuration",
-                    info = null,
-                    error = e
-                )
             }
+            CoroutineScope(Dispatchers.IO).launch { sendProductsBack(config) }
+
+            Logger.debug(
+                logLevel = LogLevel.debug,
+                scope = LogScope.superwallCore,
+                message = "Fetched Configuration: $config",
+            )
+
+            triggersByEventName = ConfigLogic.getTriggersByEventName(config.triggers)
+            choosePaywallVariants(config.triggers)
+            configState.emit(Result.Success(ConfigState.Retrieved(config)))
+
+            // TODO: Re-enable those params
+//                storeKitManager.loadPurchasedProducts()
+            CoroutineScope(Dispatchers.IO).launch { preloadPaywalls() }
+        } catch (e: Throwable) {
+            configState.emit(Result.Failure(e))
+            Logger.debug(
+                logLevel = LogLevel.error,
+                scope = LogScope.superwallCore,
+                message = "Failed to Fetch Configuration",
+                info = null,
+                error = e
+            )
         }
     }
 
@@ -204,8 +204,8 @@ open class ConfigManager(
 
 
     // Preloads paywalls.
-    private suspend fun preloadPaywalls() = coroutineScope {
-        if (!options.paywalls.shouldPreload) return@coroutineScope
+    private suspend fun preloadPaywalls() {
+        if (!options.paywalls.shouldPreload) return
         preloadAllPaywalls()
     }
 
@@ -214,37 +214,34 @@ open class ConfigManager(
         if (currentPreloadingTask != null) {
             return
         }
+        currentPreloadingTask = CoroutineScope(Dispatchers.IO).launch {
+            val config = configState.awaitFirstValidConfig() ?: return@launch
 
-        currentPreloadingTask = coroutineScope {
-            launch {
-                val config = configState.awaitFirstValidConfig() ?: return@launch
+            val expressionEvaluator = ExpressionEvaluator(
+                context = context,
+                storage = storage,
+                factory = factory
+            )
+            val triggers = ConfigLogic.filterTriggers(
+                config.triggers,
+                preloadingDisabled = config.preloadingDisabled
+            )
+            val confirmedAssignments = storage.getConfirmedAssignments()
+            val paywallIds = ConfigLogic.getAllActiveTreatmentPaywallIds(
+                triggers = triggers,
+                confirmedAssignments = confirmedAssignments,
+                unconfirmedAssignments = unconfirmedAssignments,
+                expressionEvaluator = expressionEvaluator
+            )
+            preloadPaywalls(paywallIdentifiers = paywallIds)
 
-                val expressionEvaluator = ExpressionEvaluator(
-                    context = context,
-                    storage = storage,
-                    factory = factory
-                )
-                val triggers = ConfigLogic.filterTriggers(
-                    config.triggers,
-                    preloadingDisabled = config.preloadingDisabled
-                )
-                val confirmedAssignments = storage.getConfirmedAssignments()
-                val paywallIds = ConfigLogic.getAllActiveTreatmentPaywallIds(
-                    triggers = triggers,
-                    confirmedAssignments = confirmedAssignments,
-                    unconfirmedAssignments = unconfirmedAssignments,
-                    expressionEvaluator = expressionEvaluator
-                )
-                preloadPaywalls(paywallIdentifiers = paywallIds)
-
-                currentPreloadingTask = null
-            }
+            currentPreloadingTask = null
         }
     }
 
     // Preloads paywalls referenced by the provided triggers.
-    suspend fun preloadPaywallsByNames(eventNames: Set<String>) = coroutineScope {
-        val config = configState.awaitFirstValidConfig() ?: return@coroutineScope
+    suspend fun preloadPaywallsByNames(eventNames: Set<String>) {
+        val config = configState.awaitFirstValidConfig() ?: return
         val triggersToPreload = config.triggers.filter { eventNames.contains(it.eventName) }
         val triggerPaywallIdentifiers = getTreatmentPaywallIds(triggersToPreload.toSet())
         preloadPaywalls(triggerPaywallIdentifiers)
@@ -253,8 +250,12 @@ open class ConfigManager(
     // Preloads paywalls referenced by triggers.
     private suspend fun preloadPaywalls(paywallIdentifiers: Set<String>) {
         coroutineScope {
-            paywallIdentifiers.forEach { identifier ->
-                launch {
+            // List to hold all the Deferred objects
+            val tasks = mutableListOf<Deferred<Any>>()
+
+            for (identifier in paywallIdentifiers) {
+                val task = async {
+                    // Your asynchronous operation
                     val request = factory.makePaywallRequest(
                         eventData = null,
                         responseIdentifiers = ResponseIdentifiers(
@@ -273,16 +274,20 @@ open class ConfigManager(
                             isPreloading = true,
                             delegate = null
                         )
-                    } catch (e: Throwable) {
-                        null
+                    } catch (e: Exception) {
+                        // Handle exception
                     }
                 }
+                tasks.add(task)
             }
+
+            // Await all tasks
+            tasks.forEach { it.await() }
         }
     }
 
     // This sends product data back to the dashboard.
-    private suspend fun sendProductsBack(config: Config) = coroutineScope {
+    private suspend fun sendProductsBack(config: Config) {
 //        if (!config.featureFlags.enablePostback) return@coroutineScope
 //        val milliseconds = 1000L
 //        val nanoseconds = milliseconds * 1_000_000L
