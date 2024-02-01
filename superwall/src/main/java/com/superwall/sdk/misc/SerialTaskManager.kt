@@ -41,6 +41,7 @@ class SerialTaskManager(private val coroutineScope: CoroutineScope = CoroutineSc
         }
         currentTask?.await()
 
+
         // After the task completes, recursively execute the next task
         if (taskQueue.isNotEmpty()) {
             executeNextTask()
