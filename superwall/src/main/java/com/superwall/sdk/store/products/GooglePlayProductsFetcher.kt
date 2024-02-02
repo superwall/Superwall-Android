@@ -242,18 +242,20 @@ open class GooglePlayProductsFetcher(
                 .toMap()
                 .toMutableMap() as MutableMap<String, Result<RawStoreProduct>>
 
+            val missingProductsString = missingProducts.joinToString(separator = ", ")
             missingProducts.forEach { missingProductId ->
                 productIdsBySubscriptionId[missingProductId]?.forEach { product ->
-                    subscriptionIdToResult[product.fullId] = Result.Error(Exception("Failed to query product details"))
+                    subscriptionIdToResult[product.fullId] = Result.Error(Exception("Failed to query product details for $missingProductsString"))
                 }
             }
 
             return subscriptionIdToResult.toMap()
         } else {
+            val missingProductsString = subscriptionIds.joinToString(separator = ", ")
             val results: MutableMap<String, Result<RawStoreProduct>> = mutableMapOf()
             subscriptionIds.forEach { subscriptionId ->
                 productIdsBySubscriptionId[subscriptionId]?.forEach { product ->
-                    results[product.fullId] = Result.Error(Exception("Failed to query product details. Billing response code: ${billingResult.responseCode}"))
+                    results[product.fullId] = Result.Error(Exception("Failed to query product details for $missingProductsString. Billing response code: ${billingResult.responseCode}"))
                 }
             }
             return results
@@ -271,6 +273,7 @@ open class GooglePlayProductsFetcher(
         return productResults.values.mapNotNull {
             when (it) {
                 is Result.Success -> StoreProduct(it.value) // Assuming RawStoreProduct can be converted to StoreProduct
+                is Result.Error -> throw it.error
                 else -> null
             }
         }.toSet()

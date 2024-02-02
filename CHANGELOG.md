@@ -2,6 +2,14 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall-me/Superwall-Android/releases) on GitHub.
 
+## 1.0.0-alpha.45
+
+### Fixes
+
+- Fixes issue where the `paywallProductsLoad_fail` event wasn't correctly being logged. This is a
+"soft fail", meaning that even though it gets logged, your paywall will still show. The error message
+with the event has been updated to include all product subscription IDs that are failing to be retrieved.
+
 ## 1.0.0-alpha.44
 
 ### Fixes
