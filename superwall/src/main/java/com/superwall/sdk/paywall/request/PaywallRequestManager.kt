@@ -187,31 +187,25 @@ class PaywallRequestManager(
     private suspend fun getProducts(paywall: Paywall, request: PaywallRequest): Paywall = withContext(singleThreadContext) {
         var paywall = paywall
 
-        try {
-            val result = storeKitManager.getProducts(
-                paywall.productIds,
-                paywall.products,
-                request.overrides.products
-            )
+        val result = storeKitManager.getProducts(
+            substituteProducts = request.overrides.products,
+            paywall = paywall,
+            request = request,
+            factory = factory
+        )
+        paywall = result.paywall
+        paywall.products = result.products
 
-            paywall.products = result.products
-
-            val outcome = PaywallLogic.getVariablesAndFreeTrial(
-                result.products,
-                result.productsById,
-                request.overrides.isFreeTrial
-            )
-            paywall.productVariables = outcome.productVariables
+        val outcome = PaywallLogic.getVariablesAndFreeTrial(
+            result.products,
+            result.productsById,
+            request.overrides.isFreeTrial
+        )
+        paywall.productVariables = outcome.productVariables
 //            paywall.swProductVariablesTemplate = outcome.swProductVariablesTemplate
-            paywall.isFreeTrialAvailable = outcome.isFreeTrialAvailable
+        paywall.isFreeTrialAvailable = outcome.isFreeTrialAvailable
 
-            return@withContext paywall
-        } catch (error: Throwable) {
-            paywall.productsLoadingInfo.failAt = Date()
-            val paywallInfo = paywall.getInfo(request.eventData, factory)
-            trackProductLoadFail(error.message, paywallInfo, request.eventData)
-            throw error
-        }
+        return@withContext paywall
     }
 
     // Analytics
@@ -226,19 +220,6 @@ class PaywallRequestManager(
         )
         Superwall.instance.track(productLoadEvent)
         return@withContext paywall
-    }
-
-    private suspend fun trackProductLoadFail(
-        errorMessage: String?,
-        paywallInfo: PaywallInfo,
-        event: EventData?
-    ) = withContext(singleThreadContext) {
-        val productLoadEvent = InternalSuperwallEvent.PaywallProductsLoad(
-            state = InternalSuperwallEvent.PaywallProductsLoad.State.Fail(errorMessage),
-            paywallInfo = paywallInfo,
-            eventData = event
-        )
-        Superwall.instance.track(productLoadEvent)
     }
 
     private suspend fun trackProductsLoadFinish(paywall: Paywall, event: EventData?): Paywall = withContext(singleThreadContext) {

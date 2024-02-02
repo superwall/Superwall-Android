@@ -4,15 +4,21 @@ import LogLevel
 import LogScope
 import Logger
 import android.content.Context
+import com.superwall.sdk.Superwall
+import com.superwall.sdk.analytics.internal.track
+import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
+import com.superwall.sdk.dependencies.TriggerSessionManagerFactory
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.PaywallProducts
 import com.superwall.sdk.models.product.Product
 import com.superwall.sdk.models.product.ProductType
 import com.superwall.sdk.models.product.ProductVariable
+import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.product.receipt.ReceiptManager
 import com.superwall.sdk.store.coordinator.ProductsFetcher
 import com.superwall.sdk.store.products.GooglePlayProductsFetcher
+import java.util.Date
 
 /*
 class StoreKitManager(private val context: Context) : StoreKitManagerInterface {
@@ -104,8 +110,16 @@ class StoreKitManager(
         val products: List<Product>
     )
 
-    suspend fun getProductVariables(paywall: Paywall): List<ProductVariable> {
-        val output = getProducts(paywall.productIds)
+    suspend fun getProductVariables(
+        paywall: Paywall,
+        request: PaywallRequest,
+        factory: TriggerSessionManagerFactory
+    ): List<ProductVariable> {
+        val output = getProducts(
+            paywall = paywall,
+            request = request,
+            factory = factory
+        )
 
         val variables = paywall.products.mapNotNull { product ->
             output.productsById[product.id]?.let { storeProduct ->
@@ -120,19 +134,30 @@ class StoreKitManager(
     }
 
     suspend fun getProducts(
-        responseProductIds: List<String>,
-        responseProducts: List<Product> = emptyList(),
-        substituteProducts: PaywallProducts? = null
+        substituteProducts: PaywallProducts? = null,
+        paywall: Paywall,
+        request: PaywallRequest? = null,
+        factory: TriggerSessionManagerFactory
     ): GetProductsResponse {
         val processingResult = removeAndStore(
             substituteProducts = substituteProducts,
-            responseProductIds,
-            responseProducts = responseProducts
+            responseProductIds = paywall.productIds,
+            responseProducts = paywall.products
         )
 
-        val products = products(
-            identifiers = processingResult.productIdsToLoad
-        )
+        var products: Set<StoreProduct> = setOf()
+        try {
+            products = products(identifiers = processingResult.productIdsToLoad)
+        } catch (error: Throwable)  {
+            paywall.productsLoadingInfo.failAt = Date()
+            val paywallInfo = paywall.getInfo(request?.eventData, factory)
+             val productLoadEvent = InternalSuperwallEvent.PaywallProductsLoad(
+                 state = InternalSuperwallEvent.PaywallProductsLoad.State.Fail(error.message),
+                 paywallInfo = paywallInfo,
+                 eventData = request?.eventData
+             )
+             Superwall.instance.track(productLoadEvent)
+        }
 
         val productsById = processingResult.substituteProductsById.toMutableMap()
 
@@ -142,7 +167,11 @@ class StoreKitManager(
             this.productsById[productIdentifier] = product
         }
 
-        return GetProductsResponse(productsById, processingResult.products)
+        return GetProductsResponse(
+            productsById = productsById,
+            products = processingResult.products,
+            paywall = paywall
+        )
     }
 
     private fun removeAndStore(

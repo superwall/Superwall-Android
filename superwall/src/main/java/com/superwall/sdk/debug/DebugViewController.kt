@@ -64,6 +64,7 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import com.superwall.sdk.debug.localizations.SWLocalizationActivity
+import com.superwall.sdk.dependencies.TriggerSessionManagerFactory
 import kotlinx.coroutines.withContext
 
 interface AppCompatActivityEncapsulatable {
@@ -79,7 +80,7 @@ class DebugViewController(
     private val debugManager: DebugManager,
     private val factory: Factory
 ) : ConstraintLayout(context), AppCompatActivityEncapsulatable {
-    interface Factory: RequestFactory, ViewControllerFactory {}
+    interface Factory: RequestFactory, ViewControllerFactory, TriggerSessionManagerFactory {}
     data class AlertOption(
         val title: String? = "",
         val action: (suspend () -> Unit)? = null,
@@ -418,7 +419,11 @@ class DebugViewController(
             )
             var paywall = paywallRequestManager.getPaywall(request)
 
-            val productVariables = storeKitManager.getProductVariables(paywall)
+            val productVariables = storeKitManager.getProductVariables(
+                paywall,
+                request = request,
+                factory = factory
+            )
             paywall.productVariables = productVariables
 
             this.paywall = paywall
@@ -565,7 +570,8 @@ class DebugViewController(
         }
 
         val (productsById, _) = storeKitManager.getProducts(
-            responseProductIds = paywall.productIds
+            paywall = paywall,
+            factory = factory
         )
         val products = paywall.productIds.mapNotNull { productsById[it] }
         SWConsoleActivity.products = products
