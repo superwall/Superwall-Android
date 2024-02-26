@@ -165,7 +165,7 @@ open class GoogleBillingWrapper(open val context: Context, open val mainHandler:
                     Logger.debug(
                         LogLevel.error,
                         LogScope.productsManager,
-                        "Billing client error, item unavi supported or unavailable: ${billingResult.responseCode}",
+                        "Billing client error, item not supported or unavailable: ${billingResult.responseCode}",
                     )
                 }
 

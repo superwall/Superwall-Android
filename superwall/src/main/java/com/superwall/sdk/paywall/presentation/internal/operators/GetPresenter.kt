@@ -74,6 +74,14 @@ suspend fun Superwall.getPresenterIfNecessary(
             scope = LogScope.paywallPresentation,
             message = "Current Activity is null, can't present paywall"
         )
+        val error = InternalPresentationLogic.presentationError(
+            domain = "SWPresentationError",
+            code = 103,
+            title = "No Activity to present paywall on",
+            value = "This usually happens when you call this method before a window was made key and visible."
+        )
+        val state = PaywallState.PresentationError(error)
+        paywallStatePublisher?.emit(state)
         throw PaywallPresentationRequestStatusReason.NoPresenter()
     }
     return currentActivity

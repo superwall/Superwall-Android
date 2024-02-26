@@ -17,8 +17,6 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 
 @OptIn(ExperimentalCoroutinesApi::class)
-// TODO: Ensure this uses/acts as an actor similar to iOS
-// https://linear.app/superwall/issue/SW-2570/%5Bandroid%5D-ensure-eventsqueue-is-threaded-properly-as-an-actor
 class EventsQueue(
     private val context: Context,
     private val network: Network,
@@ -28,6 +26,7 @@ class EventsQueue(
     private var elements = mutableListOf<EventData>()
     private val timer = MutableSharedFlow<Long>()
     private var job: Job? = null
+    private val queue = newSingleThreadContext("com.superwall.eventsqueue")
 
     init {
         CoroutineScope(Dispatchers.Main).launch {
@@ -39,7 +38,7 @@ class EventsQueue(
     private suspend fun setupTimer() {
         val timeInterval =
             if (configManager.options?.networkEnvironment is SuperwallOptions.NetworkEnvironment.Release) 20L else 1L
-        job = CoroutineScope(Dispatchers.Default).launch {
+        job = CoroutineScope(Dispatchers.IO).launch {
             while (isActive) {
                 delay(timeInterval * 1000) // delay works in milliseconds
                 timer.emit(System.currentTimeMillis())
@@ -58,35 +57,29 @@ class EventsQueue(
     }
 
     fun enqueue(event: EventData) {
-        elements.add(event)
-    }
-
-    private fun externalDataCollectionAllowed(event: Trackable): Boolean {
-        return when {
-            Superwall.instance.options.isExternalDataCollectionEnabled -> true
-            event is InternalSuperwallEvent.TriggerFire -> false
-            event is InternalSuperwallEvent.Attributes -> false
-            event is UserInitiatedEvent.Track -> false
-            else -> true
+        CoroutineScope(queue).launch {
+            elements.add(event)
         }
     }
 
     suspend fun flushInternal(depth: Int = 10) {
-        val eventsToSend = mutableListOf<EventData>()
-        var i = 0
-        while (i < maxEventCount && elements.isNotEmpty()) {
-            eventsToSend.add(elements.removeFirst())
-            i += 1
-        }
-        if (eventsToSend.isNotEmpty()) {
-            // Send to network
-            val events = EventsRequest(eventsToSend)
-            CoroutineScope(Dispatchers.IO).launch {
-                network.sendEvents(events)
+        CoroutineScope(queue).launch {
+            val eventsToSend = mutableListOf<EventData>()
+            var i = 0
+            while (i < maxEventCount && elements.isNotEmpty()) {
+                eventsToSend.add(elements.removeFirst())
+                i += 1
             }
-        }
-        if (elements.isNotEmpty() && depth > 0) {
-            flushInternal(depth - 1)
+            if (eventsToSend.isNotEmpty()) {
+                // Send to network
+                val events = EventsRequest(eventsToSend)
+                CoroutineScope(Dispatchers.IO).launch {
+                    network.sendEvents(events)
+                }
+            }
+            if (elements.isNotEmpty() && depth > 0) {
+                flushInternal(depth - 1)
+            }
         }
     }
 
@@ -95,7 +88,7 @@ class EventsQueue(
             Intent.ACTION_SCREEN_OFF -> {
                 // equivalent to "applicationWillResignActive"
                 // your code here
-                CoroutineScope(Dispatchers.Default).launch {
+                CoroutineScope(Dispatchers.IO).launch {
                     flushInternal()
                 }
             }

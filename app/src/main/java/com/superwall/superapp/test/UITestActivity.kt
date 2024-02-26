@@ -135,6 +135,7 @@ fun UITestTable() {
         UITestHandler.testAndroid20Info to { CoroutineScope(Dispatchers.IO).launch { UITestHandler.testAndroid20() } },
         UITestHandler.testAndroid21Info to { CoroutineScope(Dispatchers.IO).launch { UITestHandler.testAndroid21() } },
         UITestHandler.testAndroid22Info to { CoroutineScope(Dispatchers.IO).launch { UITestHandler.testAndroid22() } },
+        UITestHandler.testAndroid23Info to { CoroutineScope(Dispatchers.IO).launch { UITestHandler.testAndroid23() } },
     )
 
     LazyColumn {
