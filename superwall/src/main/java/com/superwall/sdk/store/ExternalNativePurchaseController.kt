@@ -8,6 +8,8 @@ import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
+import com.superwall.sdk.store.abstractions.product.OfferType
+import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -63,16 +65,37 @@ class ExternalNativePurchaseController(var context: Context) : PurchaseControlle
 
     //region PurchaseController
 
+    private fun buildFullId(
+        subscriptionId: String,
+        basePlanId: String?,
+        offerId: String?
+    ): String =
+        buildString {
+            append(subscriptionId)
+            basePlanId?.let { append(":$it") }
+            offerId?.let { append(":$it") }
+        }
+
     override suspend fun purchase(
         activity: Activity,
         productDetails: ProductDetails,
         basePlanId: String?,
         offerId: String?
     ): PurchaseResult {
-        val offerToken = productDetails.subscriptionOfferDetails
-            ?.firstOrNull { it.basePlanId == basePlanId && it.offerId == offerId }
-            ?.offerToken
-            ?: ""
+        val fullId = buildFullId(
+            subscriptionId = productDetails.productId,
+            basePlanId = basePlanId,
+            offerId = offerId
+        )
+
+        val rawStoreProduct = RawStoreProduct(
+            underlyingProductDetails = productDetails,
+            fullIdentifier = fullId,
+            basePlanId = basePlanId,
+            offerType = offerId?.let { OfferType.Offer(id = it) }
+        )
+
+        val offerToken = rawStoreProduct.selectedOffer?.offerToken ?: ""
 
         val productDetailsParams = BillingFlowParams.ProductDetailsParams.newBuilder()
             .setProductDetails(productDetails)
@@ -165,7 +188,7 @@ class ExternalNativePurchaseController(var context: Context) : PurchaseControlle
             return
         }
 
-        Superwall.instance.setSubscriptionStatus(SubscriptionStatus.INACTIVE)
+        Superwall.instance.setSubscriptionStatus(status)
     }
 
     private suspend fun queryPurchasesOfType(productType: String): List<Purchase> {

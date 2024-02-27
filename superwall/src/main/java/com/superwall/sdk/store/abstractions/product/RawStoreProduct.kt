@@ -35,7 +35,7 @@ class RawStoreProduct(
         selectedOffer?.offerId
     }
 
-    private val selectedOffer: SubscriptionOfferDetails? by lazy {
+    val selectedOffer: SubscriptionOfferDetails? by lazy {
         getSelectedOfferDetails()
     }
 
