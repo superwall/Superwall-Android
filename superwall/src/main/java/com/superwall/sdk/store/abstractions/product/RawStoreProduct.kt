@@ -55,7 +55,6 @@ class RawStoreProduct(
             ?: selectedOffer.pricingPhases.pricingPhaseList
                 .dropLast(1)
                 .firstOrNull { it.priceAmountMicros != 0L }
-
     }
 
     override val productIdentifier by lazy {

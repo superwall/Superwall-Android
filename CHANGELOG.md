@@ -2,12 +2,13 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall-me/Superwall-Android/releases) on GitHub.
 
-## 1.0.0-rc.1
+## 1.0.0
 
 ### Fixes
 
 - Fixes rare thread-safety crash when sending events back to Superwall's servers.
 - Calls the `onError` presentation handler block when there's no activity to present a paywall on.
+- Fixes issue where the wrong product may be presented to purchase if a free trial had already been used.
 
 ## 1.0.0-alpha.45
 

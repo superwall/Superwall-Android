@@ -70,7 +70,7 @@ class ExternalNativePurchaseController(var context: Context) : PurchaseControlle
         offerId: String?
     ): PurchaseResult {
         val offerToken = productDetails.subscriptionOfferDetails
-            ?.firstOrNull { it.offerId == offerId }
+            ?.firstOrNull { it.basePlanId == basePlanId && it.offerId == offerId }
             ?.offerToken
             ?: ""
 
@@ -156,7 +156,7 @@ class ExternalNativePurchaseController(var context: Context) : PurchaseControlle
         val hasActivePurchaseOrSubscription = allPurchases.any { it.purchaseState == Purchase.PurchaseState.PURCHASED }
         val status: SubscriptionStatus = if (hasActivePurchaseOrSubscription) SubscriptionStatus.ACTIVE else SubscriptionStatus.INACTIVE
 
-        if (Superwall.initialized == false) {
+        if (!Superwall.initialized) {
             Logger.debug(
                 logLevel = LogLevel.error,
                 scope = LogScope.nativePurchaseController,
@@ -165,7 +165,7 @@ class ExternalNativePurchaseController(var context: Context) : PurchaseControlle
             return
         }
 
-        Superwall.instance.setSubscriptionStatus(status)
+        Superwall.instance.setSubscriptionStatus(SubscriptionStatus.INACTIVE)
     }
 
     private suspend fun queryPurchasesOfType(productType: String): List<Purchase> {
