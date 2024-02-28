@@ -4,6 +4,8 @@ import android.app.Activity
 import android.content.Context
 import com.android.billingclient.api.*
 import com.superwall.sdk.Superwall
+import com.superwall.sdk.billing.RECONNECT_TIMER_MAX_TIME_MILLISECONDS
+import com.superwall.sdk.billing.RECONNECT_TIMER_START_MILLISECONDS
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
 import com.superwall.sdk.delegate.SubscriptionStatus
@@ -14,9 +16,11 @@ import com.superwall.sdk.store.abstractions.product.StoreProduct
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlin.math.min
 
 class ExternalNativePurchaseController(var context: Context) : PurchaseController, PurchasesUpdatedListener {
     private var billingClient: BillingClient = BillingClient.newBuilder(context)
@@ -25,6 +29,8 @@ class ExternalNativePurchaseController(var context: Context) : PurchaseControlle
         .build()
     private val isConnected = MutableStateFlow(false)
     private val purchaseResults = MutableStateFlow<PurchaseResult?>(null)
+    // how long before the data source tries to reconnect to Google play
+    private var reconnectMilliseconds = RECONNECT_TIMER_START_MILLISECONDS
 
     //region Initialization
 
@@ -35,20 +41,43 @@ class ExternalNativePurchaseController(var context: Context) : PurchaseControlle
     }
 
     private fun startConnection() {
-        billingClient.startConnection(object : BillingClientStateListener {
-            override fun onBillingSetupFinished(billingResult: BillingResult) {
-                isConnected.value = billingResult.responseCode == BillingClient.BillingResponseCode.OK
-                syncSubscriptionStatus()
-            }
-
-            override fun onBillingServiceDisconnected() {
-                isConnected.value = false
-
-                CoroutineScope(Dispatchers.IO).launch {
-                    startConnection()
+        try {
+            billingClient.startConnection(object : BillingClientStateListener {
+                override fun onBillingSetupFinished(billingResult: BillingResult) {
+                    isConnected.value =
+                        billingResult.responseCode == BillingClient.BillingResponseCode.OK
+                    syncSubscriptionStatus()
                 }
-            }
-        })
+
+                override fun onBillingServiceDisconnected() {
+                    isConnected.value = false
+
+                    Logger.debug(
+                        LogLevel.error,
+                        LogScope.nativePurchaseController,
+                        "ExternalNativePurchaseController billing client disconnected, " +
+                                "retrying in $reconnectMilliseconds milliseconds",
+                    )
+
+                    CoroutineScope(Dispatchers.IO).launch {
+                        delay(reconnectMilliseconds)
+                        startConnection()
+                    }
+
+                    reconnectMilliseconds = min(
+                        reconnectMilliseconds * 2,
+                        RECONNECT_TIMER_MAX_TIME_MILLISECONDS,
+                    )
+                }
+            })
+        } catch (e: IllegalStateException) {
+            Logger.debug(
+                LogLevel.error,
+                LogScope.nativePurchaseController,
+                "IllegalStateException when connecting to billing client for " +
+                        "ExternalNativePurchaseController: ${e.message}",
+            )
+        }
     }
 
     //endregion

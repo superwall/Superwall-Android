@@ -21,8 +21,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.math.min
 
-private const val RECONNECT_TIMER_START_MILLISECONDS = 1L * 1000L
-private const val RECONNECT_TIMER_MAX_TIME_MILLISECONDS = 16L * 1000L
+internal const val RECONNECT_TIMER_START_MILLISECONDS = 1L * 1000L
+internal const val RECONNECT_TIMER_MAX_TIME_MILLISECONDS = 16L * 1000L
 
 open class GoogleBillingWrapper(open val context: Context, open val mainHandler: Handler = Handler(Looper.getMainLooper())): PurchasesUpdatedListener,
     BillingClientStateListener {
