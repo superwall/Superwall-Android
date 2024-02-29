@@ -1,8 +1,5 @@
 package com.superwall.sdk.delegate
 
-import LogLevel
-import LogScope
-import Logger
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import java.net.URL

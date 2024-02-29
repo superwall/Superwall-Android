@@ -1,14 +1,14 @@
 package com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator
 
-import LogLevel
-import LogScope
-import Logger
 import android.content.Context
 import android.webkit.ConsoleMessage
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import com.superwall.sdk.dependencies.RuleAttributesFactory
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.runOnUiThread
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.triggers.TriggerRule
@@ -39,15 +39,18 @@ class ExpressionEvaluator(
     }
 
     init {
-        // Setup the sharedWebView if it's not already setup
-        if (sharedWebView == null) {
-            runOnUiThread {
-                sharedWebView = WebView(context)
-                sharedWebView!!.settings.javaScriptEnabled = true
-                sharedWebView!!.webChromeClient = object : WebChromeClient() {
-                    override fun onConsoleMessage(consoleMessage: ConsoleMessage): Boolean {
-                        println("!!JS Console: ${consoleMessage.message()}")
-                        return true
+        val webviewExists = WebView.getCurrentWebViewPackage() != null
+        if (webviewExists) {
+            // Setup the sharedWebView if it's not already setup
+            if (sharedWebView == null) {
+                runOnUiThread {
+                    sharedWebView = WebView(context)
+                    sharedWebView!!.settings.javaScriptEnabled = true
+                    sharedWebView!!.webChromeClient = object : WebChromeClient() {
+                        override fun onConsoleMessage(consoleMessage: ConsoleMessage): Boolean {
+                            println("!!JS Console: ${consoleMessage.message()}")
+                            return true
+                        }
                     }
                 }
             }

@@ -1,11 +1,13 @@
 package com.superwall.sdk.store.transactions.notifications
 
-import Logger
 import android.content.Context
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.superwall.sdk.dependencies.DeviceHelperFactory
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.models.paywall.LocalNotification
 import com.superwall.sdk.paywall.vc.SuperwallPaywallActivity
 import java.util.concurrent.TimeUnit

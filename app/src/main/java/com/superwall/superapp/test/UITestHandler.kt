@@ -35,7 +35,7 @@ class UITestHandler {
         suspend fun test0() {
             Superwall.instance.identify(userId = "test0")
             Superwall.instance.setUserAttributes(attributes = mapOf("first_name" to "Jack"))
-            Superwall.instance.register(event = "present_data")
+            Superwall.instance.register(event = "consumable")
         }
 
         var test1Info = UITestInfo(
@@ -1424,6 +1424,19 @@ class UITestHandler {
         )
         suspend fun testAndroid22() {
             Superwall.instance.register(event = "notifications")
+        }
+
+        var testAndroid23Info = UITestInfo(
+            23,
+            "Tap button. You should see first_name: Jack printed out in user attributes " +
+                    "then the user attributes shouldn't contain first_name",
+            testCaseType = TestCaseType.Android
+        )
+        suspend fun testAndroid23() {
+            Superwall.instance.setUserAttributes(attributes = mapOf("first_name" to "Jack"))
+            println(Superwall.instance.userAttributes)
+            Superwall.instance.setUserAttributes(attributes = mapOf("first_name" to null))
+            println(Superwall.instance.userAttributes)
         }
     }
 }

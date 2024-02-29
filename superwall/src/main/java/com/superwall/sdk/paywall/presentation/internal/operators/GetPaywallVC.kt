@@ -1,11 +1,12 @@
 package com.superwall.sdk.paywall.presentation.internal.operators
 
-import LogLevel
-import LogScope
-import Logger
+import android.webkit.WebView
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.dependencies.DependencyContainer
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.paywall.presentation.internal.InternalPresentationLogic
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatusReason
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
@@ -64,12 +65,23 @@ internal suspend fun Superwall.getPaywallViewController(
                 && request.flags.type != PresentationRequestType.GetPresentationResult
         val delegate = request.flags.type.paywallVcDelegateAdapter
 
-        dependencyContainer.paywallManager.getPaywallViewController(
-            request = paywallRequest,
-            isForPresentation = isForPresentation,
-            isPreloading = false,
-            delegate = delegate
-        )
+        val webviewExists = WebView.getCurrentWebViewPackage() != null
+        if (webviewExists) {
+            dependencyContainer.paywallManager.getPaywallViewController(
+                request = paywallRequest,
+                isForPresentation = isForPresentation,
+                isPreloading = false,
+                delegate = delegate
+            )
+        } else {
+            Logger.debug(
+                logLevel = LogLevel.error,
+                scope = LogScope.paywallPresentation,
+                message = "Paywalls cannot be presented because the Android System WebView has been disabled" +
+                        " by the user."
+            )
+            throw PaywallPresentationRequestStatusReason.NoPaywallViewController()
+        }
     } catch (e: Throwable) {
         if (subscriptionStatus == SubscriptionStatus.ACTIVE) {
             throw userIsSubscribed(paywallStatePublisher)

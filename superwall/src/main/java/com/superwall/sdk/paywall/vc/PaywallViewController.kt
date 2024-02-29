@@ -1,8 +1,5 @@
 package com.superwall.sdk.paywall.vc
 
-import LogLevel
-import LogScope
-import Logger
 import android.Manifest
 import android.R
 import android.app.Activity
@@ -42,6 +39,9 @@ import com.superwall.sdk.dependencies.TriggerSessionManagerFactory
 import com.superwall.sdk.game.GameControllerDelegate
 import com.superwall.sdk.game.GameControllerEvent
 import com.superwall.sdk.game.GameControllerManager
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.AlertControllerFactory
 import com.superwall.sdk.misc.isDarkColor
 import com.superwall.sdk.misc.isLightColor

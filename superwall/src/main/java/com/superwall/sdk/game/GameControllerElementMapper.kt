@@ -1,7 +1,9 @@
 package com.superwall.sdk.game
 
-import Logger
 import android.view.KeyEvent
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 
 
 object GameControllerElementMapper {

@@ -1,8 +1,5 @@
 package com.superwall.sdk.store.transactions
 
-import LogLevel
-import LogScope
-import Logger
 import android.content.Context
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.SessionEventsManager
@@ -18,6 +15,9 @@ import com.superwall.sdk.dependencies.OptionsFactory
 import com.superwall.sdk.dependencies.StoreTransactionFactory
 import com.superwall.sdk.dependencies.TransactionVerifierFactory
 import com.superwall.sdk.dependencies.TriggerFactory
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.ActivityProvider
 import com.superwall.sdk.models.paywall.LocalNotificationType
 import com.superwall.sdk.paywall.presentation.internal.dismiss

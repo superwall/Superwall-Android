@@ -1,9 +1,8 @@
 package com.superwall.sdk.network.session
 
-
-import LogLevel
-import LogScope
-import Logger
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.retrying
 import com.superwall.sdk.models.SerializableEntity
 import com.superwall.sdk.network.Endpoint

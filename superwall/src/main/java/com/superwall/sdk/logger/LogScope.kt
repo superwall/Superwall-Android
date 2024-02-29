@@ -1,3 +1,5 @@
+package com.superwall.sdk.logger
+
 enum class LogScope {
     localizationManager,
     bounceButton,

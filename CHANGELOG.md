@@ -2,6 +2,24 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall-me/Superwall-Android/releases) on GitHub.
 
+## 1.0.0
+
+### Breaking Changes
+
+- Changes the import path for the `LogScope`, and `LogLevel`.
+
+### Fixes
+
+- Fixes rare thread-safety crash when sending events back to Superwall's servers.
+- Calls the `onError` presentation handler block when there's no activity to present a paywall on.
+- Fixes issue where the wrong product may be presented to purchase if a free trial had already been 
+used and you were letting Superwall handle purchases.
+- Fixes `IllegalStateException` on Samsung devices when letting Superwall handle purchases.
+- Keeps the text zoom of paywalls to 100% rather than respecting the accessibility settings text zoom,
+which caused unexpected UI issues.
+- Fixes rare `UninitializedPropertyAccessException` crash caused by a threading issue.
+- Fixes crash when the user has disabled the Android System WebView.
+
 ## 1.0.0-alpha.45
 
 ### Fixes

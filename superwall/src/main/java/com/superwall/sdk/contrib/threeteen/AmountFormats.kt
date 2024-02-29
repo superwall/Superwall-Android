@@ -1,5 +1,8 @@
 package com.superwall.sdk.contrib.threeteen
 
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 import org.threeten.bp.Period
 import java.time.Duration
 import java.time.format.DateTimeParseException

@@ -1,8 +1,9 @@
 package com.superwall.sdk.storage
 
-import LogScope
-import Logger
 import android.content.Context
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.storage.memory.LRUCache
 import com.superwall.sdk.storage.memory.PerpetualCache
 import kotlinx.coroutines.ExecutorCoroutineDispatcher

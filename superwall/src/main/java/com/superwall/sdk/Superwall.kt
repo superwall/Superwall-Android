@@ -1,10 +1,8 @@
 package com.superwall.sdk
 
-import LogLevel
-import LogScope
-import Logger
 import android.content.Context
 import android.net.Uri
+import android.webkit.WebView
 import androidx.work.WorkManager
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
@@ -14,6 +12,9 @@ import com.superwall.sdk.delegate.SuperwallDelegate
 import com.superwall.sdk.delegate.SuperwallDelegateJava
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.dependencies.DependencyContainer
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.ActivityProvider
 import com.superwall.sdk.misc.SerialTaskManager
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
@@ -36,6 +37,7 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.take
 import java.util.*
+import java.util.concurrent.Executors
 
 class Superwall(
     internal var context: Context,
@@ -44,8 +46,7 @@ class Superwall(
     options: SuperwallOptions?,
     private var activityProvider: ActivityProvider?,
     private val completion: (() -> Unit)?
-) :
-    PaywallViewControllerEventDelegate {
+) : PaywallViewControllerEventDelegate {
     private var _options: SuperwallOptions? = options
     // Add a private variable for the purchase task
     private var purchaseTask: Job? = null
@@ -222,7 +223,8 @@ class Superwall(
             activityProvider: ActivityProvider? = null,
             completion: (() -> Unit)? = null
         ) {
-            val purchaseController = purchaseController ?: ExternalNativePurchaseController(context = applicationContext)
+            val purchaseController =
+                purchaseController ?: ExternalNativePurchaseController(context = applicationContext)
             instance = Superwall(
                 context = applicationContext,
                 apiKey = apiKey,
@@ -231,6 +233,7 @@ class Superwall(
                 activityProvider = activityProvider,
                 completion = completion
             )
+
             instance.setup()
 
             Logger.debug(
@@ -247,18 +250,27 @@ class Superwall(
         }
     }
 
-    internal lateinit var dependencyContainer: DependencyContainer
+    private lateinit var _dependencyContainer: DependencyContainer
+
+    internal val dependencyContainer: DependencyContainer
+        get() {
+            synchronized(this) {
+                return _dependencyContainer
+            }
+        }
 
     /// Used to serially execute register calls.
     internal val serialTaskManager = SerialTaskManager()
 
     internal fun setup() {
-        this.dependencyContainer = DependencyContainer(
-            context = context,
-            purchaseController = purchaseController,
-            options = _options,
-            activityProvider = activityProvider
-        )
+        synchronized(this) {
+            this._dependencyContainer = DependencyContainer(
+                context = context,
+                purchaseController = purchaseController,
+                options = _options,
+                activityProvider = activityProvider
+            )
+        }
 
         val cachedSubsStatus = dependencyContainer.storage.get(ActiveSubscriptionStatus) ?: SubscriptionStatus.UNKNOWN
         setSubscriptionStatus(cachedSubsStatus)

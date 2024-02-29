@@ -35,7 +35,7 @@ class RawStoreProduct(
         selectedOffer?.offerId
     }
 
-    private val selectedOffer: SubscriptionOfferDetails? by lazy {
+    val selectedOffer: SubscriptionOfferDetails? by lazy {
         getSelectedOfferDetails()
     }
 
@@ -55,7 +55,6 @@ class RawStoreProduct(
             ?: selectedOffer.pricingPhases.pricingPhaseList
                 .dropLast(1)
                 .firstOrNull { it.priceAmountMicros != 0L }
-
     }
 
     override val productIdentifier by lazy {

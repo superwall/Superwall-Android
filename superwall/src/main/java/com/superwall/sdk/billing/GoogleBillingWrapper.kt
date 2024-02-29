@@ -10,6 +10,9 @@ import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.PurchasesUpdatedListener
 import com.superwall.sdk.delegate.InternalPurchaseResult
 import com.superwall.sdk.dependencies.StoreTransactionFactory
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -21,8 +24,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.math.min
 
-private const val RECONNECT_TIMER_START_MILLISECONDS = 1L * 1000L
-private const val RECONNECT_TIMER_MAX_TIME_MILLISECONDS = 16L * 1000L
+internal const val RECONNECT_TIMER_START_MILLISECONDS = 1L * 1000L
+internal const val RECONNECT_TIMER_MAX_TIME_MILLISECONDS = 16L * 1000L
 
 open class GoogleBillingWrapper(open val context: Context, open val mainHandler: Handler = Handler(Looper.getMainLooper())): PurchasesUpdatedListener,
     BillingClientStateListener {
@@ -165,7 +168,7 @@ open class GoogleBillingWrapper(open val context: Context, open val mainHandler:
                     Logger.debug(
                         LogLevel.error,
                         LogScope.productsManager,
-                        "Billing client error, item unavi supported or unavailable: ${billingResult.responseCode}",
+                        "Billing client error, item not supported or unavailable: ${billingResult.responseCode}",
                     )
                 }
 

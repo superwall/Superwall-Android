@@ -3,6 +3,9 @@ package com.superwall.sdk.paywall.presentation.internal.operators
 import android.app.Activity
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.delegate.SubscriptionStatus
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.models.assignment.ConfirmableAssignment
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.triggers.InternalTriggerResult
@@ -74,6 +77,14 @@ suspend fun Superwall.getPresenterIfNecessary(
             scope = LogScope.paywallPresentation,
             message = "Current Activity is null, can't present paywall"
         )
+        val error = InternalPresentationLogic.presentationError(
+            domain = "SWPresentationError",
+            code = 103,
+            title = "No Activity to present paywall on",
+            value = "This usually happens when you call this method before a window was made key and visible."
+        )
+        val state = PaywallState.PresentationError(error)
+        paywallStatePublisher?.emit(state)
         throw PaywallPresentationRequestStatusReason.NoPresenter()
     }
     return currentActivity

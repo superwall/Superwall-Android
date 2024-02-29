@@ -1,8 +1,5 @@
 package com.superwall.sdk.paywall.presentation.internal.operators
 
-import LogLevel
-import LogScope
-import Logger
 import android.app.Activity
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.delegate.SubscriptionStatus
