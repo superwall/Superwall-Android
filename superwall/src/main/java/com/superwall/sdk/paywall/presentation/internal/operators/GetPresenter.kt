@@ -3,6 +3,9 @@ package com.superwall.sdk.paywall.presentation.internal.operators
 import android.app.Activity
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.delegate.SubscriptionStatus
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.models.assignment.ConfirmableAssignment
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.triggers.InternalTriggerResult

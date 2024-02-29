@@ -1,8 +1,5 @@
 package com.superwall.sdk.paywall.presentation.internal.operators
 
-import LogLevel
-import LogScope
-import Logger
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.models.assignment.ConfirmableAssignment
 import com.superwall.sdk.models.triggers.Experiment

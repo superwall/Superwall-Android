@@ -1,6 +1,9 @@
 package com.superwall.sdk.paywall.presentation.internal.operators
 
 import com.superwall.sdk.Superwall
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.InternalTriggerResult
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatusReason

@@ -4,6 +4,10 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## 1.0.0
 
+### Breaking Changes
+
+- Changes the import path for the `LogScope`, and `LogLevel`.
+
 ### Fixes
 
 - Fixes rare thread-safety crash when sending events back to Superwall's servers.
@@ -13,6 +17,7 @@ used and you were letting Superwall handle purchases.
 - Fixes `IllegalStateException` on Samsung devices when letting Superwall handle purchases.
 - Keeps the text zoom of paywalls to 100% rather than respecting the accessibility settings text zoom,
 which caused unexpected UI issues.
+- Fixes rare `UninitializedPropertyAccessException` crash caused by a threading issue. 
 
 ## 1.0.0-alpha.45
 

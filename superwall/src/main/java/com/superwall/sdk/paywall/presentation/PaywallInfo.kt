@@ -1,11 +1,11 @@
 package com.superwall.sdk.paywall.presentation
 
 import ComputedPropertyRequest
-import LogLevel
-import LogScope
-import Logger
 import com.superwall.sdk.config.models.Survey
 import com.superwall.sdk.dependencies.TriggerSessionManagerFactory
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.camelCaseToSnakeCase
 import com.superwall.sdk.models.config.FeatureGatingBehavior
 import com.superwall.sdk.models.events.EventData

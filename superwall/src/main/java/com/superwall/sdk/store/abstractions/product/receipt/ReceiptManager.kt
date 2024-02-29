@@ -1,8 +1,8 @@
 package com.superwall.sdk.store.abstractions.product.receipt
 
-import LogLevel
-import LogScope
-import Logger
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.coordinator.ProductsFetcher
 import kotlinx.coroutines.*

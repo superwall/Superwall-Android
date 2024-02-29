@@ -1,8 +1,5 @@
 package com.superwall.sdk.config
 
-import LogLevel
-import LogScope
-import Logger
 import android.content.Context
 import com.superwall.sdk.config.models.ConfigState
 import com.superwall.sdk.config.models.getConfig
@@ -10,6 +7,9 @@ import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.dependencies.DeviceInfoFactory
 import com.superwall.sdk.dependencies.RequestFactory
 import com.superwall.sdk.dependencies.RuleAttributesFactory
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.Result
 import com.superwall.sdk.misc.awaitFirstValidConfig
 import com.superwall.sdk.models.assignment.AssignmentPostback

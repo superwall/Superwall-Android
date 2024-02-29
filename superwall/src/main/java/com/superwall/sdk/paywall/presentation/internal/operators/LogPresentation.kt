@@ -1,9 +1,9 @@
 package com.superwall.sdk.paywall.presentation.internal.operators
 
-import LogLevel
-import LogScope
-import Logger
 import com.superwall.sdk.Superwall
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 
 // File.kt

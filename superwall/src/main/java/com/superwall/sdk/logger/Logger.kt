@@ -1,3 +1,5 @@
+package com.superwall.sdk.logger
+
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.config.options.SuperwallOptions
 

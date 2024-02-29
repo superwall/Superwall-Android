@@ -1,9 +1,9 @@
 package com.superwall.sdk.network
 
-import LogLevel
-import LogScope
-import Logger
 import com.superwall.sdk.dependencies.ApiFactory
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.models.assignment.Assignment
 import com.superwall.sdk.models.assignment.AssignmentPostback
 import com.superwall.sdk.models.assignment.ConfirmedAssignmentResponse
@@ -12,7 +12,6 @@ import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.events.EventsRequest
 import com.superwall.sdk.models.events.EventsResponse
 import com.superwall.sdk.models.paywall.Paywall
-import com.superwall.sdk.models.paywall.Paywalls
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first

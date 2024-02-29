@@ -1,7 +1,7 @@
 package com.superwall.sdk.config.options
 
-import LogLevel
-import LogScope
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
 import java.util.*
 
 

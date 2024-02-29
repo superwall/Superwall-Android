@@ -1,3 +1,4 @@
+package com.superwall.sdk.logger
 enum class LogLevel(val level: Int) {
     debug(10),
     info(20),

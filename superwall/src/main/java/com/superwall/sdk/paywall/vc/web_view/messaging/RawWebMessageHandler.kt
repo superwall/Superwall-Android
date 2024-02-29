@@ -1,10 +1,10 @@
 package com.superwall.sdk.paywall.vc.web_view.messaging
 
-import LogLevel
-import LogScope
-import Logger
 import android.webkit.JavascriptInterface
 import android.webkit.WebViewClient
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.paywall.vc.web_view.PaywallMessage
 import com.superwall.sdk.paywall.vc.web_view.parseWrappedPaywallMessages
 import kotlinx.coroutines.CoroutineScope
