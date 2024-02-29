@@ -1,6 +1,7 @@
 package com.superwall.sdk.config
 
 import android.content.Context
+import android.webkit.WebView
 import com.superwall.sdk.config.models.ConfigState
 import com.superwall.sdk.config.models.getConfig
 import com.superwall.sdk.config.options.SuperwallOptions
@@ -249,40 +250,43 @@ open class ConfigManager(
 
     // Preloads paywalls referenced by triggers.
     private suspend fun preloadPaywalls(paywallIdentifiers: Set<String>) {
-        coroutineScope {
-            // List to hold all the Deferred objects
-            val tasks = mutableListOf<Deferred<Any>>()
+        val webviewExists = WebView.getCurrentWebViewPackage() != null
+        if (webviewExists) {
+            coroutineScope {
+                // List to hold all the Deferred objects
+                val tasks = mutableListOf<Deferred<Any>>()
 
-            for (identifier in paywallIdentifiers) {
-                val task = async {
-                    // Your asynchronous operation
-                    val request = factory.makePaywallRequest(
-                        eventData = null,
-                        responseIdentifiers = ResponseIdentifiers(
-                            paywallId = identifier,
-                            experiment = null
-                        ),
-                        overrides = null,
-                        isDebuggerLaunched = false,
-                        presentationSourceType = null,
-                        retryCount = 6
-                    )
-                    try {
-                        paywallManager.getPaywallViewController(
-                            request = request,
-                            isForPresentation = true,
-                            isPreloading = true,
-                            delegate = null
+                for (identifier in paywallIdentifiers) {
+                    val task = async {
+                        // Your asynchronous operation
+                        val request = factory.makePaywallRequest(
+                            eventData = null,
+                            responseIdentifiers = ResponseIdentifiers(
+                                paywallId = identifier,
+                                experiment = null
+                            ),
+                            overrides = null,
+                            isDebuggerLaunched = false,
+                            presentationSourceType = null,
+                            retryCount = 6
                         )
-                    } catch (e: Exception) {
-                        // Handle exception
+                        try {
+                            paywallManager.getPaywallViewController(
+                                request = request,
+                                isForPresentation = true,
+                                isPreloading = true,
+                                delegate = null
+                            )
+                        } catch (e: Exception) {
+                            // Handle exception
+                        }
                     }
+                    tasks.add(task)
                 }
-                tasks.add(task)
-            }
 
-            // Await all tasks
-            tasks.forEach { it.await() }
+                // Await all tasks
+                tasks.forEach { it.await() }
+            }
         }
     }
 

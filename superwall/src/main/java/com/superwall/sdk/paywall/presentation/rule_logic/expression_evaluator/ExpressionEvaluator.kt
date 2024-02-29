@@ -39,15 +39,18 @@ class ExpressionEvaluator(
     }
 
     init {
-        // Setup the sharedWebView if it's not already setup
-        if (sharedWebView == null) {
-            runOnUiThread {
-                sharedWebView = WebView(context)
-                sharedWebView!!.settings.javaScriptEnabled = true
-                sharedWebView!!.webChromeClient = object : WebChromeClient() {
-                    override fun onConsoleMessage(consoleMessage: ConsoleMessage): Boolean {
-                        println("!!JS Console: ${consoleMessage.message()}")
-                        return true
+        val webviewExists = WebView.getCurrentWebViewPackage() != null
+        if (webviewExists) {
+            // Setup the sharedWebView if it's not already setup
+            if (sharedWebView == null) {
+                runOnUiThread {
+                    sharedWebView = WebView(context)
+                    sharedWebView!!.settings.javaScriptEnabled = true
+                    sharedWebView!!.webChromeClient = object : WebChromeClient() {
+                        override fun onConsoleMessage(consoleMessage: ConsoleMessage): Boolean {
+                            println("!!JS Console: ${consoleMessage.message()}")
+                            return true
+                        }
                     }
                 }
             }

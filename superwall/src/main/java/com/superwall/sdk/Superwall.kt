@@ -2,6 +2,7 @@ package com.superwall.sdk
 
 import android.content.Context
 import android.net.Uri
+import android.webkit.WebView
 import androidx.work.WorkManager
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
@@ -222,7 +223,8 @@ class Superwall(
             activityProvider: ActivityProvider? = null,
             completion: (() -> Unit)? = null
         ) {
-            val purchaseController = purchaseController ?: ExternalNativePurchaseController(context = applicationContext)
+            val purchaseController =
+                purchaseController ?: ExternalNativePurchaseController(context = applicationContext)
             instance = Superwall(
                 context = applicationContext,
                 apiKey = apiKey,
@@ -231,6 +233,7 @@ class Superwall(
                 activityProvider = activityProvider,
                 completion = completion
             )
+
             instance.setup()
 
             Logger.debug(

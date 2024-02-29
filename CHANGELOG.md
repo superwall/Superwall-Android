@@ -17,7 +17,8 @@ used and you were letting Superwall handle purchases.
 - Fixes `IllegalStateException` on Samsung devices when letting Superwall handle purchases.
 - Keeps the text zoom of paywalls to 100% rather than respecting the accessibility settings text zoom,
 which caused unexpected UI issues.
-- Fixes rare `UninitializedPropertyAccessException` crash caused by a threading issue. 
+- Fixes rare `UninitializedPropertyAccessException` crash caused by a threading issue.
+- Fixes crash when the user has disabled the Android System WebView.
 
 ## 1.0.0-alpha.45
 
