@@ -57,7 +57,6 @@ import com.superwall.sdk.store.InternalPurchaseController
 import com.superwall.sdk.store.StoreKitManager
 import com.superwall.sdk.store.abstractions.transactions.GoogleBillingPurchaseTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
-import com.superwall.sdk.store.products.GooglePlayProductsFetcher
 import com.superwall.sdk.store.transactions.TransactionManager
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -96,7 +95,6 @@ class DependencyContainer(
     var storeKitManager: StoreKitManager
     val transactionManager: TransactionManager
     val googleBillingWrapper: GoogleBillingWrapper
-    val productsFetcher: GooglePlayProductsFetcher
 
     init {
         // TODO: Add delegate adapter
@@ -121,15 +119,14 @@ class DependencyContainer(
            activityProvider = this.activityProvider!!
         }
 
-        googleBillingWrapper = GoogleBillingWrapper(context)
-        productsFetcher = GooglePlayProductsFetcher(context, googleBillingWrapper)
+        googleBillingWrapper = GoogleBillingWrapper(context, appLifecycleObserver = appLifecycleObserver)
 
         var purchaseController = InternalPurchaseController(
             kotlinPurchaseController = purchaseController,
             javaPurchaseController = null,
             context
         )
-        storeKitManager = StoreKitManager(context, purchaseController, productsFetcher)
+        storeKitManager = StoreKitManager(context, purchaseController, googleBillingWrapper)
 
         delegateAdapter = SuperwallDelegateAdapter()
         storage = Storage(context = context, factory = this)
@@ -147,6 +144,7 @@ class DependencyContainer(
 
         configManager = ConfigManager(
             context = context,
+            storeKitManager = storeKitManager,
             storage = storage,
             network = network,
             options = options,

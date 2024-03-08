@@ -2,6 +2,15 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall-me/Superwall-Android/releases) on GitHub.
 
+## 1.0.1
+
+### Fixes
+
+- Fixes serialization of `feature_gating` in `SuperwallEvents`.
+- Changes the product loading so that if preloading is enabled, it makes one API request to get all 
+products available in paywalls. This results in fewer API requests. Also, it adds retry logic on failure. 
+If billing isn't available on device, the `onError` handler will be called.
+
 ## 1.0.0
 
 ### Breaking Changes

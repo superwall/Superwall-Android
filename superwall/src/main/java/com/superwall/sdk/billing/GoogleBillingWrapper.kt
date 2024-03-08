@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import com.android.billingclient.api.BillingClient
+import com.android.billingclient.api.BillingClient.ProductType
 import com.android.billingclient.api.BillingClientStateListener
 import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.Purchase
@@ -13,42 +14,84 @@ import com.superwall.sdk.dependencies.StoreTransactionFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
+import com.superwall.sdk.misc.AppLifecycleObserver
+import com.superwall.sdk.misc.Result
+import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ConcurrentLinkedQueue
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import kotlin.coroutines.suspendCoroutine
 import kotlin.math.min
 
 internal const val RECONNECT_TIMER_START_MILLISECONDS = 1L * 1000L
 internal const val RECONNECT_TIMER_MAX_TIME_MILLISECONDS = 16L * 1000L
 
-open class GoogleBillingWrapper(open val context: Context, open val mainHandler: Handler = Handler(Looper.getMainLooper())): PurchasesUpdatedListener,
-    BillingClientStateListener {
-
-    val isConnected = MutableStateFlow(false)
-
-    @get:Synchronized
-    @set:Synchronized
-    @Volatile
-    var hasCalledStartConnection: Boolean = false
-
+class GoogleBillingWrapper(
+    val context: Context,
+    val mainHandler: Handler = Handler(Looper.getMainLooper()),
+    val appLifecycleObserver: AppLifecycleObserver
+): PurchasesUpdatedListener, BillingClientStateListener {
+    companion object {
+        private val productsCache = ConcurrentHashMap<String, Result<StoreProduct>>()
+    }
     @get:Synchronized
     @set:Synchronized
     @Volatile
     var billingClient: BillingClient? = null
 
+    private val serviceRequests =
+        ConcurrentLinkedQueue<Pair<(connectionError: BillingError?) -> Unit, Long?>>()
+
     // how long before the data source tries to reconnect to Google play
     private var reconnectMilliseconds = RECONNECT_TIMER_START_MILLISECONDS
+
+    @get:Synchronized
+    @set:Synchronized
+    private var reconnectionAlreadyScheduled = false
 
     // Setup mutable state flow for purchase results
     private val purchaseResults = MutableStateFlow<InternalPurchaseResult?>(null)
 
-    fun startConnection(force: Boolean = false) {
+    internal val IN_APP_BILLING_LESS_THAN_3_ERROR_MESSAGE = "Google Play In-app Billing API version is less than 3"
+
+    init {
+        startConnectionOnMainThread()
+    }
+
+    private fun executePendingRequests() {
+        synchronized(this@GoogleBillingWrapper) {
+            while (billingClient?.isReady == true) {
+                serviceRequests.poll()?.let { (request, delayMilliseconds) ->
+                    if (delayMilliseconds != null) {
+                        mainHandler.postDelayed(
+                            { request(null) },
+                            delayMilliseconds,
+                        )
+                    } else {
+                        mainHandler.post { request(null) }
+                    }
+                } ?: break
+            }
+        }
+    }
+
+    fun startConnectionOnMainThread(delayMilliseconds: Long = 0) {
+        mainHandler.postDelayed(
+            { startConnection() },
+            delayMilliseconds,
+        )
+    }
+
+    fun startConnection() {
         synchronized(this@GoogleBillingWrapper) {
             if (billingClient == null) {
                 billingClient = BillingClient.newBuilder(context)
@@ -57,12 +100,7 @@ open class GoogleBillingWrapper(open val context: Context, open val mainHandler:
                     .build()
             }
 
-            // If we've already called startConnection, don't call it again unless we're forcing it
-            // based on a retry
-            if (hasCalledStartConnection && !force) {
-                return
-            }
-            hasCalledStartConnection = true
+            reconnectionAlreadyScheduled = false
 
             billingClient?.let {
                 if (!it.isReady) {
@@ -72,27 +110,205 @@ open class GoogleBillingWrapper(open val context: Context, open val mainHandler:
                         "Starting billing client",
                     )
                     try {
-                        println("Starting billing client")
-                        it.startConnection(this@GoogleBillingWrapper)
+                        it.startConnection(this)
                     } catch (e: IllegalStateException) {
                         Logger.debug(
                             LogLevel.error,
                             LogScope.productsManager,
                             "IllegalStateException when connecting to billing client: ${e.message}",
                         )
-                        // TODO: Maybe invalidate the billing client and try again?
+                        sendErrorsToAllPendingRequests(BillingError.IllegalStateException)
                     }
                 }
             }
         }
     }
 
-    fun startConnectionOnMainThread(delayMilliseconds: Long, force: Boolean = false) {
-        mainHandler.postDelayed(
-            { startConnection() },
-            delayMilliseconds,
+    /**
+     * Gets the StoreProduct(s) for the given list of product ids for all types.
+     *
+     * Coroutine friendly version of [getProducts].
+     *
+     * @param [productIds] List of productIds
+     *
+     * @throws [BillingError] if there's an error retrieving the products.
+     * @return A list of [StoreProduct] with the products that have been able to be fetched from the store successfully.
+     * Not found products will be ignored.
+     */
+    @JvmSynthetic
+    @Throws(Throwable::class)
+    suspend fun awaitGetProducts(productIds: Set<String>): Set<StoreProduct> {
+        // Get the cached products. If any are a failure, we throw an error.
+        val cachedProducts = productIds.mapNotNull { productId ->
+            productsCache[productId]?.let { result ->
+                when (result) {
+                    is Result.Success -> result.value
+                    is Result.Failure -> throw result.error
+                }
+            }
+        }.toSet()
+
+        // If all products are found in cache, return them directly
+        if (cachedProducts.size == productIds.size) {
+            return cachedProducts
+        }
+
+        // Determine which product IDs are not in cache
+        val missingProductIds = productIds - cachedProducts.map { it.fullIdentifier }.toSet()
+
+        return suspendCoroutine { continuation ->
+            getProducts(
+                missingProductIds,
+                object : GetStoreProductsCallback {
+                    override fun onReceived(storeProducts: Set<StoreProduct>) {
+                        // Update cache with fetched products and collect their identifiers
+                        val foundProductIds = storeProducts.map { product ->
+                            productsCache[product.fullIdentifier] = Result.Success(product)
+                            product.fullIdentifier
+                        }
+
+                        // Identify and handle missing products
+                        missingProductIds.filterNot { it in foundProductIds }.forEach { productId ->
+                            productsCache[productId] = Result.Failure(Exception("Failed to query product details for $productId"))
+                        }
+
+                        // Combine cached products (now including the newly fetched ones) with the fetched products
+                        val allProducts = cachedProducts + storeProducts
+                        continuation.resume(allProducts)
+                    }
+
+                    override fun onError(error: BillingError) {
+                        // Identify and handle missing products
+                        missingProductIds.forEach { productId ->
+                            productsCache[productId] = Result.Failure(error)
+                        }
+                        continuation.resumeWithException(error)
+                    }
+                }
+            )
+        }
+    }
+
+    private fun getProducts(
+        productIds: Set<String>,
+        callback: GetStoreProductsCallback,
+    ) {
+        val types = setOf(ProductType.SUBS, ProductType.INAPP)
+        val decomposedProductDetailsBySubscriptionId: MutableMap<String, MutableList<DecomposedProductIds>>
+                = mutableMapOf()
+
+        val subscriptionIds = mutableSetOf<String>()
+        // Decompose the subscriptionId into its constituents and create mapping of
+        // subscriptionId -> one or more decompositions.
+        productIds.forEach { productId ->
+            val decomposedProductIds = DecomposedProductIds.from(productId)
+            val subscriptionId = decomposedProductIds.subscriptionId
+            subscriptionIds.add(subscriptionId)
+            decomposedProductDetailsBySubscriptionId
+                .getOrPut(subscriptionId) { mutableListOf() }
+                .add(decomposedProductIds)
+        }
+
+        getProductsOfTypes(
+            subscriptionIds = subscriptionIds,
+            types = types,
+            collectedStoreProducts = emptySet(),
+            decomposedProductIdsBySubscriptionId = decomposedProductDetailsBySubscriptionId,
+            callback = object : GetStoreProductsCallback {
+                override fun onReceived(storeProducts: Set<StoreProduct>) {
+                    callback.onReceived(storeProducts)
+                }
+                override fun onError(error: BillingError) {
+                    callback.onError(error)
+                }
+            },
         )
     }
+
+    private fun getProductsOfTypes(
+        subscriptionIds: Set<String>,
+        types: Set<String>,
+        collectedStoreProducts: Set<StoreProduct>,
+        decomposedProductIdsBySubscriptionId: MutableMap<String, MutableList<DecomposedProductIds>>,
+        callback: GetStoreProductsCallback,
+    ) {
+        val typesRemaining = types.toMutableSet()
+        val type = typesRemaining.firstOrNull()?.also { typesRemaining.remove(it) }
+
+        type?.let {
+            queryProductDetailsAsync(
+                productType = it,
+                subscriptionIds = subscriptionIds,
+                decomposedProductIdsBySubscriptionId = decomposedProductIdsBySubscriptionId,
+                onReceive = { storeProducts ->
+                    dispatch {
+                        getProductsOfTypes(
+                            subscriptionIds,
+                            typesRemaining,
+                            collectedStoreProducts = collectedStoreProducts + storeProducts,
+                            decomposedProductIdsBySubscriptionId = decomposedProductIdsBySubscriptionId,
+                            callback,
+                        )
+                    }
+                },
+                onError = {
+                    dispatch {
+                        callback.onError(it)
+                    }
+                },
+            )
+        } ?: run {
+            callback.onReceived(collectedStoreProducts)
+        }
+    }
+
+    private fun dispatch(action: () -> Unit) {
+        if (Thread.currentThread() != Looper.getMainLooper().thread) {
+            val handler = mainHandler ?: Handler(Looper.getMainLooper())
+            handler.post(action)
+        } else {
+            action()
+        }
+    }
+
+    private fun queryProductDetailsAsync(
+        productType: String,
+        subscriptionIds: Set<String>,
+        decomposedProductIdsBySubscriptionId: MutableMap<String, MutableList<DecomposedProductIds>>,
+        onReceive: (List<StoreProduct>) -> Unit,
+        onError: (BillingError) -> Unit,
+    ) {
+        Logger.debug(
+            logLevel = LogLevel.debug,
+            scope = LogScope.productsManager,
+            message = "Requesting products from the store with identifiers: ${subscriptionIds.joinToString()}"
+        )
+
+        val useCase = QueryProductDetailsUseCase(
+            QueryProductDetailsUseCaseParams(
+                subscriptionIds = subscriptionIds,
+                decomposedProductIdsBySubscriptionId = decomposedProductIdsBySubscriptionId,
+                productType = productType,
+                appInBackground = appLifecycleObserver.isInBackground.value
+            ),
+            onReceive,
+            onError,
+            ::withConnectedClient,
+            ::executeRequestOnUIThread,
+        )
+        useCase.run()
+    }
+
+    @Synchronized
+    private fun executeRequestOnUIThread(delayMilliseconds: Long? = null, request: (BillingError?) -> Unit) {
+        serviceRequests.add(request to delayMilliseconds)
+        if (billingClient?.isReady == false) {
+            startConnectionOnMainThread()
+        } else {
+            executePendingRequests()
+        }
+    }
+
     /**
      * Retries the billing service connection with exponential backoff, maxing out at the time
      * specified by RECONNECT_TIMER_MAX_TIME_MILLISECONDS.
@@ -100,16 +316,25 @@ open class GoogleBillingWrapper(open val context: Context, open val mainHandler:
      * This prevents ANRs, see https://github.com/android/play-billing-samples/issues/310
      */
     private fun retryBillingServiceConnectionWithExponentialBackoff() {
-        Logger.debug(
-            LogLevel.error,
-            LogScope.productsManager,
-            "Billing client disconnected, retrying in $reconnectMilliseconds milliseconds",
-        )
-        startConnectionOnMainThread(reconnectMilliseconds, true)
-        reconnectMilliseconds = min(
-            reconnectMilliseconds * 2,
-            RECONNECT_TIMER_MAX_TIME_MILLISECONDS,
-        )
+        if (reconnectionAlreadyScheduled) {
+            Logger.debug(
+                LogLevel.error,
+                LogScope.productsManager,
+                "Billing client retry already scheduled.",
+            )
+        } else {
+            Logger.debug(
+                LogLevel.error,
+                LogScope.productsManager,
+                "Billing client disconnected, retrying in $reconnectMilliseconds milliseconds",
+            )
+            reconnectionAlreadyScheduled = true
+            startConnectionOnMainThread(reconnectMilliseconds)
+            reconnectMilliseconds = min(
+                reconnectMilliseconds * 2,
+                RECONNECT_TIMER_MAX_TIME_MILLISECONDS,
+            )
+        }
     }
 
     override fun onBillingServiceDisconnected() {
@@ -118,8 +343,6 @@ open class GoogleBillingWrapper(open val context: Context, open val mainHandler:
             LogScope.productsManager,
             "Billing client disconnected",
         )
-        isConnected.value = false
-        retryBillingServiceConnectionWithExponentialBackoff()
     }
 
     override fun onBillingSetupFinished(billingResult: BillingResult) {
@@ -131,27 +354,55 @@ open class GoogleBillingWrapper(open val context: Context, open val mainHandler:
                         LogScope.productsManager,
                         "Billing client connected",
                     )
-                    isConnected.value = true
+                    executePendingRequests()
                     reconnectMilliseconds = RECONNECT_TIMER_START_MILLISECONDS
+                    trackProductDetailsNotSupportedIfNeeded()
                 }
 
                 BillingClient.BillingResponseCode.FEATURE_NOT_SUPPORTED,
                 BillingClient.BillingResponseCode.BILLING_UNAVAILABLE,
                 -> {
+                    val originalErrorMessage = "DebugMessage: ${billingResult.debugMessage} " +
+                            "ErrorCode: ${billingResult.responseCode}."
+
+                    /**
+                     * We check for cases when Google sends Google Play In-app Billing API version is less than 3
+                     * as a debug message. Version 3 is from 2012, so the message is a bit useless.
+                     * We have detected this message in several cases:
+                     *
+                     * - When there's no Google account configured in the device
+                     * - When there's no Play Store (this happens in incorrectly configured emulators)
+                     * - When language is changed in the device and Play Store caches get corrupted. Opening the
+                     * Play Store or clearing its caches would fix this case.
+                     * See https://github.com/RevenueCat/purchases-android/issues/1288
+                     */
+                    val error = if (billingResult.debugMessage == IN_APP_BILLING_LESS_THAN_3_ERROR_MESSAGE) {
+                        val message = "Billing is not available in this device. Make sure there's an " +
+                        "account configured in Play Store. Reopen the Play Store or clean its caches if this " +
+                                "keeps happening. " +
+                                "Original error message: $originalErrorMessage"
+                        BillingError.BillingNotAvailable(message)
+                    } else {
+                        val message = "Billing is not available in this device. " +
+                                "Original error message: $originalErrorMessage"
+                        BillingError.BillingNotAvailable(message)
+                    }
+
                     Logger.debug(
                         LogLevel.error,
                         LogScope.productsManager,
-                        "Billing client error, not supported or unavailable: ${billingResult.responseCode}",
+                        error.message ?: "Billing is not available in this device. ${billingResult.debugMessage}",
                     )
                     // The calls will fail with an error that will be surfaced. We want to surface these errors
                     // Can't call executePendingRequests because it will not do anything since it checks for isReady()
+                    sendErrorsToAllPendingRequests(error)
                 }
 
-                BillingClient.BillingResponseCode.SERVICE_TIMEOUT,
                 BillingClient.BillingResponseCode.ERROR,
                 BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE,
                 BillingClient.BillingResponseCode.USER_CANCELED,
                 BillingClient.BillingResponseCode.SERVICE_DISCONNECTED,
+                BillingClient.BillingResponseCode.NETWORK_ERROR,
                 -> {
                     Logger.debug(
                         LogLevel.error,
@@ -184,17 +435,7 @@ open class GoogleBillingWrapper(open val context: Context, open val mainHandler:
         }
     }
 
-
-    suspend fun waitForConnectedClient(receivingFunction: BillingClient.() -> Unit) {
-        // Call this every time to make sure we're waiting for the client to connect
-        startConnectionOnMainThread(0)
-        isConnected.first { it }
-        withConnectedClient {
-            receivingFunction()
-        }
-    }
-
-    private fun withConnectedClient(receivingFunction: BillingClient.() -> Unit) {
+    fun withConnectedClient(receivingFunction: BillingClient.() -> Unit) {
         billingClient?.takeIf { it.isReady }?.let {
             it.receivingFunction()
         } ?: Logger.debug(
@@ -204,7 +445,10 @@ open class GoogleBillingWrapper(open val context: Context, open val mainHandler:
         )
     }
 
-    override fun onPurchasesUpdated(result: BillingResult, purchases: MutableList<Purchase>?) {
+    override fun onPurchasesUpdated(
+        result: BillingResult,
+        purchases: MutableList<Purchase>?
+    ) {
         println("onPurchasesUpdated: $result")
         if (result.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
             for (purchase in purchases) {
@@ -245,6 +489,31 @@ open class GoogleBillingWrapper(open val context: Context, open val mainHandler:
                     null
                 }
             }
+        }
+    }
+
+    @Synchronized
+    private fun sendErrorsToAllPendingRequests(error: BillingError) {
+        while (true) {
+            serviceRequests.poll()?.let { (serviceRequest, _) ->
+                mainHandler.post {
+                    serviceRequest(error)
+                }
+            } ?: break
+        }
+    }
+
+    private fun trackProductDetailsNotSupportedIfNeeded() {
+        val billingResult = billingClient?.isFeatureSupported(BillingClient.FeatureType.PRODUCT_DETAILS)
+        if (
+            billingResult != null &&
+            billingResult.responseCode == BillingClient.BillingResponseCode.FEATURE_NOT_SUPPORTED
+        ) {
+            Logger.debug(
+                LogLevel.error,
+                LogScope.productsManager,
+                "Product details not supported: ${billingResult.responseCode} ${billingResult.debugMessage}",
+            )
         }
     }
 }

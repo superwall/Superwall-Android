@@ -15,6 +15,7 @@ import com.superwall.sdk.models.serialization.URLSerializer
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import java.net.URL
 import java.util.*
 
@@ -200,13 +201,15 @@ data class PaywallInfo(
 
     /// Parameters that can be used in rules.
     fun customParams(): MutableMap<String, Any> {
+        val featureGatingSerialized = Json {}.encodeToString(FeatureGatingBehavior.serializer(), featureGatingBehavior)
+
         val output: MutableMap<String, Any?> = mutableMapOf(
             "paywall_id" to databaseId,
             "paywall_name" to name,
             "presented_by_event_name" to (presentedByEventWithName ?: ""),
             "paywall_product_ids" to productIds.joinToString(","),
             "is_free_trial_available" to isFreeTrialAvailable,
-            "feature_gating" to featureGatingBehavior.toString(),
+            "feature_gating" to featureGatingSerialized,
             "presented_by" to presentedBy
         )
 

@@ -2,6 +2,7 @@ package com.superwall.sdk.config
 
 import android.content.Context
 import android.webkit.WebView
+import com.superwall.sdk.billing.GoogleBillingWrapper
 import com.superwall.sdk.config.models.ConfigState
 import com.superwall.sdk.config.models.getConfig
 import com.superwall.sdk.config.options.SuperwallOptions
@@ -24,6 +25,7 @@ import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.ExpressionEvaluator
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
 import com.superwall.sdk.storage.Storage
+import com.superwall.sdk.store.StoreKitManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -37,7 +39,7 @@ import kotlinx.coroutines.launch
 // TODO: Re-enable those params
 open class ConfigManager(
     private val context: Context,
-//    private val storeKitManager: StoreKitManager,
+    private val storeKitManager: StoreKitManager,
     private val storage: Storage,
     private val network: Network,
     options: SuperwallOptions? = null,
@@ -103,6 +105,22 @@ open class ConfigManager(
 
             triggersByEventName = ConfigLogic.getTriggersByEventName(config.triggers)
             choosePaywallVariants(config.triggers)
+
+            // Preload all products
+            if (options.paywalls.shouldPreload) {
+                val productIds = config.paywalls.flatMap { it.productIds }.toSet()
+                try {
+                    storeKitManager.products(productIds)
+                } catch (e: Throwable) {
+                    Logger.debug(
+                        logLevel = LogLevel.error,
+                        scope = LogScope.productsManager,
+                        message = "Failed to preload products",
+                        error = e
+                    )
+                }
+            }
+
             configState.emit(Result.Success(ConfigState.Retrieved(config)))
 
             // TODO: Re-enable those params
@@ -114,7 +132,6 @@ open class ConfigManager(
                 logLevel = LogLevel.error,
                 scope = LogScope.superwallCore,
                 message = "Failed to Fetch Configuration",
-                info = null,
                 error = e
             )
         }
