@@ -561,18 +561,27 @@ class DebugViewController(
             return
         }
 
-        val (productsById, _) = storeKitManager.getProducts(
-            paywall = paywall,
-            factory = factory
-        )
-        val products = paywall.productIds.mapNotNull { productsById[it] }
-        SWConsoleActivity.products = products
-        val activity = encapsulatingActivity.let { it } ?: return
+        try {
+            val (productsById, _) = storeKitManager.getProducts(
+                paywall = paywall,
+                factory = factory
+            )
 
-        val intent = Intent(activity, SWConsoleActivity::class.java).apply {
-            putExtra("PARENT_ACTIVITY", this::class.java.simpleName)
+            val products = paywall.productIds.mapNotNull { productsById[it] }
+            SWConsoleActivity.products = products
+            val activity = encapsulatingActivity.let { it } ?: return
+
+            val intent = Intent(activity, SWConsoleActivity::class.java).apply {
+                putExtra("PARENT_ACTIVITY", this::class.java.simpleName)
+            }
+            activity.startActivity(intent)
+        } catch (error: Throwable) {
+            Logger.debug(
+                logLevel = LogLevel.error,
+                scope = LogScope.debugViewController,
+                message = "Error retrieving products - ${error.message}"
+            )
         }
-        activity.startActivity(intent)
     }
 
     private fun showLocalizationPicker() {

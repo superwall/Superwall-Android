@@ -4,6 +4,8 @@ import android.content.Context
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
+import com.superwall.sdk.billing.BillingError
+import com.superwall.sdk.billing.GoogleBillingWrapper
 import com.superwall.sdk.dependencies.TriggerSessionManagerFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
@@ -17,7 +19,6 @@ import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.product.receipt.ReceiptManager
 import com.superwall.sdk.store.coordinator.ProductsFetcher
-import com.superwall.sdk.store.products.GooglePlayProductsFetcher
 import java.util.Date
 
 /*
@@ -98,7 +99,8 @@ class StoreKitManager(private val context: Context) : StoreKitManagerInterface {
 class StoreKitManager(
     private val context: Context,
     val purchaseController: InternalPurchaseController,
-    val productFetcher: GooglePlayProductsFetcher
+    val billingWrapper: GoogleBillingWrapper
+    // val productFetcher: GooglePlayProductsFetcher
 ) : ProductsFetcher {
     private val receiptManager by lazy { ReceiptManager(delegate = this) }
 
@@ -147,7 +149,7 @@ class StoreKitManager(
 
         var products: Set<StoreProduct> = setOf()
         try {
-            products = products(identifiers = processingResult.productIdsToLoad)
+            products = billingWrapper.awaitGetProducts(processingResult.productIdsToLoad)
         } catch (error: Throwable)  {
             paywall.productsLoadingInfo.failAt = Date()
             val paywallInfo = paywall.getInfo(request?.eventData, factory)
@@ -157,6 +159,12 @@ class StoreKitManager(
                  eventData = request?.eventData
              )
              Superwall.instance.track(productLoadEvent)
+
+            // If billing isn't available, make it call the onError handler when requesting
+            // a paywall.
+            if (error is BillingError.BillingNotAvailable) {
+                throw error
+            }
         }
 
         val productsById = processingResult.substituteProductsById.toMutableMap()
@@ -233,11 +241,10 @@ class StoreKitManager(
         receiptManager.loadPurchasedProducts()
     }
 
+    @Throws(Throwable::class)
     override suspend fun products(
         identifiers: Set<String>
     ): Set<StoreProduct> {
-        return productFetcher.products(
-            identifiers = identifiers
-        )
+        return billingWrapper.awaitGetProducts(identifiers)
     }
 }

@@ -3,10 +3,8 @@ package com.superwall.sdk.delegate.subscription_controller
 import android.app.Activity
 import androidx.annotation.MainThread
 import com.android.billingclient.api.ProductDetails
-import com.android.billingclient.api.SkuDetails
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
-import com.superwall.sdk.store.products.ProductIds
 
 /**
  * The interface that handles Superwall's subscription-related logic.
