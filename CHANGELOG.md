@@ -27,7 +27,7 @@ If billing isn't available on device, the `onError` handler will be called.
 ### Fixes
 
 - Fixes rare thread-safety crash when sending events back to Superwall's servers.
-- Calls the `onError` presentati    on handler block when there's no activity to present a paywall on.
+- Calls the `onError` presentation handler block when there's no activity to present a paywall on.
 - Fixes issue where the wrong product may be presented to purchase if a free trial had already been 
 used and you were letting Superwall handle purchases.
 - Fixes `IllegalStateException` on Samsung devices when letting Superwall handle purchases.
