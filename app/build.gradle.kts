@@ -6,14 +6,14 @@ plugins {
 
 android {
     namespace = "com.superwall.superapp"
-    compileSdk = 33
+    compileSdk = 34
 
     defaultConfig {
         applicationId = "com.superwall.superapp"
         minSdkVersion(26)
         targetSdkVersion(33)
         versionCode = 2
-        versionName = "1.0.1"
+        versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true

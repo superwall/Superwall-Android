@@ -2,6 +2,13 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall-me/Superwall-Android/releases) on GitHub.
 
+## 1.0.2
+
+### Fixes
+
+- Prevents a paywall from opening in a separate activity inside a task manager when using `taskAffinity` 
+within your app.
+
 ## 1.0.1
 
 ### Fixes
