@@ -21,6 +21,7 @@ import android.view.WindowInsetsController
 import android.view.WindowManager
 import android.webkit.WebSettings
 import android.widget.FrameLayout
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.browser.customtabs.CustomTabsIntent
@@ -818,7 +819,6 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                         WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
                         WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
                     )
-
                 }
             }
         }
@@ -831,18 +831,25 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             return
         }
 
-        val view = ViewStorage.retrieveView(key) ?: run {
+        val view = ViewStorage.retrieveView(key) as PaywallViewController ?: run {
             finish() // Close the activity if the view associated with the key is not found
             return
         }
 
         (view.parent as? ViewGroup)?.removeView(view)
-
-        if (view is ActivityEncapsulatable) {
-            view.encapsulatingActivity = this
-        }
+        view.encapsulatingActivity = this
 
         setContentView(view)
+
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                println("*** ON BACK PRESSED!")
+                view.dismiss(
+                    result = PaywallResult.Declined(),
+                    closeReason = PaywallCloseReason.ManualClose
+                )
+            }
+        })
 
         try {
             supportActionBar?.hide()

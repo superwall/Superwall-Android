@@ -2,6 +2,13 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall-me/Superwall-Android/releases) on GitHub.
 
+## 1.0.3
+
+### Fixes
+
+- SW-2744: Fixes issue where using the back button to dismiss a paywall presented via `getPaywall`
+would call `didFinish` in the `PaywallViewControllerDelegate` with the incorrect values.
+
 ## 1.0.2
 
 ### Fixes
