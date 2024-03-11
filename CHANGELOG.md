@@ -8,6 +8,8 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 - SW-2744: Fixes issue where using the back button to dismiss a paywall presented via `getPaywall`
 would call `didFinish` in the `PaywallViewControllerDelegate` with the incorrect values.
+- SW-2733: Fixes issue where the spinner would still show on a paywall if a user had previously 
+purchased on it.
 
 ## 1.0.2
 

@@ -308,6 +308,12 @@ class PaywallViewController(
             trackClose()
         }
 
+        // Reset spinner
+        val isShowingSpinner = loadingState is PaywallLoadingState.LoadingPurchase || loadingState is PaywallLoadingState.ManualLoading
+        if (isShowingSpinner) {
+            this.loadingState = PaywallLoadingState.Ready()
+        }
+
         Superwall.instance.dependencyContainer.delegateAdapter.didDismissPaywall(info)
 
         val result = paywallResult ?: PaywallResult.Declined()
