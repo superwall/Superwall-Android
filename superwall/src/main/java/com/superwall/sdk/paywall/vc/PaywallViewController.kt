@@ -247,7 +247,7 @@ class PaywallViewController(
         }
 
         SuperwallPaywallActivity.startWithView(
-            presenter.applicationContext,
+            presenter,
             this,
             presentationStyleOverride
         )
@@ -783,7 +783,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                 putExtra(VIEW_KEY, key)
                 putExtra(PRESENTATION_STYLE_KEY, presentationStyleOverride)
                 putExtra(IS_LIGHT_BACKGROUND_KEY, view.paywall.backgroundColor.isLightColor())
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
             }
 
             context.startActivity(intent)
