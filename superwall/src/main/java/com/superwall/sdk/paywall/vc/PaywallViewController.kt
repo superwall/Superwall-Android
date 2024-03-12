@@ -849,7 +849,6 @@ class SuperwallPaywallActivity : AppCompatActivity() {
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                println("*** ON BACK PRESSED!")
                 view.dismiss(
                     result = PaywallResult.Declined(),
                     closeReason = PaywallCloseReason.ManualClose

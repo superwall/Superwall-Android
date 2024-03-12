@@ -10,6 +10,8 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 would call `didFinish` in the `PaywallViewControllerDelegate` with the incorrect values.
 - SW-2733: Fixes issue where the spinner would still show on a paywall if a user had previously 
 purchased on it.
+- Fixes issue where an invalid paywall background color would prevent the paywall from opening. If 
+this happens, it will now default to white.
 
 ## 1.0.2
 
