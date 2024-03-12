@@ -9,6 +9,7 @@ import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.config.models.getConfig
 import com.superwall.sdk.dependencies.DeviceHelperFactory
+import com.superwall.sdk.dependencies.UserAttributesEventFactory
 import com.superwall.sdk.storage.Storage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -25,9 +26,9 @@ class AppSessionManager(
     private val context: Context,
     private val configManager: ConfigManager,
     private val storage: Storage,
-    private val delegate: AppSessionManager.Factory
+    private val delegate: Factory
 ) : DefaultLifecycleObserver {
-    interface Factory: AppManagerDelegate, DeviceHelperFactory {}
+    interface Factory: AppManagerDelegate, DeviceHelperFactory, UserAttributesEventFactory {}
 
     var appSessionTimeout: Long? = null
 
@@ -102,11 +103,12 @@ class AppSessionManager(
         if (didStartNewSession) {
             appSession = AppSession()
             CoroutineScope(Dispatchers.IO).launch {
-                val attributes = delegate.makeSessionDeviceAttributes()
+                val deviceAttributes = delegate.makeSessionDeviceAttributes()
+                val userAttributes = delegate.makeUserAttributesEvent()
+
                 Superwall.instance.track(InternalSuperwallEvent.SessionStart())
-                Superwall.instance.track(InternalSuperwallEvent.DeviceAttributes(
-                    deviceAttributes = attributes
-                ))
+                Superwall.instance.track(InternalSuperwallEvent.DeviceAttributes(deviceAttributes))
+                Superwall.instance.track(userAttributes)
             }
         } else {
             appSession.endAt = null

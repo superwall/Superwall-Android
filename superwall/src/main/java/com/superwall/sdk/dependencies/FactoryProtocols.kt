@@ -3,6 +3,7 @@ package com.superwall.sdk.dependencies
 import ComputedPropertyRequest
 import android.app.Activity
 import com.android.billingclient.api.Purchase
+import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.trigger_session.TriggerSessionManager
 import com.superwall.sdk.billing.GoogleBillingWrapper
 import com.superwall.sdk.config.ConfigManager
@@ -117,6 +118,10 @@ interface DeviceHelperFactory {
     fun makeDeviceInfo(): DeviceInfo
     fun makeIsSandbox(): Boolean
     suspend fun makeSessionDeviceAttributes(): HashMap<String, Any>
+}
+
+interface UserAttributesEventFactory {
+    fun makeUserAttributesEvent(): InternalSuperwallEvent.Attributes
 }
 
 interface HasExternalPurchaseControllerFactory {

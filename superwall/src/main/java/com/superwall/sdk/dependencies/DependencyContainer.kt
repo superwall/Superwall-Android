@@ -331,6 +331,13 @@ class DependencyContainer(
         return HashMap(attributes)
     }
 
+    override fun makeUserAttributesEvent(): InternalSuperwallEvent.Attributes {
+        return InternalSuperwallEvent.Attributes(
+            appInstalledAtString = deviceHelper.appInstalledAtString,
+            customParameters = HashMap(identityManager.userAttributes)
+        )
+    }
+
     override fun makeHasExternalPurchaseController(): Boolean {
         return storeKitManager.purchaseController.hasExternalPurchaseController
     }

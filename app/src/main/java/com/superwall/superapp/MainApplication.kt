@@ -41,6 +41,7 @@ class MainApplication : android.app.Application(), SuperwallDelegate {
 
         // Make sure we enable the game controller
         Superwall.instance.options.isGameControllerEnabled = true
+        // Superwall.instance.options.isGameControllerEnabled = true
     }
 
     fun configureWithRevenueCatInitialization() {

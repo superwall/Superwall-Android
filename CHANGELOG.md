@@ -6,10 +6,12 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ### Fixes
 
+- SW-2732: User attributes weren't being sent on app open until identify was called. Now they are 
+sent every time there's a new session.
+- SW-2733: Fixes issue where the spinner would still show on a paywall if a user had previously
+  purchased on it.
 - SW-2744: Fixes issue where using the back button to dismiss a paywall presented via `getPaywall`
 would call `didFinish` in the `PaywallViewControllerDelegate` with the incorrect values.
-- SW-2733: Fixes issue where the spinner would still show on a paywall if a user had previously 
-purchased on it.
 - Fixes issue where an invalid paywall background color would prevent the paywall from opening. If 
 this happens, it will now default to white.
 
