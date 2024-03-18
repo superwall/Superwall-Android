@@ -35,17 +35,16 @@ class MainApplication : android.app.Application(), SuperwallDelegate {
     fun configureWithAutomaticInitialization() {
         Superwall.configure(
             this,
-            CONSTANT_API_KEY,
+            CONSTANT_API_KEY
         )
         Superwall.instance.delegate = this
 
         // Make sure we enable the game controller
-        Superwall.instance.options.isGameControllerEnabled = true
         // Superwall.instance.options.isGameControllerEnabled = true
     }
 
     fun configureWithRevenueCatInitialization() {
-        val purchaseController =  RevenueCatPurchaseController(this)
+        val purchaseController = RevenueCatPurchaseController(this)
 
         Superwall.configure(
             this,
@@ -55,7 +54,7 @@ class MainApplication : android.app.Application(), SuperwallDelegate {
         Superwall.instance.delegate = this
 
         // Make sure we enable the game controller
-        Superwall.instance.options.isGameControllerEnabled = true
+        // Superwall.instance.options.isGameControllerEnabled = true
 
         purchaseController.syncSubscriptionStatus()
     }

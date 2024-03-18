@@ -127,7 +127,6 @@ tasks.register("generateBuildInfo") {
     }
 }
 
-
 dependencies {
     implementation("androidx.work:work-runtime-ktx:2.8.1")
     implementation("androidx.lifecycle:lifecycle-process:2.5.0")

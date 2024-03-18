@@ -75,7 +75,6 @@ import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallMessageHandlerDele
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.transactions.notifications.NotificationScheduler
-import com.superwall.sdk.view.fatalAssert
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -181,7 +180,6 @@ class PaywallViewController(
     private var unsavedOccurrence: TriggerRuleOccurrence? = null
 
     private val cacheKey: String = PaywallCacheLogic.key(paywall.identifier, deviceHelper.locale)
-
     //endregion
 
     //region Initialization
@@ -255,7 +253,7 @@ class PaywallViewController(
         viewDidAppearCompletion = completion
     }
 
-    internal fun viewWillAppear() {
+    fun viewWillAppear() {
         if (isSafariVCPresented) {
             return
         }
@@ -291,7 +289,7 @@ class PaywallViewController(
         presentationWillPrepare = false
     }
 
-    internal fun viewWillDisappear() {
+    fun viewWillDisappear() {
         if (isSafariVCPresented) {
             return
         }
@@ -299,7 +297,7 @@ class PaywallViewController(
         Superwall.instance.dependencyContainer.delegateAdapter.willDismissPaywall(info)
     }
 
-    internal suspend fun viewDidDisappear() {
+    suspend fun viewDidDisappear() {
         if (isSafariVCPresented) {
             return
         }
@@ -436,7 +434,7 @@ class PaywallViewController(
 
     /// Lets the view controller know that presentation has finished.
     // Only called once per presentation.
-    internal fun viewDidAppear() {
+    fun viewDidAppear() {
         viewDidAppearCompletion?.invoke(true)
         viewDidAppearCompletion = null
 

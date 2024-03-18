@@ -1,6 +1,6 @@
 # CHANGELOG
 
-The changelog for `Superwall`. Also see the [releases](https://github.com/superwall-me/Superwall-Android/releases) on GitHub.
+The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
 ## 1.0.3
 
@@ -14,6 +14,8 @@ sent every time there's a new session.
 would call `didFinish` in the `PaywallViewControllerDelegate` with the incorrect values.
 - Fixes issue where an invalid paywall background color would prevent the paywall from opening. If 
 this happens, it will now default to white.
+- SW-2748: Exposes `viewWillAppear`, `viewDidAppear`, `viewWillDisappear` and `viewDidDisappear` 
+methods of `PaywallViewController` which you must call when using `getPaywall`.
 
 ## 1.0.2
 

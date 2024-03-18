@@ -37,7 +37,6 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.take
 import java.util.*
-import java.util.concurrent.Executors
 
 class Superwall(
     internal var context: Context,
