@@ -74,13 +74,7 @@ fun PaywallComposable(
                 }
                 AndroidView(
                     factory = { context ->
-                        // Return the view here
-                        viewToRender.apply {
-                            // If there's any initial setup for the view, do it here
-                        }
-                    },
-                    update = { view ->
-                        // If your view needs to be updated based on state changes, handle that here
+                        viewToRender
                     }
                 )
             }
