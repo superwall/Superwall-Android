@@ -21,6 +21,7 @@ import android.view.WindowInsetsController
 import android.view.WindowManager
 import android.webkit.WebSettings
 import android.widget.FrameLayout
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.browser.customtabs.CustomTabsIntent
@@ -74,7 +75,6 @@ import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallMessageHandlerDele
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.transactions.notifications.NotificationScheduler
-import com.superwall.sdk.view.fatalAssert
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -180,7 +180,6 @@ class PaywallViewController(
     private var unsavedOccurrence: TriggerRuleOccurrence? = null
 
     private val cacheKey: String = PaywallCacheLogic.key(paywall.identifier, deviceHelper.locale)
-
     //endregion
 
     //region Initialization
@@ -254,7 +253,7 @@ class PaywallViewController(
         viewDidAppearCompletion = completion
     }
 
-    internal fun viewWillAppear() {
+    fun viewWillAppear() {
         if (isSafariVCPresented) {
             return
         }
@@ -290,7 +289,7 @@ class PaywallViewController(
         presentationWillPrepare = false
     }
 
-    internal fun viewWillDisappear() {
+    fun viewWillDisappear() {
         if (isSafariVCPresented) {
             return
         }
@@ -298,13 +297,19 @@ class PaywallViewController(
         Superwall.instance.dependencyContainer.delegateAdapter.willDismissPaywall(info)
     }
 
-    internal suspend fun viewDidDisappear() {
+    suspend fun viewDidDisappear() {
         if (isSafariVCPresented) {
             return
         }
 
         CoroutineScope(Dispatchers.IO).launch {
             trackClose()
+        }
+
+        // Reset spinner
+        val isShowingSpinner = loadingState is PaywallLoadingState.LoadingPurchase || loadingState is PaywallLoadingState.ManualLoading
+        if (isShowingSpinner) {
+            this.loadingState = PaywallLoadingState.Ready()
         }
 
         Superwall.instance.dependencyContainer.delegateAdapter.didDismissPaywall(info)
@@ -429,7 +434,7 @@ class PaywallViewController(
 
     /// Lets the view controller know that presentation has finished.
     // Only called once per presentation.
-    internal fun viewDidAppear() {
+    fun viewDidAppear() {
         viewDidAppearCompletion?.invoke(true)
         viewDidAppearCompletion = null
 
@@ -818,7 +823,6 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                         WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
                         WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
                     )
-
                 }
             }
         }
@@ -831,18 +835,24 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             return
         }
 
-        val view = ViewStorage.retrieveView(key) ?: run {
+        val view = ViewStorage.retrieveView(key) as PaywallViewController ?: run {
             finish() // Close the activity if the view associated with the key is not found
             return
         }
 
         (view.parent as? ViewGroup)?.removeView(view)
-
-        if (view is ActivityEncapsulatable) {
-            view.encapsulatingActivity = this
-        }
+        view.encapsulatingActivity = this
 
         setContentView(view)
+
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                view.dismiss(
+                    result = PaywallResult.Declined(),
+                    closeReason = PaywallCloseReason.ManualClose
+                )
+            }
+        })
 
         try {
             supportActionBar?.hide()

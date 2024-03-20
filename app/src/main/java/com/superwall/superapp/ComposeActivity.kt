@@ -103,7 +103,7 @@ fun ComposeActivityContent(@PreviewParameter(PreviewPaywallDelegateProvider::cla
 @Composable
 fun TabContent0(paywallOverrides: PaywallOverrides?, delegate: PaywallViewControllerDelegate) {
     PaywallComposable(
-        event = "another_paywall",
+        event = "no_products",
         params = mapOf("key" to "value"),
         paywallOverrides = paywallOverrides,
         delegate = delegate

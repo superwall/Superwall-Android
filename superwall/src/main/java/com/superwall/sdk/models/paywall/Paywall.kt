@@ -19,6 +19,9 @@ import kotlinx.serialization.Serializable
 import java.net.URL
 import java.util.*
 import android.graphics.Color
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 
 @Serializable
 data class Paywalls(val paywalls: List<Paywall>): SerializableEntity
@@ -91,7 +94,17 @@ data class Paywall(
 
 ) : SerializableEntity {
     val backgroundColor: Int by lazy {
-        Color.parseColor(this.backgroundColorHex)
+        try {
+            Color.parseColor(this.backgroundColorHex)
+        } catch (e: Throwable) {
+            Logger.debug(
+                logLevel = LogLevel.warn,
+                scope = LogScope.paywallViewController,
+                message = "Invalid paywall background color: ${this.backgroundColorHex}. " +
+                        "Defaulting to white."
+            )
+            Color.WHITE
+        }
     }
 
     init {

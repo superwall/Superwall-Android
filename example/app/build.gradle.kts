@@ -1,26 +1,27 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-    id("org.jetbrains.kotlin.plugin.serialization") version "1.8.21"
 }
 
 android {
-    namespace = "com.superwall.superapp"
+    namespace = "com.superwall.exampleapp"
     compileSdk = 34
 
     defaultConfig {
         applicationId = "com.superwall.superapp"
         minSdk = 26
         targetSdk = 34
-        versionCode = 2
+        versionCode = 1
         versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        vectorDrawables.useSupportLibrary = true
+        vectorDrawables {
+            useSupportLibrary = true
+        }
     }
 
     buildTypes {
-        release {
+        getByName("release") {
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -47,6 +48,8 @@ android {
 }
 
 dependencies {
+    implementation(project(":superwall"))
+
     // Billing
     implementation(libs.billing)
     implementation(libs.revenue.cat)
@@ -66,24 +69,4 @@ dependencies {
     implementation(libs.constraintlayout)
     implementation(libs.core.ktx)
     implementation(libs.lifecycle.runtime.ktx)
-
-    // Superwall
-    implementation(project(":superwall"))
-
-    // Test
-    testImplementation(libs.junit)
-    testImplementation(libs.kotlinx.coroutines.test)
-
-    // Test (Android)
-    androidTestImplementation(libs.kotlinx.coroutines.test)
-    androidTestImplementation(libs.test.ext.junit)
-    androidTestImplementation(libs.espresso.core)
-    androidTestImplementation(libs.test.runner)
-    androidTestImplementation(libs.test.rules)
-    androidTestImplementation(platform(libs.compose.bom))
-    androidTestImplementation(libs.ui.test.junit4)
-
-    // Debug
-    debugImplementation(libs.ui.tooling)
-    debugImplementation(libs.ui.test.manifest)
 }

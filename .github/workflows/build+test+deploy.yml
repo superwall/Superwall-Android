@@ -107,7 +107,7 @@ jobs:
       with:
         payload: |
           {
-            "text": "Please create a new Android Release! https://github.com/superwall-me/Superwall-Android/releases/new?tag=${{steps.version.outputs.prop}}&prerelease=${{steps.prerelease.outputs.status}}"
+            "text": "Please create a new Android Release! https://github.com/superwall/Superwall-Android/releases/new?tag=${{steps.version.outputs.prop}}&prerelease=${{steps.prerelease.outputs.status}}"
           }
       env:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}

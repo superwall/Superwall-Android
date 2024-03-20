@@ -19,7 +19,7 @@ plugins {
     id("maven-publish")
 }
 
-version = "1.0.2"
+version = "1.0.3-beta.1"
 
 android {
     compileSdk = 33
@@ -126,7 +126,6 @@ tasks.register("generateBuildInfo") {
         outputFile.writeText(jsonOutput)
     }
 }
-
 
 dependencies {
     implementation("androidx.work:work-runtime-ktx:2.8.1")

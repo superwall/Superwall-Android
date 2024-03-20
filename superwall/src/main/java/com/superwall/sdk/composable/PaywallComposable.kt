@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -18,6 +19,9 @@ import com.superwall.sdk.paywall.presentation.get_paywall.getPaywall
 import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
 import com.superwall.sdk.paywall.vc.PaywallViewController
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegate
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 @Composable
 fun PaywallComposable(
@@ -48,6 +52,7 @@ fun PaywallComposable(
     LaunchedEffect(Unit) {
         try {
             val newView = Superwall.instance.getPaywall(event, params, paywallOverrides, delegate)
+            newView.viewWillAppear()
             viewState.value = newView
         } catch (e: Throwable) {
             errorState.value = e
@@ -56,8 +61,17 @@ fun PaywallComposable(
 
     when {
         viewState.value != null -> {
-            // If a paywall is returned, it'll be provided here
             viewState.value?.let { viewToRender ->
+                DisposableEffect(viewToRender) {
+                    viewToRender.viewDidAppear()
+
+                    onDispose {
+                        viewToRender.viewWillDisappear()
+                        CoroutineScope(Dispatchers.IO).launch {
+                            viewToRender.viewDidDisappear()
+                        }
+                    }
+                }
                 AndroidView(
                     factory = { context ->
                         viewToRender
@@ -73,4 +87,3 @@ fun PaywallComposable(
         }
     }
 }
-

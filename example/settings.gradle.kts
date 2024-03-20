@@ -10,11 +10,12 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        maven { url 'https://mvn.superwall.com/release' }
+        maven { url = uri("https://mvn.superwall.com/release") }
     }
 }
-rootProject.name = "My Application"
-include ':app'
-include ':superwall'
-include 'example:app'
-project(':example:app').projectDir = new File('example/app')
+
+rootProject.name = "Superwall Example App"
+include(":app")
+
+include(":superwall")
+project(":superwall").projectDir = file("../superwall")

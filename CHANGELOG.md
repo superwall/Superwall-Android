@@ -1,6 +1,21 @@
 # CHANGELOG
 
-The changelog for `Superwall`. Also see the [releases](https://github.com/superwall-me/Superwall-Android/releases) on GitHub.
+The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
+
+## 1.0.3-beta.1
+
+### Fixes
+
+- SW-2732: User attributes weren't being sent on app open until identify was called. Now they are 
+sent every time there's a new session.
+- SW-2733: Fixes issue where the spinner would still show on a paywall if a user had previously
+  purchased on it.
+- SW-2744: Fixes issue where using the back button to dismiss a paywall presented via `getPaywall`
+would call `didFinish` in the `PaywallViewControllerDelegate` with the incorrect values.
+- Fixes issue where an invalid paywall background color would prevent the paywall from opening. If 
+this happens, it will now default to white.
+- SW-2748: Exposes `viewWillAppear`, `viewDidAppear`, `viewWillDisappear` and `viewDidDisappear` 
+methods of `PaywallViewController` which you must call when using `getPaywall`.
 
 ## 1.0.2
 
