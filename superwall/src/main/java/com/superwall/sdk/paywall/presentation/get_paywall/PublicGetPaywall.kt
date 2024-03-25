@@ -12,7 +12,6 @@ import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegateAdapte
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-
 @Throws(Throwable::class)
 suspend fun Superwall.getPaywall(
     event: String,

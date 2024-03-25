@@ -2,7 +2,7 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
-## 1.0.3-beta.1
+## 1.0.3-beta.2
 
 ### Fixes
 
@@ -16,6 +16,8 @@ would call `didFinish` in the `PaywallViewControllerDelegate` with the incorrect
 this happens, it will now default to white.
 - SW-2748: Exposes `viewWillAppear`, `viewDidAppear`, `viewWillDisappear` and `viewDidDisappear` 
 methods of `PaywallViewController` which you must call when using `getPaywall`.
+- Stops `Superwall.configure` from being called multiple times.
+- `getPresentationResult` now confirms assignments for holdouts.
 
 ## 1.0.2
 
