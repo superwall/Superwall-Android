@@ -4,6 +4,12 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## 1.0.3-beta.2
 
+### Enhancements
+
+- SW-2768: Adds `device.regionCode` and `device.preferredRegionCode`, which returns the `regionCode` 
+of the locale. For example, if a locale is `en_GB`, the `regionCode` will be `GB`. You can use this
+in the filters of your campaign.
+
 ### Fixes
 
 - SW-2732: User attributes weren't being sent on app open until identify was called. Now they are 

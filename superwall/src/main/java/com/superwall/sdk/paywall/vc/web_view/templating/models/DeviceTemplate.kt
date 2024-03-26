@@ -19,6 +19,8 @@ data class DeviceTemplate(
     val preferredLocale: String,
     val deviceLanguageCode: String,
     val preferredLanguageCode: String,
+    val regionCode: String,
+    val preferredRegionCode: String,
     val deviceCurrencyCode: String,
     val deviceCurrencySymbol: String,
     val timezoneOffset: Int,

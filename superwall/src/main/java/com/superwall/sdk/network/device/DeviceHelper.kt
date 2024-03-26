@@ -131,6 +131,9 @@ class DeviceHelper(
     val languageCode: String
         get() = _locale.language
 
+    private val regionCode: String
+        get() = _locale.country
+
     val currencyCode: String
         get() = _currency?.currencyCode ?: ""
 
@@ -384,6 +387,8 @@ class DeviceHelper(
             preferredLocale = locale,
             deviceLanguageCode = languageCode,
             preferredLanguageCode = languageCode,
+            regionCode = regionCode,
+            preferredRegionCode = regionCode,
             deviceCurrencyCode = currencyCode,
             deviceCurrencySymbol = currencySymbol,
             timezoneOffset = (TimeZone.getDefault().rawOffset) / 1000,
