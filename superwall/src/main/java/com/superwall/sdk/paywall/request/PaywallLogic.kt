@@ -7,6 +7,7 @@ import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.PaywallProducts
 import com.superwall.sdk.models.product.Product
+import com.superwall.sdk.models.product.ProductItem
 import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.store.abstractions.product.StoreProduct
@@ -33,10 +34,15 @@ object PaywallLogic {
         identifier: String? = null,
         event: EventData? = null,
         locale: String,
-        paywallProducts: PaywallProducts?
+        joinedSubstituteProductIds: String?
     ): String {
         val id = identifier ?: event?.name ?: "\$called_manually"
-        val substitutions = paywallProducts?.ids?.joinToString(separator = "") ?: ""
+
+        var substitutions = ""
+        joinedSubstituteProductIds?.let {
+            substitutions = it
+        }
+
         return "${id}_${locale}_${substitutions}"
     }
 
@@ -89,30 +95,24 @@ object PaywallLogic {
         return java.lang.Exception("Not Found")
     }
 
-    suspend fun getVariablesAndFreeTrial(
-        products: List<Product>,
+    fun getVariablesAndFreeTrial(
+        productItems: List<ProductItem>,
         productsById: Map<String, StoreProduct>,
         isFreeTrialAvailableOverride: Boolean?
     ): ProductProcessingOutcome {
         val productVariables = mutableListOf<ProductVariable>()
-        val swTemplateProductVariables = mutableListOf<ProductVariable>()
         var hasFreeTrial = false
 
-        for (product in products) {
+        for (productItem in productItems) {
             // Get storeProduct
-            val storeProduct = productsById[product.id] ?: continue
+            val storeProduct = productsById[productItem.id] ?: continue
 
             val productVariable = ProductVariable(
-                type = product.type,
+                name = productItem.name,
                 attributes = storeProduct.attributes
             )
-            productVariables.add(productVariable)
 
-//            val swTemplateProductVariable = ProductVariable(
-//                type = product.type,
-//                attributes = storeProduct.swProductTemplateVariablesJson
-//            )
-//            swTemplateProductVariables.add(swTemplateProductVariable)
+            productVariables.add(productVariable)
 
             if (!hasFreeTrial) {
                 hasFreeTrial = storeProduct.hasFreeTrial
@@ -126,7 +126,6 @@ object PaywallLogic {
 
         return ProductProcessingOutcome(
             productVariables = productVariables,
-//            swProductVariablesTemplate = swTemplateProductVariables,
             isFreeTrialAvailable = hasFreeTrial
         )
     }

@@ -48,15 +48,25 @@
         </activity>
         <activity
             android:name="com.superwall.sdk.paywall.vc.SuperwallPaywallActivity"
-            android:configChanges="orientation|screenSize|keyboardHidden|screenLayout|smallestScreenSize">
-            <!-- screenLayout can trigger on a tablet when orientation changes. smallestScreenSize will trigger when entering split screen on a tablet -->
+            android:theme="@style/Theme.AppCompat.NoActionBar"
+            android:configChanges="orientation|screenSize|keyboardHidden">
         </activity>
-        <activity android:name="com.superwall.sdk.debug.DebugViewControllerActivity">
-        </activity>
-        <activity android:name="com.superwall.sdk.debug.localizations.SWLocalizationActivity">
-        </activity>
-        <activity android:name="com.superwall.sdk.debug.SWConsoleActivity">
-        </activity>
-
+        <activity android:name="com.superwall.sdk.debug.DebugViewControllerActivity" />
+        <activity android:name="com.superwall.sdk.debug.localizations.SWLocalizationActivity" />
+        <activity android:name="com.superwall.sdk.debug.SWConsoleActivity" />
     </application>
 </manifest>
+
+
+
+
+
+
+
+
+
+
+
+
+
+

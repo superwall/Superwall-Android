@@ -11,6 +11,7 @@ import com.superwall.sdk.models.config.FeatureGatingBehavior
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.LocalNotification
 import com.superwall.sdk.models.product.Product
+import com.superwall.sdk.models.product.ProductItem
 import com.superwall.sdk.models.serialization.URLSerializer
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.store.abstractions.product.StoreProduct
@@ -29,7 +30,13 @@ data class PaywallInfo(
     val url: URL,
     val experiment: Experiment?,
     val triggerSessionId: String?,
+
+    @Deprecated(
+        message = "Use productItems because a paywall can support more than three products",
+        ReplaceWith("productsItems")
+    )
     val products: List<Product>,
+    val productItems: List<ProductItem>,
     val productIds: List<String>,
     val presentedByEventWithName: String?,
     val presentedByEventWithId: String?,
@@ -63,6 +70,8 @@ data class PaywallInfo(
         name: String,
         url: URL,
         products: List<Product>,
+        productItems: List<ProductItem>,
+        productIds: List<String>,
         eventData: EventData?,
         responseLoadStartTime: Date?,
         responseLoadCompleteTime: Date?,
@@ -96,7 +105,8 @@ data class PaywallInfo(
         triggerSessionId = triggerSessionId,
         paywalljsVersion = paywalljsVersion,
         products = products,
-        productIds = products.map { it.id },
+        productItems = productItems,
+        productIds = productIds,
         isFreeTrialAvailable = isFreeTrialAvailable,
         featureGatingBehavior = featureGatingBehavior,
         presentedBy = eventData?.let { "event" } ?: "programmatically",
@@ -213,14 +223,18 @@ data class PaywallInfo(
             "presented_by" to presentedBy
         )
 
-        val levels = listOf("primary", "secondary", "tertiary")
+        output["primary_product_id"] = ""
+        output["secondary_product_id"] = ""
+        output["tertiary_product_id"] = ""
 
-        for ((id, level) in levels.withIndex()) {
-            val key = "${level}_product_id"
-            output[key] = ""
-            if (id < products.size) {
-                output[key] = productIds[id]
+        productItems.forEachIndexed { index, product ->
+            when (index) {
+                0 -> output["primary_product_id"] = product.id
+                1 -> output["secondary_product_id"] = product.id
+                2 -> output["tertiary_product_id"] = product.id
             }
+            val key = "${product.name}_product_id"
+            output[key] = product.id
         }
 
         return output.filter { (_, value) -> value != null } as MutableMap<String, Any>

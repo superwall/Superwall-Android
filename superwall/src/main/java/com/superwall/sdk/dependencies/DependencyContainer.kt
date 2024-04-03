@@ -460,7 +460,7 @@ class DependencyContainer(
     }
 
     override suspend fun makeJsonVariables(
-        productVariables: List<ProductVariable>?,
+        products: List<ProductVariable>?,
         computedPropertyRequests: List<ComputedPropertyRequest>,
         event: EventData?
     ): JsonVariables {
@@ -469,14 +469,12 @@ class DependencyContainer(
             computedPropertyRequests = computedPropertyRequests
         )
 
-        val variables = Variables(
-            productVariables = productVariables ?: listOf<ProductVariable>(),
+        return Variables(
+            products = products ?: listOf(),
             params = event?.parameters ?: emptyMap(),
             userAttributes = identityManager.userAttributes,
             templateDeviceDictionary = templateDeviceDictionary
         ).templated()
-
-        return variables
     }
 
     override suspend fun makeStoreTransaction(transaction: Purchase): StoreTransaction {

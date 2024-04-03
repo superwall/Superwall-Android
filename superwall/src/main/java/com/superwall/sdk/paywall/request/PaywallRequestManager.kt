@@ -36,11 +36,14 @@ class PaywallRequestManager(
 
     suspend fun getPaywall(request: PaywallRequest): Paywall = withContext(singleThreadContext) {
         val deviceInfo = factory.makeDeviceInfo()
+        val joinedSubstituteProductIds = request.overrides.products?.values
+            ?.sortedBy { it.productIdentifier }
+            ?.joinToString(separator = "") { it.productIdentifier }
         val requestHash = PaywallLogic.requestHash(
             identifier = request.responseIdentifiers.paywallId,
             event = request.eventData,
             locale = deviceInfo.locale,
-            paywallProducts = request.overrides.products
+            joinedSubstituteProductIds = joinedSubstituteProductIds
         )
 
         var paywall = paywallsByHash[requestHash]
@@ -194,10 +197,10 @@ class PaywallRequestManager(
             factory = factory
         )
         paywall = result.paywall
-        paywall.products = result.products
+        paywall.productItems = result.productItems
 
         val outcome = PaywallLogic.getVariablesAndFreeTrial(
-            result.products,
+            result.productItems,
             result.productsById,
             request.overrides.isFreeTrial
         )

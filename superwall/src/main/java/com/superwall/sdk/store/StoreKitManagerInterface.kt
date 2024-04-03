@@ -4,6 +4,7 @@ import com.superwall.sdk.delegate.RestorationResult
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.PaywallProducts
 import com.superwall.sdk.models.product.Product
+import com.superwall.sdk.models.product.ProductItem
 import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.paywall.vc.PaywallViewController
 import com.superwall.sdk.store.abstractions.product.StoreProduct
@@ -11,7 +12,7 @@ import com.superwall.sdk.store.abstractions.product.StoreProduct
 
 data class GetProductsResponse(
     val productsById: Map<String, StoreProduct>,
-    val products: List<Product>,
+    val productItems: List<ProductItem>,
     val paywall: Paywall
 )
 

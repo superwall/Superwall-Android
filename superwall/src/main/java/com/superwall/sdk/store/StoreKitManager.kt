@@ -5,6 +5,7 @@ import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.billing.BillingError
+import com.superwall.sdk.billing.DecomposedProductIds
 import com.superwall.sdk.billing.GoogleBillingWrapper
 import com.superwall.sdk.dependencies.TriggerSessionManagerFactory
 import com.superwall.sdk.logger.LogLevel
@@ -12,10 +13,14 @@ import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.PaywallProducts
+import com.superwall.sdk.models.product.Offer
+import com.superwall.sdk.models.product.PlayStoreProduct
 import com.superwall.sdk.models.product.Product
+import com.superwall.sdk.models.product.ProductItem
 import com.superwall.sdk.models.product.ProductType
 import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.paywall.request.PaywallRequest
+import com.superwall.sdk.store.abstractions.product.OfferType
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.product.receipt.ReceiptManager
 import com.superwall.sdk.store.coordinator.ProductsFetcher
@@ -109,7 +114,7 @@ class StoreKitManager(
     private data class ProductProcessingResult(
         val productIdsToLoad: Set<String>,
         val substituteProductsById: Map<String, StoreProduct>,
-        val products: List<Product>
+        val productItems: List<ProductItem>
     )
 
     suspend fun getProductVariables(
@@ -123,28 +128,28 @@ class StoreKitManager(
             factory = factory
         )
 
-        val variables = paywall.products.mapNotNull { product ->
-            output.productsById[product.id]?.let { storeProduct ->
+        val productAttributes = paywall.productItems.mapNotNull { productItem ->
+            output.productsById[productItem.id]?.let { storeProduct ->
                 ProductVariable(
-                    type = product.type,
+                    name = productItem.name,
                     attributes = storeProduct.attributes
                 )
             }
         }
 
-        return variables
+        return productAttributes
     }
 
     suspend fun getProducts(
-        substituteProducts: PaywallProducts? = null,
+        substituteProducts: Map<String, StoreProduct>? = null,
         paywall: Paywall,
         request: PaywallRequest? = null,
         factory: TriggerSessionManagerFactory
     ): GetProductsResponse {
         val processingResult = removeAndStore(
-            substituteProducts = substituteProducts,
-            responseProductIds = paywall.productIds,
-            responseProducts = paywall.products
+            substituteProductsByLabel = substituteProducts,
+            paywallProductIds = paywall.productIds,
+            productItems = paywall.productItems
         )
 
         var products: Set<StoreProduct> = setOf()
@@ -177,49 +182,82 @@ class StoreKitManager(
 
         return GetProductsResponse(
             productsById = productsById,
-            products = processingResult.products,
+            productItems = processingResult.productItems,
             paywall = paywall
         )
     }
 
     private fun removeAndStore(
-        substituteProducts: PaywallProducts?,
-        responseProductIds: List<String>,
-        responseProducts: List<Product>
+        substituteProductsByLabel: Map<String, StoreProduct>?,
+        paywallProductIds: List<String>,
+        productItems: List<ProductItem>
     ): ProductProcessingResult {
-        var responseProductIds = responseProductIds.toMutableList()
+        var productIdsToLoad = paywallProductIds.toMutableList()
         var substituteProductsById: MutableMap<String, StoreProduct> = mutableMapOf()
-        var products: MutableList<Product> = responseProducts.toMutableList()
+        var productItems: MutableList<ProductItem> = productItems.toMutableList()
 
-        fun storeAndSubstitute(product: StoreProduct, type: ProductType, index: Int) {
-            val id = product.fullIdentifier
-            substituteProductsById[id] = product
-            this.productsById[id] = product
-            val product = Product(type = type, id = id)
-            // Replacing this swift line
-            // products[guarded: index] = product
-            if (index < products.size && index >= 0) {
-                products[index] = product
-            }
-            if (index < responseProductIds.size && index >= 0) {
-                responseProductIds.removeAt(index)
-            }
-        }
+        // If there are no substitutions, return what we have
+        substituteProductsByLabel?.let { substituteProducts ->
+            // Otherwise, iterate over each substitute product
+            for ((name, product) in substituteProducts) {
+                val productId = product.productIdentifier
 
-        substituteProducts?.primary?.let {
-            storeAndSubstitute(it, ProductType.PRIMARY, 0)
-        }
-        substituteProducts?.secondary?.let {
-            storeAndSubstitute(it, ProductType.SECONDARY, 1)
-        }
-        substituteProducts?.tertiary?.let {
-            storeAndSubstitute(it, ProductType.TERTIARY, 2)
+                // Map substitute product by its ID.
+                substituteProductsById[productId] = product
+
+                // Store the substitute product by id in the class' dictionary
+                this.productsById[productId] = product
+                val decomposedProductIds = DecomposedProductIds.from(product.fullIdentifier)
+
+                productItems.indexOfFirst { it.name == name }.takeIf { it >= 0 }?.let { index ->
+                    // Update the product ID at the found index
+                    productItems[index] = ProductItem(
+                        name = productItems[index].name,
+                        type = ProductItem.StoreProductType.PlayStore(
+                            PlayStoreProduct(
+                                productIdentifier = decomposedProductIds.subscriptionId,
+                                basePlanIdentifier = decomposedProductIds.basePlanId ?: "",
+                                offer = decomposedProductIds.offerType.let { offerType ->
+                                    when (offerType) {
+                                        is OfferType.Offer -> Offer.Specified(offerIdentifier = offerType.id)
+                                        is OfferType.Auto -> Offer.Automatic()
+                                        null -> Offer.Automatic()
+                                    }
+                                }
+                            )
+                        )
+                    )
+                }  ?: run {
+                    // If it isn't found, just append to the list.
+                    productItems.add(
+                        ProductItem(
+                            name = name,
+                            type = ProductItem.StoreProductType.PlayStore(
+                                PlayStoreProduct(
+                                    productIdentifier = decomposedProductIds.subscriptionId,
+                                    basePlanIdentifier = decomposedProductIds.basePlanId ?: "",
+                                    offer = decomposedProductIds.offerType.let { offerType ->
+                                        when (offerType) {
+                                            is OfferType.Offer -> Offer.Specified(offerIdentifier = offerType.id)
+                                            is OfferType.Auto -> Offer.Automatic()
+                                            null -> Offer.Automatic()
+                                        }
+                                    }
+                                )
+                            )
+                        )
+                    )
+                }
+
+                // Make sure we don't load the substitute product id
+                productIdsToLoad.removeAll { it == name }
+            }
         }
 
         return ProductProcessingResult(
-            productIdsToLoad = responseProductIds.toSet(),
+            productIdsToLoad = paywallProductIds.toSet(),
             substituteProductsById = substituteProductsById,
-            products = products
+            productItems = productItems
         )
     }
 
