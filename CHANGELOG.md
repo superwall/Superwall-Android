@@ -26,7 +26,7 @@ methods of `PaywallViewController` which you must call when using `getPaywall`.
 - Stops `Superwall.configure` from being called multiple times.
 - `getPresentationResult` now confirms assignments for holdouts.
 - Gracefully handles unknown local notification types if new ones are added in the future.
-- SW-2761: Fixes issue where "other" reponses in paywall surveys weren't showing in the dashboard.
+- SW-2761: Fixes issue where "other" responses in paywall surveys weren't showing in the dashboard.
 
 ## 1.0.2
 
