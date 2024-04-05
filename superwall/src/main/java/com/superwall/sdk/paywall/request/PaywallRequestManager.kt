@@ -200,12 +200,11 @@ class PaywallRequestManager(
         paywall.productItems = result.productItems
 
         val outcome = PaywallLogic.getVariablesAndFreeTrial(
-            result.productItems,
-            result.productsById,
-            request.overrides.isFreeTrial
+            productItems = result.productItems,
+            productsByFullId = result.productsByFullId,
+            isFreeTrialAvailableOverride = request.overrides.isFreeTrial
         )
         paywall.productVariables = outcome.productVariables
-//            paywall.swProductVariablesTemplate = outcome.swProductVariablesTemplate
         paywall.isFreeTrialAvailable = outcome.isFreeTrialAvailable
 
         return@withContext paywall

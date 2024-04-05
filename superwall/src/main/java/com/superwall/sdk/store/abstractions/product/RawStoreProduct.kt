@@ -265,9 +265,9 @@ class RawStoreProduct(
         }
         // Retrieve the subscription offer details from the product details
         val subscriptionOfferDetails = underlyingProductDetails.subscriptionOfferDetails ?: return null
-        // If there's no base plan ID, return the first base plan we come across.
-        // This may not be the one they want but so be it.
-        if (basePlanId == null) {
+
+        // Default to first base plan we come across if base plan is an empty string
+        if (basePlanId.isNullOrEmpty()) {
             return subscriptionOfferDetails.firstOrNull { it.pricingPhases.pricingPhaseList.size == 1 }
         }
 
@@ -285,8 +285,8 @@ class RawStoreProduct(
                 // If an offer ID is given, return that one. Otherwise fallback to base plan.
                 offersForBasePlan.firstOrNull { it.offerId == offerType.id } ?: basePlan
             }
-            else -> {
-                // If no offer specified, return base plan.
+            null -> {
+                // If no offer, return base plan
                 basePlan
             }
         }
@@ -385,7 +385,6 @@ class RawStoreProduct(
             SubscriptionPeriod.Unit.month -> 4 * numberOfUnits  // Assumes 4 weeks in a month
             SubscriptionPeriod.Unit.week -> 1 * numberOfUnits
             SubscriptionPeriod.Unit.year -> 52 * numberOfUnits  // Assumes 52 weeks in a year
-            else -> 0
         }
     }
 
@@ -401,7 +400,6 @@ class RawStoreProduct(
                 SubscriptionPeriod.Unit.week -> numberOfUnits / 4
                 SubscriptionPeriod.Unit.month -> numberOfUnits
                 SubscriptionPeriod.Unit.year -> 12 * numberOfUnits
-                else -> 0
             }
         } ?: 0
     }
@@ -418,7 +416,6 @@ class RawStoreProduct(
                 SubscriptionPeriod.Unit.week -> numberOfUnits / 52
                 SubscriptionPeriod.Unit.month -> numberOfUnits / 12
                 SubscriptionPeriod.Unit.year -> numberOfUnits
-                else -> 0
             }
         } ?: 0
     }
@@ -519,13 +516,12 @@ class RawStoreProduct(
             val introPeriods = periodsPerUnit(unit).multiply(BigDecimal(pricingPhase.billingCycleCount))
                 .multiply(BigDecimal(trialSubscriptionPeriod?.value ?: 0))
 
-            val introPayment: BigDecimal
-            if (introPeriods < BigDecimal.ONE) {
+            val introPayment: BigDecimal = if (introPeriods < BigDecimal.ONE) {
                 // If less than 1, it means the intro period doesn't exceed a full unit.
-                introPayment = introCost
+                introCost
             } else {
                 // Otherwise, divide the total cost by the normalized intro periods.
-                introPayment = introCost.divide(introPeriods, 2, RoundingMode.DOWN)
+                introCost.divide(introPeriods, 2, RoundingMode.DOWN)
             }
 
             return introPayment

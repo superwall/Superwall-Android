@@ -109,7 +109,7 @@ data class Paywall(
         set(value) {
             _productItems = value
             // Automatically update related properties when productItems is set
-            productIds = value.map { it.id }
+            productIds = value.map { it.fullProductId }
             _products = makeProducts(value) // Assuming makeProducts is a function that generates products based on product items
         }
 
@@ -205,13 +205,13 @@ data class Paywall(
             for (productItem in productItems) {
                 when (productItem.name) {
                     "primary" -> output.add(
-                        Product(type = ProductType.PRIMARY, id = productItem.id)
+                        Product(type = ProductType.PRIMARY, id = productItem.fullProductId)
                     )
                     "secondary" -> output.add(
-                        Product(type = ProductType.SECONDARY, id = productItem.id)
+                        Product(type = ProductType.SECONDARY, id = productItem.fullProductId)
                     )
                     "tertiary" -> output.add(
-                        Product(type = ProductType.TERTIARY, id = productItem.id)
+                        Product(type = ProductType.TERTIARY, id = productItem.fullProductId)
                     )
                 }
             }

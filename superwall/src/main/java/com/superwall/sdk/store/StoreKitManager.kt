@@ -109,10 +109,10 @@ class StoreKitManager(
 ) : ProductsFetcher {
     private val receiptManager by lazy { ReceiptManager(delegate = this) }
 
-    var productsById: MutableMap<String, StoreProduct> = mutableMapOf()
+    var productsByFullId: MutableMap<String, StoreProduct> = mutableMapOf()
 
     private data class ProductProcessingResult(
-        val productIdsToLoad: Set<String>,
+        val fullProductIdsToLoad: Set<String>,
         val substituteProductsById: Map<String, StoreProduct>,
         val productItems: List<ProductItem>
     )
@@ -129,7 +129,7 @@ class StoreKitManager(
         )
 
         val productAttributes = paywall.productItems.mapNotNull { productItem ->
-            output.productsById[productItem.id]?.let { storeProduct ->
+            output.productsByFullId[productItem.fullProductId]?.let { storeProduct ->
                 ProductVariable(
                     name = productItem.name,
                     attributes = storeProduct.attributes
@@ -147,14 +147,14 @@ class StoreKitManager(
         factory: TriggerSessionManagerFactory
     ): GetProductsResponse {
         val processingResult = removeAndStore(
-            substituteProductsByLabel = substituteProducts,
-            paywallProductIds = paywall.productIds,
+            substituteProductsByName = substituteProducts,
+            fullProductIds = paywall.productIds,
             productItems = paywall.productItems
         )
 
         var products: Set<StoreProduct> = setOf()
         try {
-            products = billingWrapper.awaitGetProducts(processingResult.productIdsToLoad)
+            products = billingWrapper.awaitGetProducts(processingResult.fullProductIdsToLoad)
         } catch (error: Throwable)  {
             paywall.productsLoadingInfo.failAt = Date()
             val paywallInfo = paywall.getInfo(request?.eventData, factory)
@@ -175,40 +175,40 @@ class StoreKitManager(
         val productsById = processingResult.substituteProductsById.toMutableMap()
 
         for (product in products) {
-            val productIdentifier = product.fullIdentifier
-            productsById[productIdentifier] = product
-            this.productsById[productIdentifier] = product
+            val fullProductIdentifier = product.fullIdentifier
+            productsById[fullProductIdentifier] = product
+            this.productsByFullId[fullProductIdentifier] = product
         }
 
         return GetProductsResponse(
-            productsById = productsById,
+            productsByFullId = productsById,
             productItems = processingResult.productItems,
             paywall = paywall
         )
     }
 
     private fun removeAndStore(
-        substituteProductsByLabel: Map<String, StoreProduct>?,
-        paywallProductIds: List<String>,
+        substituteProductsByName: Map<String, StoreProduct>?,
+        fullProductIds: List<String>,
         productItems: List<ProductItem>
     ): ProductProcessingResult {
-        var productIdsToLoad = paywallProductIds.toMutableList()
-        var substituteProductsById: MutableMap<String, StoreProduct> = mutableMapOf()
-        var productItems: MutableList<ProductItem> = productItems.toMutableList()
+        val fullProductIdsToLoad = fullProductIds.toMutableList()
+        val substituteProductsByFullId: MutableMap<String, StoreProduct> = mutableMapOf()
+        val productItems: MutableList<ProductItem> = productItems.toMutableList()
 
-        // If there are no substitutions, return what we have
-        substituteProductsByLabel?.let { substituteProducts ->
+        substituteProductsByName?.let { substituteProducts ->
             // Otherwise, iterate over each substitute product
             for ((name, product) in substituteProducts) {
-                val productId = product.productIdentifier
+                val fullProductId = product.fullIdentifier
 
                 // Map substitute product by its ID.
-                substituteProductsById[productId] = product
+                substituteProductsByFullId[fullProductId] = product
 
                 // Store the substitute product by id in the class' dictionary
-                this.productsById[productId] = product
+                this.productsByFullId[fullProductId] = product
                 val decomposedProductIds = DecomposedProductIds.from(product.fullIdentifier)
 
+                // Search for an existing product with specified name
                 productItems.indexOfFirst { it.name == name }.takeIf { it >= 0 }?.let { index ->
                     // Update the product ID at the found index
                     productItems[index] = ProductItem(
@@ -221,14 +221,13 @@ class StoreKitManager(
                                     when (offerType) {
                                         is OfferType.Offer -> Offer.Specified(offerIdentifier = offerType.id)
                                         is OfferType.Auto -> Offer.Automatic()
-                                        null -> Offer.Automatic()
                                     }
                                 }
                             )
                         )
                     )
                 }  ?: run {
-                    // If it isn't found, just append to the list.
+                    // If no existing product found, just append to the list.
                     productItems.add(
                         ProductItem(
                             name = name,
@@ -240,7 +239,6 @@ class StoreKitManager(
                                         when (offerType) {
                                             is OfferType.Offer -> Offer.Specified(offerIdentifier = offerType.id)
                                             is OfferType.Auto -> Offer.Automatic()
-                                            null -> Offer.Automatic()
                                         }
                                     }
                                 )
@@ -250,13 +248,13 @@ class StoreKitManager(
                 }
 
                 // Make sure we don't load the substitute product id
-                productIdsToLoad.removeAll { it == name }
+                fullProductIdsToLoad.removeAll { it == fullProductId }
             }
         }
 
         return ProductProcessingResult(
-            productIdsToLoad = paywallProductIds.toSet(),
-            substituteProductsById = substituteProductsById,
+            fullProductIdsToLoad = fullProductIdsToLoad.toSet(),
+            substituteProductsById = substituteProductsByFullId,
             productItems = productItems
         )
     }

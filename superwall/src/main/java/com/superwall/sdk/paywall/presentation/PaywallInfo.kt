@@ -229,12 +229,12 @@ data class PaywallInfo(
 
         productItems.forEachIndexed { index, product ->
             when (index) {
-                0 -> output["primary_product_id"] = product.id
-                1 -> output["secondary_product_id"] = product.id
-                2 -> output["tertiary_product_id"] = product.id
+                0 -> output["primary_product_id"] = product.fullProductId
+                1 -> output["secondary_product_id"] = product.fullProductId
+                2 -> output["tertiary_product_id"] = product.fullProductId
             }
             val key = "${product.name}_product_id"
-            output[key] = product.id
+            output[key] = product.fullProductId
         }
 
         return output.filter { (_, value) -> value != null } as MutableMap<String, Any>

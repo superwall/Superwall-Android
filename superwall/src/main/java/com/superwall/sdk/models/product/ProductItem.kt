@@ -1,5 +1,6 @@
 package com.superwall.sdk.models.product
 
+import com.superwall.sdk.store.abstractions.product.OfferType
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -54,7 +55,13 @@ data class PlayStoreProduct(
     val basePlanIdentifier: String,
 
     val offer: Offer
-)
+) {
+    val fullIdentifier: String
+        get() = when (offer) {
+            is Offer.Automatic -> "$productIdentifier:$basePlanIdentifier:sw-auto"
+            is Offer.Specified -> "$productIdentifier:$basePlanIdentifier:${offer.offerIdentifier}"
+        }
+}
 
 object PlayStoreProductSerializer : KSerializer<PlayStoreProduct> {
     override val descriptor: SerialDescriptor = buildClassSerialDescriptor("PlayStoreProduct")
@@ -113,9 +120,9 @@ data class ProductItem(
         data class PlayStore(val product: PlayStoreProduct) : StoreProductType()
     }
 
-    val id: String
+    val fullProductId: String
         get() = when (type) {
-            is StoreProductType.PlayStore -> type.product.productIdentifier
+            is StoreProductType.PlayStore -> type.product.fullIdentifier
         }
 }
 
@@ -127,7 +134,7 @@ object ProductItemSerializer : KSerializer<ProductItem> {
             ?: throw SerializationException("This class can be saved only by Json")
         val jsonObject = buildJsonObject {
             put("product", JsonPrimitive(value.name))
-            put("productId", JsonPrimitive(value.id))
+            put("productId", JsonPrimitive(value.fullProductId))
         }
         // Encode the JSON object
         jsonOutput.encodeJsonElement(jsonObject)

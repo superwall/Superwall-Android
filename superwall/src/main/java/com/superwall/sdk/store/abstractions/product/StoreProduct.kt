@@ -15,6 +15,7 @@ import java.math.RoundingMode
 import java.text.SimpleDateFormat
 import java.util.*
 
+// TODO: Consolidate OfferType and Offer without breaking changes
 @Serializable
 sealed class OfferType {
     object Auto : OfferType()
@@ -26,7 +27,6 @@ sealed class OfferType {
             else -> null
         }
 }
-
 
 class StoreProduct(
     val rawStoreProduct: RawStoreProduct

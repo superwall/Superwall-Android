@@ -97,7 +97,7 @@ object PaywallLogic {
 
     fun getVariablesAndFreeTrial(
         productItems: List<ProductItem>,
-        productsById: Map<String, StoreProduct>,
+        productsByFullId: Map<String, StoreProduct>,
         isFreeTrialAvailableOverride: Boolean?
     ): ProductProcessingOutcome {
         val productVariables = mutableListOf<ProductVariable>()
@@ -105,7 +105,7 @@ object PaywallLogic {
 
         for (productItem in productItems) {
             // Get storeProduct
-            val storeProduct = productsById[productItem.id] ?: continue
+            val storeProduct = productsByFullId[productItem.fullProductId] ?: continue
 
             val productVariable = ProductVariable(
                 name = productItem.name,

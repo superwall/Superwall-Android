@@ -137,10 +137,10 @@ class GoogleBillingWrapper(
      */
     @JvmSynthetic
     @Throws(Throwable::class)
-    suspend fun awaitGetProducts(productIds: Set<String>): Set<StoreProduct> {
+    suspend fun awaitGetProducts(fullProductIds: Set<String>): Set<StoreProduct> {
         // Get the cached products. If any are a failure, we throw an error.
-        val cachedProducts = productIds.mapNotNull { productId ->
-            productsCache[productId]?.let { result ->
+        val cachedProducts = fullProductIds.mapNotNull { fullProductId ->
+            productsCache[fullProductId]?.let { result ->
                 when (result) {
                     is Result.Success -> result.value
                     is Result.Failure -> throw result.error
@@ -149,16 +149,16 @@ class GoogleBillingWrapper(
         }.toSet()
 
         // If all products are found in cache, return them directly
-        if (cachedProducts.size == productIds.size) {
+        if (cachedProducts.size == fullProductIds.size) {
             return cachedProducts
         }
 
         // Determine which product IDs are not in cache
-        val missingProductIds = productIds - cachedProducts.map { it.fullIdentifier }.toSet()
+        val missingFullProductIds = fullProductIds - cachedProducts.map { it.fullIdentifier }.toSet()
 
         return suspendCoroutine { continuation ->
             getProducts(
-                missingProductIds,
+                missingFullProductIds,
                 object : GetStoreProductsCallback {
                     override fun onReceived(storeProducts: Set<StoreProduct>) {
                         // Update cache with fetched products and collect their identifiers
@@ -168,8 +168,8 @@ class GoogleBillingWrapper(
                         }
 
                         // Identify and handle missing products
-                        missingProductIds.filterNot { it in foundProductIds }.forEach { productId ->
-                            productsCache[productId] = Result.Failure(Exception("Failed to query product details for $productId"))
+                        missingFullProductIds.filterNot { it in foundProductIds }.forEach { fullProductId ->
+                            productsCache[fullProductId] = Result.Failure(Exception("Failed to query product details for $fullProductId"))
                         }
 
                         // Combine cached products (now including the newly fetched ones) with the fetched products
@@ -179,8 +179,8 @@ class GoogleBillingWrapper(
 
                     override fun onError(error: BillingError) {
                         // Identify and handle missing products
-                        missingProductIds.forEach { productId ->
-                            productsCache[productId] = Result.Failure(error)
+                        missingFullProductIds.forEach { fullProductId ->
+                            productsCache[fullProductId] = Result.Failure(error)
                         }
                         continuation.resumeWithException(error)
                     }
@@ -190,18 +190,20 @@ class GoogleBillingWrapper(
     }
 
     private fun getProducts(
-        productIds: Set<String>,
+        fullProductIds: Set<String>,
         callback: GetStoreProductsCallback,
     ) {
         val types = setOf(ProductType.SUBS, ProductType.INAPP)
         val decomposedProductDetailsBySubscriptionId: MutableMap<String, MutableList<DecomposedProductIds>>
                 = mutableMapOf()
 
+        // TODO: CHANGE THIS BECAUSE DECOMPOSING THE PRODUCT ID WON'T WORK NOW
         val subscriptionIds = mutableSetOf<String>()
         // Decompose the subscriptionId into its constituents and create mapping of
         // subscriptionId -> one or more decompositions.
-        productIds.forEach { productId ->
-            val decomposedProductIds = DecomposedProductIds.from(productId)
+        fullProductIds.forEach { fullProductId ->
+            // TODO: Swap this out for PlayStoreProduct
+            val decomposedProductIds = DecomposedProductIds.from(fullProductId)
             val subscriptionId = decomposedProductIds.subscriptionId
             subscriptionIds.add(subscriptionId)
             decomposedProductDetailsBySubscriptionId

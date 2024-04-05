@@ -123,7 +123,7 @@ class ExternalNativePurchaseController(var context: Context) : PurchaseControlle
         val rawStoreProduct = RawStoreProduct(
             underlyingProductDetails = productDetails,
             fullIdentifier = fullId,
-            basePlanId = basePlanId,
+            basePlanId = basePlanId ?: "",
             offerType = offerId?.let { OfferType.Offer(id = it) }
         )
 
