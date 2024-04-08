@@ -26,7 +26,7 @@ object TemplateLogic {
         )
 
         val variablesTemplate = factory.makeJsonVariables(
-            productVariables = paywall.productVariables,
+            products = paywall.productVariables,
             computedPropertyRequests = paywall.computedPropertyRequests,
             event = event
         )

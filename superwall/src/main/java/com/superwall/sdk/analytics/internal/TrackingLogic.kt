@@ -1,5 +1,6 @@
 package com.superwall.sdk.analytics.internal
 
+import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEventObjc
@@ -63,6 +64,47 @@ sealed class TrackingLogic {
             }
 
             return@withContext TrackingParameters(delegateParams, eventParams)
+        }
+
+        fun isNotDisabledVerboseEvent(
+            event: Trackable,
+            disableVerboseEvents: Boolean?,
+            isSandbox: Boolean
+        ): Boolean {
+            val disableVerboseEvents = disableVerboseEvents ?: return true
+            if (isSandbox) {
+                return true
+            }
+
+            if (event is InternalSuperwallEvent.PresentationRequest) {
+                return !disableVerboseEvents
+            }
+
+            (event as? InternalSuperwallEvent.PaywallLoad)?.let {
+                return when (it.state) {
+                    is InternalSuperwallEvent.PaywallLoad.State.Start,
+                    is InternalSuperwallEvent.PaywallLoad.State.Complete -> !disableVerboseEvents
+                    else -> true
+                }
+            }
+
+            (event as? InternalSuperwallEvent.PaywallProductsLoad)?.let {
+                return when (it.state) {
+                    is InternalSuperwallEvent.PaywallProductsLoad.State.Start,
+                    is InternalSuperwallEvent.PaywallProductsLoad.State.Complete -> !disableVerboseEvents
+                    else -> true
+                }
+            }
+
+            (event as? InternalSuperwallEvent.PaywallWebviewLoad)?.let {
+                return when (it.state) {
+                    is InternalSuperwallEvent.PaywallWebviewLoad.State.Start,
+                    is InternalSuperwallEvent.PaywallWebviewLoad.State.Complete -> !disableVerboseEvents
+                    else -> true
+                }
+            }
+
+            return true
         }
 
         @OptIn(ExperimentalSerializationApi::class)

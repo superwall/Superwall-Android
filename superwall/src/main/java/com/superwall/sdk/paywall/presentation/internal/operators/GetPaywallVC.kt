@@ -53,7 +53,7 @@ internal suspend fun Superwall.getPaywallViewController(
         eventData = request.presentationInfo.eventData,
         responseIdentifiers = responseIdentifiers,
         overrides = PaywallRequest.Overrides(
-            products = request.paywallOverrides?.products,
+            products = request.paywallOverrides?.productsByName,
             isFreeTrial = request.presentationInfo.freeTrialOverride
         ),
         isDebuggerLaunched = request.flags.isDebuggerLaunched,

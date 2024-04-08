@@ -2,6 +2,7 @@ package com.superwall.sdk.paywall.request
 
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.PaywallProducts
+import com.superwall.sdk.store.abstractions.product.StoreProduct
 
 /**
  * A request to get a paywall.
@@ -45,7 +46,7 @@ data class PaywallRequest(
         /**
          * The products to substitute into the response.
          */
-        val products: PaywallProducts?,
+        val products: Map<String, StoreProduct>?,
 
         /**
          * Whether to override the displaying of a free trial.

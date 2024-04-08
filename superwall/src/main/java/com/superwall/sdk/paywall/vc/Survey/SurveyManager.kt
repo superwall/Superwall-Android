@@ -140,8 +140,6 @@ object SurveyManager {
                 // Special case for 'Other' or 'Close'
                 val selectedItem = optionsToShow[position]
                 if (selectedItem == "Other") {
-                    // Create AlertDialog with an EditText
-                    val editText = EditText(activity)
                     val customAlertView = LayoutInflater.from(activity).inflate(R.layout.custom_alert_dialog_layout, null)
 
                     val otherBuilder = AlertDialog.Builder(activity)
@@ -194,7 +192,7 @@ object SurveyManager {
                                 isDebuggerLaunched = isDebuggerLaunched,
                                 survey = survey,
                                 option = option,
-                                customResponse = editText.text.toString(),
+                                customResponse = customEditText.text.toString(),
                                 paywallInfo = paywallInfo,
                                 factory = factory,
                                 paywallViewController = paywallViewController,

@@ -22,6 +22,8 @@ class LocalNotification(
 sealed class LocalNotificationType {
     @SerialName("TRIAL_STARTED")
     object TrialStarted : LocalNotificationType()
+
+    object Unsupported : LocalNotificationType()
 }
 
 @Serializer(forClass = LocalNotificationType::class)
@@ -29,7 +31,7 @@ object LocalNotificationTypeSerializer : KSerializer<LocalNotificationType> {
     override fun deserialize(decoder: Decoder): LocalNotificationType {
         return when (decoder.decodeString()) {
             "TRIAL_STARTED" -> LocalNotificationType.TrialStarted
-            else -> throw IllegalArgumentException("Unsupported notification type.")
+            else -> LocalNotificationType.Unsupported
         }
     }
 }
