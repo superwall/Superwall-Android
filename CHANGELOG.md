@@ -2,7 +2,7 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
-## 1.0.3-beta.2
+## 1.1.0
 
 ### Enhancements
 
@@ -10,6 +10,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 of the locale. For example, if a locale is `en_GB`, the `regionCode` will be `GB`. You can use this
 in the filters of your campaign.
 - Adds support for unlimited products in a paywall.
+- Adds internal feature flag to disable verbose events like `paywallResponseLoad_start`.
 
 ### Fixes
 

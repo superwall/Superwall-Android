@@ -16,6 +16,7 @@ import com.superwall.sdk.paywall.presentation.internal.operators.logErrors
 import com.superwall.sdk.paywall.presentation.internal.operators.waitForSubsStatusAndConfig
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
+import com.superwall.sdk.storage.DisableVerboseEvents
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -59,10 +60,23 @@ suspend fun Superwall.track(event: Trackable): TrackingResult {
         parameters = parameters.eventParams,
         createdAt = eventCreatedAt
     )
-    dependencyContainer.eventsQueue.enqueue(
-        data = eventData,
-        event = event
-    )
+
+    // If config doesn't exist yet, we rely on previously saved feature flag
+    // to determine whether to disable verbose events.
+    val existingDisableVerboseEvents = dependencyContainer.configManager.config?.featureFlags?.disableVerboseEvents
+    val previousDisableVerboseEvents = dependencyContainer.storage.get(DisableVerboseEvents)
+
+    val verboseEvents = existingDisableVerboseEvents ?: previousDisableVerboseEvents
+
+    if (TrackingLogic.isNotDisabledVerboseEvent(
+            event = event,
+            disableVerboseEvents = verboseEvents,
+            isSandbox = dependencyContainer.makeIsSandbox())) {
+        dependencyContainer.eventsQueue.enqueue(
+            data = eventData,
+            event = event
+        )
+    }
     dependencyContainer.storage.coreDataManager.saveEventData(eventData)
 
     if (event.canImplicitlyTriggerPaywall) {

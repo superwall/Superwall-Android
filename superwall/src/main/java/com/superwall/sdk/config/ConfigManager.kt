@@ -24,6 +24,7 @@ import com.superwall.sdk.network.Network
 import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.ExpressionEvaluator
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
+import com.superwall.sdk.storage.DisableVerboseEvents
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.StoreKitManager
 import kotlinx.coroutines.CoroutineScope
@@ -103,6 +104,7 @@ open class ConfigManager(
                 message = "Fetched Configuration: $config",
             )
 
+            storage.save(config.featureFlags.disableVerboseEvents, DisableVerboseEvents)
             triggersByEventName = ConfigLogic.getTriggersByEventName(config.triggers)
             choosePaywallVariants(config.triggers)
 

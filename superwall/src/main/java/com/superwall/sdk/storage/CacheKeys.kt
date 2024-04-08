@@ -228,6 +228,17 @@ object SurveyAssignmentKey : Storable<String> {
         get() = String.serializer()
 }
 
+object DisableVerboseEvents : Storable<Boolean> {
+    override val key: String
+        get() = "store.disableVerboseEvents"
+
+    override val directory: SearchPathDirectory
+        get() = SearchPathDirectory.APP_SPECIFIC_DOCUMENTS
+
+    override val serializer: KSerializer<Boolean>
+        get() = Boolean.serializer()
+}
+
 //endregion
 
 // region Serializers
