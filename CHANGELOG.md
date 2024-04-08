@@ -2,6 +2,12 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 1.1.1
+
+### Fixes
+
+- Fixes an issue loading products with offers.
+
 ## 1.1.0
 
 ### Enhancements
