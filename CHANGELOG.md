@@ -11,6 +11,7 @@ of the locale. For example, if a locale is `en_GB`, the `regionCode` will be `GB
 in the filters of your campaign.
 - Adds support for unlimited products in a paywall.
 - Adds internal feature flag to disable verbose events like `paywallResponseLoad_start`.
+- SW-2785: Adds internal feature flag to disable verbose events like `paywallResponseLoad_start`.
 
 ### Fixes
 

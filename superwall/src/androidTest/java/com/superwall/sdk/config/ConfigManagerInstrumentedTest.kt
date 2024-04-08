@@ -17,6 +17,7 @@ import com.superwall.sdk.network.NetworkMock
 import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.StorageMock
+import com.superwall.sdk.store.StoreKitManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
@@ -30,12 +31,14 @@ class ConfigManagerUnderTest(
     private val storage: Storage,
     private val network: Network,
     private val paywallManager: PaywallManager,
+    private val storeKitManager: StoreKitManager,
     private val factory: Factory,
 ) : ConfigManager(
     context = context,
     storage = storage,
     network = network,
     paywallManager = paywallManager,
+    storeKitManager = storeKitManager,
     factory = factory
 ) {
 
@@ -69,6 +72,7 @@ class ConfigManagerTests {
             storage = storage,
             network = network,
             paywallManager = dependencyContainer.paywallManager,
+            storeKitManager = dependencyContainer.storeKitManager,
             factory = dependencyContainer
         )
         configManager.confirmAssignment(assignment)
@@ -95,6 +99,7 @@ class ConfigManagerTests {
             storage = storage,
             network = network,
             paywallManager = dependencyContainer.paywallManager,
+            storeKitManager = dependencyContainer.storeKitManager,
             factory = dependencyContainer
         )
 
@@ -127,6 +132,7 @@ class ConfigManagerTests {
             storage = storage,
             network = network,
             paywallManager = dependencyContainer.paywallManager,
+            storeKitManager = dependencyContainer.storeKitManager,
             factory = dependencyContainer
         )
         configManager.setConfig(
@@ -153,6 +159,7 @@ class ConfigManagerTests {
             storage = storage,
             network = network,
             paywallManager = dependencyContainer.paywallManager,
+            storeKitManager = dependencyContainer.storeKitManager,
             factory = dependencyContainer
         )
 
