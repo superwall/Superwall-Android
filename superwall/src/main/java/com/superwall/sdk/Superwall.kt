@@ -222,6 +222,15 @@ class Superwall(
             activityProvider: ActivityProvider? = null,
             completion: (() -> Unit)? = null
         ) {
+            if (::instance.isInitialized) {
+                Logger.debug(
+                    logLevel = LogLevel.warn,
+                    scope = LogScope.superwallCore,
+                    message = "Superwall.configure called multiple times. Please make sure you only call this once on app launch."
+                )
+                completion?.invoke()
+                return
+            }
             val purchaseController =
                 purchaseController ?: ExternalNativePurchaseController(context = applicationContext)
             instance = Superwall(

@@ -56,11 +56,29 @@ class EventsQueue(
         context.registerReceiver(this, filter)
     }
 
-    fun enqueue(event: EventData) {
+    fun enqueue(
+        data: EventData,
+        event: Trackable
+    ) {
+        if (!externalDataCollectionAllowed(event)) return
+
         CoroutineScope(queue).launch {
-            elements.add(event)
+            elements.add(data)
         }
     }
+
+    private fun externalDataCollectionAllowed(event: Trackable): Boolean {
+        if (Superwall.instance.options.isExternalDataCollectionEnabled) {
+            return true
+        }
+        return when (event) {
+            is InternalSuperwallEvent.TriggerFire,
+            is InternalSuperwallEvent.Attributes,
+            is UserInitiatedEvent.Track -> false
+            else -> true
+        }
+    }
+
 
     suspend fun flushInternal(depth: Int = 10) {
         CoroutineScope(queue).launch {

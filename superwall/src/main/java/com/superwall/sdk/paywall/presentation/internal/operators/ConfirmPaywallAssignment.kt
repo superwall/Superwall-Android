@@ -4,6 +4,7 @@ import com.superwall.sdk.Superwall
 import com.superwall.sdk.dependencies.DependencyContainer
 import com.superwall.sdk.models.assignment.ConfirmableAssignment
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
+import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 
 /**
  * Confirms the paywall assignment, if it exists.
@@ -18,7 +19,7 @@ fun Superwall.confirmPaywallAssignment(
     isDebuggerLaunched: Boolean,
     dependencyContainer: DependencyContainer? = null
 ) {
-    if (!request.flags.type.couldPresent) {
+    if (request.flags.type == PresentationRequestType.GetImplicitPresentationResult) {
         return
     }
     val actualDependencyContainer = dependencyContainer ?: this.dependencyContainer

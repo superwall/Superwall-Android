@@ -5,6 +5,7 @@ import com.superwall.sdk.dependencies.DependencyContainer
 import com.superwall.sdk.models.triggers.InternalTriggerResult
 import com.superwall.sdk.models.triggers.TriggerResult
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
+import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.rule_logic.RuleEvaluationOutcome
 
 fun Superwall.confirmHoldoutAssignment(
@@ -13,7 +14,7 @@ fun Superwall.confirmHoldoutAssignment(
     dependencyContainer: DependencyContainer? = null
 ) {
     val container = dependencyContainer ?: this.dependencyContainer
-    if (!request.flags.type.couldPresent) return
+    if (request.flags.type == PresentationRequestType.GetImplicitPresentationResult) return
     if (rulesOutcome.triggerResult !is InternalTriggerResult.Holdout) return
     rulesOutcome.confirmableAssignment?.let {
         container.configManager.confirmAssignment(it)

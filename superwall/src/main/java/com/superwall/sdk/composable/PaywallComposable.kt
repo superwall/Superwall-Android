@@ -1,5 +1,6 @@
 package com.superwall.sdk.composable
 
+import android.app.Activity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,6 +14,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.paywall.presentation.get_paywall.getPaywall
@@ -48,10 +50,12 @@ fun PaywallComposable(
 ) {
     val viewState = remember { mutableStateOf<PaywallViewController?>(null) }
     val errorState = remember { mutableStateOf<Throwable?>(null) }
+    val context = LocalContext.current
 
     LaunchedEffect(Unit) {
         try {
             val newView = Superwall.instance.getPaywall(event, params, paywallOverrides, delegate)
+            newView.encapsulatingActivity = context as? Activity
             newView.viewWillAppear()
             viewState.value = newView
         } catch (e: Throwable) {
@@ -67,7 +71,9 @@ fun PaywallComposable(
 
                     onDispose {
                         viewToRender.viewWillDisappear()
-                        CoroutineScope(Dispatchers.IO).launch {
+                        viewToRender.encapsulatingActivity = null
+
+                        CoroutineScope(Dispatchers.Main).launch {
                             viewToRender.viewDidDisappear()
                         }
                     }

@@ -48,7 +48,7 @@ class TransactionManager(
         productId: String,
         paywallViewController: PaywallViewController
     ) {
-        val product = storeKitManager.productsById[productId] ?: return
+        val product = storeKitManager.productsByFullId[productId] ?: return
         val rawStoreProduct = product.rawStoreProduct
         println("!!! Purchasing product ${rawStoreProduct.hasFreeTrial}")
         val productDetails = rawStoreProduct.underlyingProductDetails

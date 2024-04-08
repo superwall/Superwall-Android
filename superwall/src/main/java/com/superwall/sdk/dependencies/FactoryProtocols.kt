@@ -164,7 +164,7 @@ interface CacheFactory {
 
 interface VariablesFactory {
     suspend fun makeJsonVariables(
-        productVariables: List<ProductVariable>?,
+        products: List<ProductVariable>?,
         computedPropertyRequests: List<ComputedPropertyRequest>,
         event: EventData?
     ): JsonVariables

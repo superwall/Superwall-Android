@@ -7,6 +7,10 @@ import kotlinx.serialization.Serializable
 //@Serializable
 //data class StoreProduct(val productIdentifier: String)
 
+@Deprecated(
+    message = "When overriding paywall products, pass a dictionary to productsByName in the " +
+            "PaywallOverrides object instead"
+)
 class PaywallProducts(
     val primary: StoreProduct? = null,
     val secondary: StoreProduct? = null,

@@ -28,13 +28,6 @@ sealed class PresentationRequestType {
             else -> "Unknown"
         }
 
-    val couldPresent: Boolean
-        get() = when (this) {
-            is Presentation, is GetPaywall -> true
-            is GetPresentationResult, is GetImplicitPresentationResult -> false
-            else -> false
-        }
-
     val paywallVcDelegateAdapter: PaywallViewControllerDelegateAdapter?
         get() = if (this is GetPaywall) this.adapter else null
 

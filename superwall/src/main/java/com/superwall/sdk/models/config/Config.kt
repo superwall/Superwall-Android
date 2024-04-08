@@ -39,7 +39,8 @@ data class Config(
             enableSessionEvents = rawFeatureFlags.find { it.key == "enable_session_events" }?.enabled
                 ?: false,
             enablePostback = rawFeatureFlags.find { it.key == "enable_postback" }?.enabled ?: false,
-            enableUserIdSeed = rawFeatureFlags.find { it.key == "enable_userid_seed" }?.enabled ?: false
+            enableUserIdSeed = rawFeatureFlags.find { it.key == "enable_userid_seed" }?.enabled ?: false,
+            disableVerboseEvents = rawFeatureFlags.find { it.key == "disable_verbose_events" }?.enabled ?: false,
         )
 
     companion object {

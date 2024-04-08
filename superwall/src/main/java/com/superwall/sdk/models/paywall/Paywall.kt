@@ -22,6 +22,9 @@ import android.graphics.Color
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
+import com.superwall.sdk.models.product.ProductItem
+import com.superwall.sdk.models.product.ProductItemsDeserializer
+import com.superwall.sdk.models.product.ProductType
 
 @Serializable
 data class Paywalls(val paywalls: List<Paywall>): SerializableEntity
@@ -48,7 +51,14 @@ data class Paywall(
 
     val backgroundColorHex: String,
 
-    var products: List<Product>,
+    // Declared as private to prevent direct access
+    @kotlinx.serialization.Transient()
+    private var _products: List<Product> = emptyList(),
+
+    @Serializable(with = ProductItemsDeserializer::class)
+    @SerialName("products_v2")
+    private var _productItems: List<ProductItem>,
+
     @kotlinx.serialization.Transient()
     var productIds: List<String> = arrayListOf(),
     @kotlinx.serialization.Transient()
@@ -93,6 +103,20 @@ data class Paywall(
     var surveys: List<Survey> = emptyList()
 
 ) : SerializableEntity {
+    // Public getter for productItems
+    var productItems: List<ProductItem>
+        get() = _productItems
+        set(value) {
+            _productItems = value
+            // Automatically update related properties when productItems is set
+            productIds = value.map { it.fullProductId }
+            _products = makeProducts(value) // Assuming makeProducts is a function that generates products based on product items
+        }
+
+    // Public getter for products to allow access but not direct modification
+    val products: List<Product>
+        get() = _products
+
     val backgroundColor: Int by lazy {
         try {
             Color.parseColor(this.backgroundColorHex)
@@ -108,7 +132,7 @@ data class Paywall(
     }
 
     init {
-        productIds = products.map { it.id }
+        productItems = _productItems
         presentation = Presentation(
             style = PaywallPresentationStyle.valueOf(presentationStyle.uppercase()),
             condition = PresentationCondition.valueOf(presentationCondition.uppercase())
@@ -131,16 +155,8 @@ data class Paywall(
         var failAt: Date? = null
     )
 
-
-//    @Serializable
-//    data class ProductVariable(val type: String, val attributes: Map<String, String>)
-
-
     fun update(paywall: Paywall) {
-        products = paywall.products
-        productIds = paywall.productIds
-        // TODO: Figure out if the products makes sense like this
-//        swProducts = paywall.swProducts
+        productItems = paywall.productItems
         productVariables = paywall.productVariables
         swProductVariablesTemplate = paywall.swProductVariablesTemplate
         isFreeTrialAvailable = paywall.isFreeTrialAvailable
@@ -156,6 +172,8 @@ data class Paywall(
             name = name,
             url = url,
             products = products,
+            productIds = productIds,
+            productItems = productItems,
             eventData = fromEvent,
             responseLoadStartTime = responseLoadingInfo.startAt,
             responseLoadCompleteTime = responseLoadingInfo.endAt,
@@ -181,6 +199,26 @@ data class Paywall(
     }
 
     companion object {
+        private fun makeProducts(productItems: List<ProductItem>): List<Product> {
+            val output = mutableListOf<Product>()
+
+            for (productItem in productItems) {
+                when (productItem.name) {
+                    "primary" -> output.add(
+                        Product(type = ProductType.PRIMARY, id = productItem.fullProductId)
+                    )
+                    "secondary" -> output.add(
+                        Product(type = ProductType.SECONDARY, id = productItem.fullProductId)
+                    )
+                    "tertiary" -> output.add(
+                        Product(type = ProductType.TERTIARY, id = productItem.fullProductId)
+                    )
+                }
+            }
+
+            return output
+        }
+
         fun stub(): Paywall {
             return Paywall(
                 databaseId = "id",
@@ -195,8 +233,9 @@ data class Paywall(
                 presentationStyle = "MODAL",
                 presentationCondition = "CHECK_USER_SUBSCRIPTION",
                 backgroundColorHex = "000000",
-                products = arrayListOf(),
                 productIds = arrayListOf(),
+                _productItems = emptyList(),
+                _products = emptyList(),
                 responseLoadingInfo = LoadingInfo(),
                 webviewLoadingInfo = LoadingInfo(),
                 productsLoadingInfo = LoadingInfo(),
@@ -207,6 +246,7 @@ data class Paywall(
                 featureGating = FeatureGatingBehavior.NonGated,
                 localNotifications = arrayListOf()
             )
+
         }
     }
 }

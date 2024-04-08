@@ -11,12 +11,13 @@ data class Variables(
     val user: Map<String, @Serializable(with = AnySerializer::class) Any?>,
     val device: Map<String, @Serializable(with = AnySerializer::class) Any?>,
     val params: Map<String, @Serializable(with = AnySerializer::class) Any?>,
+    var products: List<ProductVariable> = emptyList(),
     var primary: Map<String, @Serializable(with = AnySerializer::class) Any?> = emptyMap(),
     var secondary: Map<String, @Serializable(with = AnySerializer::class) Any?> = emptyMap(),
     var tertiary: Map<String, @Serializable(with = AnySerializer::class) Any?> = emptyMap()
 ) {
     constructor(
-        productVariables: List<ProductVariable>?,
+        products: List<ProductVariable>?,
         params: Map<String, Any?>?,
         userAttributes: Map<String, Any?>,
         templateDeviceDictionary: Map<String, Any?>?
@@ -25,12 +26,15 @@ data class Variables(
         device = templateDeviceDictionary ?: emptyMap(),
         params = params ?: emptyMap()
     ) {
-        productVariables?.forEach { productVariable ->
-            when (productVariable.type) {
-                ProductType.PRIMARY -> primary = productVariable.attributes
-                ProductType.SECONDARY -> secondary = productVariable.attributes
-                ProductType.TERTIARY -> tertiary = productVariable.attributes
+        products?.forEach { productVariable ->
+            when (productVariable.name) {
+                "primary" -> primary = productVariable.attributes
+                "secondary" -> secondary = productVariable.attributes
+                "tertiary" -> tertiary = productVariable.attributes
             }
+        }
+        products?.let {
+            this.products = it
         }
     }
 

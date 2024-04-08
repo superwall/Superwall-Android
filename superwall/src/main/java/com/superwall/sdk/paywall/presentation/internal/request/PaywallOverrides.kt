@@ -2,26 +2,55 @@ package com.superwall.sdk.paywall.presentation.internal.request
 
 import com.superwall.sdk.models.paywall.PaywallPresentationStyle
 import com.superwall.sdk.models.paywall.PaywallProducts
+import com.superwall.sdk.store.abstractions.product.StoreProduct
 
 // File.kt
 
-class PaywallOverrides(
-    val products: PaywallProducts? = null,
+data class PaywallOverrides(
+    val productsByName: Map<String, StoreProduct> = emptyMap(),
     val ignoreSubscriptionStatus: Boolean = false,
     val presentationStyle: PaywallPresentationStyle = PaywallPresentationStyle.NONE
 ) {
-    // This constructor has been marked as deprecated, as it only sets products.
-    @Deprecated("This constructor has been obsoleted.", ReplaceWith("PaywallOverrides(products)"))
-    constructor(products: PaywallProducts?) : this(products, false, PaywallPresentationStyle.NONE)
+    @Deprecated("This variable has been deprecated.", ReplaceWith("productsByName"))
+    val products: PaywallProducts? = mapToPaywallProducts(productsByName)
 
-    // This constructor has been marked as deprecated, as it only sets products and ignoreSubscriptionStatus.
-    @Deprecated(
-        "This constructor has been obsoleted.",
-        ReplaceWith("PaywallOverrides(products, ignoreSubscriptionStatus)")
-    )
+    // Secondary constructors
+    @Deprecated("This constructor has been deprecated.", ReplaceWith("PaywallOverrides(productsByName)"))
+    constructor(products: PaywallProducts?): this(mapFromPaywallProducts(products))
+
+    @Deprecated("This constructor has been deprecated.", ReplaceWith("PaywallOverrides(productsByName, ignoreSubscriptionStatus)"))
     constructor(products: PaywallProducts?, ignoreSubscriptionStatus: Boolean) : this(
-        products,
-        ignoreSubscriptionStatus,
-        PaywallPresentationStyle.NONE
+        mapFromPaywallProducts(products),
+        ignoreSubscriptionStatus
     )
+
+    companion object {
+        private fun mapFromPaywallProducts(products: PaywallProducts?): Map<String, StoreProduct> {
+            val mutableProductsMap = mutableMapOf<String, StoreProduct>()
+
+            products?.primary?.let { mutableProductsMap["primary"] = it }
+            products?.secondary?.let { mutableProductsMap["secondary"] = it }
+            products?.tertiary?.let { mutableProductsMap["tertiary"] = it }
+
+            return mutableProductsMap
+        }
+
+        private fun mapToPaywallProducts(products: Map<String, StoreProduct>): PaywallProducts? {
+            val primaryProduct: StoreProduct? = products["primary"]
+            val secondaryProduct: StoreProduct? = products["secondary"]
+            val tertiaryProduct: StoreProduct? = products["tertiary"]
+
+            val paywallProducts: PaywallProducts? = if (primaryProduct != null || secondaryProduct != null || tertiaryProduct != null) {
+                PaywallProducts(
+                    primary = primaryProduct,
+                    secondary = secondaryProduct,
+                    tertiary = tertiaryProduct
+                )
+            } else {
+                null
+            }
+
+            return paywallProducts
+        }
+    }
 }

@@ -2,7 +2,15 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
-## 1.0.3-beta.1
+## 1.1.0
+
+### Enhancements
+
+- SW-2768: Adds `device.regionCode` and `device.preferredRegionCode`, which returns the `regionCode` 
+of the locale. For example, if a locale is `en_GB`, the `regionCode` will be `GB`. You can use this
+in the filters of your campaign.
+- Adds support for unlimited products in a paywall.
+- SW-2785: Adds internal feature flag to disable verbose events like `paywallResponseLoad_start`.
 
 ### Fixes
 
@@ -16,6 +24,10 @@ would call `didFinish` in the `PaywallViewControllerDelegate` with the incorrect
 this happens, it will now default to white.
 - SW-2748: Exposes `viewWillAppear`, `viewDidAppear`, `viewWillDisappear` and `viewDidDisappear` 
 methods of `PaywallViewController` which you must call when using `getPaywall`.
+- Stops `Superwall.configure` from being called multiple times.
+- `getPresentationResult` now confirms assignments for holdouts.
+- Gracefully handles unknown local notification types if new ones are added in the future.
+- SW-2761: Fixes issue where "other" responses in paywall surveys weren't showing in the dashboard.
 
 ## 1.0.2
 
