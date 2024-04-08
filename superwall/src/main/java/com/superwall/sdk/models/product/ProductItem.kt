@@ -99,7 +99,7 @@ object PlayStoreProductSerializer : KSerializer<PlayStoreProduct> {
         val offer = when (type) {
             "AUTOMATIC" -> Offer.Automatic()
             "SPECIFIED" -> {
-                val offerIdentifier = offerJsonObject["offerIdentifier"]?.jsonPrimitive?.content ?: throw SerializationException("OfferIdentifier is missing")
+                val offerIdentifier = offerJsonObject["offer_identifier"]?.jsonPrimitive?.content ?: throw SerializationException("offer_identifier is missing")
                 Offer.Specified(offerIdentifier = offerIdentifier)
             }
             else -> throw SerializationException("Unknown offer type")
