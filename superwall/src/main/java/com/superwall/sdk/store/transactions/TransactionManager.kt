@@ -113,7 +113,7 @@ class TransactionManager(
         paywallViewController: PaywallViewController
     ) {
         val purchasingCoordinator = factory.makeTransactionVerifier()
-        var transaction: StoreTransaction? = null
+        var transaction: StoreTransaction?
         val restoreType: RestoreType
 
         if (product != null) {
@@ -411,8 +411,7 @@ class TransactionManager(
 
                 val notifications =
                     paywallInfo.localNotifications.filter { it.type == LocalNotificationType.TrialStarted }
-                val paywallActivity =
-                    (paywallViewController.encapsulatingActivity as SuperwallPaywallActivity)
+                val paywallActivity = paywallViewController.encapsulatingActivity as? SuperwallPaywallActivity ?: return
                 paywallActivity.attemptToScheduleNotifications(
                     notifications = notifications,
                     factory = factory,

@@ -2,6 +2,13 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 1.1.2
+
+### Fixes
+
+- Fixes `ConcurrentModificationException` crash that sometimes happened when identifying a user.
+- Fixes crash on purchasing a free trial when using `getPaywall`.
+
 ## 1.1.1
 
 ### Fixes

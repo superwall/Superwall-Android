@@ -7,13 +7,13 @@ import com.superwall.sdk.paywall.presentation.register
 
 class MainApplication : android.app.Application(), SuperwallDelegate {
     companion object {
-        const val CONSTANT_API_KEY = "pk_d1f0959f70c761b1d55bb774a03e22b2b6ed290ce6561f85"
+        const val CONSTANT_API_KEY = "pk_0ff90006c5c2078e1ce832bd2343ba2f806ca510a0a1696a"
 
         /*
         Copy and paste the following API keys to switch between apps.
         App API Keys:
             Android Main screen: pk_d1f0959f70c761b1d55bb774a03e22b2b6ed290ce6561f85
-            UITest (default): pk_5f6d9ae96b889bc2c36ca0f2368de2c4c3d5f6119aacd3d2
+            UITest (Android): pk_0ff90006c5c2078e1ce832bd2343ba2f806ca510a0a1696a
             DeepLink Open: pk_3faea4c721179218a245475ea9d378d1ecb9bf059411a0c0
             AppLaunch: pk_fb295f846b075fae6619eebb43d126ecddd1e3b18e7028b8
             AppInstall: pk_8db958db59cc8460969659822351d5e177d8d65cb295cff2

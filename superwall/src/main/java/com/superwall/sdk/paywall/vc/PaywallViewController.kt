@@ -817,7 +817,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             val isLightBackground = intent.getBooleanExtra(IS_LIGHT_BACKGROUND_KEY, false)
-            if (isLightBackground == true) {
+            if (isLightBackground) {
                 window.insetsController?.let {
                     it.setSystemBarsAppearance(
                         WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
@@ -835,7 +835,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             return
         }
 
-        val view = ViewStorage.retrieveView(key) as PaywallViewController ?: run {
+        val view = ViewStorage.retrieveView(key) as? PaywallViewController ?: run {
             finish() // Close the activity if the view associated with the key is not found
             return
         }

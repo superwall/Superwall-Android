@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.Executors
 
 class IdentityManager(
@@ -76,7 +77,7 @@ class IdentityManager(
 
     private val queue = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
     private val scope = CoroutineScope(queue)
-    private val identityJobs = mutableListOf<Job>()
+    private val identityJobs = CopyOnWriteArrayList<Job>()
 
     init {
         val extraAttributes = mutableMapOf<String, Any>()
