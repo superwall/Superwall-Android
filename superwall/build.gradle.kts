@@ -7,7 +7,11 @@ import java.io.ByteArrayOutputStream
 buildscript {
     extra["awsAccessKeyId"] = System.getenv("AWS_ACCESS_KEY_ID") ?: findProperty("aws_access_key_id")
     extra["awsSecretAccessKey"] = System.getenv("AWS_SECRET_ACCESS_KEY") ?: findProperty("aws_secret_access_key")
+
+
+
     // ... rest of the buildscript block ...
+
 }
 
 plugins {
@@ -17,6 +21,7 @@ plugins {
     kotlin("plugin.serialization") version "1.8.21"
     // Maven publishing
     id("maven-publish")
+    id("signing")
 }
 
 version = "1.1.2"
@@ -115,6 +120,8 @@ publishing {
                 }
             }
         }
+
+//        mavenCentral()
     }
 }
 
