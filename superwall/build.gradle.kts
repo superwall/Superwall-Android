@@ -114,8 +114,9 @@ publishing {
                     }
                 }
                 scm {
-                    connection.set("scm:git@github.com:superwall/Superwall-Android.git")
-                    url.set("https://github.com/superwall/Superwall-Android.git")
+                    connection.set("scm:git:git@github.com:superwall/Superwall-Android.git")
+                    developerConnection.set("scm:git:ssh://github.com:superwall/Superwall-Android.git")
+                    url.set("scm:git:https://github.com/superwall/Superwall-Android.git")
                 }
             }
 
