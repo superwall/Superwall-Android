@@ -2,12 +2,13 @@
 import groovy.json.JsonBuilder
 import java.text.SimpleDateFormat
 import java.util.Date
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import java.io.ByteArrayOutputStream
+
 buildscript {
     extra["awsAccessKeyId"] = System.getenv("AWS_ACCESS_KEY_ID") ?: findProperty("aws_access_key_id")
     extra["awsSecretAccessKey"] = System.getenv("AWS_SECRET_ACCESS_KEY") ?: findProperty("aws_secret_access_key")
-    // ... rest of the buildscript block ...
+    extra["sonatypeUsername"] = System.getenv("SONATYPE_USERNAME") ?: findProperty("sonatype_username")
+    extra["sonatypePassword"] = System.getenv("SONATYPE_PASSWORD") ?: findProperty("sonatype_password")
 }
 
 plugins {
@@ -17,6 +18,7 @@ plugins {
     kotlin("plugin.serialization") version "1.8.21"
     // Maven publishing
     id("maven-publish")
+    id("signing")
 }
 
 version = "1.1.2"
@@ -83,8 +85,8 @@ android {
             withSourcesJar()
         }
     }
-}
 
+}
 
 publishing {
     publications {
@@ -92,6 +94,30 @@ publishing {
             groupId = "com.superwall.sdk"
             artifactId = "superwall-android"
             version = version
+
+            pom {
+                name.set("Superwall")
+                description.set("Remotely configure paywalls without shipping app updates")
+                url.set("https://superwall.com")
+
+                licenses {
+                    license {
+                        name.set("MIT License")
+                        url.set("https://github.com/superwall/Superwall-Android?tab=MIT-1-ov-file#")
+                    }
+                }
+                developers {
+                    developer {
+                        id.set("yusuftor")
+                        name.set("Yusuf Tor")
+                        email.set("yusuf@superwall.com")
+                    }
+                }
+                scm {
+                    connection.set("scm:git@github.com:superwall/Superwall-Android.git")
+                    url.set("https://github.com/superwall/Superwall-Android.git")
+                }
+            }
 
             afterEvaluate {
                 from(components["release"])
@@ -106,6 +132,8 @@ publishing {
         // but also allow us to publish locally if we don't
         val awsAccessKeyId: String? by extra
         val awsSecretAccessKey: String? by extra
+        val sonatypeUsername: String? by extra
+        val sonatypePassword: String? by extra
         if (awsAccessKeyId != null && awsSecretAccessKey != null) {
             maven {
                 url = uri("s3://mvn.superwall.com/release")
@@ -115,7 +143,21 @@ publishing {
                 }
             }
         }
+
+        if (sonatypeUsername != null && sonatypePassword != null) {
+            maven {
+                url = uri("https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/")
+                credentials(PasswordCredentials::class.java) {
+                    username = sonatypeUsername
+                    password = sonatypePassword
+                }
+            }
+        }
     }
+}
+
+signing {
+    sign(publishing.publications["release"])
 }
 
 tasks.register("generateBuildInfo") {
