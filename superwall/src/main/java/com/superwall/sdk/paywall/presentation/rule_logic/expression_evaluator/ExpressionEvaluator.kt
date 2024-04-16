@@ -35,7 +35,7 @@ class ExpressionEvaluator(
 ): ExpressionEvaluating {
 
     companion object {
-        public var sharedWebView: WebView? = null
+        var sharedWebView: WebView? = null
     }
 
     init {

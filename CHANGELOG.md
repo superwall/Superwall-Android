@@ -2,6 +2,19 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 1.1.2
+
+### Enhancements
+
+- Updates build.gradle configuration which means we can now upload the SDK to maven central. You no 
+longer need to specify our custom repo in your build.gradle to get our SDK and therefore installation 
+should be easier.
+
+### Fixes
+
+- Fixes `ConcurrentModificationException` crash that sometimes happened when identifying a user.
+- Fixes crash on purchasing a free trial when using `getPaywall`.
+
 ## 1.1.1
 
 ### Fixes

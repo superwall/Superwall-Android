@@ -35,7 +35,7 @@ class UITestHandler {
         suspend fun test0() {
             Superwall.instance.identify(userId = "test0")
             Superwall.instance.setUserAttributes(attributes = mapOf("first_name" to "Jack"))
-            Superwall.instance.register(event = "consumable")
+            Superwall.instance.register(event = "present_data")
         }
 
         var test1Info = UITestInfo(
