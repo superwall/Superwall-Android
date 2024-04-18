@@ -6,8 +6,8 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ### Fixes
 
-- Uses `JavascriptSandbox` when available for filter expression evaluation instead of running code 
-on the main thread in a webview.
+- Uses `JavascriptSandbox` when available for filter expression evaluation on a background thread 
+instead of running code on the main thread in a webview.
 
 ## 1.1.2
 
