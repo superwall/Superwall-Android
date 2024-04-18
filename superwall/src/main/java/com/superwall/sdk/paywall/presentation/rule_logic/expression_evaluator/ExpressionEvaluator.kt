@@ -46,8 +46,8 @@ class ExpressionEvaluator(
 
     init {
         if (JavaScriptSandbox.isSupported()) {
-            if (jsSandbox == null) {
-                CoroutineScope(singleThreadContext).launch {
+            CoroutineScope(singleThreadContext).launch {
+                if (jsSandbox == null) {
                     jsSandbox = JavaScriptSandbox.createConnectedInstanceAsync(context).await()
                 }
             }
