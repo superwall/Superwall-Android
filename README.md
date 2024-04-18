@@ -53,8 +53,7 @@
 
 The preferred installation method is with [Gradle](https://superwall.com/docs/installation-via-gradle). This is a tool for automating the distribution of Kotlin/Java code and is integrated into the Android Studio compiler. In Android Studio, do the following:
 
-- Open **settings.gradle**
-- Add `maven { url 'https://mvn.superwall.com/release' }` to your `repositories { ... }`
+- Open **build.gradle**
 - Add `implementation "com.superwall.sdk:superwall-android:<INSERT-LATEST-VERSION>"` [latest version](https://github.com/superwall/Superwall-Android/releases)
 - Make sure you press `Sync Now`
 - Edit your **AndroidManifest.xml** by adding:
@@ -70,8 +69,12 @@ The preferred installation method is with [Gradle](https://superwall.com/docs/in
   <!-- (2) Add these lines -->
   <activity
     android:name="com.superwall.sdk.paywall.vc.SuperwallPaywallActivity"
+    android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar"
     android:configChanges="orientation|screenSize|keyboardHidden">
   </activity>
+  <activity android:name="com.superwall.sdk.debug.DebugViewControllerActivity" />
+  <activity android:name="com.superwall.sdk.debug.localizations.SWLocalizationActivity" />
+  <activity android:name="com.superwall.sdk.debug.SWConsoleActivity" />
 ```
 - Start configuring the SDK 👇 
 

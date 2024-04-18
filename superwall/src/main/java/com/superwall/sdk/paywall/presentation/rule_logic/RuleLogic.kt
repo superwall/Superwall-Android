@@ -73,7 +73,7 @@ class RuleLogic(
         }
     }
 
-    suspend fun findMatchingRule(event: EventData, trigger: Trigger): RuleMatchOutcome {
+    private suspend fun findMatchingRule(event: EventData, trigger: Trigger): RuleMatchOutcome {
         val expressionEvaluator = ExpressionEvaluator(context, storage, factory)
 
         val unmatchedRules = mutableListOf<UnmatchedRule>()

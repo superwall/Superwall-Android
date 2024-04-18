@@ -176,6 +176,8 @@ dependencies {
     implementation("androidx.room:room-runtime:2.5.2")
     implementation("androidx.room:room-ktx:2.5.2")
     kapt("androidx.room:room-compiler:2.5.2")
+    implementation("androidx.javascriptengine:javascriptengine:1.0.0-beta01")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-guava:1.6.0")
 
     implementation("org.threeten:threetenbp:1.6.8")
     // Billing

@@ -2,6 +2,13 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 1.1.3
+
+### Fixes
+
+- Uses `JavascriptSandbox` when available for filter expression evaluation instead of running code 
+on the main thread in a webview.
+
 ## 1.1.2
 
 ### Enhancements
