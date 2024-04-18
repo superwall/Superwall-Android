@@ -138,7 +138,7 @@ class ExpressionEvaluator(
                         )
                     )
                 } else {
-                    val expressionMatched = result == "true"
+                    val expressionMatched = result.replace("\"", "") == "true"
 
                     CoroutineScope(Dispatchers.IO).launch {
                         val ruleMatched = tryToMatchOccurrence(rule, expressionMatched)
