@@ -5,6 +5,7 @@ import android.webkit.ConsoleMessage
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebView
+import androidx.javascriptengine.JavaScriptSandbox
 import com.superwall.sdk.dependencies.RuleAttributesFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
@@ -18,7 +19,10 @@ import com.superwall.sdk.storage.Storage
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.newSingleThreadContext
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
 interface ExpressionEvaluating {
@@ -33,23 +37,37 @@ class ExpressionEvaluator(
     private val storage: Storage,
     private val factory: RuleAttributesFactory
 ): ExpressionEvaluating {
+    private val singleThreadContext = newSingleThreadContext(name = "ExpressionEvaluator")
 
     companion object {
-        var sharedWebView: WebView? = null
+        private var jsSandbox: JavaScriptSandbox? = null
+        private var sharedWebView: WebView? = null
     }
 
     init {
-        val webviewExists = WebView.getCurrentWebViewPackage() != null
-        if (webviewExists) {
-            // Setup the sharedWebView if it's not already setup
-            if (sharedWebView == null) {
-                runOnUiThread {
-                    sharedWebView = WebView(context)
-                    sharedWebView!!.settings.javaScriptEnabled = true
-                    sharedWebView!!.webChromeClient = object : WebChromeClient() {
-                        override fun onConsoleMessage(consoleMessage: ConsoleMessage): Boolean {
-                            println("!!JS Console: ${consoleMessage.message()}")
-                            return true
+        if (JavaScriptSandbox.isSupported()) {
+            CoroutineScope(singleThreadContext).launch {
+                if (jsSandbox == null) {
+                    jsSandbox = JavaScriptSandbox.createConnectedInstanceAsync(context).await()
+                }
+            }
+        } else {
+            Logger.debug(
+                logLevel = LogLevel.debug,
+                scope = LogScope.superwallCore,
+                message = "Javascript sandbox is not supported for expression evaluation. Falling back to webview."
+            )
+            val webviewExists = WebView.getCurrentWebViewPackage() != null
+            if (webviewExists) {
+                if (sharedWebView == null) {
+                    runOnUiThread {
+                        sharedWebView = WebView(context)
+                        sharedWebView!!.settings.javaScriptEnabled = true
+                        sharedWebView!!.webChromeClient = object : WebChromeClient() {
+                            override fun onConsoleMessage(consoleMessage: ConsoleMessage): Boolean {
+                                println("!!JS Console: ${consoleMessage.message()}")
+                                return true
+                            }
                         }
                     }
                 }
@@ -68,24 +86,66 @@ class ExpressionEvaluator(
 
         val base64Params = getBase64Params(rule, eventData) ?: return TriggerRuleOutcome.noMatch(UnmatchedRule.Source.EXPRESSION, rule.experiment.id)
 
-        var deferred: CompletableDeferred<TriggerRuleOutcome> = CompletableDeferred()
+        return if (jsSandbox != null) {
+            evaluateUsingJSSandbox(
+                base64Params = base64Params,
+                rule = rule
+            )
+        } else if (sharedWebView != null) {
+            evaluateUsingWebview(
+                base64Params = base64Params,
+                rule = rule
+            )
+        } else {
+            return TriggerRuleOutcome.noMatch(UnmatchedRule.Source.EXPRESSION, rule.experiment.id)
+        }
+    }
+
+    private suspend fun evaluateUsingJSSandbox(
+        base64Params: String,
+        rule: TriggerRule
+    ): TriggerRuleOutcome = withContext(singleThreadContext) {
+        val jsIsolate = jsSandbox?.createIsolate()
+
+        val resultFuture = jsIsolate?.evaluateJavaScriptAsync("$SDKJS\n $base64Params")
+        val result = resultFuture?.await()
+        jsIsolate?.close()
+
+        if (result.isNullOrEmpty()) {
+            return@withContext TriggerRuleOutcome.noMatch(UnmatchedRule.Source.EXPRESSION, rule.experiment.id)
+        } else {
+            val expressionMatched = result == "true"
+            return@withContext tryToMatchOccurrence(rule, expressionMatched)
+        }
+    }
+
+    private suspend fun evaluateUsingWebview(
+        base64Params: String,
+        rule: TriggerRule
+    ): TriggerRuleOutcome {
+        val deferred: CompletableDeferred<TriggerRuleOutcome> = CompletableDeferred()
         runOnUiThread {
             sharedWebView!!.evaluateJavascript(
-                SDKJS + "\n " + base64Params,
-                ValueCallback<String?> { result ->
-                    println("!! evaluateJavascript result: $result")
+                "$SDKJS\n $base64Params"
+            ) { result ->
+                println("!! evaluateJavascript result: $result")
 
-                    if (result == null) {
-                        deferred.complete(TriggerRuleOutcome.noMatch(UnmatchedRule.Source.EXPRESSION, rule.experiment.id))
-                    } else {
-                        val expressionMatched = result == "true"
+                if (result == null) {
+                    deferred.complete(
+                        TriggerRuleOutcome.noMatch(
+                            UnmatchedRule.Source.EXPRESSION,
+                            rule.experiment.id
+                        )
+                    )
+                } else {
+                    val expressionMatched = result.replace("\"", "") == "true"
 
-                        CoroutineScope(Dispatchers.IO).launch {
-                            val ruleMatched = tryToMatchOccurrence(rule, expressionMatched)
-                            deferred.complete(ruleMatched)
-                        }
+                    CoroutineScope(Dispatchers.IO).launch {
+                        val ruleMatched = tryToMatchOccurrence(rule, expressionMatched)
+                        deferred.complete(ruleMatched)
                     }
-                })
+                }
+            }
         }
 
         return deferred.await()
