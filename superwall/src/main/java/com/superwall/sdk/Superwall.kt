@@ -24,6 +24,7 @@ import com.superwall.sdk.paywall.presentation.internal.dismiss
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.vc.PaywallViewController
 import com.superwall.sdk.paywall.vc.SuperwallPaywallActivity
+import com.superwall.sdk.paywall.vc.ViewStorage
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerEventDelegate
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.*
@@ -359,6 +360,7 @@ class Superwall(
         dependencyContainer.identityManager.reset(duringIdentify)
         dependencyContainer.storage.reset()
         dependencyContainer.paywallManager.resetCache()
+        ViewStorage.reset()
         presentationItems.reset()
         dependencyContainer.configManager.reset()
     }

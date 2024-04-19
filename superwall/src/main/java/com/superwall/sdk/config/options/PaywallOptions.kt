@@ -8,6 +8,12 @@ class PaywallOptions {
     // from the paywall, or closes the paywall.
     var isHapticFeedbackEnabled: Boolean = true
 
+    /**
+     * Set this to `false` if you're providing your own window settings to the Paywall's activity
+     * via a theme.
+     */
+    var useSuperwallWindowSettings = true
+
     // Defines the messaging of the alert presented to the user when restoring a transaction fails.
     class RestoreFailed {
         // The title of the alert presented to the user when restoring a transaction fails. Defaults to

@@ -808,26 +808,28 @@ class SuperwallPaywallActivity : AppCompatActivity() {
 
         AppCompatDelegate.setCompatVectorFromResourcesEnabled(true)
 
-        // Show content behind the status bar
-        window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
-                View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-        window.statusBarColor = Color.TRANSPARENT
-        window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS)
-        window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
+        if (Superwall.instance.options.paywalls.useSuperwallWindowSettings) {
+            // Show content behind the status bar
+            window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+            window.statusBarColor = Color.TRANSPARENT
+            window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS)
+            window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            val isLightBackground = intent.getBooleanExtra(IS_LIGHT_BACKGROUND_KEY, false)
-            if (isLightBackground) {
-                window.insetsController?.let {
-                    it.setSystemBarsAppearance(
-                        WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
-                        WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
-                    )
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                val isLightBackground = intent.getBooleanExtra(IS_LIGHT_BACKGROUND_KEY, false)
+                if (isLightBackground) {
+                    window.insetsController?.let {
+                        it.setSystemBarsAppearance(
+                            WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
+                            WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+                        )
+                    }
                 }
             }
-        }
 
-        requestWindowFeature(Window.FEATURE_NO_TITLE)
+            requestWindowFeature(Window.FEATURE_NO_TITLE)
+        }
 
         val key = intent.getStringExtra(VIEW_KEY)
         if (key == null) {
@@ -1029,6 +1031,10 @@ object ViewStorage {
     }
 
     fun retrieveView(key: String): View? {
-        return views.remove(key)
+        return views[key]
+    }
+
+    fun reset() {
+        views.clear()
     }
 }
