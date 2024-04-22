@@ -32,7 +32,7 @@ The [MainActivity.kt](app/src/main/java/com/superwall/exampleapp/MainActivity.kt
 Build and run the app and you'll see the welcome screen:
 
 <p align="center">
-  <img src="https://user-images.githubusercontent.com/3296904/161958142-c2f195b9-bd43-4f4e-9521-87c6fe4238ec.png" alt="The welcome screen" width="220px" />
+  <img src="https://github.com/superwall/Superwall-Android/assets/3296904/326eb90a-1d7d-4a8c-9f27-055cdf57afd2" alt="The welcome screen" width="220px" />
 </p>
 
 Superwall is [configured](app/src/main/java/com/superwall/exampleapp/MainActivity.kt#L54) on app launch, setting an `apiKey`.
@@ -46,7 +46,7 @@ Tap **Log In**. This identifies the user (with a hardcoded userId that we've set
 You'll see the home screen:
 
 <p align="center">
-  <img src="https://user-images.githubusercontent.com/3296904/161960829-dfdc1319-571a-4784-b18f-bbb8c07f5a65.png" alt="The overview screen" width="220px" />
+  <img src="https://github.com/superwall/Superwall-Android/assets/3296904/5ccbaa06-9b5d-413c-8f28-d8e9957e1622" alt="The overview screen" width="220px" />
 </p>
 
 ## Presenting a Paywall
@@ -61,13 +61,7 @@ When an event is registered, Superwall evaluates the rules associated with it to
 
 By calling [Superwall.shared.register(event:params:handler:feature:)](app/src/main/java/com/superwall/exampleapp/HomeActivity.kt#L150), you present a paywall in response to the event `campaign_trigger`.
 
-On screen you'll see some explanatory text and a button to launch a feature that is behind a paywall:
-
-<p align="center">
-  <img src="https://user-images.githubusercontent.com/3296904/161961942-2b7ccf40-83d1-47c5-8f49-6fb409b17491.png" alt="Presenting a paywall" width="220px" />
-</p>
-
-Tap the **Launch Feature** button and you'll see the paywall. If the event is disabled on the dashboard, the paywall wouldn't show and the feature would fire immediately. In this case, the feature is just an alert.
+On screen you'll see some explanatory text and a button to launch a feature that is behind a paywall. Tap the **Launch Feature** button and you'll see the paywall. If the event is disabled on the dashboard, the paywall wouldn't show and the feature would fire immediately. In this case, the feature is just an alert.
 
 ## Purchasing a subscription
 
