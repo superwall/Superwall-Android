@@ -423,7 +423,8 @@ class DeviceHelper(
             sdkVersion = sdkVersion,
             sdkVersionPadded = sdkVersionPadded,
             appBuildString = appBuildString,
-            appBuildStringNumber = appBuildString.toInt()
+            appBuildStringNumber = appBuildString.toInt(),
+            interfaceStyleMode = if (interfaceStyleOverride == null) "automatic" else "manual"
         )
 
         return deviceTemplate.toDictionary()
