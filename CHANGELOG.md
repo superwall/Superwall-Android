@@ -8,6 +8,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 - Tracks an `identity_alias` event whenever identify is called to alias Superwall's anonymous ID with a
 developer provided id.
+- Adds `setInterfaceStyle(interfaceStyle:)` which can be used to override the system interface style.
 
 ### Fixes
 

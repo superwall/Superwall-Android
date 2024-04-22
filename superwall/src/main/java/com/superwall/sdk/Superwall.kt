@@ -17,6 +17,7 @@ import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.ActivityProvider
 import com.superwall.sdk.misc.SerialTaskManager
+import com.superwall.sdk.network.device.InterfaceStyle
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.PresentationItems
@@ -334,6 +335,14 @@ class Superwall(
      */
     fun setPlatformWrapper(wrapper: String) {
         dependencyContainer.deviceHelper.platformWrapper = wrapper
+    }
+
+    /**
+     * Sets the user interface style, which overrides the system setting. Set to `null` to revert
+     * back to using the system setting.
+     */
+    fun setInterfaceStyle(interfaceStyle: InterfaceStyle?) {
+        dependencyContainer.deviceHelper.interfaceStyleOverride = interfaceStyle
     }
 
     /**
