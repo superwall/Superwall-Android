@@ -4,6 +4,11 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## 1.1.3
 
+### Enhancements
+
+- Tracks an `identity_alias` event whenever identify is called to alias Superwall's anonymous ID with a
+developer provided id.
+
 ### Fixes
 
 - Uses `JavascriptSandbox` when available for filter expression evaluation on a background thread 

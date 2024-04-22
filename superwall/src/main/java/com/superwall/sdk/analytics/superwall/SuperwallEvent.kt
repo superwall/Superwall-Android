@@ -40,6 +40,12 @@ sealed class SuperwallEvent {
             get() = "app_launch"
     }
 
+    /// When the user's identity aliases after calling identify
+    class IdentityAlias() : SuperwallEvent() {
+        override val rawName: String
+            get() = "identity_alias"
+    }
+
     /// When the SDK is configured for the first time, or directly after calling ``Superwall/reset()``.
     ///
     /// The raw value of this event can be added to a campaign to trigger a paywall.
