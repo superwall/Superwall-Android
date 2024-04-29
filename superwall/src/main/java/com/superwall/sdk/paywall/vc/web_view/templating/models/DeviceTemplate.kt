@@ -47,7 +47,8 @@ data class DeviceTemplate(
     val sdkVersion: String,
     val sdkVersionPadded: String,
     val appBuildString: String,
-    val appBuildStringNumber: Int?
+    val appBuildStringNumber: Int?,
+    val interfaceStyleMode: String
 ) {
     fun toDictionary(): Map<String, Any> {
         val json = Json { encodeDefaults = true }

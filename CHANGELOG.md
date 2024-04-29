@@ -2,6 +2,23 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 1.1.3
+
+### Enhancements
+
+- Tracks an `identity_alias` event whenever identify is called to alias Superwall's anonymous ID with a
+developer provided id.
+- Adds `setInterfaceStyle(interfaceStyle:)` which can be used to override the system interface style.
+- Adds `device.interfaceStyleMode` to the device template, which can be `automatic` or `manual` if 
+overriding the interface style.
+
+### Fixes
+
+- Uses `JavascriptSandbox` when available for filter expression evaluation on a background thread 
+instead of running code on the main thread in a webview.
+- Fixes crash where the loading spinner inside the `PaywallViewController` was being updated outside
+  the main thread.
+
 ## 1.1.2
 
 ### Enhancements

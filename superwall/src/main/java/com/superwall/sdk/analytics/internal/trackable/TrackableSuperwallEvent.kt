@@ -121,6 +121,12 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
         }
     }
 
+    class IdentityAlias(
+        override var customParameters: HashMap<String, Any> = HashMap()
+    ) : InternalSuperwallEvent(SuperwallEvent.IdentityAlias()) {
+        override suspend fun getSuperwallParameters(): HashMap<String, Any> = HashMap()
+    }
+
     class DeepLink(
         val uri: Uri,
         override var customParameters: HashMap<String, Any> = extractQueryParameters(uri)

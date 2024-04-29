@@ -158,6 +158,11 @@ class IdentityManager(
 
                 saveIds()
 
+                CoroutineScope(Dispatchers.IO).launch {
+                    val trackableEvent = InternalSuperwallEvent.IdentityAlias()
+                    Superwall.instance.track(trackableEvent)
+                }
+
                 if (options?.restorePaywallAssignments == true) {
                     identityJobs += CoroutineScope(Dispatchers.IO).launch {
                         configManager.getAssignments()

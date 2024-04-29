@@ -2441,7 +2441,7 @@ var SuperwallSDKJS
       evaluate64 = function (e) {
         var t = js_base64__WEBPACK_IMPORTED_MODULE_1__.Jx(e),
           r = JSON.parse(t)
-        return evaluate(r)
+        return evaluate(r).toString()
       },
       evaluate = function (e) {
         var t = e.expression,
@@ -2462,7 +2462,7 @@ var SuperwallSDKJS
       evaluateJS64 = function (e) {
         var t = js_base64__WEBPACK_IMPORTED_MODULE_1__.Jx(e),
           r = JSON.parse(t)
-        return evaluateJS(r)
+        return evaluateJS(r).toString()
       }
   })(),
     (SuperwallSDKJS = __webpack_exports__)

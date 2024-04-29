@@ -27,6 +27,11 @@ import com.superwall.sdk.storage.LastPaywallView
 import com.superwall.sdk.storage.TotalPaywallViews
 import java.time.Duration
 
+enum class InterfaceStyle(val rawValue: String) {
+    LIGHT("Light"),
+    DARK("Dark");
+}
+
 class DeviceHelper(
     private val context: Context,
     val storage: Storage,
@@ -189,18 +194,21 @@ class DeviceHelper(
             return formatter.format(installDate)
         }
 
+    var interfaceStyleOverride: InterfaceStyle? = null
 
     val interfaceStyle: String
         get() {
-            val style = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
-            } else {
-                Configuration.UI_MODE_NIGHT_UNDEFINED
-            }
-            return when (style) {
-                Configuration.UI_MODE_NIGHT_NO -> "Light"
-                Configuration.UI_MODE_NIGHT_YES -> "Dark"
-                else -> "Unspecified"
+            return interfaceStyleOverride?.rawValue ?: run {
+                val style = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+                } else {
+                    Configuration.UI_MODE_NIGHT_UNDEFINED
+                }
+                return when (style) {
+                    Configuration.UI_MODE_NIGHT_NO -> "Light"
+                    Configuration.UI_MODE_NIGHT_YES -> "Dark"
+                    else -> "Unspecified"
+                }
             }
         }
 
@@ -415,7 +423,8 @@ class DeviceHelper(
             sdkVersion = sdkVersion,
             sdkVersionPadded = sdkVersionPadded,
             appBuildString = appBuildString,
-            appBuildStringNumber = appBuildString.toInt()
+            appBuildStringNumber = appBuildString.toInt(),
+            interfaceStyleMode = if (interfaceStyleOverride == null) "automatic" else "manual"
         )
 
         return deviceTemplate.toDictionary()
