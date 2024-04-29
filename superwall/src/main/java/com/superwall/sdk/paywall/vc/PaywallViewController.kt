@@ -526,20 +526,28 @@ class PaywallViewController(
         if (transactionBackgroundView != PaywallOptions.TransactionBackgroundView.SPINNER) {
             return
         }
-        loadingViewController.visibility = View.VISIBLE
+        CoroutineScope(Dispatchers.Main).launch {
+            loadingViewController.visibility = View.VISIBLE
+        }
     }
 
     private fun hideLoadingView() {
-        loadingViewController.visibility = View.GONE
+        CoroutineScope(Dispatchers.Main).launch {
+            loadingViewController.visibility = View.GONE
+        }
     }
 
     private fun showShimmerView() {
-        shimmerView.visibility = View.VISIBLE
+        CoroutineScope(Dispatchers.Main).launch {
+            shimmerView.visibility = View.VISIBLE
+        }
         // TODO: Start shimmer animation if needed
     }
 
     private fun hideShimmerView() {
-        shimmerView.visibility = View.GONE
+        CoroutineScope(Dispatchers.Main).launch {
+            shimmerView.visibility = View.GONE
+        }
         // TODO: Stop shimmer animation if needed
     }
 
@@ -908,7 +916,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
 
         val paywallVc = contentView as? PaywallViewController ?: return
 
-        CoroutineScope(Dispatchers.IO).launch {
+        CoroutineScope(Dispatchers.Main).launch {
             paywallVc.viewWillDisappear()
         }
     }
@@ -918,7 +926,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
 
         val paywallVc = contentView as? PaywallViewController ?: return
 
-        CoroutineScope(Dispatchers.IO).launch {
+        CoroutineScope(Dispatchers.Main).launch {
             paywallVc.viewDidDisappear()
         }
     }

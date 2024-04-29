@@ -16,6 +16,8 @@ overriding the interface style.
 
 - Uses `JavascriptSandbox` when available for filter expression evaluation on a background thread 
 instead of running code on the main thread in a webview.
+- Fixes crash where the loading spinner inside the `PaywallViewController` was being updated outside
+  the main thread.
 
 ## 1.1.2
 
