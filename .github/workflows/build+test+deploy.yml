@@ -66,6 +66,7 @@ jobs:
 
     - name: Configure GPG Key
       run: |
+        export GPG_TTY=$(tty)
         echo $GPG_SIGNING_KEY | base64 --decode | gpg --import --passphrase $GPG_SIGNING_KEY_PASSPHRASE
       env:
         GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
