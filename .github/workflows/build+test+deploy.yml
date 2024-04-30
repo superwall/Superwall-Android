@@ -64,27 +64,12 @@ jobs:
         EXISTS=$(git tag -l | grep -Fxq "${{steps.version.outputs.prop}}" && echo 'true' || echo 'false')
         echo "::set-output name=tag-exists::$EXISTS"
 
-    - name: Tag
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-      run: |
-        if [ "${{ steps.check-tag.outputs.tag-exists }}" == "false" ]; then
-          sudo git config --global user.name 'Jake'
-          sudo git config --global user.email 'jakemor@users.noreply.github.com'
-          sudo git pull
-          echo "\n\n\n- - - - - VERSION - - - - -\n\n\n"
-          echo ${{steps.version.outputs.prop}}
-          echo "\n\n\n- - - - - END VERSION - - - - -\n\n\n"
-          sudo git tag -a ${{steps.version.outputs.prop}} -m "tags with latest version"
-          sudo git push --tags
-          sudo git checkout -b release/${{steps.version.outputs.prop}}
-          sudo git push -u origin release/${{steps.version.outputs.prop}}
-        fi
-
     - name: Configure GPG Key
       run: |
-        echo $GPG_SIGNING_KEY | base64 --decode | gpg --import
+        echo $GPG_SIGNING_KEY | base64 --decode | gpg --import --passphrase $GPG_SIGNING_KEY_PASSPHRASE
       env:
         GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
+        GPG_SIGNING_KEY_PASSPHRASE: ${{ secrets.GPG_SIGNING_KEY_PASSPHRASE }}
 
     - name: Deploy
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -106,6 +91,22 @@ jobs:
           echo "::set-output name=status::true"
         else
           echo "::set-output name=status::false"
+        fi
+
+    - name: Tag
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      run: |
+        if [ "${{ steps.check-tag.outputs.tag-exists }}" == "false" ]; then
+          sudo git config --global user.name 'Jake'
+          sudo git config --global user.email 'jakemor@users.noreply.github.com'
+          sudo git pull
+          echo "\n\n\n- - - - - VERSION - - - - -\n\n\n"
+          echo ${{steps.version.outputs.prop}}
+          echo "\n\n\n- - - - - END VERSION - - - - -\n\n\n"
+          sudo git tag -a ${{steps.version.outputs.prop}} -m "tags with latest version"
+          sudo git push --tags
+          sudo git checkout -b release/${{steps.version.outputs.prop}}
+          sudo git push -u origin release/${{steps.version.outputs.prop}}
         fi
 
     - name: slack-send
