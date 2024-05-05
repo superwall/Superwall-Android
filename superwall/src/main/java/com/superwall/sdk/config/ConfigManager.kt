@@ -2,7 +2,6 @@ package com.superwall.sdk.config
 
 import android.content.Context
 import android.webkit.WebView
-import com.superwall.sdk.billing.GoogleBillingWrapper
 import com.superwall.sdk.config.models.ConfigState
 import com.superwall.sdk.config.models.getConfig
 import com.superwall.sdk.config.options.SuperwallOptions
@@ -17,6 +16,8 @@ import com.superwall.sdk.misc.awaitFirstValidConfig
 import com.superwall.sdk.models.assignment.AssignmentPostback
 import com.superwall.sdk.models.assignment.ConfirmableAssignment
 import com.superwall.sdk.models.config.Config
+import com.superwall.sdk.models.config.WebArchiveManifest
+import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.models.triggers.Trigger
@@ -27,6 +28,7 @@ import com.superwall.sdk.paywall.request.ResponseIdentifiers
 import com.superwall.sdk.storage.DisableVerboseEvents
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.StoreKitManager
+import com.superwall.sdk.webarchive.archive.WebArchiveLibrary
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -34,7 +36,10 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
 
 // TODO: Re-enable those params
@@ -45,9 +50,11 @@ open class ConfigManager(
     private val network: Network,
     options: SuperwallOptions? = null,
     private val paywallManager: PaywallManager,
+    private val webArchiveLibrary: WebArchiveLibrary,
     private val factory: Factory
 ) {
-    interface Factory: RequestFactory, DeviceInfoFactory, RuleAttributesFactory {}
+    interface Factory : RequestFactory, DeviceInfoFactory, RuleAttributesFactory {}
+
     var options = SuperwallOptions()
 
     // The configuration of the Superwall dashboard
@@ -127,7 +134,17 @@ open class ConfigManager(
 
             // TODO: Re-enable those params
 //                storeKitManager.loadPurchasedProducts()
-            CoroutineScope(Dispatchers.IO).launch { preloadPaywalls() }
+            with(CoroutineScope(Dispatchers.IO)) {
+                launch {
+                    cachePaywallsFromManifest(config.paywalls)
+                }
+                launch {
+                    //Preload paywalls that do not need to be archived
+                    preloadPaywalls(excludeIds = config.paywalls.filter {
+                        it.manifest != null && it.manifest.use != WebArchiveManifest.Usage.NEVER
+                    }.map { it.identifier })
+                }
+            }
         } catch (e: Throwable) {
             configState.emit(Result.Failure(e))
             Logger.debug(
@@ -223,17 +240,28 @@ open class ConfigManager(
     }
 
 
+    private suspend fun cachePaywallsFromManifest(paywalls: List<Paywall>) {
+        paywalls
+            .filter {
+                it.manifest != null
+            }
+            .forEach {
+                webArchiveLibrary.downloadManifest(it.identifier, it.url.toString(), it.manifest!!)
+            }
+    }
+
     // Preloads paywalls.
-    private suspend fun preloadPaywalls() {
+    private suspend fun preloadPaywalls(excludeIds: List<String> = emptyList()) {
         if (!options.paywalls.shouldPreload) return
-        preloadAllPaywalls()
+        preloadAllPaywalls(excludeIds)
     }
 
     // Preloads paywalls referenced by triggers.
-    suspend fun preloadAllPaywalls() {
+    suspend fun preloadAllPaywalls(excludeIds: List<String> = emptyList()) {
         if (currentPreloadingTask != null) {
             return
         }
+
         currentPreloadingTask = CoroutineScope(Dispatchers.IO).launch {
             val config = configState.awaitFirstValidConfig() ?: return@launch
 
@@ -253,7 +281,8 @@ open class ConfigManager(
                 unconfirmedAssignments = unconfirmedAssignments,
                 expressionEvaluator = expressionEvaluator
             )
-            preloadPaywalls(paywallIdentifiers = paywallIds)
+            preloadPaywallsWithIds(paywallIdentifiers = paywallIds.filterNot { excludeIds.contains(it) }
+                .toSet())
 
             currentPreloadingTask = null
         }
@@ -264,11 +293,11 @@ open class ConfigManager(
         val config = configState.awaitFirstValidConfig() ?: return
         val triggersToPreload = config.triggers.filter { eventNames.contains(it.eventName) }
         val triggerPaywallIdentifiers = getTreatmentPaywallIds(triggersToPreload.toSet())
-        preloadPaywalls(triggerPaywallIdentifiers)
+        preloadPaywallsWithIds(triggerPaywallIdentifiers)
     }
 
     // Preloads paywalls referenced by triggers.
-    private suspend fun preloadPaywalls(paywallIdentifiers: Set<String>) {
+    private suspend fun preloadPaywallsWithIds(paywallIdentifiers: Set<String>) {
         val webviewExists = WebView.getCurrentWebViewPackage() != null
         if (webviewExists) {
             coroutineScope {

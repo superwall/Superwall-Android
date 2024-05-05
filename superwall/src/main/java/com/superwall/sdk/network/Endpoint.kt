@@ -12,6 +12,7 @@ import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.Paywalls
 import com.superwall.sdk.models.postback.PostBackResponse
 import com.superwall.sdk.models.postback.Postback
+import com.superwall.sdk.models.serialization.StringSerializableEntity
 import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -283,6 +284,20 @@ data class Endpoint<Response : SerializableEntity>(
                 factory = factory
             )
         }
+
+        fun fetchRemoteFile(
+            url: URL,
+            factory: ApiFactory): Endpoint<StringSerializableEntity> {
+            return Endpoint(
+                components = Components(
+                    host = url.host, path = url.path
+                ),
+                method = HttpMethod.GET,
+                isForDebugging = true,
+                factory = factory
+            )
+        }
+
 //
 //        private fun paywallByIdentifier(
 //            identifier: String,

@@ -23,7 +23,7 @@ open class Storage(
     private val cache: Cache = Cache(context = context),
     /// The interface that manages core data.
     val coreDataManager: CoreDataManager = CoreDataManager(context = context)
-) {
+) : ReadWriteStorage {
     interface Factory: DeviceHelperFactory, HasExternalPurchaseControllerFactory {}
 
     /// The API key, set on configure.
@@ -194,12 +194,20 @@ open class Storage(
 
     //region Cache Reading & Writing
 
-    fun <T> get(storable: Storable<T>): T? {
+    override fun <T> get(storable: Storable<T>): T? {
         return cache.read(storable)
     }
 
-    fun <T: Any> save(data: T, storable: Storable<T>) {
+    override fun <T: Any> save(data: T, storable: Storable<T>) {
         cache.write(storable, data = data)
+    }
+
+    override fun writeFile(storable: Storable<*>, data: String) {
+        cache.writeFile(storable, data)
+    }
+
+    override fun readFile(storable: Storable<*>): String? {
+        return cache.readFile(storable)
     }
 
     //endregion

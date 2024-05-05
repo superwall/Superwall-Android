@@ -47,6 +47,7 @@ import com.superwall.sdk.misc.AlertControllerFactory
 import com.superwall.sdk.misc.isDarkColor
 import com.superwall.sdk.misc.isLightColor
 import com.superwall.sdk.misc.readableOverlayColor
+import com.superwall.sdk.models.config.WebArchiveManifest
 import com.superwall.sdk.models.paywall.LocalNotification
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.PaywallPresentationStyle
@@ -75,13 +76,16 @@ import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallMessageHandlerDele
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.transactions.notifications.NotificationScheduler
+import com.superwall.sdk.webarchive.archive.WebArchiveLibrary
+import com.superwall.sdk.webarchive.models.DecompressedWebArchive
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import java.net.MalformedURLException
 import java.net.URL
-import java.util.*
+import java.util.Date
+import java.util.UUID
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
@@ -97,9 +101,11 @@ class PaywallViewController(
     val paywallManager: PaywallManager,
     override val webView: SWWebView,
     val cache: PaywallViewControllerCache?,
-    private val loadingViewController: LoadingViewController = LoadingViewController(context)
-) : FrameLayout(context), PaywallMessageHandlerDelegate, SWWebViewDelegate, ActivityEncapsulatable, GameControllerDelegate {
-    interface Factory: TriggerSessionManagerFactory, TriggerFactory {}
+    private val loadingViewController: LoadingViewController = LoadingViewController(context),
+    private val webArchiveLibrary: WebArchiveLibrary,
+) : FrameLayout(context), PaywallMessageHandlerDelegate, SWWebViewDelegate, ActivityEncapsulatable,
+    GameControllerDelegate {
+    interface Factory : TriggerSessionManagerFactory, TriggerFactory {}
     //region Public properties
 
     // MUST be set prior to presentation
@@ -425,7 +431,7 @@ class PaywallViewController(
         super.onAttachedToWindow()
 
         // Assert if no `request`
-       // fatalAssert(request != null, "Must be presenting a PaywallViewController with a `request` instance.")
+         // fatalAssert(request != null, "Must be presenting a PaywallViewController with a `request` instance.")
 
         if (loadingState is PaywallLoadingState.Unknown) {
             loadWebView()
@@ -485,7 +491,7 @@ class PaywallViewController(
         val triggerSessionManager = factory.getTriggerSessionManager()
 
         val trackedEvent = InternalSuperwallEvent.PaywallClose(
-            info ,
+            info,
             surveyPresentationResult
         )
         Superwall.instance.track(trackedEvent)
@@ -658,12 +664,13 @@ class PaywallViewController(
     }
 
     fun loadWebView() {
+        val ioScope = CoroutineScope(Dispatchers.IO)
         val url = paywall.url
         if (paywall.webviewLoadingInfo.startAt == null) {
             paywall.webviewLoadingInfo.startAt = Date()
         }
 
-        CoroutineScope(Dispatchers.IO).launch {
+        ioScope.launch {
             val trackedEvent = InternalSuperwallEvent.PaywallWebviewLoad(
                 state = InternalSuperwallEvent.PaywallWebviewLoad.State.Start(),
                 paywallInfo = this@PaywallViewController.info
@@ -677,9 +684,65 @@ class PaywallViewController(
             webView.settings.cacheMode = WebSettings.LOAD_DEFAULT
         }
 
-        webView.loadUrl(url.toString())
+        ioScope.launch {
+            // Load paywall in the webview
+            loadPaywall(paywall = paywall)
+        }
 
         loadingState = PaywallLoadingState.LoadingURL()
+    }
+
+
+    /* Loads either the paywall itself or the archive, depending on the manifest
+     ALWAYS - Load the archive and await for it to download
+     IF_AVAILABLE_ON_PAYWALL_OPEN - Load the archive if available immediately, otherwise fallback to URL
+     NEVER -> Skip loading the archive
+     */
+    private suspend fun loadPaywall(
+        paywall: Paywall,
+    ) {
+        val mainScope = CoroutineScope(Dispatchers.Main)
+
+        fun loadUrl(url: URL) {
+            mainScope.launch {
+                webView.loadUrl(url.toString())
+            }
+        }
+
+        fun loadFromArchive(archive: Result<DecompressedWebArchive>) {
+            archive.fold(onSuccess = {
+                mainScope.launch {
+                    webView.loadFromArchive(it)
+                }
+            }, onFailure = {
+                loadUrl(paywall.url)
+                Logger.debug(
+                    logLevel = LogLevel.error,
+                    scope = LogScope.paywallViewController,
+                    message = "Failed to load archive: ${it.localizedMessage}",
+                    error = it
+                )
+            })
+        }
+
+        val archiveUsage = paywall.manifest?.use
+        val paywallId = paywall.identifier
+        when {
+            archiveUsage == WebArchiveManifest.Usage.IF_AVAILABLE_ON_PAYWALL_OPEN
+                    && webArchiveLibrary.checkIfArchived(paywallId) -> {
+                val archive = webArchiveLibrary.loadArchive(paywallId)
+                loadFromArchive(archive)
+            }
+
+            archiveUsage == WebArchiveManifest.Usage.ALWAYS -> {
+                val archive = webArchiveLibrary.loadArchive(paywallId)
+                loadFromArchive(archive)
+            }
+
+            else -> {
+                loadUrl(paywall.url)
+            }
+        }
     }
 
     //endregion
@@ -864,7 +927,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
 
         try {
             supportActionBar?.hide()
-        } catch(e: Throwable) {}
+        } catch (e: Throwable) {}
 
         // TODO: handle animation and style from `presentationStyleOverride`
         when (intent.getSerializableExtra(PRESENTATION_STYLE_KEY) as? PaywallPresentationStyle) {
@@ -996,7 +1059,8 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 if (!ActivityCompat.shouldShowRequestPermissionRationale(context as Activity, Manifest.permission.POST_NOTIFICATIONS)) {
                     // First time asking or user previously denied without 'Don't ask again'
-                    ActivityCompat.requestPermissions(context, arrayOf(Manifest.permission.POST_NOTIFICATIONS), REQUEST_CODE_NOTIFICATION_PERMISSION)
+                    ActivityCompat.requestPermissions(context, arrayOf(Manifest.permission.POST_NOTIFICATIONS), REQUEST_CODE_NOTIFICATION_PERMISSION
+                    )
                 } else {
                     // Permission previously denied with 'Don't ask again'
                     callback.onPermissionResult(false)
@@ -1018,7 +1082,11 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         return NotificationManagerCompat.from(context).areNotificationsEnabled()
     }
 
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<String>,
+        grantResults: IntArray
+    ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == REQUEST_CODE_NOTIFICATION_PERMISSION && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val isGranted = grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED

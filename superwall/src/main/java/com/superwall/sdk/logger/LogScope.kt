@@ -23,6 +23,7 @@ enum class LogScope {
     paywallViewController,
     nativePurchaseController,
     cache,
+    webarchive,
     all;
 
     override fun toString(): String {
