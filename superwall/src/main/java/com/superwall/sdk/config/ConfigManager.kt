@@ -2,7 +2,6 @@ package com.superwall.sdk.config
 
 import android.content.Context
 import android.webkit.WebView
-import com.superwall.sdk.billing.GoogleBillingWrapper
 import com.superwall.sdk.config.models.ConfigState
 import com.superwall.sdk.config.models.getConfig
 import com.superwall.sdk.config.options.SuperwallOptions
@@ -34,7 +33,10 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
 
 // TODO: Re-enable those params
@@ -47,7 +49,8 @@ open class ConfigManager(
     private val paywallManager: PaywallManager,
     private val factory: Factory
 ) {
-    interface Factory: RequestFactory, DeviceInfoFactory, RuleAttributesFactory {}
+    interface Factory : RequestFactory, DeviceInfoFactory, RuleAttributesFactory {}
+
     var options = SuperwallOptions()
 
     // The configuration of the Superwall dashboard
@@ -289,15 +292,19 @@ open class ConfigManager(
                             presentationSourceType = null,
                             retryCount = 6
                         )
-                        try {
-                            paywallManager.getPaywallViewController(
-                                request = request,
-                                isForPresentation = true,
-                                isPreloading = true,
-                                delegate = null
-                            )
-                        } catch (e: Exception) {
-                            // Handle exception
+                        val shouldSkip = paywallManager
+                            .preloadViaPaywallArchivalAndShouldSkipViewControllerCache(request = request)
+                        if (!shouldSkip) {
+                            try {
+                                paywallManager.getPaywallViewController(
+                                    request = request,
+                                    isForPresentation = true,
+                                    isPreloading = true,
+                                    delegate = null
+                                )
+                            } catch (e: Exception) {
+                                // Handle exception
+                            }
                         }
                     }
                     tasks.add(task)

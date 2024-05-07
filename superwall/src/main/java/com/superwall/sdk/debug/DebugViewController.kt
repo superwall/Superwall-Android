@@ -440,7 +440,8 @@ class DebugViewController(
         val paywallVc = factory.makePaywallViewController(
             paywall = paywall,
             cache = null,
-            delegate = null
+            delegate = null,
+            paywallArchivalManager = null
         )
         previewContainerView.addView(paywallVc)
         previewViewContent = paywallVc

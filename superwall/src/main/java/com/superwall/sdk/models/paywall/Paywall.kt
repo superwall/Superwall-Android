@@ -100,7 +100,11 @@ data class Paywall(
     /**
      Surveys to potentially show when an action happens in the paywall.
      */
-    var surveys: List<Survey> = emptyList()
+    var surveys: List<Survey> = emptyList(),
+
+    // A listing of all the filtes referenced in a paywall
+    // to be able to preload the whole paywall into a web archive
+    val manifest: ArchivalManifest? = null
 
 ) : SerializableEntity {
     // Public getter for productItems
@@ -244,7 +248,8 @@ data class Paywall(
                 paywalljsVersion = "",
                 isFreeTrialAvailable = false,
                 featureGating = FeatureGatingBehavior.NonGated,
-                localNotifications = arrayListOf()
+                localNotifications = arrayListOf(),
+                manifest = null
             )
 
         }
