@@ -57,7 +57,7 @@ class SWWebView(
         webSettings.setSupportZoom(false)
         webSettings.builtInZoomControls = false
         webSettings.displayZoomControls = false
-        webSettings.allowFileAccess = true
+        webSettings.allowFileAccess = false
         webSettings.allowContentAccess = false
         webSettings.textZoom = 100
 
