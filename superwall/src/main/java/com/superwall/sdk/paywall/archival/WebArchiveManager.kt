@@ -3,9 +3,9 @@ package com.superwall.sdk.paywall.archival
 import com.superwall.sdk.misc.RequestCoalescence
 import com.superwall.sdk.misc.Result
 import com.superwall.sdk.models.paywall.ArchivalManifest
-import com.superwall.sdk.models.paywall.ArchivalManifestDownloaded
 import com.superwall.sdk.models.paywall.ArchivalManifestItem
-import com.superwall.sdk.models.paywall.ArchivalManifestItemDownloaded
+import com.superwall.sdk.models.paywall.WebArchive
+import com.superwall.sdk.models.paywall.WebArchiveResource
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -19,83 +19,94 @@ class WebArchiveManager(
     private val baseDirectory: File,
     private val coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.IO),
     private val ioCoroutineDispatcher: CoroutineDispatcher = Dispatchers.IO,
-    private val requestCoalescence: RequestCoalescence<ArchivalManifestItem, ArchivalManifestItemDownloaded> = RequestCoalescence(),
-    private val archivalCoalescence: RequestCoalescence<ArchivalManifest, Result<File>> = RequestCoalescence()
+    private val requestCoalescence: RequestCoalescence<ArchivalManifestItem, WebArchiveResource> = RequestCoalescence(),
+    private val archivalCoalescence: RequestCoalescence<ArchivalManifest, Result<WebArchive>> = RequestCoalescence()
 ) {
 
-    fun archiveForManifestImmediately(manifest: ArchivalManifest): File? {
+    fun archiveForManifestImmediately(manifest: ArchivalManifest): WebArchive? {
         val archiveFile = fsPath(forUrl = manifest.document.url)
         return if (archiveFile.exists()) {
-            archiveFile
+            readArchiveFromFile(archiveFile)
         } else {
             null
         }
     }
 
-    suspend fun archiveForManifest(manifest: ArchivalManifest): Result<File> =
+    suspend fun archiveForManifest(manifest: ArchivalManifest): Result<WebArchive> =
         withContext(ioCoroutineDispatcher) {
             val archiveFile = fsPath(forUrl = manifest.document.url)
             if (archiveFile.exists()) {
-                return@withContext Result.Success(archiveFile)
-            }
-            archivalCoalescence.get(input = manifest) {
-                createArchiveForManifest(manifest = it)
+                val archive = readArchiveFromFile(archiveFile)
+                if (archive != null) {
+                    Result.Success(archive)
+                } else {
+                    Result.Failure(Exception("Reading failed"))
+                }
+            } else {
+                archivalCoalescence.get(input = manifest) {
+                    createArchiveForManifest(manifest = it)
+                }
             }
         }
 
-    private suspend fun createArchiveForManifest(manifest: ArchivalManifest): Result<File> {
+    private suspend fun createArchiveForManifest(manifest: ArchivalManifest): Result<WebArchive> {
         return try {
-            val downloadedManifest = downloadManifest(manifest = manifest)
+            val archive = downloadManifest(manifest = manifest)
             val targetFile = fsPath(forUrl = manifest.document.url)
-            writeManifest(manifest = downloadedManifest, file = targetFile)
-            Result.Success(targetFile)
+            writeArchiveToFile(archive = archive, file = targetFile)
+            Result.Success(archive)
         } catch (exception: Exception) {
             Result.Failure(exception)
         }
     }
 
-    // Consistent way to look up the appropriate directory
-    // for a given url
+    // Consistent way to look up the appropriate directory for a given url
     private fun fsPath(forUrl: URL): File {
         val hostDashed = forUrl.host?.split(".")?.joinToString(separator = "-") ?: "unknown"
         var path = baseDirectory.resolve(hostDashed.replace(oldValue = "/", newValue = ""))
         forUrl.path.split("/").filter { it.isNotEmpty() }.forEach { item ->
             path = path.resolve(item)
         }
-        path = File("${path.path}/cached.mht")
+        path = File("${path.path}/cached.custom_web_archive")
 
         return path
     }
 
-    private suspend fun downloadManifest(manifest: ArchivalManifest): ArchivalManifestDownloaded {
-        val documentDeferred = coroutineScope.async {
+    private suspend fun downloadManifest(manifest: ArchivalManifest): WebArchive {
+        val mainResourceDeferred = coroutineScope.async {
             requestCoalescence.get(manifest.document) {
                 fetchDataForManifest(manifestItem = it)
             }
         }
-        val itemsDeferred = manifest.resources.map { resource ->
+        val subResourcesDeferred = manifest.resources.map { resource ->
             coroutineScope.async {
                 requestCoalescence.get(resource) {
                     fetchDataForManifest(manifestItem = it)
                 }
             }
         }
-        val document = documentDeferred.await()
-        val items = itemsDeferred.map { it.await() }
-        return ArchivalManifestDownloaded(document = document, items = items)
+        val mainResource = mainResourceDeferred.await()
+        val subResources = subResourcesDeferred.map { it.await() }
+        return WebArchive(mainResource = mainResource, subResources = subResources)
     }
 
-    // Helper to write manifest
-    private fun writeManifest(manifest: ArchivalManifestDownloaded, file: File) {
+    private fun writeArchiveToFile(archive: WebArchive, file: File) {
         if (file.parentFile?.mkdirs() != false) {
-            file.writeText(WebArchiveEncoder().encode(manifest))
+            archive.writeToFile(file)
         } else {
             throw Exception("Cannot create directory")
         }
     }
 
-    // Helper to actually fetch the manifest
-    private fun fetchDataForManifest(manifestItem: ArchivalManifestItem): ArchivalManifestItemDownloaded {
+    private fun readArchiveFromFile(file: File): WebArchive? {
+        return try {
+            file.readWebArchive()
+        } catch (exception: Exception) {
+            null
+        }
+    }
+
+    private fun fetchDataForManifest(manifestItem: ArchivalManifestItem): WebArchiveResource {
         val connection = manifestItem.url.openConnection() as HttpURLConnection
         connection.requestMethod = "GET"
         connection.useCaches = true
@@ -103,7 +114,7 @@ class WebArchiveManager(
         return if (responseCode == HttpURLConnection.HTTP_OK) {
             val data = connection.inputStream.readBytes()
             connection.disconnect()
-            ArchivalManifestItemDownloaded(
+            WebArchiveResource(
                 url = manifestItem.url,
                 mimeType = manifestItem.mimeType,
                 data = data,

@@ -21,14 +21,3 @@ data class ArchivalManifestItem(
     val url: @Serializable(with = URLSerializer::class) URL,
     val mimeType: String
 )
-
-data class ArchivalManifestDownloaded(
-    val document: ArchivalManifestItemDownloaded,
-    val items: List<ArchivalManifestItemDownloaded>
-)
-
-class ArchivalManifestItemDownloaded(
-    val url: URL,
-    val mimeType: String,
-    val data: ByteArray
-)

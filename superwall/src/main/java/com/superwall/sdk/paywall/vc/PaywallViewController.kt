@@ -82,7 +82,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
 import java.net.MalformedURLException
 import java.net.URL
 import java.util.Date
@@ -104,7 +103,7 @@ class PaywallViewController(
     val cache: PaywallViewControllerCache?,
     private val loadingViewController: LoadingViewController = LoadingViewController(context),
     val paywallArchivalManager: PaywallArchivalManager?,
-    val coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.Main),
+    private val coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.Main),
     private val ioCoroutineDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val mainCoroutineDispatcher: CoroutineDispatcher = Dispatchers.Main
 ) : FrameLayout(context), PaywallMessageHandlerDelegate, SWWebViewDelegate, ActivityEncapsulatable,
@@ -673,54 +672,51 @@ class PaywallViewController(
             paywall.webviewLoadingInfo.startAt = Date()
         }
 
-        CoroutineScope(Dispatchers.IO).launch {
+        coroutineScope.launch {
             val trackedEvent = InternalSuperwallEvent.PaywallWebviewLoad(
                 state = InternalSuperwallEvent.PaywallWebviewLoad.State.Start(),
                 paywallInfo = this@PaywallViewController.info
             )
             Superwall.instance.track(trackedEvent)
         }
-
-        if (paywallArchivalManager?.shouldWaitForWebArchiveToLoad(paywall = paywall) == true) {
-            coroutineScope.launch(ioCoroutineDispatcher) {
+        coroutineScope.launch(ioCoroutineDispatcher) {
+            if (paywallArchivalManager?.shouldWaitForWebArchiveToLoad(paywall = paywall) == true) {
                 //
                 // There is still a chance something goes wrong so we can fall back to the
                 // other loading method if we really need to
                 //
-                val webArchiveFile =
-                    paywallArchivalManager.cachedArchiveForPaywall(paywall = paywall)
+                val webArchive = paywallArchivalManager.cachedArchiveForPaywall(paywall = paywall)
                 withContext(mainCoroutineDispatcher) {
-                    if (webArchiveFile != null) {
-                        loadWebViewFromArchivalFile(webArchiveFile = webArchiveFile)
+                    if (webArchive != null) {
+                        webView.loadWebArchive(webArchive = webArchive)
                     } else {
                         loadWebViewFromUrl(url = url)
                     }
                 }
-            }
-        } else {
-            val webArchiveFile = paywallArchivalManager?.cachedArchiveForPaywallImmediately(paywall = paywall)
-            if (webArchiveFile != null) {
-                loadWebViewFromArchivalFile(webArchiveFile = webArchiveFile)
+
             } else {
-                loadWebViewFromUrl(url = url)
+                val webArchive =
+                    paywallArchivalManager?.cachedArchiveForPaywallImmediately(paywall = paywall)
+                if (webArchive != null) {
+                    webView.loadWebArchive(webArchive = webArchive)
+                } else {
+                    loadWebViewFromUrl(url = url)
+                }
             }
         }
-
         loadingState = PaywallLoadingState.LoadingURL()
     }
 
-    private fun loadWebViewFromArchivalFile(webArchiveFile: File) {
-        webView.loadUrl("file://${webArchiveFile.absolutePath}")
-    }
+    private suspend fun loadWebViewFromUrl(url: URL) {
+        withContext(mainCoroutineDispatcher) {
+            if (paywall.onDeviceCache is OnDeviceCaching.Enabled) {
+                webView.settings.cacheMode = WebSettings.LOAD_CACHE_ELSE_NETWORK
+            } else {
+                webView.settings.cacheMode = WebSettings.LOAD_DEFAULT
+            }
 
-    private fun loadWebViewFromUrl(url: URL) {
-        if (paywall.onDeviceCache is OnDeviceCaching.Enabled) {
-            webView.settings.cacheMode = WebSettings.LOAD_CACHE_ELSE_NETWORK
-        } else {
-            webView.settings.cacheMode = WebSettings.LOAD_DEFAULT
+            webView.loadUrl(url.toString())
         }
-
-        webView.loadUrl(url.toString())
     }
 
     //endregion

@@ -1,16 +1,14 @@
 package com.superwall.sdk.models.paywall
 
+import java.net.URL
+
 data class WebArchive(
-    val mainResource: WebArchiveMainResource,
-    val webSubresources: List<WebArchiveResource>
+    val mainResource: WebArchiveResource,
+    val subResources: List<WebArchiveResource>
 )
 
-data class WebArchiveResource(
-    val url: String,
-    val data: String,
+class WebArchiveResource(
+    val url: URL,
+    val data: ByteArray,
     val mimeType: String
-)
-
-data class WebArchiveMainResource(
-    val baseResource: WebArchiveResource
 )

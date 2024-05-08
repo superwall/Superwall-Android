@@ -102,7 +102,7 @@ data class Paywall(
      */
     var surveys: List<Survey> = emptyList(),
 
-    // A listing of all the filtes referenced in a paywall
+    // A listing of all the files referenced in a paywall
     // to be able to preload the whole paywall into a web archive
     val manifest: ArchivalManifest? = null
 

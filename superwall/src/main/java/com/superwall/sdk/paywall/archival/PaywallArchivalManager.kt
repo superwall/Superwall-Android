@@ -3,12 +3,12 @@ package com.superwall.sdk.paywall.archival
 import com.superwall.sdk.misc.Result
 import com.superwall.sdk.models.paywall.ArchivalManifestUsage
 import com.superwall.sdk.models.paywall.Paywall
+import com.superwall.sdk.models.paywall.WebArchive
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.io.File
-import java.net.URL
 
 class PaywallArchivalManager(
     private val coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.IO),
@@ -23,7 +23,6 @@ class PaywallArchivalManager(
         }
     }
 
-    // Should
     fun preloadArchiveAndShouldSkipViewControllerCache(paywall: Paywall): Boolean {
         webArchiveManager?.let { webArchiveManager ->
             if (paywall.manifest != null) {
@@ -39,7 +38,7 @@ class PaywallArchivalManager(
         return false
     }
 
-    // If we should be really agressive and wait for the archival to finsih
+    // If we should be really aggressive and wait for the archival to finish
     // before we load
     fun shouldWaitForWebArchiveToLoad(paywall: Paywall): Boolean {
         return webArchiveManager != null && paywall.manifest?.use == ArchivalManifestUsage.ALWAYS
@@ -47,7 +46,7 @@ class PaywallArchivalManager(
 
     // We'll try to see if it's cached, if not we'll just
     // skip it and fall back to the normal method of loading
-    fun cachedArchiveForPaywallImmediately(paywall: Paywall): File? {
+    fun cachedArchiveForPaywallImmediately(paywall: Paywall): WebArchive? {
         webArchiveManager?.let { webArchiveManager ->
             if (paywall.manifest != null) {
                 if (paywall.manifest.use == ArchivalManifestUsage.NEVER) {
@@ -59,7 +58,7 @@ class PaywallArchivalManager(
         return null
     }
 
-    suspend fun cachedArchiveForPaywall(paywall: Paywall): File? {
+    suspend fun cachedArchiveForPaywall(paywall: Paywall): WebArchive? {
         webArchiveManager?.let { webArchiveManager ->
             if (paywall.manifest != null) {
                 if (paywall.manifest.use == ArchivalManifestUsage.NEVER) {
