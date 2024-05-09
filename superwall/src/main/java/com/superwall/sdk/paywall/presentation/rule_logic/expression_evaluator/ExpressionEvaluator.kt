@@ -22,6 +22,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.newSingleThreadContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
@@ -38,6 +40,7 @@ class ExpressionEvaluator(
     private val factory: RuleAttributesFactory
 ): ExpressionEvaluating {
     private val singleThreadContext = newSingleThreadContext(name = "ExpressionEvaluator")
+    private val mutex = Mutex()
 
     companion object {
         private var jsSandbox: JavaScriptSandbox? = null
@@ -47,8 +50,10 @@ class ExpressionEvaluator(
     init {
         if (JavaScriptSandbox.isSupported()) {
             CoroutineScope(singleThreadContext).launch {
-                if (jsSandbox == null) {
-                    jsSandbox = JavaScriptSandbox.createConnectedInstanceAsync(context).await()
+                mutex.withLock {
+                    if (jsSandbox == null) {
+                        jsSandbox = JavaScriptSandbox.createConnectedInstanceAsync(context).await()
+                    }
                 }
             }
         } else {
