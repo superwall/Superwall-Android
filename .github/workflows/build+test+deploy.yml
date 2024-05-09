@@ -64,6 +64,36 @@ jobs:
         EXISTS=$(git tag -l | grep -Fxq "${{steps.version.outputs.prop}}" && echo 'true' || echo 'false')
         echo "::set-output name=tag-exists::$EXISTS"
 
+    - name: Configure GPG Key
+      run: |
+        export GPG_TTY=$(tty)
+        echo $GPG_SIGNING_KEY | base64 --decode | gpg --batch --import --passphrase $GPG_SIGNING_KEY_PASSPHRASE
+      env:
+        GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
+        GPG_SIGNING_KEY_PASSPHRASE: ${{ secrets.GPG_SIGNING_KEY_PASSPHRASE }}
+
+    - name: Deploy
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      run: |
+        if [ "${{ steps.check-tag.outputs.tag-exists }}" == "false" ]; then
+          ./gradlew publish -Paws_access_key_id=$AWS_ACCESS_KEY_ID -Paws_secret_access_key=$AWS_SECRET_ACCESS_KEY -PsonatypeUsername=$SONATYPE_USERNAME -PsonatypePassword=$SONATYPE_PASSWORD
+        fi
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
+        SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+
+    - name: Determine prerelease status
+      id: prerelease
+      run: |
+        VERSION=${{steps.version.outputs.prop}}
+        if [[ "$VERSION" == *"-alpha"* || "$VERSION" == *"-beta"* || "$VERSION" == *"-rc"* ]]; then
+          echo "::set-output name=status::true"
+        else
+          echo "::set-output name=status::false"
+        fi
+
     - name: Tag
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       run: |
@@ -78,26 +108,6 @@ jobs:
           sudo git push --tags
           sudo git checkout -b release/${{steps.version.outputs.prop}}
           sudo git push -u origin release/${{steps.version.outputs.prop}}
-        fi
-
-    - name: Deploy
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-      run: |
-        if [ "${{ steps.check-tag.outputs.tag-exists }}" == "false" ]; then
-          ./gradlew publish -Paws_access_key_id=$AWS_ACCESS_KEY_ID -Paws_secret_access_key=$AWS_SECRET_ACCESS_KEY
-        fi
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
-    - name: Determine prerelease status
-      id: prerelease
-      run: |
-        VERSION=${{steps.version.outputs.prop}}
-        if [[ "$VERSION" == *"-alpha"* || "$VERSION" == *"-beta"* || "$VERSION" == *"-rc"* ]]; then
-          echo "::set-output name=status::true"
-        else
-          echo "::set-output name=status::false"
         fi
 
     - name: slack-send
