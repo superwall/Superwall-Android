@@ -39,12 +39,11 @@ class ExpressionEvaluator(
     private val storage: Storage,
     private val factory: RuleAttributesFactory
 ): ExpressionEvaluating {
-    private val singleThreadContext = newSingleThreadContext(name = "ExpressionEvaluator")
-    private val mutex = Mutex()
-
     companion object {
         private var jsSandbox: JavaScriptSandbox? = null
         private var sharedWebView: WebView? = null
+        private val singleThreadContext = newSingleThreadContext(name = "ExpressionEvaluator")
+        private val mutex = Mutex()
     }
 
     init {
