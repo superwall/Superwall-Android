@@ -58,6 +58,11 @@ import com.superwall.sdk.store.StoreKitManager
 import com.superwall.sdk.store.abstractions.transactions.GoogleBillingPurchaseTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import com.superwall.sdk.store.transactions.TransactionManager
+import com.superwall.sdk.webarchive.ManifestDownloader
+import com.superwall.sdk.webarchive.archive.ArchiveCompressor
+import com.superwall.sdk.webarchive.archive.WebArchiveLibrary
+import com.superwall.sdk.webarchive.archive.Base64ArchiveEncoder
+import com.superwall.sdk.webarchive.archive.CachedArchiveLibrary
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -95,6 +100,7 @@ class DependencyContainer(
     var storeKitManager: StoreKitManager
     val transactionManager: TransactionManager
     val googleBillingWrapper: GoogleBillingWrapper
+    val webArchiveLibrary: WebArchiveLibrary
 
     init {
         // TODO: Add delegate adapter
@@ -142,6 +148,17 @@ class DependencyContainer(
             factory = this,
         )
 
+        val manifestDownloader = ManifestDownloader(
+            coroutineScope = CoroutineScope(Dispatchers.IO),
+            network = network,
+        )
+
+        webArchiveLibrary = CachedArchiveLibrary(
+            storage = storage,
+            manifestDownloader = manifestDownloader,
+            archiveCompressor = ArchiveCompressor(encoder = Base64ArchiveEncoder())
+        )
+
         configManager = ConfigManager(
             context = context,
             storeKitManager = storeKitManager,
@@ -149,7 +166,8 @@ class DependencyContainer(
             network = network,
             options = options,
             factory = this,
-            paywallManager = paywallManager
+            paywallManager = paywallManager,
+            webArchiveLibrary = webArchiveLibrary,
         )
 
         api = Api(networkEnvironment = configManager.options.networkEnvironment)
@@ -278,7 +296,8 @@ class DependencyContainer(
                 paywallManager = paywallManager,
                 storage = storage,
                 webView = webView,
-                eventDelegate = Superwall.instance
+                eventDelegate = Superwall.instance,
+                webArchiveLibrary = webArchiveLibrary
             )
             webView.delegate = paywallViewController
             messageHandler.delegate = paywallViewController

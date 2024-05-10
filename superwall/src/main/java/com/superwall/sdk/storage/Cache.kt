@@ -11,19 +11,18 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.newSingleThreadContext
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.DeserializationStrategy
-import kotlinx.serialization.SerializationStrategy
 import kotlinx.serialization.json.Json
 import java.io.File
-import java.util.concurrent.ConcurrentHashMap
 
 class Cache(
     val context: Context,
     private val ioQueue: ExecutorCoroutineDispatcher = newSingleThreadContext(Cache.ioQueuePrefix)
 ) {
     companion object {
-        private const val userSpecificDocumentDirectoryPrefix = "com.superwall.document.userSpecific.Store"
-        private const val appSpecificDocumentDirectoryPrefix = "com.superwall.document.appSpecific.Store"
+        private const val userSpecificDocumentDirectoryPrefix =
+            "com.superwall.document.userSpecific.Store"
+        private const val appSpecificDocumentDirectoryPrefix =
+            "com.superwall.document.appSpecific.Store"
         private const val cacheDirectoryPrefix = "com.superwall.cache.Store"
         private const val ioQueuePrefix = "com.superwall.queue.Store"
         private const val defaultMaxCachePeriodInSecond: Long = 60 * 60 * 24 * 7 // a week
@@ -53,6 +52,31 @@ class Cache(
 
         // TODO: clear expired entries from disk cache when backgrounding/terminating
     }
+
+    fun <T> readFile(storable: Storable<T>): String? {
+        val file = File(storable.path(context = context))
+        return if (file.exists()) {
+            file.readText(Charsets.UTF_8)
+        } else {
+            null
+        }
+    }
+
+    fun <T> writeFile(storable: Storable<T>, contents: String): Boolean? {
+        val file = File(storable.path(context = context))
+        return try {
+            file.writeText(contents, Charsets.UTF_8)
+            true
+        }catch (e: Throwable){
+            Logger.debug(
+                logLevel = LogLevel.info,
+                scope = LogScope.cache,
+                "Cannot write file ${file.path}"
+            )
+            false
+        }
+    }
+
 
     fun <T> read(storable: Storable<T>): T? {
         var data = memCache[storable.key] as? T
@@ -94,7 +118,7 @@ class Cache(
         }
     }
 
-    fun <T: Any> delete(storable: Storable<T>) {
+    fun <T : Any> delete(storable: Storable<T>) {
         memCache.remove(storable.key)
 
         GlobalScope.launch(ioQueue) {

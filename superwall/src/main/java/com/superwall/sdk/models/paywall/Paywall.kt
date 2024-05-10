@@ -1,13 +1,21 @@
 package com.superwall.sdk.models.paywall
 
 import ComputedPropertyRequest
+import android.graphics.Color
 import com.superwall.sdk.config.models.OnDeviceCaching
 import com.superwall.sdk.config.models.Survey
 import com.superwall.sdk.dependencies.TriggerSessionManagerFactory
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.models.SerializableEntity
 import com.superwall.sdk.models.config.FeatureGatingBehavior
+import com.superwall.sdk.models.config.WebArchiveManifest
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.product.Product
+import com.superwall.sdk.models.product.ProductItem
+import com.superwall.sdk.models.product.ProductItemsDeserializer
+import com.superwall.sdk.models.product.ProductType
 import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.models.serialization.DateSerializer
 import com.superwall.sdk.models.serialization.URLSerializer
@@ -17,17 +25,10 @@ import com.superwall.sdk.paywall.presentation.PaywallInfo
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.net.URL
-import java.util.*
-import android.graphics.Color
-import com.superwall.sdk.logger.LogLevel
-import com.superwall.sdk.logger.LogScope
-import com.superwall.sdk.logger.Logger
-import com.superwall.sdk.models.product.ProductItem
-import com.superwall.sdk.models.product.ProductItemsDeserializer
-import com.superwall.sdk.models.product.ProductType
+import java.util.Date
 
 @Serializable
-data class Paywalls(val paywalls: List<Paywall>): SerializableEntity
+data class Paywalls(val paywalls: List<Paywall>) : SerializableEntity
 
 @Serializable
 data class Paywall(
@@ -85,7 +86,7 @@ data class Paywall(
 
     /**
      * Indicates whether the caching of the paywall is enabled or not.
-      */
+     */
     var onDeviceCache: OnDeviceCaching = OnDeviceCaching.Disabled,
 
     @kotlinx.serialization.Transient()
@@ -98,11 +99,15 @@ data class Paywall(
     var closeReason: PaywallCloseReason = PaywallCloseReason.None,
 
     /**
-     Surveys to potentially show when an action happens in the paywall.
+    Surveys to potentially show when an action happens in the paywall.
      */
-    var surveys: List<Survey> = emptyList()
+    var surveys: List<Survey> = emptyList(),
 
-) : SerializableEntity {
+    // Manifest for webarchive files
+    @SerialName("manifest") val manifest: WebArchiveManifest? = null,
+
+
+    ) : SerializableEntity {
     // Public getter for productItems
     var productItems: List<ProductItem>
         get() = _productItems
@@ -110,7 +115,8 @@ data class Paywall(
             _productItems = value
             // Automatically update related properties when productItems is set
             productIds = value.map { it.fullProductId }
-            _products = makeProducts(value) // Assuming makeProducts is a function that generates products based on product items
+            _products =
+                makeProducts(value) // Assuming makeProducts is a function that generates products based on product items
         }
 
     // Public getter for products to allow access but not direct modification
@@ -207,9 +213,11 @@ data class Paywall(
                     "primary" -> output.add(
                         Product(type = ProductType.PRIMARY, id = productItem.fullProductId)
                     )
+
                     "secondary" -> output.add(
                         Product(type = ProductType.SECONDARY, id = productItem.fullProductId)
                     )
+
                     "tertiary" -> output.add(
                         Product(type = ProductType.TERTIARY, id = productItem.fullProductId)
                     )
@@ -244,7 +252,12 @@ data class Paywall(
                 paywalljsVersion = "",
                 isFreeTrialAvailable = false,
                 featureGating = FeatureGatingBehavior.NonGated,
-                localNotifications = arrayListOf()
+                localNotifications = arrayListOf(),
+                manifest = WebArchiveManifest(
+                    WebArchiveManifest.Usage.ALWAYS,
+                    WebArchiveManifest.Document(URL("http://google.com"), "text/html"),
+                    emptyList()
+                )
             )
 
         }

@@ -22,6 +22,10 @@ sealed class NetworkError(message: String) : Throwable(message) {
 
 class CustomHttpUrlConnection {
 
+    sealed class ResponseType {
+        data class Text(val string: String) : ResponseType()
+        data class Binary(val bytes: ByteArray) : ResponseType()
+    }
 
     val json = Json {
         ignoreUnknownKeys = true
@@ -72,11 +76,11 @@ class CustomHttpUrlConnection {
 //        return result
 //    }
 
-
     @Throws(NetworkError::class)
-    suspend inline fun <reified Response : SerializableEntity> request(
-        endpoint: Endpoint<Response>,
-        noinline  isRetryingCallback: (() -> Unit)? = null
+    suspend inline fun <reified Response> performNetworkRequest(
+        endpoint: Endpoint<*>,
+        noinline isRetryingCallback: (() -> Unit)? = null,
+        mapResponse: (ResponseType) -> Response
     ): Response {
         val request = endpoint.makeRequest() ?: throw NetworkError.Unknown()
 
@@ -102,10 +106,17 @@ class CustomHttpUrlConnection {
             request.responseCode
         }
 
-        var responseMessage: String? = null
-        if (responseCode == HttpURLConnection.HTTP_OK) {
-            responseMessage = request.inputStream.bufferedReader().use { it.readText() }
+        val responseMessage: ResponseType = if (responseCode == HttpURLConnection.HTTP_OK) {
+            val contentType = request.getHeaderField("Content-Type")
+            val res = when {
+                contentType.contains("json")
+                        || contentType.contains("text") ->
+                    ResponseType.Text(request.inputStream.bufferedReader().use { it.readText() })
+
+                else -> ResponseType.Binary(request.inputStream.readBytes())
+            }
             request.disconnect()
+            res
         } else {
             println("!!!Error: ${request.responseCode}")
             request.disconnect()
@@ -131,9 +142,8 @@ class CustomHttpUrlConnection {
                 "request_duration" to requestDuration
             )
         )
-
         val value: Response? = try {
-            this.json.decodeFromString<Response>(responseMessage)
+            mapResponse(responseMessage)
         } catch (e: Throwable) {
             Logger.debug(
                 LogLevel.error,
@@ -144,7 +154,10 @@ class CustomHttpUrlConnection {
                     "api_key" to auth,
                     "url" to (request.url?.toString() ?: "unknown"),
                     "message" to "Unable to decode response to type ${Response::class.simpleName}",
-                    "info" to responseMessage,
+                    "info" to when (responseMessage) {
+                        is ResponseType.Text -> responseMessage.string
+                        is ResponseType.Binary -> responseMessage.bytes.toString()
+                    },
                     "request_duration" to requestDuration
                 )
             )
@@ -153,6 +166,20 @@ class CustomHttpUrlConnection {
         }
 
         return value ?: throw NetworkError.Decoding()
+    }
+
+    @Throws(NetworkError::class)
+    suspend inline fun <reified Response : SerializableEntity> request(
+        endpoint: Endpoint<Response>,
+        noinline isRetryingCallback: (() -> Unit)? = null,
+    ): Response {
+        return performNetworkRequest(endpoint, isRetryingCallback,
+            mapResponse = {
+                when {
+                    it is ResponseType.Text -> this.json.decodeFromString<Response>(it.string)
+                    else -> throw NetworkError.Decoding()
+                }
+            })
     }
 
 

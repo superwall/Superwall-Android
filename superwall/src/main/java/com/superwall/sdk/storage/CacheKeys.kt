@@ -48,7 +48,6 @@ interface Storable<T> {
     val key: String
     val directory: SearchPathDirectory
     val serializer: KSerializer<T>
-
     fun path(context: Context): String {
         return directory.fileDirectory(context).absolutePath + File.separator + key.toMD5()
     }
@@ -239,6 +238,13 @@ object DisableVerboseEvents : Storable<Boolean> {
         get() = Boolean.serializer()
 }
 
+data class StoredWebArchive(
+    val payWallId: String
+) : Storable<String> {
+    override val key: String = "store.webarchive.$payWallId"
+    override val directory: SearchPathDirectory = SearchPathDirectory.CACHE
+    override val serializer: KSerializer<String> = String.serializer()
+}
 //endregion
 
 // region Serializers

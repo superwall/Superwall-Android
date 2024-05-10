@@ -1,5 +1,6 @@
 package com.superwall.sdk.network
 
+import android.util.Base64
 import com.superwall.sdk.dependencies.ApiFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
@@ -13,9 +14,11 @@ import com.superwall.sdk.models.events.EventsRequest
 import com.superwall.sdk.models.events.EventsResponse
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
+import com.superwall.sdk.network.session.CustomHttpUrlConnection.ResponseType
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
-import java.util.*
+import java.net.URL
+import java.util.UUID
 
 
 open class Network(
@@ -42,6 +45,7 @@ open class Network(
             when (result.status) {
                 EventsResponse.Status.OK -> {
                 }
+
                 EventsResponse.Status.PARTIAL_SUCCESS -> {
                     Logger.debug(
                         logLevel = LogLevel.warn,
@@ -180,6 +184,32 @@ open class Network(
                 error = error
             )
             throw error
+        }
+    }
+
+    suspend fun fetchRemoteFile(url: URL): Result<String> {
+        return try {
+            val result = urlSession.performNetworkRequest(
+                Endpoint.fetchRemoteFile(url, factory = factory),
+                isRetryingCallback = {
+
+                },
+                mapResponse = {
+                    when(it){
+                        is ResponseType.Text -> it.string
+                        is ResponseType.Binary -> Base64.encodeToString(it.bytes, Base64.DEFAULT).toString()
+                    }
+                }
+            )
+            Result.success(result)
+        } catch (error: Throwable) {
+            Logger.debug(
+                logLevel = LogLevel.error,
+                scope = LogScope.network,
+                message = "Request Failed while fetching file at: ${url}",
+                error = error
+            )
+            Result.failure(error)
         }
     }
 }
