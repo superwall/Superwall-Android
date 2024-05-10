@@ -2,12 +2,12 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
-## 1.1.4
+## 1.1.5
 
 ### Fixes
 
-- Fixes thread safety crash when multiple threads attempted to initialize the `JavaScriptSandbox` 
-internally.
+- Fixes thread safety crash when multiple threads attempted to initialize the `JavaScriptSandbox`
+  internally.
 
 ## 1.1.3
 
