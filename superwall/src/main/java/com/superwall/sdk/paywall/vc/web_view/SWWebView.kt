@@ -9,21 +9,28 @@ import android.view.MotionEvent
 import android.view.inputmethod.BaseInputConnection
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
-import android.webkit.*
+import android.webkit.ConsoleMessage
+import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.SessionEventsManager
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
-import com.superwall.sdk.analytics.trigger_session.LoadState
 import com.superwall.sdk.game.dispatchKeyEvent
 import com.superwall.sdk.game.dispatchMotionEvent
+import com.superwall.sdk.models.paywall.WebArchive
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallMessageHandler
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallMessageHandlerDelegate
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import java.util.*
+import kotlinx.coroutines.withContext
+import java.util.Date
 
 
 interface _SWWebViewDelegate {
@@ -35,7 +42,9 @@ interface SWWebViewDelegate : _SWWebViewDelegate, PaywallMessageHandlerDelegate
 class SWWebView(
     context: Context,
     private val sessionEventsManager: SessionEventsManager,
-    val messageHandler: PaywallMessageHandler
+    val messageHandler: PaywallMessageHandler,
+    private val coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.Main),
+    private val mainCoroutineDispatcher: CoroutineDispatcher = Dispatchers.Main
 ) : WebView(context) {
     var delegate: SWWebViewDelegate? = null
 
@@ -83,7 +92,7 @@ class SWWebView(
                 request: WebResourceRequest?,
                 error: WebResourceError?
             ) {
-                CoroutineScope(Dispatchers.Main).launch {
+                coroutineScope.launch {
                     trackPaywallError()
                 }
             }
@@ -129,6 +138,27 @@ class SWWebView(
         println("SWWebView.loadUrl: $urlString")
 
         super.loadUrl(urlString)
+    }
+
+    suspend fun loadWebArchive(webArchive: WebArchive) {
+        withContext(mainCoroutineDispatcher) {
+            webViewClient = object : WebArchiveWebViewClient(webArchive = webArchive) {
+
+                override fun onReceivedError(
+                    view: WebView?,
+                    request: WebResourceRequest?,
+                    error: WebResourceError?
+                ) {
+                    coroutineScope.launch {
+                        trackPaywallError()
+                    }
+                }
+
+            }
+            //use the url of the main resource so the relative paths of references are prepended
+            //with the same base url WebViewClient's shouldInterceptRequest()
+            loadUrl(webArchive.mainResource.url.toString())
+        }
     }
 
     private suspend fun trackPaywallError() {

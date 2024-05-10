@@ -24,9 +24,9 @@ import com.superwall.sdk.delegate.SuperwallDelegateAdapter
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.identity.IdentityInfo
 import com.superwall.sdk.identity.IdentityManager
-import com.superwall.sdk.misc.CurrentActivityTracker
 import com.superwall.sdk.misc.ActivityProvider
 import com.superwall.sdk.misc.AppLifecycleObserver
+import com.superwall.sdk.misc.CurrentActivityTracker
 import com.superwall.sdk.models.config.FeatureFlags
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
@@ -35,6 +35,7 @@ import com.superwall.sdk.network.Api
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.network.device.DeviceInfo
+import com.superwall.sdk.paywall.archival.PaywallArchivalManager
 import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.paywall.manager.PaywallViewControllerCache
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
@@ -52,6 +53,7 @@ import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallMessageHandler
 import com.superwall.sdk.paywall.vc.web_view.templating.models.JsonVariables
 import com.superwall.sdk.paywall.vc.web_view.templating.models.Variables
 import com.superwall.sdk.storage.EventsQueue
+import com.superwall.sdk.storage.SearchPathDirectory
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.InternalPurchaseController
 import com.superwall.sdk.store.StoreKitManager
@@ -76,7 +78,8 @@ class DependencyContainer(
     StoreTransactionFactory, Storage.Factory, InternalSuperwallEvent.PresentationRequest.Factory,
     ViewControllerFactory, PaywallManager.Factory, OptionsFactory, TriggerFactory,
     TransactionVerifierFactory, TransactionManager.Factory, PaywallViewController.Factory,
-    ConfigManager.Factory, AppSessionManager.Factory, DebugViewController.Factory {
+    ConfigManager.Factory, AppSessionManager.Factory, DebugViewController.Factory,
+    PaywallArchivalManagerFactory {
 
     var network: Network
     override lateinit var api: Api
@@ -95,7 +98,8 @@ class DependencyContainer(
     var storeKitManager: StoreKitManager
     val transactionManager: TransactionManager
     val googleBillingWrapper: GoogleBillingWrapper
-
+    val paywallArchivalManager: PaywallArchivalManager =
+        PaywallArchivalManager(baseDirectory = SearchPathDirectory.USER_SPECIFIC_DOCUMENTS.fileDirectory(context))
     init {
         // TODO: Add delegate adapter
 
@@ -247,6 +251,7 @@ class DependencyContainer(
     override suspend fun makePaywallViewController(
         paywall: Paywall,
         cache: PaywallViewControllerCache?,
+        paywallArchivalManager: PaywallArchivalManager?,
         delegate: PaywallViewControllerDelegateAdapter?
     ): PaywallViewController {
         return withContext(Dispatchers.Main) {
@@ -278,7 +283,8 @@ class DependencyContainer(
                 paywallManager = paywallManager,
                 storage = storage,
                 webView = webView,
-                eventDelegate = Superwall.instance
+                eventDelegate = Superwall.instance,
+                paywallArchivalManager = paywallArchivalManager
             )
             webView.delegate = paywallViewController
             messageHandler.delegate = paywallViewController
@@ -500,4 +506,9 @@ class DependencyContainer(
     override suspend fun makeTriggers(): Set<String> {
         return configManager.triggersByEventName.keys
     }
+
+    override fun makePaywallArchivalManager(): PaywallArchivalManager {
+        return this.paywallArchivalManager
+    }
+
 }

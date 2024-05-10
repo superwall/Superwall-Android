@@ -52,6 +52,7 @@ import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.PaywallPresentationStyle
 import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
 import com.superwall.sdk.network.device.DeviceHelper
+import com.superwall.sdk.paywall.archival.PaywallArchivalManager
 import com.superwall.sdk.paywall.manager.PaywallCacheLogic
 import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.paywall.manager.PaywallViewControllerCache
@@ -75,13 +76,16 @@ import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallMessageHandlerDele
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.transactions.notifications.NotificationScheduler
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.net.MalformedURLException
 import java.net.URL
-import java.util.*
+import java.util.Date
+import java.util.UUID
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
@@ -97,9 +101,14 @@ class PaywallViewController(
     val paywallManager: PaywallManager,
     override val webView: SWWebView,
     val cache: PaywallViewControllerCache?,
-    private val loadingViewController: LoadingViewController = LoadingViewController(context)
-) : FrameLayout(context), PaywallMessageHandlerDelegate, SWWebViewDelegate, ActivityEncapsulatable, GameControllerDelegate {
-    interface Factory: TriggerSessionManagerFactory, TriggerFactory {}
+    private val loadingViewController: LoadingViewController = LoadingViewController(context),
+    val paywallArchivalManager: PaywallArchivalManager?,
+    private val coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.Main),
+    private val ioCoroutineDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val mainCoroutineDispatcher: CoroutineDispatcher = Dispatchers.Main
+) : FrameLayout(context), PaywallMessageHandlerDelegate, SWWebViewDelegate, ActivityEncapsulatable,
+    GameControllerDelegate {
+    interface Factory : TriggerSessionManagerFactory, TriggerFactory {}
     //region Public properties
 
     // MUST be set prior to presentation
@@ -663,23 +672,51 @@ class PaywallViewController(
             paywall.webviewLoadingInfo.startAt = Date()
         }
 
-        CoroutineScope(Dispatchers.IO).launch {
+        coroutineScope.launch {
             val trackedEvent = InternalSuperwallEvent.PaywallWebviewLoad(
                 state = InternalSuperwallEvent.PaywallWebviewLoad.State.Start(),
                 paywallInfo = this@PaywallViewController.info
             )
             Superwall.instance.track(trackedEvent)
         }
+        coroutineScope.launch(ioCoroutineDispatcher) {
+            if (paywallArchivalManager?.shouldWaitForWebArchiveToLoad(paywall = paywall) == true) {
+                //
+                // There is still a chance something goes wrong so we can fall back to the
+                // other loading method if we really need to
+                //
+                val webArchive = paywallArchivalManager.cachedArchiveForPaywall(paywall = paywall)
+                withContext(mainCoroutineDispatcher) {
+                    if (webArchive != null) {
+                        webView.loadWebArchive(webArchive = webArchive)
+                    } else {
+                        loadWebViewFromUrl(url = url)
+                    }
+                }
 
-        if (paywall.onDeviceCache is OnDeviceCaching.Enabled) {
-            webView.settings.cacheMode = WebSettings.LOAD_CACHE_ELSE_NETWORK
-        } else {
-            webView.settings.cacheMode = WebSettings.LOAD_DEFAULT
+            } else {
+                val webArchive =
+                    paywallArchivalManager?.cachedArchiveForPaywallImmediately(paywall = paywall)
+                if (webArchive != null) {
+                    webView.loadWebArchive(webArchive = webArchive)
+                } else {
+                    loadWebViewFromUrl(url = url)
+                }
+            }
         }
-
-        webView.loadUrl(url.toString())
-
         loadingState = PaywallLoadingState.LoadingURL()
+    }
+
+    private suspend fun loadWebViewFromUrl(url: URL) {
+        withContext(mainCoroutineDispatcher) {
+            if (paywall.onDeviceCache is OnDeviceCaching.Enabled) {
+                webView.settings.cacheMode = WebSettings.LOAD_CACHE_ELSE_NETWORK
+            } else {
+                webView.settings.cacheMode = WebSettings.LOAD_DEFAULT
+            }
+
+            webView.loadUrl(url.toString())
+        }
     }
 
     //endregion
