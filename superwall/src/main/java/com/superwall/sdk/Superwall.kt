@@ -232,10 +232,11 @@ class Superwall(
                 completion?.invoke()
                 return
             }
+            val forcedApplicationContext = applicationContext.applicationContext
             val purchaseController =
-                purchaseController ?: ExternalNativePurchaseController(context = applicationContext)
+                purchaseController ?: ExternalNativePurchaseController(context = forcedApplicationContext)
             instance = Superwall(
-                context = applicationContext,
+                context = forcedApplicationContext,
                 apiKey = apiKey,
                 purchaseController = purchaseController,
                 options = options,
