@@ -142,6 +142,16 @@ class DependencyContainer(
             factory = this,
         )
 
+        val options = options ?: SuperwallOptions()
+        api = Api(networkEnvironment = options.networkEnvironment)
+
+        deviceHelper = DeviceHelper(
+            context = context,
+            storage = storage,
+            network = network,
+            factory = this
+        )
+
         configManager = ConfigManager(
             context = context,
             storeKitManager = storeKitManager,
@@ -149,12 +159,9 @@ class DependencyContainer(
             network = network,
             options = options,
             factory = this,
-            paywallManager = paywallManager
+            paywallManager = paywallManager,
+            deviceHelper = deviceHelper
         )
-
-        api = Api(networkEnvironment = configManager.options.networkEnvironment)
-
-        deviceHelper = DeviceHelper(context = context, storage = storage, factory = this)
 
         eventsQueue = EventsQueue(context, configManager = configManager, network = network)
 

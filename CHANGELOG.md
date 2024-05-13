@@ -2,6 +2,14 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 1.1.6
+
+### Enhancements
+
+- SW-2833: Adds support for dark mode paywall background color.
+-  Adds ability to target devices based on their IP address location. Use `device.ipRegion`, 
+`device.ipRegionCode`, `device.ipCountry`, `device.ipCity`, `device.ipContinent`, or `device.ipTimezone`.
+
 ## 1.1.5
 
 ### Fixes

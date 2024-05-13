@@ -19,6 +19,8 @@ import com.superwall.sdk.Superwall
 import com.superwall.sdk.dependencies.IdentityInfoFactory
 import com.superwall.sdk.dependencies.LocaleIdentifierFactory
 import com.superwall.sdk.models.events.EventData
+import com.superwall.sdk.models.geo.GeoInfo
+import com.superwall.sdk.network.Network
 import com.superwall.sdk.paywall.vc.web_view.templating.models.DeviceTemplate
 import com.superwall.sdk.storage.Storage
 import java.text.SimpleDateFormat
@@ -35,16 +37,13 @@ enum class InterfaceStyle(val rawValue: String) {
 class DeviceHelper(
     private val context: Context,
     val storage: Storage,
-    val factory: DeviceHelper.Factory
+    val network: Network,
+    val factory: Factory
 ) {
     interface Factory: IdentityInfoFactory, LocaleIdentifierFactory {}
 
     private val connectivityManager =
         context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-    private val telephonyManager =
-        context.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
-    private val packageManager = context.packageManager
-    private val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
     private val appInfo = context.packageManager.getPackageInfo(context.packageName, 0)
     private val appInstallDate = Date(appInfo.firstInstallTime)
 
@@ -92,6 +91,8 @@ class DeviceHelper(
         get() {
             return storage.get(TotalPaywallViews) ?: 0
         }
+
+    private var geoInfo: GeoInfo? = null
 
     val locale: String
         get() {
@@ -335,8 +336,7 @@ class DeviceHelper(
             val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
             return packageInfo.versionCode.toString()
         }
-
-
+    
     val sdkVersion: String
         get() = BuildConfig.SDK_VERSION
 
@@ -424,9 +424,19 @@ class DeviceHelper(
             sdkVersionPadded = sdkVersionPadded,
             appBuildString = appBuildString,
             appBuildStringNumber = appBuildString.toInt(),
-            interfaceStyleMode = if (interfaceStyleOverride == null) "automatic" else "manual"
+            interfaceStyleMode = if (interfaceStyleOverride == null) "automatic" else "manual",
+            ipRegion = geoInfo?.region,
+            ipRegionCode = geoInfo?.regionCode,
+            ipCountry = geoInfo?.country,
+            ipCity = geoInfo?.city,
+            ipContinent = geoInfo?.continent,
+            ipTimezone = geoInfo?.timezone
         )
 
         return deviceTemplate.toDictionary()
+    }
+
+    suspend fun getGeoInfo() {
+        geoInfo = network.getGeoInfo()
     }
 }
