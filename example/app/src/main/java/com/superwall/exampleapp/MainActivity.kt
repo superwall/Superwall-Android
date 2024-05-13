@@ -1,5 +1,6 @@
 package com.superwall.exampleapp
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
@@ -44,6 +45,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import com.superwall.exampleapp.ui.theme.SuperwallExampleAppTheme
 import com.superwall.sdk.Superwall
+import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.identity.identify
 import com.superwall.sdk.identity.setUserAttributes
 
@@ -53,7 +55,8 @@ class MainActivity : ComponentActivity() {
 
         Superwall.configure(
             applicationContext = this,
-            apiKey = "pk_3b18882b1683318b710c741f371f40f54e357c6f0baff1f4"
+            apiKey = "pk_3b18882b1683318b710c741f371f40f54e357c6f0baff1f4",
+            options = SuperwallOptions().apply { paywalls.shouldPreload = false }
         )
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -134,7 +137,10 @@ fun WelcomeScreen() {
                 Spacer(modifier = Modifier.weight(1f))
 
                 Button(
-                    onClick = { startHomeActivity(context, name) },
+                    onClick = {
+                        startHomeActivity(context, name)
+                        (context as Activity).finish()
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 50.dp)
