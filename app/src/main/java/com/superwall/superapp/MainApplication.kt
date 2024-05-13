@@ -2,7 +2,6 @@ package com.superwall.superapp
 
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
-import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.delegate.SuperwallDelegate
 import com.superwall.sdk.paywall.presentation.register
 
@@ -36,8 +35,7 @@ class MainApplication : android.app.Application(), SuperwallDelegate {
     fun configureWithAutomaticInitialization() {
         Superwall.configure(
             this,
-            CONSTANT_API_KEY,
-            options = SuperwallOptions().apply { paywalls.shouldPreload = false }
+            CONSTANT_API_KEY
         )
         Superwall.instance.delegate = this
 
