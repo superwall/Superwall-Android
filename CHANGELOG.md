@@ -10,6 +10,10 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 -  Adds ability to target devices based on their IP address location. Use `device.ipRegion`, 
 `device.ipRegionCode`, `device.ipCountry`, `device.ipCity`, `device.ipContinent`, or `device.ipTimezone`.
 
+### Fixes
+
+- Fixes issue with products whose labels weren't primary/secondary/tertiary.
+
 ## 1.1.5
 
 ### Fixes
