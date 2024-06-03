@@ -2,7 +2,6 @@ package com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator
 
 import android.content.Context
 import android.webkit.ConsoleMessage
-import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import androidx.javascriptengine.JavaScriptSandbox
@@ -110,8 +109,16 @@ class ExpressionEvaluator(
         rule: TriggerRule
     ): TriggerRuleOutcome = withContext(singleThreadContext) {
         val jsIsolate = jsSandbox?.createIsolate()
+        jsIsolate?.addOnTerminatedCallback {
+            Logger.debug(
+                logLevel = LogLevel.error,
+                scope = LogScope.superwallCore,
+                message = "$it"
+            )
+        }
 
         val resultFuture = jsIsolate?.evaluateJavaScriptAsync("$SDKJS\n $base64Params")
+
         val result = resultFuture?.await()
         jsIsolate?.close()
 

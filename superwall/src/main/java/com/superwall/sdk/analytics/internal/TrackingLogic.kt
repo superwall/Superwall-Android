@@ -37,7 +37,8 @@ sealed class TrackingLogic {
 
             val eventParams: MutableMap<String, Any> = mutableMapOf(
                 "\$is_standard_event" to isStandardEvent,
-                "\$event_name" to eventName
+                "\$event_name" to eventName,
+                "event_name" to eventName
             )
 
             // Filter then assign Superwall parameters
