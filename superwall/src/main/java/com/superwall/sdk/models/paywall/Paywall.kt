@@ -50,6 +50,7 @@ data class Paywall(
     private val presentationCondition: String,
 
     val backgroundColorHex: String,
+    val darkBackgroundColorHex: String? = null,
 
     // Declared as private to prevent direct access
     @kotlinx.serialization.Transient()
@@ -128,6 +129,20 @@ data class Paywall(
                         "Defaulting to white."
             )
             Color.WHITE
+        }
+    }
+
+    val darkBackgroundColor: Int? by lazy {
+        try {
+            Color.parseColor(this.darkBackgroundColorHex)
+        } catch (e: Throwable) {
+            Logger.debug(
+                logLevel = LogLevel.warn,
+                scope = LogScope.paywallViewController,
+                message = "Invalid paywall background color: ${this.darkBackgroundColorHex}. " +
+                        "Defaulting to white."
+            )
+            null
         }
     }
 
@@ -233,6 +248,7 @@ data class Paywall(
                 presentationStyle = "MODAL",
                 presentationCondition = "CHECK_USER_SUBSCRIPTION",
                 backgroundColorHex = "000000",
+                darkBackgroundColorHex = null,
                 productIds = arrayListOf(),
                 _productItems = emptyList(),
                 _products = emptyList(),

@@ -22,7 +22,7 @@ object TemplateLogic {
     ): String {
         val productsTemplate = ProductTemplate(
             eventName = "products",
-            products = paywall.products
+            products = paywall.productItems
         )
 
         val variablesTemplate = factory.makeJsonVariables(

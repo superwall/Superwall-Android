@@ -48,7 +48,13 @@ data class DeviceTemplate(
     val sdkVersionPadded: String,
     val appBuildString: String,
     val appBuildStringNumber: Int?,
-    val interfaceStyleMode: String
+    val interfaceStyleMode: String,
+    val ipRegion: String?,
+    val ipRegionCode: String?,
+    val ipCountry: String?,
+    val ipCity: String?,
+    val ipContinent: String?,
+    val ipTimezone: String?
 ) {
     fun toDictionary(): Map<String, Any> {
         val json = Json { encodeDefaults = true }

@@ -8,6 +8,7 @@ import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.events.EventsRequest
 import com.superwall.sdk.models.events.EventsResponse
+import com.superwall.sdk.models.geo.GeoWrapper
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.Paywalls
 import com.superwall.sdk.models.postback.PostBackResponse
@@ -193,6 +194,18 @@ data class Endpoint<Response : SerializableEntity>(
                 ),
                 method = HttpMethod.GET,
                 isForDebugging = true,
+                factory = factory
+            )
+        }
+
+        fun geo(factory: ApiFactory): Endpoint<GeoWrapper> {
+            val geoHost = factory.api.geo.host
+            return Endpoint(
+                components = Components(
+                    host = geoHost,
+                    path = Api.version1 + "geo"
+                ),
+                method = HttpMethod.GET,
                 factory = factory
             )
         }

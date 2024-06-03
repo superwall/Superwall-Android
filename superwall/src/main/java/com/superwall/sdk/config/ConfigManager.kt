@@ -2,7 +2,6 @@ package com.superwall.sdk.config
 
 import android.content.Context
 import android.webkit.WebView
-import com.superwall.sdk.billing.GoogleBillingWrapper
 import com.superwall.sdk.config.models.ConfigState
 import com.superwall.sdk.config.models.getConfig
 import com.superwall.sdk.config.options.SuperwallOptions
@@ -21,6 +20,7 @@ import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.models.triggers.Trigger
 import com.superwall.sdk.network.Network
+import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.ExpressionEvaluator
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
@@ -43,12 +43,12 @@ open class ConfigManager(
     private val storeKitManager: StoreKitManager,
     private val storage: Storage,
     private val network: Network,
-    options: SuperwallOptions? = null,
+    private val deviceHelper: DeviceHelper,
+    var options: SuperwallOptions,
     private val paywallManager: PaywallManager,
     private val factory: Factory
 ) {
     interface Factory: RequestFactory, DeviceInfoFactory, RuleAttributesFactory {}
-    var options = SuperwallOptions()
 
     // The configuration of the Superwall dashboard
     val configState = MutableStateFlow<Result<ConfigState>>(Result.Success(ConfigState.Retrieving))
@@ -80,22 +80,27 @@ open class ConfigManager(
             _unconfirmedAssignments = value.toMutableMap()
         }
 
-    // Initializer
-    init {
-        if (options != null) {
-            this.options = options
-        }
-    }
-
     // Remaining methods should be converted similarly, using Kotlin's coroutines for async tasks
     // and other relevant Kotlin features. Here's an example of one method:
     suspend fun fetchConfiguration() {
         try {
-            val config = network.getConfig() {
-                CoroutineScope(Dispatchers.IO).launch {
-                    configState.emit(Result.Success(ConfigState.Retrying))
+            val configDeferred = CoroutineScope(Dispatchers.IO).async {
+                network.getConfig {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        // Emit retrying state
+                        configState.emit(Result.Success(ConfigState.Retrying))
+                    }
                 }
             }
+
+            val geoDeferred = CoroutineScope(Dispatchers.IO).async {
+                deviceHelper.getGeoInfo()
+            }
+
+            // Await results from both operations
+            val config = configDeferred.await()
+            geoDeferred.await()
+
             CoroutineScope(Dispatchers.IO).launch { sendProductsBack(config) }
 
             Logger.debug(
@@ -221,7 +226,6 @@ open class ConfigManager(
             unconfirmedAssignments
         )
     }
-
 
     // Preloads paywalls.
     private suspend fun preloadPaywalls() {

@@ -11,6 +11,7 @@ import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.events.EventsRequest
 import com.superwall.sdk.models.events.EventsResponse
+import com.superwall.sdk.models.geo.GeoInfo
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
 import kotlinx.coroutines.flow.filter
@@ -154,7 +155,7 @@ open class Network(
             val paywalls = urlSession.request(
                 Endpoint.paywalls(factory = factory)
             )
-            return paywalls.paywalls
+            paywalls.paywalls
         } catch (error: Throwable) {
             Logger.debug(
                 logLevel = LogLevel.error,
@@ -163,6 +164,23 @@ open class Network(
                 error = error
             )
             throw error
+        }
+    }
+
+    suspend fun getGeoInfo(): GeoInfo? {
+        return try {
+            val geoWrapper = urlSession.request(
+                Endpoint.geo(factory = factory)
+            )
+            geoWrapper.info
+        } catch (error: Exception) {
+            Logger.debug(
+                logLevel = LogLevel.error,
+                scope = LogScope.network,
+                message = "Request Failed: /geo",
+                error = error
+            )
+            null
         }
     }
 

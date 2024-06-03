@@ -1,6 +1,6 @@
 package com.superwall.sdk.paywall.view_controller.web_view.templating.models
 
-import com.superwall.sdk.models.product.Product
+import com.superwall.sdk.models.product.ProductItem
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -9,5 +9,5 @@ import kotlinx.serialization.Serializable
 data class ProductTemplate(
     @SerialName("event_name")
     val eventName: String,
-    val products: List<Product>
+    val products: List<ProductItem>
 )

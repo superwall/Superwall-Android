@@ -8,6 +8,7 @@ import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.graphics.Color
 import android.net.Uri
 import android.os.Build
@@ -180,6 +181,19 @@ class PaywallViewController(
     private var unsavedOccurrence: TriggerRuleOccurrence? = null
 
     private val cacheKey: String = PaywallCacheLogic.key(paywall.identifier, deviceHelper.locale)
+
+    private val backgroundColor: Int
+        get() {
+            val style = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+            } else {
+                Configuration.UI_MODE_NIGHT_UNDEFINED
+            }
+            return when (style) {
+                Configuration.UI_MODE_NIGHT_YES -> paywall.darkBackgroundColor ?: paywall.backgroundColor
+                else ->  paywall.backgroundColor
+            }
+        }
     //endregion
 
     //region Initialization
@@ -191,7 +205,6 @@ class PaywallViewController(
         id = View.generateViewId()
 
         // Add the shimmer view and hide it
-        val backgroundColor = paywall.backgroundColor
         this.shimmerView = ShimmerView(
             context,
             backgroundColor,
