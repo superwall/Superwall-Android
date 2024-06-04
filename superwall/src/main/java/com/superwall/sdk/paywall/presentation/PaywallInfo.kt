@@ -10,6 +10,10 @@ import com.superwall.sdk.misc.camelCaseToSnakeCase
 import com.superwall.sdk.models.config.FeatureGatingBehavior
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.LocalNotification
+import com.superwall.sdk.models.paywall.Paywall
+import com.superwall.sdk.models.paywall.PaywallPresentationInfo
+import com.superwall.sdk.models.paywall.PaywallPresentationStyle
+import com.superwall.sdk.models.paywall.PresentationCondition
 import com.superwall.sdk.models.product.Product
 import com.superwall.sdk.models.product.ProductItem
 import com.superwall.sdk.models.serialization.URLSerializer
@@ -18,7 +22,7 @@ import com.superwall.sdk.store.abstractions.product.StoreProduct
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.net.URL
-import java.util.*
+import java.util.Date
 
 
 @Serializable
@@ -62,7 +66,8 @@ data class PaywallInfo(
     val localNotifications: List<LocalNotification>,
     val computedPropertyRequests: List<ComputedPropertyRequest>,
     val surveys: List<Survey>,
-    val factory: TriggerSessionManagerFactory
+    val factory: TriggerSessionManagerFactory,
+    val presentation: PaywallPresentationInfo
 ) {
     constructor(
         databaseId: String,
@@ -92,7 +97,8 @@ data class PaywallInfo(
         localNotifications: List<LocalNotification>,
         computedPropertyRequests: List<ComputedPropertyRequest>,
         closeReason: PaywallCloseReason,
-        surveys: List<Survey>
+        surveys: List<Survey>,
+        presentation: PaywallPresentationInfo
     ) : this(
         databaseId = databaseId,
         identifier = identifier,
@@ -139,7 +145,8 @@ data class PaywallInfo(
         localNotifications = localNotifications,
         computedPropertyRequests = computedPropertyRequests,
         closeReason = closeReason,
-        surveys = surveys
+        surveys = surveys,
+        presentation = presentation
     )
 
     fun eventParams(
@@ -211,7 +218,8 @@ data class PaywallInfo(
 
     /// Parameters that can be used in rules.
     fun customParams(): MutableMap<String, Any> {
-        val featureGatingSerialized = Json {}.encodeToString(FeatureGatingBehavior.serializer(), featureGatingBehavior)
+        val featureGatingSerialized =
+            Json {}.encodeToString(FeatureGatingBehavior.serializer(), featureGatingBehavior)
 
         val output: MutableMap<String, Any?> = mutableMapOf(
             "paywall_id" to databaseId,
