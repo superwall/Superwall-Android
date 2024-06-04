@@ -175,6 +175,23 @@ sealed class SuperwallEvent {
             get() = "transaction_restore"
     }
 
+
+    /// State of transaction restoration
+    sealed class Restore : SuperwallEvent() {
+        object Start : Restore(){
+            override val rawName: String
+                get() = "restore_start"
+        }
+        data class Fail(val reason: String) : Restore(){
+            override val rawName: String
+                get() = "restore_fail"
+        }
+        object Complete : Restore(){
+            override val rawName: String
+                get() = "restore_complete"
+        }
+    }
+
     /// When the transaction took > 5 seconds to show the payment sheet.
     data class TransactionTimeout(val paywallInfo: PaywallInfo) : SuperwallEvent() {
         override val rawName: String
@@ -293,6 +310,7 @@ sealed class SuperwallEvent {
         override val rawName: String
             get() = "survey_response"
     }
+
 
     /// When the user chose the close button on a survey instead of responding.
     class SurveyClose() : SuperwallEvent() {

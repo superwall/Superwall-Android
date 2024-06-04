@@ -29,7 +29,11 @@ import com.superwall.sdk.storage.EventsQueue
 import com.superwall.sdk.store.StoreKitManager
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class TransactionManager(
     private val storeKitManager: StoreKitManager,
@@ -40,8 +44,9 @@ class TransactionManager(
     private val factory: Factory,
     private val context: Context
 ) {
-    interface Factory: OptionsFactory, TriggerFactory, TransactionVerifierFactory,
+    interface Factory : OptionsFactory, TriggerFactory, TransactionVerifierFactory,
         StoreTransactionFactory, DeviceHelperFactory {}
+
     private var lastPaywallViewController: PaywallViewController? = null
 
     suspend fun purchase(
@@ -67,17 +72,21 @@ class TransactionManager(
             is PurchaseResult.Purchased -> {
                 didPurchase(product, paywallViewController)
             }
+
             is PurchaseResult.Restored -> {
                 didRestore(
                     product = product,
                     paywallViewController = paywallViewController
                 )
             }
+
             is PurchaseResult.Failed -> {
                 val superwallOptions = factory.makeSuperwallOptions()
-                val shouldShowPurchaseFailureAlert = superwallOptions.paywalls.shouldShowPurchaseFailureAlert
+                val shouldShowPurchaseFailureAlert =
+                    superwallOptions.paywalls.shouldShowPurchaseFailureAlert
                 val triggers = factory.makeTriggers()
-                val transactionFailExists = triggers.contains(SuperwallEventObjc.TransactionFail.rawName)
+                val transactionFailExists =
+                    triggers.contains(SuperwallEventObjc.TransactionFail.rawName)
 
                 if (shouldShowPurchaseFailureAlert && !transactionFailExists) {
                     trackFailure(
@@ -99,9 +108,11 @@ class TransactionManager(
                     return paywallViewController.togglePaywallSpinner(isHidden = true)
                 }
             }
+
             is PurchaseResult.Pending -> {
                 handlePendingTransaction(paywallViewController)
             }
+
             is PurchaseResult.Cancelled -> {
                 trackCancelled(product, paywallViewController)
             }
@@ -163,7 +174,12 @@ class TransactionManager(
         CoroutineScope(Dispatchers.Default).launch {
             val paywallInfo = paywallViewController.info
             val trackedEvent = InternalSuperwallEvent.Transaction(
-                state =  InternalSuperwallEvent.Transaction.State.Fail(TransactionError.Failure(errorMessage, product)),
+                state = InternalSuperwallEvent.Transaction.State.Fail(
+                    TransactionError.Failure(
+                        errorMessage,
+                        product
+                    )
+                ),
                 paywallInfo = paywallInfo,
                 product = product,
                 model = null
@@ -310,10 +326,17 @@ class TransactionManager(
 
         paywallViewController.loadingState = PaywallLoadingState.LoadingPurchase()
 
+        Superwall.instance.track(
+            InternalSuperwallEvent.Restore(
+                state = InternalSuperwallEvent.Restore.State.Start,
+                paywallInfo = paywallViewController.info
+            )
+        )
         val restorationResult = purchaseController.restorePurchases()
 
         val hasRestored = restorationResult is RestorationResult.Restored
-        val isUserSubscribed = Superwall.instance.subscriptionStatus.value == SubscriptionStatus.ACTIVE
+        val isUserSubscribed =
+            Superwall.instance.subscriptionStatus.value == SubscriptionStatus.ACTIVE
 
         if (hasRestored && isUserSubscribed) {
             Logger.debug(
@@ -321,13 +344,39 @@ class TransactionManager(
                 scope = LogScope.paywallTransactions,
                 message = "Transactions Restored"
             )
+            Superwall.instance.track(
+                InternalSuperwallEvent.Restore(
+                    state = InternalSuperwallEvent.Restore.State.Complete,
+                    paywallInfo = paywallViewController.info
+                )
+            )
             didRestore(paywallViewController = paywallViewController)
         } else {
+
+            val msg = "Transactions Failed to Restore.${
+                if (hasRestored && !isUserSubscribed) {
+                    " The user's subscription status is \"inactive\", but the restoration result is \"restored\"." +
+                            " Ensure the subscription status is active before confirming successful restoration."
+                } else " Original restoration error message: ${
+                    when (restorationResult) {
+                        is RestorationResult.Failed -> restorationResult.error?.localizedMessage
+                        else -> null
+                    }
+                }"
+            }"
+
             Logger.debug(
                 logLevel = LogLevel.debug,
                 scope = LogScope.paywallTransactions,
-                message = "Transactions Failed to Restore"
+                message = msg
             )
+            Superwall.instance.track(
+                InternalSuperwallEvent.Restore(
+                    state = InternalSuperwallEvent.Restore.State.Failure(msg),
+                    paywallInfo = paywallViewController.info
+                )
+            )
+
 
             paywallViewController.presentAlert(
                 title = Superwall.instance.options.paywalls.restoreFailed.title,
@@ -411,7 +460,9 @@ class TransactionManager(
 
                 val notifications =
                     paywallInfo.localNotifications.filter { it.type == LocalNotificationType.TrialStarted }
-                val paywallActivity = paywallViewController.encapsulatingActivity as? SuperwallPaywallActivity ?: return
+                val paywallActivity =
+                    paywallViewController.encapsulatingActivity as? SuperwallPaywallActivity
+                        ?: return
                 paywallActivity.attemptToScheduleNotifications(
                     notifications = notifications,
                     factory = factory,

@@ -72,12 +72,14 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
         val selectedOption: SurveyOption,
         val customResponse: String?,
         val paywallInfo: PaywallInfo
-    ) : InternalSuperwallEvent(SuperwallEvent.SurveyResponse(
-        survey,
-        selectedOption,
-        customResponse,
-        paywallInfo
-    )) {
+    ) : InternalSuperwallEvent(
+        SuperwallEvent.SurveyResponse(
+            survey,
+            selectedOption,
+            customResponse,
+            paywallInfo
+        )
+    ) {
         override val superwallEvent: SuperwallEvent
             get() = SuperwallEvent.SurveyResponse(
                 survey, selectedOption, customResponse, paywallInfo
@@ -102,7 +104,6 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
             return paywallInfo.eventParams(otherParams = params)
         }
     }
-
 
 
     class AppLaunch(override var customParameters: HashMap<String, Any> = HashMap()) :
@@ -150,10 +151,18 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
                 uri.queryParameterNames.forEach { paramName ->
                     val paramValue = uri.getQueryParameter(paramName) ?: return@forEach
                     when {
-                        paramValue.equals("true", ignoreCase = true) -> queryStrings[paramName] = true
-                        paramValue.equals("false", ignoreCase = true) -> queryStrings[paramName] = false
-                        paramValue.toIntOrNull() != null -> queryStrings[paramName] = paramValue.toInt()
-                        paramValue.toDoubleOrNull() != null -> queryStrings[paramName] = paramValue.toDouble()
+                        paramValue.equals("true", ignoreCase = true) -> queryStrings[paramName] =
+                            true
+
+                        paramValue.equals("false", ignoreCase = true) -> queryStrings[paramName] =
+                            false
+
+                        paramValue.toIntOrNull() != null -> queryStrings[paramName] =
+                            paramValue.toInt()
+
+                        paramValue.toDoubleOrNull() != null -> queryStrings[paramName] =
+                            paramValue.toDouble()
+
                         else -> queryStrings[paramName] = paramValue
                     }
                 }
@@ -189,13 +198,16 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
                 is State.Start -> SuperwallEvent.PaywallResponseLoadStart(
                     eventData?.name
                 )
+
                 is State.Complete -> SuperwallEvent.PaywallResponseLoadComplete(
                     eventData?.name,
                     state.paywallInfo
                 )
+
                 is State.Fail -> SuperwallEvent.PaywallResponseLoadFail(
                     eventData?.name
                 )
+
                 is State.NotFound -> SuperwallEvent.PaywallResponseLoadNotFound(
                     eventData?.name
                 )
@@ -268,7 +280,8 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
                 "trigger_name" to triggerName
             )
 
-            val triggerSessionId = sessionEventsManager.triggerSession.getActiveTriggerSession()?.sessionId
+            val triggerSessionId =
+                sessionEventsManager.triggerSession.getActiveTriggerSession()?.sessionId
             if (triggerSessionId != null) {
                 params["trigger_session_id"] = triggerSessionId
             }
@@ -279,6 +292,7 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
                         this["result"] = "no_rule_match"
                     }
                 }
+
                 is InternalTriggerResult.Holdout -> {
                     params.apply {
                         this["variant_id"] = triggerResult.experiment.variant.id
@@ -286,6 +300,7 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
                         this["result"] = "holdout"
                     }
                 }
+
                 is InternalTriggerResult.Paywall -> {
                     params.apply {
                         this["variant_id"] = triggerResult.experiment.variant.id
@@ -295,11 +310,13 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
                         this["result"] = "present"
                     }
                 }
+
                 is InternalTriggerResult.EventNotFound -> {
                     params.apply {
                         this["result"] = "eventNotFound"
                     }
                 }
+
                 is InternalTriggerResult.Error -> {
                     params.apply {
                         this["result"] = "error"
@@ -322,7 +339,7 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
             reason = statusReason
         )
     ) {
-        interface Factory: RuleAttributesFactory, FeatureFlagsFactory,
+        interface Factory : RuleAttributesFactory, FeatureFlagsFactory,
             ComputedPropertyRequestsFactory {}
 
         override suspend fun getSuperwallParameters(): HashMap<String, Any> {
@@ -342,6 +359,7 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
             get() {
                 return paywallInfo.customParams()
             }
+
         override suspend fun getSuperwallParameters(): HashMap<String, Any> {
             return HashMap(paywallInfo.eventParams())
         }
@@ -396,6 +414,7 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
             class Abandon(val product: StoreProduct) : State()
             class Complete(val product: StoreProduct, val transaction: StoreTransactionType?) :
                 State()
+
             class Restore(val restoreType: RestoreType) : State()
             class Timeout : State()
         }
@@ -411,23 +430,28 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
                     product = state.product,
                     paywallInfo = paywallInfo
                 )
+
                 is State.Fail -> SuperwallEvent.TransactionFail(
                     error = state.error,
                     paywallInfo = paywallInfo
                 )
+
                 is State.Abandon -> SuperwallEvent.TransactionAbandon(
                     product = state.product,
                     paywallInfo = paywallInfo
                 )
+
                 is State.Complete -> SuperwallEvent.TransactionComplete(
                     transaction = state.transaction,
                     product = state.product,
                     paywallInfo = paywallInfo
                 )
+
                 is State.Restore -> SuperwallEvent.TransactionRestore(
                     restoreType = state.restoreType,
                     paywallInfo = paywallInfo
                 )
+
                 is State.Timeout -> SuperwallEvent.TransactionTimeout(paywallInfo = paywallInfo)
             }
         override val rawName: String
@@ -446,6 +470,7 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
                     eventParams["restore_via_purchase_attempt"] = model != null
                     return eventParams
                 }
+
                 is State.Start,
                 is State.Abandon,
                 is State.Complete,
@@ -456,12 +481,18 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
                     }
                     return eventParams
                 }
+
                 is State.Fail -> {
                     when (state.error) {
                         is TransactionError.Failure,
                         is TransactionError.Pending -> {
                             val message = state.error.message
-                            var eventParams = HashMap(paywallInfo.eventParams(product, otherParams = mapOf("message" to message)))
+                            var eventParams = HashMap(
+                                paywallInfo.eventParams(
+                                    product,
+                                    otherParams = mapOf("message" to message)
+                                )
+                            )
                             return eventParams
                         }
                     }
@@ -547,12 +578,15 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
                 is PaywallWebviewLoad.State.Start -> SuperwallEvent.PaywallWebviewLoadStart(
                     paywallInfo
                 )
+
                 is PaywallWebviewLoad.State.Timeout -> SuperwallEvent.PaywallWebviewLoadTimeout(
                     paywallInfo
                 )
+
                 is PaywallWebviewLoad.State.Fail -> SuperwallEvent.PaywallWebviewLoadFail(
                     paywallInfo
                 )
+
                 is PaywallWebviewLoad.State.Complete -> SuperwallEvent.PaywallWebviewLoadComplete(
                     paywallInfo
                 )
@@ -590,11 +624,13 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
                     eventData?.name,
                     paywallInfo
                 )
+
                 is State.Fail -> SuperwallEvent.PaywallProductsLoadFail(
                     state.errorMessage,
                     eventData?.name,
                     paywallInfo
                 )
+
                 is State.Complete -> SuperwallEvent.PaywallProductsLoadComplete(
                     eventData?.name,
                     paywallInfo
@@ -618,6 +654,7 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
                         params["error_message"] = state.errorMessage
                     }
                 }
+
                 else -> Unit
             }
 
@@ -626,10 +663,34 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
         }
     }
 
+    data class Restore(
+        val state: State,
+        val paywallInfo: PaywallInfo
+    ) : InternalSuperwallEvent(
+        when (state) {
+            is State.Complete -> SuperwallEvent.Restore.Complete
+            is State.Failure -> SuperwallEvent.Restore.Fail(state.reason)
+            is State.Start -> SuperwallEvent.Restore.Start
+        }
+    ) {
 
-}
+        sealed class State {
+            object Start : State()
+            data class Failure(val reason: String) : State()
+            object Complete : State()
 
-fun test() {
-    InternalSuperwallEvent.AppOpen()
-    InternalSuperwallEvent.AppInstall(appInstalledAtString = "test", hasExternalPurchaseController = false)
+        }
+
+        override suspend fun getSuperwallParameters(): Map<String, Any> =
+            paywallInfo.eventParams().let {
+                when (state) {
+                    is State.Failure -> it + mapOf("error_message" to state.reason)
+                    else -> it
+                }
+            }
+
+        override val customParameters: Map<String, Any>
+            get() = paywallInfo.customParams()
+
+    }
 }
