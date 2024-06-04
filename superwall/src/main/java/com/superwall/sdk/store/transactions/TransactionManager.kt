@@ -353,13 +353,13 @@ class TransactionManager(
             didRestore(paywallViewController = paywallViewController)
         } else {
 
-            val msg = "Transactions Failed to Restore,${
+            val msg = "Transactions Failed to Restore: ${
                 if (hasRestored && !isUserSubscribed) {
-                    " The user's subscription status is \"inactive\", but the restoration result is \"restored\"." +
+                    "The user's subscription status is \"inactive\", but the restoration result is \"restored\"." +
                             " Ensure the subscription status is active before confirming successful restoration."
-                } else "Original restoration error message: ${
+                } else " Original restoration error message: ${
                     when (restorationResult) {
-                        is RestorationResult.Failed -> restorationResult.error?.stackTraceToString()
+                        is RestorationResult.Failed -> restorationResult.error?.localizedMessage
                         else -> null
                     }
                 }"

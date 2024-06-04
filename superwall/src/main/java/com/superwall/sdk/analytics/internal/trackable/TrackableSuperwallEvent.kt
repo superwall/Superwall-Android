@@ -681,26 +681,16 @@ sealed class InternalSuperwallEvent(override val superwallEvent: SuperwallEvent)
 
         }
 
-        override val customParameters: Map<String, Any>
-            get() = paywallInfo.customParams().let {
+        override suspend fun getSuperwallParameters(): Map<String, Any> =
+            paywallInfo.eventParams().let {
                 when (state) {
                     is State.Failure -> it + mapOf("error_message" to state.reason)
                     else -> it
                 }
             }
 
-        override suspend fun getSuperwallParameters(): HashMap<String, Any> {
-            return HashMap()
-        }
+        override val customParameters: Map<String, Any>
+            get() = paywallInfo.customParams()
+
     }
-
-
-}
-
-fun test() {
-    InternalSuperwallEvent.AppOpen()
-    InternalSuperwallEvent.AppInstall(
-        appInstalledAtString = "test",
-        hasExternalPurchaseController = false
-    )
 }
