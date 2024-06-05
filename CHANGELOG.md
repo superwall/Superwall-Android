@@ -5,8 +5,8 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 ## 1.1.7
 
 ### Enhancements
-- Adds `restore_start`, `restore_complete`, and `restore_fail` events.
 - SW-2805: Exposes a `presentation` property on the `PaywallInfo` object. This contains information about the presentation of the paywall.
+- Fixes `SW-2855` by adding `restore_start`, `restore_complete`, and `restore_fail` events.
 - Fixes `SW-2854` where abandoning transaction by pressing back would prevent restarting the transaction
 
 
