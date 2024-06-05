@@ -38,12 +38,6 @@ data class Paywall(
     val url: @Serializable(with = URLSerializer::class) URL,
     @SerialName("paywalljs_event")
     val htmlSubstitutions: String,
-    @kotlinx.serialization.Transient()
-    var presentation: PaywallPresentationInfo = PaywallPresentationInfo(
-        PaywallPresentationStyle.MODAL,
-        PresentationCondition.ALWAYS,
-    ),
-
     @SerialName("presentation_style_v2")
     private val presentationStyle: String,
 
@@ -51,6 +45,13 @@ data class Paywall(
     private val presentationDelay: Long,
 
     private val presentationCondition: String,
+
+    @kotlinx.serialization.Transient()
+    var presentation: PaywallPresentationInfo = PaywallPresentationInfo(
+        style = PaywallPresentationStyle.valueOf(presentationStyle.uppercase()),
+        condition = PresentationCondition.valueOf(presentationCondition.uppercase()),
+        delay = presentationDelay
+    ),
 
     val backgroundColorHex: String,
     val darkBackgroundColorHex: String? = null,
@@ -151,11 +152,6 @@ data class Paywall(
 
     init {
         productItems = _productItems
-        presentation = PaywallPresentationInfo(
-            style = PaywallPresentationStyle.valueOf(presentationStyle.uppercase()),
-            condition = PresentationCondition.valueOf(presentationCondition.uppercase()),
-            loadingDelay = presentationDelay
-        )
     }
 
 
