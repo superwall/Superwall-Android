@@ -12,5 +12,5 @@ data class PaywallPresentationInfo(
 
     // The delay in milliseconds before switching from the loading view to
     // the paywall view.
-    val loadingDelay: Long? = null
+    val delay: Long
 )
