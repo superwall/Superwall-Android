@@ -19,12 +19,17 @@ import com.superwall.sdk.paywall.vc.delegate.PaywallLoadingState
 import com.superwall.sdk.paywall.vc.web_view.PaywallMessage
 import com.superwall.sdk.paywall.vc.web_view.WrappedPaywallMessages
 import com.superwall.sdk.paywall.vc.web_view.parseWrappedPaywallMessages
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.net.URL
 import java.nio.charset.StandardCharsets
-import java.util.*
+import java.util.Base64
+import java.util.Date
 
 interface PaywallMessageHandlerDelegate {
     val request: PresentationRequest?
@@ -78,16 +83,19 @@ class PaywallMessageHandler(
         when (message) {
             is PaywallMessage.TemplateParamsAndUserAttributes ->
                 CoroutineScope(Dispatchers.IO).launch { passTemplatesToWebView(paywall) }
+
             is PaywallMessage.OnReady -> {
                 delegate?.paywall?.paywalljsVersion = message.paywallJsVersion
                 val loadedAt = Date()
                 println("!!Ready!!")
                 CoroutineScope(Dispatchers.IO).launch { didLoadWebView(paywall, loadedAt) }
             }
+
             is PaywallMessage.Close -> {
                 hapticFeedback()
                 delegate?.eventDidOccur(PaywallWebEvent.Closed)
             }
+
             is PaywallMessage.OpenUrl -> openUrl(message.url)
             is PaywallMessage.OpenUrlInSafari -> openUrlInSafari(message.url)
             is PaywallMessage.OpenDeepLink -> openDeepLink(URL(message.url.toString()))
@@ -98,6 +106,7 @@ class PaywallMessageHandler(
                     pass(eventName = "paywall_open", paywall = paywall)
                 }
             }
+
             is PaywallMessage.Custom -> handleCustomEvent(message.data)
             else -> {
                 println("!! PaywallMessageHandler: Unknown message type: $message")
@@ -108,7 +117,7 @@ class PaywallMessageHandler(
     private suspend fun pass(eventName: String, paywall: Paywall) {
         val json = Json { encodeDefaults = true }
         val eventList = listOf(
-                mapOf(
+            mapOf(
                 "event_name" to eventName,
                 "paywall_id" to paywall.databaseId,
                 "paywall_identifier" to paywall.identifier
@@ -117,7 +126,8 @@ class PaywallMessageHandler(
         val jsonString = json.encodeToString(eventList)
 
         // Encode the JSON string to Base64
-        val base64Event = Base64.getEncoder().encodeToString(jsonString.toByteArray(StandardCharsets.UTF_8))
+        val base64Event =
+            Base64.getEncoder().encodeToString(jsonString.toByteArray(StandardCharsets.UTF_8))
 
         passMessageToWebView(base64String = base64Event)
     }
@@ -201,7 +211,8 @@ class PaywallMessageHandler(
             info = mapOf("message" to scriptSrc)
         )
 
-        CoroutineScope(Dispatchers.Main).launch {
+        val mainScope = CoroutineScope(Dispatchers.Main)
+        mainScope.launch {
             delegate?.webView?.evaluateJavascript(scriptSrc) { error ->
                 if (error != null) {
                     println("!! PaywallMessageHandler: Error: $error")
@@ -213,7 +224,14 @@ class PaywallMessageHandler(
                         error = java.lang.Exception(error)
                     )
                 }
-                delegate?.loadingState = PaywallLoadingState.Ready()
+                mainScope.launch {
+                    launch(Dispatchers.Default) {
+                        delay(paywall.presentation.delay)
+                        mainScope.launch {
+                            delegate?.loadingState = PaywallLoadingState.Ready()
+                        }
+                    }
+                }
             }
 
             // block selection
