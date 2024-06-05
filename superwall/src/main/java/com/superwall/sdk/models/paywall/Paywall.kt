@@ -38,16 +38,20 @@ data class Paywall(
     val url: @Serializable(with = URLSerializer::class) URL,
     @SerialName("paywalljs_event")
     val htmlSubstitutions: String,
-    @kotlinx.serialization.Transient()
-    var presentation: Presentation = Presentation(
-        PaywallPresentationStyle.MODAL,
-        PresentationCondition.ALWAYS
-    ),
-
     @SerialName("presentation_style_v2")
     private val presentationStyle: String,
 
+    @SerialName("presentation_delay")
+    private val presentationDelay: Long,
+
     private val presentationCondition: String,
+
+    @kotlinx.serialization.Transient()
+    var presentation: PaywallPresentationInfo = PaywallPresentationInfo(
+        style = PaywallPresentationStyle.valueOf(presentationStyle.uppercase()),
+        condition = PresentationCondition.valueOf(presentationCondition.uppercase()),
+        delay = presentationDelay
+    ),
 
     val backgroundColorHex: String,
     val darkBackgroundColorHex: String? = null,
@@ -148,17 +152,8 @@ data class Paywall(
 
     init {
         productItems = _productItems
-        presentation = Presentation(
-            style = PaywallPresentationStyle.valueOf(presentationStyle.uppercase()),
-            condition = PresentationCondition.valueOf(presentationCondition.uppercase())
-        )
     }
 
-    @Serializable
-    data class Presentation(
-        val style: PaywallPresentationStyle,
-        val condition: PresentationCondition
-    )
 
     @Serializable
     data class LoadingInfo(
@@ -209,7 +204,8 @@ data class Paywall(
             closeReason = closeReason,
             localNotifications = localNotifications,
             computedPropertyRequests = computedPropertyRequests,
-            surveys = surveys
+            surveys = surveys,
+            presentation = presentation
         )
     }
 
@@ -241,9 +237,10 @@ data class Paywall(
                 name = "abac",
                 url = URL("https://google.com"),
                 htmlSubstitutions = "",
-                presentation = Presentation(
+                presentation = PaywallPresentationInfo(
                     PaywallPresentationStyle.MODAL,
-                    PresentationCondition.CHECK_USER_SUBSCRIPTION
+                    PresentationCondition.CHECK_USER_SUBSCRIPTION,
+                    300
                 ),
                 presentationStyle = "MODAL",
                 presentationCondition = "CHECK_USER_SUBSCRIPTION",
@@ -260,7 +257,8 @@ data class Paywall(
                 paywalljsVersion = "",
                 isFreeTrialAvailable = false,
                 featureGating = FeatureGatingBehavior.NonGated,
-                localNotifications = arrayListOf()
+                localNotifications = arrayListOf(),
+                presentationDelay = 300
             )
 
         }
