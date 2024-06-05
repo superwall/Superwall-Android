@@ -5,7 +5,7 @@ import java.util.Locale
 object LocalizationLogic {
     fun getSortedLocalizations(
         localeIds: List<String>,
-        popularLocales: List<String>
+        popularLocales: List<String>,
     ): List<LocalizationOption> {
         val localizations = mutableListOf<LocalizationOption>()
 
@@ -28,12 +28,13 @@ object LocalizationLogic {
                 localeIdComponents.size > 1 -> country = Locale("", localeIdComponents.last()).displayCountry
             }
 
-            val localizationOption = LocalizationOption(
-                language = localizedLanguage,
-                country = country,
-                locale = localeId,
-                popularLocales = popularLocales
-            )
+            val localizationOption =
+                LocalizationOption(
+                    language = localizedLanguage,
+                    country = country,
+                    locale = localeId,
+                    popularLocales = popularLocales,
+                )
             localizations.add(localizationOption)
         }
 
@@ -42,9 +43,7 @@ object LocalizationLogic {
         return localizations
     }
 
-    fun getGroupings(
-        localizationOptions: List<LocalizationOption>
-    ): List<LocalizationGrouping> {
+    fun getGroupings(localizationOptions: List<LocalizationOption>): List<LocalizationGrouping> {
         val groupings = mutableListOf<LocalizationGrouping>()
 
         for (localizationOption in localizationOptions) {

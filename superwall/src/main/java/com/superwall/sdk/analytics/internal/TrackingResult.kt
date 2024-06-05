@@ -4,14 +4,13 @@ import com.superwall.sdk.models.events.EventData
 
 data class TrackingResult(
     var data: EventData,
-    val parameters: TrackingParameters
+    val parameters: TrackingParameters,
 ) {
     companion object {
-        fun stub(): TrackingResult {
-            return TrackingResult(
+        fun stub(): TrackingResult =
+            TrackingResult(
                 data = EventData.stub(),
-                parameters = TrackingParameters.stub()
+                parameters = TrackingParameters.stub(),
             )
-        }
     }
 }

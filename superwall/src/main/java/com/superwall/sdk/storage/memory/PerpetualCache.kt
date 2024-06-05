@@ -9,7 +9,10 @@ class PerpetualCache<K, V> : GenericCache<K, V> {
     override val size: Int
         get() = cache.size
 
-    override fun set(key: K, value: V) {
+    override fun set(
+        key: K,
+        value: V,
+    ) {
         cache[key] = value
     }
 

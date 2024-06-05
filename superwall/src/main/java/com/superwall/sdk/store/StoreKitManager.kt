@@ -12,12 +12,9 @@ import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.models.paywall.Paywall
-import com.superwall.sdk.models.paywall.PaywallProducts
 import com.superwall.sdk.models.product.Offer
 import com.superwall.sdk.models.product.PlayStoreProduct
-import com.superwall.sdk.models.product.Product
 import com.superwall.sdk.models.product.ProductItem
-import com.superwall.sdk.models.product.ProductType
 import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.store.abstractions.product.OfferType
@@ -104,7 +101,7 @@ class StoreKitManager(private val context: Context) : StoreKitManagerInterface {
 class StoreKitManager(
     private val context: Context,
     val purchaseController: InternalPurchaseController,
-    val billingWrapper: GoogleBillingWrapper
+    val billingWrapper: GoogleBillingWrapper,
     // val productFetcher: GooglePlayProductsFetcher
 ) : ProductsFetcher {
     private val receiptManager by lazy { ReceiptManager(delegate = this) }
@@ -114,28 +111,30 @@ class StoreKitManager(
     private data class ProductProcessingResult(
         val fullProductIdsToLoad: Set<String>,
         val substituteProductsById: Map<String, StoreProduct>,
-        val productItems: List<ProductItem>
+        val productItems: List<ProductItem>,
     )
 
     suspend fun getProductVariables(
         paywall: Paywall,
         request: PaywallRequest,
-        factory: TriggerSessionManagerFactory
+        factory: TriggerSessionManagerFactory,
     ): List<ProductVariable> {
-        val output = getProducts(
-            paywall = paywall,
-            request = request,
-            factory = factory
-        )
+        val output =
+            getProducts(
+                paywall = paywall,
+                request = request,
+                factory = factory,
+            )
 
-        val productAttributes = paywall.productItems.mapNotNull { productItem ->
-            output.productsByFullId[productItem.fullProductId]?.let { storeProduct ->
-                ProductVariable(
-                    name = productItem.name,
-                    attributes = storeProduct.attributes
-                )
+        val productAttributes =
+            paywall.productItems.mapNotNull { productItem ->
+                output.productsByFullId[productItem.fullProductId]?.let { storeProduct ->
+                    ProductVariable(
+                        name = productItem.name,
+                        attributes = storeProduct.attributes,
+                    )
+                }
             }
-        }
 
         return productAttributes
     }
@@ -144,26 +143,28 @@ class StoreKitManager(
         substituteProducts: Map<String, StoreProduct>? = null,
         paywall: Paywall,
         request: PaywallRequest? = null,
-        factory: TriggerSessionManagerFactory
+        factory: TriggerSessionManagerFactory,
     ): GetProductsResponse {
-        val processingResult = removeAndStore(
-            substituteProductsByName = substituteProducts,
-            fullProductIds = paywall.productIds,
-            productItems = paywall.productItems
-        )
+        val processingResult =
+            removeAndStore(
+                substituteProductsByName = substituteProducts,
+                fullProductIds = paywall.productIds,
+                productItems = paywall.productItems,
+            )
 
         var products: Set<StoreProduct> = setOf()
         try {
             products = billingWrapper.awaitGetProducts(processingResult.fullProductIdsToLoad)
-        } catch (error: Throwable)  {
+        } catch (error: Throwable) {
             paywall.productsLoadingInfo.failAt = Date()
             val paywallInfo = paywall.getInfo(request?.eventData, factory)
-             val productLoadEvent = InternalSuperwallEvent.PaywallProductsLoad(
-                 state = InternalSuperwallEvent.PaywallProductsLoad.State.Fail(error.message),
-                 paywallInfo = paywallInfo,
-                 eventData = request?.eventData
-             )
-             Superwall.instance.track(productLoadEvent)
+            val productLoadEvent =
+                InternalSuperwallEvent.PaywallProductsLoad(
+                    state = InternalSuperwallEvent.PaywallProductsLoad.State.Fail(error.message),
+                    paywallInfo = paywallInfo,
+                    eventData = request?.eventData,
+                )
+            Superwall.instance.track(productLoadEvent)
 
             // If billing isn't available, make it call the onError handler when requesting
             // a paywall.
@@ -183,14 +184,14 @@ class StoreKitManager(
         return GetProductsResponse(
             productsByFullId = productsById,
             productItems = processingResult.productItems,
-            paywall = paywall
+            paywall = paywall,
         )
     }
 
     private fun removeAndStore(
         substituteProductsByName: Map<String, StoreProduct>?,
         fullProductIds: List<String>,
-        productItems: List<ProductItem>
+        productItems: List<ProductItem>,
     ): ProductProcessingResult {
         val fullProductIdsToLoad = fullProductIds.toMutableList()
         val substituteProductsByFullId: MutableMap<String, StoreProduct> = mutableMapOf()
@@ -211,39 +212,44 @@ class StoreKitManager(
                 // Search for an existing product with specified name
                 productItems.indexOfFirst { it.name == name }.takeIf { it >= 0 }?.let { index ->
                     // Update the product ID at the found index
-                    productItems[index] = ProductItem(
-                        name = productItems[index].name,
-                        type = ProductItem.StoreProductType.PlayStore(
-                            PlayStoreProduct(
-                                productIdentifier = decomposedProductIds.subscriptionId,
-                                basePlanIdentifier = decomposedProductIds.basePlanId ?: "",
-                                offer = decomposedProductIds.offerType.let { offerType ->
-                                    when (offerType) {
-                                        is OfferType.Offer -> Offer.Specified(offerIdentifier = offerType.id)
-                                        is OfferType.Auto -> Offer.Automatic()
-                                    }
-                                }
-                            )
+                    productItems[index] =
+                        ProductItem(
+                            name = productItems[index].name,
+                            type =
+                                ProductItem.StoreProductType.PlayStore(
+                                    PlayStoreProduct(
+                                        productIdentifier = decomposedProductIds.subscriptionId,
+                                        basePlanIdentifier = decomposedProductIds.basePlanId ?: "",
+                                        offer =
+                                            decomposedProductIds.offerType.let { offerType ->
+                                                when (offerType) {
+                                                    is OfferType.Offer -> Offer.Specified(offerIdentifier = offerType.id)
+                                                    is OfferType.Auto -> Offer.Automatic()
+                                                }
+                                            },
+                                    ),
+                                ),
                         )
-                    )
-                }  ?: run {
+                } ?: run {
                     // If no existing product found, just append to the list.
                     productItems.add(
                         ProductItem(
                             name = name,
-                            type = ProductItem.StoreProductType.PlayStore(
-                                PlayStoreProduct(
-                                    productIdentifier = decomposedProductIds.subscriptionId,
-                                    basePlanIdentifier = decomposedProductIds.basePlanId ?: "",
-                                    offer = decomposedProductIds.offerType.let { offerType ->
-                                        when (offerType) {
-                                            is OfferType.Offer -> Offer.Specified(offerIdentifier = offerType.id)
-                                            is OfferType.Auto -> Offer.Automatic()
-                                        }
-                                    }
-                                )
-                            )
-                        )
+                            type =
+                                ProductItem.StoreProductType.PlayStore(
+                                    PlayStoreProduct(
+                                        productIdentifier = decomposedProductIds.subscriptionId,
+                                        basePlanIdentifier = decomposedProductIds.basePlanId ?: "",
+                                        offer =
+                                            decomposedProductIds.offerType.let { offerType ->
+                                                when (offerType) {
+                                                    is OfferType.Offer -> Offer.Specified(offerIdentifier = offerType.id)
+                                                    is OfferType.Auto -> Offer.Automatic()
+                                                }
+                                            },
+                                    ),
+                                ),
+                        ),
                     )
                 }
 
@@ -255,7 +261,7 @@ class StoreKitManager(
         return ProductProcessingResult(
             fullProductIdsToLoad = fullProductIdsToLoad.toSet(),
             substituteProductsById = substituteProductsByFullId,
-            productItems = productItems
+            productItems = productItems,
         )
     }
 
@@ -263,7 +269,7 @@ class StoreKitManager(
         Logger.debug(
             logLevel = LogLevel.debug,
             scope = LogScope.storeKitManager, // Rename this scope to reflect Billing Manager
-            message = "Refreshing Google Play receipt."
+            message = "Refreshing Google Play receipt.",
         )
         receiptManager.refreshReceipt()
     }
@@ -272,15 +278,11 @@ class StoreKitManager(
         Logger.debug(
             logLevel = LogLevel.debug,
             scope = LogScope.storeKitManager, // Rename this scope to reflect Billing Manager
-            message = "Loading purchased products from the Google Play receipt."
+            message = "Loading purchased products from the Google Play receipt.",
         )
         receiptManager.loadPurchasedProducts()
     }
 
     @Throws(Throwable::class)
-    override suspend fun products(
-        identifiers: Set<String>
-    ): Set<StoreProduct> {
-        return billingWrapper.awaitGetProducts(identifiers)
-    }
+    override suspend fun products(identifiers: Set<String>): Set<StoreProduct> = billingWrapper.awaitGetProducts(identifiers)
 }

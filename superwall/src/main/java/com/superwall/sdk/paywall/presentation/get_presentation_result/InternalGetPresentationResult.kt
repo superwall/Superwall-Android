@@ -11,9 +11,8 @@ import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.getPaywallComponents
 import com.superwall.sdk.paywall.presentation.result.PresentationResult
 
-
-internal suspend fun Superwall.getPresentationResult(request: PresentationRequest): PresentationResult {
-    return try {
+internal suspend fun Superwall.getPresentationResult(request: PresentationRequest): PresentationResult =
+    try {
         val paywallComponents = getPaywallComponents(request)
         val triggerResult = paywallComponents.rulesOutcome.triggerResult
         val presentationResult = GetPresentationResultLogic.convertTriggerResult(triggerResult)
@@ -21,17 +20,16 @@ internal suspend fun Superwall.getPresentationResult(request: PresentationReques
     } catch (error: PresentationPipelineError) {
         handle(error, request.flags.type)
     }
-}
 
 private fun handle(
     error: PresentationPipelineError,
-    requestType: PresentationRequestType
+    requestType: PresentationRequestType,
 ): PresentationResult {
     if (requestType != PresentationRequestType.GetImplicitPresentationResult) {
         Logger.debug(
             logLevel = LogLevel.info,
             scope = LogScope.paywallPresentation,
-            message = "Paywall presentation error: $error"
+            message = "Paywall presentation error: $error",
         )
     }
 
@@ -45,6 +43,7 @@ private fun handle(
         is PaywallPresentationRequestStatusReason.NoPresenter,
         is PaywallPresentationRequestStatusReason.PaywallAlreadyPresented,
         is PaywallPresentationRequestStatusReason.NoConfig,
-        is PaywallPresentationRequestStatusReason.SubscriptionStatusTimeout -> PresentationResult.PaywallNotAvailable()
+        is PaywallPresentationRequestStatusReason.SubscriptionStatusTimeout,
+        -> PresentationResult.PaywallNotAvailable()
     }
 }

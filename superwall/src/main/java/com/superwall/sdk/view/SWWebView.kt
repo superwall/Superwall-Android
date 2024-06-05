@@ -9,8 +9,9 @@ import com.superwall.sdk.deprecated.PaywallMessage
 class SWWebViewOld(
     delegate: PaywallMessageDelegate,
     context: Context,
-    attrs: AttributeSet? = null
-) : WebView(context, attrs), PaywallMessageDelegate {
+    attrs: AttributeSet? = null,
+) : WebView(context, attrs),
+    PaywallMessageDelegate {
     private val delegate: PaywallMessageDelegate = delegate
 
     init {
@@ -23,7 +24,6 @@ class SWWebViewOld(
         // TODO: Remove this
         setWebContentsDebuggingEnabled(true)
     }
-
 
     override fun loadUrl(url: String) {
         // Parse the url and add the query parameter

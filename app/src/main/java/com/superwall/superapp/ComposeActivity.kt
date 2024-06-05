@@ -22,23 +22,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
-import com.superwall.superapp.ui.theme.MyApplicationTheme
-import android.view.View
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.runtime.LaunchedEffect
-import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
-import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegate
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.tooling.preview.PreviewParameterProvider
-import com.superwall.sdk.Superwall
+import androidx.compose.ui.unit.dp
 import com.superwall.sdk.composable.PaywallComposable
-import com.superwall.sdk.paywall.presentation.get_paywall.getPaywall
+import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.vc.PaywallViewController
+import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegate
+import com.superwall.superapp.ui.theme.MyApplicationTheme
 
-class ComposeActivity : ComponentActivity(), PaywallViewControllerDelegate {
+class ComposeActivity :
+    ComponentActivity(),
+    PaywallViewControllerDelegate {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -49,7 +45,7 @@ class ComposeActivity : ComponentActivity(), PaywallViewControllerDelegate {
     override fun didFinish(
         paywall: PaywallViewController,
         result: PaywallResult,
-        shouldDismiss: Boolean
+        shouldDismiss: Boolean,
     ) {
         // In the context of a tab bar, there won't be a dismissal.
     }
@@ -57,32 +53,34 @@ class ComposeActivity : ComponentActivity(), PaywallViewControllerDelegate {
 
 @Preview(showBackground = true)
 @Composable
-fun ComposeActivityContent(@PreviewParameter(PreviewPaywallDelegateProvider::class) delegate: PaywallViewControllerDelegate) {
+fun ComposeActivityContent(
+    @PreviewParameter(PreviewPaywallDelegateProvider::class) delegate: PaywallViewControllerDelegate,
+) {
     val selectedTabIndex = remember { mutableStateOf(0) }
     val examplePaywallOverrides = PaywallOverrides()
 
     MyApplicationTheme {
         Surface(
             modifier = Modifier.fillMaxSize(),
-            color = MaterialTheme.colorScheme.background
+            color = MaterialTheme.colorScheme.background,
         ) {
             Column {
                 TabRow(selectedTabIndex = selectedTabIndex.value) {
                     Tab(
                         selected = selectedTabIndex.value == 0,
-                        onClick = { selectedTabIndex.value = 0 }
+                        onClick = { selectedTabIndex.value = 0 },
                     ) {
                         Text(text = "Tab 0", modifier = Modifier.padding(16.dp))
                     }
                     Tab(
                         selected = selectedTabIndex.value == 1,
-                        onClick = { selectedTabIndex.value = 1 }
+                        onClick = { selectedTabIndex.value = 1 },
                     ) {
                         Text(text = "Tab 1", modifier = Modifier.padding(16.dp))
                     }
                     Tab(
                         selected = selectedTabIndex.value == 2,
-                        onClick = { selectedTabIndex.value = 2 }
+                        onClick = { selectedTabIndex.value = 2 },
                     ) {
                         Text(text = "Tab 2", modifier = Modifier.padding(16.dp))
                     }
@@ -101,22 +99,28 @@ fun ComposeActivityContent(@PreviewParameter(PreviewPaywallDelegateProvider::cla
 }
 
 @Composable
-fun TabContent0(paywallOverrides: PaywallOverrides?, delegate: PaywallViewControllerDelegate) {
+fun TabContent0(
+    paywallOverrides: PaywallOverrides?,
+    delegate: PaywallViewControllerDelegate,
+) {
     PaywallComposable(
         event = "no_products",
         params = mapOf("key" to "value"),
         paywallOverrides = paywallOverrides,
-        delegate = delegate
+        delegate = delegate,
     )
 }
 
 @Composable
-fun TabContent1(paywallOverrides: PaywallOverrides?, delegate: PaywallViewControllerDelegate) {
+fun TabContent1(
+    paywallOverrides: PaywallOverrides?,
+    delegate: PaywallViewControllerDelegate,
+) {
     PaywallComposable(
         event = "no-existing-event",
         params = mapOf("key" to "value"),
         paywallOverrides = paywallOverrides,
-        delegate = delegate
+        delegate = delegate,
     )
 }
 
@@ -126,7 +130,7 @@ fun TabContent2() {
         Column(
             modifier = Modifier.align(Alignment.Center),
             verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Greeting("Jetpack Compose")
             EventButton()
@@ -135,10 +139,13 @@ fun TabContent2() {
 }
 
 @Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
+fun Greeting(
+    name: String,
+    modifier: Modifier = Modifier,
+) {
     Text(
         text = "Hello $name!",
-        modifier = modifier
+        modifier = modifier,
     )
 }
 
@@ -146,28 +153,32 @@ fun Greeting(name: String, modifier: Modifier = Modifier) {
 fun EventButton() {
     val context = LocalContext.current
 
-    Button(onClick = {
-        val app = context.applicationContext as? MainApplication
-        app?.invokeRegister("another_paywall")
-    }, modifier = Modifier
-        .width(250.dp)
-    ){
+    Button(
+        onClick = {
+            val app = context.applicationContext as? MainApplication
+            app?.invokeRegister("another_paywall")
+        },
+        modifier =
+            Modifier
+                .width(250.dp),
+    ) {
         Text("Another Paywall")
     }
 }
 
 // Mock Provider for Preview
 class PreviewPaywallDelegateProvider : PreviewParameterProvider<PaywallViewControllerDelegate> {
-    override val values: Sequence<PaywallViewControllerDelegate> = sequenceOf(
-        object : PaywallViewControllerDelegate {
-            // Mock implementation of PaywallViewControllerDelegate
-            override fun didFinish(
-                paywall: PaywallViewController,
-                result: PaywallResult,
-                shouldDismiss: Boolean
-            ) {
-                // No implementation required
-            }
-        }
-    )
+    override val values: Sequence<PaywallViewControllerDelegate> =
+        sequenceOf(
+            object : PaywallViewControllerDelegate {
+                // Mock implementation of PaywallViewControllerDelegate
+                override fun didFinish(
+                    paywall: PaywallViewController,
+                    result: PaywallResult,
+                    shouldDismiss: Boolean,
+                ) {
+                    // No implementation required
+                }
+            },
+        )
 }

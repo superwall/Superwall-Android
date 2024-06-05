@@ -17,16 +17,17 @@ internal class NotificationScheduler {
         fun scheduleNotifications(
             notifications: List<LocalNotification>,
             factory: DeviceHelperFactory,
-            context: Context
+            context: Context,
         ) {
             val workManager = WorkManager.getInstance(context)
 
             notifications.forEach { notification ->
-                val data = workDataOf(
-                    "id" to notification.id,
-                    "title" to notification.title,
-                    "body" to notification.body
-                )
+                val data =
+                    workDataOf(
+                        "id" to notification.id,
+                        "title" to notification.title,
+                        "body" to notification.body,
+                    )
 
                 var delay = notification.delay // delay in milliseconds
 
@@ -39,17 +40,19 @@ internal class NotificationScheduler {
                     Logger.debug(
                         logLevel = LogLevel.error,
                         scope = LogScope.paywallViewController,
-                        message = "Notification delay isn't greater than 0 milliseconds. " +
-                                "Notifications will not be scheduled."
+                        message =
+                            "Notification delay isn't greater than 0 milliseconds. " +
+                                "Notifications will not be scheduled.",
                     )
                     return
                 }
 
-                val notificationWork = OneTimeWorkRequestBuilder<NotificationWorker>()
-                    .setInitialDelay(delay, TimeUnit.MILLISECONDS)
-                    .setInputData(data)
-                    .addTag(SuperwallPaywallActivity.NOTIFICATION_CHANNEL_ID)
-                    .build()
+                val notificationWork =
+                    OneTimeWorkRequestBuilder<NotificationWorker>()
+                        .setInitialDelay(delay, TimeUnit.MILLISECONDS)
+                        .setInputData(data)
+                        .addTag(SuperwallPaywallActivity.NOTIFICATION_CHANNEL_ID)
+                        .build()
 
                 workManager.enqueue(notificationWork)
             }

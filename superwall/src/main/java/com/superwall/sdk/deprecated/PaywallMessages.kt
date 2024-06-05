@@ -7,23 +7,43 @@ import java.net.URL
 
 data class WrappedPaywallMessages(
     var version: Int = 1,
-    val payload: PayloadMessages
+    val payload: PayloadMessages,
 )
 
 data class PayloadMessages(
-    val messages: List<PaywallMessage>
+    val messages: List<PaywallMessage>,
 )
 
 sealed class PaywallMessage {
-    data class OnReady(val paywallJsVersion: String) : PaywallMessage()
+    data class OnReady(
+        val paywallJsVersion: String,
+    ) : PaywallMessage()
+
     object TemplateParamsAndUserAttributes : PaywallMessage()
+
     object Close : PaywallMessage()
+
     object Restore : PaywallMessage()
-    data class OpenUrl(val url: URL) : PaywallMessage()
-    data class OpenUrlInSafari(val url: URL) : PaywallMessage()
-    data class OpenDeepLink(val url: Uri) : PaywallMessage()
-    data class Purchase(val product: String) : PaywallMessage()
-    data class Custom(val data: String) : PaywallMessage()
+
+    data class OpenUrl(
+        val url: URL,
+    ) : PaywallMessage()
+
+    data class OpenUrlInSafari(
+        val url: URL,
+    ) : PaywallMessage()
+
+    data class OpenDeepLink(
+        val url: Uri,
+    ) : PaywallMessage()
+
+    data class Purchase(
+        val product: String,
+    ) : PaywallMessage()
+
+    data class Custom(
+        val data: String,
+    ) : PaywallMessage()
 }
 
 fun parseWrappedPaywallMessages(jsonString: String): WrappedPaywallMessages {

@@ -1,15 +1,13 @@
 package com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator
 
-
 import kotlinx.serialization.SerializationException
 import org.json.JSONObject
 import java.util.*
 
 data class LiquidExpressionEvaluatorParams(
     val expression: String,
-    val values: JSONObject
+    val values: JSONObject,
 ) {
-
     fun toJson(): String {
         var obj = JSONObject()
         obj.put("expression", expression)
@@ -17,22 +15,20 @@ data class LiquidExpressionEvaluatorParams(
         return obj.toString()
     }
 
-    fun toBase64Input(): String? {
-        return try {
+    fun toBase64Input(): String? =
+        try {
             val jsonString = toJson()
             println("!! jsonString: $jsonString")
             jsonString.encodeToByteArray().toBase64()
         } catch (e: SerializationException) {
             null
         }
-    }
 }
 
 data class JavascriptExpressionEvaluatorParams(
     val expressionJs: String,
-    val values: JSONObject
+    val values: JSONObject,
 ) {
-
     fun toJson(): String {
         var obj = JSONObject()
         obj.put("expressionJS", expressionJs)
@@ -40,13 +36,12 @@ data class JavascriptExpressionEvaluatorParams(
         return obj.toString()
     }
 
-    fun toBase64Input(): String? {
-        return try {
+    fun toBase64Input(): String? =
+        try {
             toJson().encodeToByteArray().toBase64()
         } catch (e: SerializationException) {
             null
         }
-    }
 }
 
 fun ByteArray.toBase64(): String = Base64.getEncoder().encodeToString(this)

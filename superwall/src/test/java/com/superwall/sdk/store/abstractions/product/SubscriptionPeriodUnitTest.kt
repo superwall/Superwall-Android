@@ -1,8 +1,5 @@
 package com.superwall.sdk.store.abstractions.product
 
-
-import org.junit.Assert.assertEquals
-import org.junit.Test
 import java.math.BigDecimal
 
 /**
@@ -11,10 +8,14 @@ import java.math.BigDecimal
  * See [testing documentation](http://d.android.com/tools/testing).
  */
 
-fun truncateDecimal(decimal: BigDecimal, places: Int): BigDecimal {
+fun truncateDecimal(
+    decimal: BigDecimal,
+    places: Int,
+): BigDecimal {
     val factor = BigDecimal.TEN.pow(places) // Create a factor of 10^decimalPlaces
     val result: BigDecimal =
-        decimal.multiply(factor) // Multiply the original number by the factor
+        decimal
+            .multiply(factor) // Multiply the original number by the factor
             .setScale(0, BigDecimal.ROUND_DOWN) // Set scale to 0 and ROUND_DOWN to truncate
             .divide(factor) // Divide back by the factor to get the truncated number
     return result

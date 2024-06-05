@@ -9,18 +9,25 @@ interface PaywallViewControllerDelegate {
     fun didFinish(
         paywall: PaywallViewController,
         result: PaywallResult,
-        shouldDismiss: Boolean
+        shouldDismiss: Boolean,
     )
 }
 
 interface PaywallViewControllerEventDelegate {
-    suspend fun eventDidOccur(paywallEvent: PaywallWebEvent, paywallViewController: PaywallViewController)
+    suspend fun eventDidOccur(
+        paywallEvent: PaywallWebEvent,
+        paywallViewController: PaywallViewController,
+    )
 }
 
 sealed class PaywallLoadingState {
     class Unknown : PaywallLoadingState()
+
     class LoadingPurchase : PaywallLoadingState()
+
     class LoadingURL : PaywallLoadingState()
+
     class ManualLoading : PaywallLoadingState()
+
     class Ready : PaywallLoadingState()
 }

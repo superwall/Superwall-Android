@@ -5,12 +5,11 @@ import kotlinx.serialization.modules.SerializersModule
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-
 class ExceptionSerializerTest {
-
-    private val json = Json {
-        serializersModule = SerializersModule { contextual(Exception::class, ExceptionSerializer) }
-    }
+    private val json =
+        Json {
+            serializersModule = SerializersModule { contextual(Exception::class, ExceptionSerializer) }
+        }
 
     @Test
     fun `Exception is serialized and deserialized correctly`() {

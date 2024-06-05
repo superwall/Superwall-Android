@@ -1,6 +1,5 @@
 package com.superwall.sdk.analytics.session
 
-
 import com.superwall.sdk.models.serialization.DateSerializer
 import kotlinx.serialization.*
 import java.util.*
@@ -13,11 +12,9 @@ data class AppSession(
     var startAt: Date = Date(),
     @Serializable(with = DateSerializer::class)
     @SerialName("app_session_end_ts")
-    var endAt: Date? = null
+    var endAt: Date? = null,
 ) {
     companion object {
-        fun stub(): AppSession {
-            return AppSession()
-        }
+        fun stub(): AppSession = AppSession()
     }
 }

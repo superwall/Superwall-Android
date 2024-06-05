@@ -12,7 +12,6 @@ import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.*
 
 object AnySerializer : KSerializer<Any> {
-
     @OptIn(InternalSerializationApi::class)
     override val descriptor: SerialDescriptor = buildSerialDescriptor("Any", StructureKind.OBJECT)
 
@@ -22,7 +21,10 @@ object AnySerializer : KSerializer<Any> {
     @OptIn(InternalSerializationApi::class)
     private val mapDescriptor: SerialDescriptor = buildSerialDescriptor("Map<String, Any>", StructureKind.MAP)
 
-    override fun serialize(encoder: Encoder, value: Any) {
+    override fun serialize(
+        encoder: Encoder,
+        value: Any,
+    ) {
         when (value) {
             is String -> encoder.encodeString(value)
             is Boolean -> encoder.encodeBoolean(value)
@@ -36,9 +38,10 @@ object AnySerializer : KSerializer<Any> {
                 encoder.encodeSerializableValue(serializer, nonNullList)
             }
             is Map<*, *> -> {
-                val convertedMap = value.entries
-                    .filter { it.value != null }
-                    .associate { it.key.toString() to it.value!! }
+                val convertedMap =
+                    value.entries
+                        .filter { it.value != null }
+                        .associate { it.key.toString() to it.value!! }
 
                 val mapSerializer = MapSerializer(String.serializer(), AnySerializer)
                 encoder.encodeSerializableValue(mapSerializer, convertedMap)
@@ -52,8 +55,9 @@ object AnySerializer : KSerializer<Any> {
     }
 
     override fun deserialize(decoder: Decoder): Any {
-        val input = decoder as? JsonDecoder
-            ?: throw SerializationException("This class can be loaded only by Json")
+        val input =
+            decoder as? JsonDecoder
+                ?: throw SerializationException("This class can be loaded only by Json")
 
         return when (val element = input.decodeJsonElement()) {
             is JsonPrimitive -> deserializePrimitive(element)
@@ -63,8 +67,8 @@ object AnySerializer : KSerializer<Any> {
         }
     }
 
-    private fun deserializePrimitive(element: JsonPrimitive): Any {
-        return when {
+    private fun deserializePrimitive(element: JsonPrimitive): Any =
+        when {
             element.isString -> element.content
             element.booleanOrNull != null -> element.boolean
             element.intOrNull != null -> element.int
@@ -72,10 +76,9 @@ object AnySerializer : KSerializer<Any> {
             element.doubleOrNull != null -> element.double
             else -> throw SerializationException("Unknown primitive type")
         }
-    }
 
-    private fun deserializeObject(element: JsonObject): Map<String, Any> {
-        return element.mapValues { (_, value) ->
+    private fun deserializeObject(element: JsonObject): Map<String, Any> =
+        element.mapValues { (_, value) ->
             when (value) {
                 is JsonPrimitive -> deserializePrimitive(value)
                 is JsonObject -> deserializeObject(value)
@@ -83,10 +86,9 @@ object AnySerializer : KSerializer<Any> {
                 else -> throw SerializationException("Unknown type in JsonObject")
             }
         }
-    }
 
-    private fun deserializeArray(element: JsonArray): List<Any> {
-        return element.map { item ->
+    private fun deserializeArray(element: JsonArray): List<Any> =
+        element.map { item ->
             when (item) {
                 is JsonPrimitive -> deserializePrimitive(item)
                 is JsonObject -> deserializeObject(item)
@@ -94,11 +96,10 @@ object AnySerializer : KSerializer<Any> {
                 else -> throw SerializationException("Unknown type in JsonArray")
             }
         }
-    }
 
     // Helper function to get the appropriate serializer for a value
-    fun serializerFor(value: Any): KSerializer<Any> {
-        return when (value) {
+    fun serializerFor(value: Any): KSerializer<Any> =
+        when (value) {
             is String -> String.serializer()
             is Boolean -> Boolean.serializer()
             is Int -> Int.serializer()
@@ -109,5 +110,4 @@ object AnySerializer : KSerializer<Any> {
             is Map<*, *> -> MapSerializer(String.serializer(), AnySerializer)
             else -> AnySerializer
         } as KSerializer<Any>
-    }
 }

@@ -4,10 +4,10 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class LocalizationConfig(
-    var locales: List<LocaleConfig>
+    var locales: List<LocaleConfig>,
 ) {
     @Serializable
     data class LocaleConfig(
-        var locale: String
+        var locale: String,
     )
 }

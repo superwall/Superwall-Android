@@ -4,10 +4,15 @@ import android.app.Activity
 import android.app.Application
 import android.os.Bundle
 
-class CurrentActivityTracker : Application.ActivityLifecycleCallbacks, ActivityProvider {
+class CurrentActivityTracker :
+    Application.ActivityLifecycleCallbacks,
+    ActivityProvider {
     private var currentActivity: Activity? = null
 
-    override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
+    override fun onActivityCreated(
+        activity: Activity,
+        savedInstanceState: Bundle?,
+    ) {
         println("!! onActivityCreated: $activity")
     }
 
@@ -25,7 +30,10 @@ class CurrentActivityTracker : Application.ActivityLifecycleCallbacks, ActivityP
 
     override fun onActivityStopped(activity: Activity) {}
 
-    override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
+    override fun onActivitySaveInstanceState(
+        activity: Activity,
+        outState: Bundle,
+    ) {}
 
     override fun onActivityDestroyed(activity: Activity) {
         println("!! onActivityDestroyed: $activity")

@@ -4,7 +4,6 @@ import com.superwall.sdk.assertTrue
 import org.junit.Test
 
 class AssignmentTest {
-
     @Test
     fun `make sure equality works`() {
         val firstAssignment = Assignment("123", "456")

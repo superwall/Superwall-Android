@@ -1,7 +1,6 @@
 package com.superwall.sdk.delegate.subscription_controller
 
 import com.android.billingclient.api.ProductDetails
-import com.android.billingclient.api.SkuDetails
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
 
@@ -36,7 +35,7 @@ interface PurchaseControllerJava {
         productDetails: ProductDetails,
         basePlanId: String?,
         offerId: String?,
-        completion: (PurchaseResult) -> Unit
+        completion: (PurchaseResult) -> Unit,
     )
 
     /**

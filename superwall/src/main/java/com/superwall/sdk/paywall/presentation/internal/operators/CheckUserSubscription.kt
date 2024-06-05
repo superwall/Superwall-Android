@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.first
 suspend fun Superwall.checkUserSubscription(
     request: PresentationRequest,
     triggerResult: InternalTriggerResult,
-    paywallStatePublisher: MutableSharedFlow<PaywallState>? = null
+    paywallStatePublisher: MutableSharedFlow<PaywallState>? = null,
 ) {
     when (triggerResult) {
         is InternalTriggerResult.Paywall -> return

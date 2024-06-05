@@ -33,47 +33,51 @@ import kotlinx.coroutines.launch
 internal suspend fun Superwall.waitForSubsStatusAndConfig(
     request: PresentationRequest,
     paywallStatePublisher: MutableSharedFlow<PaywallState>? = null,
-    dependencyContainer: DependencyContainer? = null
+    dependencyContainer: DependencyContainer? = null,
 ) {
     val dependencyContainer = dependencyContainer ?: this.dependencyContainer
 
-    val subscriptionStatusTask = getValueWithTimeout(
-        task = {
-            try {
-                request.flags.subscriptionStatus
-                    .filter { it != SubscriptionStatus.UNKNOWN }
-                    .first()
-            } catch (e: CancellationException) {
-                // Handle exception, cancel the task, and log timeout and fail the request
-                // Logic here...
-                CoroutineScope(Dispatchers.Default).launch {
-                    val trackedEvent = InternalSuperwallEvent.PresentationRequest(
-                        eventData = request.presentationInfo.eventData,
-                        type = request.flags.type,
-                        status = PaywallPresentationRequestStatus.Timeout,
-                        statusReason = PaywallPresentationRequestStatusReason.SubscriptionStatusTimeout(),
-                        factory = dependencyContainer
+    val subscriptionStatusTask =
+        getValueWithTimeout(
+            task = {
+                try {
+                    request.flags.subscriptionStatus
+                        .filter { it != SubscriptionStatus.UNKNOWN }
+                        .first()
+                } catch (e: CancellationException) {
+                    // Handle exception, cancel the task, and log timeout and fail the request
+                    // Logic here...
+                    CoroutineScope(Dispatchers.Default).launch {
+                        val trackedEvent =
+                            InternalSuperwallEvent.PresentationRequest(
+                                eventData = request.presentationInfo.eventData,
+                                type = request.flags.type,
+                                status = PaywallPresentationRequestStatus.Timeout,
+                                statusReason = PaywallPresentationRequestStatusReason.SubscriptionStatusTimeout(),
+                                factory = dependencyContainer,
+                            )
+                        track(trackedEvent)
+                    }
+                    Logger.debug(
+                        logLevel = LogLevel.info,
+                        scope = LogScope.paywallPresentation,
+                        message =
+                            "Timeout: Superwall.instance.subscriptionStatus has been \"unknown\" for " +
+                                "over 5 seconds resulting in a failure.",
                     )
-                    track(trackedEvent)
+                    val error =
+                        InternalPresentationLogic.presentationError(
+                            domain = "SWKPresentationError",
+                            code = 105,
+                            title = "Timeout",
+                            value = "The subscription status failed to change from \"unknown\".",
+                        )
+                    paywallStatePublisher?.emit(PaywallState.PresentationError(error))
+                    throw PaywallPresentationRequestStatusReason.SubscriptionStatusTimeout()
                 }
-                Logger.debug(
-                    logLevel = LogLevel.info,
-                    scope = LogScope.paywallPresentation,
-                    message = "Timeout: Superwall.instance.subscriptionStatus has been \"unknown\" for " +
-                            "over 5 seconds resulting in a failure."
-                )
-                val error = InternalPresentationLogic.presentationError(
-                    domain = "SWKPresentationError",
-                    code = 105,
-                    title = "Timeout",
-                    value = "The subscription status failed to change from \"unknown\"."
-                )
-                paywallStatePublisher?.emit(PaywallState.PresentationError(error))
-                throw PaywallPresentationRequestStatusReason.SubscriptionStatusTimeout()
-            }
-        },
-        timeout = 5000
-    )
+            },
+            timeout = 5000,
+        )
     subscriptionStatusTask.cancelTimeout()
 
     val configState = dependencyContainer.configManager.configState
@@ -83,35 +87,37 @@ internal suspend fun Superwall.waitForSubsStatusAndConfig(
             if (configState.value.getSuccess() is ConfigState.Retrieving) {
                 // If config is nil and we're still retrieving, wait for <=1 second.
                 // At 1s we cancel the task and check config again.
-                val result = getValueWithTimeout(
-                    task = {
-                        try {
-                            configState
-                                .first { result ->
-                                    if (result is Result.Failure) throw result.error
-                                    result.getSuccess()?.getConfig() != null
+                val result =
+                    getValueWithTimeout(
+                        task = {
+                            try {
+                                configState
+                                    .first { result ->
+                                        if (result is Result.Failure) throw result.error
+                                        result.getSuccess()?.getConfig() != null
+                                    }
+                            } catch (e: CancellationException) {
+                                CoroutineScope(Dispatchers.Default).launch {
+                                    val trackedEvent =
+                                        InternalSuperwallEvent.PresentationRequest(
+                                            eventData = request.presentationInfo.eventData,
+                                            type = request.flags.type,
+                                            status = PaywallPresentationRequestStatus.Timeout,
+                                            statusReason = PaywallPresentationRequestStatusReason.NoConfig(),
+                                            factory = dependencyContainer,
+                                        )
+                                    track(trackedEvent)
                                 }
-                        } catch (e: CancellationException) {
-                            CoroutineScope(Dispatchers.Default).launch {
-                                val trackedEvent = InternalSuperwallEvent.PresentationRequest(
-                                    eventData = request.presentationInfo.eventData,
-                                    type = request.flags.type,
-                                    status = PaywallPresentationRequestStatus.Timeout,
-                                    statusReason = PaywallPresentationRequestStatusReason.NoConfig(),
-                                    factory = dependencyContainer
+                                Logger.debug(
+                                    logLevel = LogLevel.info,
+                                    scope = LogScope.paywallPresentation,
+                                    message = "Timeout: The config could not be retrieved in a reasonable time for a subscribed user.",
                                 )
-                                track(trackedEvent)
+                                throw userIsSubscribed(paywallStatePublisher)
                             }
-                            Logger.debug(
-                                logLevel = LogLevel.info,
-                                scope = LogScope.paywallPresentation,
-                                message = "Timeout: The config could not be retrieved in a reasonable time for a subscribed user."
-                            )
-                            throw userIsSubscribed(paywallStatePublisher)
-                        }
-                    },
-                    timeout = 1000
-                )
+                        },
+                        timeout = 1000,
+                    )
                 result.cancelTimeout()
             } else {
                 // If the user is subscribed and there's no config (for whatever reason),
@@ -130,12 +136,13 @@ internal suspend fun Superwall.waitForSubsStatusAndConfig(
                 }
         } catch (e: Throwable) {
             // If config completely dies, then throw an error
-            val error = InternalPresentationLogic.presentationError(
-                domain = "SWKPresentationError",
-                code = 104,
-                title = "No Config",
-                value = "Trying to present paywall without the Superwall config."
-            )
+            val error =
+                InternalPresentationLogic.presentationError(
+                    domain = "SWKPresentationError",
+                    code = 104,
+                    title = "No Config",
+                    value = "Trying to present paywall without the Superwall config.",
+                )
             val state = PaywallState.PresentationError(error)
             paywallStatePublisher?.emit(state)
             throw PaywallPresentationRequestStatusReason.NoConfig()
@@ -150,13 +157,14 @@ internal suspend fun Superwall.waitForSubsStatusAndConfig(
 private data class ValueResult<T>(
     val value: T,
     private val delayJob: Job,
-    private val collectionJob: Job
+    private val collectionJob: Job,
 ) {
     fun cancelTimeout() {
         delayJob.cancel()
         collectionJob.cancel()
     }
 }
+
 /**
  * Executes a given suspending task with a timeout.
  *
@@ -168,38 +176,41 @@ private data class ValueResult<T>(
  */
 private suspend fun <T> getValueWithTimeout(
     task: suspend () -> T,
-    timeout: Long
+    timeout: Long,
 ): ValueResult<T> {
     // Deferred object to hold the result of the 'task'
     val valueResult = CompletableDeferred<T>()
 
     // Start the given task in a separate coroutine and store its result in 'valueResult'
-    val valueTask = CoroutineScope(Dispatchers.Default).async {
-        try {
-            val result = task()
-            valueResult.complete(result)
-        } catch (e: CancellationException) {
-            // Rethrow any cancellation exception to be handled by the caller
-            throw e
+    val valueTask =
+        CoroutineScope(Dispatchers.Default).async {
+            try {
+                val result = task()
+                valueResult.complete(result)
+            } catch (e: CancellationException) {
+                // Rethrow any cancellation exception to be handled by the caller
+                throw e
+            }
         }
-    }
 
     // SharedFlow to act as a signal for when the timeout has occurred
     val publisher = MutableSharedFlow<Unit>()
 
     // Job to introduce the delay for the timeout
-    val delayJob = CoroutineScope(Dispatchers.Default).launch {
-        delay(timeout)   // Wait for the timeout duration
-        publisher.emit(Unit)  // Emit a signal indicating timeout has occurred
-    }
+    val delayJob =
+        CoroutineScope(Dispatchers.Default).launch {
+            delay(timeout) // Wait for the timeout duration
+            publisher.emit(Unit) // Emit a signal indicating timeout has occurred
+        }
 
     // Job to listen for the timeout signal and cancel the 'valueTask'
-    val collectionJob = CoroutineScope(Dispatchers.Default).launch {
-        publisher.collect {
-            valueTask.cancel()  // Cancel the task
-            valueResult.cancel()  // Cancel the result deferred
+    val collectionJob =
+        CoroutineScope(Dispatchers.Default).launch {
+            publisher.collect {
+                valueTask.cancel() // Cancel the task
+                valueResult.cancel() // Cancel the result deferred
+            }
         }
-    }
 
     // Await the result of the task and return it wrapped in a ValueResult
     return try {

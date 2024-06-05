@@ -8,8 +8,9 @@ import com.superwall.sdk.store.coordinator.ProductsFetcher
 import kotlinx.coroutines.*
 import java.util.*
 
-
-data class InAppPurchase(var productIdentifier: String) {}
+data class InAppPurchase(
+    var productIdentifier: String,
+)
 
 class ReceiptManager(
     private var delegate: ProductsFetcher?,
@@ -20,13 +21,14 @@ class ReceiptManager(
     private var receiptRefreshCompletion: ((Boolean) -> Unit)? = null
 
     @Suppress("RedundantSuspendModifier")
-    suspend fun loadPurchasedProducts(): Set<StoreProduct>? = coroutineScope {
+    suspend fun loadPurchasedProducts(): Set<StoreProduct>? =
+        coroutineScope {
 //        val hasPurchaseController = Superwall.instance.dependencyContainer.delegateAdapter.hasPurchaseController
 //
 //        val payload = ReceiptLogic.getPayload(receiptData()) ?: run {
-////            if (!hasPurchaseController) {
-////                Superwall.instance.subscriptionStatus = SubscriptionStatus.INACTIVE
-////            }
+// //            if (!hasPurchaseController) {
+// //                Superwall.instance.subscriptionStatus = SubscriptionStatus.INACTIVE
+// //            }
 //            return@coroutineScope null
 //        }
 //
@@ -65,16 +67,16 @@ class ReceiptManager(
 //            return@coroutineScope null
 //        }
 
-        // SW-2218
-        // https://linear.app/superwall/issue/SW-2218/%5Bandroid%5D-%5Bv0%5D-replace-receipt-validation-with-google-play-billing
-        return@coroutineScope emptySet()
-    }
+            // SW-2218
+            // https://linear.app/superwall/issue/SW-2218/%5Bandroid%5D-%5Bv0%5D-replace-receipt-validation-with-google-play-billing
+            return@coroutineScope emptySet()
+        }
 
     suspend fun refreshReceipt() {
         Logger.debug(
             logLevel = LogLevel.debug,
             scope = LogScope.receipts,
-            message = "Refreshing receipts"
+            message = "Refreshing receipts",
         )
 
         // Code to refresh the receipt goes here
@@ -83,8 +85,5 @@ class ReceiptManager(
         // https://linear.app/superwall/issue/SW-2218/%5Bandroid%5D-%5Bv0%5D-replace-receipt-validation-with-google-play-billing
     }
 
-    fun hasPurchasedProduct(productId: String): Boolean {
-        return purchases.firstOrNull { it.productIdentifier == productId } != null
-    }
+    fun hasPurchasedProduct(productId: String): Boolean = purchases.firstOrNull { it.productIdentifier == productId } != null
 }
-

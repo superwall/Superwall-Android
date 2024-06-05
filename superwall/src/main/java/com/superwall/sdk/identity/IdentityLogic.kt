@@ -11,21 +11,17 @@ import java.util.*
 object IdentityLogic {
     enum class IdentityConfigurationAction {
         RESET,
-        LOAD_ASSIGNMENTS
+        LOAD_ASSIGNMENTS,
     }
 
-    fun generateAlias(): String {
-        return "\$SuperwallAlias:${UUID.randomUUID()}"
-    }
+    fun generateAlias(): String = "\$SuperwallAlias:${UUID.randomUUID()}"
 
-    fun generateSeed(): Int {
-        return (0 until 100).random()
-    }
+    fun generateSeed(): Int = (0 until 100).random()
 
     fun mergeAttributes(
         newAttributes: Map<String, Any?>,
         oldAttributes: Map<String, Any>,
-        appInstalledAtString: String
+        appInstalledAtString: String,
     ): MutableMap<String, Any> {
         val mergedAttributes = oldAttributes.toMutableMap()
 
@@ -71,7 +67,7 @@ object IdentityLogic {
     fun shouldGetAssignments(
         isLoggedIn: Boolean,
         neverCalledStaticConfig: Boolean,
-        isFirstAppOpen: Boolean
+        isFirstAppOpen: Boolean,
     ): Boolean {
         if (neverCalledStaticConfig) {
             if (isLoggedIn || !isFirstAppOpen) {

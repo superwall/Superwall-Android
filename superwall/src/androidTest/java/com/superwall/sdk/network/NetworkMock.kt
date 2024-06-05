@@ -7,9 +7,8 @@ import com.superwall.sdk.models.assignment.AssignmentPostback
 import com.superwall.sdk.models.config.Config
 import kotlinx.coroutines.flow.SharedFlow
 
-
 class NetworkMock(
-    factory: ApiFactory
+    factory: ApiFactory,
 ) : Network(factory = factory) {
     //    var sentSessionEvents: SessionEventsRequest? = null
     var getConfigCalled = false
@@ -23,11 +22,8 @@ class NetworkMock(
 //    }
 
     @Throws(Exception::class)
-    suspend fun getConfig(
-        injectedApplicationStatePublisher: SharedFlow<Lifecycle.State>? = null
-    ): Config {
+    suspend fun getConfig(injectedApplicationStatePublisher: SharedFlow<Lifecycle.State>? = null): Config {
         getConfigCalled = true
-
 
         configReturnValue?.let {
             return it
@@ -39,7 +35,5 @@ class NetworkMock(
     }
 
     @Throws(Exception::class)
-    override suspend fun getAssignments(): List<Assignment> {
-        return assignments
-    }
+    override suspend fun getAssignments(): List<Assignment> = assignments
 }

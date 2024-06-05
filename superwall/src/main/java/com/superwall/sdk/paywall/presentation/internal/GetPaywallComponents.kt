@@ -6,13 +6,12 @@ import com.superwall.sdk.paywall.presentation.internal.operators.checkDebuggerPr
 import com.superwall.sdk.paywall.presentation.internal.operators.checkUserSubscription
 import com.superwall.sdk.paywall.presentation.internal.operators.confirmHoldoutAssignment
 import com.superwall.sdk.paywall.presentation.internal.operators.confirmPaywallAssignment
-import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.paywall.presentation.internal.operators.evaluateRules
 import com.superwall.sdk.paywall.presentation.internal.operators.getPaywallViewController
 import com.superwall.sdk.paywall.presentation.internal.operators.getPresenterIfNecessary
 import com.superwall.sdk.paywall.presentation.internal.operators.waitForSubsStatusAndConfig
+import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
 
 /**
  * Runs a pipeline of operations to get a paywall to present and associated components.
@@ -26,7 +25,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 @Throws(Throwable::class)
 suspend fun Superwall.getPaywallComponents(
     request: PresentationRequest,
-    publisher: MutableSharedFlow<PaywallState>? = null
+    publisher: MutableSharedFlow<PaywallState>? = null,
 ): PaywallComponents {
     waitForSubsStatusAndConfig(request, publisher)
     // TODO:
@@ -40,7 +39,7 @@ suspend fun Superwall.getPaywallComponents(
     checkUserSubscription(
         request = request,
         triggerResult = rulesOutcome.triggerResult,
-        paywallStatePublisher = publisher
+        paywallStatePublisher = publisher,
     )
 
     confirmHoldoutAssignment(request = request, rulesOutcome = rulesOutcome)
@@ -55,6 +54,6 @@ suspend fun Superwall.getPaywallComponents(
         viewController = paywallViewController,
         presenter = presenter,
         rulesOutcome = rulesOutcome,
-        debugInfo = debugInfo
+        debugInfo = debugInfo,
     )
 }

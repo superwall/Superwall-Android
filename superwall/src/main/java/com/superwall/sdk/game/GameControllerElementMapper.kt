@@ -5,7 +5,6 @@ import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 
-
 object GameControllerElementMapper {
     // Map GCControllerElement to button names
     fun mapToButtonName(keyCode: Int): String {

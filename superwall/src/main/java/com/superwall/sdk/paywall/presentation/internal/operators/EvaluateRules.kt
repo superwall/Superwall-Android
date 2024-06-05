@@ -14,24 +14,26 @@ import com.superwall.sdk.paywall.presentation.rule_logic.RuleLogic
 data class AssignmentPipelineOutput(
     val triggerResult: TriggerResult,
     var confirmableAssignment: ConfirmableAssignment?,
-    val debugInfo: Map<String, Any>
+    val debugInfo: Map<String, Any>,
 )
 
 suspend fun Superwall.evaluateRules(request: PresentationRequest): RuleEvaluationOutcome {
     val eventData = request.presentationInfo.eventData
 
     return if (eventData != null) {
-        val ruleLogic = RuleLogic(
-            context = context,
-            configManager = dependencyContainer.configManager,
-            storage = dependencyContainer.storage,
-            factory = dependencyContainer
-        )
+        val ruleLogic =
+            RuleLogic(
+                context = context,
+                configManager = dependencyContainer.configManager,
+                storage = dependencyContainer.storage,
+                factory = dependencyContainer,
+            )
         ruleLogic.evaluateRules(event = eventData, triggers = dependencyContainer.configManager.triggersByEventName)
     } else {
         // Called if the debugger is shown.
-        val paywallId = request.presentationInfo.identifier
-            ?: throw PaywallPresentationRequestStatusReason.NoPaywallViewController()
+        val paywallId =
+            request.presentationInfo.identifier
+                ?: throw PaywallPresentationRequestStatusReason.NoPaywallViewController()
 
         RuleEvaluationOutcome(triggerResult = InternalTriggerResult.Paywall(Experiment.presentById(paywallId)))
     }

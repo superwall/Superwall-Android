@@ -12,18 +12,19 @@ import java.util.*
 object ConfigLogic {
     sealed class TriggerRuleError : Exception() {
         object NoVariantsFound : TriggerRuleError()
+
         object InvalidState : TriggerRuleError()
     }
 
     data class AssignmentOutcome(
         val confirmed: Map<ExperimentID, Experiment.Variant>,
-        val unconfirmed: Map<ExperimentID, Experiment.Variant>
+        val unconfirmed: Map<ExperimentID, Experiment.Variant>,
     )
 
     @Throws(TriggerRuleError::class)
     fun chooseVariant(
         variants: List<VariantOption>,
-        randomiser: (IntRange) -> Int = { it.random() }
+        randomiser: (IntRange) -> Int = { it.random() },
     ): Experiment.Variant {
         if (variants.isEmpty()) {
             throw TriggerRuleError.NoVariantsFound
@@ -34,7 +35,7 @@ object ConfigLogic {
             return Experiment.Variant(
                 id = variant.id,
                 type = variant.type,
-                paywallId = variant.paywallId
+                paywallId = variant.paywallId,
             )
         }
 
@@ -46,7 +47,7 @@ object ConfigLogic {
             return Experiment.Variant(
                 id = variant.id,
                 type = variant.type,
-                paywallId = variant.paywallId
+                paywallId = variant.paywallId,
             )
         }
 
@@ -63,7 +64,7 @@ object ConfigLogic {
                 return Experiment.Variant(
                     id = variant.id,
                     type = variant.type,
-                    paywallId = variant.paywallId
+                    paywallId = variant.paywallId,
                 )
             }
         }
@@ -93,7 +94,7 @@ object ConfigLogic {
     // Rest of the methods are converted similarly...
     fun chooseAssignments(
         fromTriggers: Set<Trigger>,
-        confirmedAssignments: Map<ExperimentID, Experiment.Variant>
+        confirmedAssignments: Map<ExperimentID, Experiment.Variant>,
     ): AssignmentOutcome {
         var confirmedAssignments = confirmedAssignments.toMutableMap()
         var unconfirmedAssignments: MutableMap<ExperimentID, Experiment.Variant> = mutableMapOf()
@@ -102,26 +103,31 @@ object ConfigLogic {
 
         for (ruleGroup in groupedTriggerRules) {
             for (rule in ruleGroup) {
-                val availableVariantIds = rule.experiment.variants.map { it.id }.toSet()
+                val availableVariantIds =
+                    rule.experiment.variants
+                        .map { it.id }
+                        .toSet()
 
                 val confirmedVariant = confirmedAssignments[rule.experiment.id]
                 if (confirmedVariant != null) {
                     if (!availableVariantIds.contains(confirmedVariant.id)) {
-                        val variant = try {
-                            chooseVariant(rule.experiment.variants)
-                        } catch (e: TriggerRuleError) {
-                            confirmedAssignments.remove(rule.experiment.id)
-                            continue
-                        }
+                        val variant =
+                            try {
+                                chooseVariant(rule.experiment.variants)
+                            } catch (e: TriggerRuleError) {
+                                confirmedAssignments.remove(rule.experiment.id)
+                                continue
+                            }
                         unconfirmedAssignments[rule.experiment.id] = variant
                         confirmedAssignments.remove(rule.experiment.id)
                     }
                 } else {
-                    val variant = try {
-                        chooseVariant(rule.experiment.variants)
-                    } catch (e: TriggerRuleError) {
-                        continue
-                    }
+                    val variant =
+                        try {
+                            chooseVariant(rule.experiment.variants)
+                        } catch (e: TriggerRuleError) {
+                            continue
+                        }
                     unconfirmedAssignments[rule.experiment.id] = variant
                 }
             }
@@ -129,15 +135,14 @@ object ConfigLogic {
 
         return AssignmentOutcome(
             confirmed = confirmedAssignments,
-            unconfirmed = unconfirmedAssignments
+            unconfirmed = unconfirmedAssignments,
         )
     }
-
 
     fun move(
         newAssignment: ConfirmableAssignment,
         unconfirmedAssignments: Map<ExperimentID, Experiment.Variant>,
-        confirmedAssignments: Map<ExperimentID, Experiment.Variant>
+        confirmedAssignments: Map<ExperimentID, Experiment.Variant>,
     ): AssignmentOutcome {
         val confirmedAssignments = confirmedAssignments.toMutableMap()
         confirmedAssignments[newAssignment.experimentId] = newAssignment.variant
@@ -147,38 +152,39 @@ object ConfigLogic {
 
         return AssignmentOutcome(
             confirmed = confirmedAssignments,
-            unconfirmed = unconfirmedAssignments
+            unconfirmed = unconfirmedAssignments,
         )
     }
 
-
     fun filterTriggers(
         triggers: Set<Trigger>,
-        preloadingDisabled: PreloadingDisabled
-    ): Set<Trigger> {
-        return if (preloadingDisabled.all) {
+        preloadingDisabled: PreloadingDisabled,
+    ): Set<Trigger> =
+        if (preloadingDisabled.all) {
             emptySet()
         } else {
             triggers.filterNot { preloadingDisabled.triggers.contains(it.eventName) }.toSet()
         }
-    }
 
     fun transferAssignmentsFromServerToDisk(
         assignments: List<Assignment>,
         triggers: Set<Trigger>,
         confirmedAssignments: Map<ExperimentID, Experiment.Variant>,
-        unconfirmedAssignments: Map<ExperimentID, Experiment.Variant>
+        unconfirmedAssignments: Map<ExperimentID, Experiment.Variant>,
     ): AssignmentOutcome {
         var confirmedAssignments = confirmedAssignments.toMutableMap()
         var unconfirmedAssignments = unconfirmedAssignments.toMutableMap()
         for (assignment in assignments) {
-            val trigger = triggers.firstOrNull {
-                it.rules.any { rule -> rule.experiment.id == assignment.experimentId }
-            } ?: continue
+            val trigger =
+                triggers.firstOrNull {
+                    it.rules.any { rule -> rule.experiment.id == assignment.experimentId }
+                } ?: continue
 
-            val variantOption = trigger.rules.flatMap {
-                it.experiment.variants.filter { variant -> variant.id == assignment.variantId }
-            }.firstOrNull() ?: continue
+            val variantOption =
+                trigger.rules
+                    .flatMap {
+                        it.experiment.variants.filter { variant -> variant.id == assignment.variantId }
+                    }.firstOrNull() ?: continue
 
             confirmedAssignments[assignment.experimentId] = variantOption.toVariant()
             unconfirmedAssignments.remove(assignment.experimentId)
@@ -186,14 +192,14 @@ object ConfigLogic {
 
         return AssignmentOutcome(
             confirmed = confirmedAssignments,
-            unconfirmed = unconfirmedAssignments
+            unconfirmed = unconfirmedAssignments,
         )
     }
 
     fun getStaticPaywall(
         withId: String?,
         config: Config?,
-        deviceLocale: String
+        deviceLocale: String,
     ): Paywall? {
         val paywallId = withId
         if (paywallId == null || config == null) return null
@@ -214,7 +220,7 @@ object ConfigLogic {
         triggers: Set<Trigger>,
         confirmedAssignments: Map<String, Experiment.Variant>,
         unconfirmedAssignments: Map<String, Experiment.Variant>,
-        expressionEvaluator: ExpressionEvaluating
+        expressionEvaluator: ExpressionEvaluating,
     ): Set<String> {
         var confirmedAssignments = confirmedAssignments.toMutableMap()
 
@@ -234,10 +240,11 @@ object ConfigLogic {
                 // Check the preloading behavior of each rule
                 when (rule.preload.behavior) {
                     TriggerPreloadBehavior.IF_TRUE -> {
-                        val outcome = expressionEvaluator.evaluateExpression(
-                            rule = rule,
-                            eventData = null
-                        )
+                        val outcome =
+                            expressionEvaluator.evaluateExpression(
+                                rule = rule,
+                                eventData = null,
+                            )
                         if (outcome is TriggerRuleOutcome.NoMatch) {
                             skippedExperimentIds.add(rule.experiment.id)
                         }
@@ -275,7 +282,7 @@ object ConfigLogic {
     fun getActiveTreatmentPaywallIds(
         forTriggers: Set<Trigger>,
         confirmedAssignments: Map<ExperimentID, Experiment.Variant>,
-        unconfirmedAssignments: Map<ExperimentID, Experiment.Variant>
+        unconfirmedAssignments: Map<ExperimentID, Experiment.Variant>,
     ): Set<String> {
         val triggers = forTriggers
         val mergedAssignments = confirmedAssignments + unconfirmedAssignments

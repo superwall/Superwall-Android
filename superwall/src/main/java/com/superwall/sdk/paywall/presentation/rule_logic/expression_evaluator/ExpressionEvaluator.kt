@@ -29,15 +29,15 @@ import org.json.JSONObject
 interface ExpressionEvaluating {
     suspend fun evaluateExpression(
         rule: TriggerRule,
-        eventData: EventData?
+        eventData: EventData?,
     ): TriggerRuleOutcome
 }
 
 class ExpressionEvaluator(
     private val context: Context,
     private val storage: Storage,
-    private val factory: RuleAttributesFactory
-): ExpressionEvaluating {
+    private val factory: RuleAttributesFactory,
+) : ExpressionEvaluating {
     companion object {
         private var jsSandbox: JavaScriptSandbox? = null
         private var sharedWebView: WebView? = null
@@ -58,7 +58,7 @@ class ExpressionEvaluator(
             Logger.debug(
                 logLevel = LogLevel.debug,
                 scope = LogScope.superwallCore,
-                message = "Javascript sandbox is not supported for expression evaluation. Falling back to webview."
+                message = "Javascript sandbox is not supported for expression evaluation. Falling back to webview.",
             )
             val webviewExists = WebView.getCurrentWebViewPackage() != null
             if (webviewExists) {
@@ -66,12 +66,13 @@ class ExpressionEvaluator(
                     runOnUiThread {
                         sharedWebView = WebView(context)
                         sharedWebView!!.settings.javaScriptEnabled = true
-                        sharedWebView!!.webChromeClient = object : WebChromeClient() {
-                            override fun onConsoleMessage(consoleMessage: ConsoleMessage): Boolean {
-                                println("!!JS Console: ${consoleMessage.message()}")
-                                return true
+                        sharedWebView!!.webChromeClient =
+                            object : WebChromeClient() {
+                                override fun onConsoleMessage(consoleMessage: ConsoleMessage): Boolean {
+                                    println("!!JS Console: ${consoleMessage.message()}")
+                                    return true
+                                }
                             }
-                        }
                     }
                 }
             }
@@ -80,24 +81,25 @@ class ExpressionEvaluator(
 
     override suspend fun evaluateExpression(
         rule: TriggerRule,
-        eventData: EventData?
+        eventData: EventData?,
     ): TriggerRuleOutcome {
         // Expression matches all
         if (rule.expressionJs == null && rule.expression == null) {
             return tryToMatchOccurrence(rule, true)
         }
 
-        val base64Params = getBase64Params(rule, eventData) ?: return TriggerRuleOutcome.noMatch(UnmatchedRule.Source.EXPRESSION, rule.experiment.id)
+        val base64Params =
+            getBase64Params(rule, eventData) ?: return TriggerRuleOutcome.noMatch(UnmatchedRule.Source.EXPRESSION, rule.experiment.id)
 
         return if (jsSandbox != null) {
             evaluateUsingJSSandbox(
                 base64Params = base64Params,
-                rule = rule
+                rule = rule,
             )
         } else if (sharedWebView != null) {
             evaluateUsingWebview(
                 base64Params = base64Params,
-                rule = rule
+                rule = rule,
             )
         } else {
             return TriggerRuleOutcome.noMatch(UnmatchedRule.Source.EXPRESSION, rule.experiment.id)
@@ -106,38 +108,39 @@ class ExpressionEvaluator(
 
     private suspend fun evaluateUsingJSSandbox(
         base64Params: String,
-        rule: TriggerRule
-    ): TriggerRuleOutcome = withContext(singleThreadContext) {
-        val jsIsolate = jsSandbox?.createIsolate()
-        jsIsolate?.addOnTerminatedCallback {
-            Logger.debug(
-                logLevel = LogLevel.error,
-                scope = LogScope.superwallCore,
-                message = "$it"
-            )
+        rule: TriggerRule,
+    ): TriggerRuleOutcome =
+        withContext(singleThreadContext) {
+            val jsIsolate = jsSandbox?.createIsolate()
+            jsIsolate?.addOnTerminatedCallback {
+                Logger.debug(
+                    logLevel = LogLevel.error,
+                    scope = LogScope.superwallCore,
+                    message = "$it",
+                )
+            }
+
+            val resultFuture = jsIsolate?.evaluateJavaScriptAsync("$SDKJS\n $base64Params")
+
+            val result = resultFuture?.await()
+            jsIsolate?.close()
+
+            if (result.isNullOrEmpty()) {
+                return@withContext TriggerRuleOutcome.noMatch(UnmatchedRule.Source.EXPRESSION, rule.experiment.id)
+            } else {
+                val expressionMatched = result == "true"
+                return@withContext tryToMatchOccurrence(rule, expressionMatched)
+            }
         }
-
-        val resultFuture = jsIsolate?.evaluateJavaScriptAsync("$SDKJS\n $base64Params")
-
-        val result = resultFuture?.await()
-        jsIsolate?.close()
-
-        if (result.isNullOrEmpty()) {
-            return@withContext TriggerRuleOutcome.noMatch(UnmatchedRule.Source.EXPRESSION, rule.experiment.id)
-        } else {
-            val expressionMatched = result == "true"
-            return@withContext tryToMatchOccurrence(rule, expressionMatched)
-        }
-    }
 
     private suspend fun evaluateUsingWebview(
         base64Params: String,
-        rule: TriggerRule
+        rule: TriggerRule,
     ): TriggerRuleOutcome {
         val deferred: CompletableDeferred<TriggerRuleOutcome> = CompletableDeferred()
         runOnUiThread {
             sharedWebView!!.evaluateJavascript(
-                "$SDKJS\n $base64Params"
+                "$SDKJS\n $base64Params",
             ) { result ->
                 println("!! evaluateJavascript result: $result")
 
@@ -145,8 +148,8 @@ class ExpressionEvaluator(
                     deferred.complete(
                         TriggerRuleOutcome.noMatch(
                             UnmatchedRule.Source.EXPRESSION,
-                            rule.experiment.id
-                        )
+                            rule.experiment.id,
+                        ),
                     )
                 } else {
                     val expressionMatched = result.replace("\"", "") == "true"
@@ -164,7 +167,7 @@ class ExpressionEvaluator(
 
     private suspend fun getBase64Params(
         rule: TriggerRule,
-        eventData: EventData?
+        eventData: EventData?,
     ): String? {
         val jsonAttributes = factory.makeRuleAttributes(eventData, rule.computedPropertyRequests)
 
@@ -185,7 +188,7 @@ class ExpressionEvaluator(
 
     suspend fun tryToMatchOccurrence(
         rule: TriggerRule,
-        expressionMatched: Boolean
+        expressionMatched: Boolean,
     ): TriggerRuleOutcome {
         if (expressionMatched) {
             rule.occurrence?.let { occurrence ->
@@ -197,14 +200,14 @@ class ExpressionEvaluator(
                 } else {
                     return TriggerRuleOutcome.noMatch(
                         UnmatchedRule.Source.OCCURRENCE,
-                        rule.experiment.id
+                        rule.experiment.id,
                     )
                 }
             } ?: run {
                 Logger.debug(
                     logLevel = LogLevel.debug,
                     scope = LogScope.paywallPresentation,
-                    message = "No occurrence parameter found for trigger rule."
+                    message = "No occurrence parameter found for trigger rule.",
                 )
                 return TriggerRuleOutcome.match(rule)
             }

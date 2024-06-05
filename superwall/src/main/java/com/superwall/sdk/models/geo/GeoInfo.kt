@@ -13,5 +13,5 @@ data class GeoInfo(
     val continent: String?,
     val metroCode: String?,
     val postalCode: String?,
-    val timezone: String?
+    val timezone: String?,
 )

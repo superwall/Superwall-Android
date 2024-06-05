@@ -11,7 +11,6 @@ import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
-import android.telephony.TelephonyManager
 import android.util.Log
 import androidx.core.content.ContextCompat
 import com.superwall.sdk.BuildConfig
@@ -22,25 +21,29 @@ import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.geo.GeoInfo
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.paywall.vc.web_view.templating.models.DeviceTemplate
-import com.superwall.sdk.storage.Storage
-import java.text.SimpleDateFormat
-import java.util.*
 import com.superwall.sdk.storage.LastPaywallView
+import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.TotalPaywallViews
+import java.text.SimpleDateFormat
 import java.time.Duration
+import java.util.*
 
-enum class InterfaceStyle(val rawValue: String) {
+enum class InterfaceStyle(
+    val rawValue: String,
+) {
     LIGHT("Light"),
-    DARK("Dark");
+    DARK("Dark"),
 }
 
 class DeviceHelper(
     private val context: Context,
     val storage: Storage,
     val network: Network,
-    val factory: Factory
+    val factory: Factory,
 ) {
-    interface Factory: IdentityInfoFactory, LocaleIdentifierFactory {}
+    interface Factory :
+        IdentityInfoFactory,
+        LocaleIdentifierFactory
 
     private val connectivityManager =
         context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
@@ -101,13 +104,14 @@ class DeviceHelper(
         }
 
     val appVersion: String
-        get() = try {
-            val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-            packageInfo.versionName
-        } catch (e: PackageManager.NameNotFoundException) {
-            Log.e("DeviceHelper", "Failed to load version info", e)
-            ""
-        }
+        get() =
+            try {
+                val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+                packageInfo.versionName
+            } catch (e: PackageManager.NameNotFoundException) {
+                Log.e("DeviceHelper", "Failed to load version info", e)
+                ""
+            }
 
     val osVersion: String
         get() = Build.VERSION.RELEASE ?: ""
@@ -158,7 +162,7 @@ class DeviceHelper(
 
             if (ContextCompat.checkSelfPermission(
                     context,
-                    android.Manifest.permission.ACCESS_NETWORK_STATE
+                    android.Manifest.permission.ACCESS_NETWORK_STATE,
                 ) != PackageManager.PERMISSION_GRANTED
             ) {
                 return ""
@@ -172,7 +176,6 @@ class DeviceHelper(
                 else -> ""
             }
         }
-
 
     val bundleId: String
         get() = context.packageName
@@ -200,11 +203,12 @@ class DeviceHelper(
     val interfaceStyle: String
         get() {
             return interfaceStyleOverride?.rawValue ?: run {
-                val style = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
-                } else {
-                    Configuration.UI_MODE_NIGHT_UNDEFINED
-                }
+                val style =
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+                    } else {
+                        Configuration.UI_MODE_NIGHT_UNDEFINED
+                    }
                 return when (style) {
                     Configuration.UI_MODE_NIGHT_NO -> "Light"
                     Configuration.UI_MODE_NIGHT_YES -> "Dark"
@@ -222,7 +226,6 @@ class DeviceHelper(
                 "false"
             }
         }
-
 
     private val localDateFormat: SimpleDateFormat
         get() {
@@ -336,40 +339,42 @@ class DeviceHelper(
             val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
             return packageInfo.versionCode.toString()
         }
-    
+
     val sdkVersion: String
         get() = BuildConfig.SDK_VERSION
 
     val buildTime: String?
         get() = BuildConfig.BUILD_TIME
-   
-   val gitSha: String?
+
+    val gitSha: String?
         get() = BuildConfig.GIT_SHA
 
     suspend fun getDeviceAttributes(
         sinceEvent: EventData?,
-        computedPropertyRequests: List<ComputedPropertyRequest>
+        computedPropertyRequests: List<ComputedPropertyRequest>,
     ): Map<String, Any> {
         val dictionary = getTemplateDevice()
 
-        val computedProperties = getComputedDevicePropertiesSinceEvent(
-            sinceEvent,
-            computedPropertyRequests
-        )
+        val computedProperties =
+            getComputedDevicePropertiesSinceEvent(
+                sinceEvent,
+                computedPropertyRequests,
+            )
         return dictionary + computedProperties
     }
 
     private suspend fun getComputedDevicePropertiesSinceEvent(
         event: EventData?,
-        computedPropertyRequests: List<ComputedPropertyRequest>
+        computedPropertyRequests: List<ComputedPropertyRequest>,
     ): Map<String, Any> {
         val output = mutableMapOf<String, Any>()
 
         for (computedPropertyRequest in computedPropertyRequests) {
-            val value = storage.coreDataManager.getComputedPropertySinceEvent(
-                event,
-                request = computedPropertyRequest
-            )
+            val value =
+                storage.coreDataManager.getComputedPropertySinceEvent(
+                    event,
+                    request = computedPropertyRequest,
+                )
             value?.let {
                 output[computedPropertyRequest.type.prefix + computedPropertyRequest.eventName] = it
             }
@@ -382,56 +387,59 @@ class DeviceHelper(
         val identityInfo = factory.makeIdentityInfo()
         val aliases = listOf(identityInfo.aliasId)
 
-        val deviceTemplate = DeviceTemplate(
-            publicApiKey = storage.apiKey,
-            platform = "Android",
-            appUserId = identityInfo.appUserId ?: "",
-            aliases = aliases,
-            vendorId = vendorId,
-            appVersion = appVersion,
-            osVersion = osVersion,
-            deviceModel = model,
-            deviceLocale = locale,
-            preferredLocale = locale,
-            deviceLanguageCode = languageCode,
-            preferredLanguageCode = languageCode,
-            regionCode = regionCode,
-            preferredRegionCode = regionCode,
-            deviceCurrencyCode = currencyCode,
-            deviceCurrencySymbol = currencySymbol,
-            timezoneOffset = (TimeZone.getDefault().rawOffset) / 1000,
-            radioType = radioType,
-            interfaceStyle = interfaceStyle,
-            isLowPowerModeEnabled = isLowPowerModeEnabled.toBoolean(),
-            bundleId = bundleId,
-            appInstallDate = appInstalledAtString,
-            isMac = false,
-            daysSinceInstall = daysSinceInstall,
-            minutesSinceInstall = minutesSinceInstall,
-            daysSinceLastPaywallView = daysSinceLastPaywallView,
-            minutesSinceLastPaywallView = minutesSinceLastPaywallView,
-            totalPaywallViews = totalPaywallViews,
-            utcDate = utcDateString,
-            localDate = localDateString,
-            utcTime = utcTimeString,
-            localTime = localTimeString,
-            utcDateTime = utcDateTimeString,
-            localDateTime = localDateTimeString,
-            isSandbox = isSandbox.toString(),
-            subscriptionStatus = Superwall.instance.subscriptionStatus.value.toString(),
-            isFirstAppOpen = isFirstAppOpen,
-            sdkVersion = sdkVersion,
-            sdkVersionPadded = sdkVersionPadded,
-            appBuildString = appBuildString,
-            appBuildStringNumber = appBuildString.toInt(),
-            interfaceStyleMode = if (interfaceStyleOverride == null) "automatic" else "manual",
-            ipRegion = geoInfo?.region,
-            ipRegionCode = geoInfo?.regionCode,
-            ipCountry = geoInfo?.country,
-            ipCity = geoInfo?.city,
-            ipContinent = geoInfo?.continent,
-            ipTimezone = geoInfo?.timezone
-        )
+        val deviceTemplate =
+            DeviceTemplate(
+                publicApiKey = storage.apiKey,
+                platform = "Android",
+                appUserId = identityInfo.appUserId ?: "",
+                aliases = aliases,
+                vendorId = vendorId,
+                appVersion = appVersion,
+                osVersion = osVersion,
+                deviceModel = model,
+                deviceLocale = locale,
+                preferredLocale = locale,
+                deviceLanguageCode = languageCode,
+                preferredLanguageCode = languageCode,
+                regionCode = regionCode,
+                preferredRegionCode = regionCode,
+                deviceCurrencyCode = currencyCode,
+                deviceCurrencySymbol = currencySymbol,
+                timezoneOffset = (TimeZone.getDefault().rawOffset) / 1000,
+                radioType = radioType,
+                interfaceStyle = interfaceStyle,
+                isLowPowerModeEnabled = isLowPowerModeEnabled.toBoolean(),
+                bundleId = bundleId,
+                appInstallDate = appInstalledAtString,
+                isMac = false,
+                daysSinceInstall = daysSinceInstall,
+                minutesSinceInstall = minutesSinceInstall,
+                daysSinceLastPaywallView = daysSinceLastPaywallView,
+                minutesSinceLastPaywallView = minutesSinceLastPaywallView,
+                totalPaywallViews = totalPaywallViews,
+                utcDate = utcDateString,
+                localDate = localDateString,
+                utcTime = utcTimeString,
+                localTime = localTimeString,
+                utcDateTime = utcDateTimeString,
+                localDateTime = localDateTimeString,
+                isSandbox = isSandbox.toString(),
+                subscriptionStatus =
+                    Superwall.instance.subscriptionStatus.value
+                        .toString(),
+                isFirstAppOpen = isFirstAppOpen,
+                sdkVersion = sdkVersion,
+                sdkVersionPadded = sdkVersionPadded,
+                appBuildString = appBuildString,
+                appBuildStringNumber = appBuildString.toInt(),
+                interfaceStyleMode = if (interfaceStyleOverride == null) "automatic" else "manual",
+                ipRegion = geoInfo?.region,
+                ipRegionCode = geoInfo?.regionCode,
+                ipCountry = geoInfo?.country,
+                ipCity = geoInfo?.city,
+                ipContinent = geoInfo?.continent,
+                ipTimezone = geoInfo?.timezone,
+            )
 
         return deviceTemplate.toDictionary()
     }

@@ -8,13 +8,12 @@ import android.view.MenuItem
 import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
-import android.widget.Button
-import androidx.appcompat.app.AppCompatActivity
-import androidx.recyclerview.widget.RecyclerView
-import com.superwall.sdk.store.abstractions.product.StoreProduct
 import android.widget.Spinner
+import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.superwall.sdk.R
+import com.superwall.sdk.store.abstractions.product.StoreProduct
 
 class SWConsoleActivity : AppCompatActivity() {
     private lateinit var productPicker: Spinner
@@ -36,23 +35,30 @@ class SWConsoleActivity : AppCompatActivity() {
         tableView = findViewById(R.id.console_recycler_view) // Replace with your actual RecyclerView ID
 
         // Set up the Spinner with the product names or identifiers
-        productAdapter = ArrayAdapter(
-            this,
-            R.layout.spinner_item,
-            products.map { it.productIdentifier }
-        )
+        productAdapter =
+            ArrayAdapter(
+                this,
+                R.layout.spinner_item,
+                products.map { it.productIdentifier },
+            )
         productAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         productPicker.adapter = productAdapter
-        productPicker.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>, view: View, position: Int, id: Long) {
-                // When a product is selected, update the RecyclerView with its attributes
-                tableViewAdapter.updateData(products[position].attributes, position)
-            }
+        productPicker.onItemSelectedListener =
+            object : AdapterView.OnItemSelectedListener {
+                override fun onItemSelected(
+                    parent: AdapterView<*>,
+                    view: View,
+                    position: Int,
+                    id: Long,
+                ) {
+                    // When a product is selected, update the RecyclerView with its attributes
+                    tableViewAdapter.updateData(products[position].attributes, position)
+                }
 
-            override fun onNothingSelected(parent: AdapterView<*>) {
-                // This can be left empty
+                override fun onNothingSelected(parent: AdapterView<*>) {
+                    // This can be left empty
+                }
             }
-        }
 
         // Set up the RecyclerView to display the attributes of the selected product
         setupTableView()
@@ -63,15 +69,14 @@ class SWConsoleActivity : AppCompatActivity() {
         return true
     }
 
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when (item.itemId) {
+    override fun onOptionsItemSelected(item: MenuItem): Boolean =
+        when (item.itemId) {
             R.id.action_done -> {
                 finish() // Close the activity
                 true
             }
             else -> super.onOptionsItemSelected(item)
         }
-    }
 
     private fun setupTableView() {
         tableView.layoutManager = LinearLayoutManager(this)

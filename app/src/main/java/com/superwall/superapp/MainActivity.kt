@@ -1,9 +1,9 @@
 package com.superwall.superapp
 
 import android.content.Intent
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.widget.Button
+import androidx.appcompat.app.AppCompatActivity
 import com.superwall.sdk.Superwall
 import com.superwall.superapp.test.UITestActivity
 
@@ -66,7 +66,7 @@ class MainActivity : AppCompatActivity() {
             val intent = Intent(this, UITestActivity::class.java)
             startActivity(intent)
         }
-        
+
         val devicePropertiesTestButton: Button = findViewById(R.id.devicePropertiesTest)
         devicePropertiesTestButton.setOnClickListener {
             val app = application as? MainApplication
@@ -112,7 +112,7 @@ class MainActivity : AppCompatActivity() {
         Superwall.instance.dispatchMotionEvent(event)
         return true
     }
-    */
+     */
 
     //region Deep Links
 

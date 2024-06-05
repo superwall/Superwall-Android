@@ -1,8 +1,8 @@
 
 import groovy.json.JsonBuilder
+import java.io.ByteArrayOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
-import java.io.ByteArrayOutputStream
 
 buildscript {
     extra["awsAccessKeyId"] = System.getenv("AWS_ACCESS_KEY_ID") ?: findProperty("aws_access_key_id")
@@ -32,7 +32,7 @@ android {
         targetSdkVersion(33)
 
         aarMetadata {
-          minCompileSdk = 26
+            minCompileSdk = 26
         }
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -40,10 +40,13 @@ android {
 
         consumerProguardFile("proguard-rules.pro")
 
-        val gitSha = project.exec {
-            commandLine("git", "rev-parse", "--short", "HEAD")
-            standardOutput = ByteArrayOutputStream()
-        }.toString().trim()
+        val gitSha =
+            project
+                .exec {
+                    commandLine("git", "rev-parse", "--short", "HEAD")
+                    standardOutput = ByteArrayOutputStream()
+                }.toString()
+                .trim()
         buildConfigField("String", "GIT_SHA", "\"${gitSha}\"")
 
         val currentTime = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'").format(Date())
@@ -85,7 +88,6 @@ android {
             withSourcesJar()
         }
     }
-
 }
 
 publishing {
@@ -185,7 +187,6 @@ dependencies {
 
     // Browser
     implementation(libs.browser)
-
 
     // Core
     implementation(libs.core)

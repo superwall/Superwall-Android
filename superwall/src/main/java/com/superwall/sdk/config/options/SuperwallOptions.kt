@@ -4,7 +4,6 @@ import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import java.util.*
 
-
 // Options for configuring Superwall, including paywall presentation and appearance.
 //
 // Pass an instance of this class to
@@ -17,8 +16,9 @@ class SuperwallOptions {
     // Only use this enum to set ``SuperwallOptions/networkEnvironment-swift.property``
     // if told so explicitly by the Superwall team.
 
-    open class NetworkEnvironment(open val hostDomain: String) {
-
+    open class NetworkEnvironment(
+        open val hostDomain: String,
+    ) {
         open val baseHost: String
             get() = "api.$hostDomain"
 
@@ -32,20 +32,19 @@ class SuperwallOptions {
             get() = null
 
         // Default: Uses the standard latest environment.
-        class Release() : NetworkEnvironment("superwall.me")
+        class Release : NetworkEnvironment("superwall.me")
 
-        class ReleaseCandidate() : NetworkEnvironment("superwallcanary.com")
+        class ReleaseCandidate : NetworkEnvironment("superwallcanary.com")
 
-        class Developer() : NetworkEnvironment("superwall.dev")
+        class Developer : NetworkEnvironment("superwall.dev")
 
         class Custom(
             override val baseHost: String,
             override val collectorHost: String,
             override val scheme: String,
-            override val port: Int?
+            override val port: Int?,
         ) : NetworkEnvironment(baseHost)
     }
-
 
     // **WARNING:**: Determines which network environment your SDK should use.
     // Defaults to `.release`.  You should under no circumstance change this unless you

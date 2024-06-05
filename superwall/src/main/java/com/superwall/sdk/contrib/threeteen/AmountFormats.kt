@@ -44,7 +44,6 @@ import java.util.stream.Stream
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
 /**
  * Provides the ability to format a temporal amount.
  *
@@ -150,42 +149,46 @@ object AmountFormats {
     /**
      * The predicate that matches numbers ending 1 but not ending 11.
      */
-    private val PREDICATE_END1_NOT11 = IntPredicate { value: Int ->
-        val abs = Math.abs(value)
-        val last = abs % 10
-        val secondLast = abs % 100 / 10
-        last == 1 && secondLast != 1
-    }
+    private val PREDICATE_END1_NOT11 =
+        IntPredicate { value: Int ->
+            val abs = Math.abs(value)
+            val last = abs % 10
+            val secondLast = abs % 100 / 10
+            last == 1 && secondLast != 1
+        }
 
     /**
      * The predicate that matches numbers ending 2, 3 or 4, but not ending 12, 13 or 14.
      */
-    private val PREDICATE_END234_NOTTEENS = IntPredicate { value: Int ->
-        val abs = Math.abs(value)
-        val last = abs % 10
-        val secondLast = abs % 100 / 10
-        last >= 2 && last <= 4 && secondLast != 1
-    }
+    private val PREDICATE_END234_NOTTEENS =
+        IntPredicate { value: Int ->
+            val abs = Math.abs(value)
+            val last = abs % 10
+            val secondLast = abs % 100 / 10
+            last >= 2 && last <= 4 && secondLast != 1
+        }
 
     /**
      * List of DurationUnit values ordered by longest suffix first.
      */
-    private val DURATION_UNITS = Arrays.asList(
-        DurationUnit("ns", Duration.ofNanos(1)),
-        DurationUnit("µs", Duration.ofNanos(1000)),  // U+00B5 = micro symbol
-        DurationUnit("μs", Duration.ofNanos(1000)),  // U+03BC = Greek letter mu
-        DurationUnit("us", Duration.ofNanos(1000)),
-        DurationUnit("ms", Duration.ofMillis(1)),
-        DurationUnit("s", Duration.ofSeconds(1)),
-        DurationUnit("m", Duration.ofMinutes(1)),
-        DurationUnit("h", Duration.ofHours(1))
-    )
+    private val DURATION_UNITS =
+        Arrays.asList(
+            DurationUnit("ns", Duration.ofNanos(1)),
+            DurationUnit("µs", Duration.ofNanos(1000)), // U+00B5 = micro symbol
+            DurationUnit("μs", Duration.ofNanos(1000)), // U+03BC = Greek letter mu
+            DurationUnit("us", Duration.ofNanos(1000)),
+            DurationUnit("ms", Duration.ofMillis(1)),
+            DurationUnit("s", Duration.ofSeconds(1)),
+            DurationUnit("m", Duration.ofMinutes(1)),
+            DurationUnit("h", Duration.ofHours(1)),
+        )
 
     /**
      * Zero value for an absent fractional component of a numeric duration string.
      */
     private val EMPTY_FRACTION = FractionScalarPart(0, 0)
-    //-----------------------------------------------------------------------
+    // -----------------------------------------------------------------------
+
     /**
      * Formats a period and duration to a string in ISO-8601 format.
      *
@@ -198,7 +201,10 @@ object AmountFormats {
      * @param duration  the duration to format
      * @return the ISO-8601 format for the period and duration
      */
-    fun iso8601(period: Period, duration: Duration): String {
+    fun iso8601(
+        period: Period,
+        duration: Duration,
+    ): String {
         Objects.requireNonNull(period, "period must not be null")
         Objects.requireNonNull(duration, "duration must not be null")
         if (period.isZero) {
@@ -206,11 +212,13 @@ object AmountFormats {
         }
         return if (duration.isZero) {
             period.toString()
-        } else period.toString() + duration.toString().substring(1)
+        } else {
+            period.toString() + duration.toString().substring(1)
+        }
     }
 
-    fun getResourceBundle(locale: Locale): ResourceBundle {
-        return try {
+    fun getResourceBundle(locale: Locale): ResourceBundle =
+        try {
             ResourceBundle.getBundle(BUNDLE_NAME, locale)
         } catch (e: MissingResourceException) {
             Logger.debug(
@@ -218,14 +226,14 @@ object AmountFormats {
                 scope = LogScope.localizationManager,
                 message = "Resource not found: $BUNDLE_NAME",
                 info = mapOf("locale" to locale),
-                error = e
+                error = e,
             )
             // Fallback to English
             ResourceBundle.getBundle(BUNDLE_NAME, Locale.ENGLISH)
         }
-    }
 
-    //-------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
+
     /**
      * Formats a period to a string in a localized word-based format.
      *
@@ -239,21 +247,28 @@ object AmountFormats {
      * @param locale  the locale to use
      * @return the localized word-based format for the period
      */
-    fun wordBased(period: Period, locale: Locale): String {
+    fun wordBased(
+        period: Period,
+        locale: Locale,
+    ): String {
         Objects.requireNonNull(period, "period must not be null")
         Objects.requireNonNull(locale, "locale must not be null")
         val bundle = getResourceBundle(locale)
-        val formats = arrayOf(
-            UnitFormat.of(bundle, WORDBASED_YEAR),
-            UnitFormat.of(bundle, WORDBASED_MONTH),
-            UnitFormat.of(bundle, WORDBASED_WEEK),
-            UnitFormat.of(bundle, WORDBASED_DAY)
-        )
-        val wb = WordBased(
-            formats, bundle.getString(WORDBASED_COMMASPACE), bundle.getString(
-                WORDBASED_SPACEANDSPACE
+        val formats =
+            arrayOf(
+                UnitFormat.of(bundle, WORDBASED_YEAR),
+                UnitFormat.of(bundle, WORDBASED_MONTH),
+                UnitFormat.of(bundle, WORDBASED_WEEK),
+                UnitFormat.of(bundle, WORDBASED_DAY),
             )
-        )
+        val wb =
+            WordBased(
+                formats,
+                bundle.getString(WORDBASED_COMMASPACE),
+                bundle.getString(
+                    WORDBASED_SPACEANDSPACE,
+                ),
+            )
         val normPeriod =
             if (oppositeSigns(period.months, period.years)) period.normalized() else period
         var weeks = 0
@@ -279,21 +294,28 @@ object AmountFormats {
      * @param locale  the locale to use
      * @return the localized word-based format for the duration
      */
-    fun wordBased(duration: Duration, locale: Locale): String {
+    fun wordBased(
+        duration: Duration,
+        locale: Locale,
+    ): String {
         Objects.requireNonNull(duration, "duration must not be null")
         Objects.requireNonNull(locale, "locale must not be null")
         val bundle = ResourceBundle.getBundle(BUNDLE_NAME, locale)
-        val formats = arrayOf(
-            UnitFormat.of(bundle, WORDBASED_HOUR),
-            UnitFormat.of(bundle, WORDBASED_MINUTE),
-            UnitFormat.of(bundle, WORDBASED_SECOND),
-            UnitFormat.of(bundle, WORDBASED_MILLISECOND)
-        )
-        val wb = WordBased(
-            formats, bundle.getString(WORDBASED_COMMASPACE), bundle.getString(
-                WORDBASED_SPACEANDSPACE
+        val formats =
+            arrayOf(
+                UnitFormat.of(bundle, WORDBASED_HOUR),
+                UnitFormat.of(bundle, WORDBASED_MINUTE),
+                UnitFormat.of(bundle, WORDBASED_SECOND),
+                UnitFormat.of(bundle, WORDBASED_MILLISECOND),
             )
-        )
+        val wb =
+            WordBased(
+                formats,
+                bundle.getString(WORDBASED_COMMASPACE),
+                bundle.getString(
+                    WORDBASED_SPACEANDSPACE,
+                ),
+            )
         val hours = duration.toHours()
         val mins = duration.toMinutes() % MINUTES_PER_HOUR
         val secs = duration.seconds % SECONDS_PER_MINUTE
@@ -316,26 +338,34 @@ object AmountFormats {
      * @param locale  the locale to use
      * @return the localized word-based format for the period and duration
      */
-    fun wordBased(period: Period, duration: Duration, locale: Locale): String {
+    fun wordBased(
+        period: Period,
+        duration: Duration,
+        locale: Locale,
+    ): String {
         Objects.requireNonNull(period, "period must not be null")
         Objects.requireNonNull(duration, "duration must not be null")
         Objects.requireNonNull(locale, "locale must not be null")
         val bundle = ResourceBundle.getBundle(BUNDLE_NAME, locale)
-        val formats = arrayOf(
-            UnitFormat.of(bundle, WORDBASED_YEAR),
-            UnitFormat.of(bundle, WORDBASED_MONTH),
-            UnitFormat.of(bundle, WORDBASED_WEEK),
-            UnitFormat.of(bundle, WORDBASED_DAY),
-            UnitFormat.of(bundle, WORDBASED_HOUR),
-            UnitFormat.of(bundle, WORDBASED_MINUTE),
-            UnitFormat.of(bundle, WORDBASED_SECOND),
-            UnitFormat.of(bundle, WORDBASED_MILLISECOND)
-        )
-        val wb = WordBased(
-            formats, bundle.getString(WORDBASED_COMMASPACE), bundle.getString(
-                WORDBASED_SPACEANDSPACE
+        val formats =
+            arrayOf(
+                UnitFormat.of(bundle, WORDBASED_YEAR),
+                UnitFormat.of(bundle, WORDBASED_MONTH),
+                UnitFormat.of(bundle, WORDBASED_WEEK),
+                UnitFormat.of(bundle, WORDBASED_DAY),
+                UnitFormat.of(bundle, WORDBASED_HOUR),
+                UnitFormat.of(bundle, WORDBASED_MINUTE),
+                UnitFormat.of(bundle, WORDBASED_SECOND),
+                UnitFormat.of(bundle, WORDBASED_MILLISECOND),
             )
-        )
+        val wb =
+            WordBased(
+                formats,
+                bundle.getString(WORDBASED_COMMASPACE),
+                bundle.getString(
+                    WORDBASED_SPACEANDSPACE,
+                ),
+            )
         val normPeriod =
             if (oppositeSigns(period.months, period.years)) period.normalized() else period
         var weeks = 0
@@ -351,18 +381,27 @@ object AmountFormats {
         val mins = (duration.toMinutes() % MINUTES_PER_HOUR).toInt()
         val secs = (duration.seconds % SECONDS_PER_MINUTE).toInt()
         val millis = duration.nano / NANOS_PER_MILLIS
-        val values = intArrayOf(
-            normPeriod.years, normPeriod.months, weeks, days,
-            hours, mins, secs, millis
-        )
+        val values =
+            intArrayOf(
+                normPeriod.years,
+                normPeriod.months,
+                weeks,
+                days,
+                hours,
+                mins,
+                secs,
+                millis,
+            )
         return wb.format(values)
     }
 
     // are the signs opposite
-    private fun oppositeSigns(a: Int, b: Int): Boolean {
-        return if (a < 0) b >= 0 else b < 0
-    }
+    private fun oppositeSigns(
+        a: Int,
+        b: Int,
+    ): Boolean = if (a < 0) b >= 0 else b < 0
     // -------------------------------------------------------------------------
+
     /**
      * Parses formatted durations based on units.
      *
@@ -432,7 +471,9 @@ object AmountFormats {
             val optUnit = findUnit(durationText)
             if (!optUnit.isPresent) {
                 throw DateTimeParseException(
-                    "Invalid duration unit", original, offset
+                    "Invalid duration unit",
+                    original,
+                    offset,
                 )
             }
             val unit = optUnit.get()
@@ -444,7 +485,9 @@ object AmountFormats {
             } catch (e: ArithmeticException) {
                 throw DateTimeParseException(
                     "Duration string exceeds valid numeric range",
-                    original, offset, e
+                    original,
+                    offset,
+                    e,
                 )
             }
             // update the remaining text and text length.
@@ -460,7 +503,8 @@ object AmountFormats {
     // <int>.<fraction><unit>.
     private fun consumeDurationLeadingInt(
         text: CharSequence,
-        original: CharSequence, offset: Int
+        original: CharSequence,
+        offset: Int,
     ): ParsedUnitPart {
         var integerPart: Long = 0
         var i = 0
@@ -474,7 +518,8 @@ object AmountFormats {
             if (integerPart > Long.MAX_VALUE / 10) {
                 throw DateTimeParseException(
                     "Duration string exceeds valid numeric range",
-                    original, i + offset
+                    original,
+                    i + offset,
                 )
             }
             integerPart *= 10
@@ -483,7 +528,8 @@ object AmountFormats {
             if (integerPart < 0) {
                 throw DateTimeParseException(
                     "Duration string exceeds valid numeric range",
-                    original, i + offset
+                    original,
+                    i + offset,
                 )
             }
             i++
@@ -494,7 +540,7 @@ object AmountFormats {
         }
         return ParsedUnitPart(
             text.subSequence(i, text.length),
-            IntegerScalarPart(integerPart)
+            IntegerScalarPart(integerPart),
         )
     }
 
@@ -502,7 +548,8 @@ object AmountFormats {
     // <int>.<fraction><unit>.
     private fun consumeDurationFraction(
         text: CharSequence,
-        original: CharSequence, offset: Int
+        original: CharSequence,
+        offset: Int,
     ): ParsedUnitPart {
         var i = 0
         var fraction: Long = 0
@@ -532,42 +579,47 @@ object AmountFormats {
         }
         if (i == 0) {
             throw DateTimeParseException(
-                "Missing numeric fraction after '.'", original, offset
+                "Missing numeric fraction after '.'",
+                original,
+                offset,
             )
         }
         return ParsedUnitPart(
             text.subSequence(i, text.length),
-            FractionScalarPart(fraction, scale)
+            FractionScalarPart(fraction, scale),
         )
     }
 
     // find the duration unit at the beginning of the input text, if present.
-    private fun findUnit(text: CharSequence): Optional<DurationUnit> {
-        return DURATION_UNITS.stream()
+    private fun findUnit(text: CharSequence): Optional<DurationUnit> =
+        DURATION_UNITS
+            .stream()
             .sequential()
             .filter { du: DurationUnit ->
                 du.prefixMatchesUnit(
-                    text
+                    text,
                 )
-            }
-            .findFirst()
-    }
+            }.findFirst()
 
     // consume the indicated {@code prefix} if it exists at the beginning of the
     // text, returning the
     // remaining string if the prefix was consumed.
-    private fun consumePrefix(text: CharSequence, prefix: Char): Optional<CharSequence> {
-        return if (text.length > 0 && text[0] == prefix) {
+    private fun consumePrefix(
+        text: CharSequence,
+        prefix: Char,
+    ): Optional<CharSequence> =
+        if (text.length > 0 && text[0] == prefix) {
             Optional.of(text.subSequence(1, text.length))
-        } else Optional.empty()
-    }
+        } else {
+            Optional.empty()
+        }
 
-    //-------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     // data holder for word-based formats
     internal class WordBased(
         private val units: Array<UnitFormat>,
         private val separator: String,
-        private val lastSeparator: String
+        private val lastSeparator: String,
     ) {
         fun format(values: IntArray): String {
             val buf = StringBuilder(32)
@@ -595,11 +647,17 @@ object AmountFormats {
 
     // data holder for single/plural formats
     internal interface UnitFormat {
-        fun formatTo(value: Int, buf: StringBuilder){}
+        fun formatTo(
+            value: Int,
+            buf: StringBuilder,
+        ) {}
 
         companion object {
-            fun of(bundle: ResourceBundle, keyStem: String): UnitFormat {
-                return if (bundle.containsKey(keyStem + "s.predicates")) {
+            fun of(
+                bundle: ResourceBundle,
+                keyStem: String,
+            ): UnitFormat =
+                if (bundle.containsKey(keyStem + "s.predicates")) {
                     val predicateList = bundle.getString(keyStem + "s.predicates")
                     val textList = bundle.getString(keyStem + "s.list")
                     val regexes = SPLITTER.split(predicateList)
@@ -610,43 +668,53 @@ object AmountFormats {
                     val plural = bundle.getString(keyStem + "s")
                     SinglePluralFormat(single, plural)
                 }
-            }
         }
     }
 
     // data holder for single/plural formats
-    internal class SinglePluralFormat(private val single: String, private val plural: String) : UnitFormat {
-        override fun formatTo(value: Int, buf: StringBuilder) {
+    internal class SinglePluralFormat(
+        private val single: String,
+        private val plural: String,
+    ) : UnitFormat {
+        override fun formatTo(
+            value: Int,
+            buf: StringBuilder,
+        ) {
             buf.append(value).append(if (value == 1 || value == -1) single else plural)
         }
     }
 
     // data holder for predicate formats
-    internal class PredicateFormat(predicateStrs: Array<String?>, text: Array<String?>) :
-        UnitFormat {
+    internal class PredicateFormat(
+        predicateStrs: Array<String?>,
+        text: Array<String?>,
+    ) : UnitFormat {
         private val predicates: Array<IntPredicate>
         private val text: Array<String?>
 
         init {
             check(predicateStrs.size + 1 == text.size) { "Invalid word-based resource" }
-            predicates = Stream.of<String>(*predicateStrs)
-                .map { predicateStr ->
-                    findPredicate(predicateStr)
-                }
-                .toArray { size -> arrayOfNulls<IntPredicate>(size) }
+            predicates =
+                Stream
+                    .of<String>(*predicateStrs)
+                    .map { predicateStr ->
+                        findPredicate(predicateStr)
+                    }.toArray { size -> arrayOfNulls<IntPredicate>(size) }
             this.text = text
         }
 
-        private fun findPredicate(predicateStr: String): IntPredicate {
-            return when (predicateStr) {
+        private fun findPredicate(predicateStr: String): IntPredicate =
+            when (predicateStr) {
                 "One" -> PREDICATE_1
                 "End234NotTeens" -> PREDICATE_END234_NOTTEENS
                 "End1Not11" -> PREDICATE_END1_NOT11
                 else -> throw IllegalStateException("Invalid word-based resource")
             }
-        }
 
-        override fun formatTo(value: Int, buf: StringBuilder) {
+        override fun formatTo(
+            value: Int,
+            buf: StringBuilder,
+        ) {
             for (i in predicates.indices) {
                 if (predicates[i].test(value)) {
                     buf.append(value).append(text[i])
@@ -659,26 +727,20 @@ object AmountFormats {
 
     // -------------------------------------------------------------------------
     // data holder for a duration unit string and its associated Duration value.
-    internal class DurationUnit  constructor(
+    internal class DurationUnit constructor(
         private val abbrev: String,
-        private val value: Duration
+        private val value: Duration,
     ) {
         // whether the input text starts with the unit abbreviation.
-        fun prefixMatchesUnit(text: CharSequence): Boolean {
-            return text.length >= abbrev.length && abbrev == text.subSequence(0, abbrev.length)
-        }
+        fun prefixMatchesUnit(text: CharSequence): Boolean = text.length >= abbrev.length && abbrev == text.subSequence(0, abbrev.length)
 
         // consume the duration unit and returning the remaining text.
-        fun consumeDurationUnit(text: CharSequence): CharSequence {
-            return text.subSequence(abbrev.length, text.length)
-        }
+        fun consumeDurationUnit(text: CharSequence): CharSequence = text.subSequence(abbrev.length, text.length)
 
         // scale the unit by the input scalingFunction, returning a value if
         // one is produced, or an empty result when the operation results in an
         // arithmetic overflow.
-        fun scaleBy(scaleFunc: Function<Duration, Duration?>): Duration? {
-            return scaleFunc.apply(value)
-        }
+        fun scaleBy(scaleFunc: Function<Duration, Duration?>): Duration? = scaleFunc.apply(value)
     }
 
     // interface for computing a duration from a duration unit and a scalar.
@@ -691,45 +753,41 @@ object AmountFormats {
     // data holder for parsed fragments of a floating point duration scalar.
     internal class ParsedUnitPart constructor(
         private val remainingText: CharSequence,
-        private val scalar: DurationScalar
-    ) :
-        DurationScalar {
-        override fun applyTo(unit: DurationUnit): Duration {
-            return scalar.applyTo(unit)
-        }
+        private val scalar: DurationScalar,
+    ) : DurationScalar {
+        override fun applyTo(unit: DurationUnit): Duration = scalar.applyTo(unit)
 
-        fun remainingText(): CharSequence {
-            return remainingText
-        }
+        fun remainingText(): CharSequence = remainingText
     }
 
     // data holder for the leading integer value of a duration scalar.
-    internal class IntegerScalarPart constructor(private val value: Long) :
-        DurationScalar {
-        override fun applyTo(unit: DurationUnit): Duration {
-            return unit.scaleBy { d: Duration ->
+    internal class IntegerScalarPart constructor(
+        private val value: Long,
+    ) : DurationScalar {
+        override fun applyTo(unit: DurationUnit): Duration =
+            unit.scaleBy { d: Duration ->
                 d.multipliedBy(
-                    value
+                    value,
                 )
             } as Duration
-        }
     }
 
     // data holder for the fractional floating point value of a duration
     // scalar.
     internal class FractionScalarPart constructor(
         private val value: Long,
-        private val scale: Long
-    ) :
-        DurationScalar {
-        override fun applyTo(unit: DurationUnit): Duration {
-            return if (value == 0L) {
+        private val scale: Long,
+    ) : DurationScalar {
+        override fun applyTo(unit: DurationUnit): Duration =
+            if (value == 0L) {
                 Duration.ZERO
-            } else unit.scaleBy { d: Duration ->
-                d.multipliedBy(
-                    value
-                ).dividedBy(scale) as Duration
-            }!!
-        }
+            } else {
+                unit.scaleBy { d: Duration ->
+                    d
+                        .multipliedBy(
+                            value,
+                        ).dividedBy(scale) as Duration
+                }!!
+            }
     }
 }

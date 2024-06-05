@@ -26,22 +26,23 @@ import java.util.Locale
 import java.util.TimeZone
 
 enum class SearchPathDirectory {
-    /// Saves to the caches directory, which can be cleared by the system at any time.
+    // / Saves to the caches directory, which can be cleared by the system at any time.
     CACHE,
 
-    /// Specific to the user.
+    // / Specific to the user.
     USER_SPECIFIC_DOCUMENTS,
 
-    /// Specific to the app as a whole.
-    APP_SPECIFIC_DOCUMENTS;
+    // / Specific to the app as a whole.
+    APP_SPECIFIC_DOCUMENTS,
 
-    fun fileDirectory(context: Context): File {
-        return when (this) {
+    ;
+
+    fun fileDirectory(context: Context): File =
+        when (this) {
             CACHE -> context.cacheDir
             USER_SPECIFIC_DOCUMENTS -> context.getDir("user_specific_document_dir", Context.MODE_PRIVATE)
             APP_SPECIFIC_DOCUMENTS -> context.getDir("app_specific_document_dir", Context.MODE_PRIVATE)
         }
-    }
 }
 
 interface Storable<T> {
@@ -49,9 +50,7 @@ interface Storable<T> {
     val directory: SearchPathDirectory
     val serializer: KSerializer<T>
 
-    fun path(context: Context): String {
-        return directory.fileDirectory(context).absolutePath + File.separator + key.toMD5()
-    }
+    fun path(context: Context): String = directory.fileDirectory(context).absolutePath + File.separator + key.toMD5()
 }
 
 fun String.toMD5(): String {
@@ -129,7 +128,13 @@ object DidTrackFirstSession : Storable<Boolean> {
         get() = Boolean.serializer()
 }
 
-object UserAttributes : Storable<Map<String, @kotlinx.serialization.Serializable(with = AnySerializer::class) Any>> {
+object UserAttributes : Storable<
+    Map<
+        String,
+        @kotlinx.serialization.Serializable(with = AnySerializer::class)
+        Any,
+    >,
+> {
     override val key: String
         get() = "store.userAttributes"
 
@@ -245,13 +250,17 @@ object DisableVerboseEvents : Storable<Boolean> {
 
 @Serializer(forClass = Date::class)
 object DateSerializer : KSerializer<Date> {
-    private val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
-        timeZone = TimeZone.getTimeZone("UTC")
-    }
+    private val format =
+        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+        }
 
     override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("Date", PrimitiveKind.STRING)
 
-    override fun serialize(encoder: Encoder, value: Date) {
+    override fun serialize(
+        encoder: Encoder,
+        value: Date,
+    ) {
         val formattedDate = format.format(value)
         encoder.encodeString(formattedDate)
     }

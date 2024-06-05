@@ -6,7 +6,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 class PaywallViewControllerDelegateAdapter(
-    val kotlinDelegate: PaywallViewControllerDelegate?
+    val kotlinDelegate: PaywallViewControllerDelegate?,
 ) {
     val hasJavaDelegate: Boolean
         get() = false
@@ -14,7 +14,7 @@ class PaywallViewControllerDelegateAdapter(
     suspend fun didFinish(
         paywall: PaywallViewController,
         result: PaywallResult,
-        shouldDismiss: Boolean
+        shouldDismiss: Boolean,
     ) = withContext(Dispatchers.Main) {
         kotlinDelegate?.didFinish(paywall, result, shouldDismiss)
     }

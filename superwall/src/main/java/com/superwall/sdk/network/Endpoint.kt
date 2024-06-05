@@ -21,8 +21,10 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.*
 
-data class URLQueryItem(val name: String, val value: String)
-
+data class URLQueryItem(
+    val name: String,
+    val value: String,
+)
 
 data class Endpoint<Response : SerializableEntity>(
     val components: Components? = null,
@@ -31,11 +33,13 @@ data class Endpoint<Response : SerializableEntity>(
     var requestId: String = UUID.randomUUID().toString(),
     var isForDebugging: Boolean = false,
     val factory: ApiFactory,
-    val retryCount: Int = 6
+    val retryCount: Int = 6,
 ) {
-    enum class HttpMethod(val method: String) {
+    enum class HttpMethod(
+        val method: String,
+    ) {
         GET("GET"),
-        POST("POST")
+        POST("POST"),
     }
 
     data class Components(
@@ -43,88 +47,92 @@ data class Endpoint<Response : SerializableEntity>(
         val host: String? = null,
         val path: String,
         var queryItems: List<URLQueryItem>? = null,
-        var bodyData: ByteArray? = null
+        var bodyData: ByteArray? = null,
     )
 
-    suspend fun makeRequest(): HttpURLConnection? = coroutineScope {
-        val url: URL
+    suspend fun makeRequest(): HttpURLConnection? =
+        coroutineScope {
+            val url: URL
 
-        if (components != null) {
-            val query = components.queryItems?.joinToString("&") { "${it.name}=${it.value}" }
-            val urlString =
-                "${components.scheme}://${components.host}${components.path}?${query ?: ""}"
-            url = URL(urlString)
-        } else if (this@Endpoint.url != null) {
-            url = this@Endpoint.url!!
-        } else {
-            return@coroutineScope null
+            if (components != null) {
+                val query = components.queryItems?.joinToString("&") { "${it.name}=${it.value}" }
+                val urlString =
+                    "${components.scheme}://${components.host}${components.path}?${query ?: ""}"
+                url = URL(urlString)
+            } else if (this@Endpoint.url != null) {
+                url = this@Endpoint.url!!
+            } else {
+                return@coroutineScope null
+            }
+
+            val headers =
+                factory.makeHeaders(
+                    isForDebugging = isForDebugging,
+                    requestId = requestId,
+                )
+            val connection = url.openConnection() as HttpURLConnection
+            headers.forEach { header ->
+                connection.setRequestProperty(header.key, header.value)
+            }
+
+            connection.doOutput = method.method == HttpMethod.POST.method
+            if (components?.bodyData != null) {
+                connection.doInput = true
+            }
+
+            if (components?.bodyData != null) {
+                val outputStream = connection.outputStream
+                outputStream.write(components.bodyData)
+                outputStream.close()
+            }
+
+            connection.requestMethod = method.method
+
+            return@coroutineScope connection
         }
-
-        val headers = factory.makeHeaders(
-            isForDebugging = isForDebugging,
-            requestId = requestId
-        )
-        val connection = url.openConnection() as HttpURLConnection
-        headers.forEach { header ->
-            connection.setRequestProperty(header.key, header.value)
-        }
-
-        connection.doOutput = method.method == HttpMethod.POST.method
-        if (components?.bodyData != null) {
-            connection.doInput = true
-        }
-
-        if (components?.bodyData != null) {
-            val outputStream = connection.outputStream
-            outputStream.write(components.bodyData)
-            outputStream.close()
-        }
-
-        connection.requestMethod = method.method
-
-        return@coroutineScope connection
-    }
-
 
     companion object {
         fun events(
             eventsRequest: EventsRequest,
-            factory: ApiFactory
+            factory: ApiFactory,
         ): Endpoint<EventsResponse> {
-            val json = Json {
-                encodeDefaults = true
-                namingStrategy = JsonNamingStrategy.SnakeCase
-            }
+            val json =
+                Json {
+                    encodeDefaults = true
+                    namingStrategy = JsonNamingStrategy.SnakeCase
+                }
             val bodyData = json.encodeToString(eventsRequest).toByteArray()
             val collectorHost = factory.api.collector.host
 
             return Endpoint<EventsResponse>(
-                components = Components(
-                    host = collectorHost,
-                    path = Api.version1 + "events",
-                    bodyData = bodyData
-                ),
+                components =
+                    Components(
+                        host = collectorHost,
+                        path = Api.version1 + "events",
+                        bodyData = bodyData,
+                    ),
                 method = HttpMethod.POST,
-                factory = factory
+                factory = factory,
             )
         }
 
         fun config(
             requestId: String,
-            factory: ApiFactory
+            factory: ApiFactory,
         ): Endpoint<Config> {
             val queryItems = listOf(URLQueryItem("pk", factory.storage.apiKey))
             val baseHost = factory.api.base.host
 
             return Endpoint(
-                components = Components(
-                    host = baseHost,
-                    path = Api.version1 + "static_config",
-                    queryItems = queryItems
-                ),
+                components =
+                    Components(
+                        host = baseHost,
+                        path = Api.version1 + "static_config",
+                        queryItems = queryItems,
+                    ),
                 method = HttpMethod.GET,
                 requestId = requestId,
-                factory = factory
+                factory = factory,
             )
         }
 
@@ -132,104 +140,112 @@ data class Endpoint<Response : SerializableEntity>(
             val baseHost = factory.api.base.host
 
             return Endpoint(
-                components = Components(
-                    host = baseHost,
-                    path = Api.version1 + "assignments"
-                ),
+                components =
+                    Components(
+                        host = baseHost,
+                        path = Api.version1 + "assignments",
+                    ),
                 method = HttpMethod.GET,
-                factory = factory
+                factory = factory,
             )
         }
 
         fun confirmAssignments(
             confirmableAssignments: AssignmentPostback,
-            factory: ApiFactory
+            factory: ApiFactory,
         ): Endpoint<ConfirmedAssignmentResponse> {
-            val json = Json {
-                encodeDefaults = true
-                namingStrategy = JsonNamingStrategy.SnakeCase
-            }
+            val json =
+                Json {
+                    encodeDefaults = true
+                    namingStrategy = JsonNamingStrategy.SnakeCase
+                }
             val bodyData = json.encodeToString(confirmableAssignments).toByteArray()
             val baseHost = factory.api.base.host
 
             return Endpoint(
-                components = Components(
-                    host = baseHost,
-                    path = Api.version1 + "confirm_assignments",
-                    bodyData = bodyData
-                ),
+                components =
+                    Components(
+                        host = baseHost,
+                        path = Api.version1 + "confirm_assignments",
+                        bodyData = bodyData,
+                    ),
                 method = HttpMethod.POST,
-                factory = factory
+                factory = factory,
             )
         }
 
         fun postback(
             postback: Postback,
-            factory: ApiFactory
+            factory: ApiFactory,
         ): Endpoint<PostBackResponse> {
-            val json = Json {
-                encodeDefaults = true
-                namingStrategy = JsonNamingStrategy.SnakeCase
-            }
+            val json =
+                Json {
+                    encodeDefaults = true
+                    namingStrategy = JsonNamingStrategy.SnakeCase
+                }
             val bodyData = json.encodeToString(postback).toByteArray()
             val collectorHost = factory.api.collector.host
 
             return Endpoint(
-                components = Components(
-                    host = collectorHost,
-                    path = Api.version1 + "postback",
-                    bodyData = bodyData
-                ),
+                components =
+                    Components(
+                        host = collectorHost,
+                        path = Api.version1 + "postback",
+                        bodyData = bodyData,
+                    ),
                 method = HttpMethod.POST,
-                factory = factory
+                factory = factory,
             )
         }
 
         fun paywalls(factory: ApiFactory): Endpoint<Paywalls> {
             val baseHost = factory.api.base.host
             return Endpoint(
-                components = Components(
-                    host = baseHost,
-                    path = Api.version1 + "paywalls"
-                ),
+                components =
+                    Components(
+                        host = baseHost,
+                        path = Api.version1 + "paywalls",
+                    ),
                 method = HttpMethod.GET,
                 isForDebugging = true,
-                factory = factory
+                factory = factory,
             )
         }
 
         fun geo(factory: ApiFactory): Endpoint<GeoWrapper> {
             val geoHost = factory.api.geo.host
             return Endpoint(
-                components = Components(
-                    host = geoHost,
-                    path = Api.version1 + "geo"
-                ),
+                components =
+                    Components(
+                        host = geoHost,
+                        path = Api.version1 + "geo",
+                    ),
                 method = HttpMethod.GET,
-                factory = factory
+                factory = factory,
             )
         }
 
         fun paywall(
             identifier: String? = null,
             event: EventData? = null,
-            factory: ApiFactory
+            factory: ApiFactory,
         ): Endpoint<Paywall> {
             val bodyData: ByteArray?
 
-            bodyData = when {
-                identifier != null -> {
-                    return paywall(identifier, factory)
+            bodyData =
+                when {
+                    identifier != null -> {
+                        return paywall(identifier, factory)
+                    }
+                    else -> {
+                        throw Exception("Invalid paywall request, only load via identifier is supported")
+                    }
                 }
-                else -> {
-                    throw Exception("Invalid paywall request, only load via identifier is supported")
-                }
-            }
         }
 
         private fun paywall(
             identifier: String,
-            factory: ApiFactory
+            factory: ApiFactory,
         ): Endpoint<Paywall> {
             // WARNING: Do not modify anything about this request without considering our cache eviction code
             // we must know all the exact urls we need to invalidate so changing the order, inclusion, etc of any query
@@ -243,18 +259,20 @@ data class Endpoint<Response : SerializableEntity>(
             // the url as a query param.
             factory.configManager.config?.let { config ->
                 if (config.locales.contains(factory.deviceHelper.locale)) {
-                    val localeQuery = URLQueryItem(
-                        name = "locale",
-                        value = factory.deviceHelper.locale
-                    )
+                    val localeQuery =
+                        URLQueryItem(
+                            name = "locale",
+                            value = factory.deviceHelper.locale,
+                        )
                     queryItems.add(localeQuery)
                 } else {
                     val shortLocale = factory.deviceHelper.locale.split("_")[0]
                     if (config.locales.contains(shortLocale)) {
-                        val localeQuery = URLQueryItem(
-                            name = "locale",
-                            value = shortLocale
-                        )
+                        val localeQuery =
+                            URLQueryItem(
+                                name = "locale",
+                                value = shortLocale,
+                            )
                         queryItems.add(localeQuery)
                     }
                     return@let
@@ -264,20 +282,20 @@ data class Endpoint<Response : SerializableEntity>(
             val baseHost = factory.api.base.host
 
             return Endpoint(
-                components = Components(
-                    host = baseHost,
-                    path = Api.version1 + "paywall/$identifier",
-                    queryItems = queryItems
-                ),
+                components =
+                    Components(
+                        host = baseHost,
+                        path = Api.version1 + "paywall/$identifier",
+                        queryItems = queryItems,
+                    ),
                 method = HttpMethod.GET,
-                factory = factory
+                factory = factory,
             )
         }
 
-
         private fun createEndpointWithBodyData(
             bodyData: String?,
-            factory: ApiFactory
+            factory: ApiFactory,
         ): Endpoint<Paywall> {
             val baseHost = factory.api.base.host
 
@@ -287,13 +305,14 @@ data class Endpoint<Response : SerializableEntity>(
             }
 
             return Endpoint(
-                components = Components(
-                    host = baseHost,
-                    path = Api.version1 + "paywall",
-                    bodyData = _bodyData
-                ),
+                components =
+                    Components(
+                        host = baseHost,
+                        path = Api.version1 + "paywall",
+                        bodyData = _bodyData,
+                    ),
                 method = HttpMethod.POST,
-                factory = factory
+                factory = factory,
             )
         }
 //
@@ -336,6 +355,5 @@ data class Endpoint<Response : SerializableEntity>(
 //                factory = factory
 //            )
 //        }
-
     }
 }

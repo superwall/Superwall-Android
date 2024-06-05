@@ -7,5 +7,5 @@ import kotlinx.serialization.Serializable
 data class FreeTrialTemplate(
     @SerialName("event_name")
     val eventName: String,
-    val prefix: String? = null
+    val prefix: String? = null,
 )

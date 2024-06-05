@@ -1,6 +1,5 @@
 package com.superwall.sdk.storage.core_data.entities
 
-import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Entity
 import androidx.room.Insert
@@ -13,9 +12,8 @@ import java.util.Date
 data class ManagedTriggerRuleOccurrence(
     @PrimaryKey(autoGenerate = true) var id: Int? = null,
     var createdAt: Date = Date(),
-    var occurrenceKey: String
+    var occurrenceKey: String,
 )
-
 
 @Dao
 interface ManagedTriggerRuleOccurrenceDao {
@@ -28,7 +26,7 @@ interface ManagedTriggerRuleOccurrenceDao {
     @Query("SELECT * FROM ManagedTriggerRuleOccurrence WHERE createdAt >= :date AND occurrenceKey = :key")
     suspend fun getManagedTriggerRuleOccurrencesSinceDate(
         date: Date,
-        key: String
+        key: String,
     ): List<ManagedTriggerRuleOccurrence>
 
     @Query("DELETE FROM ManagedTriggerRuleOccurrence")

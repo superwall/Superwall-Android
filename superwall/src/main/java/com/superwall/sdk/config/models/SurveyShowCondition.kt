@@ -8,19 +8,21 @@ import java.util.Base64.Decoder
 import java.util.Base64.Encoder
 
 @Serializable(with = SurveyShowConditionSerializer::class)
-enum class SurveyShowCondition(val rawValue: String) {
+enum class SurveyShowCondition(
+    val rawValue: String,
+) {
     @SerialName("ON_MANUAL_CLOSE")
     ON_MANUAL_CLOSE("ON_MANUAL_CLOSE"),
 
     @SerialName("ON_PURCHASE")
-    ON_PURCHASE("ON_PURCHASE");
+    ON_PURCHASE("ON_PURCHASE"),
 }
 
 @Serializer(forClass = SurveyShowCondition::class)
 object SurveyShowConditionSerializer : KSerializer<SurveyShowCondition> {
     override fun serialize(
         encoder: kotlinx.serialization.encoding.Encoder,
-        value: SurveyShowCondition
+        value: SurveyShowCondition,
     ) {
         encoder.encodeString(value.rawValue)
     }

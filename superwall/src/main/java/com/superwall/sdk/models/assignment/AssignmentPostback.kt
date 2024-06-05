@@ -1,9 +1,9 @@
 package com.superwall.sdk.models.assignment
 
-//import org.json.JSONArray
-//import org.json.JSONObject
+// import org.json.JSONArray
+// import org.json.JSONObject
 //
-//data class AssignmentPostback(var assignments: MutableList<Assignment>) {
+// data class AssignmentPostback(var assignments: MutableList<Assignment>) {
 //
 //    // Converts this AssignmentPostback object to a JSONObject.
 //    fun toJson(): JSONObject {
@@ -34,12 +34,14 @@ package com.superwall.sdk.models.assignment
 //            return AssignmentPostback(assignments)
 //        }
 //    }
-//}
+// }
 
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class AssignmentPostback(val assignments: MutableList<Assignment>) {
+data class AssignmentPostback(
+    val assignments: MutableList<Assignment>,
+) {
     companion object {
         fun create(confirmableAssignment: ConfirmableAssignment): AssignmentPostback {
             val assignments = mutableListOf<Assignment>()
@@ -47,8 +49,8 @@ data class AssignmentPostback(val assignments: MutableList<Assignment>) {
             assignments.add(
                 Assignment(
                     experimentId = confirmableAssignment.experimentId,
-                    variantId = confirmableAssignment.variant.id
-                )
+                    variantId = confirmableAssignment.variant.id,
+                ),
             )
 
             return AssignmentPostback(assignments)

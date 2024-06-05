@@ -15,27 +15,26 @@ class PriceFormatterProvider {
             }
     }
 
-    private fun makePriceFormatter(currencyCode: String): NumberFormat {
-        return DecimalFormat.getCurrencyInstance().also {
+    private fun makePriceFormatter(currencyCode: String): NumberFormat =
+        DecimalFormat.getCurrencyInstance().also {
             it.currencyCode = currencyCode
         }
-    }
 
-    private fun currency(currencyCode: String): Currency? {
-        return try {
+    private fun currency(currencyCode: String): Currency? =
+        try {
             Currency.getInstance(currencyCode)
         } catch (e: Throwable) {
             null
         }
-    }
 }
 
 var NumberFormat.currencyCode: String?
     get() = this.currency?.currencyCode
     set(value) {
-        this.currency = try {
-            if (value != null) Currency.getInstance(value) else null
-        } catch (e: Throwable) {
-            null
-        }
+        this.currency =
+            try {
+                if (value != null) Currency.getInstance(value) else null
+            } catch (e: Throwable) {
+                null
+            }
     }

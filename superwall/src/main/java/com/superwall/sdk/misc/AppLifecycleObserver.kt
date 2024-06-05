@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.asStateFlow
 class AppLifecycleObserver : DefaultLifecycleObserver {
     // Using MutableStateFlow to track the background state
     private val _isInBackground = MutableStateFlow(true)
+
     // Publicly exposed as a read-only StateFlow
     val isInBackground = _isInBackground.asStateFlow()
 

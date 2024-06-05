@@ -9,5 +9,5 @@ enum class PresentationCondition {
     ALWAYS,
 
     @SerialName("CHECK_USER_SUBSCRIPTION")
-    CHECK_USER_SUBSCRIPTION
+    CHECK_USER_SUBSCRIPTION,
 }

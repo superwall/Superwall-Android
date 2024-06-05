@@ -2,16 +2,22 @@ package com.superwall.sdk.paywall.presentation.internal
 
 import com.superwall.sdk.models.triggers.Experiment
 
-sealed class PaywallPresentationRequestStatus(val status: String) {
+sealed class PaywallPresentationRequestStatus(
+    val status: String,
+) {
     object Presentation : PaywallPresentationRequestStatus("presentation")
+
     object NoPresentation : PaywallPresentationRequestStatus("no_presentation")
+
     object Timeout : PaywallPresentationRequestStatus("timeout")
 }
 
 /**
  * The reason to why the paywall couldn't present.
  */
-sealed class PaywallPresentationRequestStatusReason(val description: String) : Throwable() {
+sealed class PaywallPresentationRequestStatusReason(
+    val description: String,
+) : Throwable() {
     /** Trying to present paywall when debugger is launched. */
     class DebuggerPresented : PaywallPresentationRequestStatusReason("debugger_presented")
 
@@ -22,7 +28,9 @@ sealed class PaywallPresentationRequestStatusReason(val description: String) : T
     class UserIsSubscribed : PaywallPresentationRequestStatusReason("user_is_subscribed")
 
     /** The user is in a holdout group. */
-    data class Holdout(val experiment: Experiment) : PaywallPresentationRequestStatusReason("holdout")
+    data class Holdout(
+        val experiment: Experiment,
+    ) : PaywallPresentationRequestStatusReason("holdout")
 
     /** No rules defined in the campaign for the event matched. */
     class NoRuleMatch : PaywallPresentationRequestStatusReason("no_rule_match")

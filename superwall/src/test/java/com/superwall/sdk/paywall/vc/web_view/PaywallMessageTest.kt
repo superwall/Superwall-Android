@@ -1,8 +1,7 @@
 package com.superwall.sdk.paywall.vc.web_view
 
 class PaywallMessageTest {
-
-//    private val jsonFormat = Json { ignoreUnknownKeys = true }
+    //    private val jsonFormat = Json { ignoreUnknownKeys = true }
 //
 //    @Test
 //    fun testOnReadySerialization() {

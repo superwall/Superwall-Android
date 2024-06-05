@@ -24,9 +24,9 @@ import com.superwall.sdk.delegate.SuperwallDelegateAdapter
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.identity.IdentityInfo
 import com.superwall.sdk.identity.IdentityManager
-import com.superwall.sdk.misc.CurrentActivityTracker
 import com.superwall.sdk.misc.ActivityProvider
 import com.superwall.sdk.misc.AppLifecycleObserver
+import com.superwall.sdk.misc.CurrentActivityTracker
 import com.superwall.sdk.models.config.FeatureFlags
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
@@ -69,15 +69,30 @@ class DependencyContainer(
     val context: Context,
     purchaseController: PurchaseController? = null,
     options: SuperwallOptions?,
-    var activityProvider: ActivityProvider?
-) : ApiFactory, DeviceInfoFactory, AppManagerDelegate, RequestFactory, TriggerSessionManagerFactory,
-    RuleAttributesFactory, DeviceHelper.Factory, CacheFactory,
-    PaywallRequestManagerDepFactory, VariablesFactory,
-    StoreTransactionFactory, Storage.Factory, InternalSuperwallEvent.PresentationRequest.Factory,
-    ViewControllerFactory, PaywallManager.Factory, OptionsFactory, TriggerFactory,
-    TransactionVerifierFactory, TransactionManager.Factory, PaywallViewController.Factory,
-    ConfigManager.Factory, AppSessionManager.Factory, DebugViewController.Factory {
-
+    var activityProvider: ActivityProvider?,
+) : ApiFactory,
+    DeviceInfoFactory,
+    AppManagerDelegate,
+    RequestFactory,
+    TriggerSessionManagerFactory,
+    RuleAttributesFactory,
+    DeviceHelper.Factory,
+    CacheFactory,
+    PaywallRequestManagerDepFactory,
+    VariablesFactory,
+    StoreTransactionFactory,
+    Storage.Factory,
+    InternalSuperwallEvent.PresentationRequest.Factory,
+    ViewControllerFactory,
+    PaywallManager.Factory,
+    OptionsFactory,
+    TriggerFactory,
+    TransactionVerifierFactory,
+    TransactionManager.Factory,
+    PaywallViewController.Factory,
+    ConfigManager.Factory,
+    AppSessionManager.Factory,
+    DebugViewController.Factory {
     var network: Network
     override lateinit var api: Api
     override lateinit var deviceHelper: DeviceHelper
@@ -111,100 +126,110 @@ class DependencyContainer(
             val currentActivityTracker = CurrentActivityTracker()
 
             (context.applicationContext as Application).registerActivityLifecycleCallbacks(
-                currentActivityTracker
+                currentActivityTracker,
             )
             activityProvider = currentActivityTracker
             this.activityProvider = activityProvider
         } else {
-           activityProvider = this.activityProvider!!
+            activityProvider = this.activityProvider!!
         }
 
         googleBillingWrapper = GoogleBillingWrapper(context, appLifecycleObserver = appLifecycleObserver)
 
-        var purchaseController = InternalPurchaseController(
-            kotlinPurchaseController = purchaseController,
-            javaPurchaseController = null,
-            context
-        )
+        var purchaseController =
+            InternalPurchaseController(
+                kotlinPurchaseController = purchaseController,
+                javaPurchaseController = null,
+                context,
+            )
         storeKitManager = StoreKitManager(context, purchaseController, googleBillingWrapper)
 
         delegateAdapter = SuperwallDelegateAdapter()
         storage = Storage(context = context, factory = this)
         network = Network(factory = this)
 
-        paywallRequestManager = PaywallRequestManager(
-            storeKitManager = storeKitManager,
-            network = network,
-            factory = this
-        )
-        paywallManager = PaywallManager(
-            paywallRequestManager = paywallRequestManager,
-            factory = this,
-        )
+        paywallRequestManager =
+            PaywallRequestManager(
+                storeKitManager = storeKitManager,
+                network = network,
+                factory = this,
+            )
+        paywallManager =
+            PaywallManager(
+                paywallRequestManager = paywallRequestManager,
+                factory = this,
+            )
 
         val options = options ?: SuperwallOptions()
         api = Api(networkEnvironment = options.networkEnvironment)
 
-        deviceHelper = DeviceHelper(
-            context = context,
-            storage = storage,
-            network = network,
-            factory = this
-        )
+        deviceHelper =
+            DeviceHelper(
+                context = context,
+                storage = storage,
+                network = network,
+                factory = this,
+            )
 
-        configManager = ConfigManager(
-            context = context,
-            storeKitManager = storeKitManager,
-            storage = storage,
-            network = network,
-            options = options,
-            factory = this,
-            paywallManager = paywallManager,
-            deviceHelper = deviceHelper
-        )
+        configManager =
+            ConfigManager(
+                context = context,
+                storeKitManager = storeKitManager,
+                storage = storage,
+                network = network,
+                options = options,
+                factory = this,
+                paywallManager = paywallManager,
+                deviceHelper = deviceHelper,
+            )
 
         eventsQueue = EventsQueue(context, configManager = configManager, network = network)
 
-        identityManager = IdentityManager(
-            storage = storage,
-            deviceHelper = deviceHelper,
-            configManager = configManager
-        )
+        identityManager =
+            IdentityManager(
+                storage = storage,
+                deviceHelper = deviceHelper,
+                configManager = configManager,
+            )
 
-        sessionEventsManager = SessionEventsManager(
-            network = network,
-            storage = storage,
-            configManager = configManager,
-            factory = this
-        )
+        sessionEventsManager =
+            SessionEventsManager(
+                network = network,
+                storage = storage,
+                configManager = configManager,
+                factory = this,
+            )
 
         // Must be after session events
-        appSessionManager = AppSessionManager(
-            context = context,
-            storage = storage,
-            configManager = configManager,
-            delegate = this
-        )
+        appSessionManager =
+            AppSessionManager(
+                context = context,
+                storage = storage,
+                configManager = configManager,
+                delegate = this,
+            )
 
-        debugManager = DebugManager(
-            context = context,
-            storage = storage,
-            factory = this
-        )
+        debugManager =
+            DebugManager(
+                context = context,
+                storage = storage,
+                factory = this,
+            )
 
         CoroutineScope(Dispatchers.Main).launch {
             ProcessLifecycleOwner.get().lifecycle.addObserver(appSessionManager)
         }
 
-        transactionManager = TransactionManager(
-            storeKitManager = storeKitManager,
-            purchaseController = purchaseController,
-            sessionEventsManager,
-            eventsQueue = eventsQueue,
-            activityProvider,
-            factory = this,
-            context = context
-        )
+        transactionManager =
+            TransactionManager(
+                storeKitManager = storeKitManager,
+                purchaseController = purchaseController,
+                sessionEventsManager,
+                eventsQueue = eventsQueue,
+                activityProvider,
+                factory = this,
+                context = context,
+            )
 
         // Calling this just to initialise the trigger session manager so it can start listening
         // to config.
@@ -213,40 +238,43 @@ class DependencyContainer(
 
     override suspend fun makeHeaders(
         isForDebugging: Boolean,
-        requestId: String
+        requestId: String,
     ): Map<String, String> {
         // TODO: Add storage
         val key = if (isForDebugging) storage.debugKey else storage.apiKey
         val auth = "Bearer $key"
-        val headers = mapOf(
-            "Authorization" to auth,
-            "X-Platform" to "iOS",
-            "X-Platform-Environment" to "SDK",
-            "X-Platform-Wrapper" to deviceHelper.platformWrapper,
-            "X-App-User-ID" to (identityManager.appUserId ?: ""),
-            "X-Alias-ID" to identityManager.aliasId,
-            "X-URL-Scheme" to deviceHelper.urlScheme,
-            "X-Vendor-ID" to deviceHelper.vendorId,
-            "X-App-Version" to deviceHelper.appVersion,
-            "X-OS-Version" to deviceHelper.osVersion,
-            "X-Device-Model" to deviceHelper.model,
-            "X-Device-Locale" to deviceHelper.locale,
-            "X-Device-Language-Code" to deviceHelper.languageCode,
-            "X-Device-Currency-Code" to deviceHelper.currencyCode,
-            "X-Device-Currency-Symbol" to deviceHelper.currencySymbol,
-            "X-Device-Timezone-Offset" to deviceHelper.secondsFromGMT,
-            "X-App-Install-Date" to deviceHelper.appInstalledAtString,
-            "X-Radio-Type" to deviceHelper.radioType,
-            "X-Device-Interface-Style" to deviceHelper.interfaceStyle,
-            "X-SDK-Version" to deviceHelper.sdkVersion,
-            "X-Git-Sha" to if(deviceHelper.gitSha != null) deviceHelper.gitSha!! else "",
-            "X-Build-Time" to  if(deviceHelper.buildTime != null) deviceHelper.buildTime!! else "",
-            "X-Bundle-ID" to deviceHelper.bundleId,
-            "X-Low-Power-Mode" to deviceHelper.isLowPowerModeEnabled.toString(),
-            "X-Is-Sandbox" to deviceHelper.isSandbox.toString(),
-            "X-Subscription-Status" to Superwall.instance.subscriptionStatus.value.toString(),
-            "Content-Type" to "application/json"
-        )
+        val headers =
+            mapOf(
+                "Authorization" to auth,
+                "X-Platform" to "iOS",
+                "X-Platform-Environment" to "SDK",
+                "X-Platform-Wrapper" to deviceHelper.platformWrapper,
+                "X-App-User-ID" to (identityManager.appUserId ?: ""),
+                "X-Alias-ID" to identityManager.aliasId,
+                "X-URL-Scheme" to deviceHelper.urlScheme,
+                "X-Vendor-ID" to deviceHelper.vendorId,
+                "X-App-Version" to deviceHelper.appVersion,
+                "X-OS-Version" to deviceHelper.osVersion,
+                "X-Device-Model" to deviceHelper.model,
+                "X-Device-Locale" to deviceHelper.locale,
+                "X-Device-Language-Code" to deviceHelper.languageCode,
+                "X-Device-Currency-Code" to deviceHelper.currencyCode,
+                "X-Device-Currency-Symbol" to deviceHelper.currencySymbol,
+                "X-Device-Timezone-Offset" to deviceHelper.secondsFromGMT,
+                "X-App-Install-Date" to deviceHelper.appInstalledAtString,
+                "X-Radio-Type" to deviceHelper.radioType,
+                "X-Device-Interface-Style" to deviceHelper.interfaceStyle,
+                "X-SDK-Version" to deviceHelper.sdkVersion,
+                "X-Git-Sha" to if (deviceHelper.gitSha != null) deviceHelper.gitSha!! else "",
+                "X-Build-Time" to if (deviceHelper.buildTime != null) deviceHelper.buildTime!! else "",
+                "X-Bundle-ID" to deviceHelper.bundleId,
+                "X-Low-Power-Mode" to deviceHelper.isLowPowerModeEnabled.toString(),
+                "X-Is-Sandbox" to deviceHelper.isSandbox.toString(),
+                "X-Subscription-Status" to
+                    Superwall.instance.subscriptionStatus.value
+                        .toString(),
+                "Content-Type" to "application/json",
+            )
 
         return headers
     }
@@ -254,76 +282,74 @@ class DependencyContainer(
     override suspend fun makePaywallViewController(
         paywall: Paywall,
         cache: PaywallViewControllerCache?,
-        delegate: PaywallViewControllerDelegateAdapter?
+        delegate: PaywallViewControllerDelegateAdapter?,
     ): PaywallViewController {
         return withContext(Dispatchers.Main) {
             // TODO: Fix this up
 
-            val messageHandler = PaywallMessageHandler(
-                sessionEventsManager = sessionEventsManager,
-                factory = this@DependencyContainer
-            )
+            val messageHandler =
+                PaywallMessageHandler(
+                    sessionEventsManager = sessionEventsManager,
+                    factory = this@DependencyContainer,
+                )
 
             val webViewDeffered = CompletableDeferred<SWWebView>()
 
-            val _webView = SWWebView(
-                context = context,
-                messageHandler = messageHandler,
-                sessionEventsManager = sessionEventsManager,
-            )
+            val _webView =
+                SWWebView(
+                    context = context,
+                    messageHandler = messageHandler,
+                    sessionEventsManager = sessionEventsManager,
+                )
             webViewDeffered.complete(_webView)
 
             val webView = webViewDeffered.await()
 
-            val paywallViewController = PaywallViewController(
-                context = context,
-                paywall = paywall,
-                factory = this@DependencyContainer,
-                cache = cache,
-                delegate = delegate,
-                deviceHelper = deviceHelper,
-                paywallManager = paywallManager,
-                storage = storage,
-                webView = webView,
-                eventDelegate = Superwall.instance
-            )
+            val paywallViewController =
+                PaywallViewController(
+                    context = context,
+                    paywall = paywall,
+                    factory = this@DependencyContainer,
+                    cache = cache,
+                    delegate = delegate,
+                    deviceHelper = deviceHelper,
+                    paywallManager = paywallManager,
+                    storage = storage,
+                    webView = webView,
+                    eventDelegate = Superwall.instance,
+                )
             webView.delegate = paywallViewController
             messageHandler.delegate = paywallViewController
 
             return@withContext paywallViewController
         }
-
     }
 
     override fun makeDebugViewController(id: String?): DebugViewController {
-        val viewController = DebugViewController(
-            context = context,
-            storeKitManager = storeKitManager,
-            network = network,
-            paywallRequestManager = paywallRequestManager,
-            paywallManager = paywallManager,
-            debugManager = debugManager,
-            factory = this
-        )
+        val viewController =
+            DebugViewController(
+                context = context,
+                storeKitManager = storeKitManager,
+                network = network,
+                paywallRequestManager = paywallRequestManager,
+                paywallManager = paywallManager,
+                debugManager = debugManager,
+                factory = this,
+            )
         viewController.paywallDatabaseId = id
         // Note: Modal presentation style is an iOS concept. In Android, you might handle this differently.
         return viewController
     }
 
-    override fun makeCache(): PaywallViewControllerCache {
-        return PaywallViewControllerCache(deviceHelper.locale)
-    }
+    override fun makeCache(): PaywallViewControllerCache = PaywallViewControllerCache(deviceHelper.locale)
 
-    override fun makeDeviceInfo(): DeviceInfo {
-        return DeviceInfo(
+    override fun makeDeviceInfo(): DeviceInfo =
+        DeviceInfo(
             appInstalledAtString = deviceHelper.appInstalledAtString,
             locale = deviceHelper.locale,
         )
-    }
 
-    override fun makeIsSandbox(): Boolean {
-        return deviceHelper.isSandbox
-    }
+    override fun makeIsSandbox(): Boolean = deviceHelper.isSandbox
 
     override suspend fun makeSessionDeviceAttributes(): HashMap<String, Any> {
         val attributes = deviceHelper.getTemplateDevice().toMutableMap()
@@ -338,21 +364,16 @@ class DependencyContainer(
         return HashMap(attributes)
     }
 
-    override fun makeUserAttributesEvent(): InternalSuperwallEvent.Attributes {
-        return InternalSuperwallEvent.Attributes(
+    override fun makeUserAttributesEvent(): InternalSuperwallEvent.Attributes =
+        InternalSuperwallEvent.Attributes(
             appInstalledAtString = deviceHelper.appInstalledAtString,
-            customParameters = HashMap(identityManager.userAttributes)
+            customParameters = HashMap(identityManager.userAttributes),
         )
-    }
 
-    override fun makeHasExternalPurchaseController(): Boolean {
-        return storeKitManager.purchaseController.hasExternalPurchaseController
-    }
+    override fun makeHasExternalPurchaseController(): Boolean = storeKitManager.purchaseController.hasExternalPurchaseController
 
     override suspend fun didUpdateAppSession(appSession: AppSession) {
-
     }
-
 
     // Mark - RequestFactory
 
@@ -363,17 +384,16 @@ class DependencyContainer(
         overrides: PaywallRequest.Overrides?,
         isDebuggerLaunched: Boolean,
         presentationSourceType: String?,
-        retryCount: Int
-    ): PaywallRequest {
-        return PaywallRequest(
+        retryCount: Int,
+    ): PaywallRequest =
+        PaywallRequest(
             eventData = eventData,
             responseIdentifiers = responseIdentifiers,
             overrides = overrides ?: PaywallRequest.Overrides(products = null, isFreeTrial = null),
             isDebuggerLaunched = isDebuggerLaunched,
             presentationSourceType = presentationSourceType,
-            retryCount = retryCount
+            retryCount = retryCount,
         )
-    }
 
     override fun makePresentationRequest(
         presentationInfo: PresentationInfo,
@@ -382,40 +402,37 @@ class DependencyContainer(
         isDebuggerLaunched: Boolean?,
         subscriptionStatus: StateFlow<SubscriptionStatus?>?,
         isPaywallPresented: Boolean,
-        type: PresentationRequestType
-    ): PresentationRequest {
-        return PresentationRequest(
+        type: PresentationRequestType,
+    ): PresentationRequest =
+        PresentationRequest(
             presentationInfo = presentationInfo,
             presenter = presenter,
             paywallOverrides = paywallOverrides,
-            flags = PresentationRequest.Flags(
-                isDebuggerLaunched = isDebuggerLaunched ?: debugManager.isDebuggerLaunched,
-                // TODO: (PresentationCritical) Fix subscription status
-                subscriptionStatus = subscriptionStatus ?: Superwall.instance.subscriptionStatus,
+            flags =
+                PresentationRequest.Flags(
+                    isDebuggerLaunched = isDebuggerLaunched ?: debugManager.isDebuggerLaunched,
+                    // TODO: (PresentationCritical) Fix subscription status
+                    subscriptionStatus = subscriptionStatus ?: Superwall.instance.subscriptionStatus,
 //                subscriptionStatus = subscriptionStatus!!,
-                isPaywallPresented = isPaywallPresented,
-                type = type
-            )
+                    isPaywallPresented = isPaywallPresented,
+                    type = type,
+                ),
         )
-    }
 
-    override fun makeTriggerSessionManager(): TriggerSessionManager {
-        return TriggerSessionManager(
+    override fun makeTriggerSessionManager(): TriggerSessionManager =
+        TriggerSessionManager(
             delegate = sessionEventsManager,
             sessionEventsManager = sessionEventsManager,
             storage = storage,
             configManager = configManager,
-            identityManager = identityManager
+            identityManager = identityManager,
         )
-    }
 
-    override fun getTriggerSessionManager(): TriggerSessionManager {
-        return sessionEventsManager.triggerSession
-    }
+    override fun getTriggerSessionManager(): TriggerSessionManager = sessionEventsManager.triggerSession
 
     override fun makeStaticPaywall(
         paywallId: String?,
-        isDebuggerLaunched: Boolean
+        isDebuggerLaunched: Boolean,
     ): Paywall? {
         if (isDebuggerLaunched) {
             return null
@@ -424,87 +441,76 @@ class DependencyContainer(
         return ConfigLogic.getStaticPaywall(
             withId = paywallId,
             config = configManager.config,
-            deviceLocale = deviceInfo.locale
+            deviceLocale = deviceInfo.locale,
         )
     }
 
     override suspend fun makeRuleAttributes(
         event: EventData?,
-        computedPropertyRequests: List<ComputedPropertyRequest>
+        computedPropertyRequests: List<ComputedPropertyRequest>,
     ): Map<String, Any> {
         val userAttributes = identityManager.userAttributes.toMutableMap()
         userAttributes.put("isLoggedIn", identityManager.isLoggedIn)
 
-        val deviceAttributes = deviceHelper.getDeviceAttributes(
-            sinceEvent = event,
-            computedPropertyRequests = computedPropertyRequests
-        )
+        val deviceAttributes =
+            deviceHelper.getDeviceAttributes(
+                sinceEvent = event,
+                computedPropertyRequests = computedPropertyRequests,
+            )
 
         return mapOf(
             "user" to userAttributes,
             "device" to deviceAttributes,
-            "params" to (event?.parameters ?: "")
+            "params" to (event?.parameters ?: ""),
         )
     }
 
-    override fun makeFeatureFlags(): FeatureFlags? {
-        return configManager.config?.featureFlags
-    }
+    override fun makeFeatureFlags(): FeatureFlags? = configManager.config?.featureFlags
 
-    override fun makeComputedPropertyRequests(): List<ComputedPropertyRequest> {
-        return configManager.config?.allComputedProperties ?: emptyList()
-    }
+    override fun makeComputedPropertyRequests(): List<ComputedPropertyRequest> = configManager.config?.allComputedProperties ?: emptyList()
 
-    override suspend fun makeIdentityInfo(): IdentityInfo {
-        return IdentityInfo(
+    override suspend fun makeIdentityInfo(): IdentityInfo =
+        IdentityInfo(
             aliasId = identityManager.aliasId,
             appUserId = identityManager.appUserId,
         )
-    }
 
-    override fun makeLocaleIdentifier(): String? {
-        return configManager.options?.localeIdentifier
-    }
+    override fun makeLocaleIdentifier(): String? = configManager.options?.localeIdentifier
 
     override suspend fun makeJsonVariables(
         products: List<ProductVariable>?,
         computedPropertyRequests: List<ComputedPropertyRequest>,
-        event: EventData?
+        event: EventData?,
     ): JsonVariables {
-        val templateDeviceDictionary = deviceHelper.getDeviceAttributes(
-            sinceEvent = event,
-            computedPropertyRequests = computedPropertyRequests
-        )
+        val templateDeviceDictionary =
+            deviceHelper.getDeviceAttributes(
+                sinceEvent = event,
+                computedPropertyRequests = computedPropertyRequests,
+            )
 
         return Variables(
             products = products ?: listOf(),
             params = event?.parameters ?: emptyMap(),
             userAttributes = identityManager.userAttributes,
-            templateDeviceDictionary = templateDeviceDictionary
+            templateDeviceDictionary = templateDeviceDictionary,
         ).templated()
     }
 
     override suspend fun makeStoreTransaction(transaction: Purchase): StoreTransaction {
-        val triggerSessionId =  sessionEventsManager.triggerSession.getActiveTriggerSession()?.sessionId
+        val triggerSessionId = sessionEventsManager.triggerSession.getActiveTriggerSession()?.sessionId
         return StoreTransaction(
             GoogleBillingPurchaseTransaction(
                 transaction = transaction,
             ),
             configRequestId = configManager.config?.requestId ?: "",
             appSessionId = appSessionManager.appSession.id,
-            triggerSessionId = triggerSessionId
+            triggerSessionId = triggerSessionId,
         )
     }
 
-    override  fun makeTransactionVerifier(): GoogleBillingWrapper {
-        return googleBillingWrapper
-    }
+    override fun makeTransactionVerifier(): GoogleBillingWrapper = googleBillingWrapper
 
-    override suspend fun makeSuperwallOptions(): SuperwallOptions {
-        return configManager.options
-    }
+    override suspend fun makeSuperwallOptions(): SuperwallOptions = configManager.options
 
-    override suspend fun makeTriggers(): Set<String> {
-        return configManager.triggersByEventName.keys
-    }
+    override suspend fun makeTriggers(): Set<String> = configManager.triggersByEventName.keys
 }

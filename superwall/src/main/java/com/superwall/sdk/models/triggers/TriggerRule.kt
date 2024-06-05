@@ -5,7 +5,6 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
-import kotlinx.serialization.Serializer
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.descriptors.buildClassSerialDescriptor
 import kotlinx.serialization.descriptors.element
@@ -15,52 +14,66 @@ import kotlinx.serialization.encoding.Encoder
 
 data class UnmatchedRule(
     val source: Source,
-    val experimentId: String
+    val experimentId: String,
 ) {
-    enum class Source(val rawValue: String) {
+    enum class Source(
+        val rawValue: String,
+    ) {
         EXPRESSION("EXPRESSION"),
-        OCCURRENCE("OCCURRENCE")
+        OCCURRENCE("OCCURRENCE"),
     }
 }
 
 data class MatchedItem(
     val rule: TriggerRule,
-    val unsavedOccurrence: TriggerRuleOccurrence? = null
+    val unsavedOccurrence: TriggerRuleOccurrence? = null,
 )
 
 sealed class TriggerRuleOutcome {
+    data class NoMatch(
+        val unmatchedRule: UnmatchedRule,
+    ) : TriggerRuleOutcome()
 
-    data class NoMatch(val unmatchedRule: UnmatchedRule) : TriggerRuleOutcome()
-    data class Match(val matchedItem: MatchedItem) : TriggerRuleOutcome()
+    data class Match(
+        val matchedItem: MatchedItem,
+    ) : TriggerRuleOutcome()
 
     companion object {
-        fun noMatch(source: UnmatchedRule.Source, experimentId: String): TriggerRuleOutcome {
-            return NoMatch(UnmatchedRule(source, experimentId))
-        }
+        fun noMatch(
+            source: UnmatchedRule.Source,
+            experimentId: String,
+        ): TriggerRuleOutcome = NoMatch(UnmatchedRule(source, experimentId))
 
-        fun match(rule: TriggerRule, unsavedOccurrence: TriggerRuleOccurrence? = null): TriggerRuleOutcome {
-            return Match(MatchedItem(rule, unsavedOccurrence))
-        }
+        fun match(
+            rule: TriggerRule,
+            unsavedOccurrence: TriggerRuleOccurrence? = null,
+        ): TriggerRuleOutcome = Match(MatchedItem(rule, unsavedOccurrence))
     }
 
-    override fun equals(other: Any?): Boolean {
-        return when {
+    override fun equals(other: Any?): Boolean =
+        when {
             this is NoMatch && other is NoMatch ->
                 unmatchedRule.source == other.unmatchedRule.source &&
-                        unmatchedRule.experimentId == other.unmatchedRule.experimentId
+                    unmatchedRule.experimentId == other.unmatchedRule.experimentId
             this is Match && other is Match ->
                 matchedItem.rule == other.matchedItem.rule &&
-                        matchedItem.unsavedOccurrence == other.matchedItem.unsavedOccurrence
+                    matchedItem.unsavedOccurrence == other.matchedItem.unsavedOccurrence
             else -> false
         }
-    }
 }
 
 @Serializable
-enum class TriggerPreloadBehavior(val rawValue: String) {
-    @SerialName("IF_TRUE") IF_TRUE("IF_TRUE"),
-    @SerialName("ALWAYS") ALWAYS("ALWAYS"),
-    @SerialName("NEVER") NEVER("NEVER");
+enum class TriggerPreloadBehavior(
+    val rawValue: String,
+) {
+    @SerialName("IF_TRUE")
+    IF_TRUE("IF_TRUE"),
+
+    @SerialName("ALWAYS")
+    ALWAYS("ALWAYS"),
+
+    @SerialName("NEVER")
+    NEVER("NEVER"),
 }
 
 @Serializable
@@ -73,22 +86,25 @@ data class TriggerRule(
     val occurrence: TriggerRuleOccurrence? = null,
     @SerialName("computed_properties")
     val computedPropertyRequests: List<ComputedPropertyRequest> = emptyList(),
-    val preload: TriggerPreload
+    val preload: TriggerPreload,
 ) {
-
     @Serializable(with = TriggerPreloadSerializer::class)
     data class TriggerPreload(
         var behavior: TriggerPreloadBehavior,
-        val requiresReEvaluation: Boolean? = null
+        val requiresReEvaluation: Boolean? = null,
     )
 
     object TriggerPreloadSerializer : KSerializer<TriggerPreload> {
-        override val descriptor: SerialDescriptor = buildClassSerialDescriptor("TriggerPreload") {
-            element<String>("behavior")
-            element<Boolean>("requiresReEvaluation", isOptional = true)
-        }
+        override val descriptor: SerialDescriptor =
+            buildClassSerialDescriptor("TriggerPreload") {
+                element<String>("behavior")
+                element<Boolean>("requiresReEvaluation", isOptional = true)
+            }
 
-        override fun serialize(encoder: Encoder, value: TriggerPreload) {
+        override fun serialize(
+            encoder: Encoder,
+            value: TriggerPreload,
+        ) {
             val compositeOutput = encoder.beginStructure(descriptor)
             compositeOutput.encodeStringElement(descriptor, 0, value.behavior.rawValue)
             if (value.requiresReEvaluation != null) {
@@ -96,7 +112,6 @@ data class TriggerRule(
             }
             compositeOutput.endStructure(descriptor)
         }
-
 
         override fun deserialize(decoder: Decoder): TriggerPreload {
             val dec = decoder.beginStructure(descriptor)
@@ -120,7 +135,6 @@ data class TriggerRule(
 
             return TriggerPreload(finalBehavior, requiresReevaluation)
         }
-
     }
 
     val experiment: RawExperiment
@@ -128,27 +142,29 @@ data class TriggerRule(
             return RawExperiment(
                 id = this.experimentId,
                 groupId = this.experimentGroupId,
-                variants = this.variants
+                variants = this.variants,
             )
         }
 
     companion object {
-        fun stub() = TriggerRule(
-            experimentId = "1",
-            experimentGroupId = "2",
-            variants = listOf(
-                VariantOption(
-                    type = Experiment.Variant.VariantType.HOLDOUT,
-                    id = "3",
-                    percentage = 20,
-                    paywallId = null
-                )
-            ),
-            expression = null,
-            expressionJs = null,
-            occurrence = null,
-            computedPropertyRequests = emptyList(),
-            preload = TriggerPreload(behavior = TriggerPreloadBehavior.ALWAYS)
-        )
+        fun stub() =
+            TriggerRule(
+                experimentId = "1",
+                experimentGroupId = "2",
+                variants =
+                    listOf(
+                        VariantOption(
+                            type = Experiment.Variant.VariantType.HOLDOUT,
+                            id = "3",
+                            percentage = 20,
+                            paywallId = null,
+                        ),
+                    ),
+                expression = null,
+                expressionJs = null,
+                occurrence = null,
+                computedPropertyRequests = emptyList(),
+                preload = TriggerPreload(behavior = TriggerPreloadBehavior.ALWAYS),
+            )
     }
 }

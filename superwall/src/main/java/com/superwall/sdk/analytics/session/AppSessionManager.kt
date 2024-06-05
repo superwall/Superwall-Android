@@ -26,9 +26,12 @@ class AppSessionManager(
     private val context: Context,
     private val configManager: ConfigManager,
     private val storage: Storage,
-    private val delegate: Factory
+    private val delegate: Factory,
 ) : DefaultLifecycleObserver {
-    interface Factory: AppManagerDelegate, DeviceHelperFactory, UserAttributesEventFactory {}
+    interface Factory :
+        AppManagerDelegate,
+        DeviceHelperFactory,
+        UserAttributesEventFactory
 
     var appSessionTimeout: Long? = null
 
@@ -69,7 +72,6 @@ class AppSessionManager(
         appSession.endAt = Date()
     }
 
-
     fun listenForAppSessionTimeout() {
         CoroutineScope(Dispatchers.Main).launch {
             configManager.configState
@@ -95,10 +97,11 @@ class AppSessionManager(
     }
 
     private fun detectNewSession() {
-        val didStartNewSession = AppSessionLogic.didStartNewSession(
-            lastAppClose,
-            appSessionTimeout
-        )
+        val didStartNewSession =
+            AppSessionLogic.didStartNewSession(
+                lastAppClose,
+                appSessionTimeout,
+            )
 
         if (didStartNewSession) {
             appSession = AppSession()

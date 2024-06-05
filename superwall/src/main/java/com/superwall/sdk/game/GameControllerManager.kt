@@ -18,10 +18,10 @@ class GameControllerManager {
         this.delegate = delegate
     }
 
-   fun clearDelegate(delegate: GameControllerDelegate) {
-       if (this.delegate == delegate) {
-           this.delegate = null
-       }
+    fun clearDelegate(delegate: GameControllerDelegate) {
+        if (this.delegate == delegate) {
+            this.delegate = null
+        }
     }
 
     private fun valueChanged(
@@ -29,15 +29,16 @@ class GameControllerManager {
         value: Float,
         x: Float = 0f,
         y: Float = 0f,
-        directional: Boolean = false
+        directional: Boolean = false,
     ) {
-        val event = GameControllerEvent(
-            controllerElement = name,
-            value = value.toDouble(),
-            x = x.toDouble(),
-            y = y.toDouble(),
-            directional = directional
-        )
+        val event =
+            GameControllerEvent(
+                controllerElement = name,
+                value = value.toDouble(),
+                x = x.toDouble(),
+                y = y.toDouble(),
+                directional = directional,
+            )
         delegate?.gameControllerEventDidOccur(event)
     }
 
@@ -56,7 +57,6 @@ class GameControllerManager {
         // joystick
         // TODO: Filter for joystick ?
         if (event.getAction() == MotionEvent.ACTION_MOVE) {
-
             val axisX = event.getAxisValue(MotionEvent.AXIS_X)
             val axisY = event.getAxisValue(MotionEvent.AXIS_Y)
             // Right thumbstick

@@ -2,9 +2,8 @@ package com.superwall.sdk.models.serialization
 
 import kotlinx.serialization.json.JsonPrimitive
 
-
-fun Any.isJsonPrimitable(): Boolean {
-    return when (this) {
+fun Any.isJsonPrimitable(): Boolean =
+    when (this) {
         is String -> true
         is Boolean -> true
         is Int -> true
@@ -13,10 +12,9 @@ fun Any.isJsonPrimitable(): Boolean {
         is Double -> true
         else -> false
     }
-}
 
-fun Any.jsonPrimitive(): JsonPrimitive? {
-    return when (this) {
+fun Any.jsonPrimitive(): JsonPrimitive? =
+    when (this) {
         is String -> JsonPrimitive(this)
         is Boolean -> JsonPrimitive(this)
         is Int -> JsonPrimitive(this)
@@ -25,4 +23,3 @@ fun Any.jsonPrimitive(): JsonPrimitive? {
         is Double -> JsonPrimitive(this)
         else -> null
     }
-}
