@@ -36,6 +36,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.flow.update
 import java.util.*
 
 class Superwall(
@@ -253,8 +254,8 @@ class Superwall(
 
             initialized = true
             // Ping everyone about the initialization
-            CoroutineScope(Dispatchers.Main).launch {
-                _hasInitialized.emit(true)
+            _hasInitialized.update {
+                true
             }
         }
     }

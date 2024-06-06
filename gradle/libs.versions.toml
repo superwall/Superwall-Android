@@ -21,7 +21,7 @@ espresso_core_version = "3.5.1"
 test_runner_version = "1.4.0"
 test_rules_version = "1.4.0"
 kotlin = "1.8.21"
-kotlinx_coroutines_core_version = "1.7.1"
+kotlinx_coroutines_core_version = "1.8.1"
 mockk_version = "1.12.8"
 
 
