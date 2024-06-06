@@ -9,10 +9,13 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.superwall.sdk.R
 
-class SWLocalizationActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
+class SWLocalizationActivity :
+    AppCompatActivity(),
+    SearchView.OnQueryTextListener {
     companion object {
         var completion: ((String) -> Unit)? = null
     }
+
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: LocalizationAdapter
     private lateinit var localizationManager: LocalizationManager
@@ -36,10 +39,11 @@ class SWLocalizationActivity : AppCompatActivity(), SearchView.OnQueryTextListen
     }
 
     private fun setupRecyclerView() {
-        adapter = LocalizationAdapter(rowModels) { locale ->
-            finish()
-            completion?.invoke(locale)
-        }
+        adapter =
+            LocalizationAdapter(rowModels) { locale ->
+                finish()
+                completion?.invoke(locale)
+            }
 
         recyclerView.layoutManager = LinearLayoutManager(this)
         recyclerView.adapter = adapter
@@ -57,9 +61,10 @@ class SWLocalizationActivity : AppCompatActivity(), SearchView.OnQueryTextListen
 
     private fun completion(locale: String) {
         // Return the result to the caller
-        val data = Intent().apply {
-            putExtra("locale", locale)
-        }
+        val data =
+            Intent().apply {
+                putExtra("locale", locale)
+            }
         setResult(Activity.RESULT_OK, data)
         finish()
     }

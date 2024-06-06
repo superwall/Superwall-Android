@@ -12,7 +12,10 @@ object URLSerializer : KSerializer<URL> {
     override val descriptor: SerialDescriptor =
         PrimitiveSerialDescriptor("URL", PrimitiveKind.STRING)
 
-    override fun serialize(encoder: Encoder, value: URL) {
+    override fun serialize(
+        encoder: Encoder,
+        value: URL,
+    ) {
         encoder.encodeString(value.toString())
     }
 

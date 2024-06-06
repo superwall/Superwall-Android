@@ -18,7 +18,7 @@ class StoreTransaction(
     @SerialName("app_session_id")
     val appSessionId: String,
     @SerialName("trigger_session_id")
-    val triggerSessionId: String?
+    val triggerSessionId: String?,
 ) : StoreTransactionType {
     val id = UUID.randomUUID().toString()
 
@@ -27,17 +27,21 @@ class StoreTransaction(
     override val state: StoreTransactionState get() = transaction.state
     override val storeTransactionId: String? get() = transaction.storeTransactionId
     override val payment: StorePayment? get() = transaction.payment
+
     @Serializable(with = DateSerializer::class)
     override val originalTransactionDate: Date? get() = transaction.originalTransactionDate
     override val webOrderLineItemID: String? get() = transaction.webOrderLineItemID
     override val appBundleId: String? get() = transaction.appBundleId
     override val subscriptionGroupId: String? get() = transaction.subscriptionGroupId
     override val isUpgraded: Boolean? get() = transaction.isUpgraded
+
     @Serializable(with = DateSerializer::class)
     override val expirationDate: Date? get() = transaction.expirationDate
     override val offerId: String? get() = transaction.offerId
+
     @Serializable(with = DateSerializer::class)
     override val revocationDate: Date? get() = transaction.revocationDate
+
     @Serializable(with = UUIDSerializer::class)
     override val appAccountToken: UUID? get() = transaction.appAccountToken
 
@@ -76,7 +80,4 @@ class StoreTransaction(
 
         return dictionary
     }
-
 }
-
-

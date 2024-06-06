@@ -5,11 +5,10 @@ import kotlinx.serialization.json.JsonNamingStrategy
 import org.junit.Test
 
 class ConfigTest {
-
-
     @Test
     fun `test parsing of config`() {
-        val configString = """
+        val configString =
+            """
             {
   "toggles": [
   {
@@ -458,18 +457,23 @@ class ConfigTest {
     "triggers": []
   }
 }
-""".trimIndent()
+            """.trimIndent()
 
-
-        val json = Json {
-            ignoreUnknownKeys = true
-            namingStrategy = JsonNamingStrategy.SnakeCase
-        }
+        val json =
+            Json {
+                ignoreUnknownKeys = true
+                namingStrategy = JsonNamingStrategy.SnakeCase
+            }
         val config = json.decodeFromString<Config>(configString)
         assert(config != null)
         assert(config.featureFlags.enableSessionEvents)
         println(config.paywalls.first().productItems)
-        assert(config.paywalls.first().productItems.isNotEmpty())
+        assert(
+            config.paywalls
+                .first()
+                .productItems
+                .isNotEmpty(),
+        )
         assert(config.triggers.first().eventName == "MyEvent")
     }
 }

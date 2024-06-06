@@ -8,7 +8,6 @@ import kotlinx.serialization.Serializable
 // Triggers can conditionally show paywalls. Contains the possible cases resulting from the trigger.
 @Serializable
 sealed class TriggerResult {
-
     // This event was not found on the dashboard.
     //
     // Please make sure you have added the event to a campaign on the dashboard and
@@ -25,14 +24,18 @@ sealed class TriggerResult {
     // - Parameters:
     //   - experiment: The experiment associated with the trigger.
     @Serializable
-    data class Paywall(val experiment: Experiment) : TriggerResult()
+    data class Paywall(
+        val experiment: Experiment,
+    ) : TriggerResult()
 
     // A matching rule was found and this user was assigned to a holdout group so will not be shown a paywall.
     //
     // - Parameters:
     //   - experiment: The experiment  associated with the trigger.
     @Serializable
-    data class Holdout(val experiment: Experiment) : TriggerResult()
+    data class Holdout(
+        val experiment: Experiment,
+    ) : TriggerResult()
 
     // An error occurred and the user will not be shown a paywall.
     //
@@ -40,8 +43,11 @@ sealed class TriggerResult {
     //
     // In these instances, consider falling back to a native paywall.
     @Serializable
-    data class Error(val error: @Serializable(with = ExceptionSerializer::class) Exception) :
-        TriggerResult()
+    data class Error(
+        val error:
+            @Serializable(with = ExceptionSerializer::class)
+            Exception,
+    ) : TriggerResult()
 }
 
 /**
@@ -50,7 +56,6 @@ sealed class TriggerResult {
  * Triggers can conditionally show paywalls. Contains the possible cases resulting from the trigger.
  */
 sealed class InternalTriggerResult {
-
     /**
      * This event was not found on the dashboard.
      *
@@ -62,21 +67,27 @@ sealed class InternalTriggerResult {
     /**
      * No matching rule was found for this trigger so no paywall will be shown.
      */
-    data class NoRuleMatch(val unmatchedRules: List<UnmatchedRule>) : InternalTriggerResult()
+    data class NoRuleMatch(
+        val unmatchedRules: List<UnmatchedRule>,
+    ) : InternalTriggerResult()
 
     /**
      * A matching rule was found and this user will be shown a paywall.
      *
      * @property experiment The experiment associated with the trigger.
      */
-    data class Paywall(val experiment: Experiment) : InternalTriggerResult()
+    data class Paywall(
+        val experiment: Experiment,
+    ) : InternalTriggerResult()
 
     /**
      * A matching rule was found and this user was assigned to a holdout group so will not be shown a paywall.
      *
      * @property experiment The experiment associated with the trigger.
      */
-    data class Holdout(val experiment: Experiment) : InternalTriggerResult()
+    data class Holdout(
+        val experiment: Experiment,
+    ) : InternalTriggerResult()
 
     /**
      * An error occurred and the user will not be shown a paywall.
@@ -85,15 +96,16 @@ sealed class InternalTriggerResult {
      *
      * In these instances, consider falling back to a native paywall.
      */
-    data class Error(val error: Exception) : InternalTriggerResult()
+    data class Error(
+        val error: Exception,
+    ) : InternalTriggerResult()
 
-    fun toPublicType(): TriggerResult = when (this) {
-        is EventNotFound -> TriggerResult.EventNotFound
-        is NoRuleMatch -> TriggerResult.NoRuleMatch
-        is Paywall -> TriggerResult.Paywall(experiment)
-        is Holdout -> TriggerResult.Holdout(experiment)
-        is Error -> TriggerResult.Error(error)
-    }
+    fun toPublicType(): TriggerResult =
+        when (this) {
+            is EventNotFound -> TriggerResult.EventNotFound
+            is NoRuleMatch -> TriggerResult.NoRuleMatch
+            is Paywall -> TriggerResult.Paywall(experiment)
+            is Holdout -> TriggerResult.Holdout(experiment)
+            is Error -> TriggerResult.Error(error)
+        }
 }
-
-

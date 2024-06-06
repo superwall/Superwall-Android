@@ -15,17 +15,18 @@ import kotlinx.coroutines.launch
 
 fun Superwall.logErrors(
     request: PresentationRequest,
-    error: Throwable
+    error: Throwable,
 ) {
     if (error is PaywallPresentationRequestStatusReason) {
         GlobalScope.launch(Dispatchers.IO) {
-            val trackedEvent = InternalSuperwallEvent.PresentationRequest(
-                eventData = request.presentationInfo.eventData,
-                type = request.flags.type,
-                status = PaywallPresentationRequestStatus.NoPresentation,
-                statusReason = error,
-                factory = dependencyContainer
-            )
+            val trackedEvent =
+                InternalSuperwallEvent.PresentationRequest(
+                    eventData = request.presentationInfo.eventData,
+                    type = request.flags.type,
+                    status = PaywallPresentationRequestStatus.NoPresentation,
+                    statusReason = error,
+                    factory = dependencyContainer,
+                )
             track(trackedEvent)
         }
     }
@@ -33,6 +34,6 @@ fun Superwall.logErrors(
     Logger.debug(
         logLevel = LogLevel.info,
         scope = LogScope.paywallPresentation,
-        message = "Skipped paywall presentation: ${error.message}, ${error.stackTraceToString()}"
+        message = "Skipped paywall presentation: ${error.message}, ${error.stackTraceToString()}",
     )
 }

@@ -38,11 +38,13 @@ internal const val RECONNECT_TIMER_MAX_TIME_MILLISECONDS = 16L * 1000L
 class GoogleBillingWrapper(
     val context: Context,
     val mainHandler: Handler = Handler(Looper.getMainLooper()),
-    val appLifecycleObserver: AppLifecycleObserver
-): PurchasesUpdatedListener, BillingClientStateListener {
+    val appLifecycleObserver: AppLifecycleObserver,
+) : PurchasesUpdatedListener,
+    BillingClientStateListener {
     companion object {
         private val productsCache = ConcurrentHashMap<String, Result<StoreProduct>>()
     }
+
     @get:Synchronized
     @set:Synchronized
     @Volatile
@@ -94,10 +96,12 @@ class GoogleBillingWrapper(
     fun startConnection() {
         synchronized(this@GoogleBillingWrapper) {
             if (billingClient == null) {
-                billingClient = BillingClient.newBuilder(context)
-                    .setListener(this@GoogleBillingWrapper)
-                    .enablePendingPurchases()
-                    .build()
+                billingClient =
+                    BillingClient
+                        .newBuilder(context)
+                        .setListener(this@GoogleBillingWrapper)
+                        .enablePendingPurchases()
+                        .build()
             }
 
             reconnectionAlreadyScheduled = false
@@ -139,14 +143,16 @@ class GoogleBillingWrapper(
     @Throws(Throwable::class)
     suspend fun awaitGetProducts(fullProductIds: Set<String>): Set<StoreProduct> {
         // Get the cached products. If any are a failure, we throw an error.
-        val cachedProducts = fullProductIds.mapNotNull { fullProductId ->
-            productsCache[fullProductId]?.let { result ->
-                when (result) {
-                    is Result.Success -> result.value
-                    is Result.Failure -> throw result.error
-                }
-            }
-        }.toSet()
+        val cachedProducts =
+            fullProductIds
+                .mapNotNull { fullProductId ->
+                    productsCache[fullProductId]?.let { result ->
+                        when (result) {
+                            is Result.Success -> result.value
+                            is Result.Failure -> throw result.error
+                        }
+                    }
+                }.toSet()
 
         // If all products are found in cache, return them directly
         if (cachedProducts.size == fullProductIds.size) {
@@ -162,10 +168,11 @@ class GoogleBillingWrapper(
                 object : GetStoreProductsCallback {
                     override fun onReceived(storeProducts: Set<StoreProduct>) {
                         // Update cache with fetched products and collect their identifiers
-                        val foundProductIds = storeProducts.map { product ->
-                            productsCache[product.fullIdentifier] = Result.Success(product)
-                            product.fullIdentifier
-                        }
+                        val foundProductIds =
+                            storeProducts.map { product ->
+                                productsCache[product.fullIdentifier] = Result.Success(product)
+                                product.fullIdentifier
+                            }
 
                         // Identify and handle missing products
                         missingFullProductIds.filterNot { it in foundProductIds }.forEach { fullProductId ->
@@ -184,7 +191,7 @@ class GoogleBillingWrapper(
                         }
                         continuation.resumeWithException(error)
                     }
-                }
+                },
             )
         }
     }
@@ -194,8 +201,8 @@ class GoogleBillingWrapper(
         callback: GetStoreProductsCallback,
     ) {
         val types = setOf(ProductType.SUBS, ProductType.INAPP)
-        val decomposedProductDetailsBySubscriptionId: MutableMap<String, MutableList<DecomposedProductIds>>
-                = mutableMapOf()
+        val decomposedProductDetailsBySubscriptionId: MutableMap<String, MutableList<DecomposedProductIds>> =
+            mutableMapOf()
 
         // TODO: CHANGE THIS BECAUSE DECOMPOSING THE PRODUCT ID WON'T WORK NOW
         val subscriptionIds = mutableSetOf<String>()
@@ -216,14 +223,16 @@ class GoogleBillingWrapper(
             types = types,
             collectedStoreProducts = emptySet(),
             decomposedProductIdsBySubscriptionId = decomposedProductDetailsBySubscriptionId,
-            callback = object : GetStoreProductsCallback {
-                override fun onReceived(storeProducts: Set<StoreProduct>) {
-                    callback.onReceived(storeProducts)
-                }
-                override fun onError(error: BillingError) {
-                    callback.onError(error)
-                }
-            },
+            callback =
+                object : GetStoreProductsCallback {
+                    override fun onReceived(storeProducts: Set<StoreProduct>) {
+                        callback.onReceived(storeProducts)
+                    }
+
+                    override fun onError(error: BillingError) {
+                        callback.onError(error)
+                    }
+                },
         )
     }
 
@@ -283,26 +292,30 @@ class GoogleBillingWrapper(
         Logger.debug(
             logLevel = LogLevel.debug,
             scope = LogScope.productsManager,
-            message = "Requesting products from the store with identifiers: ${subscriptionIds.joinToString()}"
+            message = "Requesting products from the store with identifiers: ${subscriptionIds.joinToString()}",
         )
 
-        val useCase = QueryProductDetailsUseCase(
-            QueryProductDetailsUseCaseParams(
-                subscriptionIds = subscriptionIds,
-                decomposedProductIdsBySubscriptionId = decomposedProductIdsBySubscriptionId,
-                productType = productType,
-                appInBackground = appLifecycleObserver.isInBackground.value
-            ),
-            onReceive,
-            onError,
-            ::withConnectedClient,
-            ::executeRequestOnUIThread,
-        )
+        val useCase =
+            QueryProductDetailsUseCase(
+                QueryProductDetailsUseCaseParams(
+                    subscriptionIds = subscriptionIds,
+                    decomposedProductIdsBySubscriptionId = decomposedProductIdsBySubscriptionId,
+                    productType = productType,
+                    appInBackground = appLifecycleObserver.isInBackground.value,
+                ),
+                onReceive,
+                onError,
+                ::withConnectedClient,
+                ::executeRequestOnUIThread,
+            )
         useCase.run()
     }
 
     @Synchronized
-    private fun executeRequestOnUIThread(delayMilliseconds: Long? = null, request: (BillingError?) -> Unit) {
+    private fun executeRequestOnUIThread(
+        delayMilliseconds: Long? = null,
+        request: (BillingError?) -> Unit,
+    ) {
         serviceRequests.add(request to delayMilliseconds)
         if (billingClient?.isReady == false) {
             startConnectionOnMainThread()
@@ -332,10 +345,11 @@ class GoogleBillingWrapper(
             )
             reconnectionAlreadyScheduled = true
             startConnectionOnMainThread(reconnectMilliseconds)
-            reconnectMilliseconds = min(
-                reconnectMilliseconds * 2,
-                RECONNECT_TIMER_MAX_TIME_MILLISECONDS,
-            )
+            reconnectMilliseconds =
+                min(
+                    reconnectMilliseconds * 2,
+                    RECONNECT_TIMER_MAX_TIME_MILLISECONDS,
+                )
         }
     }
 
@@ -364,7 +378,8 @@ class GoogleBillingWrapper(
                 BillingClient.BillingResponseCode.FEATURE_NOT_SUPPORTED,
                 BillingClient.BillingResponseCode.BILLING_UNAVAILABLE,
                 -> {
-                    val originalErrorMessage = "DebugMessage: ${billingResult.debugMessage} " +
+                    val originalErrorMessage =
+                        "DebugMessage: ${billingResult.debugMessage} " +
                             "ErrorCode: ${billingResult.responseCode}."
 
                     /**
@@ -378,17 +393,20 @@ class GoogleBillingWrapper(
                      * Play Store or clearing its caches would fix this case.
                      * See https://github.com/RevenueCat/purchases-android/issues/1288
                      */
-                    val error = if (billingResult.debugMessage == IN_APP_BILLING_LESS_THAN_3_ERROR_MESSAGE) {
-                        val message = "Billing is not available in this device. Make sure there's an " +
-                        "account configured in Play Store. Reopen the Play Store or clean its caches if this " +
-                                "keeps happening. " +
-                                "Original error message: $originalErrorMessage"
-                        BillingError.BillingNotAvailable(message)
-                    } else {
-                        val message = "Billing is not available in this device. " +
-                                "Original error message: $originalErrorMessage"
-                        BillingError.BillingNotAvailable(message)
-                    }
+                    val error =
+                        if (billingResult.debugMessage == IN_APP_BILLING_LESS_THAN_3_ERROR_MESSAGE) {
+                            val message =
+                                "Billing is not available in this device. Make sure there's an " +
+                                    "account configured in Play Store. Reopen the Play Store or clean its caches if this " +
+                                    "keeps happening. " +
+                                    "Original error message: $originalErrorMessage"
+                            BillingError.BillingNotAvailable(message)
+                        } else {
+                            val message =
+                                "Billing is not available in this device. " +
+                                    "Original error message: $originalErrorMessage"
+                            BillingError.BillingNotAvailable(message)
+                        }
 
                     Logger.debug(
                         LogLevel.error,
@@ -409,7 +427,7 @@ class GoogleBillingWrapper(
                     Logger.debug(
                         LogLevel.error,
                         LogScope.productsManager,
-                        "Billing client error, retrying: ${billingResult.responseCode}"
+                        "Billing client error, retrying: ${billingResult.responseCode}",
                     )
                     retryBillingServiceConnectionWithExponentialBackoff()
                 }
@@ -449,7 +467,7 @@ class GoogleBillingWrapper(
 
     override fun onPurchasesUpdated(
         result: BillingResult,
-        purchases: MutableList<Purchase>?
+        purchases: MutableList<Purchase>?,
     ) {
         println("onPurchasesUpdated: $result")
         if (result.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
@@ -457,7 +475,7 @@ class GoogleBillingWrapper(
                 println("Purchase: $purchase")
                 CoroutineScope(Dispatchers.IO).launch {
                     purchaseResults.emit(
-                        InternalPurchaseResult.Purchased(purchase)
+                        InternalPurchaseResult.Purchased(purchase),
                     )
                 }
             }
@@ -475,9 +493,7 @@ class GoogleBillingWrapper(
         }
     }
 
-    suspend fun getLatestTransaction(
-        factory: StoreTransactionFactory
-    ): StoreTransaction? {
+    suspend fun getLatestTransaction(factory: StoreTransactionFactory): StoreTransaction? {
         // Get the latest from purchaseResults
         purchaseResults.asStateFlow().filter { it != null }.first().let { purchaseResult ->
             return when (purchaseResult) {

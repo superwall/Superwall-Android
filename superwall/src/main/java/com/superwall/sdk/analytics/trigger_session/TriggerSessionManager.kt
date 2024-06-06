@@ -14,7 +14,6 @@ import com.superwall.sdk.models.triggers.InternalTriggerResult
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.storage.Storage
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.newSingleThreadContext
@@ -24,10 +23,13 @@ import java.util.UUID
 enum class LoadState {
     START,
     END,
-    FAIL
+    FAIL,
 }
 
-data class ActiveTriggerSession(val sessionId: String, val eventName: String)
+data class ActiveTriggerSession(
+    val sessionId: String,
+    val eventName: String,
+)
 
 // TODO: Ensure this uses/acts as an actor similar to iOS
 // https://linear.app/superwall/issue/SW-2571/%5Bandroid%5D-ensure-triggersessionmanager-is-threaded-properly-as-an
@@ -37,7 +39,7 @@ class TriggerSessionManager(
     val configManager: ConfigManager,
     val identityManager: IdentityManager,
     val delegate: SessionEventsDelegate,
-    val sessionEventsManager: SessionEventsManager
+    val sessionEventsManager: SessionEventsManager,
 ) {
     private val singleThreadContext = newSingleThreadContext(name = "TriggerSessionManagerThread")
     val pendingTriggerSessionIds: MutableMap<String, String?> = mutableMapOf()
@@ -45,9 +47,10 @@ class TriggerSessionManager(
     /**
      * The active trigger session tuple in format (sessionId, eventName)
      */
-    suspend fun getActiveTriggerSession(): ActiveTriggerSession? = withContext(singleThreadContext) {
-        return@withContext activeTriggerSession
-    }
+    suspend fun getActiveTriggerSession(): ActiveTriggerSession? =
+        withContext(singleThreadContext) {
+            return@withContext activeTriggerSession
+        }
 
     private var activeTriggerSession: ActiveTriggerSession? = null
 
@@ -56,6 +59,7 @@ class TriggerSessionManager(
             listenForConfig()
         }
     }
+
     private suspend fun listenForConfig() {
         configManager.configState
             .mapNotNull { it.getSuccess()?.getConfig() }
@@ -74,48 +78,54 @@ class TriggerSessionManager(
     suspend fun activateSession(
         presentationInfo: PresentationInfo,
         triggerResult: InternalTriggerResult? = null,
-    ): String? = withContext(singleThreadContext) {
-        val eventName = presentationInfo.eventName ?: return@withContext null
+    ): String? =
+        withContext(singleThreadContext) {
+            val eventName = presentationInfo.eventName ?: return@withContext null
 
-        val sessionId = pendingTriggerSessionIds[eventName] ?: return@withContext null
+            val sessionId = pendingTriggerSessionIds[eventName] ?: return@withContext null
 
-        val outcome = TriggerSessionManagerLogic.outcome(
-            presentationInfo = presentationInfo,
-            triggerResult = triggerResult?.toPublicType()
-        ) ?: return@withContext null
+            val outcome =
+                TriggerSessionManagerLogic.outcome(
+                    presentationInfo = presentationInfo,
+                    triggerResult = triggerResult?.toPublicType(),
+                ) ?: return@withContext null
 
-        activeTriggerSession = ActiveTriggerSession(
-            sessionId = sessionId,
-            eventName = eventName
-        )
-        pendingTriggerSessionIds[eventName] = null
+            activeTriggerSession =
+                ActiveTriggerSession(
+                    sessionId = sessionId,
+                    eventName = eventName,
+                )
+            pendingTriggerSessionIds[eventName] = null
 
-        triggerResult?.let {
-            val trackedEvent = InternalSuperwallEvent.TriggerFire(
-                triggerResult = it,
-                triggerName = eventName,
-                sessionEventsManager = sessionEventsManager
-            )
-            Superwall.instance.track(trackedEvent)
-        }
-
-        when (outcome) {
-            TriggerSession.PresentationOutcome.HOLDOUT,
-            TriggerSession.PresentationOutcome.NO_RULE_MATCH -> {
-                endSession()
+            triggerResult?.let {
+                val trackedEvent =
+                    InternalSuperwallEvent.TriggerFire(
+                        triggerResult = it,
+                        triggerName = eventName,
+                        sessionEventsManager = sessionEventsManager,
+                    )
+                Superwall.instance.track(trackedEvent)
             }
-            TriggerSession.PresentationOutcome.PAYWALL -> {}
+
+            when (outcome) {
+                TriggerSession.PresentationOutcome.HOLDOUT,
+                TriggerSession.PresentationOutcome.NO_RULE_MATCH,
+                -> {
+                    endSession()
+                }
+                TriggerSession.PresentationOutcome.PAYWALL -> {}
+            }
+
+            return@withContext sessionId
         }
 
-        return@withContext sessionId
-    }
+    fun endSession() =
+        CoroutineScope(singleThreadContext).launch {
+            val currentTriggerSession = activeTriggerSession ?: return@launch
 
-    fun endSession() = CoroutineScope(singleThreadContext).launch {
-        val currentTriggerSession = activeTriggerSession ?: return@launch
+            // Recreate a pending trigger session
+            pendingTriggerSessionIds[currentTriggerSession.eventName] = UUID.randomUUID().toString()
 
-        // Recreate a pending trigger session
-        pendingTriggerSessionIds[currentTriggerSession.eventName] = UUID.randomUUID().toString()
-
-        activeTriggerSession = null
-    }
+            activeTriggerSession = null
+        }
 }

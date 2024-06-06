@@ -1,7 +1,5 @@
 package com.superwall.sdk.billing
 
-import kotlinx.serialization.json.JsonObject
-import org.json.JSONObject
 import java.math.BigDecimal
 import java.util.*
 

@@ -11,9 +11,7 @@ interface ProductPurchaser {
 
 interface ProductsFetcher {
     // Fetches a set of products from their identifiers.
-    suspend fun products(
-        identifiers: Set<String>
-    ): Set<StoreProduct>
+    suspend fun products(identifiers: Set<String>): Set<StoreProduct>
 }
 
 interface TransactionRestorer {

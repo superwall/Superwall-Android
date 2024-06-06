@@ -15,7 +15,6 @@ import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.paywall.presentation.rule_logic.RuleEvaluationOutcome
 import com.superwall.sdk.storage.Storage
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
 
 // Assuming you have definitions for all the classes and functions used in the below code.
 
@@ -36,7 +35,7 @@ suspend fun Superwall.getExperiment(
     rulesOutcome: RuleEvaluationOutcome,
     debugInfo: Map<String, Any>,
     paywallStatePublisher: MutableSharedFlow<PaywallState>? = null,
-    storage: Storage
+    storage: Storage,
 ): Experiment {
     val errorType: PresentationPipelineError
 
@@ -63,13 +62,14 @@ suspend fun Superwall.getExperiment(
         }
         is InternalTriggerResult.Error -> {
             if (request.flags.type == PresentationRequestType.GetImplicitPresentationResult ||
-                request.flags.type == PresentationRequestType.GetPresentationResult) {
+                request.flags.type == PresentationRequestType.GetPresentationResult
+            ) {
                 Logger.debug(
                     logLevel = LogLevel.error,
                     scope = LogScope.paywallPresentation,
                     message = "Error Getting Paywall View Controller",
                     info = debugInfo,
-                    error = rulesOutcome.triggerResult.error
+                    error = rulesOutcome.triggerResult.error,
                 )
             }
             errorType = PaywallPresentationRequestStatusReason.NoPaywallViewController()
@@ -82,15 +82,16 @@ suspend fun Superwall.getExperiment(
 
 private suspend fun Superwall.activateSession(
     request: PresentationRequest,
-    rulesOutcome: RuleEvaluationOutcome
+    rulesOutcome: RuleEvaluationOutcome,
 ) {
     if (request.flags.type == PresentationRequestType.GetImplicitPresentationResult ||
-        request.flags.type == PresentationRequestType.GetPresentationResult) {
+        request.flags.type == PresentationRequestType.GetPresentationResult
+    ) {
         return
     }
     val sessionEventsManager = dependencyContainer.sessionEventsManager
     sessionEventsManager?.triggerSession?.activateSession(
         presentationInfo = request.presentationInfo,
-        triggerResult = rulesOutcome.triggerResult
+        triggerResult = rulesOutcome.triggerResult,
     )
 }

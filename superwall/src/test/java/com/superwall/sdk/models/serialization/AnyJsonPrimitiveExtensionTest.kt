@@ -1,6 +1,5 @@
 package com.superwall.sdk.models.serialization
 
-
 import com.superwall.sdk.assertFalse
 import com.superwall.sdk.assertTrue
 import kotlinx.serialization.json.JsonPrimitive
@@ -9,7 +8,6 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class JsonPrimitivesTest {
-
     @Test
     fun testIsJsonPrimitable() {
         assertTrue("Hello".isJsonPrimitable())

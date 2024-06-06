@@ -5,8 +5,6 @@ import com.superwall.sdk.analytics.internal.TrackingResult
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.models.events.EventData
-import com.superwall.sdk.models.paywall.PaywallProducts
-import com.superwall.sdk.models.product.Product
 import com.superwall.sdk.models.product.ProductItem
 import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.models.triggers.Experiment
@@ -14,7 +12,7 @@ import com.superwall.sdk.store.abstractions.product.StoreProduct
 
 data class ResponseIdentifiers(
     val paywallId: String?,
-    var experiment: Experiment? = null
+    var experiment: Experiment? = null,
 ) {
     companion object {
         val none: ResponseIdentifiers
@@ -26,7 +24,7 @@ data class ProductProcessingOutcome(
     var productVariables: List<ProductVariable>,
 //    var swProductVariablesTemplate: List<ProductVariable>,
 //    var orderedSwProducts: List<SWProduct>,
-    var isFreeTrialAvailable: Boolean
+    var isFreeTrialAvailable: Boolean,
 )
 
 object PaywallLogic {
@@ -34,7 +32,7 @@ object PaywallLogic {
         identifier: String? = null,
         event: EventData? = null,
         locale: String,
-        joinedSubstituteProductIds: String?
+        joinedSubstituteProductIds: String?,
     ): String {
         val id = identifier ?: event?.name ?: "\$called_manually"
 
@@ -43,15 +41,14 @@ object PaywallLogic {
             substitutions = it
         }
 
-        return "${id}_${locale}_${substitutions}"
+        return "${id}_${locale}_$substitutions"
     }
 
     fun handlePaywallError(
         error: Throwable,
         event: EventData?,
-        trackEvent: (suspend (event: Trackable) -> TrackingResult)? = null
+        trackEvent: (suspend (event: Trackable) -> TrackingResult)? = null,
     ): Throwable {
-
         var _trackEvent: (suspend (event: Trackable) -> TrackingResult)? = trackEvent
         if (_trackEvent == null) {
             _trackEvent = { event: Trackable ->
@@ -98,7 +95,7 @@ object PaywallLogic {
     fun getVariablesAndFreeTrial(
         productItems: List<ProductItem>,
         productsByFullId: Map<String, StoreProduct>,
-        isFreeTrialAvailableOverride: Boolean?
+        isFreeTrialAvailableOverride: Boolean?,
     ): ProductProcessingOutcome {
         val productVariables = mutableListOf<ProductVariable>()
         var hasFreeTrial = false
@@ -107,10 +104,11 @@ object PaywallLogic {
             // Get storeProduct
             val storeProduct = productsByFullId[productItem.fullProductId] ?: continue
 
-            val productVariable = ProductVariable(
-                name = productItem.name,
-                attributes = storeProduct.attributes
-            )
+            val productVariable =
+                ProductVariable(
+                    name = productItem.name,
+                    attributes = storeProduct.attributes,
+                )
 
             productVariables.add(productVariable)
 
@@ -126,7 +124,7 @@ object PaywallLogic {
 
         return ProductProcessingOutcome(
             productVariables = productVariables,
-            isFreeTrialAvailable = hasFreeTrial
+            isFreeTrialAvailable = hasFreeTrial,
         )
     }
 }

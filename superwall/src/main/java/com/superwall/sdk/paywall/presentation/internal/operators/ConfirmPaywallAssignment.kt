@@ -17,7 +17,7 @@ fun Superwall.confirmPaywallAssignment(
     confirmableAssignment: ConfirmableAssignment?,
     request: PresentationRequest,
     isDebuggerLaunched: Boolean,
-    dependencyContainer: DependencyContainer? = null
+    dependencyContainer: DependencyContainer? = null,
 ) {
     if (request.flags.type == PresentationRequestType.GetImplicitPresentationResult) {
         return
@@ -32,4 +32,3 @@ fun Superwall.confirmPaywallAssignment(
         actualDependencyContainer.configManager.confirmAssignment(it)
     }
 }
-

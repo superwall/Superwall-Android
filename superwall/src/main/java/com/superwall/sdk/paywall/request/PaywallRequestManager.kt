@@ -17,15 +17,15 @@ import kotlinx.coroutines.newSingleThreadContext
 import kotlinx.coroutines.withContext
 import java.util.*
 
-interface PaywallRequestManagerDepFactory : DeviceInfoFactory,
+interface PaywallRequestManagerDepFactory :
+    DeviceInfoFactory,
     TriggerSessionManagerFactory,
     ConfigManagerFactory
-
 
 class PaywallRequestManager(
     private val storeKitManager: StoreKitManager,
     private val network: Network,
-    private val factory: PaywallRequestManagerDepFactory
+    private val factory: PaywallRequestManagerDepFactory,
 ) {
     // Single thread context to make this class similar to an actor. All functions in this class
     // must execute with this context.
@@ -34,65 +34,70 @@ class PaywallRequestManager(
     private val activeTasks: MutableMap<String, Deferred<Paywall>> = mutableMapOf()
     private val paywallsByHash: MutableMap<String, Paywall> = mutableMapOf()
 
-    suspend fun getPaywall(request: PaywallRequest): Paywall = withContext(singleThreadContext) {
-        val deviceInfo = factory.makeDeviceInfo()
-        val joinedSubstituteProductIds = request.overrides.products?.values
-            ?.sortedBy { it.productIdentifier }
-            ?.joinToString(separator = "") { it.productIdentifier }
-        val requestHash = PaywallLogic.requestHash(
-            identifier = request.responseIdentifiers.paywallId,
-            event = request.eventData,
-            locale = deviceInfo.locale,
-            joinedSubstituteProductIds = joinedSubstituteProductIds
-        )
+    suspend fun getPaywall(request: PaywallRequest): Paywall =
+        withContext(singleThreadContext) {
+            val deviceInfo = factory.makeDeviceInfo()
+            val joinedSubstituteProductIds =
+                request.overrides.products
+                    ?.values
+                    ?.sortedBy { it.productIdentifier }
+                    ?.joinToString(separator = "") { it.productIdentifier }
+            val requestHash =
+                PaywallLogic.requestHash(
+                    identifier = request.responseIdentifiers.paywallId,
+                    event = request.eventData,
+                    locale = deviceInfo.locale,
+                    joinedSubstituteProductIds = joinedSubstituteProductIds,
+                )
 
-        var paywall = paywallsByHash[requestHash]
-        if (paywall != null && !request.isDebuggerLaunched) {
-            return@withContext updatePaywall(paywall, request)
-        }
+            var paywall = paywallsByHash[requestHash]
+            if (paywall != null && !request.isDebuggerLaunched) {
+                return@withContext updatePaywall(paywall, request)
+            }
 
-        val existingTask = activeTasks[requestHash]
-        if (existingTask != null) {
-            var paywall = existingTask.await()
+            val existingTask = activeTasks[requestHash]
+            if (existingTask != null) {
+                var paywall = existingTask.await()
+                paywall = updatePaywall(paywall, request)
+                return@withContext paywall
+            }
+
+            val deferredTask = CompletableDeferred<Paywall>()
+            activeTasks[requestHash] = deferredTask
+
+            try {
+                val rawPaywall = getRawPaywall(request)
+                val finalPaywall = addProducts(rawPaywall, request)
+
+                saveRequestHash(requestHash, finalPaywall, request.isDebuggerLaunched)
+
+                deferredTask.complete(finalPaywall)
+            } catch (error: Throwable) {
+                activeTasks.remove(requestHash)
+                deferredTask.completeExceptionally(error)
+            }
+
+            paywall = deferredTask.await()
             paywall = updatePaywall(paywall, request)
+
             return@withContext paywall
         }
 
-        val deferredTask = CompletableDeferred<Paywall>()
-        activeTasks[requestHash] = deferredTask
-
-        try {
-            val rawPaywall = getRawPaywall(request)
-            val finalPaywall = addProducts(rawPaywall, request)
-
-            saveRequestHash(requestHash, finalPaywall, request.isDebuggerLaunched)
-
-            deferredTask.complete(finalPaywall)
-        } catch (error: Throwable) {
-            activeTasks.remove(requestHash)
-            deferredTask.completeExceptionally(error)
-        }
-
-        paywall = deferredTask.await()
-        paywall = updatePaywall(paywall, request)
-
-        return@withContext paywall
-    }
-
     private suspend fun updatePaywall(
         paywall: Paywall,
-        request: PaywallRequest
-    ): Paywall = withContext(singleThreadContext) {
-        val paywall = paywall
-        paywall.experiment = request.responseIdentifiers.experiment
-        paywall.presentationSourceType = request.presentationSourceType
-        return@withContext paywall
-    }
+        request: PaywallRequest,
+    ): Paywall =
+        withContext(singleThreadContext) {
+            val paywall = paywall
+            paywall.experiment = request.responseIdentifiers.experiment
+            paywall.presentationSourceType = request.presentationSourceType
+            return@withContext paywall
+        }
 
     private suspend fun saveRequestHash(
         requestHash: String,
         paywall: Paywall,
-        isDebuggerLaunched: Boolean
+        isDebuggerLaunched: Boolean,
     ) = withContext(singleThreadContext) {
         activeTasks.remove(requestHash)
         if (!isDebuggerLaunched) {
@@ -100,141 +105,166 @@ class PaywallRequestManager(
         }
     }
 
+    suspend fun getRawPaywall(request: PaywallRequest): Paywall =
+        withContext(singleThreadContext) {
+            println("!!getRawPaywall - ${request.responseIdentifiers.paywallId}")
+            trackResponseStarted(event = request.eventData)
+            val paywall = getPaywallResponse(request)
 
-    suspend fun getRawPaywall(request: PaywallRequest): Paywall = withContext(singleThreadContext) {
-        println("!!getRawPaywall - ${request.responseIdentifiers.paywallId}")
-        trackResponseStarted(event = request.eventData)
-        val paywall = getPaywallResponse(request)
-
-        val paywallInfo = paywall.getInfo(
-            fromEvent = request.eventData,
-            factory = factory
-        )
-        trackResponseLoaded(
-            paywallInfo,
-            event = request.eventData
-        )
-
-        return@withContext paywall
-    }
-
-    private suspend fun getPaywallResponse(request: PaywallRequest): Paywall = withContext(singleThreadContext) {
-        val responseLoadStartTime = Date()
-        val paywallId = request.responseIdentifiers.paywallId
-        val event = request.eventData
-
-        val paywall: Paywall = try {
-            factory.makeStaticPaywall(
-                paywallId = paywallId,
-                isDebuggerLaunched = request.isDebuggerLaunched
-            ) ?: network.getPaywall(
-                identifier = paywallId,
-                event = event
+            val paywallInfo =
+                paywall.getInfo(
+                    fromEvent = request.eventData,
+                    factory = factory,
+                )
+            trackResponseLoaded(
+                paywallInfo,
+                event = request.eventData,
             )
-        } catch (error: Throwable) {
-            val errorResponse = PaywallLogic.handlePaywallError(
-                error,
-                event
-            )
-            throw errorResponse
+
+            return@withContext paywall
         }
 
-        println("!!getPaywallResponse - ${paywallId} - ${paywall}")
+    private suspend fun getPaywallResponse(request: PaywallRequest): Paywall =
+        withContext(singleThreadContext) {
+            val responseLoadStartTime = Date()
+            val paywallId = request.responseIdentifiers.paywallId
+            val event = request.eventData
 
-        paywall.experiment = request.responseIdentifiers.experiment
-        paywall.responseLoadingInfo.startAt = responseLoadStartTime
-        paywall.responseLoadingInfo.endAt = Date()
+            val paywall: Paywall =
+                try {
+                    factory.makeStaticPaywall(
+                        paywallId = paywallId,
+                        isDebuggerLaunched = request.isDebuggerLaunched,
+                    ) ?: network.getPaywall(
+                        identifier = paywallId,
+                        event = event,
+                    )
+                } catch (error: Throwable) {
+                    val errorResponse =
+                        PaywallLogic.handlePaywallError(
+                            error,
+                            event,
+                        )
+                    throw errorResponse
+                }
 
-        println("!!getPaywallResponse - ${paywallId} - ${paywall} - ${paywall.experiment}")
+            println("!!getPaywallResponse - $paywallId - $paywall")
 
-        return@withContext paywall
-    }
+            paywall.experiment = request.responseIdentifiers.experiment
+            paywall.responseLoadingInfo.startAt = responseLoadStartTime
+            paywall.responseLoadingInfo.endAt = Date()
+
+            println("!!getPaywallResponse - $paywallId - $paywall - ${paywall.experiment}")
+
+            return@withContext paywall
+        }
 
     // MARK: - Analytics
-    private suspend fun trackResponseStarted(
-        event: EventData?
-    ) = withContext(singleThreadContext) {
-        val trackedEvent = InternalSuperwallEvent.PaywallLoad(
-            state = InternalSuperwallEvent.PaywallLoad.State.Start(),
-            eventData = event
-        )
-        Superwall.instance.track(trackedEvent)
-    }
+    private suspend fun trackResponseStarted(event: EventData?) =
+        withContext(singleThreadContext) {
+            val trackedEvent =
+                InternalSuperwallEvent.PaywallLoad(
+                    state = InternalSuperwallEvent.PaywallLoad.State.Start(),
+                    eventData = event,
+                )
+            Superwall.instance.track(trackedEvent)
+        }
 
     private suspend fun trackResponseLoaded(
         paywallInfo: PaywallInfo,
-        event: EventData?
+        event: EventData?,
     ) = withContext(singleThreadContext) {
-        val responseLoadEvent = InternalSuperwallEvent.PaywallLoad(
-            InternalSuperwallEvent.PaywallLoad.State.Complete(paywallInfo = paywallInfo),
-            eventData = event
-        )
+        val responseLoadEvent =
+            InternalSuperwallEvent.PaywallLoad(
+                InternalSuperwallEvent.PaywallLoad.State.Complete(paywallInfo = paywallInfo),
+                eventData = event,
+            )
         Superwall.instance.track(responseLoadEvent)
     }
 
+    suspend fun addProducts(
+        paywall: Paywall,
+        request: PaywallRequest,
+    ): Paywall =
+        withContext(singleThreadContext) {
+            var paywall = paywall
 
-    suspend fun addProducts(paywall: Paywall, request: PaywallRequest): Paywall = withContext(singleThreadContext) {
-        var paywall = paywall
+            paywall = trackProductsLoadStart(paywall, request)
+            paywall =
+                try {
+                    getProducts(paywall, request)
+                } catch (error: Throwable) {
+                    throw error
+                }
+            paywall = trackProductsLoadFinish(paywall, request.eventData)
 
-        paywall = trackProductsLoadStart(paywall, request)
-        paywall = try {
-            getProducts(paywall, request)
-        } catch (error: Throwable) {
-            throw error
+            return@withContext paywall
         }
-        paywall = trackProductsLoadFinish(paywall, request.eventData)
 
-        return@withContext paywall
-    }
+    private suspend fun getProducts(
+        paywall: Paywall,
+        request: PaywallRequest,
+    ): Paywall =
+        withContext(singleThreadContext) {
+            var paywall = paywall
 
-    private suspend fun getProducts(paywall: Paywall, request: PaywallRequest): Paywall = withContext(singleThreadContext) {
-        var paywall = paywall
+            val result =
+                storeKitManager.getProducts(
+                    substituteProducts = request.overrides.products,
+                    paywall = paywall,
+                    request = request,
+                    factory = factory,
+                )
+            paywall = result.paywall
+            paywall.productItems = result.productItems
 
-        val result = storeKitManager.getProducts(
-            substituteProducts = request.overrides.products,
-            paywall = paywall,
-            request = request,
-            factory = factory
-        )
-        paywall = result.paywall
-        paywall.productItems = result.productItems
+            val outcome =
+                PaywallLogic.getVariablesAndFreeTrial(
+                    productItems = result.productItems,
+                    productsByFullId = result.productsByFullId,
+                    isFreeTrialAvailableOverride = request.overrides.isFreeTrial,
+                )
+            paywall.productVariables = outcome.productVariables
+            paywall.isFreeTrialAvailable = outcome.isFreeTrialAvailable
 
-        val outcome = PaywallLogic.getVariablesAndFreeTrial(
-            productItems = result.productItems,
-            productsByFullId = result.productsByFullId,
-            isFreeTrialAvailableOverride = request.overrides.isFreeTrial
-        )
-        paywall.productVariables = outcome.productVariables
-        paywall.isFreeTrialAvailable = outcome.isFreeTrialAvailable
-
-        return@withContext paywall
-    }
+            return@withContext paywall
+        }
 
     // Analytics
-    private suspend fun trackProductsLoadStart(paywall: Paywall, request: PaywallRequest): Paywall = withContext(singleThreadContext) {
-        var paywall = paywall
-        paywall.productsLoadingInfo.startAt = Date()
-        val paywallInfo = paywall.getInfo(request.eventData, factory)
-        val productLoadEvent = InternalSuperwallEvent.PaywallProductsLoad(
-            state = InternalSuperwallEvent.PaywallProductsLoad.State.Start(),
-            paywallInfo,
-            request.eventData
-        )
-        Superwall.instance.track(productLoadEvent)
-        return@withContext paywall
-    }
+    private suspend fun trackProductsLoadStart(
+        paywall: Paywall,
+        request: PaywallRequest,
+    ): Paywall =
+        withContext(singleThreadContext) {
+            var paywall = paywall
+            paywall.productsLoadingInfo.startAt = Date()
+            val paywallInfo = paywall.getInfo(request.eventData, factory)
+            val productLoadEvent =
+                InternalSuperwallEvent.PaywallProductsLoad(
+                    state = InternalSuperwallEvent.PaywallProductsLoad.State.Start(),
+                    paywallInfo,
+                    request.eventData,
+                )
+            Superwall.instance.track(productLoadEvent)
+            return@withContext paywall
+        }
 
-    private suspend fun trackProductsLoadFinish(paywall: Paywall, event: EventData?): Paywall = withContext(singleThreadContext) {
-        var paywall = paywall
-        paywall.productsLoadingInfo.endAt = Date()
-        val paywallInfo = paywall.getInfo(event, factory)
-        val productLoadEvent = InternalSuperwallEvent.PaywallProductsLoad(
-            state = InternalSuperwallEvent.PaywallProductsLoad.State.Complete(),
-            paywallInfo,
-            event
-        )
-        Superwall.instance.track(productLoadEvent)
+    private suspend fun trackProductsLoadFinish(
+        paywall: Paywall,
+        event: EventData?,
+    ): Paywall =
+        withContext(singleThreadContext) {
+            var paywall = paywall
+            paywall.productsLoadingInfo.endAt = Date()
+            val paywallInfo = paywall.getInfo(event, factory)
+            val productLoadEvent =
+                InternalSuperwallEvent.PaywallProductsLoad(
+                    state = InternalSuperwallEvent.PaywallProductsLoad.State.Complete(),
+                    paywallInfo,
+                    event,
+                )
+            Superwall.instance.track(productLoadEvent)
 
-        return@withContext paywall
-    }
+            return@withContext paywall
+        }
 }

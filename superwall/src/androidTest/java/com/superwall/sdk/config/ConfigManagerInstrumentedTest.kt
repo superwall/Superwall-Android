@@ -25,7 +25,6 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.*
 import org.junit.Test
 
-
 class ConfigManagerUnderTest(
     private val context: Context,
     private val storage: Storage,
@@ -34,164 +33,173 @@ class ConfigManagerUnderTest(
     private val storeKitManager: StoreKitManager,
     private val factory: Factory,
 ) : ConfigManager(
-    context = context,
-    storage = storage,
-    network = network,
-    paywallManager = paywallManager,
-    storeKitManager = storeKitManager,
-    factory = factory
-) {
-
+        context = context,
+        storage = storage,
+        network = network,
+        paywallManager = paywallManager,
+        storeKitManager = storeKitManager,
+        factory = factory,
+    ) {
     suspend fun setConfig(config: Config) {
         configState.emit(Result.Success(ConfigState.Retrieved(config)))
     }
 }
 
 class ConfigManagerTests {
-
     @Test
-    fun test_confirmAssignment() = runTest {
-        // get context
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
+    fun test_confirmAssignment() =
+        runTest {
+            // get context
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
 
-        val experimentId = "abc"
-        val variantId = "def"
-        val variant = Experiment.Variant(
-            id = variantId,
-            type = Experiment.Variant.VariantType.TREATMENT,
-            paywallId = "jkl"
-        )
-        val assignment = ConfirmableAssignment(experimentId = experimentId, variant = variant)
-        val dependencyContainer = DependencyContainer(context, null, null, activityProvider = null)
-        val network = NetworkMock(factory = dependencyContainer)
-        val storage = StorageMock(context = context)
-        val configManager = ConfigManager(
-            context = context,
-            options = null,
+            val experimentId = "abc"
+            val variantId = "def"
+            val variant =
+                Experiment.Variant(
+                    id = variantId,
+                    type = Experiment.Variant.VariantType.TREATMENT,
+                    paywallId = "jkl",
+                )
+            val assignment = ConfirmableAssignment(experimentId = experimentId, variant = variant)
+            val dependencyContainer = DependencyContainer(context, null, null, activityProvider = null)
+            val network = NetworkMock(factory = dependencyContainer)
+            val storage = StorageMock(context = context)
+            val configManager =
+                ConfigManager(
+                    context = context,
+                    options = null,
 //            storeKitManager = dependencyContainer.storeKitManager,
-            storage = storage,
-            network = network,
-            paywallManager = dependencyContainer.paywallManager,
-            storeKitManager = dependencyContainer.storeKitManager,
-            factory = dependencyContainer
-        )
-        configManager.confirmAssignment(assignment)
+                    storage = storage,
+                    network = network,
+                    paywallManager = dependencyContainer.paywallManager,
+                    storeKitManager = dependencyContainer.storeKitManager,
+                    factory = dependencyContainer,
+                )
+            configManager.confirmAssignment(assignment)
 
-        // Adding a delay because confirming assignments is on a queue
-        delay(500)
+            // Adding a delay because confirming assignments is on a queue
+            delay(500)
 
-        assertTrue(network.assignmentsConfirmed)
-        assertEquals(storage.getConfirmedAssignments()[experimentId], variant)
-        assertNull(configManager.unconfirmedAssignments[experimentId])
-    }
-
-    @Test
-    fun test_loadAssignments_noConfig() = runTest {
-        // get context
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
-
-        val dependencyContainer = DependencyContainer(context, null, null, activityProvider = null)
-        val network = NetworkMock(factory = dependencyContainer)
-        val storage = StorageMock(context = context)
-        val configManager = ConfigManager(
-            context = context,
-            options = null,
-            storage = storage,
-            network = network,
-            paywallManager = dependencyContainer.paywallManager,
-            storeKitManager = dependencyContainer.storeKitManager,
-            factory = dependencyContainer
-        )
-
-        val job = launch {
-            configManager.getAssignments()
-            ensureActive()
-            // Make sure we never get here...
-            assert(false)
+            assertTrue(network.assignmentsConfirmed)
+            assertEquals(storage.getConfirmedAssignments()[experimentId], variant)
+            assertNull(configManager.unconfirmedAssignments[experimentId])
         }
 
-        delay(1000)
-
-        job.cancel()
-
-        assertTrue(storage.getConfirmedAssignments().isEmpty())
-        assertTrue(configManager.unconfirmedAssignments.isEmpty())
-    }
-
     @Test
-    fun test_loadAssignments_noTriggers() = runTest {
+    fun test_loadAssignments_noConfig() =
+        runTest {
+            // get context
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
 
-        // get context
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
-
-        val dependencyContainer = DependencyContainer(context, null, null, activityProvider = null)
-        val network = NetworkMock(factory = dependencyContainer)
-        val storage = StorageMock(context = context)
-        val configManager = ConfigManagerUnderTest(
-            context = context,
-            storage = storage,
-            network = network,
-            paywallManager = dependencyContainer.paywallManager,
-            storeKitManager = dependencyContainer.storeKitManager,
-            factory = dependencyContainer
-        )
-        configManager.setConfig(
-            Config.stub().apply { this.triggers = emptySet() }
-        )
-
-        configManager.getAssignments()
-
-        assertTrue(storage.getConfirmedAssignments().isEmpty())
-        assertTrue(configManager.unconfirmedAssignments.isEmpty())
-    }
-
-    @Test
-    fun test_loadAssignments_saveAssignmentsFromServer() = runTest {
-
-        // get context
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
-
-        val dependencyContainer = DependencyContainer(context, null, null, activityProvider = null)
-        val network = NetworkMock(factory = dependencyContainer)
-        val storage = StorageMock(context = context)
-        val configManager = ConfigManagerUnderTest(
-            context = context,
-            storage = storage,
-            network = network,
-            paywallManager = dependencyContainer.paywallManager,
-            storeKitManager = dependencyContainer.storeKitManager,
-            factory = dependencyContainer
-        )
-
-        val variantId = "variantId"
-        val experimentId = "experimentId"
-
-        val assignments: List<Assignment> = listOf(
-            Assignment(experimentId = experimentId, variantId = variantId)
-        )
-        network.assignments = assignments.toMutableList()
-
-        val variantOption = VariantOption.stub().apply { id = variantId }
-        configManager.setConfig(
-            Config.stub().apply {
-                triggers = setOf(
-                    Trigger.stub().apply {
-                        rules = listOf(
-                            TriggerRule.stub().apply {
-                                this.experimentId = experimentId
-                                this.variants = listOf(variantOption)
-                            }
-                        )
-                    }
+            val dependencyContainer = DependencyContainer(context, null, null, activityProvider = null)
+            val network = NetworkMock(factory = dependencyContainer)
+            val storage = StorageMock(context = context)
+            val configManager =
+                ConfigManager(
+                    context = context,
+                    options = null,
+                    storage = storage,
+                    network = network,
+                    paywallManager = dependencyContainer.paywallManager,
+                    storeKitManager = dependencyContainer.storeKitManager,
+                    factory = dependencyContainer,
                 )
-            }
-        )
 
-        configManager.getAssignments()
+            val job =
+                launch {
+                    configManager.getAssignments()
+                    ensureActive()
+                    // Make sure we never get here...
+                    assert(false)
+                }
 
-        delay(1)
+            delay(1000)
 
-        assertEquals(storage.getConfirmedAssignments()[experimentId], variantOption.toVariant())
-        assertTrue(configManager.unconfirmedAssignments.isEmpty())
-    }
+            job.cancel()
+
+            assertTrue(storage.getConfirmedAssignments().isEmpty())
+            assertTrue(configManager.unconfirmedAssignments.isEmpty())
+        }
+
+    @Test
+    fun test_loadAssignments_noTriggers() =
+        runTest {
+            // get context
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+
+            val dependencyContainer = DependencyContainer(context, null, null, activityProvider = null)
+            val network = NetworkMock(factory = dependencyContainer)
+            val storage = StorageMock(context = context)
+            val configManager =
+                ConfigManagerUnderTest(
+                    context = context,
+                    storage = storage,
+                    network = network,
+                    paywallManager = dependencyContainer.paywallManager,
+                    storeKitManager = dependencyContainer.storeKitManager,
+                    factory = dependencyContainer,
+                )
+            configManager.setConfig(
+                Config.stub().apply { this.triggers = emptySet() },
+            )
+
+            configManager.getAssignments()
+
+            assertTrue(storage.getConfirmedAssignments().isEmpty())
+            assertTrue(configManager.unconfirmedAssignments.isEmpty())
+        }
+
+    @Test
+    fun test_loadAssignments_saveAssignmentsFromServer() =
+        runTest {
+            // get context
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+
+            val dependencyContainer = DependencyContainer(context, null, null, activityProvider = null)
+            val network = NetworkMock(factory = dependencyContainer)
+            val storage = StorageMock(context = context)
+            val configManager =
+                ConfigManagerUnderTest(
+                    context = context,
+                    storage = storage,
+                    network = network,
+                    paywallManager = dependencyContainer.paywallManager,
+                    storeKitManager = dependencyContainer.storeKitManager,
+                    factory = dependencyContainer,
+                )
+
+            val variantId = "variantId"
+            val experimentId = "experimentId"
+
+            val assignments: List<Assignment> =
+                listOf(
+                    Assignment(experimentId = experimentId, variantId = variantId),
+                )
+            network.assignments = assignments.toMutableList()
+
+            val variantOption = VariantOption.stub().apply { id = variantId }
+            configManager.setConfig(
+                Config.stub().apply {
+                    triggers =
+                        setOf(
+                            Trigger.stub().apply {
+                                rules =
+                                    listOf(
+                                        TriggerRule.stub().apply {
+                                            this.experimentId = experimentId
+                                            this.variants = listOf(variantOption)
+                                        },
+                                    )
+                            },
+                        )
+                },
+            )
+
+            configManager.getAssignments()
+
+            delay(1)
+
+            assertEquals(storage.getConfirmedAssignments()[experimentId], variantOption.toVariant())
+            assertTrue(configManager.unconfirmedAssignments.isEmpty())
+        }
 }

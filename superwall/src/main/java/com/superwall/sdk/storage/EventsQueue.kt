@@ -20,7 +20,7 @@ import kotlinx.coroutines.flow.*
 class EventsQueue(
     private val context: Context,
     private val network: Network,
-    private val configManager: ConfigManager
+    private val configManager: ConfigManager,
 ) : BroadcastReceiver() {
     private val maxEventCount = 50
     private var elements = mutableListOf<EventData>()
@@ -38,27 +38,29 @@ class EventsQueue(
     private suspend fun setupTimer() {
         val timeInterval =
             if (configManager.options?.networkEnvironment is SuperwallOptions.NetworkEnvironment.Release) 20L else 1L
-        job = CoroutineScope(Dispatchers.IO).launch {
-            while (isActive) {
-                delay(timeInterval * 1000) // delay works in milliseconds
-                timer.emit(System.currentTimeMillis())
+        job =
+            CoroutineScope(Dispatchers.IO).launch {
+                while (isActive) {
+                    delay(timeInterval * 1000) // delay works in milliseconds
+                    timer.emit(System.currentTimeMillis())
+                }
             }
-        }
         timer.collect {
             flushInternal()
         }
     }
 
     private fun addObserver() {
-        val filter = IntentFilter().apply {
-            addAction(Intent.ACTION_SCREEN_OFF)
-        }
+        val filter =
+            IntentFilter().apply {
+                addAction(Intent.ACTION_SCREEN_OFF)
+            }
         context.registerReceiver(this, filter)
     }
 
     fun enqueue(
         data: EventData,
-        event: Trackable
+        event: Trackable,
     ) {
         if (!externalDataCollectionAllowed(event)) return
 
@@ -74,11 +76,11 @@ class EventsQueue(
         return when (event) {
             is InternalSuperwallEvent.TriggerFire,
             is InternalSuperwallEvent.Attributes,
-            is UserInitiatedEvent.Track -> false
+            is UserInitiatedEvent.Track,
+            -> false
             else -> true
         }
     }
-
 
     suspend fun flushInternal(depth: Int = 10) {
         CoroutineScope(queue).launch {
@@ -101,7 +103,10 @@ class EventsQueue(
         }
     }
 
-    override fun onReceive(context: Context?, intent: Intent?) {
+    override fun onReceive(
+        context: Context?,
+        intent: Intent?,
+    ) {
         when (intent?.action) {
             Intent.ACTION_SCREEN_OFF -> {
                 // equivalent to "applicationWillResignActive"

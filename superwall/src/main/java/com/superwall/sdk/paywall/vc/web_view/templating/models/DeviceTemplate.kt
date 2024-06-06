@@ -54,7 +54,7 @@ data class DeviceTemplate(
     val ipCountry: String?,
     val ipCity: String?,
     val ipContinent: String?,
-    val ipTimezone: String?
+    val ipTimezone: String?,
 ) {
     fun toDictionary(): Map<String, Any> {
         val json = Json { encodeDefaults = true }

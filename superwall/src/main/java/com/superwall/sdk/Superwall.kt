@@ -2,7 +2,6 @@ package com.superwall.sdk
 
 import android.content.Context
 import android.net.Uri
-import android.webkit.WebView
 import androidx.work.WorkManager
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
@@ -45,9 +44,10 @@ class Superwall(
     private var purchaseController: PurchaseController?,
     options: SuperwallOptions?,
     private var activityProvider: ActivityProvider?,
-    private val completion: (() -> Unit)?
+    private val completion: (() -> Unit)?,
 ) : PaywallViewControllerEventDelegate {
     private var _options: SuperwallOptions? = options
+
     // Add a private variable for the purchase task
     private var purchaseTask: Job? = null
 
@@ -68,7 +68,7 @@ class Superwall(
 
     /**
      * Specifies the detail of the logs returned from the SDK to the console.
-      */
+     */
     var logLevel: LogLevel
         get() = options.logging.level
         set(newValue) {
@@ -77,7 +77,7 @@ class Superwall(
 
     /**
      * Determines whether a paywall is being presented.
-      */
+     */
     val isPaywallPresented: Boolean
         get() = paywallViewController != null
 
@@ -102,10 +102,7 @@ class Superwall(
      * Gets the Java delegate that handles Superwall lifecycle events.
      */
     @JvmName("getDelegate")
-    fun getJavaDelegate(): SuperwallDelegateJava? {
-        return dependencyContainer.delegateAdapter.javaDelegate
-    }
-
+    fun getJavaDelegate(): SuperwallDelegateJava? = dependencyContainer.delegateAdapter.javaDelegate
 
     /** A published property that indicates the subscription status of the user.
      *
@@ -130,14 +127,14 @@ class Superwall(
      * [Purchases and Subscription Status](https://docs.superwall.com/docs/advanced-configuration).
      *
      * @param subscriptionStatus The subscription status of the user.
-    */
+     */
     fun setSubscriptionStatus(subscriptionStatus: SubscriptionStatus) {
         _subscriptionStatus.value = subscriptionStatus
     }
 
     /**
      * Properties stored about the user, set using `setUserAttributes`.
-      */
+     */
     val userAttributes: Map<String, Any>
         get() = dependencyContainer.identityManager.userAttributes
 
@@ -146,7 +143,7 @@ class Superwall(
      *
      * If you haven't called `Superwall.identify(userId:options:)`,
      * this value will return an anonymous user id which is cached to disk
-      */
+     */
     val userId: String
         get() = dependencyContainer.identityManager.userId
 
@@ -155,22 +152,23 @@ class Superwall(
      *
      * If you have previously called `identify(userId:options:)`, this will
      * return `true`.
-    */
+     */
     val isLoggedIn: Boolean
         get() = dependencyContainer.identityManager.isLoggedIn
 
     /**
      * The `PaywallInfo` object of the most recently presented view controller.
-      */
+     */
     val latestPaywallInfo: PaywallInfo?
         get() {
             val presentedPaywallInfo = dependencyContainer.paywallManager.presentedViewController?.info
             return presentedPaywallInfo ?: presentationItems.paywallInfo
         }
 
-    protected var _subscriptionStatus: MutableStateFlow<SubscriptionStatus> = MutableStateFlow(
-        SubscriptionStatus.UNKNOWN
-    )
+    protected var _subscriptionStatus: MutableStateFlow<SubscriptionStatus> =
+        MutableStateFlow(
+            SubscriptionStatus.UNKNOWN,
+        )
 
     /**
      * A `StateFlow` of the subscription status of the user. Set this using
@@ -188,9 +186,10 @@ class Superwall(
         private val _hasInitialized = MutableStateFlow<Boolean>(false)
 
         // A flow that emits just once only when `hasInitialized` is non-`nil`.
-        val hasInitialized: Flow<Boolean> = _hasInitialized
-            .filter { it }
-            .take(1)
+        val hasInitialized: Flow<Boolean> =
+            _hasInitialized
+                .filter { it }
+                .take(1)
 
         lateinit var instance: Superwall
 
@@ -214,41 +213,42 @@ class Superwall(
          * appearance and behavior of the paywall.
          *
          * @return The configured [Superwall] instance.
-        */
+         */
         fun configure(
             applicationContext: Context,
             apiKey: String,
             purchaseController: PurchaseController? = null,
             options: SuperwallOptions? = null,
             activityProvider: ActivityProvider? = null,
-            completion: (() -> Unit)? = null
+            completion: (() -> Unit)? = null,
         ) {
             if (::instance.isInitialized) {
                 Logger.debug(
                     logLevel = LogLevel.warn,
                     scope = LogScope.superwallCore,
-                    message = "Superwall.configure called multiple times. Please make sure you only call this once on app launch."
+                    message = "Superwall.configure called multiple times. Please make sure you only call this once on app launch.",
                 )
                 completion?.invoke()
                 return
             }
             val purchaseController =
                 purchaseController ?: ExternalNativePurchaseController(context = applicationContext)
-            instance = Superwall(
-                context = applicationContext,
-                apiKey = apiKey,
-                purchaseController = purchaseController,
-                options = options,
-                activityProvider = activityProvider,
-                completion = completion
-            )
+            instance =
+                Superwall(
+                    context = applicationContext,
+                    apiKey = apiKey,
+                    purchaseController = purchaseController,
+                    options = options,
+                    activityProvider = activityProvider,
+                    completion = completion,
+                )
 
             instance.setup()
 
             Logger.debug(
                 logLevel = LogLevel.debug,
                 scope = LogScope.superwallCore,
-                message = "SDK Version - ${instance.dependencyContainer.deviceHelper.sdkVersion}"
+                message = "SDK Version - ${instance.dependencyContainer.deviceHelper.sdkVersion}",
             )
 
             initialized = true
@@ -268,17 +268,18 @@ class Superwall(
             }
         }
 
-    /// Used to serially execute register calls.
+    // / Used to serially execute register calls.
     internal val serialTaskManager = SerialTaskManager()
 
     internal fun setup() {
         synchronized(this) {
-            this._dependencyContainer = DependencyContainer(
-                context = context,
-                purchaseController = purchaseController,
-                options = _options,
-                activityProvider = activityProvider
-            )
+            this._dependencyContainer =
+                DependencyContainer(
+                    context = context,
+                    purchaseController = purchaseController,
+                    options = _options,
+                    activityProvider = activityProvider,
+                )
         }
 
         val cachedSubsStatus = dependencyContainer.storage.get(ActiveSubscriptionStatus) ?: SubscriptionStatus.UNKNOWN
@@ -301,12 +302,13 @@ class Superwall(
         }
     }
 
-    /// Listens to config and the subscription status
+    // / Listens to config and the subscription status
     private fun addListeners() {
         CoroutineScope(Dispatchers.IO).launch {
             subscriptionStatus // Removes duplicates by default
                 .drop(1) // Drops the first item
-                .collect { newValue -> // Save and handle the new value
+                .collect { newValue ->
+                    // Save and handle the new value
                     dependencyContainer.storage.save(newValue, ActiveSubscriptionStatus)
                     dependencyContainer.delegateAdapter.subscriptionStatusDidChange(newValue)
                     val event = InternalSuperwallEvent.SubscriptionStatusDidChange(newValue)
@@ -363,7 +365,7 @@ class Superwall(
 
     /**
      * Asynchronously resets. Presentation of paywalls is suspended until reset completes.
-      */
+     */
     internal fun reset(duringIdentify: Boolean) {
         dependencyContainer.identityManager.reset(duringIdentify)
         dependencyContainer.storage.reset()
@@ -373,6 +375,7 @@ class Superwall(
     }
 
     //region Deep Links
+
     /**
      * Handles a deep link sent to your app to open a preview of your paywall.
      *
@@ -403,7 +406,7 @@ class Superwall(
      * Then call this function when you would like preloading to begin.
      *
      * Note: This will not reload any paywalls you've already preloaded via [preloadPaywalls].
-      */
+     */
     fun preloadAllPaywalls() {
         CoroutineScope(Dispatchers.IO).launch {
             dependencyContainer.configManager.preloadAllPaywalls()
@@ -423,7 +426,7 @@ class Superwall(
     fun preloadPaywalls(eventNames: Set<String>) {
         CoroutineScope(Dispatchers.IO).launch {
             dependencyContainer.configManager.preloadPaywallsByNames(
-                eventNames = eventNames
+                eventNames = eventNames,
             )
         }
     }
@@ -431,14 +434,14 @@ class Superwall(
 
     override suspend fun eventDidOccur(
         paywallEvent: PaywallWebEvent,
-        paywallViewController: PaywallViewController
+        paywallViewController: PaywallViewController,
     ) {
         withContext(Dispatchers.Main) {
             Logger.debug(
                 logLevel = LogLevel.debug,
                 scope = LogScope.paywallViewController,
                 message = "Event Did Occur",
-                info = mapOf("event" to paywallEvent)
+                info = mapOf("event" to paywallEvent),
             )
 
             when (paywallEvent) {
@@ -446,7 +449,7 @@ class Superwall(
                     dismiss(
                         paywallViewController,
                         result = PaywallResult.Declined(),
-                        closeReason = PaywallCloseReason.ManualClose
+                        closeReason = PaywallCloseReason.ManualClose,
                     )
                 }
                 is InitiatePurchase -> {
@@ -454,17 +457,18 @@ class Superwall(
                         // If a purchase is already in progress, do not start another
                         return@withContext
                     }
-                    purchaseTask = launch {
-                        try {
-                            dependencyContainer.transactionManager.purchase(
-                                paywallEvent.productId,
-                                paywallViewController
-                            )
-                        } finally {
-                            // Ensure the task is cleared once the purchase is complete or if an error occurs
-                            purchaseTask = null
+                    purchaseTask =
+                        launch {
+                            try {
+                                dependencyContainer.transactionManager.purchase(
+                                    paywallEvent.productId,
+                                    paywallViewController,
+                                )
+                            } finally {
+                                // Ensure the task is cleared once the purchase is complete or if an error occurs
+                                purchaseTask = null
+                            }
                         }
-                    }
                 }
                 is InitiateRestore -> {
                     dependencyContainer.transactionManager.tryToRestore(paywallViewController)
@@ -485,4 +489,3 @@ class Superwall(
         }
     }
 }
-

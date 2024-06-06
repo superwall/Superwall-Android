@@ -46,9 +46,12 @@ open class ConfigManager(
     private val deviceHelper: DeviceHelper,
     var options: SuperwallOptions,
     private val paywallManager: PaywallManager,
-    private val factory: Factory
+    private val factory: Factory,
 ) {
-    interface Factory: RequestFactory, DeviceInfoFactory, RuleAttributesFactory {}
+    interface Factory :
+        RequestFactory,
+        DeviceInfoFactory,
+        RuleAttributesFactory
 
     // The configuration of the Superwall dashboard
     val configState = MutableStateFlow<Result<ConfigState>>(Result.Success(ConfigState.Retrieving))
@@ -58,9 +61,10 @@ open class ConfigManager(
         get() = configState.value.getSuccess()?.getConfig()
 
     // A flow that emits just once only when `config` is non-`nil`.
-    val hasConfig: Flow<Config> = configState
-        .mapNotNull { it.getSuccess()?.getConfig() }
-        .take(1)
+    val hasConfig: Flow<Config> =
+        configState
+            .mapNotNull { it.getSuccess()?.getConfig() }
+            .take(1)
 
     // A dictionary of triggers by their event name.
     private var _triggersByEventName = mutableMapOf<String, Trigger>()
@@ -84,18 +88,20 @@ open class ConfigManager(
     // and other relevant Kotlin features. Here's an example of one method:
     suspend fun fetchConfiguration() {
         try {
-            val configDeferred = CoroutineScope(Dispatchers.IO).async {
-                network.getConfig {
-                    CoroutineScope(Dispatchers.IO).launch {
-                        // Emit retrying state
-                        configState.emit(Result.Success(ConfigState.Retrying))
+            val configDeferred =
+                CoroutineScope(Dispatchers.IO).async {
+                    network.getConfig {
+                        CoroutineScope(Dispatchers.IO).launch {
+                            // Emit retrying state
+                            configState.emit(Result.Success(ConfigState.Retrying))
+                        }
                     }
                 }
-            }
 
-            val geoDeferred = CoroutineScope(Dispatchers.IO).async {
-                deviceHelper.getGeoInfo()
-            }
+            val geoDeferred =
+                CoroutineScope(Dispatchers.IO).async {
+                    deviceHelper.getGeoInfo()
+                }
 
             // Await results from both operations
             val config = configDeferred.await()
@@ -123,7 +129,7 @@ open class ConfigManager(
                         logLevel = LogLevel.error,
                         scope = LogScope.productsManager,
                         message = "Failed to preload products",
-                        error = e
+                        error = e,
                     )
                 }
             }
@@ -139,7 +145,7 @@ open class ConfigManager(
                 logLevel = LogLevel.error,
                 scope = LogScope.superwallCore,
                 message = "Failed to Fetch Configuration",
-                error = e
+                error = e,
             )
         }
     }
@@ -156,7 +162,7 @@ open class ConfigManager(
         updateAssignments { confirmedAssignments ->
             ConfigLogic.chooseAssignments(
                 fromTriggers = triggers,
-                confirmedAssignments = confirmedAssignments
+                confirmedAssignments = confirmedAssignments,
             )
         }
     }
@@ -173,7 +179,7 @@ open class ConfigManager(
                         assignments = assignments,
                         triggers = triggers,
                         confirmedAssignments = confirmedAssignments,
-                        unconfirmedAssignments = unconfirmedAssignments
+                        unconfirmedAssignments = unconfirmedAssignments,
                     )
                 }
 
@@ -185,7 +191,7 @@ open class ConfigManager(
                     logLevel = LogLevel.error,
                     scope = LogScope.configManager,
                     message = "Error retrieving assignments.",
-                    error = e
+                    error = e,
                 )
             }
         }
@@ -199,7 +205,7 @@ open class ConfigManager(
             ConfigLogic.move(
                 assignment,
                 unconfirmedAssignments,
-                confirmedAssignments
+                confirmedAssignments,
             )
         }
     }
@@ -223,7 +229,7 @@ open class ConfigManager(
         return ConfigLogic.getActiveTreatmentPaywallIds(
             preloadableTriggers,
             confirmedAssignments,
-            unconfirmedAssignments
+            unconfirmedAssignments,
         )
     }
 
@@ -238,29 +244,33 @@ open class ConfigManager(
         if (currentPreloadingTask != null) {
             return
         }
-        currentPreloadingTask = CoroutineScope(Dispatchers.IO).launch {
-            val config = configState.awaitFirstValidConfig() ?: return@launch
+        currentPreloadingTask =
+            CoroutineScope(Dispatchers.IO).launch {
+                val config = configState.awaitFirstValidConfig() ?: return@launch
 
-            val expressionEvaluator = ExpressionEvaluator(
-                context = context,
-                storage = storage,
-                factory = factory
-            )
-            val triggers = ConfigLogic.filterTriggers(
-                config.triggers,
-                preloadingDisabled = config.preloadingDisabled
-            )
-            val confirmedAssignments = storage.getConfirmedAssignments()
-            val paywallIds = ConfigLogic.getAllActiveTreatmentPaywallIds(
-                triggers = triggers,
-                confirmedAssignments = confirmedAssignments,
-                unconfirmedAssignments = unconfirmedAssignments,
-                expressionEvaluator = expressionEvaluator
-            )
-            preloadPaywalls(paywallIdentifiers = paywallIds)
+                val expressionEvaluator =
+                    ExpressionEvaluator(
+                        context = context,
+                        storage = storage,
+                        factory = factory,
+                    )
+                val triggers =
+                    ConfigLogic.filterTriggers(
+                        config.triggers,
+                        preloadingDisabled = config.preloadingDisabled,
+                    )
+                val confirmedAssignments = storage.getConfirmedAssignments()
+                val paywallIds =
+                    ConfigLogic.getAllActiveTreatmentPaywallIds(
+                        triggers = triggers,
+                        confirmedAssignments = confirmedAssignments,
+                        unconfirmedAssignments = unconfirmedAssignments,
+                        expressionEvaluator = expressionEvaluator,
+                    )
+                preloadPaywalls(paywallIdentifiers = paywallIds)
 
-            currentPreloadingTask = null
-        }
+                currentPreloadingTask = null
+            }
     }
 
     // Preloads paywalls referenced by the provided triggers.
@@ -280,30 +290,33 @@ open class ConfigManager(
                 val tasks = mutableListOf<Deferred<Any>>()
 
                 for (identifier in paywallIdentifiers) {
-                    val task = async {
-                        // Your asynchronous operation
-                        val request = factory.makePaywallRequest(
-                            eventData = null,
-                            responseIdentifiers = ResponseIdentifiers(
-                                paywallId = identifier,
-                                experiment = null
-                            ),
-                            overrides = null,
-                            isDebuggerLaunched = false,
-                            presentationSourceType = null,
-                            retryCount = 6
-                        )
-                        try {
-                            paywallManager.getPaywallViewController(
-                                request = request,
-                                isForPresentation = true,
-                                isPreloading = true,
-                                delegate = null
-                            )
-                        } catch (e: Exception) {
-                            // Handle exception
+                    val task =
+                        async {
+                            // Your asynchronous operation
+                            val request =
+                                factory.makePaywallRequest(
+                                    eventData = null,
+                                    responseIdentifiers =
+                                        ResponseIdentifiers(
+                                            paywallId = identifier,
+                                            experiment = null,
+                                        ),
+                                    overrides = null,
+                                    isDebuggerLaunched = false,
+                                    presentationSourceType = null,
+                                    retryCount = 6,
+                                )
+                            try {
+                                paywallManager.getPaywallViewController(
+                                    request = request,
+                                    isForPresentation = true,
+                                    isPreloading = true,
+                                    delegate = null,
+                                )
+                            } catch (e: Exception) {
+                                // Handle exception
+                            }
                         }
-                    }
                     tasks.add(task)
                 }
 

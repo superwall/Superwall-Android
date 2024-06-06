@@ -15,7 +15,9 @@ interface SessionEventsDelegate {
     val triggerSession: TriggerSessionManager
 
     suspend fun enqueue(triggerSession: TriggerSession)
+
     suspend fun enqueue(triggerSessions: List<TriggerSession>)
+
     suspend fun enqueue(transaction: StoreTransactionType)
 }
 
@@ -26,9 +28,9 @@ class SessionEventsManager(
     private val storage: Storage,
     private val network: Network,
     private val configManager: ConfigManager,
-    private val factory: TriggerSessionManagerFactory
-): CoroutineScope, SessionEventsDelegate {
-
+    private val factory: TriggerSessionManagerFactory,
+) : CoroutineScope,
+    SessionEventsDelegate {
     // The Coroutine Context is derived from SupervisorJob() + Dispatchers.Default
     // so that if a child job fails it does not affect the other child jobs
     override val coroutineContext: CoroutineContext

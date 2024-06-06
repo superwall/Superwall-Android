@@ -13,64 +13,70 @@ import java.util.*
 sealed class TrackingLogic {
     sealed class ImplicitTriggerOutcome {
         object TriggerPaywall : ImplicitTriggerOutcome()
+
         object DeepLinkTrigger : ImplicitTriggerOutcome()
+
         object DisallowedEventAsTrigger : ImplicitTriggerOutcome()
+
         object DontTriggerPaywall : ImplicitTriggerOutcome()
+
         object ClosePaywallThenTriggerPaywall : ImplicitTriggerOutcome()
     }
 
     companion object {
         suspend fun processParameters(
             trackableEvent: Trackable,
-            appSessionId: String
-        ): TrackingParameters = withContext(Dispatchers.Default) {
-            val superwallParameters = trackableEvent.getSuperwallParameters().toMutableMap()
-            superwallParameters["app_session_id"] = appSessionId
+            appSessionId: String,
+        ): TrackingParameters =
+            withContext(Dispatchers.Default) {
+                val superwallParameters = trackableEvent.getSuperwallParameters().toMutableMap()
+                superwallParameters["app_session_id"] = appSessionId
 
-            val customParameters = trackableEvent.customParameters
-            val eventName = trackableEvent.rawName
+                val customParameters = trackableEvent.customParameters
+                val eventName = trackableEvent.rawName
 
-            val delegateParams: MutableMap<String, Any> = mutableMapOf("is_superwall" to true)
+                val delegateParams: MutableMap<String, Any> = mutableMapOf("is_superwall" to true)
 
-            // Add a special property if it's a superwall event
-            val isStandardEvent = trackableEvent is TrackableSuperwallEvent
+                // Add a special property if it's a superwall event
+                val isStandardEvent = trackableEvent is TrackableSuperwallEvent
 
-            val eventParams: MutableMap<String, Any> = mutableMapOf(
-                "\$is_standard_event" to isStandardEvent,
-                "\$event_name" to eventName,
-                "event_name" to eventName
-            )
+                val eventParams: MutableMap<String, Any> =
+                    mutableMapOf(
+                        "\$is_standard_event" to isStandardEvent,
+                        "\$event_name" to eventName,
+                        "event_name" to eventName,
+                    )
 
-            // Filter then assign Superwall parameters
-            superwallParameters.forEach { (key, value) ->
-                clean(value)?.let {
-                    val keyWithDollar = "$$key"
-                    eventParams[keyWithDollar] = it
+                // Filter then assign Superwall parameters
+                superwallParameters.forEach { (key, value) ->
+                    clean(value)?.let {
+                        val keyWithDollar = "$$key"
+                        eventParams[keyWithDollar] = it
 
-                    // no $ for delegate methods
-                    delegateParams[key] = it
-                }
-            }
-
-            // Filter then assign custom parameters
-            customParameters.forEach { (key, value) ->
-                clean(value)?.let {
-                    if (key.startsWith("$")) {
-                        // Log dropping key due to $ signs not allowed
-                    } else {
+                        // no $ for delegate methods
                         delegateParams[key] = it
-                        eventParams[key] = it
                     }
                 }
-            }
 
-            return@withContext TrackingParameters(delegateParams, eventParams)
-        }
+                // Filter then assign custom parameters
+                customParameters.forEach { (key, value) ->
+                    clean(value)?.let {
+                        if (key.startsWith("$")) {
+                            // Log dropping key due to $ signs not allowed
+                        } else {
+                            delegateParams[key] = it
+                            eventParams[key] = it
+                        }
+                    }
+                }
+
+                return@withContext TrackingParameters(delegateParams, eventParams)
+            }
 
         fun isNotDisabledVerboseEvent(
             event: Trackable,
             disableVerboseEvents: Boolean?,
-            isSandbox: Boolean
+            isSandbox: Boolean,
         ): Boolean {
             val disableVerboseEvents = disableVerboseEvents ?: return true
             if (isSandbox) {
@@ -84,7 +90,8 @@ sealed class TrackingLogic {
             (event as? InternalSuperwallEvent.PaywallLoad)?.let {
                 return when (it.state) {
                     is InternalSuperwallEvent.PaywallLoad.State.Start,
-                    is InternalSuperwallEvent.PaywallLoad.State.Complete -> !disableVerboseEvents
+                    is InternalSuperwallEvent.PaywallLoad.State.Complete,
+                    -> !disableVerboseEvents
                     else -> true
                 }
             }
@@ -92,7 +99,8 @@ sealed class TrackingLogic {
             (event as? InternalSuperwallEvent.PaywallProductsLoad)?.let {
                 return when (it.state) {
                     is InternalSuperwallEvent.PaywallProductsLoad.State.Start,
-                    is InternalSuperwallEvent.PaywallProductsLoad.State.Complete -> !disableVerboseEvents
+                    is InternalSuperwallEvent.PaywallProductsLoad.State.Complete,
+                    -> !disableVerboseEvents
                     else -> true
                 }
             }
@@ -100,7 +108,8 @@ sealed class TrackingLogic {
             (event as? InternalSuperwallEvent.PaywallWebviewLoad)?.let {
                 return when (it.state) {
                     is InternalSuperwallEvent.PaywallWebviewLoad.State.Start,
-                    is InternalSuperwallEvent.PaywallWebviewLoad.State.Complete -> !disableVerboseEvents
+                    is InternalSuperwallEvent.PaywallWebviewLoad.State.Complete,
+                    -> !disableVerboseEvents
                     else -> true
                 }
             }
@@ -137,9 +146,10 @@ sealed class TrackingLogic {
         @Throws(Exception::class)
         fun checkNotSuperwallEvent(event: String) {
             // Try to create a SuperwallEventObjc from the event string
-            val superwallEventObjc = SuperwallEventObjc.values().find { superwallEvent ->
-                superwallEvent.rawName == event
-            }
+            val superwallEventObjc =
+                SuperwallEventObjc.values().find { superwallEvent ->
+                    superwallEvent.rawName == event
+                }
             if (superwallEventObjc != null) {
                 // Log error saying do not track an event with the same name as a SuperwallEvent
                 throw Exception("Do not track an event with the same name as a SuperwallEvent")
@@ -149,7 +159,7 @@ sealed class TrackingLogic {
         fun canTriggerPaywall(
             event: Trackable,
             triggers: Set<String>,
-            paywallViewController: PaywallViewController?
+            paywallViewController: PaywallViewController?,
         ): ImplicitTriggerOutcome {
             if (event is TrackableSuperwallEvent && event.superwallEvent.rawName == SuperwallEventObjc.DeepLink.rawName) {
                 return ImplicitTriggerOutcome.DeepLinkTrigger
@@ -160,12 +170,12 @@ sealed class TrackingLogic {
                 return ImplicitTriggerOutcome.DontTriggerPaywall
             }
 
-            val notAllowedReferringEventNames: Set<String> = setOf(
-                SuperwallEventObjc.TransactionAbandon.rawName,
-                SuperwallEventObjc.TransactionFail.rawName,
-                SuperwallEventObjc.PaywallDecline.rawName
-            )
-
+            val notAllowedReferringEventNames: Set<String> =
+                setOf(
+                    SuperwallEventObjc.TransactionAbandon.rawName,
+                    SuperwallEventObjc.TransactionFail.rawName,
+                    SuperwallEventObjc.PaywallDecline.rawName,
+                )
 
             val referringEventName = paywallViewController?.info?.presentedByEventWithName
             if (referringEventName != null) {
@@ -180,7 +190,8 @@ sealed class TrackingLogic {
                     SuperwallEventObjc.TransactionAbandon,
                     SuperwallEventObjc.TransactionFail,
                     SuperwallEventObjc.SurveyResponse,
-                    SuperwallEventObjc.PaywallDecline -> ImplicitTriggerOutcome.ClosePaywallThenTriggerPaywall
+                    SuperwallEventObjc.PaywallDecline,
+                    -> ImplicitTriggerOutcome.ClosePaywallThenTriggerPaywall
                     else -> ImplicitTriggerOutcome.TriggerPaywall
                 }
             }

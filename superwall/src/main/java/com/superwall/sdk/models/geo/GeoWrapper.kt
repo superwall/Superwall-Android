@@ -7,5 +7,5 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class GeoWrapper(
     @SerialName("geoInfo")
-    val info: GeoInfo
-): SerializableEntity
+    val info: GeoInfo,
+) : SerializableEntity

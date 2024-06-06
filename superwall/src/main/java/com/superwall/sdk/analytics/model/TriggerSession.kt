@@ -15,7 +15,6 @@ data class TriggerSession(
     @SerialName("trigger_session_start_ts")
     @Serializable(with = DateSerializer::class)
     var startAt: Date = Date(),
-
     @SerialName("trigger_session_end_ts")
     @Serializable(with = DateSerializer::class)
     var endAt: Date? = null,
@@ -27,7 +26,7 @@ data class TriggerSession(
     // TODO: Re-enable when we have a transaction model
 //    val products: Products,
 //    val transaction: Transaction? = null,
-    val appSession: AppSession
+    val appSession: AppSession,
 ) {
     @Serializable
     enum class PresentationOutcome {
@@ -38,6 +37,6 @@ data class TriggerSession(
         HOLDOUT,
 
         @SerialName("NO_RULE_MATCH")
-        NO_RULE_MATCH
+        NO_RULE_MATCH,
     }
 }

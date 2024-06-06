@@ -3,7 +3,6 @@ package com.superwall.sdk.config.models
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.SurveyAssignmentKey
 import kotlinx.serialization.Serializable
-import java.util.Random
 
 @Serializable
 data class Survey(
@@ -15,11 +14,9 @@ data class Survey(
     val presentationCondition: SurveyShowCondition,
     val presentationProbability: Double,
     val includeOtherOption: Boolean,
-    val includeCloseOption: Boolean
+    val includeCloseOption: Boolean,
 ) {
-    fun shouldAssignHoldout(
-        isDebuggerLaunched: Boolean,
-    ): Boolean {
+    fun shouldAssignHoldout(isDebuggerLaunched: Boolean): Boolean {
         if (isDebuggerLaunched) {
             return false
         }

@@ -22,16 +22,19 @@ import kotlinx.coroutines.CompletableDeferred
 // Extension function to convert callback to suspend function
 suspend fun Purchases.awaitProducts(productIds: List<String>): List<StoreProduct> {
     val deferred = CompletableDeferred<List<StoreProduct>>()
-    getProducts(productIds, object : GetStoreProductsCallback {
-        override fun onReceived(storeProducts: List<StoreProduct>) {
-            deferred.complete(storeProducts)
-        }
+    getProducts(
+        productIds,
+        object : GetStoreProductsCallback {
+            override fun onReceived(storeProducts: List<StoreProduct>) {
+                deferred.complete(storeProducts)
+            }
 
-        override fun onError(error: PurchasesError) {
-            // Not sure about this cast...
-            deferred.completeExceptionally(Exception(error.message))
-        }
-    })
+            override fun onError(error: PurchasesError) {
+                // Not sure about this cast...
+                deferred.completeExceptionally(Exception(error.message))
+            }
+        },
+    )
     return deferred.await()
 }
 
@@ -41,40 +44,61 @@ interface PurchaseCompletion {
 }
 
 // Create a custom exception class that wraps PurchasesError
-private class PurchasesException(val purchasesError: PurchasesError) : Exception(purchasesError.toString())
+private class PurchasesException(
+    val purchasesError: PurchasesError,
+) : Exception(purchasesError.toString())
 
-suspend fun Purchases.awaitPurchase(activity: Activity, storeProduct: StoreProduct): PurchaseCompletion {
+suspend fun Purchases.awaitPurchase(
+    activity: Activity,
+    storeProduct: StoreProduct,
+): PurchaseCompletion {
     val deferred = CompletableDeferred<PurchaseCompletion>()
-    purchase(PurchaseParams.Builder(activity, storeProduct).build(), object : PurchaseCallback {
-        override fun onCompleted(storeTransaction: StoreTransaction, customerInfo: CustomerInfo) {
-            deferred.complete(object : PurchaseCompletion {
-                override var storeTransaction: StoreTransaction = storeTransaction
-                override var customerInfo: CustomerInfo = customerInfo
-            })
-        }
+    purchase(
+        PurchaseParams.Builder(activity, storeProduct).build(),
+        object : PurchaseCallback {
+            override fun onCompleted(
+                storeTransaction: StoreTransaction,
+                customerInfo: CustomerInfo,
+            ) {
+                deferred.complete(
+                    object : PurchaseCompletion {
+                        override var storeTransaction: StoreTransaction = storeTransaction
+                        override var customerInfo: CustomerInfo = customerInfo
+                    },
+                )
+            }
 
-        override fun onError(error: PurchasesError, p1: Boolean) {
-            deferred.completeExceptionally(PurchasesException(error))
-        }
-    })
+            override fun onError(
+                error: PurchasesError,
+                p1: Boolean,
+            ) {
+                deferred.completeExceptionally(PurchasesException(error))
+            }
+        },
+    )
     return deferred.await()
 }
 
 suspend fun Purchases.awaitRestoration(): CustomerInfo {
     val deferred = CompletableDeferred<CustomerInfo>()
-    restorePurchases(object : ReceiveCustomerInfoCallback {
-        override fun onReceived(purchaserInfo: CustomerInfo) {
-            deferred.complete(purchaserInfo)
-        }
+    restorePurchases(
+        object : ReceiveCustomerInfoCallback {
+            override fun onReceived(purchaserInfo: CustomerInfo) {
+                deferred.complete(purchaserInfo)
+            }
 
-        override fun onError(error: PurchasesError) {
-            deferred.completeExceptionally(error as Throwable)
-        }
-    })
+            override fun onError(error: PurchasesError) {
+                deferred.completeExceptionally(error as Throwable)
+            }
+        },
+    )
     return deferred.await()
 }
 
-class RevenueCatPurchaseController(val context: Context): PurchaseController, UpdatedCustomerInfoListener {
+class RevenueCatPurchaseController(
+    val context: Context,
+) : PurchaseController,
+    UpdatedCustomerInfoListener {
     init {
         Purchases.logLevel = LogLevel.DEBUG
         Purchases.configure(PurchasesConfiguration.Builder(context, "goog_DCSOujJzRNnPmxdgjOwdOOjwilC").build())
@@ -88,7 +112,7 @@ class RevenueCatPurchaseController(val context: Context): PurchaseController, Up
         Purchases.sharedInstance.getCustomerInfoWith {
             if (hasAnyActiveEntitlements(it)) {
                 setSubscriptionStatus(SubscriptionStatus.ACTIVE)
-            }  else {
+            } else {
                 setSubscriptionStatus(SubscriptionStatus.INACTIVE)
             }
         }
@@ -98,11 +122,11 @@ class RevenueCatPurchaseController(val context: Context): PurchaseController, Up
      * Callback for rc customer updated info
      */
     override fun onReceived(customerInfo: CustomerInfo) {
-       if (hasAnyActiveEntitlements(customerInfo)) {
-           setSubscriptionStatus(SubscriptionStatus.ACTIVE)
-       }  else {
-           setSubscriptionStatus(SubscriptionStatus.INACTIVE)
-       }
+        if (hasAnyActiveEntitlements(customerInfo)) {
+            setSubscriptionStatus(SubscriptionStatus.ACTIVE)
+        } else {
+            setSubscriptionStatus(SubscriptionStatus.INACTIVE)
+        }
     }
 
     /**
@@ -112,16 +136,17 @@ class RevenueCatPurchaseController(val context: Context): PurchaseController, Up
         activity: Activity,
         productDetails: ProductDetails,
         basePlanId: String?,
-        offerId: String?
+        offerId: String?,
     ): PurchaseResult {
         // Find products matching productId from RevenueCat
         val products = Purchases.sharedInstance.awaitProducts(listOf(productDetails.productId))
 
         // Choose the product which matches the given base plan.
         // If no base plan set, select first product or fail.
-        val product = products.firstOrNull { it.googleProduct?.basePlanId == basePlanId }
-            ?: products.firstOrNull()
-            ?: return PurchaseResult.Failed("Product not found")
+        val product =
+            products.firstOrNull { it.googleProduct?.basePlanId == basePlanId }
+                ?: products.firstOrNull()
+                ?: return PurchaseResult.Failed("Product not found")
 
         return when (product.type) {
             ProductType.SUBS, ProductType.UNKNOWN -> handleSubscription(activity, product, basePlanId, offerId)
@@ -129,7 +154,10 @@ class RevenueCatPurchaseController(val context: Context): PurchaseController, Up
         }
     }
 
-    private fun buildSubscriptionOptionId(basePlanId: String?, offerId: String?): String =
+    private fun buildSubscriptionOptionId(
+        basePlanId: String?,
+        offerId: String?,
+    ): String =
         buildString {
             basePlanId?.let { append("$it") }
             offerId?.let { append(":$it") }
@@ -139,7 +167,7 @@ class RevenueCatPurchaseController(val context: Context): PurchaseController, Up
         activity: Activity,
         storeProduct: StoreProduct,
         basePlanId: String?,
-        offerId: String?
+        offerId: String?,
     ): PurchaseResult {
         storeProduct.subscriptionOptions?.let { subscriptionOptions ->
             // If subscription option exists, concatenate base + offer ID.
@@ -147,8 +175,9 @@ class RevenueCatPurchaseController(val context: Context): PurchaseController, Up
 
             // Find first subscription option that matches the subscription option ID or default
             // to letting revenuecat choose.
-            val subscriptionOption = subscriptionOptions.firstOrNull { it.id == subscriptionOptionId }
-                ?: subscriptionOptions.defaultOffer
+            val subscriptionOption =
+                subscriptionOptions.firstOrNull { it.id == subscriptionOptionId }
+                    ?: subscriptionOptions.defaultOffer
 
             // Purchase subscription option, otherwise fail.
             if (subscriptionOption != null) {
@@ -158,7 +187,10 @@ class RevenueCatPurchaseController(val context: Context): PurchaseController, Up
         return PurchaseResult.Failed("Valid subscription option not found for product.")
     }
 
-    private suspend fun purchaseSubscription(activity: Activity, subscriptionOption: SubscriptionOption): PurchaseResult {
+    private suspend fun purchaseSubscription(
+        activity: Activity,
+        subscriptionOption: SubscriptionOption,
+    ): PurchaseResult {
         val deferred = CompletableDeferred<PurchaseResult>()
         Purchases.sharedInstance.purchaseWith(
             PurchaseParams.Builder(activity, subscriptionOption).build(),
@@ -167,12 +199,15 @@ class RevenueCatPurchaseController(val context: Context): PurchaseController, Up
             },
             onSuccess = { _, _ ->
                 deferred.complete(PurchaseResult.Purchased())
-            }
+            },
         )
         return deferred.await()
     }
 
-    private suspend fun handleInAppPurchase(activity: Activity, storeProduct: StoreProduct): PurchaseResult =
+    private suspend fun handleInAppPurchase(
+        activity: Activity,
+        storeProduct: StoreProduct,
+    ): PurchaseResult =
         try {
             Purchases.sharedInstance.awaitPurchase(activity, storeProduct)
             PurchaseResult.Purchased()
@@ -202,7 +237,9 @@ class RevenueCatPurchaseController(val context: Context): PurchaseController, Up
      * Check if the customer has any active entitlements
      */
     private fun hasAnyActiveEntitlements(customerInfo: CustomerInfo): Boolean {
-        val entitlements = customerInfo.entitlements.active.values.map { it.identifier }
+        val entitlements =
+            customerInfo.entitlements.active.values
+                .map { it.identifier }
         return entitlements.isNotEmpty()
     }
 

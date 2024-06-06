@@ -13,7 +13,10 @@ object ExceptionSerializer : KSerializer<Exception> {
     override val descriptor: SerialDescriptor =
         PrimitiveSerialDescriptor("Exception", PrimitiveKind.STRING)
 
-    override fun serialize(encoder: Encoder, value: Exception) {
+    override fun serialize(
+        encoder: Encoder,
+        value: Exception,
+    ) {
         encoder.encodeString(value.message ?: "Unknown exception")
     }
 

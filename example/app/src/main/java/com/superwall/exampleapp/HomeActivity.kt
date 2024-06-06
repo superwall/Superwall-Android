@@ -32,13 +32,9 @@ import androidx.core.view.WindowCompat
 import com.superwall.exampleapp.ui.theme.SuperwallExampleAppTheme
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.delegate.SubscriptionStatus
-import com.superwall.sdk.misc.AlertControllerFactory
 import com.superwall.sdk.paywall.presentation.PaywallPresentationHandler
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallSkippedReason
 import com.superwall.sdk.paywall.presentation.register
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 
 class HomeActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -46,14 +42,14 @@ class HomeActivity : ComponentActivity() {
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
-        setContent() {
+        setContent {
             val subscriptionStatus by Superwall.instance.subscriptionStatus.collectAsState()
             SuperwallExampleAppTheme {
                 HomeScreen(
                     subscriptionStatus = subscriptionStatus,
                     onLogOutClicked = {
-                    finish()
-                    }
+                        finish()
+                    },
                 )
             }
         }
@@ -63,59 +59,65 @@ class HomeActivity : ComponentActivity() {
 @Composable
 fun HomeScreen(
     subscriptionStatus: SubscriptionStatus,
-    onLogOutClicked: () -> Unit
+    onLogOutClicked: () -> Unit,
 ) {
     val context = LocalContext.current
-    val subscriptionText = when (subscriptionStatus) {
-        SubscriptionStatus.UNKNOWN -> "Loading subscription status."
-        SubscriptionStatus.ACTIVE -> "You currently have an active subscription. Therefore, the " +
-                "paywall will never show. For the purposes of this app, delete and reinstall the " +
-                "app to clear subscriptions."
+    val subscriptionText =
+        when (subscriptionStatus) {
+            SubscriptionStatus.UNKNOWN -> "Loading subscription status."
+            SubscriptionStatus.ACTIVE ->
+                "You currently have an active subscription. Therefore, the " +
+                    "paywall will never show. For the purposes of this app, delete and reinstall the " +
+                    "app to clear subscriptions."
 
-        SubscriptionStatus.INACTIVE -> "You do not have an active subscription so the paywall will " +
-                "show when clicking the button."
-    }
+            SubscriptionStatus.INACTIVE ->
+                "You do not have an active subscription so the paywall will " +
+                    "show when clicking the button."
+        }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
+        color = MaterialTheme.colorScheme.background,
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
+            verticalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(
                 text = "Presenting a Paywall",
                 style = MaterialTheme.typography.headlineSmall,
                 textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 50.dp)
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(top = 50.dp),
             )
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
-                    text = "The Launch Feature button below registers an event \"campaign_trigger\".\n\n" +
+                    text =
+                        "The Launch Feature button below registers an event \"campaign_trigger\".\n\n" +
                             "This event has been added to a campaign on the Superwall dashboard.\n\n" +
                             "When this event is registered, the rules in the campaign are evaluated.\n\n" +
                             "The rules match and cause a paywall to show.",
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Divider()
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
                     text = subscriptionText,
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
                 )
             }
             Column(
-                horizontalAlignment = Alignment.CenterHorizontally
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Button(
                     onClick = {
@@ -135,8 +137,10 @@ fun HomeScreen(
                                     print("Paywall not shown because this event isn't part of a campaign.")
                                 }
                                 is PaywallSkippedReason.Holdout -> {
-                                    print("Paywall not shown because user is in a holdout group in " +
-                                            "Experiment: ${reason.experiment.id}")
+                                    print(
+                                        "Paywall not shown because user is in a holdout group in " +
+                                            "Experiment: ${reason.experiment.id}",
+                                    )
                                 }
                                 is PaywallSkippedReason.NoRuleMatch -> {
                                     print("Paywall not shown because user doesn't match any rules.")
@@ -152,9 +156,11 @@ fun HomeScreen(
                             // (1) always after presentation or
                             // (2) only if the user pays
                             // code is always executed if no paywall is configured to show
-                            val builder = AlertDialog.Builder(context)
-                                .setTitle("Feature Launched")
-                                .setMessage("The feature block was called")
+                            val builder =
+                                AlertDialog
+                                    .Builder(context)
+                                    .setTitle("Feature Launched")
+                                    .setMessage("The feature block was called")
 
                             builder.setPositiveButton("Ok") { _, _ -> }
 
@@ -162,18 +168,20 @@ fun HomeScreen(
                             alertDialog.show()
                         }
                     },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 50.dp)
-                        .padding(top = 8.dp)
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 50.dp)
+                            .padding(top = 8.dp),
                 ) {
                     Text(
                         text = "Launch Feature",
                         color = MaterialTheme.colorScheme.onPrimary,
-                        style = TextStyle(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp
-                        )
+                        style =
+                            TextStyle(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp,
+                            ),
                     )
                 }
                 Spacer(modifier = Modifier.height(8.dp))
@@ -182,18 +190,20 @@ fun HomeScreen(
                         Superwall.instance.reset()
                         onLogOutClicked()
                     },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 50.dp)
-                        .padding(vertical = 8.dp)
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 50.dp)
+                            .padding(vertical = 8.dp),
                 ) {
                     Text(
                         text = "Log Out",
                         color = MaterialTheme.colorScheme.onPrimary,
-                        style = TextStyle(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp
-                        )
+                        style =
+                            TextStyle(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp,
+                            ),
                     )
                 }
             }

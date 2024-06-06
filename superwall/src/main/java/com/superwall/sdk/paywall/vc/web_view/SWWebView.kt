@@ -14,7 +14,6 @@ import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.SessionEventsManager
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
-import com.superwall.sdk.analytics.trigger_session.LoadState
 import com.superwall.sdk.game.dispatchKeyEvent
 import com.superwall.sdk.game.dispatchMotionEvent
 import com.superwall.sdk.paywall.presentation.PaywallInfo
@@ -25,17 +24,19 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.util.*
 
-
+@Suppress("ktlint:standard:class-naming")
 interface _SWWebViewDelegate {
     val info: PaywallInfo
 }
 
-interface SWWebViewDelegate : _SWWebViewDelegate, PaywallMessageHandlerDelegate
+interface SWWebViewDelegate :
+    _SWWebViewDelegate,
+    PaywallMessageHandlerDelegate
 
 class SWWebView(
     context: Context,
     private val sessionEventsManager: SessionEventsManager,
-    val messageHandler: PaywallMessageHandler
+    val messageHandler: PaywallMessageHandler,
 ) : WebView(context) {
     var delegate: SWWebViewDelegate? = null
 
@@ -59,42 +60,45 @@ class SWWebView(
 
         this.setBackgroundColor(Color.TRANSPARENT)
 
-        this.webChromeClient = object : WebChromeClient() {
-            override fun onConsoleMessage(consoleMessage: ConsoleMessage): Boolean {
-                // Don't log anything
-                return true
-            }
-        }
-        // Set a WebViewClient
-        this.webViewClient = object : WebViewClient() {
-            override fun shouldOverrideUrlLoading(
-                view: WebView?,
-                request: WebResourceRequest?
-            ): Boolean {
-                return true // This will prevent the loading of URLs inside your WebView
-            }
-
-            override fun onPageFinished(view: WebView?, url: String?) {
-                // Do something when page loading finished
-            }
-
-            override fun onReceivedError(
-                view: WebView?,
-                request: WebResourceRequest?,
-                error: WebResourceError?
-            ) {
-                CoroutineScope(Dispatchers.Main).launch {
-                    trackPaywallError()
+        this.webChromeClient =
+            object : WebChromeClient() {
+                override fun onConsoleMessage(consoleMessage: ConsoleMessage): Boolean {
+                    // Don't log anything
+                    return true
                 }
             }
-        }
+        // Set a WebViewClient
+        this.webViewClient =
+            object : WebViewClient() {
+                override fun shouldOverrideUrlLoading(
+                    view: WebView?,
+                    request: WebResourceRequest?,
+                ): Boolean {
+                    return true // This will prevent the loading of URLs inside your WebView
+                }
+
+                override fun onPageFinished(
+                    view: WebView?,
+                    url: String?,
+                ) {
+                    // Do something when page loading finished
+                }
+
+                override fun onReceivedError(
+                    view: WebView?,
+                    request: WebResourceRequest?,
+                    error: WebResourceError?,
+                ) {
+                    CoroutineScope(Dispatchers.Main).launch {
+                        trackPaywallError()
+                    }
+                }
+            }
     }
 
     // ???
     // https://stackoverflow.com/questions/20968707/capturing-keypress-events-in-android-webview
-    override fun onCreateInputConnection(outAttrs: EditorInfo?): InputConnection {
-        return BaseInputConnection(this, false)
-    }
+    override fun onCreateInputConnection(outAttrs: EditorInfo?): InputConnection = BaseInputConnection(this, false)
 
     override fun dispatchKeyEvent(event: KeyEvent?): Boolean {
         if (event == null || !Superwall.instance.options.isGameControllerEnabled) {
@@ -136,10 +140,11 @@ class SWWebView(
 
         val paywallInfo = delegate?.info ?: return
 
-        val trackedEvent = InternalSuperwallEvent.PaywallWebviewLoad(
-            state = InternalSuperwallEvent.PaywallWebviewLoad.State.Fail(),
-            paywallInfo = paywallInfo
-        )
+        val trackedEvent =
+            InternalSuperwallEvent.PaywallWebviewLoad(
+                state = InternalSuperwallEvent.PaywallWebviewLoad.State.Fail(),
+                paywallInfo = paywallInfo,
+            )
         Superwall.instance.track(trackedEvent)
     }
 }

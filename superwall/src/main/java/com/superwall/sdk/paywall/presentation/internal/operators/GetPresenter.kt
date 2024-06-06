@@ -7,7 +7,6 @@ import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.models.assignment.ConfirmableAssignment
-import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.triggers.InternalTriggerResult
 import com.superwall.sdk.paywall.presentation.internal.InternalPresentationLogic
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatusReason
@@ -24,23 +23,24 @@ data class PresentablePipelineOutput(
     val debugInfo: Map<String, Any>,
     val paywallViewController: PaywallViewController,
     val presenter: Activity,
-    val confirmableAssignment: ConfirmableAssignment?
+    val confirmableAssignment: ConfirmableAssignment?,
 )
 
 suspend fun Superwall.getPresenterIfNecessary(
     paywallViewController: PaywallViewController,
     rulesOutcome: RuleEvaluationOutcome,
     request: PresentationRequest,
-    paywallStatePublisher: MutableSharedFlow<PaywallState>? = null
+    paywallStatePublisher: MutableSharedFlow<PaywallState>? = null,
 ): Activity? {
     val subscriptionStatus = request.flags.subscriptionStatus.first()
     if (InternalPresentationLogic.userSubscribedAndNotOverridden(
             isUserSubscribed = subscriptionStatus == SubscriptionStatus.ACTIVE,
-            overrides = InternalPresentationLogic.UserSubscriptionOverrides(
-                isDebuggerLaunched = request.flags.isDebuggerLaunched,
-                shouldIgnoreSubscriptionStatus = request.paywallOverrides?.ignoreSubscriptionStatus,
-                presentationCondition = paywallViewController.paywall.presentation.condition
-            )
+            overrides =
+                InternalPresentationLogic.UserSubscriptionOverrides(
+                    isDebuggerLaunched = request.flags.isDebuggerLaunched,
+                    shouldIgnoreSubscriptionStatus = request.paywallOverrides?.ignoreSubscriptionStatus,
+                    presentationCondition = paywallViewController.paywall.presentation.condition,
+                ),
         )
     ) {
         paywallStatePublisher?.emit(PaywallState.Skipped(PaywallSkippedReason.UserIsSubscribed()))
@@ -49,24 +49,27 @@ suspend fun Superwall.getPresenterIfNecessary(
 
     when (request.flags.type) {
         is PresentationRequestType.GetPaywall -> {
-            val sessionId = activateSession(
-                request = request,
-                triggerResult = rulesOutcome.triggerResult
-            )
+            val sessionId =
+                activateSession(
+                    request = request,
+                    triggerResult = rulesOutcome.triggerResult,
+                )
             paywallViewController.paywall.triggerSessionId = sessionId
             return null
         }
 
         is PresentationRequestType.GetImplicitPresentationResult,
-        is PresentationRequestType.GetPresentationResult -> return null
+        is PresentationRequestType.GetPresentationResult,
+        -> return null
         is PresentationRequestType.Presentation -> Unit
         else -> Unit
     }
 
-    val sessionId = activateSession(
-        request = request,
-        triggerResult = rulesOutcome.triggerResult
-    )
+    val sessionId =
+        activateSession(
+            request = request,
+            triggerResult = rulesOutcome.triggerResult,
+        )
     paywallViewController.paywall.triggerSessionId = sessionId
 
     val currentActivity = dependencyContainer.activityProvider?.getCurrentActivity()
@@ -75,14 +78,15 @@ suspend fun Superwall.getPresenterIfNecessary(
         Logger.debug(
             logLevel = LogLevel.error,
             scope = LogScope.paywallPresentation,
-            message = "Current Activity is null, can't present paywall"
+            message = "Current Activity is null, can't present paywall",
         )
-        val error = InternalPresentationLogic.presentationError(
-            domain = "SWPresentationError",
-            code = 103,
-            title = "No Activity to present paywall on",
-            value = "This usually happens when you call this method before a window was made key and visible."
-        )
+        val error =
+            InternalPresentationLogic.presentationError(
+                domain = "SWPresentationError",
+                code = 103,
+                title = "No Activity to present paywall on",
+                value = "This usually happens when you call this method before a window was made key and visible.",
+            )
         val state = PaywallState.PresentationError(error)
         paywallStatePublisher?.emit(state)
         throw PaywallPresentationRequestStatusReason.NoPresenter()
@@ -90,14 +94,13 @@ suspend fun Superwall.getPresenterIfNecessary(
     return currentActivity
 }
 
-
 private suspend fun Superwall.activateSession(
     request: PresentationRequest,
-    triggerResult: InternalTriggerResult
+    triggerResult: InternalTriggerResult,
 ): String? {
     val sessionEventsManager = dependencyContainer.sessionEventsManager
     return sessionEventsManager?.triggerSession?.activateSession(
         request.presentationInfo,
-        triggerResult
+        triggerResult,
     )
 }

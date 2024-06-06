@@ -9,14 +9,20 @@ import org.junit.Test
 import java.net.URL
 
 class URLSerializerTest {
-    private val json = Json {
-        serializersModule = SerializersModule {
-            contextual(URL::class, URLSerializer)
+    private val json =
+        Json {
+            serializersModule =
+                SerializersModule {
+                    contextual(URL::class, URLSerializer)
+                }
         }
-    }
 
     @Serializable
-    data class TestData(val url: @Serializable(with = URLSerializer::class) URL)
+    data class TestData(
+        val url:
+            @Serializable(with = URLSerializer::class)
+            URL,
+    )
 
     @Test
     fun testSerializeDeserialize() {
@@ -33,9 +39,11 @@ class URLSerializerTest {
     fun testDeserializeInvalidUrl() {
         val jsonString = """{"url":"not_a_valid_url"}"""
 
-        val exception = kotlin.runCatching {
-            json.decodeFromString<TestData>(jsonString)
-        }.exceptionOrNull()
+        val exception =
+            kotlin
+                .runCatching {
+                    json.decodeFromString<TestData>(jsonString)
+                }.exceptionOrNull()
         assert(exception != null)
     }
 }

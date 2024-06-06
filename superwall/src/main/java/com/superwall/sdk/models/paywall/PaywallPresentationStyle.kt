@@ -21,5 +21,5 @@ enum class PaywallPresentationStyle {
     DRAWER,
 
     @SerialName("NONE")
-    NONE
+    NONE,
 }

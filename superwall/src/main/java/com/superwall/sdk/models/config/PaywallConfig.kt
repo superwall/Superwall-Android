@@ -5,10 +5,10 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class PaywallConfig(
     var identifier: String,
-    var products: List<ProductConfig>
+    var products: List<ProductConfig>,
 ) {
     @Serializable
     data class ProductConfig(
-        var identifier: String
+        var identifier: String,
     )
 }

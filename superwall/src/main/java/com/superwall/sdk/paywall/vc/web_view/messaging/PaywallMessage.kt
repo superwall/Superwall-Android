@@ -7,23 +7,45 @@ import java.net.URL
 
 data class WrappedPaywallMessages(
     var version: Int = 1,
-    val payload: PayloadMessages
+    val payload: PayloadMessages,
 )
 
 data class PayloadMessages(
-    val messages: List<PaywallMessage>
+    val messages: List<PaywallMessage>,
 )
 
 sealed class PaywallMessage {
-    data class OnReady(val paywallJsVersion: String) : PaywallMessage()
+    data class OnReady(
+        val paywallJsVersion: String,
+    ) : PaywallMessage()
+
     object TemplateParamsAndUserAttributes : PaywallMessage()
+
     object Close : PaywallMessage()
+
     object Restore : PaywallMessage()
-    data class OpenUrl(val url: URL) : PaywallMessage()
-    data class OpenUrlInSafari(val url: URL) : PaywallMessage()
-    data class OpenDeepLink(val url: Uri) : PaywallMessage()
-    data class Purchase(val product: String, val productId: String) : PaywallMessage()
-    data class Custom(val data: String) : PaywallMessage()
+
+    data class OpenUrl(
+        val url: URL,
+    ) : PaywallMessage()
+
+    data class OpenUrlInSafari(
+        val url: URL,
+    ) : PaywallMessage()
+
+    data class OpenDeepLink(
+        val url: Uri,
+    ) : PaywallMessage()
+
+    data class Purchase(
+        val product: String,
+        val productId: String,
+    ) : PaywallMessage()
+
+    data class Custom(
+        val data: String,
+    ) : PaywallMessage()
+
     object PaywallOpen : PaywallMessage()
 }
 
@@ -53,10 +75,11 @@ private fun parsePaywallMessage(json: JSONObject): PaywallMessage {
         "open_url" -> PaywallMessage.OpenUrl(URL(json.getString("url")))
         "open_url_external" -> PaywallMessage.OpenUrlInSafari(URL(json.getString("url")))
         "open_deep_link" -> PaywallMessage.OpenDeepLink(Uri.parse(json.getString("link")))
-        "purchase" -> PaywallMessage.Purchase(
-            json.getString("product"),
-            json.getString("product_identifier")
-        )
+        "purchase" ->
+            PaywallMessage.Purchase(
+                json.getString("product"),
+                json.getString("product_identifier"),
+            )
         "custom" -> PaywallMessage.Custom(json.getString("data"))
         else -> throw IllegalArgumentException("Unknown event name: $eventName")
     }

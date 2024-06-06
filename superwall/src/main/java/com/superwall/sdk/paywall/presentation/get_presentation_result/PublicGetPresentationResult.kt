@@ -13,45 +13,53 @@ import java.util.HashMap
 
 suspend fun Superwall.getPresentationResult(
     event: String,
-    params: Map<String, Any>? = null
+    params: Map<String, Any>? = null,
 ): PresentationResult {
-    val event = UserInitiatedEvent.Track(
-        rawName = event,
-        canImplicitlyTriggerPaywall = false,
-        customParameters = HashMap(params ?: emptyMap()),
-        isFeatureGatable = false
-    )
+    val event =
+        UserInitiatedEvent.Track(
+            rawName = event,
+            canImplicitlyTriggerPaywall = false,
+            customParameters = HashMap(params ?: emptyMap()),
+            isFeatureGatable = false,
+        )
 
     return internallyGetPresentationResult(
         event,
-        isImplicit = false
+        isImplicit = false,
     )
 }
 
 internal suspend fun Superwall.internallyGetPresentationResult(
     event: Trackable,
-    isImplicit: Boolean
+    isImplicit: Boolean,
 ): PresentationResult {
     val eventCreatedAt = Date()
 
-    val parameters = TrackingLogic.processParameters(
-        trackableEvent = event,
-        appSessionId = dependencyContainer.appSessionManager.appSession.id
-    )
+    val parameters =
+        TrackingLogic.processParameters(
+            trackableEvent = event,
+            appSessionId = dependencyContainer.appSessionManager.appSession.id,
+        )
 
-    val eventData = EventData(
-        name = event.rawName,
-        parameters = parameters.eventParams,
-        createdAt = eventCreatedAt
-    )
+    val eventData =
+        EventData(
+            name = event.rawName,
+            parameters = parameters.eventParams,
+            createdAt = eventCreatedAt,
+        )
 
-    val presentationRequest = dependencyContainer.makePresentationRequest(
-        PresentationInfo.ExplicitTrigger(eventData), // Assuming a similar structure in Kotlin
-        isDebuggerLaunched = false,
-        isPaywallPresented = false,
-        type = if (isImplicit) PresentationRequestType.GetImplicitPresentationResult
-        else PresentationRequestType.GetPresentationResult
-    )
+    val presentationRequest =
+        dependencyContainer.makePresentationRequest(
+            PresentationInfo.ExplicitTrigger(eventData), // Assuming a similar structure in Kotlin
+            isDebuggerLaunched = false,
+            isPaywallPresented = false,
+            type =
+                if (isImplicit) {
+                    PresentationRequestType.GetImplicitPresentationResult
+                } else {
+                    PresentationRequestType.GetPresentationResult
+                },
+        )
 
     return getPresentationResult(presentationRequest)
 }

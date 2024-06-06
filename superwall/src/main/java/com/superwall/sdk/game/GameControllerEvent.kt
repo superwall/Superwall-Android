@@ -1,8 +1,6 @@
 package com.superwall.sdk.game
 
-import com.google.gson.Gson
 import com.google.gson.GsonBuilder
-import java.lang.Exception
 
 data class GameControllerEvent(
     var eventName: String = "game_controller_input",
@@ -10,13 +8,15 @@ data class GameControllerEvent(
     var value: Double,
     var x: Double,
     var y: Double,
-    var directional: Boolean
+    var directional: Boolean,
 ) {
     val jsonString: String?
         get() {
-            val gson = GsonBuilder().setFieldNamingStrategy { f ->
-                convertToSnakeCase(f.name)
-            }.create()
+            val gson =
+                GsonBuilder()
+                    .setFieldNamingStrategy { f ->
+                        convertToSnakeCase(f.name)
+                    }.create()
             return try {
                 gson.toJson(this)
             } catch (e: Throwable) {
@@ -24,7 +24,5 @@ data class GameControllerEvent(
             }
         }
 
-    private fun convertToSnakeCase(input: String): String {
-        return input.replace(Regex("([a-z])([A-Z]+)"), "$1_$2").lowercase()
-    }
+    private fun convertToSnakeCase(input: String): String = input.replace(Regex("([a-z])([A-Z]+)"), "$1_$2").lowercase()
 }

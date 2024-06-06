@@ -41,12 +41,12 @@ fun PaywallComposable(
             Column(
                 modifier = Modifier.align(Alignment.Center),
                 verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 CircularProgressIndicator()
             }
         }
-    }
+    },
 ) {
     val viewState = remember { mutableStateOf<PaywallViewController?>(null) }
     val errorState = remember { mutableStateOf<Throwable?>(null) }
@@ -81,7 +81,7 @@ fun PaywallComposable(
                 AndroidView(
                     factory = { context ->
                         viewToRender
-                    }
+                    },
                 )
             }
         }

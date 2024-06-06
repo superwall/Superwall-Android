@@ -34,9 +34,7 @@ internal abstract class BillingClientUseCase<T>(
     private var retryAttempt: Int = 0
     private var retryBackoffMilliseconds = RETRY_TIMER_START_MILLISECONDS
 
-    fun run(
-        delayMilliseconds: Long = 0,
-    ) {
+    fun run(delayMilliseconds: Long = 0) {
         executeRequestOnUIThread(delayMilliseconds) { connectionError ->
             if (connectionError == null) {
                 this.executeAsync()
@@ -47,6 +45,7 @@ internal abstract class BillingClientUseCase<T>(
     }
 
     abstract fun executeAsync()
+
     abstract fun onOk(received: T)
 
     fun processResult(
@@ -56,7 +55,7 @@ internal abstract class BillingClientUseCase<T>(
         onError: (BillingResult) -> Unit = ::forwardError,
     ) {
         when (billingResult.responseCode) {
-            BillingClient.BillingResponseCode.OK  -> {
+            BillingClient.BillingResponseCode.OK -> {
                 retryBackoffMilliseconds = RETRY_TIMER_START_MILLISECONDS
                 onSuccess(response)
             }
@@ -65,7 +64,7 @@ internal abstract class BillingClientUseCase<T>(
                 Logger.debug(
                     logLevel = LogLevel.error,
                     scope = LogScope.productsManager,
-                    message = "Billing Service disconnected."
+                    message = "Billing Service disconnected.",
                 )
                 run()
             }
@@ -92,7 +91,7 @@ internal abstract class BillingClientUseCase<T>(
         } ?: Logger.debug(
             logLevel = LogLevel.warn,
             scope = LogScope.productsManager,
-            message = "Billing Service disconnected.  Stack trace: ${getStackTrace()}"
+            message = "Billing Service disconnected.  Stack trace: ${getStackTrace()}",
         )
     }
 
@@ -104,13 +103,14 @@ internal abstract class BillingClientUseCase<T>(
     }
 
     private fun forwardError(billingResult: BillingResult) {
-        val underlyingErrorMessage = "Error loading products - DebugMessage: ${billingResult.debugMessage} " +
+        val underlyingErrorMessage =
+            "Error loading products - DebugMessage: ${billingResult.debugMessage} " +
                 "ErrorCode: ${billingResult.responseCode}."
         val error = BillingError.BillingNotAvailable(underlyingErrorMessage)
         Logger.debug(
             logLevel = LogLevel.error,
             scope = LogScope.productsManager,
-            message = underlyingErrorMessage
+            message = underlyingErrorMessage,
         )
         onError(error)
     }
@@ -137,7 +137,7 @@ internal abstract class BillingClientUseCase<T>(
             Logger.debug(
                 logLevel = LogLevel.warn,
                 scope = LogScope.productsManager,
-                message = "Billing is unavailable. App is in background, will retry with backoff."
+                message = "Billing is unavailable. App is in background, will retry with backoff.",
             )
             if (retryBackoffMilliseconds < RETRY_TIMER_MAX_TIME_MILLISECONDS) {
                 retryWithBackoff()
@@ -148,7 +148,7 @@ internal abstract class BillingClientUseCase<T>(
             Logger.debug(
                 logLevel = LogLevel.error,
                 scope = LogScope.productsManager,
-                message = "Billing is unavailable. App is in foreground. Won't retry."
+                message = "Billing is unavailable. App is in foreground. Won't retry.",
             )
             onError(billingResult)
         }
@@ -156,10 +156,11 @@ internal abstract class BillingClientUseCase<T>(
 
     private fun retryWithBackoff() {
         retryBackoffMilliseconds.let { currentDelayMilliseconds ->
-            retryBackoffMilliseconds = min(
-                retryBackoffMilliseconds * 2,
-                RETRY_TIMER_MAX_TIME_MILLISECONDS,
-            )
+            retryBackoffMilliseconds =
+                min(
+                    retryBackoffMilliseconds * 2,
+                    RETRY_TIMER_MAX_TIME_MILLISECONDS,
+                )
             run(currentDelayMilliseconds)
         }
     }

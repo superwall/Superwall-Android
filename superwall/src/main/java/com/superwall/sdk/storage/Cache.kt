@@ -11,15 +11,12 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.newSingleThreadContext
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.DeserializationStrategy
-import kotlinx.serialization.SerializationStrategy
 import kotlinx.serialization.json.Json
 import java.io.File
-import java.util.concurrent.ConcurrentHashMap
 
 class Cache(
     val context: Context,
-    private val ioQueue: ExecutorCoroutineDispatcher = newSingleThreadContext(Cache.ioQueuePrefix)
+    private val ioQueue: ExecutorCoroutineDispatcher = newSingleThreadContext(Cache.ioQueuePrefix),
 ) {
     companion object {
         private const val userSpecificDocumentDirectoryPrefix = "com.superwall.document.userSpecific.Store"
@@ -29,30 +26,10 @@ class Cache(
         private const val defaultMaxCachePeriodInSecond: Long = 60 * 60 * 24 * 7 // a week
     }
 
-//    private val cacheUrl: File?
-//    private val userSpecificDocumentUrl: File?
-//    private val appSpecificDocumentUrl: File?
     private val memCache: LRUCache<String, Any> =
         LRUCache(PerpetualCache<String, Any>(), 1000)
-//    private val fileManager = File(".") // Placeholder for FileManager
 
-    /** Life time of disk cache, in second. Default is a week */
-//    private var maxCachePeriodInSecond = Cache.defaultMaxCachePeriodInSecond
-
-    /** Size is allocated for disk cache, in byte. 0 mean no limit. Default is 0 */
-//    private var maxDiskCacheSize: UInt = 0u
-
-    init {
-//        val cacheDir: File = SearchPathDirectory.USER_SPECIFIC_DOCUMENTS.directory(context)
-//        val userSpecificDocumentDir: File = SearchPathDirectory.USER_SPECIFIC_DOCUMENTS.directory(context)
-//        val appSpecificDocumentDir: File = SearchPathDirectory.APP_SPECIFIC_DOCUMENTS.directory(context)
-
-//        cacheUrl = fileManager.getCacheDirectory()?.resolve(Cache.cacheDirectoryPrefix)
-//        userSpecificDocumentUrl = fileManager.getDocumentDirectory()?.resolve(Cache.userSpecificDocumentDirectoryPrefix)
-//        appSpecificDocumentUrl = fileManager.getDocumentDirectory()?.resolve(Cache.appSpecificDocumentDirectoryPrefix)
-
-        // TODO: clear expired entries from disk cache when backgrounding/terminating
-    }
+    // TODO: clear expired entries from disk cache when backgrounding/terminating
 
     fun <T> read(storable: Storable<T>): T? {
         var data = memCache[storable.key] as? T
@@ -73,10 +50,9 @@ class Cache(
                             logLevel = LogLevel.error,
                             LogScope.cache,
                             message = "Unable to read key: ${storable.key}, got $jsonString",
-                            error = e
+                            error = e,
                         )
                     }
-
                 }
             }
         }
@@ -84,7 +60,10 @@ class Cache(
         return data
     }
 
-    fun <T: Any> write(storable: Storable<T>, data: T) {
+    fun <T : Any> write(
+        storable: Storable<T>,
+        data: T,
+    ) {
         memCache[storable.key] = data
 
         GlobalScope.launch(ioQueue) {
@@ -94,7 +73,7 @@ class Cache(
         }
     }
 
-    fun <T: Any> delete(storable: Storable<T>) {
+    fun <T : Any> delete(storable: Storable<T>) {
         memCache.remove(storable.key)
 
         GlobalScope.launch(ioQueue) {

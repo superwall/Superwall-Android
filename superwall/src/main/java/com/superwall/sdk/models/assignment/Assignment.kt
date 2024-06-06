@@ -1,6 +1,6 @@
 package com.superwall.sdk.models.assignment
 
-//data class Assignment(var experimentId: String, var variantId: String) {
+// data class Assignment(var experimentId: String, var variantId: String) {
 //
 //    // Converts this Assignment object to a JSONObject.
 //    fun toJson(): JSONObject {
@@ -18,9 +18,12 @@ package com.superwall.sdk.models.assignment
 //            return Assignment(experimentId, variantId)
 //        }
 //    }
-//}
+// }
 
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class Assignment(var experimentId: String, var variantId: String)
+data class Assignment(
+    var experimentId: String,
+    var variantId: String,
+)

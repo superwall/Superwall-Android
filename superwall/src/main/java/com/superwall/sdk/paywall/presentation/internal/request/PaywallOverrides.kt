@@ -9,19 +9,19 @@ import com.superwall.sdk.store.abstractions.product.StoreProduct
 data class PaywallOverrides(
     val productsByName: Map<String, StoreProduct> = emptyMap(),
     val ignoreSubscriptionStatus: Boolean = false,
-    val presentationStyle: PaywallPresentationStyle = PaywallPresentationStyle.NONE
+    val presentationStyle: PaywallPresentationStyle = PaywallPresentationStyle.NONE,
 ) {
     @Deprecated("This variable has been deprecated.", ReplaceWith("productsByName"))
     val products: PaywallProducts? = mapToPaywallProducts(productsByName)
 
     // Secondary constructors
     @Deprecated("This constructor has been deprecated.", ReplaceWith("PaywallOverrides(productsByName)"))
-    constructor(products: PaywallProducts?): this(mapFromPaywallProducts(products))
+    constructor(products: PaywallProducts?) : this(mapFromPaywallProducts(products))
 
     @Deprecated("This constructor has been deprecated.", ReplaceWith("PaywallOverrides(productsByName, ignoreSubscriptionStatus)"))
     constructor(products: PaywallProducts?, ignoreSubscriptionStatus: Boolean) : this(
         mapFromPaywallProducts(products),
-        ignoreSubscriptionStatus
+        ignoreSubscriptionStatus,
     )
 
     companion object {
@@ -40,15 +40,16 @@ data class PaywallOverrides(
             val secondaryProduct: StoreProduct? = products["secondary"]
             val tertiaryProduct: StoreProduct? = products["tertiary"]
 
-            val paywallProducts: PaywallProducts? = if (primaryProduct != null || secondaryProduct != null || tertiaryProduct != null) {
-                PaywallProducts(
-                    primary = primaryProduct,
-                    secondary = secondaryProduct,
-                    tertiary = tertiaryProduct
-                )
-            } else {
-                null
-            }
+            val paywallProducts: PaywallProducts? =
+                if (primaryProduct != null || secondaryProduct != null || tertiaryProduct != null) {
+                    PaywallProducts(
+                        primary = primaryProduct,
+                        secondary = secondaryProduct,
+                        tertiary = tertiaryProduct,
+                    )
+                } else {
+                    null
+                }
 
             return paywallProducts
         }

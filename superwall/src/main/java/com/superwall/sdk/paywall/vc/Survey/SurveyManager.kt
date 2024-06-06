@@ -1,8 +1,6 @@
 package com.superwall.sdk.paywall.vc.Survey
 
 import android.app.Activity
-import android.content.Context
-import android.content.DialogInterface
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.LayoutInflater
@@ -24,7 +22,6 @@ import com.superwall.sdk.dependencies.TriggerFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
-import com.superwall.sdk.models.paywall.PresentationCondition
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
@@ -50,17 +47,19 @@ object SurveyManager {
         paywallInfo: PaywallInfo,
         storage: Storage,
         factory: TriggerFactory,
-        completion: (SurveyPresentationResult) -> Unit
+        completion: (SurveyPresentationResult) -> Unit,
     ) {
-        val activity = activity.let { it } ?: run {
-            completion(SurveyPresentationResult.NOSHOW)
-            return
-        }
+        val activity =
+            activity.let { it } ?: run {
+                completion(SurveyPresentationResult.NOSHOW)
+                return
+            }
 
-        val survey = selectSurvey(surveys, paywallResult, paywallCloseReason) ?: run {
-            completion(SurveyPresentationResult.NOSHOW)
-            return
-        }
+        val survey =
+            selectSurvey(surveys, paywallResult, paywallCloseReason) ?: run {
+                completion(SurveyPresentationResult.NOSHOW)
+                return
+            }
 
         if (loadingState !is PaywallLoadingState.Ready && loadingState !is PaywallLoadingState.LoadingPurchase) {
             completion(SurveyPresentationResult.NOSHOW)
@@ -83,7 +82,7 @@ object SurveyManager {
             Logger.debug(
                 logLevel = LogLevel.info,
                 scope = LogScope.paywallViewController,
-                message = "The survey will not present."
+                message = "The survey will not present.",
             )
             completion(SurveyPresentationResult.HOLDOUT)
             return
@@ -113,11 +112,12 @@ object SurveyManager {
         messageTextView.text = survey.message
 
         val listView: ListView = surveyView.findViewById(R.id.surveyListView)
-        val surveyOptionsAdapter = ArrayAdapter(
-            activity,
-            R.layout.list_item,
-            optionsToShow
-        )
+        val surveyOptionsAdapter =
+            ArrayAdapter(
+                activity,
+                R.layout.list_item,
+                optionsToShow,
+            )
 
         listView.adapter = surveyOptionsAdapter
         listView.setOnItemClickListener { _, _, position, _ ->
@@ -132,7 +132,7 @@ object SurveyManager {
                         paywallInfo = paywallInfo,
                         factory = factory,
                         paywallViewController = paywallViewController,
-                        completion = completion
+                        completion = completion,
                     )
                 }
                 dialog.dismiss()
@@ -161,16 +161,28 @@ object SurveyManager {
                     customDialogTitle.text = survey.title
                     customDialogMessage.text = survey.message
 
-                    customEditText.addTextChangedListener(object : TextWatcher {
-                        override fun afterTextChanged(s: Editable?) {
-                            val text = s?.toString()?.trim()
-                            otherDialog.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled = !text.isNullOrEmpty()
-                        }
+                    customEditText.addTextChangedListener(
+                        object : TextWatcher {
+                            override fun afterTextChanged(s: Editable?) {
+                                val text = s?.toString()?.trim()
+                                otherDialog.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled = !text.isNullOrEmpty()
+                            }
 
-                        override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                            override fun beforeTextChanged(
+                                s: CharSequence?,
+                                start: Int,
+                                count: Int,
+                                after: Int,
+                            ) {}
 
-                        override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-                    })
+                            override fun onTextChanged(
+                                s: CharSequence?,
+                                start: Int,
+                                before: Int,
+                                count: Int,
+                            ) {}
+                        },
+                    )
 
                     // Disable the 'Submit' button initially
                     otherDialog.setOnShowListener {
@@ -196,7 +208,7 @@ object SurveyManager {
                                 paywallInfo = paywallInfo,
                                 factory = factory,
                                 paywallViewController = paywallViewController,
-                                completion = completion
+                                completion = completion,
                             )
                             otherDialog.dismiss()
                         }
@@ -226,7 +238,7 @@ object SurveyManager {
         paywallInfo: PaywallInfo,
         factory: TriggerFactory,
         paywallViewController: PaywallViewController,
-        completion: (SurveyPresentationResult) -> Unit
+        completion: (SurveyPresentationResult) -> Unit,
     ) {
         if (isDebuggerLaunched) {
             completion(SurveyPresentationResult.SHOW)
@@ -234,18 +246,20 @@ object SurveyManager {
         }
 
         CoroutineScope(Dispatchers.IO).launch {
-            val event = InternalSuperwallEvent.SurveyResponse(
-                survey,
-                option,
-                customResponse,
-                paywallInfo
-            )
+            val event =
+                InternalSuperwallEvent.SurveyResponse(
+                    survey,
+                    option,
+                    customResponse,
+                    paywallInfo,
+                )
 
-            val outcome = TrackingLogic.canTriggerPaywall(
-                event,
-                factory.makeTriggers(),
-                paywallViewController
-            )
+            val outcome =
+                TrackingLogic.canTriggerPaywall(
+                    event,
+                    factory.makeTriggers(),
+                    paywallViewController,
+                )
 
             Superwall.instance.track(event)
 
@@ -258,7 +272,7 @@ object SurveyManager {
     private fun selectSurvey(
         surveys: List<Survey>,
         paywallResult: PaywallResult,
-        paywallCloseReason: PaywallCloseReason
+        paywallCloseReason: PaywallCloseReason,
     ): Survey? {
         val isPurchased = paywallResult is PaywallResult.Purchased
         val isDeclined = paywallResult is PaywallResult.Declined

@@ -3,27 +3,18 @@ package com.superwall.sdk.store
 import android.app.Activity
 import android.content.Context
 import com.android.billingclient.api.ProductDetails
-import com.android.billingclient.api.SkuDetails
-import com.superwall.sdk.Superwall
-import com.superwall.sdk.analytics.internal.track
-import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
-import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.delegate.subscription_controller.PurchaseControllerJava
-import com.superwall.sdk.paywall.presentation.internal.dismiss
-import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
-import com.superwall.sdk.paywall.vc.PaywallViewController
-import com.superwall.sdk.paywall.vc.delegate.PaywallLoadingState
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
 class InternalPurchaseController(
     private val kotlinPurchaseController: PurchaseController?,
     private val javaPurchaseController: PurchaseControllerJava?,
-    val context: Context
-): PurchaseController {
+    val context: Context,
+) : PurchaseController {
     val hasExternalPurchaseController: Boolean
         get() = kotlinPurchaseController != null || javaPurchaseController != null
 
@@ -31,7 +22,7 @@ class InternalPurchaseController(
         activity: Activity,
         productDetails: ProductDetails,
         basePlanId: String?,
-        offerId: String?
+        offerId: String?,
     ): PurchaseResult {
         // TODO: Await beginPurchase with purchasing coordinator: https://linear.app/superwall/issue/SW-2415/[android]-implement-purchasingcoordinator
 
@@ -59,11 +50,11 @@ class InternalPurchaseController(
 //
 //        // SW-2217
 //        // https://linear.app/superwall/issue/SW-2217/%5Bandroid%5D-%5Bv1%5D-add-back-support-for-javanon-kotlinxcoroutines-purchase
-////        javaPurchaseController?.let {
-////            product.sk1Product?.let { sk1Product ->
-////                return it.purchase(sk1Product)
-////            } ?: return PurchaseResult.failed(PurchaseError.productUnavailable)
-////        }
+// //        javaPurchaseController?.let {
+// //            product.sk1Product?.let { sk1Product ->
+// //                return it.purchase(sk1Product)
+// //            } ?: return PurchaseResult.failed(PurchaseError.productUnavailable)
+// //        }
 //        return PurchaseResult.Cancelled()
     }
 
@@ -85,5 +76,4 @@ class InternalPurchaseController(
             return RestorationResult.Failed(null)
         }
     }
-
 }

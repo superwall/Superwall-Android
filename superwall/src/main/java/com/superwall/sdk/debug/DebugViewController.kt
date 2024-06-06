@@ -4,18 +4,25 @@ import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Color
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffColorFilter
+import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
+import android.os.Build
 import android.os.Bundle
+import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
 import android.view.Window
 import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.ProgressBar
-import android.graphics.Color
-import android.graphics.Typeface
-import android.os.Build
-import android.view.Gravity
-import android.view.ViewGroup
+import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.constraintlayout.widget.ConstraintSet
 import androidx.core.content.ContextCompat
@@ -23,9 +30,14 @@ import androidx.core.content.res.ResourcesCompat
 import com.superwall.sdk.BuildConfig
 import com.superwall.sdk.R
 import com.superwall.sdk.Superwall
+import com.superwall.sdk.debug.localizations.SWLocalizationActivity
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.dependencies.RequestFactory
+import com.superwall.sdk.dependencies.TriggerSessionManagerFactory
 import com.superwall.sdk.dependencies.ViewControllerFactory
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.paywall.manager.PaywallManager
@@ -44,20 +56,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
-import java.util.UUID
-import android.graphics.PorterDuff
-import android.graphics.PorterDuffColorFilter
-import android.graphics.drawable.GradientDrawable
-import android.widget.LinearLayout
-import android.widget.TextView
-import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.app.AppCompatDelegate
-import com.superwall.sdk.debug.localizations.SWLocalizationActivity
-import com.superwall.sdk.dependencies.TriggerSessionManagerFactory
-import com.superwall.sdk.logger.LogLevel
-import com.superwall.sdk.logger.LogScope
-import com.superwall.sdk.logger.Logger
 import kotlinx.coroutines.withContext
+import java.util.UUID
 
 interface AppCompatActivityEncapsulatable {
     var encapsulatingActivity: AppCompatActivity?
@@ -70,14 +70,20 @@ class DebugViewController(
     private val paywallRequestManager: PaywallRequestManager,
     private val paywallManager: PaywallManager,
     private val debugManager: DebugManager,
-    private val factory: Factory
-) : ConstraintLayout(context), AppCompatActivityEncapsulatable {
-    interface Factory: RequestFactory, ViewControllerFactory, TriggerSessionManagerFactory {}
+    private val factory: Factory,
+) : ConstraintLayout(context),
+    AppCompatActivityEncapsulatable {
+    interface Factory :
+        RequestFactory,
+        ViewControllerFactory,
+        TriggerSessionManagerFactory
+
     data class AlertOption(
         val title: String? = "",
         val action: (suspend () -> Unit)? = null,
-        val style: Int = AlertDialog.BUTTON_POSITIVE
+        val style: Int = AlertDialog.BUTTON_POSITIVE,
     )
+
     // The full screen activity instance if this view controller has been presented in one.
     override var encapsulatingActivity: AppCompatActivity? = null
 
@@ -106,26 +112,29 @@ class DebugViewController(
             id = View.generateViewId()
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-
-            val imageView = ImageView(context).apply {
-                // Apply a color filter with full opacity to test visibility
-                val debuggerImage = ContextCompat.getDrawable(context, R.drawable.exit)?.mutate()
-                debuggerImage?.colorFilter = PorterDuffColorFilter(Color.WHITE, PorterDuff.Mode.SRC_ATOP)
-                setImageDrawable(debuggerImage)
-                scaleType = ImageView.ScaleType.FIT_CENTER
-
-                // Apply alpha to the ImageView if needed
-                alpha = 0.5f
-
-                layoutParams = LinearLayout.LayoutParams(
+            layoutParams =
+                LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
                 )
-            }
+
+            val imageView =
+                ImageView(context).apply {
+                    // Apply a color filter with full opacity to test visibility
+                    val debuggerImage = ContextCompat.getDrawable(context, R.drawable.exit)?.mutate()
+                    debuggerImage?.colorFilter = PorterDuffColorFilter(Color.WHITE, PorterDuff.Mode.SRC_ATOP)
+                    setImageDrawable(debuggerImage)
+                    scaleType = ImageView.ScaleType.FIT_CENTER
+
+                    // Apply alpha to the ImageView if needed
+                    alpha = 0.5f
+
+                    layoutParams =
+                        LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.WRAP_CONTENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT,
+                        )
+                }
             addView(imageView)
 
             setOnClickListener { pressedExitButton() }
@@ -137,26 +146,29 @@ class DebugViewController(
             id = View.generateViewId()
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-
-            val imageView = ImageView(context).apply {
-                // Apply a color filter with full opacity to test visibility
-                val debuggerImage = ContextCompat.getDrawable(context, R.drawable.debugger)?.mutate()
-                debuggerImage?.colorFilter = PorterDuffColorFilter(Color.WHITE, PorterDuff.Mode.SRC_ATOP)
-                setImageDrawable(debuggerImage)
-                scaleType = ImageView.ScaleType.FIT_CENTER
-
-                // Apply alpha to the ImageView if needed
-                alpha = 0.5f
-
-                layoutParams = LinearLayout.LayoutParams(
+            layoutParams =
+                LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
                 )
-            }
+
+            val imageView =
+                ImageView(context).apply {
+                    // Apply a color filter with full opacity to test visibility
+                    val debuggerImage = ContextCompat.getDrawable(context, R.drawable.debugger)?.mutate()
+                    debuggerImage?.colorFilter = PorterDuffColorFilter(Color.WHITE, PorterDuff.Mode.SRC_ATOP)
+                    setImageDrawable(debuggerImage)
+                    scaleType = ImageView.ScaleType.FIT_CENTER
+
+                    // Apply alpha to the ImageView if needed
+                    alpha = 0.5f
+
+                    layoutParams =
+                        LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.WRAP_CONTENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT,
+                        )
+                }
             addView(imageView)
 
             setOnClickListener { pressedConsoleButton() }
@@ -182,37 +194,43 @@ class DebugViewController(
             isClickable = true
             id = View.generateViewId()
             isFocusable = true
-            val backgroundDrawable = GradientDrawable().apply {
-                setColor(Color.parseColor("#203133")) // Background color
-                cornerRadius = 70f // Set the corner radius for rounded corners
-            }
+            val backgroundDrawable =
+                GradientDrawable().apply {
+                    setColor(Color.parseColor("#203133")) // Background color
+                    cornerRadius = 70f // Set the corner radius for rounded corners
+                }
             background = backgroundDrawable // Set the drawable as button background
 
-            val playImageView = ImageView(context).apply {
-                id = View.generateViewId()
-                scaleType = ImageView.ScaleType.FIT_CENTER
-                setImageResource(R.drawable.play_button)
-                setColorFilter(primaryColor) // Set the color of the play button
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply {
-                    rightMargin = 8 // You can adjust the margin to control the space between the image and the text
+            val playImageView =
+                ImageView(context).apply {
+                    id = View.generateViewId()
+                    scaleType = ImageView.ScaleType.FIT_CENTER
+                    setImageResource(R.drawable.play_button)
+                    setColorFilter(primaryColor) // Set the color of the play button
+                    layoutParams =
+                        LinearLayout
+                            .LayoutParams(
+                                LinearLayout.LayoutParams.WRAP_CONTENT,
+                                LinearLayout.LayoutParams.WRAP_CONTENT,
+                            ).apply {
+                                rightMargin = 8 // You can adjust the margin to control the space between the image and the text
+                            }
                 }
-            }
             addView(playImageView)
 
-            val previewTextView = TextView(context).apply {
-                id = View.generateViewId()
-                text = "Preview"
-                textSize = 17f // Set your text size
-                setTypeface(null, Typeface.BOLD)
-                setTextColor(primaryColor) // Set your text color
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                )
-            }
+            val previewTextView =
+                TextView(context).apply {
+                    id = View.generateViewId()
+                    text = "Preview"
+                    textSize = 17f // Set your text size
+                    setTypeface(null, Typeface.BOLD)
+                    setTextColor(primaryColor) // Set your text color
+                    layoutParams =
+                        LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.WRAP_CONTENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT,
+                        )
+                }
             addView(previewTextView)
 
             setPadding(32, 16, 32, 16) // Add padding as needed
@@ -231,36 +249,42 @@ class DebugViewController(
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
             setBackgroundColor(lightBackgroundColor)
-            layoutParams = ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-
-            previewTextView = TextView(context).apply {
-                id = View.generateViewId()
-                text = ""
-                textSize = 14f // Set your text size
-                setTypeface(null, Typeface.BOLD)
-                setTextColor(primaryColor)
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
+            layoutParams =
+                ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
                 )
-            }
+
+            previewTextView =
+                TextView(context).apply {
+                    id = View.generateViewId()
+                    text = ""
+                    textSize = 14f // Set your text size
+                    setTypeface(null, Typeface.BOLD)
+                    setTextColor(primaryColor)
+                    layoutParams =
+                        LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.WRAP_CONTENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT,
+                        )
+                }
             addView(previewTextView)
 
-            val arrowImageView = ImageView(context).apply {
-                id = View.generateViewId()
-                setImageResource(R.drawable.down_arrow)
-                scaleType = ImageView.ScaleType.FIT_CENTER
-                setColorFilter(primaryColor) // Set the color of the play button
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply {
-                    leftMargin = 8 // You can adjust the margin to control the space between the text and the image
+            val arrowImageView =
+                ImageView(context).apply {
+                    id = View.generateViewId()
+                    setImageResource(R.drawable.down_arrow)
+                    scaleType = ImageView.ScaleType.FIT_CENTER
+                    setColorFilter(primaryColor) // Set the color of the play button
+                    layoutParams =
+                        LinearLayout
+                            .LayoutParams(
+                                LinearLayout.LayoutParams.WRAP_CONTENT,
+                                LinearLayout.LayoutParams.WRAP_CONTENT,
+                            ).apply {
+                                leftMargin = 8 // You can adjust the margin to control the space between the text and the image
+                            }
                 }
-            }
             addView(arrowImageView)
 
             setPadding(10, 10, 10, 10) // Adjust padding as needed
@@ -269,16 +293,16 @@ class DebugViewController(
         }
     }
 
-
     private val previewContainerView: ConstraintLayout by lazy {
         ConstraintLayout(context).apply {
             id = View.generateViewId()
             // shouldAnimateLightly = true
             isFocusable = true // Depending on the view's properties, you might need to set focusability
-            layoutParams = LayoutParams(
-                LayoutParams.MATCH_CONSTRAINT,
-                LayoutParams.MATCH_CONSTRAINT
-            )
+            layoutParams =
+                LayoutParams(
+                    LayoutParams.MATCH_CONSTRAINT,
+                    LayoutParams.MATCH_CONSTRAINT,
+                )
             setOnClickListener { pressedPreview() }
         }
     }
@@ -363,9 +387,7 @@ class DebugViewController(
         constraintSet.applyTo(this)
     }
 
-    fun dpToPx(dp: Int): Int {
-        return (dp * resources.displayMetrics.density).toInt()
-    }
+    fun dpToPx(dp: Int): Int = (dp * resources.displayMetrics.density).toInt()
 
     suspend fun loadPreview() {
         withContext(Dispatchers.Main) {
@@ -385,7 +407,7 @@ class DebugViewController(
                     logLevel = LogLevel.error,
                     scope = LogScope.debugViewController,
                     message = "Failed to Fetch Paywalls",
-                    error = error
+                    error = error,
                 )
             }
         } else {
@@ -394,28 +416,31 @@ class DebugViewController(
     }
 
     suspend fun finishLoadingPreview() {
-        var paywallId: String? = paywallIdentifier ?: paywallDatabaseId?.let { dbId ->
-            paywalls.firstOrNull { it.databaseId == dbId }?.identifier?.also { identifier ->
-                paywallIdentifier = identifier
-            }
-        } ?: return
+        var paywallId: String? =
+            paywallIdentifier ?: paywallDatabaseId?.let { dbId ->
+                paywalls.firstOrNull { it.databaseId == dbId }?.identifier?.also { identifier ->
+                    paywallIdentifier = identifier
+                }
+            } ?: return
 
         try {
-            val request = factory.makePaywallRequest(
-                eventData = null,
-                responseIdentifiers = ResponseIdentifiers(paywallId),
-                overrides = null,
-                isDebuggerLaunched = true,
-                presentationSourceType = null,
-                retryCount = 6
-            )
+            val request =
+                factory.makePaywallRequest(
+                    eventData = null,
+                    responseIdentifiers = ResponseIdentifiers(paywallId),
+                    overrides = null,
+                    isDebuggerLaunched = true,
+                    presentationSourceType = null,
+                    retryCount = 6,
+                )
             var paywall = paywallRequestManager.getPaywall(request)
 
-            val productVariables = storeKitManager.getProductVariables(
-                paywall,
-                request = request,
-                factory = factory
-            )
+            val productVariables =
+                storeKitManager.getProductVariables(
+                    paywall,
+                    request = request,
+                    factory = factory,
+                )
             paywall.productVariables = productVariables
 
             this.paywall = paywall
@@ -429,7 +454,7 @@ class DebugViewController(
                 logLevel = LogLevel.error,
                 scope = LogScope.debugViewController,
                 message = "No Paywall Response",
-                error = error
+                error = error,
             )
         }
     }
@@ -437,42 +462,46 @@ class DebugViewController(
     suspend fun addPaywallPreview() {
         val paywall = paywall ?: return
 
-        val paywallVc = factory.makePaywallViewController(
-            paywall = paywall,
-            cache = null,
-            delegate = null
-        )
+        val paywallVc =
+            factory.makePaywallViewController(
+                paywall = paywall,
+                cache = null,
+                delegate = null,
+            )
         previewContainerView.addView(paywallVc)
         previewViewContent = paywallVc
 
         paywallVc.apply {
-            layoutParams = LayoutParams(
-                LayoutParams.MATCH_PARENT,
-                LayoutParams.MATCH_PARENT
-            )
+            layoutParams =
+                LayoutParams(
+                    LayoutParams.MATCH_PARENT,
+                    LayoutParams.MATCH_PARENT,
+                )
         }
 
         paywallVc.interceptTouchEvents = true
 
-        val constraints = ConstraintSet().apply {
-            clone(previewContainerView)
-            connect(paywallVc.id, ConstraintSet.START, previewContainerView.id, ConstraintSet.START)
-            connect(paywallVc.id, ConstraintSet.END, previewContainerView.id, ConstraintSet.END)
-            connect(paywallVc.id, ConstraintSet.TOP, previewContainerView.id, ConstraintSet.TOP)
-            connect(paywallVc.id, ConstraintSet.BOTTOM, previewContainerView.id, ConstraintSet.BOTTOM)
-        }
+        val constraints =
+            ConstraintSet().apply {
+                clone(previewContainerView)
+                connect(paywallVc.id, ConstraintSet.START, previewContainerView.id, ConstraintSet.START)
+                connect(paywallVc.id, ConstraintSet.END, previewContainerView.id, ConstraintSet.END)
+                connect(paywallVc.id, ConstraintSet.TOP, previewContainerView.id, ConstraintSet.TOP)
+                connect(paywallVc.id, ConstraintSet.BOTTOM, previewContainerView.id, ConstraintSet.BOTTOM)
+            }
         constraints.applyTo(previewContainerView)
 
         paywallVc.apply {
             clipToOutline = true
             alpha = 0.0f
         }
-        val borderDrawable = GradientDrawable().apply {
-            shape = GradientDrawable.RECTANGLE
-            setColor(Color.WHITE) // Background color
-            cornerRadius = 52f // Corner radius
-            setStroke(2, Color.WHITE) // Border width and color
-        }
+        val borderDrawable =
+            GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                setColor(Color.WHITE) // Background color
+                cornerRadius = 52f // Corner radius
+                setStroke(2, Color.WHITE) // Border width and color
+            }
         paywallVc.background = borderDrawable
 
         val ratio = previewContainerView.height.toFloat() / rootView.height.toFloat()
@@ -482,7 +511,8 @@ class DebugViewController(
             scaleY = ratio
         }
 
-        paywallVc.animate()
+        paywallVc
+            .animate()
             .alpha(1.0f)
             .setDuration(250)
             .setStartDelay(100)
@@ -492,30 +522,32 @@ class DebugViewController(
     private fun pressedPreview() {
         val id = paywallDatabaseId ?: return
 
-        val options = paywalls.map { paywall ->
-            var name = paywall.name
+        val options =
+            paywalls.map { paywall ->
+                var name = paywall.name
 
-            if (id == paywall.databaseId) {
-                name = "$name ✓"
-            }
-
-            val alert = AlertOption(
-                title = name,
-                action = {
-                    this.paywallDatabaseId = paywall.databaseId
-                    this.paywallIdentifier = paywall.identifier
-                    CoroutineScope(Dispatchers.IO).launch {
-                        loadPreview()
-                    }
+                if (id == paywall.databaseId) {
+                    name = "$name ✓"
                 }
-            )
-            alert
-        }
+
+                val alert =
+                    AlertOption(
+                        title = name,
+                        action = {
+                            this.paywallDatabaseId = paywall.databaseId
+                            this.paywallIdentifier = paywall.identifier
+                            CoroutineScope(Dispatchers.IO).launch {
+                                loadPreview()
+                            }
+                        },
+                    )
+                alert
+            }
 
         presentAlert(
             title = "Your Paywalls",
             message = null,
-            options = options
+            options = options,
         )
     }
 
@@ -529,12 +561,14 @@ class DebugViewController(
         try {
             val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
             releaseVersionNumber = packageInfo.versionName
-            versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                packageInfo.longVersionCode.toString()
-            } else {
-                packageInfo.versionCode.toLong().toString()
-            }
-        } catch (e: PackageManager.NameNotFoundException) {}
+            versionCode =
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    packageInfo.longVersionCode.toString()
+                } else {
+                    packageInfo.versionCode.toLong().toString()
+                }
+        } catch (e: PackageManager.NameNotFoundException) {
+        }
         val version = BuildConfig.SDK_VERSION
 
         val title = "Superwall v$version | App v$releaseVersionNumber ($versionCode)"
@@ -543,10 +577,11 @@ class DebugViewController(
         presentAlert(
             title = title,
             message = null,
-            options = listOf(
-                AlertOption("Localization", ::showLocalizationPicker),
-                AlertOption("Templates", ::showConsole)
-            )
+            options =
+                listOf(
+                    AlertOption("Localization", ::showLocalizationPicker),
+                    AlertOption("Templates", ::showConsole),
+                ),
         )
     }
 
@@ -556,30 +591,32 @@ class DebugViewController(
             Logger.debug(
                 logLevel = LogLevel.error,
                 scope = LogScope.debugViewController,
-                message = "Paywall is nil"
+                message = "Paywall is nil",
             )
             return
         }
 
         try {
-            val (productsById, _) = storeKitManager.getProducts(
-                paywall = paywall,
-                factory = factory
-            )
+            val (productsById, _) =
+                storeKitManager.getProducts(
+                    paywall = paywall,
+                    factory = factory,
+                )
 
             val products = paywall.productIds.mapNotNull { productsById[it] }
             SWConsoleActivity.products = products
             val activity = encapsulatingActivity.let { it } ?: return
 
-            val intent = Intent(activity, SWConsoleActivity::class.java).apply {
-                putExtra("PARENT_ACTIVITY", this::class.java.simpleName)
-            }
+            val intent =
+                Intent(activity, SWConsoleActivity::class.java).apply {
+                    putExtra("PARENT_ACTIVITY", this::class.java.simpleName)
+                }
             activity.startActivity(intent)
         } catch (error: Throwable) {
             Logger.debug(
                 logLevel = LogLevel.error,
                 scope = LogScope.debugViewController,
-                message = "Error retrieving products - ${error.message}"
+                message = "Error retrieving products - ${error.message}",
             )
         }
     }
@@ -602,25 +639,26 @@ class DebugViewController(
     }
 
     fun pressedBottomButton() {
-        val alertOptions = listOf(
-            AlertOption(
-                title = "With Free Trial",
-                action = { loadAndShowPaywall(true) },
-                style = AlertDialog.BUTTON_POSITIVE
-            ),
-            AlertOption(
-                title = "Without Free Trial",
-                action = { loadAndShowPaywall(false) },
-                style = AlertDialog.BUTTON_POSITIVE
+        val alertOptions =
+            listOf(
+                AlertOption(
+                    title = "With Free Trial",
+                    action = { loadAndShowPaywall(true) },
+                    style = AlertDialog.BUTTON_POSITIVE,
+                ),
+                AlertOption(
+                    title = "Without Free Trial",
+                    action = { loadAndShowPaywall(false) },
+                    style = AlertDialog.BUTTON_POSITIVE,
+                ),
             )
-        )
         presentAlert("Which version?", null, alertOptions)
     }
 
     fun presentAlert(
         title: String?,
         message: String?,
-        options: List<AlertOption> = emptyList()
+        options: List<AlertOption> = emptyList(),
     ) {
         val activity = encapsulatingActivity.let { it } ?: return
 
@@ -642,7 +680,7 @@ class DebugViewController(
         dialog.window?.attributes?.gravity = Gravity.BOTTOM
         dialog.window?.setLayout(
             ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT
+            ViewGroup.LayoutParams.WRAP_CONTENT,
         )
 
         dialog.show()
@@ -656,23 +694,24 @@ class DebugViewController(
     fun loadAndShowPaywall(freeTrialAvailable: Boolean = false) {
         val paywallIdentifier = paywallIdentifier ?: return
 
-       // bottomButton.setImageDrawable(null)
-       // bottomButton.showLoading = true
+        // bottomButton.setImageDrawable(null)
+        // bottomButton.showLoading = true
 
         val inactiveSubscriptionPublisher = MutableStateFlow(SubscriptionStatus.INACTIVE)
 
-        val presentationRequest = factory.makePresentationRequest(
-            PresentationInfo.FromIdentifier(
-                paywallIdentifier,
-                freeTrialOverride = freeTrialAvailable
-            ),
-            paywallOverrides = null,
-            presenter = encapsulatingActivity,
-            isDebuggerLaunched = true,
-            subscriptionStatus =  inactiveSubscriptionPublisher,
-            isPaywallPresented = Superwall.instance.isPaywallPresented,
-            type = PresentationRequestType.Presentation
-        )
+        val presentationRequest =
+            factory.makePresentationRequest(
+                PresentationInfo.FromIdentifier(
+                    paywallIdentifier,
+                    freeTrialOverride = freeTrialAvailable,
+                ),
+                paywallOverrides = null,
+                presenter = encapsulatingActivity,
+                isDebuggerLaunched = true,
+                subscriptionStatus = inactiveSubscriptionPublisher,
+                isPaywallPresented = Superwall.instance.isPaywallPresented,
+                type = PresentationRequestType.Presentation,
+            )
 
         val publisher = MutableSharedFlow<PaywallState>()
 
@@ -680,24 +719,25 @@ class DebugViewController(
             publisher.collect { state ->
                 when (state) {
                     is PaywallState.Presented -> {
-                       // bottomButton.showLoading = false
+                        // bottomButton.showLoading = false
                         val playButton = ResourcesCompat.getDrawable(resources, R.drawable.play_button, null)
-                        //bottomButton.setImageDrawable(playButton)
+                        // bottomButton.setImageDrawable(playButton)
                     }
                     is PaywallState.Skipped -> {
-                        val errorMessage = when (state.paywallSkippedReason) {
-                            is PaywallSkippedReason.Holdout -> "The user was assigned to a holdout."
-                            is PaywallSkippedReason.NoRuleMatch -> "The user didn't match a rule."
-                            is PaywallSkippedReason.EventNotFound -> "Couldn't find event."
-                            is PaywallSkippedReason.UserIsSubscribed -> "The user is subscribed."
-                        }
+                        val errorMessage =
+                            when (state.paywallSkippedReason) {
+                                is PaywallSkippedReason.Holdout -> "The user was assigned to a holdout."
+                                is PaywallSkippedReason.NoRuleMatch -> "The user didn't match a rule."
+                                is PaywallSkippedReason.EventNotFound -> "Couldn't find event."
+                                is PaywallSkippedReason.UserIsSubscribed -> "The user is subscribed."
+                            }
                         presentAlert(
                             title = "Paywall Skipped",
-                            message = errorMessage
+                            message = errorMessage,
                         )
-                       // bottomButton.showLoading = false
+                        // bottomButton.showLoading = false
                         val playButton = ResourcesCompat.getDrawable(resources, R.drawable.play_button, null)
-                     //   bottomButton.setImageDrawable(playButton)
+                        //   bottomButton.setImageDrawable(playButton)
                     }
                     is PaywallState.Dismissed -> {
                         // Handle dismissed state if needed
@@ -706,15 +746,15 @@ class DebugViewController(
                         Logger.debug(
                             logLevel = LogLevel.error,
                             scope = LogScope.debugViewController,
-                            message = "Failed to Show Paywall"
+                            message = "Failed to Show Paywall",
                         )
                         presentAlert(
                             title = "Presentation Error",
-                            message = state.error.localizedMessage
+                            message = state.error.localizedMessage,
                         )
-                       // bottomButton.showLoading = false
+                        // bottomButton.showLoading = false
                         val playButton = ResourcesCompat.getDrawable(resources, R.drawable.play_button, null)
-                        //bottomButton.setImageDrawable(playButton)
+                        // bottomButton.setImageDrawable(playButton)
                     }
                 }
             }
@@ -732,15 +772,16 @@ internal class DebugViewControllerActivity : AppCompatActivity() {
 
         fun startWithView(
             context: Context,
-            view: View
+            view: View,
         ) {
             val key = UUID.randomUUID().toString()
             ViewStorage.storeView(key, view)
 
-            val intent = Intent(context, DebugViewControllerActivity::class.java).apply {
-                putExtra(VIEW_KEY, key)
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
-            }
+            val intent =
+                Intent(context, DebugViewControllerActivity::class.java).apply {
+                    putExtra(VIEW_KEY, key)
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                }
 
             context.startActivity(intent)
         }
@@ -762,10 +803,11 @@ internal class DebugViewControllerActivity : AppCompatActivity() {
             finish() // Close the activity if there's no key
             return
         }
-        val view = ViewStorage.retrieveView(key) ?: run {
-            finish() // Close the activity if the view associated with the key is not found
-            return
-        }
+        val view =
+            ViewStorage.retrieveView(key) ?: run {
+                finish() // Close the activity if the view associated with the key is not found
+                return
+            }
 
         if (view is AppCompatActivityEncapsulatable) {
             view.encapsulatingActivity = this
@@ -774,7 +816,7 @@ internal class DebugViewControllerActivity : AppCompatActivity() {
         requestWindowFeature(Window.FEATURE_NO_TITLE)
         window.setFlags(
             WindowManager.LayoutParams.FLAG_FULLSCREEN,
-            WindowManager.LayoutParams.FLAG_FULLSCREEN
+            WindowManager.LayoutParams.FLAG_FULLSCREEN,
         )
 
         // Now add

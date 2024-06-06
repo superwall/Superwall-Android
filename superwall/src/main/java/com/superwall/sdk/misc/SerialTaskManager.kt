@@ -1,13 +1,13 @@
 package com.superwall.sdk.misc
 
 import kotlinx.coroutines.*
+import java.util.*
 import java.util.LinkedList
 import java.util.Queue
 
-import kotlinx.coroutines.*
-import java.util.*
-
-class SerialTaskManager(private val coroutineScope: CoroutineScope = CoroutineScope(newSingleThreadContext("SerialTaskManager"))) {
+class SerialTaskManager(
+    private val coroutineScope: CoroutineScope = CoroutineScope(newSingleThreadContext("SerialTaskManager")),
+) {
     private val taskQueue: Queue<suspend () -> Unit> = LinkedList()
     private var currentTask: Deferred<Unit>? = null
 
@@ -36,11 +36,11 @@ class SerialTaskManager(private val coroutineScope: CoroutineScope = CoroutineSc
         val nextTask = taskQueue.poll() ?: return
 
         // Run the task and wait for it to complete
-        currentTask = coroutineScope.async {
-            nextTask()
-        }
+        currentTask =
+            coroutineScope.async {
+                nextTask()
+            }
         currentTask?.await()
-
 
         // After the task completes, recursively execute the next task
         if (taskQueue.isNotEmpty()) {

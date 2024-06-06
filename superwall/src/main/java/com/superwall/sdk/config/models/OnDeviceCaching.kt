@@ -10,27 +10,30 @@ import kotlinx.serialization.encoding.Encoder
 @Serializable(with = OnDeviceCachingSerializer::class)
 sealed class OnDeviceCaching {
     @SerialName("ENABLED")
-    object Enabled: OnDeviceCaching()
+    object Enabled : OnDeviceCaching()
 
     @SerialName("DISABLED")
-    object Disabled: OnDeviceCaching()
+    object Disabled : OnDeviceCaching()
 }
 
 @Serializer(forClass = OnDeviceCaching::class)
 object OnDeviceCachingSerializer : KSerializer<OnDeviceCaching> {
-    override fun serialize(encoder: Encoder, value: OnDeviceCaching) {
-        val serialName = when (value) {
-            is OnDeviceCaching.Enabled -> "ENABLED"
-            is OnDeviceCaching.Disabled -> "DISABLED"
-        }
+    override fun serialize(
+        encoder: Encoder,
+        value: OnDeviceCaching,
+    ) {
+        val serialName =
+            when (value) {
+                is OnDeviceCaching.Enabled -> "ENABLED"
+                is OnDeviceCaching.Disabled -> "DISABLED"
+            }
         encoder.encodeString(serialName)
     }
 
-    override fun deserialize(decoder: Decoder): OnDeviceCaching {
-        return when (val value = decoder.decodeString()) {
+    override fun deserialize(decoder: Decoder): OnDeviceCaching =
+        when (val value = decoder.decodeString()) {
             "ENABLED" -> OnDeviceCaching.Enabled
             "DISABLED" -> OnDeviceCaching.Disabled
             else -> OnDeviceCaching.Disabled
         }
-    }
 }
