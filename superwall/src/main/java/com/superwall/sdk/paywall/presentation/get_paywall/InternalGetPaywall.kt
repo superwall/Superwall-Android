@@ -9,27 +9,26 @@ import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.paywall.presentation.rule_logic.RuleEvaluationOutcome
 import com.superwall.sdk.paywall.vc.PaywallViewController
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
 
 data class PaywallComponents(
     val viewController: PaywallViewController,
     val presenter: Activity?,
     val rulesOutcome: RuleEvaluationOutcome,
-    val debugInfo: Map<String, Any>
+    val debugInfo: Map<String, Any>,
 )
 
 @Throws(Throwable::class)
 suspend fun Superwall.getPaywall(
     request: PresentationRequest,
-    publisher: MutableSharedFlow<PaywallState> = MutableSharedFlow()
-): PaywallViewController {
-    return try {
+    publisher: MutableSharedFlow<PaywallState> = MutableSharedFlow(),
+): PaywallViewController =
+    try {
         val paywallComponents = getPaywallComponents(request, publisher)
 
         paywallComponents.viewController.set(
             request = request,
             paywallStatePublisher = publisher,
-            unsavedOccurrence = paywallComponents.rulesOutcome.unsavedOccurrence
+            unsavedOccurrence = paywallComponents.rulesOutcome.unsavedOccurrence,
         )
         paywallComponents.viewController
     } catch (error: Throwable) {
@@ -38,4 +37,3 @@ suspend fun Superwall.getPaywall(
 //        throw mapError(error, toObjc = toObjc)
         throw error
     }
-}

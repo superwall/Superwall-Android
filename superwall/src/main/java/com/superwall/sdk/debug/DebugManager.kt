@@ -15,30 +15,33 @@ import kotlinx.coroutines.launch
 class DebugManager(
     private val context: Context,
     private val storage: Storage,
-    private val factory: ViewControllerFactory
+    private val factory: ViewControllerFactory,
 ) {
     var viewController: DebugViewController? = null
         @MainThread set
     var isDebuggerLaunched = false
 
     fun handle(deepLinkUrl: Uri): Boolean {
-        val launchDebugger = SWDebugManagerLogic.getQueryItemValue(
-            deepLinkUrl,
-            SWDebugManagerLogic.Parameter.SUPERWALL_DEBUG
-        ) ?: return false
+        val launchDebugger =
+            SWDebugManagerLogic.getQueryItemValue(
+                deepLinkUrl,
+                SWDebugManagerLogic.Parameter.SUPERWALL_DEBUG,
+            ) ?: return false
         if (!launchDebugger.toBoolean()) return false
 
-        val debugKey = SWDebugManagerLogic.getQueryItemValue(
-            deepLinkUrl,
-            SWDebugManagerLogic.Parameter.TOKEN
-        ) ?: return false
+        val debugKey =
+            SWDebugManagerLogic.getQueryItemValue(
+                deepLinkUrl,
+                SWDebugManagerLogic.Parameter.TOKEN,
+            ) ?: return false
 
         storage.debugKey = debugKey
 
-        val paywallId = SWDebugManagerLogic.getQueryItemValue(
-            deepLinkUrl,
-            SWDebugManagerLogic.Parameter.PAYWALL_ID
-        )
+        val paywallId =
+            SWDebugManagerLogic.getQueryItemValue(
+                deepLinkUrl,
+                SWDebugManagerLogic.Parameter.PAYWALL_ID,
+            )
 
         CoroutineScope(Dispatchers.IO).launch {
             launchDebugger(paywallId)
@@ -74,13 +77,13 @@ class DebugManager(
 
             DebugViewControllerActivity.startWithView(
                 context,
-                currentViewController
+                currentViewController,
             )
         } else {
             val newViewController = factory.makeDebugViewController(paywallDatabaseId)
             DebugViewControllerActivity.startWithView(
                 context,
-                newViewController
+                newViewController,
             )
             viewController = newViewController
         }
@@ -88,11 +91,11 @@ class DebugManager(
 
     @MainThread
     suspend fun closeDebugger(animated: Boolean) {
-        //suspend fun dismissViewController() {
-            viewController?.encapsulatingActivity?.finish()
+        // suspend fun dismissViewController() {
+        viewController?.encapsulatingActivity?.finish()
 
-            viewController = null
-            isDebuggerLaunched = false
+        viewController = null
+        isDebuggerLaunched = false
 //        }
 //
 //

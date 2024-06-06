@@ -5,8 +5,6 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.Serializer
-import kotlinx.serialization.descriptors.SerialDescriptor
-import kotlinx.serialization.descriptors.buildClassSerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.Json
@@ -26,7 +24,9 @@ enum class ProductType {
     SECONDARY,
 
     @SerialName("tertiary")
-    TERTIARY;
+    TERTIARY,
+
+    ;
 
     override fun toString() = name.lowercase()
 }
@@ -34,27 +34,33 @@ enum class ProductType {
 @Serializable(with = ProductSerializer::class)
 data class Product(
     val type: ProductType,
-    val id: String
+    val id: String,
 )
 
 @Serializer(forClass = Product::class)
 object ProductSerializer : KSerializer<Product> {
-    override fun serialize(encoder: Encoder, value: Product) {
+    override fun serialize(
+        encoder: Encoder,
+        value: Product,
+    ) {
         // Create a JSON object with custom field names for serialization
-        val jsonOutput = encoder as? JsonEncoder
-            ?: throw SerializationException("This class can be saved only by Json")
-        val jsonObject = buildJsonObject {
-            put("product", Json.encodeToJsonElement(ProductType.serializer(), value.type))
-            put("productId", JsonPrimitive(value.id))
-        }
+        val jsonOutput =
+            encoder as? JsonEncoder
+                ?: throw SerializationException("This class can be saved only by Json")
+        val jsonObject =
+            buildJsonObject {
+                put("product", Json.encodeToJsonElement(ProductType.serializer(), value.type))
+                put("productId", JsonPrimitive(value.id))
+            }
         // Encode the JSON object
         jsonOutput.encodeJsonElement(jsonObject)
     }
 
     override fun deserialize(decoder: Decoder): Product {
         // Decode the JSON object
-        val jsonInput = decoder as? JsonDecoder
-            ?: throw SerializationException("This class can be loaded only by Json")
+        val jsonInput =
+            decoder as? JsonDecoder
+                ?: throw SerializationException("This class can be loaded only by Json")
         val jsonObject = jsonInput.decodeJsonElement().jsonObject
 
         // Extract fields using the expected names during deserialization

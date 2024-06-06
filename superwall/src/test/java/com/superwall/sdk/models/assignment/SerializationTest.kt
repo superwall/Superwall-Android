@@ -1,11 +1,5 @@
 package com.superwall.sdk.models.assignment
 
-
-import com.superwall.sdk.assertTrue
-import com.superwall.sdk.models.getSWJson
-import org.json.JSONObject
-import org.junit.Test
-
 class SerializationTest {
 /*
     @Test

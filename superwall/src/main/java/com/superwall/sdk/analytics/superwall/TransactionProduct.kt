@@ -12,7 +12,7 @@ data class TransactionProduct(
     val period: Period?,
     val locale: String,
     val languageCode: String?,
-    val currency: Currency
+    val currency: Currency,
 ) {
     data class Price(
         val raw: BigDecimal,
@@ -20,7 +20,7 @@ data class TransactionProduct(
         val daily: String,
         val weekly: String,
         val monthly: String,
-        val yearly: String
+        val yearly: String,
     )
 
     data class TrialPeriod(
@@ -29,7 +29,7 @@ data class TransactionProduct(
         val months: Int,
         val years: Int,
         val text: String,
-        val endAt: Date?
+        val endAt: Date?,
     )
 
     data class Period(
@@ -39,50 +39,54 @@ data class TransactionProduct(
         val days: Int,
         val weeks: Int,
         val months: Int,
-        val years: Int
+        val years: Int,
     )
 
     data class Currency(
         val code: String?,
-        val symbol: String?
+        val symbol: String?,
     )
 
     constructor(product: StoreProduct) : this(
         id = product.productIdentifier,
-        price = Price(
-            raw = product.price,
-            localized = product.localizedPrice,
-            daily = product.dailyPrice,
-            weekly = product.weeklyPrice,
-            monthly = product.monthlyPrice,
-            yearly = product.yearlyPrice
-        ),
-        trialPeriod = product.trialPeriodEndDate?.let {
-            TrialPeriod(
-                days = product.trialPeriodDays,
-                weeks = product.trialPeriodWeeks,
-                months = product.trialPeriodMonths,
-                years = product.trialPeriodYears,
-                text = product.trialPeriodText,
-                endAt = it
-            )
-        },
-        period = product.subscriptionPeriod?.let {
-            Period(
-                alt = product.localizedSubscriptionPeriod,
-                ly = "${product.period}ly",
-                unit = it.unit,
-                days = product.periodDays,
-                weeks = product.periodWeeks,
-                months = product.periodMonths,
-                years = product.periodYears
-            )
-        },
+        price =
+            Price(
+                raw = product.price,
+                localized = product.localizedPrice,
+                daily = product.dailyPrice,
+                weekly = product.weeklyPrice,
+                monthly = product.monthlyPrice,
+                yearly = product.yearlyPrice,
+            ),
+        trialPeriod =
+            product.trialPeriodEndDate?.let {
+                TrialPeriod(
+                    days = product.trialPeriodDays,
+                    weeks = product.trialPeriodWeeks,
+                    months = product.trialPeriodMonths,
+                    years = product.trialPeriodYears,
+                    text = product.trialPeriodText,
+                    endAt = it,
+                )
+            },
+        period =
+            product.subscriptionPeriod?.let {
+                Period(
+                    alt = product.localizedSubscriptionPeriod,
+                    ly = "${product.period}ly",
+                    unit = it.unit,
+                    days = product.periodDays,
+                    weeks = product.periodWeeks,
+                    months = product.periodMonths,
+                    years = product.periodYears,
+                )
+            },
         locale = product.locale,
         languageCode = product.languageCode,
-        currency = Currency(
-            code = product.currencyCode,
-            symbol = product.currencySymbol
-        )
+        currency =
+            Currency(
+                code = product.currencyCode,
+                symbol = product.currencySymbol,
+            ),
     )
 }

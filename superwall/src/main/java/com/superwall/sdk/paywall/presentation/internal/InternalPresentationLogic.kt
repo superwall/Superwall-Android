@@ -6,12 +6,12 @@ object InternalPresentationLogic {
     data class UserSubscriptionOverrides(
         val isDebuggerLaunched: Boolean,
         val shouldIgnoreSubscriptionStatus: Boolean?,
-        var presentationCondition: PresentationCondition?
+        var presentationCondition: PresentationCondition?,
     )
 
     fun userSubscribedAndNotOverridden(
         isUserSubscribed: Boolean,
-        overrides: UserSubscriptionOverrides
+        overrides: UserSubscriptionOverrides,
     ): Boolean {
         if (overrides.isDebuggerLaunched) {
             return false
@@ -40,7 +40,7 @@ object InternalPresentationLogic {
         domain: String,
         code: Int,
         title: String,
-        value: String
+        value: String,
     ): Throwable {
         // In Kotlin, we usually throw exceptions rather than errors
         // Kotlin does not have a built-in equivalent to NSError

@@ -13,23 +13,25 @@ data class VariantOption(
     var id: String,
     var percentage: Int,
     @SerialName("paywall_identifier")
-    var paywallId: String? = null
+    var paywallId: String? = null,
 ) {
     @Transient
     val variant = toVariant()
 
-    fun toVariant() = Experiment.Variant(
-        id = id,
-        type = type,
-        paywallId = paywallId
-    )
+    fun toVariant() =
+        Experiment.Variant(
+            id = id,
+            type = type,
+            paywallId = paywallId,
+        )
 
     companion object {
-        fun stub() = VariantOption(
-            type = Experiment.Variant.VariantType.TREATMENT,
-            id = UUID.randomUUID().toString(),
-            percentage = 100,
-            paywallId = UUID.randomUUID().toString()
-        )
+        fun stub() =
+            VariantOption(
+                type = Experiment.Variant.VariantType.TREATMENT,
+                id = UUID.randomUUID().toString(),
+                percentage = 100,
+                paywallId = UUID.randomUUID().toString(),
+            )
     }
 }

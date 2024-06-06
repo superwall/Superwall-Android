@@ -24,10 +24,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
@@ -53,7 +53,7 @@ class MainActivity : ComponentActivity() {
 
         Superwall.configure(
             applicationContext = this,
-            apiKey = "pk_3b18882b1683318b710c741f371f40f54e357c6f0baff1f4"
+            apiKey = "pk_3b18882b1683318b710c741f371f40f54e357c6f0baff1f4",
         )
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -76,77 +76,88 @@ fun WelcomeScreen() {
 
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
+        color = MaterialTheme.colorScheme.background,
     ) {
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(bottom = 20.dp),
-            contentAlignment = Alignment.Center
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(bottom = 20.dp),
+            contentAlignment = Alignment.Center,
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
                 Spacer(modifier = Modifier.weight(1f))
 
                 Text(
-                    text = "Welcome! Enter your name to get started. Your name will be added to the Paywall user attributes, which can then be accessed and displayed within your paywall.",
+                    text =
+                        "Welcome! Enter your name to get started." +
+                            " Your name will be added to the Paywall user attributes," +
+                            " which can then be accessed and displayed within your paywall.",
                     color = MaterialTheme.colorScheme.onBackground,
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
                 )
 
                 BasicTextField(
                     value = name,
                     onValueChange = { name = it },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 26.dp)
-                        .heightIn(max = 50.dp)
-                        .background(color = Color.White, shape = RoundedCornerShape(25.dp))
-                        .onFocusChanged { focusState ->
-                            isFocused = focusState.isFocused
-                        },
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 26.dp)
+                            .heightIn(max = 50.dp)
+                            .background(color = Color.White, shape = RoundedCornerShape(25.dp))
+                            .onFocusChanged { focusState ->
+                                isFocused = focusState.isFocused
+                            },
                     keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = {
-                        keyboardController?.hide()
-                        startHomeActivity(context, name)
-                    }),
-                    textStyle = TextStyle(
-                        color = Color.Black,
-                        textAlign = TextAlign.Start
-                    ),
+                    keyboardActions =
+                        KeyboardActions(onDone = {
+                            keyboardController?.hide()
+                            startHomeActivity(context, name)
+                        }),
+                    textStyle =
+                        TextStyle(
+                            color = Color.Black,
+                            textAlign = TextAlign.Start,
+                        ),
                     singleLine = true,
                     decorationBox = { innerTextField ->
                         Row(
-                            modifier = Modifier
-                                .fillMaxHeight()
-                                .padding(horizontal = 16.dp), // Apply horizontal padding to the Row
-                            verticalAlignment = Alignment.CenterVertically // Align text to the center vertically,
+                            modifier =
+                                Modifier
+                                    .fillMaxHeight()
+                                    .padding(horizontal = 16.dp),
+                            // Apply horizontal padding to the Row
+                            verticalAlignment = Alignment.CenterVertically, // Align text to the center vertically,
                         ) {
                             if (name.isEmpty() && !isFocused) {
                                 Text(
                                     "Enter your name",
-                                    style = TextStyle(color = Color.Gray)
+                                    style = TextStyle(color = Color.Gray),
                                 )
                             }
                             innerTextField() // The inner text field will inherit the Row's padding
                         }
-                    }
+                    },
                 )
                 Spacer(modifier = Modifier.weight(1f))
 
                 Button(
                     onClick = { startHomeActivity(context, name) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 50.dp)
-                        .padding(vertical = 8.dp)
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 50.dp)
+                            .padding(vertical = 8.dp),
                 ) {
                     Text(
                         text = "Log In",
                         color = MaterialTheme.colorScheme.onPrimary,
-                        style = TextStyle(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp
-                        )
+                        style =
+                            TextStyle(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp,
+                            ),
                     )
                 }
             }
@@ -154,11 +165,16 @@ fun WelcomeScreen() {
     }
 }
 
-fun startHomeActivity(context: Context, name: String) {
+fun startHomeActivity(
+    context: Context,
+    name: String,
+) {
     if (name.isNotBlank()) {
-        Superwall.instance.setUserAttributes(mapOf(
-            "firstName" to name
-        ))
+        Superwall.instance.setUserAttributes(
+            mapOf(
+                "firstName" to name,
+            ),
+        )
     }
 
     Superwall.instance.identify(userId = "abc")

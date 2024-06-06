@@ -9,9 +9,12 @@ import com.superwall.sdk.R
 
 class TableViewAdapter(
     private var data: MutableList<Map.Entry<String, String>>,
-    private var pickerRow: Int
+    private var pickerRow: Int,
 ) : RecyclerView.Adapter<TableViewAdapter.ViewHolder>() {
-    fun updateData(newData: Map<String, String>, pickerRow: Int) {
+    fun updateData(
+        newData: Map<String, String>,
+        pickerRow: Int,
+    ) {
         this.pickerRow = pickerRow
         data.clear()
 
@@ -24,12 +27,18 @@ class TableViewAdapter(
         notifyDataSetChanged()
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+    override fun onCreateViewHolder(
+        parent: ViewGroup,
+        viewType: Int,
+    ): ViewHolder {
         val view = LayoutInflater.from(parent.context).inflate(R.layout.custom_list_item, parent, false)
         return ViewHolder(view)
     }
 
-    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+    override fun onBindViewHolder(
+        holder: ViewHolder,
+        position: Int,
+    ) {
         val productLevels = listOf("primary", "secondary", "tertiary")
         var selectedProduct: String? = null
 
@@ -46,7 +55,9 @@ class TableViewAdapter(
 
     override fun getItemCount() = data.size
 
-    class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+    class ViewHolder(
+        view: View,
+    ) : RecyclerView.ViewHolder(view) {
         var text1: TextView = view.findViewById(R.id.text1)
         var text2: TextView = view.findViewById(R.id.text2)
     }

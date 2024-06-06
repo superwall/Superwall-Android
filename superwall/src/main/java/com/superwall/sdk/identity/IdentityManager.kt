@@ -32,43 +32,48 @@ import java.util.concurrent.Executors
 class IdentityManager(
     private val deviceHelper: DeviceHelper,
     private val storage: Storage,
-    private val configManager: ConfigManager
+    private val configManager: ConfigManager,
 ) {
     private var _appUserId: String? = storage.get(AppUserId)
 
     val appUserId: String?
-        get() = runBlocking(queue) {
-            _appUserId
-        }
+        get() =
+            runBlocking(queue) {
+                _appUserId
+            }
 
     private var _aliasId: String =
         storage.get(AliasId) ?: IdentityLogic.generateAlias()
 
     val aliasId: String
-        get() = runBlocking(queue) {
-            _aliasId
-        }
+        get() =
+            runBlocking(queue) {
+                _aliasId
+            }
 
     private var _seed: Int =
         storage.get(Seed) ?: IdentityLogic.generateSeed()
 
     val seed: Int
-        get() = runBlocking(queue) {
-            _seed
-        }
+        get() =
+            runBlocking(queue) {
+                _seed
+            }
 
     val userId: String
-        get() = runBlocking(queue) {
-            _appUserId ?: _aliasId
-        }
+        get() =
+            runBlocking(queue) {
+                _appUserId ?: _aliasId
+            }
 
     private var _userAttributes: Map<String, Any> =
         storage.get(UserAttributes) ?: emptyMap()
 
     val userAttributes: Map<String, Any>
-        get() = runBlocking(queue) {
-            _userAttributes
-        }
+        get() =
+            runBlocking(queue) {
+                _userAttributes
+            }
 
     val isLoggedIn: Boolean get() = _appUserId != null
 
@@ -97,7 +102,7 @@ class IdentityManager(
         if (extraAttributes.isNotEmpty()) {
             mergeUserAttributes(
                 newUserAttributes = extraAttributes,
-                shouldTrackMerge = false
+                shouldTrackMerge = false,
             )
         }
     }
@@ -111,7 +116,7 @@ class IdentityManager(
             if (IdentityLogic.shouldGetAssignments(
                     isLoggedIn,
                     neverCalledStaticConfig,
-                    isFirstAppOpen
+                    isFirstAppOpen,
                 )
             ) {
                 configManager.getAssignments()
@@ -120,7 +125,10 @@ class IdentityManager(
         }
     }
 
-    fun identify(userId: String, options: IdentityOptions? = null) {
+    fun identify(
+        userId: String,
+        options: IdentityOptions? = null,
+    ) {
         scope.launch {
             IdentityLogic.sanitize(userId)?.let { sanitizedUserId ->
                 if (_appUserId == sanitizedUserId || sanitizedUserId == "") {
@@ -128,7 +136,7 @@ class IdentityManager(
                         Logger.debug(
                             logLevel = LogLevel.error,
                             scope = LogScope.identityManager,
-                            message = "The provided userId was empty."
+                            message = "The provided userId was empty.",
                         )
                     }
                     return@launch
@@ -145,16 +153,17 @@ class IdentityManager(
 
                 // If we haven't gotten config yet, we need
                 // to leave this open to grab the appUserId for headers
-                identityJobs += CoroutineScope(Dispatchers.IO).launch {
-                    val config = configManager.configState.awaitFirstValidConfig()
+                identityJobs +=
+                    CoroutineScope(Dispatchers.IO).launch {
+                        val config = configManager.configState.awaitFirstValidConfig()
 
-                    if (config?.featureFlags?.enableUserIdSeed == true) {
-                        sanitizedUserId.sha256MappedToRange()?.let { seed ->
-                            _seed = seed
-                            saveIds()
+                        if (config?.featureFlags?.enableUserIdSeed == true) {
+                            sanitizedUserId.sha256MappedToRange()?.let { seed ->
+                                _seed = seed
+                                saveIds()
+                            }
                         }
                     }
-                }
 
                 saveIds()
 
@@ -164,10 +173,11 @@ class IdentityManager(
                 }
 
                 if (options?.restorePaywallAssignments == true) {
-                    identityJobs += CoroutineScope(Dispatchers.IO).launch {
-                        configManager.getAssignments()
-                        didSetIdentity()
-                    }
+                    identityJobs +=
+                        CoroutineScope(Dispatchers.IO).launch {
+                            configManager.getAssignments()
+                            didSetIdentity()
+                        }
                 } else {
                     CoroutineScope(Dispatchers.IO).launch {
                         configManager.getAssignments()
@@ -187,7 +197,7 @@ class IdentityManager(
 
     /**
      * Saves the `aliasId`, `seed` and `appUserId` to storage and user attributes.
-      */
+     */
     private fun saveIds() {
         // This is not wrapped in a scope/mutex because is
         // called from the didSet of vars, who are already
@@ -198,14 +208,15 @@ class IdentityManager(
         storage.save(_aliasId, AliasId)
         storage.save(_seed, Seed)
 
-        val newUserAttributes = mutableMapOf(
-            "aliasId" to _aliasId,
-            "seed" to _seed
-        )
+        val newUserAttributes =
+            mutableMapOf(
+                "aliasId" to _aliasId,
+                "seed" to _seed,
+            )
         _appUserId?.let { newUserAttributes["appUserId"] = it }
 
         _mergeUserAttributes(
-            newUserAttributes = newUserAttributes
+            newUserAttributes = newUserAttributes,
         )
     }
 
@@ -224,6 +235,7 @@ class IdentityManager(
         }
     }
 
+    @Suppress("ktlint:standard:function-naming")
     private fun _reset() {
         _appUserId = null
         _aliasId = IdentityLogic.generateAlias()
@@ -234,32 +246,35 @@ class IdentityManager(
 
     fun mergeUserAttributes(
         newUserAttributes: Map<String, Any?>,
-        shouldTrackMerge: Boolean = true
+        shouldTrackMerge: Boolean = true,
     ) {
         scope.launch {
             _mergeUserAttributes(
                 newUserAttributes = newUserAttributes,
-                shouldTrackMerge = shouldTrackMerge
+                shouldTrackMerge = shouldTrackMerge,
             )
         }
     }
 
+    @Suppress("ktlint:standard:function-naming")
     private fun _mergeUserAttributes(
         newUserAttributes: Map<String, Any?>,
-        shouldTrackMerge: Boolean = true
+        shouldTrackMerge: Boolean = true,
     ) {
-        val mergedAttributes = IdentityLogic.mergeAttributes(
-            newAttributes = newUserAttributes,
-            oldAttributes =_userAttributes,
-            appInstalledAtString = deviceHelper.appInstalledAtString
-        )
+        val mergedAttributes =
+            IdentityLogic.mergeAttributes(
+                newAttributes = newUserAttributes,
+                oldAttributes = _userAttributes,
+                appInstalledAtString = deviceHelper.appInstalledAtString,
+            )
 
         if (shouldTrackMerge) {
             CoroutineScope(Dispatchers.IO).launch {
-                val trackableEvent = InternalSuperwallEvent.Attributes(
-                    deviceHelper.appInstalledAtString,
-                    HashMap(mergedAttributes)
-                )
+                val trackableEvent =
+                    InternalSuperwallEvent.Attributes(
+                        deviceHelper.appInstalledAtString,
+                        HashMap(mergedAttributes),
+                    )
                 Superwall.instance.track(trackableEvent)
             }
         }

@@ -5,7 +5,9 @@ import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
 import com.superwall.sdk.delegate.SuperwallDelegate
 import com.superwall.sdk.paywall.presentation.register
 
-class MainApplication : android.app.Application(), SuperwallDelegate {
+class MainApplication :
+    android.app.Application(),
+    SuperwallDelegate {
     companion object {
         const val CONSTANT_API_KEY = "pk_0ff90006c5c2078e1ce832bd2343ba2f806ca510a0a1696a"
 
@@ -35,7 +37,7 @@ class MainApplication : android.app.Application(), SuperwallDelegate {
     fun configureWithAutomaticInitialization() {
         Superwall.configure(
             this,
-            CONSTANT_API_KEY
+            CONSTANT_API_KEY,
         )
         Superwall.instance.delegate = this
 
@@ -49,7 +51,7 @@ class MainApplication : android.app.Application(), SuperwallDelegate {
         Superwall.configure(
             this,
             CONSTANT_API_KEY,
-            purchaseController
+            purchaseController,
         )
         Superwall.instance.delegate = this
 
@@ -61,15 +63,16 @@ class MainApplication : android.app.Application(), SuperwallDelegate {
 
     fun invokeRegister(
         event: String = "campaign_trigger",
-        params: Map<String, Any>? = null
+        params: Map<String, Any>? = null,
     ) {
         Superwall.instance.register(event, params)
     }
 
     override fun handleSuperwallEvent(withInfo: SuperwallEventInfo) {
-        println("\n!! SuperwallDelegate !! \n" +
+        println(
+            "\n!! SuperwallDelegate !! \n" +
                 "\tEvent name:" + withInfo.event.rawName + "" +
-                ",\n\tParams:" + withInfo.params + "\n"
+                ",\n\tParams:" + withInfo.params + "\n",
         )
     }
 }

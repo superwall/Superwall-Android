@@ -11,32 +11,31 @@ import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
 import com.superwall.sdk.storage.core_data.entities.ManagedEventData
 import com.superwall.sdk.storage.core_data.entities.ManagedTriggerRuleOccurrence
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.newSingleThreadContext
 import java.util.Date
 
-
 // TODO: https://linear.app/superwall/issue/SW-2346/[android]-coredatamanager-implementation
 class CoreDataManager(
-    context: Context
+    context: Context,
 ) {
     private val queue = newSingleThreadContext("com.superwall.coredatamanager")
     private val superwallDatabase by lazy { SuperwallDatabase.getDatabase(context = context) }
 
     fun saveEventData(
         eventData: EventData,
-        completion: ((ManagedEventData) -> Unit)? = null
+        completion: ((ManagedEventData) -> Unit)? = null,
     ) {
         CoroutineScope(queue).launch {
             try {
                 // Create a new EventData object
-                val managedEventData = ManagedEventData(
-                    id = eventData.id,
-                    createdAt = eventData.createdAt,
-                    name = eventData.name,
-                    parameters = eventData.parameters
-                )
+                val managedEventData =
+                    ManagedEventData(
+                        id = eventData.id,
+                        createdAt = eventData.createdAt,
+                        name = eventData.name,
+                        parameters = eventData.parameters,
+                    )
 
                 // Insert the data into the Room database
                 superwallDatabase.managedEventDataDao().insert(managedEventData)
@@ -48,7 +47,7 @@ class CoreDataManager(
                     logLevel = LogLevel.error,
                     scope = LogScope.coreData,
                     message = "Error saving to Room database.",
-                    error = error
+                    error = error,
                 )
             }
         }
@@ -56,13 +55,14 @@ class CoreDataManager(
 
     fun save(
         triggerRuleOccurrence: TriggerRuleOccurrence,
-        completion: ((ManagedTriggerRuleOccurrence) -> Unit)? = null
+        completion: ((ManagedTriggerRuleOccurrence) -> Unit)? = null,
     ) {
         CoroutineScope(queue).launch {
             try {
-                val managedRuleOccurrence = ManagedTriggerRuleOccurrence(
-                    occurrenceKey = triggerRuleOccurrence.key
-                )
+                val managedRuleOccurrence =
+                    ManagedTriggerRuleOccurrence(
+                        occurrenceKey = triggerRuleOccurrence.key,
+                    )
 
                 // Insert the data into the Room database
                 superwallDatabase.managedTriggerRuleOccurrenceDao().insert(managedRuleOccurrence)
@@ -73,7 +73,7 @@ class CoreDataManager(
                     logLevel = LogLevel.error,
                     scope = LogScope.coreData,
                     message = "Error saving to Room database.",
-                    error = error
+                    error = error,
                 )
             }
         }
@@ -89,7 +89,7 @@ class CoreDataManager(
                     logLevel = LogLevel.error,
                     scope = LogScope.coreData,
                     message = "Could not delete entities in Room database.",
-                    error = error
+                    error = error,
                 )
             }
         }
@@ -97,17 +97,19 @@ class CoreDataManager(
 
     suspend fun getComputedPropertySinceEvent(
         event: EventData?,
-        request: ComputedPropertyRequest
+        request: ComputedPropertyRequest,
     ): Int? {
-        val lastEventDate: Date? = event?.let {
-            if (it.name == request.eventName) it.createdAt else null
-        }
+        val lastEventDate: Date? =
+            event?.let {
+                if (it.name == request.eventName) it.createdAt else null
+            }
 
         try {
-            val event = superwallDatabase.managedEventDataDao().getLastSavedEvent(
-                name = request.eventName,
-                date = lastEventDate
-            ) ?: return null
+            val event =
+                superwallDatabase.managedEventDataDao().getLastSavedEvent(
+                    name = request.eventName,
+                    date = lastEventDate,
+                ) ?: return null
 
             // This will store the date components
             val componentsMap = mutableMapOf<Int, Int>()
@@ -147,14 +149,14 @@ class CoreDataManager(
                 logLevel = LogLevel.error,
                 scope = LogScope.coreData,
                 message = "Error getting last saved event from Room database.",
-                error = error
+                error = error,
             )
             return null
         }
     }
 
     suspend fun countTriggerRuleOccurrences(ruleOccurrence: TriggerRuleOccurrence): Int {
-        val dao = superwallDatabase.managedTriggerRuleOccurrenceDao()  // Replace with your actual database instance retrieval method
+        val dao = superwallDatabase.managedTriggerRuleOccurrenceDao() // Replace with your actual database instance retrieval method
 
         return when (ruleOccurrence.interval) {
             is TriggerRuleOccurrence.Interval.Minutes -> {
@@ -163,19 +165,19 @@ class CoreDataManager(
                 val date = calendar.time
 
                 // Fetch occurrences based on date and key
-                val occurrences = dao.getManagedTriggerRuleOccurrencesSinceDate(
-                    key = ruleOccurrence.key,
-                    date = date
-                )
+                val occurrences =
+                    dao.getManagedTriggerRuleOccurrencesSinceDate(
+                        key = ruleOccurrence.key,
+                        date = date,
+                    )
 
-                occurrences.size  // This gives you the count of occurrences that match the conditions
+                occurrences.size // This gives you the count of occurrences that match the conditions
             }
             TriggerRuleOccurrence.Interval.Infinity -> {
                 // Fetch all occurrences with the given key
                 val occurrences = dao.getManagedTriggerRuleOccurrencesByKey(ruleOccurrence.key)
-                occurrences.size ?: 0  // If null, return 0
+                occurrences.size ?: 0 // If null, return 0
             }
         }
-
     }
 }

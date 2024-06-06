@@ -28,7 +28,6 @@ class SuperwallDelegateAdapter {
             ?: javaDelegate?.willPresentPaywall(paywallInfo)
     }
 
-
     fun didPresentPaywall(paywallInfo: PaywallInfo) {
         kotlinDelegate?.didPresentPaywall(paywallInfo)
             ?: javaDelegate?.didPresentPaywall(paywallInfo)
@@ -59,20 +58,20 @@ class SuperwallDelegateAdapter {
         scope: String,
         message: String?,
         info: Map<String, Any>?,
-        error: Throwable?
+        error: Throwable?,
     ) {
         kotlinDelegate?.handleLog(
             level = level,
             scope = scope,
             message = message,
             info = info,
-            error = error
+            error = error,
         ) ?: javaDelegate?.handleLog(
             level = level,
             scope = scope,
             message = message,
             info = info,
-            error = error
+            error = error,
         )
     }
 }

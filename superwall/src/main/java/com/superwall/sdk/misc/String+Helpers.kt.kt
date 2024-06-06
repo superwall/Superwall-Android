@@ -5,7 +5,8 @@ fun String.camelCaseToSnakeCase(): String {
     val fullWordsPattern = "([a-z])([A-Z]|[0-9])"
     val digitsFirstPattern = "([0-9])([A-Z])"
 
-    return this.processCamelCaseRegex(acronymPattern)
+    return this
+        .processCamelCaseRegex(acronymPattern)
         ?.processCamelCaseRegex(fullWordsPattern)
         ?.processCamelCaseRegex(digitsFirstPattern)
         ?.lowercase() ?: this.lowercase()
@@ -13,7 +14,8 @@ fun String.camelCaseToSnakeCase(): String {
 
 private fun String.processCamelCaseRegex(pattern: String): String? {
     val regex = Regex(pattern)
-    return regex.replace(this) { matchResult ->
-        "${matchResult.groups[1]?.value}_${matchResult.groups[2]?.value}"
-    }.takeIf { it.isNotBlank() }
+    return regex
+        .replace(this) { matchResult ->
+            "${matchResult.groups[1]?.value}_${matchResult.groups[2]?.value}"
+        }.takeIf { it.isNotBlank() }
 }

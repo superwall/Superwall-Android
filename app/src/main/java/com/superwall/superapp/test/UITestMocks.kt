@@ -12,13 +12,14 @@ class MockPaywallViewControllerDelegate : PaywallViewControllerDelegate {
     override fun didFinish(
         paywall: PaywallViewController,
         result: PaywallResult,
-        shouldDismiss: Boolean
+        shouldDismiss: Boolean,
     ) {
         paywallViewControllerDidFinish?.invoke(paywall, result, shouldDismiss)
         if (shouldDismiss) {
             paywall.encapsulatingActivity?.finish()
         }
     }
+
     fun paywallViewControllerDidFinish(handler: (PaywallViewController, PaywallResult, Boolean) -> Unit) {
         paywallViewControllerDidFinish = handler
     }

@@ -14,27 +14,28 @@ package com.superwall.sdk.storage.memory
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- */
-
-
-/**
+ *
  * [LRUCache] flushes items that are **Least Recently Used** and keeps [minimalSize] items at most.
  */
 class LRUCache<K, V>(
     private val delegate: GenericCache<K, V>,
-    private val minimalSize: Int = DEFAULT_SIZE
+    private val minimalSize: Int = DEFAULT_SIZE,
 ) : GenericCache<K, V> by delegate {
-    private val keyMap = object : LinkedHashMap<K, Boolean>(minimalSize, .75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<K, Boolean>): Boolean {
-            val tooManyCachedItems = size > minimalSize
-            if (tooManyCachedItems) eldestKeyToRemove = eldest.key
-            return tooManyCachedItems
+    private val keyMap =
+        object : LinkedHashMap<K, Boolean>(minimalSize, .75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<K, Boolean>): Boolean {
+                val tooManyCachedItems = size > minimalSize
+                if (tooManyCachedItems) eldestKeyToRemove = eldest.key
+                return tooManyCachedItems
+            }
         }
-    }
 
     private var eldestKeyToRemove: K? = null
 
-    override fun set(key: K, value: V) {
+    override fun set(
+        key: K,
+        value: V,
+    ) {
         delegate[key] = value
         cycleKeyMap(key)
     }

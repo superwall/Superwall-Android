@@ -2,25 +2,21 @@ package com.superwall.sdk.store.abstractions.product
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.ProductDetails.PricingPhase
 import com.android.billingclient.api.ProductDetails.SubscriptionOfferDetails
-import com.android.billingclient.api.SkuDetails
 import com.superwall.sdk.contrib.threeteen.AmountFormats
 import kotlinx.serialization.Transient
 import java.math.BigDecimal
 import java.math.RoundingMode
-import java.text.NumberFormat
 import java.text.SimpleDateFormat
-import java.time.Duration
 import java.time.Period
 import java.util.Calendar
 import java.util.Currency
-import java.util.Date
 import java.util.Locale
 
 class RawStoreProduct(
     val underlyingProductDetails: ProductDetails,
     override val fullIdentifier: String,
     val basePlanId: String?,
-    private val offerType: OfferType?
+    private val offerType: OfferType?,
 ) : StoreProductType {
     @Transient
     private val priceFormatterProvider = PriceFormatterProvider()
@@ -41,7 +37,10 @@ class RawStoreProduct(
 
     private val basePriceForSelectedOffer by lazy {
         val selectedOffer = selectedOffer ?: return@lazy BigDecimal.ZERO
-        val pricingPhase = selectedOffer.pricingPhases.pricingPhaseList.last().priceAmountMicros
+        val pricingPhase =
+            selectedOffer.pricingPhases.pricingPhaseList
+                .last()
+                .priceAmountMicros
         BigDecimal(pricingPhase).divide(BigDecimal(1_000_000), 2, RoundingMode.DOWN)
     }
 
@@ -82,12 +81,13 @@ class RawStoreProduct(
             when (it.unit) {
                 SubscriptionPeriod.Unit.day -> if (it.value == 7) "week" else "day"
                 SubscriptionPeriod.Unit.week -> "week"
-                SubscriptionPeriod.Unit.month -> when (it.value) {
-                    2 -> "2 months"
-                    3 -> "quarter"
-                    6 -> "6 months"
-                    else -> "month"
-                }
+                SubscriptionPeriod.Unit.month ->
+                    when (it.value) {
+                        2 -> "2 months"
+                        3 -> "quarter"
+                        6 -> "6 months"
+                        else -> "month"
+                    }
 
                 SubscriptionPeriod.Unit.year -> "year"
             }
@@ -97,10 +97,11 @@ class RawStoreProduct(
     override val periodly: String by lazy {
         subscriptionPeriod?.let {
             when (it.unit) {
-                SubscriptionPeriod.Unit.month -> when (it.value) {
-                    2, 6 -> "every $period"
-                    else -> "${period}ly"
-                }
+                SubscriptionPeriod.Unit.month ->
+                    when (it.value) {
+                        2, 6 -> "every $period"
+                        else -> "${period}ly"
+                    }
                 else -> "${period}ly"
             }
         } ?: ""
@@ -159,8 +160,8 @@ class RawStoreProduct(
             val numberOfUnits = it.value
             when (it.unit) {
                 SubscriptionPeriod.Unit.day -> 1 * numberOfUnits
-                SubscriptionPeriod.Unit.month -> 30 * numberOfUnits  // Assumes 30 days in a month
-                SubscriptionPeriod.Unit.week -> 7 * numberOfUnits   // Assumes 7 days in a week
+                SubscriptionPeriod.Unit.month -> 30 * numberOfUnits // Assumes 30 days in a month
+                SubscriptionPeriod.Unit.week -> 7 * numberOfUnits // Assumes 7 days in a week
                 SubscriptionPeriod.Unit.year -> 365 * numberOfUnits // Assumes 365 days in a year
             }
         } ?: 0
@@ -305,37 +306,44 @@ class RawStoreProduct(
         // Get the offers that match the given base plan ID.
         val offersForBasePlan = subscriptionOfferDetails.filter { it.basePlanId == basePlanId }
 
-        val validOffers = offersForBasePlan
-            // Ignore base plan
-            .filter { it.pricingPhases.pricingPhaseList.size != 1 }
-            // Ignore those with a tag that contains "ignore-offer"
-            .filter { !it.offerTags.any { it.contains("-ignore-offer") }}
+        val validOffers =
+            offersForBasePlan
+                // Ignore base plan
+                .filter { it.pricingPhases.pricingPhaseList.size != 1 }
+                // Ignore those with a tag that contains "ignore-offer"
+                .filter { !it.offerTags.any { it.contains("-ignore-offer") } }
 
         return findLongestFreeTrial(validOffers) ?: findLowestNonFreeOffer(validOffers)
     }
 
-    private fun findLongestFreeTrial(offers: List<SubscriptionOfferDetails>): SubscriptionOfferDetails? {
-        return offers.mapNotNull { offer ->
-            offer.pricingPhases.pricingPhaseList
-                .dropLast(1)
-                .firstOrNull {
-                    it.priceAmountMicros == 0L
-                }?.let { pricingPhase ->
-                    val period = Period.parse(pricingPhase.billingPeriod)
-                    val totalDays = period.toTotalMonths() * 30 + period.days
-                    Pair(offer, totalDays)
-                }
-        }.maxByOrNull { it.second }?.first
-    }
+    private fun findLongestFreeTrial(offers: List<SubscriptionOfferDetails>): SubscriptionOfferDetails? =
+        offers
+            .mapNotNull { offer ->
+                offer.pricingPhases.pricingPhaseList
+                    .dropLast(1)
+                    .firstOrNull {
+                        it.priceAmountMicros == 0L
+                    }?.let { pricingPhase ->
+                        val period = Period.parse(pricingPhase.billingPeriod)
+                        val totalDays = period.toTotalMonths() * 30 + period.days
+                        Pair(offer, totalDays)
+                    }
+            }.maxByOrNull { it.second }
+            ?.first
 
     private fun findLowestNonFreeOffer(offers: List<SubscriptionOfferDetails>): SubscriptionOfferDetails? {
-        val hi = offers.mapNotNull { offer ->
-            offer.pricingPhases.pricingPhaseList.dropLast(1).firstOrNull {
-                it.priceAmountMicros > 0L
-            }?.let { pricingPhase ->
-                Pair(offer, pricingPhase.priceAmountMicros)
-            }
-        }.minByOrNull { it.second }?.first
+        val hi =
+            offers
+                .mapNotNull { offer ->
+                    offer.pricingPhases.pricingPhaseList
+                        .dropLast(1)
+                        .firstOrNull {
+                            it.priceAmountMicros > 0L
+                        }?.let { pricingPhase ->
+                            Pair(offer, pricingPhase.priceAmountMicros)
+                        }
+                }.minByOrNull { it.second }
+                ?.first
         return hi
     }
 
@@ -365,8 +373,8 @@ class RawStoreProduct(
 
             when (it.unit) {
                 SubscriptionPeriod.Unit.day -> 1 * numberOfUnits
-                SubscriptionPeriod.Unit.month -> 30 * numberOfUnits  // Assumes 30 days in a month
-                SubscriptionPeriod.Unit.week -> 7 * numberOfUnits   // Assumes 7 days in a week
+                SubscriptionPeriod.Unit.month -> 30 * numberOfUnits // Assumes 30 days in a month
+                SubscriptionPeriod.Unit.week -> 7 * numberOfUnits // Assumes 7 days in a week
                 SubscriptionPeriod.Unit.year -> 365 * numberOfUnits // Assumes 365 days in a year
             }
         } ?: 0
@@ -382,9 +390,9 @@ class RawStoreProduct(
 
         when (trialPeriod.unit) {
             SubscriptionPeriod.Unit.day -> numberOfUnits / 7
-            SubscriptionPeriod.Unit.month -> 4 * numberOfUnits  // Assumes 4 weeks in a month
+            SubscriptionPeriod.Unit.month -> 4 * numberOfUnits // Assumes 4 weeks in a month
             SubscriptionPeriod.Unit.week -> 1 * numberOfUnits
-            SubscriptionPeriod.Unit.year -> 52 * numberOfUnits  // Assumes 52 weeks in a year
+            SubscriptionPeriod.Unit.year -> 52 * numberOfUnits // Assumes 52 weeks in a year
         }
     }
 
@@ -429,7 +437,7 @@ class RawStoreProduct(
         val units = trialPeriod.value
 
         when (trialPeriod.unit) {
-            SubscriptionPeriod.Unit.day -> "${units}-day"
+            SubscriptionPeriod.Unit.day -> "$units-day"
             SubscriptionPeriod.Unit.month -> "${units * 30}-day"
             SubscriptionPeriod.Unit.week -> "${units * 7}-day"
             SubscriptionPeriod.Unit.year -> "${units * 365}-day"
@@ -451,7 +459,9 @@ class RawStoreProduct(
             return@lazy underlyingProductDetails.oneTimePurchaseOfferDetails?.priceCurrencyCode
         }
         val selectedOffer = selectedOffer ?: return@lazy null
-        selectedOffer.pricingPhases.pricingPhaseList.last().priceCurrencyCode
+        selectedOffer.pricingPhases.pricingPhaseList
+            .last()
+            .priceCurrencyCode
     }
 
     override val currencySymbol by lazy {
@@ -468,7 +478,10 @@ class RawStoreProduct(
         }
 
         val selectedOffer = selectedOffer ?: return@lazy null
-        val baseBillingPeriod = selectedOffer.pricingPhases.pricingPhaseList.last().billingPeriod
+        val baseBillingPeriod =
+            selectedOffer.pricingPhases.pricingPhaseList
+                .last()
+                .billingPeriod
 
         try {
             SubscriptionPeriod.from(baseBillingPeriod)
@@ -484,17 +497,18 @@ class RawStoreProduct(
             return priceFormatter?.format(0) ?: "$0.00"
         }
 
-        val introPrice = pricePerUnit(
-            unit = unit,
-            pricingPhase = pricingPhase
-        )
+        val introPrice =
+            pricePerUnit(
+                unit = unit,
+                pricingPhase = pricingPhase,
+            )
 
         return priceFormatter?.format(introPrice) ?: "$0.00"
     }
 
     private fun pricePerUnit(
         unit: SubscriptionPeriod.Unit,
-        pricingPhase: PricingPhase
+        pricingPhase: PricingPhase,
     ): BigDecimal {
         if (pricingPhase.priceAmountMicros == 0L) {
             return BigDecimal.ZERO
@@ -508,28 +522,32 @@ class RawStoreProduct(
 
             // Attempt to create a SubscriptionPeriod from billingPeriod.
             // Return null if there's an exception or if billingPeriod is null.
-            val trialSubscriptionPeriod = try {
-                billingPeriod?.let { SubscriptionPeriod.from(it) }
-            } catch (e: Throwable) {
-                null
-            }
-            val introPeriods = periodsPerUnit(unit).multiply(BigDecimal(pricingPhase.billingCycleCount))
-                .multiply(BigDecimal(trialSubscriptionPeriod?.value ?: 0))
+            val trialSubscriptionPeriod =
+                try {
+                    billingPeriod?.let { SubscriptionPeriod.from(it) }
+                } catch (e: Throwable) {
+                    null
+                }
+            val introPeriods =
+                periodsPerUnit(unit)
+                    .multiply(BigDecimal(pricingPhase.billingCycleCount))
+                    .multiply(BigDecimal(trialSubscriptionPeriod?.value ?: 0))
 
-            val introPayment: BigDecimal = if (introPeriods < BigDecimal.ONE) {
-                // If less than 1, it means the intro period doesn't exceed a full unit.
-                introCost
-            } else {
-                // Otherwise, divide the total cost by the normalized intro periods.
-                introCost.divide(introPeriods, 2, RoundingMode.DOWN)
-            }
+            val introPayment: BigDecimal =
+                if (introPeriods < BigDecimal.ONE) {
+                    // If less than 1, it means the intro period doesn't exceed a full unit.
+                    introCost
+                } else {
+                    // Otherwise, divide the total cost by the normalized intro periods.
+                    introCost.divide(introPeriods, 2, RoundingMode.DOWN)
+                }
 
             return introPayment
         }
     }
 
-    private fun periodsPerUnit(unit: SubscriptionPeriod.Unit): BigDecimal {
-        return when (unit) {
+    private fun periodsPerUnit(unit: SubscriptionPeriod.Unit): BigDecimal =
+        when (unit) {
             SubscriptionPeriod.Unit.day -> {
                 when (trialSubscriptionPeriod?.unit) {
                     SubscriptionPeriod.Unit.day -> BigDecimal(1)
@@ -567,7 +585,6 @@ class RawStoreProduct(
                 }
             }
         }
-    }
 
     private val trialSubscriptionPeriod by lazy {
         // If oneTimePurchaseOfferDetails is not null, return null for trial subscription period.

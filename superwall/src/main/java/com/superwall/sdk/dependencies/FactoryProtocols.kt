@@ -34,7 +34,6 @@ import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import kotlinx.coroutines.flow.StateFlow
 
-
 interface ApiFactory {
     // TODO: Think of an alternative way such that we don't need to do this:
     var api: Api
@@ -48,10 +47,9 @@ interface ApiFactory {
 
     suspend fun makeHeaders(
         isForDebugging: Boolean,
-        requestId: String
+        requestId: String,
     ): Map<String, String>
 }
-
 
 interface DeviceInfoFactory {
     fun makeDeviceInfo(): DeviceInfo
@@ -67,9 +65,9 @@ interface ComputedPropertyRequestsFactory {
 
 interface TriggerSessionManagerFactory {
     fun makeTriggerSessionManager(): TriggerSessionManager
+
     fun getTriggerSessionManager(): TriggerSessionManager
 }
-
 
 // RequestFactory interface
 interface RequestFactory {
@@ -79,7 +77,7 @@ interface RequestFactory {
         overrides: PaywallRequest.Overrides?,
         isDebuggerLaunched: Boolean,
         presentationSourceType: String?,
-        retryCount: Int
+        retryCount: Int,
     ): PaywallRequest
 
     fun makePresentationRequest(
@@ -89,15 +87,14 @@ interface RequestFactory {
         isDebuggerLaunched: Boolean? = null,
         subscriptionStatus: StateFlow<SubscriptionStatus?>? = null,
         isPaywallPresented: Boolean,
-        type: PresentationRequestType
+        type: PresentationRequestType,
     ): PresentationRequest
 }
-
 
 interface RuleAttributesFactory {
     suspend fun makeRuleAttributes(
         event: EventData?,
-        computedPropertyRequests: List<ComputedPropertyRequest>
+        computedPropertyRequests: List<ComputedPropertyRequest>,
     ): Map<String, Any>
 }
 
@@ -109,14 +106,15 @@ interface LocaleIdentifierFactory {
     fun makeLocaleIdentifier(): String?
 }
 
-
 interface TransactionVerifierFactory {
     fun makeTransactionVerifier(): GoogleBillingWrapper
 }
 
 interface DeviceHelperFactory {
     fun makeDeviceInfo(): DeviceInfo
+
     fun makeIsSandbox(): Boolean
+
     suspend fun makeSessionDeviceAttributes(): HashMap<String, Any>
 }
 
@@ -133,14 +131,14 @@ interface ViewControllerFactory {
     suspend fun makePaywallViewController(
         paywall: Paywall,
         cache: PaywallViewControllerCache?,
-        delegate: PaywallViewControllerDelegateAdapter?
+        delegate: PaywallViewControllerDelegateAdapter?,
     ): PaywallViewController
 
     fun makeDebugViewController(id: String?): DebugViewController
 }
 
-//ViewControllerFactory & CacheFactory & DeviceInfoFactory,
-//interface ViewControllerCacheDevice {
+// ViewControllerFactory & CacheFactory & DeviceInfoFactory,
+// interface ViewControllerCacheDevice {
 //    suspend fun makePaywallViewController(
 //        paywall: Paywall,
 //        cache: PaywallViewControllerCache?,
@@ -148,15 +146,14 @@ interface ViewControllerFactory {
 //    ): PaywallViewController
 //
 //    // TODO: (Debug)
-////    fun makeDebugViewController(id: String?): DebugViewController
+// //    fun makeDebugViewController(id: String?): DebugViewController
 //
 //    // Mark - device
 //    fun makeDeviceInfo(): DeviceInfo
 //
 //    // Mark - cache
 //    fun makeCache(): PaywallViewControllerCache
-//}
-
+// }
 
 interface CacheFactory {
     fun makeCache(): PaywallViewControllerCache
@@ -166,20 +163,20 @@ interface VariablesFactory {
     suspend fun makeJsonVariables(
         products: List<ProductVariable>?,
         computedPropertyRequests: List<ComputedPropertyRequest>,
-        event: EventData?
+        event: EventData?,
     ): JsonVariables
 }
 
 interface ConfigManagerFactory {
     fun makeStaticPaywall(
         paywallId: String?,
-        isDebuggerLaunched: Boolean
+        isDebuggerLaunched: Boolean,
     ): Paywall?
 }
 
-//interface ProductPurchaserFactory {
+// interface ProductPurchaserFactory {
 //    fun makeSK1ProductPurchaser(): ProductPurchaserSK1
-//}
+// }
 
 interface StoreTransactionFactory {
     suspend fun makeStoreTransaction(transaction: Purchase): StoreTransaction
@@ -189,6 +186,6 @@ interface OptionsFactory {
     suspend fun makeSuperwallOptions(): SuperwallOptions
 }
 
-interface  TriggerFactory {
+interface TriggerFactory {
     suspend fun makeTriggers(): Set<String>
 }

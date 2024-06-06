@@ -2,6 +2,18 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 1.1.7
+
+### Enhancements
+
+- SW-2805: Exposes a `presentation` property on the `PaywallInfo` object. This contains information about the presentation of the paywall.
+- SW-2855: Adds `restore_start`, `restore_complete`, and `restore_fail` events.
+
+### Fixes
+
+- SW-2854: Fixed issue where abandoning the transaction by pressing back would prevent the user from restarting the transaction.
+
+
 ## 1.1.6
 
 ### Enhancements

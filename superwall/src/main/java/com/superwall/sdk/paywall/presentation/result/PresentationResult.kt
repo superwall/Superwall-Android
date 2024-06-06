@@ -6,7 +6,6 @@ import com.superwall.sdk.models.triggers.Experiment
 //
 // Contains the possible cases resulting from tracking an event.
 sealed class PresentationResult {
-
     // This event was not found on the dashboard.
     //
     // Please make sure you have added the event to a campaign on the dashboard and
@@ -20,13 +19,17 @@ sealed class PresentationResult {
     //
     // - Parameters:
     //   - experiment: The experiment associated with the trigger.
-    data class Paywall(val experiment: Experiment) : PresentationResult()
+    data class Paywall(
+        val experiment: Experiment,
+    ) : PresentationResult()
 
     // A matching rule was found and this user was assigned to a holdout group so will not be shown a paywall.
     //
     // - Parameters:
     //   - experiment: The experiment  associated with the trigger.
-    data class Holdout(val experiment: Experiment) : PresentationResult()
+    data class Holdout(
+        val experiment: Experiment,
+    ) : PresentationResult()
 
     // The user is subscribed.
     //

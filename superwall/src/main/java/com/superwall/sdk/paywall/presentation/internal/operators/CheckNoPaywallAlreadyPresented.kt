@@ -12,21 +12,22 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 
 suspend fun Superwall.checkNoPaywallAlreadyPresented(
     request: PresentationRequest,
-    paywallStatePublisher: MutableSharedFlow<PaywallState>
+    paywallStatePublisher: MutableSharedFlow<PaywallState>,
 ) {
     if (request.flags.isPaywallPresented) {
         Logger.debug(
             logLevel = LogLevel.error,
             scope = LogScope.paywallPresentation,
             message = "Paywall Already Presented",
-            info = mapOf("message" to "Superwall.instance.isPaywallPresented is true")
+            info = mapOf("message" to "Superwall.instance.isPaywallPresented is true"),
         )
-        val error = InternalPresentationLogic.presentationError(
-            domain = "SWPresentationError",
-            code = 102,
-            title = "Paywall Already Presented",
-            value = "You can only present one paywall at a time."
-        )
+        val error =
+            InternalPresentationLogic.presentationError(
+                domain = "SWPresentationError",
+                code = 102,
+                title = "Paywall Already Presented",
+                value = "You can only present one paywall at a time.",
+            )
         val state: PaywallState = PaywallState.PresentationError(error)
         paywallStatePublisher.emit(state)
         throw PaywallPresentationRequestStatusReason.PaywallAlreadyPresented()

@@ -19,41 +19,41 @@ import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.withContext
 
-suspend fun Superwall.dismiss() = withContext(Dispatchers.Main) {
-    val completionSignal = CompletableDeferred<Unit>()
+suspend fun Superwall.dismiss() =
+    withContext(Dispatchers.Main) {
+        val completionSignal = CompletableDeferred<Unit>()
 
-    paywallViewController?.let {
-        dismiss(paywallViewController = it, result = PaywallResult.Declined()) {
-            completionSignal.complete(Unit)
-        }
-    } ?: completionSignal.complete(Unit)
+        paywallViewController?.let {
+            dismiss(paywallViewController = it, result = PaywallResult.Declined()) {
+                completionSignal.complete(Unit)
+            }
+        } ?: completionSignal.complete(Unit)
 
-    completionSignal.await()
-}
+        completionSignal.await()
+    }
 
-suspend fun Superwall.dismissForNextPaywall() = withContext(Dispatchers.Main) {
-    val completionSignal = CompletableDeferred<Unit>()
+suspend fun Superwall.dismissForNextPaywall() =
+    withContext(Dispatchers.Main) {
+        val completionSignal = CompletableDeferred<Unit>()
 
-    paywallViewController?.let {
-        dismiss(paywallViewController = it, result = PaywallResult.Declined(), closeReason = PaywallCloseReason.ForNextPaywall) {
-            completionSignal.complete(Unit)
-        }
-    } ?: completionSignal.complete(Unit)
+        paywallViewController?.let {
+            dismiss(paywallViewController = it, result = PaywallResult.Declined(), closeReason = PaywallCloseReason.ForNextPaywall) {
+                completionSignal.complete(Unit)
+            }
+        } ?: completionSignal.complete(Unit)
 
-    completionSignal.await()
-}
+        completionSignal.await()
+    }
 
 fun Superwall.register(
     event: String,
     params: Map<String, Any>? = null,
     handler: PaywallPresentationHandler? = null,
-    feature: (() -> Unit)? = null
+    feature: (() -> Unit)? = null,
 ) {
     internallyRegister(event, params, handler, feature)
 }
@@ -62,7 +62,7 @@ private fun Superwall.internallyRegister(
     event: String,
     params: Map<String, Any>? = null,
     handler: PaywallPresentationHandler? = null,
-    completion: (() -> Unit)? = null
+    completion: (() -> Unit)? = null,
 ) {
     val publisher = MutableSharedFlow<PaywallState>()
     val collectionWillStart = CompletableDeferred<Unit>()
@@ -91,12 +91,13 @@ private fun Superwall.internallyRegister(
                                 completion?.invoke()
                             }
                             if (closeReason == PaywallCloseReason.WebViewFailedToLoad && featureGating == FeatureGatingBehavior.Gated) {
-                                val error = InternalPresentationLogic.presentationError(
-                                    domain = "SWKPresentationError",
-                                    code = 106,
-                                    title = "Webview Failed",
-                                    value = "Trying to present gated paywall but the webview could not load."
-                                )
+                                val error =
+                                    InternalPresentationLogic.presentationError(
+                                        domain = "SWKPresentationError",
+                                        code = 106,
+                                        title = "Webview Failed",
+                                        value = "Trying to present gated paywall but the webview could not load.",
+                                    )
                                 handler?.onErrorHandler?.invoke(error)
                             }
                         }
@@ -123,7 +124,7 @@ private fun Superwall.internallyRegister(
             params = params,
             paywallOverrides = null,
             isFeatureGatable = completion != null,
-            publisher = publisher
+            publisher = publisher,
         )
     }
 }
@@ -133,7 +134,7 @@ private suspend fun Superwall.trackAndPresentPaywall(
     params: Map<String, Any>? = null,
     paywallOverrides: PaywallOverrides? = null,
     isFeatureGatable: Boolean,
-    publisher: MutableSharedFlow<PaywallState>
+    publisher: MutableSharedFlow<PaywallState>,
 ) {
     try {
         TrackingLogic.checkNotSuperwallEvent(event)
@@ -141,23 +142,23 @@ private suspend fun Superwall.trackAndPresentPaywall(
         return
     }
 
-    val trackableEvent = UserInitiatedEvent.Track(
-        rawName = event,
-        canImplicitlyTriggerPaywall = false,
-        customParameters = params ?: emptyMap(),
-        isFeatureGatable = isFeatureGatable
-    )
+    val trackableEvent =
+        UserInitiatedEvent.Track(
+            rawName = event,
+            canImplicitlyTriggerPaywall = false,
+            customParameters = params ?: emptyMap(),
+            isFeatureGatable = isFeatureGatable,
+        )
 
     val trackResult = track(trackableEvent)
 
-    val presentationRequest = dependencyContainer.makePresentationRequest(
-        PresentationInfo.ExplicitTrigger(trackResult.data),
-        paywallOverrides,
-        isPaywallPresented = isPaywallPresented,
-        type = PresentationRequestType.Presentation
-    )
+    val presentationRequest =
+        dependencyContainer.makePresentationRequest(
+            PresentationInfo.ExplicitTrigger(trackResult.data),
+            paywallOverrides,
+            isPaywallPresented = isPaywallPresented,
+            type = PresentationRequestType.Presentation,
+        )
 
     internallyPresent(presentationRequest, publisher)
 }
-
-

@@ -17,7 +17,7 @@ class ShimmerView(
     backgroundColor: Int,
     val isLightBackground: Boolean,
     val tintColor: Int,
-    attrs: AttributeSet? = null
+    attrs: AttributeSet? = null,
 ) : AppCompatImageView(context, attrs) {
     private val paint = Paint()
     private var gradientWidth: Float = 0f
@@ -48,11 +48,12 @@ class ShimmerView(
 
     private fun setDrawableBasedOnOrientation(config: Configuration) {
         // Check the orientation of the screen
-        val drawableResId = if (config.orientation == Configuration.ORIENTATION_LANDSCAPE) {
-            R.drawable.landscape_shimmer_skeleton
-        } else {
-            R.drawable.portrait_shimmer_skeleton
-        }
+        val drawableResId =
+            if (config.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+                R.drawable.landscape_shimmer_skeleton
+            } else {
+                R.drawable.portrait_shimmer_skeleton
+            }
 
         // 25% alpha and tint color
         val tintWithAlpha = Color.argb(64, Color.red(tintColor), Color.green(tintColor), Color.blue(tintColor))
@@ -74,20 +75,21 @@ class ShimmerView(
         }
     }
 
-
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
 
-        viewTreeObserver.addOnGlobalLayoutListener(object :
-            ViewTreeObserver.OnGlobalLayoutListener {
-            override fun onGlobalLayout() {
-                // Ensure we only listen once to prevent multiple calls
-                viewTreeObserver.removeOnGlobalLayoutListener(this)
+        viewTreeObserver.addOnGlobalLayoutListener(
+            object :
+                ViewTreeObserver.OnGlobalLayoutListener {
+                override fun onGlobalLayout() {
+                    // Ensure we only listen once to prevent multiple calls
+                    viewTreeObserver.removeOnGlobalLayoutListener(this)
 
-                // Now start the shimmer
-                startShimmer()
-            }
-        })
+                    // Now start the shimmer
+                    startShimmer()
+                }
+            },
+        )
     }
 
     override fun onDetachedFromWindow() {
@@ -135,29 +137,35 @@ class ShimmerView(
             val shimmerRatio = 0.2f
             gradientWidth = width * shimmerRatio
 
-            val gradient = LinearGradient(
-                -gradientWidth, 0f, 0f, 0f,
-                intArrayOf(shimmerColor1, shimmerColor2, shimmerColor1),
-                floatArrayOf(0f, 0.5f, 1f),
-                Shader.TileMode.CLAMP
-            )
+            val gradient =
+                LinearGradient(
+                    -gradientWidth,
+                    0f,
+                    0f,
+                    0f,
+                    intArrayOf(shimmerColor1, shimmerColor2, shimmerColor1),
+                    floatArrayOf(0f, 0.5f, 1f),
+                    Shader.TileMode.CLAMP,
+                )
 
             paint.shader = gradient
 
-            animator = ValueAnimator.ofFloat(-gradientWidth, width + gradientWidth)
-                .apply {
-                    repeatCount = ValueAnimator.INFINITE
-                    duration = 1500
-                    interpolator = LinearInterpolator()
-                    addUpdateListener {
-                        val translateX = it.animatedValue as Float
-                        paint.shader.setLocalMatrix(
-                            android.graphics.Matrix().also { it.setTranslate(translateX, 0f) }
-                        )
-                        invalidate()
+            animator =
+                ValueAnimator
+                    .ofFloat(-gradientWidth, width + gradientWidth)
+                    .apply {
+                        repeatCount = ValueAnimator.INFINITE
+                        duration = 1500
+                        interpolator = LinearInterpolator()
+                        addUpdateListener {
+                            val translateX = it.animatedValue as Float
+                            paint.shader.setLocalMatrix(
+                                android.graphics.Matrix().also { it.setTranslate(translateX, 0f) },
+                            )
+                            invalidate()
+                        }
+                        start()
                     }
-                    start()
-                }
         }
     }
 

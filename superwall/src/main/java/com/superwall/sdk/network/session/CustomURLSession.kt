@@ -11,22 +11,26 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNamingStrategy
 import java.net.HttpURLConnection
 
-sealed class NetworkError(message: String) : Throwable(message) {
+sealed class NetworkError(
+    message: String,
+) : Throwable(message) {
     class Unknown : NetworkError("An unknown error occurred.")
+
     class NotAuthenticated : NetworkError("Unauthorized.")
+
     class Decoding : NetworkError("Decoding error.")
+
     class NotFound : NetworkError("Not found.")
+
     class InvalidUrl : NetworkError("URL invalid.")
 }
 
-
 class CustomHttpUrlConnection {
-
-
-    val json = Json {
-        ignoreUnknownKeys = true
-        namingStrategy = JsonNamingStrategy.SnakeCase
-    }
+    val json =
+        Json {
+            ignoreUnknownKeys = true
+            namingStrategy = JsonNamingStrategy.SnakeCase
+        }
 //
 //    suspend fun request(endpoint: String): String {
 //        var result = ""
@@ -72,11 +76,10 @@ class CustomHttpUrlConnection {
 //        return result
 //    }
 
-
     @Throws(NetworkError::class)
     suspend inline fun <reified Response : SerializableEntity> request(
         endpoint: Endpoint<Response>,
-        noinline  isRetryingCallback: (() -> Unit)? = null
+        noinline isRetryingCallback: (() -> Unit)? = null,
     ): Response {
         val request = endpoint.makeRequest() ?: throw NetworkError.Unknown()
 
@@ -88,19 +91,20 @@ class CustomHttpUrlConnection {
             LogScope.network,
             "Request Started",
             mapOf(
-                "url" to (request.url?.toString() ?: "unknown")
-            )
+                "url" to (request.url?.toString() ?: "unknown"),
+            ),
         )
 
         val startTime = System.currentTimeMillis()
 
-        val responseCode: Int = retrying(
-            coroutineContext = Dispatchers.IO,
-            maxRetryCount = endpoint.retryCount,
-            isRetryingCallback = isRetryingCallback
-        ) {
-            request.responseCode
-        }
+        val responseCode: Int =
+            retrying(
+                coroutineContext = Dispatchers.IO,
+                maxRetryCount = endpoint.retryCount,
+                isRetryingCallback = isRetryingCallback,
+            ) {
+                request.responseCode
+            }
 
         var responseMessage: String? = null
         if (responseCode == HttpURLConnection.HTTP_OK) {
@@ -113,11 +117,12 @@ class CustomHttpUrlConnection {
         }
 
         val requestDuration = (System.currentTimeMillis() - startTime) / 1000.0
-        val requestId = try {
-            getRequestId(request, auth, requestDuration)
-        } catch (e: Throwable) {
-            throw NetworkError.Unknown()
-        }
+        val requestId =
+            try {
+                getRequestId(request, auth, requestDuration)
+            } catch (e: Throwable) {
+                throw NetworkError.Unknown()
+            }
 
         Logger.debug(
             LogLevel.debug,
@@ -128,39 +133,39 @@ class CustomHttpUrlConnection {
                 "api_key" to auth,
                 "url" to (request.url?.toString() ?: "unknown"),
                 "request_id" to requestId,
-                "request_duration" to requestDuration
-            )
+                "request_duration" to requestDuration,
+            ),
         )
 
-        val value: Response? = try {
-            this.json.decodeFromString<Response>(responseMessage)
-        } catch (e: Throwable) {
-            Logger.debug(
-                LogLevel.error,
-                LogScope.network,
-                "Request Error",
-                mapOf(
-                    "request" to request.toString(),
-                    "api_key" to auth,
-                    "url" to (request.url?.toString() ?: "unknown"),
-                    "message" to "Unable to decode response to type ${Response::class.simpleName}",
-                    "info" to responseMessage,
-                    "request_duration" to requestDuration
+        val value: Response? =
+            try {
+                this.json.decodeFromString<Response>(responseMessage)
+            } catch (e: Throwable) {
+                Logger.debug(
+                    LogLevel.error,
+                    LogScope.network,
+                    "Request Error",
+                    mapOf(
+                        "request" to request.toString(),
+                        "api_key" to auth,
+                        "url" to (request.url?.toString() ?: "unknown"),
+                        "message" to "Unable to decode response to type ${Response::class.simpleName}",
+                        "info" to responseMessage,
+                        "request_duration" to requestDuration,
+                    ),
                 )
-            )
-            println("!!!Error: ${e.message}")
-            throw NetworkError.Decoding()
-        }
+                println("!!!Error: ${e.message}")
+                throw NetworkError.Decoding()
+            }
 
         return value ?: throw NetworkError.Decoding()
     }
-
 
     @Throws(NetworkError::class)
     fun getRequestId(
         request: HttpURLConnection,
         auth: String,
-        requestDuration: Double
+        requestDuration: Double,
     ): String {
         var requestId = "unknown"
 
@@ -180,8 +185,8 @@ class CustomHttpUrlConnection {
                         "api_key" to auth,
                         "url" to request.url.toString(),
                         "request_id" to requestId,
-                        "request_duration" to requestDuration
-                    )
+                        "request_duration" to requestDuration,
+                    ),
                 )
                 throw NetworkError.NotAuthenticated()
             }
@@ -195,8 +200,8 @@ class CustomHttpUrlConnection {
                         "api_key" to auth,
                         "url" to request.url.toString(),
                         "request_id" to requestId,
-                        "request_duration" to requestDuration
-                    )
+                        "request_duration" to requestDuration,
+                    ),
                 )
                 throw NetworkError.NotFound()
             }

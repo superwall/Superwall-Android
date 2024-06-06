@@ -4,5 +4,6 @@ import com.superwall.sdk.models.SerializableEntity
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class ConfirmedAssignmentResponse(val assignments: MutableList<Assignment>) :
-    SerializableEntity
+data class ConfirmedAssignmentResponse(
+    val assignments: MutableList<Assignment>,
+) : SerializableEntity

@@ -17,46 +17,51 @@ suspend fun Superwall.getPaywall(
     event: String,
     params: Map<String, Any>? = null,
     paywallOverrides: PaywallOverrides? = null,
-    delegate: PaywallViewControllerDelegate
-): PaywallViewController = withContext(Dispatchers.Main) {
-    val viewController = internallyGetPaywall(
-        event = event,
-        params = params,
-        paywallOverrides = paywallOverrides,
-        delegate = PaywallViewControllerDelegateAdapter(kotlinDelegate = delegate)
-    )
+    delegate: PaywallViewControllerDelegate,
+): PaywallViewController =
+    withContext(Dispatchers.Main) {
+        val viewController =
+            internallyGetPaywall(
+                event = event,
+                params = params,
+                paywallOverrides = paywallOverrides,
+                delegate = PaywallViewControllerDelegateAdapter(kotlinDelegate = delegate),
+            )
 
-    // Note: Deviation from iOS. Unique to Android. This is also done in `InternalPresentation.kt`.
-    // Ideally `InternalPresentation` would call this function to get the paywall, and `InternalPresentation.kt`
-    // would only handle presentation. This cannot be done is the shared `GetPaywallComponents.kt` because it's
-    // also used for getting a presentation result, and we don't want that to have side effects. Opting to
-    // do at the top-most point.
-    viewController.prepareToDisplay()
+        // Note: Deviation from iOS. Unique to Android. This is also done in `InternalPresentation.kt`.
+        // Ideally `InternalPresentation` would call this function to get the paywall, and `InternalPresentation.kt`
+        // would only handle presentation. This cannot be done is the shared `GetPaywallComponents.kt` because it's
+        // also used for getting a presentation result, and we don't want that to have side effects. Opting to
+        // do at the top-most point.
+        viewController.prepareToDisplay()
 
-    return@withContext viewController
-}
+        return@withContext viewController
+    }
 
 @Throws(Throwable::class)
 private suspend fun Superwall.internallyGetPaywall(
     event: String,
     params: Map<String, Any>? = null,
     paywallOverrides: PaywallOverrides? = null,
-    delegate: PaywallViewControllerDelegateAdapter
-): PaywallViewController = withContext(Dispatchers.Main) {
-    val trackableEvent = UserInitiatedEvent.Track(
-        rawName = event,
-        canImplicitlyTriggerPaywall = false,
-        customParameters = params ?: emptyMap(),
-        isFeatureGatable = false
-    )
-    val trackResult = track(trackableEvent)
+    delegate: PaywallViewControllerDelegateAdapter,
+): PaywallViewController =
+    withContext(Dispatchers.Main) {
+        val trackableEvent =
+            UserInitiatedEvent.Track(
+                rawName = event,
+                canImplicitlyTriggerPaywall = false,
+                customParameters = params ?: emptyMap(),
+                isFeatureGatable = false,
+            )
+        val trackResult = track(trackableEvent)
 
-    val presentationRequest = dependencyContainer.makePresentationRequest(
-        PresentationInfo.ExplicitTrigger(trackResult.data),
-        paywallOverrides = paywallOverrides,
-        isPaywallPresented = false,
-        type = PresentationRequestType.GetPaywall(delegate)
-    )
+        val presentationRequest =
+            dependencyContainer.makePresentationRequest(
+                PresentationInfo.ExplicitTrigger(trackResult.data),
+                paywallOverrides = paywallOverrides,
+                isPaywallPresented = false,
+                type = PresentationRequestType.GetPaywall(delegate),
+            )
 
-    return@withContext getPaywall(presentationRequest)
-}
+        return@withContext getPaywall(presentationRequest)
+    }

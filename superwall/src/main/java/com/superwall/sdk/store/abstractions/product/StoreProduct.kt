@@ -1,35 +1,28 @@
 package com.superwall.sdk.store.abstractions.product
 
-
-import com.android.billingclient.api.BillingClient.ProductType
-import com.android.billingclient.api.ProductDetails
-import com.android.billingclient.api.SkuDetails
-import com.superwall.sdk.contrib.threeteen.AmountFormats
-import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.Serializer
-import kotlinx.serialization.encoding.Decoder
-import kotlinx.serialization.encoding.Encoder
 import java.math.BigDecimal
-import java.math.RoundingMode
-import java.text.SimpleDateFormat
 import java.util.*
 
 // TODO: Consolidate OfferType and Offer without breaking changes
 @Serializable
 sealed class OfferType {
     object Auto : OfferType()
-    data class Offer(override val id: String) : OfferType()
+
+    data class Offer(
+        override val id: String,
+    ) : OfferType()
 
     open val id: String?
-        get() = when (this) {
-            is Offer -> id
-            else -> null
-        }
+        get() =
+            when (this) {
+                is Offer -> id
+                else -> null
+            }
 }
 
 class StoreProduct(
-    val rawStoreProduct: RawStoreProduct
+    val rawStoreProduct: RawStoreProduct,
 ) : StoreProductType {
     override val fullIdentifier: String
         get() = rawStoreProduct.fullIdentifier
@@ -38,7 +31,7 @@ class StoreProduct(
         get() = rawStoreProduct.productIdentifier
 
     override val price: BigDecimal
-        get()  = rawStoreProduct.price
+        get() = rawStoreProduct.price
 
     override val localizedPrice: String
         get() = rawStoreProduct.localizedPrice
@@ -148,9 +141,7 @@ class StoreProduct(
     override val subscriptionPeriod: SubscriptionPeriod?
         get() = rawStoreProduct.subscriptionPeriod
 
-    override fun trialPeriodPricePerUnit(unit: SubscriptionPeriod.Unit): String {
-        return rawStoreProduct.trialPeriodPricePerUnit(unit)
-    }
+    override fun trialPeriodPricePerUnit(unit: SubscriptionPeriod.Unit): String = rawStoreProduct.trialPeriodPricePerUnit(unit)
 
     val attributes: Map<String, String>
         get() {

@@ -9,8 +9,6 @@ import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.InternalTriggerResult
 import com.superwall.sdk.models.triggers.MatchedItem
 import com.superwall.sdk.models.triggers.Trigger
-import com.superwall.sdk.models.triggers.TriggerResult
-import com.superwall.sdk.models.triggers.TriggerRule
 import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
 import com.superwall.sdk.models.triggers.TriggerRuleOutcome
 import com.superwall.sdk.models.triggers.UnmatchedRule
@@ -20,29 +18,40 @@ import com.superwall.sdk.storage.Storage
 data class RuleEvaluationOutcome(
     val confirmableAssignment: ConfirmableAssignment? = null,
     val unsavedOccurrence: TriggerRuleOccurrence? = null,
-    val triggerResult: InternalTriggerResult
+    val triggerResult: InternalTriggerResult,
 )
 
 sealed class RuleMatchOutcome {
-    data class Matched(val item: MatchedItem) : RuleMatchOutcome()
-    data class NoMatchingRules(val unmatchedRules: List<UnmatchedRule>) : RuleMatchOutcome()
+    data class Matched(
+        val item: MatchedItem,
+    ) : RuleMatchOutcome()
+
+    data class NoMatchingRules(
+        val unmatchedRules: List<UnmatchedRule>,
+    ) : RuleMatchOutcome()
 }
 
 class RuleLogic(
     private val context: Context,
     private val configManager: ConfigManager,
     private val storage: Storage,
-    private val factory: RuleAttributesFactory
+    private val factory: RuleAttributesFactory,
 ) {
-    suspend fun evaluateRules(event: EventData, triggers: Map<String, Trigger>): RuleEvaluationOutcome {
+    suspend fun evaluateRules(
+        event: EventData,
+        triggers: Map<String, Trigger>,
+    ): RuleEvaluationOutcome {
         val trigger = triggers[event.name] ?: return RuleEvaluationOutcome(triggerResult = InternalTriggerResult.EventNotFound)
 
         val ruleMatchOutcome = findMatchingRule(event, trigger)
 
-        val matchedRuleItem: MatchedItem = when (ruleMatchOutcome) {
-            is RuleMatchOutcome.Matched -> ruleMatchOutcome.item
-            is RuleMatchOutcome.NoMatchingRules -> return RuleEvaluationOutcome(triggerResult = InternalTriggerResult.NoRuleMatch(ruleMatchOutcome.unmatchedRules))
-        }
+        val matchedRuleItem: MatchedItem =
+            when (ruleMatchOutcome) {
+                is RuleMatchOutcome.Matched -> ruleMatchOutcome.item
+                is RuleMatchOutcome.NoMatchingRules -> return RuleEvaluationOutcome(
+                    triggerResult = InternalTriggerResult.NoRuleMatch(ruleMatchOutcome.unmatchedRules),
+                )
+            }
 
         val rule = matchedRuleItem.rule
         val confirmedAssignments = storage.getConfirmedAssignments()
@@ -51,7 +60,7 @@ class RuleLogic(
 
         variant = confirmedAssignments[rule.experiment.id]
             ?: configManager.unconfirmedAssignments[rule.experiment.id]
-                    ?: run {
+            ?: run {
                 return RuleEvaluationOutcome(triggerResult = InternalTriggerResult.Error(PaywallNotFoundException()))
             }
 
@@ -60,20 +69,25 @@ class RuleLogic(
         }
 
         return when (variant.type) {
-            Experiment.Variant.VariantType.HOLDOUT -> RuleEvaluationOutcome(
-                confirmableAssignment = confirmableAssignment,
-                unsavedOccurrence = matchedRuleItem.unsavedOccurrence,
-                triggerResult = InternalTriggerResult.Holdout(Experiment(rule.experiment.id, rule.experiment.groupId, variant))
-            )
-            Experiment.Variant.VariantType.TREATMENT -> RuleEvaluationOutcome(
-                confirmableAssignment = confirmableAssignment,
-                unsavedOccurrence = matchedRuleItem.unsavedOccurrence,
-                triggerResult = InternalTriggerResult.Paywall(Experiment(rule.experiment.id, rule.experiment.groupId, variant))
-            )
+            Experiment.Variant.VariantType.HOLDOUT ->
+                RuleEvaluationOutcome(
+                    confirmableAssignment = confirmableAssignment,
+                    unsavedOccurrence = matchedRuleItem.unsavedOccurrence,
+                    triggerResult = InternalTriggerResult.Holdout(Experiment(rule.experiment.id, rule.experiment.groupId, variant)),
+                )
+            Experiment.Variant.VariantType.TREATMENT ->
+                RuleEvaluationOutcome(
+                    confirmableAssignment = confirmableAssignment,
+                    unsavedOccurrence = matchedRuleItem.unsavedOccurrence,
+                    triggerResult = InternalTriggerResult.Paywall(Experiment(rule.experiment.id, rule.experiment.groupId, variant)),
+                )
         }
     }
 
-    private suspend fun findMatchingRule(event: EventData, trigger: Trigger): RuleMatchOutcome {
+    private suspend fun findMatchingRule(
+        event: EventData,
+        trigger: Trigger,
+    ): RuleMatchOutcome {
         val expressionEvaluator = ExpressionEvaluator(context, storage, factory)
 
         val unmatchedRules = mutableListOf<UnmatchedRule>()
@@ -89,8 +103,6 @@ class RuleLogic(
 
         return RuleMatchOutcome.NoMatchingRules(unmatchedRules)
     }
-
 }
 
-class PaywallNotFoundException :
-    Exception("There isn't a paywall configured to show in this context")
+class PaywallNotFoundException : Exception("There isn't a paywall configured to show in this context")

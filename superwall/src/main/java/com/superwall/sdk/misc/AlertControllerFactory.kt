@@ -11,11 +11,13 @@ object AlertControllerFactory {
         actionTitle: String? = null,
         closeActionTitle: String = "Done",
         action: (() -> Unit)? = null,
-        onClose: (() -> Unit)? = null
+        onClose: (() -> Unit)? = null,
     ): AlertDialog {
-        val builder = AlertDialog.Builder(context)
-            .setTitle(title)
-            .setMessage(message)
+        val builder =
+            AlertDialog
+                .Builder(context)
+                .setTitle(title)
+                .setMessage(message)
 
         if (actionTitle != null) {
             builder.setPositiveButton(actionTitle) { _, _ ->

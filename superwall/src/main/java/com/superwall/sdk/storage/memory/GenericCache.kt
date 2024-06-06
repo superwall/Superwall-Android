@@ -14,9 +14,7 @@ package com.superwall.sdk.storage.memory
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- */
-
-/**
+ *
  * A Generic K,V [GenericCache] defines the basic operations to a cache.
  */
 interface GenericCache<K, V> {
@@ -28,7 +26,10 @@ interface GenericCache<K, V> {
     /**
      * Cache a [value] with a given [key]
      */
-    operator fun set(key: K, value: V)
+    operator fun set(
+        key: K,
+        value: V,
+    )
 
     /**
      * Get the cached value of a given [key], or null if it's not cached or evicted.

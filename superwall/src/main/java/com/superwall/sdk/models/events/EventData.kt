@@ -12,19 +12,20 @@ data class EventData(
     val id: String = UUID.randomUUID().toString(),
     @SerialName("event_name")
     val name: String,
-    val parameters: Map<String, @Serializable(with = AnySerializer::class) Any>,
+    val parameters: Map<
+        String,
+        @Serializable(with = AnySerializer::class)
+        Any,
+    >,
     @Serializable(with = DateSerializer::class)
     val createdAt: Date,
 ) {
-
     companion object {
-        fun stub(): EventData {
-            return EventData(
+        fun stub(): EventData =
+            EventData(
                 name = "opened_application",
                 parameters = emptyMap(),
-                createdAt = Date()
+                createdAt = Date(),
             )
-        }
     }
 }
-

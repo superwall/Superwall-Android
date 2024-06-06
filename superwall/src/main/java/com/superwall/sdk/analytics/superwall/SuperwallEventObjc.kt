@@ -1,7 +1,8 @@
 package com.superwall.sdk.analytics.superwall
 
-
-enum class SuperwallEventObjc(val rawName: String) {
+enum class SuperwallEventObjc(
+    val rawName: String,
+) {
     FirstSeen("first_seen"),
     AppOpen("app_open"),
     AppLaunch("app_launch"),
@@ -37,5 +38,5 @@ enum class SuperwallEventObjc(val rawName: String) {
     PaywallProductsLoadStart("paywallProductsLoad_start"),
     PaywallProductsLoadFail("paywallProductsLoad_fail"),
     PaywallProductsLoadComplete("paywallProductsLoad_complete"),
-    PaywallPresentationRequest("paywallPresentationRequest");
+    PaywallPresentationRequest("paywallPresentationRequest"),
 }

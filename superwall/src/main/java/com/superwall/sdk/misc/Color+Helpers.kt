@@ -11,14 +11,8 @@ fun Int.isDarkColor(): Boolean {
     return lum < 0.50
 }
 
-fun Int.isLightColor(): Boolean {
-    return !isDarkColor()
-}
+fun Int.isLightColor(): Boolean = !isDarkColor()
 
-fun Int.readableOverlayColor(): Int {
-    return if (isDarkColor()) Color.WHITE else Color.BLACK
-}
+fun Int.readableOverlayColor(): Int = if (isDarkColor()) Color.WHITE else Color.BLACK
 
-fun Int.inverseReadableOverlayColor(): Int {
-    return if (isDarkColor()) Color.BLACK else Color.WHITE
-}
+fun Int.inverseReadableOverlayColor(): Int = if (isDarkColor()) Color.BLACK else Color.WHITE

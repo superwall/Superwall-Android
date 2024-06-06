@@ -5,7 +5,10 @@ import com.superwall.sdk.config.options.SuperwallOptions
 
 interface Loggable {
     companion object {
-        fun shouldPrint(logLevel: LogLevel, scope: LogScope): Boolean {
+        fun shouldPrint(
+            logLevel: LogLevel,
+            scope: LogScope,
+        ): Boolean {
             var logging: SuperwallOptions.Logging = SuperwallOptions.Logging()
             if (Superwall.initialized) {
                 logging = Superwall.instance.options.logging
@@ -25,7 +28,7 @@ interface Loggable {
             scope: LogScope,
             message: String = "",
             info: Map<String, Any>? = mapOf(),
-            error: Throwable? = null
+            error: Throwable? = null,
         ) {
 //            Task.detached(priority = Task.Priority.utility) {
             val output: MutableList<String> = mutableListOf()
@@ -49,7 +52,7 @@ interface Loggable {
                     scope = scope.toString(),
                     message = message,
                     info = info,
-                    error = error
+                    error = error,
                 )
             }
 
@@ -58,7 +61,7 @@ interface Loggable {
             }
 
             val name =
-                "\n${logLevel.getDescriptionEmoji()} [!!Superwall] [${scope.toString()}] ${logLevel.toString()}${if (message != null) ": $message" else ""}\n"
+                "\n${logLevel.getDescriptionEmoji()} [!!Superwall] [$scope] $logLevel${if (message != null) ": $message" else ""}\n"
 
             if (dumping.isEmpty()) {
                 println(name)
@@ -72,22 +75,19 @@ interface Loggable {
     }
 }
 
-enum class Logger : Loggable {
-    ;
+object Logger : Loggable {
+    fun shouldPrint(
+        logLevel: LogLevel,
+        scope: LogScope,
+    ): Boolean = Loggable.shouldPrint(logLevel, scope)
 
-    companion object {
-        fun shouldPrint(logLevel: LogLevel, scope: LogScope): Boolean {
-            return Loggable.shouldPrint(logLevel, scope)
-        }
-
-        fun debug(
-            logLevel: LogLevel,
-            scope: LogScope,
-            message: String = "",
-            info: Map<String, Any>? = null,
-            error: Throwable? = null
-        ) {
-            Loggable.debug(logLevel, scope, message, info, error)
-        }
+    fun debug(
+        logLevel: LogLevel,
+        scope: LogScope,
+        message: String = "",
+        info: Map<String, Any>? = null,
+        error: Throwable? = null,
+    ) {
+        Loggable.debug(logLevel, scope, message, info, error)
     }
 }

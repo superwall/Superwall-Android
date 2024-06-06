@@ -2,14 +2,12 @@ package com.superwall.sdk.store.abstractions.transactions
 
 import com.android.billingclient.api.BillingClient
 import kotlinx.serialization.KSerializer
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.Serializer
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import java.util.*
-
 
 interface StoreTransactionType {
     val transactionDate: Date?
@@ -33,15 +31,19 @@ interface StoreTransactionType {
 // Custom serializer
 @Serializer(forClass = StoreTransactionState::class)
 object StoreTransactionStateSerializer : KSerializer<StoreTransactionState> {
-    override fun serialize(encoder: Encoder, value: StoreTransactionState) {
+    override fun serialize(
+        encoder: Encoder,
+        value: StoreTransactionState,
+    ) {
         // Transform the object to a lowercase string representation
-        val str = when (value) {
-            is StoreTransactionState.Purchasing -> "purchasing"
-            is StoreTransactionState.Purchased -> "purchased"
-            is StoreTransactionState.Failed -> "failed"
-            is StoreTransactionState.Restored -> "restored"
-            is StoreTransactionState.Deferred -> "deferred"
-        }
+        val str =
+            when (value) {
+                is StoreTransactionState.Purchasing -> "purchasing"
+                is StoreTransactionState.Purchased -> "purchased"
+                is StoreTransactionState.Failed -> "failed"
+                is StoreTransactionState.Restored -> "restored"
+                is StoreTransactionState.Deferred -> "deferred"
+            }
         encoder.encodeString(str)
     }
 
@@ -61,7 +63,6 @@ object StoreTransactionStateSerializer : KSerializer<StoreTransactionState> {
 // Annotated sealed class
 @Serializable(with = StoreTransactionStateSerializer::class)
 sealed class StoreTransactionState {
-
     @Serializable
     object Purchasing : StoreTransactionState() // When purchase is initiated
 
@@ -78,14 +79,13 @@ sealed class StoreTransactionState {
     object Deferred : StoreTransactionState() // Optional: When a purchase is pending some external action
 
     companion object {
-        fun from(purchaseResult: Int): StoreTransactionState {
-            return when (purchaseResult) {
+        fun from(purchaseResult: Int): StoreTransactionState =
+            when (purchaseResult) {
                 BillingClient.BillingResponseCode.OK -> Purchased
                 BillingClient.BillingResponseCode.USER_CANCELED -> Purchasing
                 BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED -> Restored
                 // Add other cases based on the specific responses you need to handle
                 else -> Failed
             }
-        }
     }
 }

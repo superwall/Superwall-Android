@@ -6,21 +6,13 @@ import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.network.device.DeviceInfo
 
 class StorageFactoryMock : Storage.Factory {
-    override fun makeDeviceInfo(): DeviceInfo {
-        return DeviceInfo(appInstalledAtString = "a", locale = "b")
-    }
+    override fun makeDeviceInfo(): DeviceInfo = DeviceInfo(appInstalledAtString = "a", locale = "b")
 
-    override fun makeIsSandbox(): Boolean {
-        return true
-    }
+    override fun makeIsSandbox(): Boolean = true
 
-    override suspend fun makeSessionDeviceAttributes(): HashMap<String, Any> {
-        return hashMapOf()
-    }
+    override suspend fun makeSessionDeviceAttributes(): HashMap<String, Any> = hashMapOf()
 
-    override fun makeHasExternalPurchaseController(): Boolean {
-        return true
-    }
+    override fun makeHasExternalPurchaseController(): Boolean = true
 }
 
 class StorageMock(
@@ -31,16 +23,13 @@ class StorageMock(
     private var confirmedAssignments: Map<ExperimentID, Experiment.Variant> = mapOf(),
 //    cache: Cache = Cache(context)
 ) : Storage(context = context, factory = StorageFactoryMock()) {
-
     var didClearCachedSessionEvents = false
 
     override fun clearCachedSessionEvents() {
         didClearCachedSessionEvents = true
     }
 
-    override fun getConfirmedAssignments(): Map<ExperimentID, Experiment.Variant> {
-        return confirmedAssignments
-    }
+    override fun getConfirmedAssignments(): Map<ExperimentID, Experiment.Variant> = confirmedAssignments
 
     override fun saveConfirmedAssignments(assignments: Map<ExperimentID, Experiment.Variant>) {
         confirmedAssignments = assignments

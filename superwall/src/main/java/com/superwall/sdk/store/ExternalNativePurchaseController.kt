@@ -15,7 +15,6 @@ import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.store.abstractions.product.OfferType
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
-import com.superwall.sdk.store.abstractions.product.StoreProduct
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -25,13 +24,19 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.math.min
 
-class ExternalNativePurchaseController(var context: Context) : PurchaseController, PurchasesUpdatedListener {
-    private var billingClient: BillingClient = BillingClient.newBuilder(context)
-        .setListener(this)
-        .enablePendingPurchases()
-        .build()
+class ExternalNativePurchaseController(
+    var context: Context,
+) : PurchaseController,
+    PurchasesUpdatedListener {
+    private var billingClient: BillingClient =
+        BillingClient
+            .newBuilder(context)
+            .setListener(this)
+            .enablePendingPurchases()
+            .build()
     private val isConnected = MutableStateFlow(false)
     private val purchaseResults = MutableStateFlow<PurchaseResult?>(null)
+
     // how long before the data source tries to reconnect to Google play
     private var reconnectMilliseconds = RECONNECT_TIMER_START_MILLISECONDS
 
@@ -45,40 +50,43 @@ class ExternalNativePurchaseController(var context: Context) : PurchaseControlle
 
     private fun startConnection() {
         try {
-            billingClient.startConnection(object : BillingClientStateListener {
-                override fun onBillingSetupFinished(billingResult: BillingResult) {
-                    isConnected.value =
-                        billingResult.responseCode == BillingClient.BillingResponseCode.OK
-                    syncSubscriptionStatus()
-                }
-
-                override fun onBillingServiceDisconnected() {
-                    isConnected.value = false
-
-                    Logger.debug(
-                        LogLevel.error,
-                        LogScope.nativePurchaseController,
-                        "ExternalNativePurchaseController billing client disconnected, " +
-                                "retrying in $reconnectMilliseconds milliseconds",
-                    )
-
-                    CoroutineScope(Dispatchers.IO).launch {
-                        delay(reconnectMilliseconds)
-                        startConnection()
+            billingClient.startConnection(
+                object : BillingClientStateListener {
+                    override fun onBillingSetupFinished(billingResult: BillingResult) {
+                        isConnected.value =
+                            billingResult.responseCode == BillingClient.BillingResponseCode.OK
+                        syncSubscriptionStatus()
                     }
 
-                    reconnectMilliseconds = min(
-                        reconnectMilliseconds * 2,
-                        RECONNECT_TIMER_MAX_TIME_MILLISECONDS,
-                    )
-                }
-            })
+                    override fun onBillingServiceDisconnected() {
+                        isConnected.value = false
+
+                        Logger.debug(
+                            LogLevel.error,
+                            LogScope.nativePurchaseController,
+                            "ExternalNativePurchaseController billing client disconnected, " +
+                                "retrying in $reconnectMilliseconds milliseconds",
+                        )
+
+                        CoroutineScope(Dispatchers.IO).launch {
+                            delay(reconnectMilliseconds)
+                            startConnection()
+                        }
+
+                        reconnectMilliseconds =
+                            min(
+                                reconnectMilliseconds * 2,
+                                RECONNECT_TIMER_MAX_TIME_MILLISECONDS,
+                            )
+                    }
+                },
+            )
         } catch (e: IllegalStateException) {
             Logger.debug(
                 LogLevel.error,
                 LogScope.nativePurchaseController,
                 "IllegalStateException when connecting to billing client for " +
-                        "ExternalNativePurchaseController: ${e.message}",
+                    "ExternalNativePurchaseController: ${e.message}",
             )
         }
     }
@@ -100,7 +108,7 @@ class ExternalNativePurchaseController(var context: Context) : PurchaseControlle
     private fun buildFullId(
         subscriptionId: String,
         basePlanId: String?,
-        offerId: String?
+        offerId: String?,
     ): String =
         buildString {
             append(subscriptionId)
@@ -112,36 +120,45 @@ class ExternalNativePurchaseController(var context: Context) : PurchaseControlle
         activity: Activity,
         productDetails: ProductDetails,
         basePlanId: String?,
-        offerId: String?
+        offerId: String?,
     ): PurchaseResult {
-        val fullId = buildFullId(
-            subscriptionId = productDetails.productId,
-            basePlanId = basePlanId,
-            offerId = offerId
-        )
+        //Clear previous purchase results to avoid emitting old results
+        purchaseResults.value = null
 
-        val rawStoreProduct = RawStoreProduct(
-            underlyingProductDetails = productDetails,
-            fullIdentifier = fullId,
-            basePlanId = basePlanId ?: "",
-            offerType = offerId?.let { OfferType.Offer(id = it) }
-        )
+        val fullId =
+            buildFullId(
+                subscriptionId = productDetails.productId,
+                basePlanId = basePlanId,
+                offerId = offerId,
+            )
+
+        val rawStoreProduct =
+            RawStoreProduct(
+                underlyingProductDetails = productDetails,
+                fullIdentifier = fullId,
+                basePlanId = basePlanId ?: "",
+                offerType = offerId?.let { OfferType.Offer(id = it) },
+            )
 
         val offerToken = rawStoreProduct.selectedOffer?.offerToken ?: ""
 
-        val productDetailsParams = BillingFlowParams.ProductDetailsParams.newBuilder()
-            .setProductDetails(productDetails)
-            .setOfferToken(offerToken)
-            .build()
+        val productDetailsParams =
+            BillingFlowParams.ProductDetailsParams
+                .newBuilder()
+                .setProductDetails(productDetails)
+                .setOfferToken(offerToken)
+                .build()
 
-        val flowParams = BillingFlowParams.newBuilder()
-            .setProductDetailsParamsList(listOf(productDetailsParams))
-            .build()
-        
+        val flowParams =
+            BillingFlowParams
+                .newBuilder()
+                .setProductDetailsParamsList(listOf(productDetailsParams))
+                .build()
+
         Logger.debug(
             logLevel = LogLevel.info,
             scope = LogScope.nativePurchaseController,
-            message = "Waiting for billing client to be connected"
+            message = "Waiting for billing client to be connected",
         )
 
         // Wait until the billing client becomes connected
@@ -150,7 +167,7 @@ class ExternalNativePurchaseController(var context: Context) : PurchaseControlle
         Logger.debug(
             logLevel = LogLevel.info,
             scope = LogScope.nativePurchaseController,
-            message = "Billing client is connected"
+            message = "Billing client is connected",
         )
 
         billingClient.launchBillingFlow(activity, flowParams)
@@ -170,25 +187,29 @@ class ExternalNativePurchaseController(var context: Context) : PurchaseControlle
 
     //region PurchasesUpdatedListener
 
-    override fun onPurchasesUpdated(billingResult: BillingResult, purchases: MutableList<Purchase>?) {
+    override fun onPurchasesUpdated(
+        billingResult: BillingResult,
+        purchases: MutableList<Purchase>?,
+    ) {
         // Determine the result based on the billing response code
-        val result = when (billingResult.responseCode) {
-            // If the purchase was successful, acknowledge any necessary purchases and create a Purchased result
-            BillingClient.BillingResponseCode.OK -> {
-                purchases?.let { acknowledgePurchasesIfNecessary(it) }
-                PurchaseResult.Purchased()
-            }
+        val result =
+            when (billingResult.responseCode) {
+                // If the purchase was successful, acknowledge any necessary purchases and create a Purchased result
+                BillingClient.BillingResponseCode.OK -> {
+                    purchases?.let { acknowledgePurchasesIfNecessary(it) }
+                    PurchaseResult.Purchased()
+                }
 
-            // If the user canceled the purchase, create a Cancelled result
-            BillingClient.BillingResponseCode.USER_CANCELED -> {
-                PurchaseResult.Cancelled()
-            }
+                // If the user canceled the purchase, create a Cancelled result
+                BillingClient.BillingResponseCode.USER_CANCELED -> {
+                    PurchaseResult.Cancelled()
+                }
 
-            // For all other response codes, create a Failed result with an exception
-            else -> {
-                PurchaseResult.Failed(billingResult.responseCode.toString())
+                // For all other response codes, create a Failed result with an exception
+                else -> {
+                    PurchaseResult.Failed(billingResult.responseCode.toString())
+                }
             }
-        }
 
         CoroutineScope(Dispatchers.IO).launch {
             // Emit the purchase result to any observers
@@ -215,7 +236,7 @@ class ExternalNativePurchaseController(var context: Context) : PurchaseControlle
             Logger.debug(
                 logLevel = LogLevel.error,
                 scope = LogScope.nativePurchaseController,
-                message = "Attempting to sync subscription status before Superwall has been initialized."
+                message = "Attempting to sync subscription status before Superwall has been initialized.",
             )
             return
         }
@@ -226,16 +247,18 @@ class ExternalNativePurchaseController(var context: Context) : PurchaseControlle
     private suspend fun queryPurchasesOfType(productType: String): List<Purchase> {
         val deferred = CompletableDeferred<List<Purchase>>()
 
-        val params = QueryPurchasesParams.newBuilder()
-            .setProductType(productType)
-            .build()
+        val params =
+            QueryPurchasesParams
+                .newBuilder()
+                .setProductType(productType)
+                .build()
 
         billingClient.queryPurchasesAsync(params) { billingResult, purchasesList ->
             if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
                 Logger.debug(
                     logLevel = LogLevel.error,
                     scope = LogScope.nativePurchaseController,
-                    message = "Unable to query for purchases."
+                    message = "Unable to query for purchases.",
                 )
                 return@queryPurchasesAsync
             }
@@ -250,16 +273,18 @@ class ExternalNativePurchaseController(var context: Context) : PurchaseControlle
         purchases
             .filter { it.purchaseState == Purchase.PurchaseState.PURCHASED && it.isAcknowledged == false }
             .forEach { purchase ->
-                val acknowledgePurchaseParams = AcknowledgePurchaseParams.newBuilder()
-                    .setPurchaseToken(purchase.purchaseToken)
-                    .build()
+                val acknowledgePurchaseParams =
+                    AcknowledgePurchaseParams
+                        .newBuilder()
+                        .setPurchaseToken(purchase.purchaseToken)
+                        .build()
 
                 billingClient.acknowledgePurchase(acknowledgePurchaseParams) { billingResult ->
                     if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
                         Logger.debug(
                             logLevel = LogLevel.error,
                             scope = LogScope.nativePurchaseController,
-                            message = "Unable to acknowledge purchase."
+                            message = "Unable to acknowledge purchase.",
                         )
                     }
                 }

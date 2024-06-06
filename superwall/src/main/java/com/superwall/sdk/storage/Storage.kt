@@ -12,31 +12,34 @@ import com.superwall.sdk.misc.sdkVersion
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.storage.core_data.CoreDataManager
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.*
+import kotlinx.coroutines.launch
 import java.util.Date
 
 open class Storage(
     context: Context,
     private val factory: Storage.Factory,
-    /// The disk cache.
+    // / The disk cache.
     private val cache: Cache = Cache(context = context),
-    /// The interface that manages core data.
-    val coreDataManager: CoreDataManager = CoreDataManager(context = context)
+    // / The interface that manages core data.
+    val coreDataManager: CoreDataManager = CoreDataManager(context = context),
 ) {
-    interface Factory: DeviceHelperFactory, HasExternalPurchaseControllerFactory {}
+    interface Factory :
+        DeviceHelperFactory,
+        HasExternalPurchaseControllerFactory
 
-    /// The API key, set on configure.
+    // / The API key, set on configure.
     var apiKey: String = ""
 
-    /// The API key for debugging, set when handling a deep link.
+    // / The API key for debugging, set when handling a deep link.
     var debugKey: String = ""
 
-    /// Indicates whether first seen has been tracked.
+    // / Indicates whether first seen has been tracked.
     var didTrackFirstSeen: Boolean
-        get() = runBlocking(queue) {
-            _didTrackFirstSeen
-        }
+        get() =
+            runBlocking(queue) {
+                _didTrackFirstSeen
+            }
         set(value) {
             CoroutineScope(queue).launch {
                 _didTrackFirstSeen = value
@@ -44,11 +47,12 @@ open class Storage(
         }
     private var _didTrackFirstSeen: Boolean = false
 
-    /// Indicates whether first seen has been tracked.
+    // / Indicates whether first seen has been tracked.
     var didTrackFirstSession: Boolean
-        get() = runBlocking(queue) {
-            _didTrackFirstSession
-        }
+        get() =
+            runBlocking(queue) {
+                _didTrackFirstSession
+            }
         set(value) {
             CoroutineScope(queue).launch {
                 _didTrackFirstSession = value
@@ -56,17 +60,18 @@ open class Storage(
         }
     private var _didTrackFirstSession: Boolean = false
 
-    /// Indicates whether static config hasn't been called before.
-    ///
-    /// Users upgrading from older SDK versions will not have called static config.
-    /// This means that we'll need to wait for assignments before firing triggers.
+    // / Indicates whether static config hasn't been called before.
+    // /
+    // / Users upgrading from older SDK versions will not have called static config.
+    // / This means that we'll need to wait for assignments before firing triggers.
     var neverCalledStaticConfig: Boolean = false
 
-    /// The confirmed assignments for the user loaded from the cache.
+    // / The confirmed assignments for the user loaded from the cache.
     private var p_confirmedAssignments: Map<ExperimentID, Experiment.Variant>?
-        get() = runBlocking(queue) {
-            _confirmedAssignments
-        }
+        get() =
+            runBlocking(queue) {
+                _confirmedAssignments
+            }
         set(value) {
             CoroutineScope(queue).launch {
                 _confirmedAssignments = value
@@ -92,8 +97,8 @@ open class Storage(
         this.apiKey = apiKey
     }
 
-    /// Checks to see whether a user has upgraded from normal to static config.
-    /// This blocks triggers until assignments is returned.
+    // / Checks to see whether a user has upgraded from normal to static config.
+    // / This blocks triggers until assignments is returned.
     private fun updateSdkVersion() {
         val actualSdkVersion = sdkVersion
         val previousSdkVersion = get(SdkVersion)
@@ -107,7 +112,7 @@ open class Storage(
         }
     }
 
-    /// Clears data that is user specific.
+    // / Clears data that is user specific.
     fun reset() {
         coreDataManager.deleteAllEntities()
         cache.cleanUserFiles()
@@ -121,7 +126,7 @@ open class Storage(
 
     //region Custom
 
-    /// Tracks and stores first seen for the user.
+    // / Tracks and stores first seen for the user.
     fun recordFirstSeenTracked() {
         CoroutineScope(queue).launch {
             if (_didTrackFirstSeen) return@launch
@@ -144,7 +149,7 @@ open class Storage(
         }
     }
 
-    /// Records the app install
+    // / Records the app install
     fun recordAppInstall(trackEvent: suspend (Trackable) -> TrackingResult) {
         val didTrackAppInstall = get(DidTrackAppInstall) ?: false
         if (didTrackAppInstall) {
@@ -155,10 +160,11 @@ open class Storage(
         val deviceInfo = factory.makeDeviceInfo()
 
         CoroutineScope(Dispatchers.IO).launch {
-            val event = InternalSuperwallEvent.AppInstall(
-                appInstalledAtString = deviceInfo.appInstalledAtString,
-                hasExternalPurchaseController = hasExternalPurchaseController
-            )
+            val event =
+                InternalSuperwallEvent.AppInstall(
+                    appInstalledAtString = deviceInfo.appInstalledAtString,
+                    hasExternalPurchaseController = hasExternalPurchaseController,
+                )
             trackEvent(event)
         }
         save(true, DidTrackAppInstall)
@@ -194,15 +200,14 @@ open class Storage(
 
     //region Cache Reading & Writing
 
-    fun <T> get(storable: Storable<T>): T? {
-        return cache.read(storable)
-    }
+    fun <T> get(storable: Storable<T>): T? = cache.read(storable)
 
-    fun <T: Any> save(data: T, storable: Storable<T>) {
+    fun <T : Any> save(
+        data: T,
+        storable: Storable<T>,
+    ) {
         cache.write(storable, data = data)
     }
 
     //endregion
 }
-
-

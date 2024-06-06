@@ -8,10 +8,11 @@ class LocalizationManager {
 
     init {
         val localeIds = Locale.getAvailableLocales().map { it.toString() }
-        val sortedLocalizations = LocalizationLogic.getSortedLocalizations(
-            localeIds,
-            popularLocales
-        )
+        val sortedLocalizations =
+            LocalizationLogic.getSortedLocalizations(
+                localeIds,
+                popularLocales,
+            )
         localizationGroupings = LocalizationLogic.getGroupings(sortedLocalizations)
     }
 
@@ -23,15 +24,19 @@ class LocalizationManager {
         }
 
         return localizationGroupings.mapNotNull { grouping ->
-            val filteredLocalizations = grouping.localizations.filter {
-                it.included(query = query)
-            }.toMutableList()
-            if (filteredLocalizations.isNotEmpty())
+            val filteredLocalizations =
+                grouping.localizations
+                    .filter {
+                        it.included(query = query)
+                    }.toMutableList()
+            if (filteredLocalizations.isNotEmpty()) {
                 LocalizationGrouping(
                     localizations = filteredLocalizations,
-                    title = grouping.title
+                    title = grouping.title,
                 )
-            else null
+            } else {
+                null
+            }
         }
     }
 }

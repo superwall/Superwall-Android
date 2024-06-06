@@ -1,18 +1,14 @@
 package com.superwall.sdk.paywall.presentation.internal
 
-import android.util.Log
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.internal.operators.*
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.paywall.vc.PaywallViewController
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 typealias PaywallStatePublisher = Flow<PaywallState>
@@ -20,7 +16,7 @@ typealias PaywallStatePublisher = Flow<PaywallState>
 @Throws(Throwable::class)
 suspend fun Superwall.internallyPresent(
     request: PresentationRequest,
-    publisher: MutableSharedFlow<PaywallState>
+    publisher: MutableSharedFlow<PaywallState>,
 ) {
     try {
         checkNoPaywallAlreadyPresented(request, publisher)
@@ -28,9 +24,10 @@ suspend fun Superwall.internallyPresent(
         // Print a log here to indicate that the paywall is being presented.
         val paywallComponents = getPaywallComponents(request, publisher)
 
-        val presenter = requireNotNull(paywallComponents.presenter) {
-            "Presenter must not be null"
-        }
+        val presenter =
+            requireNotNull(paywallComponents.presenter) {
+                "Presenter must not be null"
+            }
 
         val paywallViewController = paywallComponents.viewController
 
@@ -44,7 +41,7 @@ suspend fun Superwall.internallyPresent(
             unsavedOccurrence = paywallComponents.rulesOutcome.unsavedOccurrence,
             debugInfo = paywallComponents.debugInfo,
             request = request,
-            paywallStatePublisher = publisher
+            paywallStatePublisher = publisher,
         )
     } catch (e: Throwable) {
         logErrors(request, e)
@@ -55,7 +52,7 @@ suspend fun Superwall.dismiss(
     paywallViewController: PaywallViewController,
     result: PaywallResult,
     closeReason: PaywallCloseReason = PaywallCloseReason.SystemLogic,
-    completion: (() -> Unit)? = null
+    completion: (() -> Unit)? = null,
 ) = withContext(Dispatchers.Main) {
     paywallViewController.dismiss(result, closeReason, completion)
 }

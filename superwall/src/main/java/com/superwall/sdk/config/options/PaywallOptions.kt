@@ -26,10 +26,10 @@ class PaywallOptions {
     // Defines the messaging of the alert presented to the user when restoring a transaction fails.
     var restoreFailed: RestoreFailed = RestoreFailed()
 
-    /// Shows an alert after a purchase fails. Defaults to `true`.
-    ///
-    /// Set this to `false` if you're using a `PurchaseController` and want to show
-    /// your own alert after the purchase fails.
+    // / Shows an alert after a purchase fails. Defaults to `true`.
+    // /
+    // / Set this to `false` if you're using a `PurchaseController` and want to show
+    // / your own alert after the purchase fails.
     var shouldShowPurchaseFailureAlert = true
 
     // Pre-loads and caches trigger paywalls and products when you initialize the SDK via ``Superwall/configure(apiKey:purchaseController:options:completion:)-52tke``. Defaults to `true`.
@@ -57,7 +57,7 @@ class PaywallOptions {
     // Defines the different types of views that can appear behind Apple's payment sheet during a transaction.
     enum class TransactionBackgroundView {
         // This shows your paywall background color overlayed with an activity indicator.
-        SPINNER
+        SPINNER,
     }
 
     // The view that appears behind Apple's payment sheet during a transaction. Defaults to `.spinner`.

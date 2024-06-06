@@ -1,21 +1,23 @@
 package com.superwall.sdk.models.serialization
 
 import kotlinx.serialization.json.Json
-import org.json.JSONObject
-import org.junit.Assert.assertEquals
-import org.junit.Test
-
 
 @kotlinx.serialization.Serializable
-data class AnyMap(val map: Map<String, @kotlinx.serialization.Serializable(with = AnySerializer::class) Any>)
+data class AnyMap(
+    val map: Map<
+        String,
+        @kotlinx.serialization.Serializable(with = AnySerializer::class)
+        Any,
+    >,
+)
 
 class AnyMapSerializerTest {
-
-    private val json = Json {
-        prettyPrint = true
-        encodeDefaults = false
-        ignoreUnknownKeys = true
-    }
+    private val json =
+        Json {
+            prettyPrint = true
+            encodeDefaults = false
+            ignoreUnknownKeys = true
+        }
 /*
     @Test
     fun testSerializeWithSupportedTypes() {
@@ -105,5 +107,5 @@ class AnyMapSerializerTest {
         // As "key3" is an unsupported type, we expect it not to be present in the decoded map
 //    assertFalse(map.map.containsKey("key3"))
     }
-    */
+ */
 }

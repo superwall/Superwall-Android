@@ -35,7 +35,7 @@ internal class QueryProductDetailsUseCase(
             Logger.debug(
                 logLevel = LogLevel.debug,
                 scope = LogScope.productsManager,
-                message = "productId list is empty, skipping queryProductDetailsAsync call"
+                message = "productId list is empty, skipping queryProductDetailsAsync call",
             )
             onReceive(emptyList())
             return
@@ -60,33 +60,35 @@ internal class QueryProductDetailsUseCase(
         Logger.debug(
             logLevel = LogLevel.debug,
             scope = LogScope.productsManager,
-            message = "Products request finished for ${useCaseParams.subscriptionIds.joinToString()}"
+            message = "Products request finished for ${useCaseParams.subscriptionIds.joinToString()}",
         )
         Logger.debug(
             logLevel = LogLevel.debug,
             scope = LogScope.productsManager,
-            message = "Retrieved productDetailsList: ${received.joinToString { it.toString() }}"
+            message = "Retrieved productDetailsList: ${received.joinToString { it.toString() }}",
         )
         received.takeUnless { it.isEmpty() }?.forEach {
             Logger.debug(
                 logLevel = LogLevel.debug,
                 scope = LogScope.productsManager,
-                message = "${it.productId} - $it"
+                message = "${it.productId} - $it",
             )
         }
 
-        val storeProducts = received
-            .flatMap { productDetails ->
-                useCaseParams.decomposedProductIdsBySubscriptionId[productDetails.productId]?.map { productId ->
-                    val rawStoreProduct = RawStoreProduct(
-                        underlyingProductDetails = productDetails,
-                        fullIdentifier = productId.fullId ?: "",
-                        basePlanId = productId.basePlanId,
-                        offerType = productId.offerType
-                    )
-                    StoreProduct(rawStoreProduct)
-                } ?: emptyList()
-            }
+        val storeProducts =
+            received
+                .flatMap { productDetails ->
+                    useCaseParams.decomposedProductIdsBySubscriptionId[productDetails.productId]?.map { productId ->
+                        val rawStoreProduct =
+                            RawStoreProduct(
+                                underlyingProductDetails = productDetails,
+                                fullIdentifier = productId.fullId ?: "",
+                                basePlanId = productId.basePlanId,
+                                offerType = productId.offerType,
+                            )
+                        StoreProduct(rawStoreProduct)
+                    } ?: emptyList()
+                }
 
         onReceive(storeProducts)
     }
@@ -103,8 +105,9 @@ internal class QueryProductDetailsUseCase(
                 Logger.debug(
                     logLevel = LogLevel.debug,
                     scope = LogScope.productsManager,
-                    message = "BillingClient queryProductDetails has returned more than once, " +
-                            "with result ${billingResult.responseCode}"
+                    message =
+                        "BillingClient queryProductDetails has returned more than once, " +
+                            "with result ${billingResult.responseCode}",
                 )
                 return@queryProductDetailsAsync
             }

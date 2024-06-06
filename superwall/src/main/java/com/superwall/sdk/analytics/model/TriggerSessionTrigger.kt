@@ -10,24 +10,18 @@ import java.util.Date
 data class TriggerSessionTrigger(
     @SerialName("paywall_trigger_event_id")
     var eventId: String? = null,
-
     @SerialName("paywall_trigger_event_name")
     var eventName: String,
-
     @SerialName("paywall_trigger_event_params")
     var eventParameters: JsonElement? = null,
-
     @SerialName("paywall_trigger_event_ts")
     @Serializable(with = DateSerializer::class)
     var eventCreatedAt: Date? = null,
-
     @SerialName("paywall_trigger_trigger_type")
     var type: TriggerType? = null,
-
     @SerialName("paywall_trigger_presented_on_description")
     val presentedOn: String? = null,
-
-    var experiment: Experiment? = null
+    var experiment: Experiment? = null,
 ) {
     @Serializable
     enum class TriggerType {
@@ -35,6 +29,6 @@ data class TriggerSessionTrigger(
         IMPLICIT,
 
         @SerialName("EXPLICIT")
-        EXPLICIT
+        EXPLICIT,
     }
 }

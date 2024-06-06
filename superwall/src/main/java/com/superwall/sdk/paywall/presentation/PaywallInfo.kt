@@ -10,6 +10,7 @@ import com.superwall.sdk.misc.camelCaseToSnakeCase
 import com.superwall.sdk.models.config.FeatureGatingBehavior
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.LocalNotification
+import com.superwall.sdk.models.paywall.PaywallPresentationInfo
 import com.superwall.sdk.models.product.Product
 import com.superwall.sdk.models.product.ProductItem
 import com.superwall.sdk.models.serialization.URLSerializer
@@ -18,8 +19,7 @@ import com.superwall.sdk.store.abstractions.product.StoreProduct
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.net.URL
-import java.util.*
-
+import java.util.Date
 
 @Serializable
 data class PaywallInfo(
@@ -30,10 +30,9 @@ data class PaywallInfo(
     val url: URL,
     val experiment: Experiment?,
     val triggerSessionId: String?,
-
     @Deprecated(
         message = "Use productItems because a paywall can support more than three products",
-        ReplaceWith("productsItems")
+        ReplaceWith("productsItems"),
     )
     val products: List<Product>,
     val productItems: List<ProductItem>,
@@ -62,7 +61,8 @@ data class PaywallInfo(
     val localNotifications: List<LocalNotification>,
     val computedPropertyRequests: List<ComputedPropertyRequest>,
     val surveys: List<Survey>,
-    val factory: TriggerSessionManagerFactory
+    val factory: TriggerSessionManagerFactory,
+    val presentation: PaywallPresentationInfo,
 ) {
     constructor(
         databaseId: String,
@@ -92,7 +92,8 @@ data class PaywallInfo(
         localNotifications: List<LocalNotification>,
         computedPropertyRequests: List<ComputedPropertyRequest>,
         closeReason: PaywallCloseReason,
-        surveys: List<Survey>
+        surveys: List<Survey>,
+        presentation: PaywallPresentationInfo,
     ) : this(
         databaseId = databaseId,
         identifier = identifier,
@@ -114,61 +115,66 @@ data class PaywallInfo(
         responseLoadStartTime = responseLoadStartTime?.toString() ?: "",
         responseLoadCompleteTime = responseLoadStartTime?.toString() ?: "",
         responseLoadFailTime = responseLoadFailTime?.toString() ?: "",
-        responseLoadDuration = responseLoadStartTime?.let { startTime ->
-            responseLoadCompleteTime?.let { endTime ->
-                (endTime.time / 1000 - startTime.time / 1000).toDouble()
-            }
-        },
+        responseLoadDuration =
+            responseLoadStartTime?.let { startTime ->
+                responseLoadCompleteTime?.let { endTime ->
+                    (endTime.time / 1000 - startTime.time / 1000).toDouble()
+                }
+            },
         webViewLoadStartTime = webViewLoadStartTime?.toString() ?: "",
         webViewLoadCompleteTime = webViewLoadCompleteTime?.toString() ?: "",
         webViewLoadFailTime = webViewLoadFailTime?.toString() ?: "",
-        webViewLoadDuration = webViewLoadStartTime?.let { startTime ->
-            webViewLoadCompleteTime?.let { endTime ->
-                (endTime.time / 1000 - startTime.time / 1000).toDouble()
-            }
-        },
+        webViewLoadDuration =
+            webViewLoadStartTime?.let { startTime ->
+                webViewLoadCompleteTime?.let { endTime ->
+                    (endTime.time / 1000 - startTime.time / 1000).toDouble()
+                }
+            },
         productsLoadStartTime = productsLoadStartTime?.toString() ?: "",
         productsLoadCompleteTime = productsLoadCompleteTime?.toString() ?: "",
         productsLoadFailTime = productsLoadFailTime?.toString() ?: "",
-        productsLoadDuration = productsLoadStartTime?.let { startTime ->
-            productsLoadCompleteTime?.let { endTime ->
-                (endTime.time / 1000 - startTime.time / 1000).toDouble()
-            }
-        },
+        productsLoadDuration =
+            productsLoadStartTime?.let { startTime ->
+                productsLoadCompleteTime?.let { endTime ->
+                    (endTime.time / 1000 - startTime.time / 1000).toDouble()
+                }
+            },
         factory = factory,
         localNotifications = localNotifications,
         computedPropertyRequests = computedPropertyRequests,
         closeReason = closeReason,
-        surveys = surveys
+        surveys = surveys,
+        presentation = presentation,
     )
 
     fun eventParams(
         product: StoreProduct? = null,
-        otherParams: Map<String, Any?>? = null
+        otherParams: Map<String, Any?>? = null,
     ): Map<String, Any> {
         var output = customParams()
 
-        val params = mutableMapOf(
-            (("paywalljs_version" to paywalljsVersion) ?: "") as Pair<String, Any>,
-            "paywall_identifier" to identifier,
-            "paywall_url" to url.toString(),
-            "presented_by_event_id" to presentedByEventWithId,
-            "presented_by_event_timestamp" to presentedByEventAt,
-            "presentation_source_type" to presentationSourceType,
-            "paywall_response_load_start_time" to responseLoadStartTime,
-            "paywall_response_load_complete_time" to responseLoadCompleteTime,
-            "paywall_response_load_duration" to responseLoadDuration,
-            "paywall_webview_load_start_time" to webViewLoadStartTime,
-            "paywall_webview_load_complete_time" to webViewLoadCompleteTime,
-            "paywall_webview_load_duration" to webViewLoadDuration,
-            "paywall_products_load_start_time" to productsLoadStartTime,
-            "paywall_products_load_complete_time" to productsLoadCompleteTime,
-            "paywall_products_load_fail_time" to productsLoadFailTime,
-            "paywall_products_load_duration" to productsLoadDuration,
-            "trigger_session_id" to triggerSessionId,
-            "experiment_id" to experiment?.id,
-            "variant_id" to experiment?.variant?.id
-        )
+        val params =
+            mutableMapOf(
+                (("paywalljs_version" to paywalljsVersion) ?: "") as Pair<String, Any>,
+                "paywall_identifier" to identifier,
+                "paywall_url" to url.toString(),
+                "presented_by_event_id" to presentedByEventWithId,
+                "presented_by_event_timestamp" to presentedByEventAt,
+                "presentation_source_type" to presentationSourceType,
+                "paywall_response_load_start_time" to responseLoadStartTime,
+                "paywall_response_load_complete_time" to responseLoadCompleteTime,
+                "paywall_response_load_duration" to responseLoadDuration,
+                "paywall_webview_load_start_time" to webViewLoadStartTime,
+                "paywall_webview_load_complete_time" to webViewLoadCompleteTime,
+                "paywall_webview_load_duration" to webViewLoadDuration,
+                "paywall_products_load_start_time" to productsLoadStartTime,
+                "paywall_products_load_complete_time" to productsLoadCompleteTime,
+                "paywall_products_load_fail_time" to productsLoadFailTime,
+                "paywall_products_load_duration" to productsLoadDuration,
+                "trigger_session_id" to triggerSessionId,
+                "experiment_id" to experiment?.id,
+                "variant_id" to experiment?.variant?.id,
+            )
         params.values.removeAll { it == null }
         val filteredParams = params as MutableMap<String, Any>
         output.putAll(filteredParams)
@@ -186,7 +192,7 @@ data class PaywallInfo(
             logLevel = LogLevel.debug,
             scope = LogScope.paywallEvents,
             message = "Paywall loading timestamps",
-            info = loadingVars
+            info = loadingVars,
         )
 
         product?.let {
@@ -209,19 +215,21 @@ data class PaywallInfo(
         return output
     }
 
-    /// Parameters that can be used in rules.
+    // / Parameters that can be used in rules.
     fun customParams(): MutableMap<String, Any> {
-        val featureGatingSerialized = Json {}.encodeToString(FeatureGatingBehavior.serializer(), featureGatingBehavior)
+        val featureGatingSerialized =
+            Json {}.encodeToString(FeatureGatingBehavior.serializer(), featureGatingBehavior)
 
-        val output: MutableMap<String, Any?> = mutableMapOf(
-            "paywall_id" to databaseId,
-            "paywall_name" to name,
-            "presented_by_event_name" to (presentedByEventWithName ?: ""),
-            "paywall_product_ids" to productIds.joinToString(","),
-            "is_free_trial_available" to isFreeTrialAvailable,
-            "feature_gating" to featureGatingSerialized,
-            "presented_by" to presentedBy
-        )
+        val output: MutableMap<String, Any?> =
+            mutableMapOf(
+                "paywall_id" to databaseId,
+                "paywall_name" to name,
+                "presented_by_event_name" to (presentedByEventWithName ?: ""),
+                "paywall_product_ids" to productIds.joinToString(","),
+                "is_free_trial_available" to isFreeTrialAvailable,
+                "feature_gating" to featureGatingSerialized,
+                "presented_by" to presentedBy,
+            )
 
         output["primary_product_id"] = ""
         output["secondary_product_id"] = ""

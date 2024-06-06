@@ -27,20 +27,22 @@ internal suspend fun Superwall.getPaywallViewController(
     rulesOutcome: RuleEvaluationOutcome,
     debugInfo: Map<String, Any>,
     paywallStatePublisher: MutableSharedFlow<PaywallState>? = null,
-    dependencyContainer: DependencyContainer
+    dependencyContainer: DependencyContainer,
 ): PaywallViewController {
-    val experiment = getExperiment(
-        request = request,
-        rulesOutcome = rulesOutcome,
-        debugInfo = debugInfo,
-        paywallStatePublisher = paywallStatePublisher,
-        storage = dependencyContainer.storage
-    )
+    val experiment =
+        getExperiment(
+            request = request,
+            rulesOutcome = rulesOutcome,
+            debugInfo = debugInfo,
+            paywallStatePublisher = paywallStatePublisher,
+            storage = dependencyContainer.storage,
+        )
 
-    val responseIdentifiers = ResponseIdentifiers(
-        paywallId = experiment.variant.paywallId,
-        experiment = experiment
-    )
+    val responseIdentifiers =
+        ResponseIdentifiers(
+            paywallId = experiment.variant.paywallId,
+            experiment = experiment,
+        )
 
     var requestRetryCount = 6
 
@@ -49,20 +51,23 @@ internal suspend fun Superwall.getPaywallViewController(
         requestRetryCount = 0
     }
 
-    val paywallRequest = dependencyContainer.makePaywallRequest(
-        eventData = request.presentationInfo.eventData,
-        responseIdentifiers = responseIdentifiers,
-        overrides = PaywallRequest.Overrides(
-            products = request.paywallOverrides?.productsByName,
-            isFreeTrial = request.presentationInfo.freeTrialOverride
-        ),
-        isDebuggerLaunched = request.flags.isDebuggerLaunched,
-        presentationSourceType = request.presentationSourceType,
-        retryCount = requestRetryCount
-    )
+    val paywallRequest =
+        dependencyContainer.makePaywallRequest(
+            eventData = request.presentationInfo.eventData,
+            responseIdentifiers = responseIdentifiers,
+            overrides =
+                PaywallRequest.Overrides(
+                    products = request.paywallOverrides?.productsByName,
+                    isFreeTrial = request.presentationInfo.freeTrialOverride,
+                ),
+            isDebuggerLaunched = request.flags.isDebuggerLaunched,
+            presentationSourceType = request.presentationSourceType,
+            retryCount = requestRetryCount,
+        )
     return try {
-        val isForPresentation = request.flags.type != PresentationRequestType.GetImplicitPresentationResult
-                && request.flags.type != PresentationRequestType.GetPresentationResult
+        val isForPresentation =
+            request.flags.type != PresentationRequestType.GetImplicitPresentationResult &&
+                request.flags.type != PresentationRequestType.GetPresentationResult
         val delegate = request.flags.type.paywallVcDelegateAdapter
 
         val webviewExists = WebView.getCurrentWebViewPackage() != null
@@ -71,14 +76,15 @@ internal suspend fun Superwall.getPaywallViewController(
                 request = paywallRequest,
                 isForPresentation = isForPresentation,
                 isPreloading = false,
-                delegate = delegate
+                delegate = delegate,
             )
         } else {
             Logger.debug(
                 logLevel = LogLevel.error,
                 scope = LogScope.paywallPresentation,
-                message = "Paywalls cannot be presented because the Android System WebView has been disabled" +
-                        " by the user."
+                message =
+                    "Paywalls cannot be presented because the Android System WebView has been disabled" +
+                        " by the user.",
             )
             throw PaywallPresentationRequestStatusReason.NoPaywallViewController()
         }
@@ -95,16 +101,17 @@ private suspend fun presentationFailure(
     error: Throwable,
     request: PresentationRequest,
     debugInfo: Map<String, Any>,
-    paywallStatePublisher: MutableSharedFlow<PaywallState>?
+    paywallStatePublisher: MutableSharedFlow<PaywallState>?,
 ): Throwable {
     val subscriptionStatus = request.flags.subscriptionStatus.first()
     if (InternalPresentationLogic.userSubscribedAndNotOverridden(
             isUserSubscribed = subscriptionStatus == SubscriptionStatus.ACTIVE,
-            overrides = InternalPresentationLogic.UserSubscriptionOverrides(
-                isDebuggerLaunched = request.flags.isDebuggerLaunched,
-                shouldIgnoreSubscriptionStatus = request.paywallOverrides?.ignoreSubscriptionStatus,
-                presentationCondition = null
-            )
+            overrides =
+                InternalPresentationLogic.UserSubscriptionOverrides(
+                    isDebuggerLaunched = request.flags.isDebuggerLaunched,
+                    shouldIgnoreSubscriptionStatus = request.paywallOverrides?.ignoreSubscriptionStatus,
+                    presentationCondition = null,
+                ),
         )
     ) {
         paywallStatePublisher?.emit(PaywallState.Skipped(PaywallSkippedReason.UserIsSubscribed()))
@@ -116,7 +123,7 @@ private suspend fun presentationFailure(
         scope = LogScope.paywallPresentation,
         message = "Error Getting Paywall View Controller",
         info = debugInfo,
-        error = error
+        error = error,
     )
     paywallStatePublisher?.emit(PaywallState.PresentationError(error))
     return PaywallPresentationRequestStatusReason.NoPaywallViewController()

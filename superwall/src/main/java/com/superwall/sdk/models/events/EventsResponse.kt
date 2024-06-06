@@ -1,6 +1,5 @@
 package com.superwall.sdk.models.events
 
-
 import com.superwall.sdk.models.SerializableEntity
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
@@ -13,11 +12,12 @@ import kotlinx.serialization.encoding.Encoder
 @Serializable
 data class EventsResponse(
     val status: Status,
-    val invalidIndexes: List<Int>? = null
+    val invalidIndexes: List<Int>? = null,
 ) : SerializableEntity {
     @Serializable(with = StatusSerializer::class)
     enum class Status {
-        OK, PARTIAL_SUCCESS;
+        OK,
+        PARTIAL_SUCCESS,
     }
 }
 
@@ -25,7 +25,10 @@ object StatusSerializer : KSerializer<EventsResponse.Status> {
     override val descriptor: SerialDescriptor =
         PrimitiveSerialDescriptor("Status", PrimitiveKind.STRING)
 
-    override fun serialize(encoder: Encoder, value: EventsResponse.Status) {
+    override fun serialize(
+        encoder: Encoder,
+        value: EventsResponse.Status,
+    ) {
         encoder.encodeString(value.name)
     }
 

@@ -9,7 +9,10 @@ object AppSessionLogic {
      * @param lastAppClose The date when the app was last closed.
      * @param timeout The timeout for the session, as defined by the config, in milliseconds. By default, this value is 1 hour.
      */
-    fun didStartNewSession(lastAppClose: Date?, timeout: Long? = 3600000L): Boolean {
+    fun didStartNewSession(
+        lastAppClose: Date?,
+        timeout: Long? = 3600000L,
+    ): Boolean {
         // If the app has never been closed, we've started a new session.
         if (lastAppClose == null) {
             return true

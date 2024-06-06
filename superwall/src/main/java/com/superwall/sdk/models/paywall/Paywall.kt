@@ -1,13 +1,20 @@
 package com.superwall.sdk.models.paywall
 
 import ComputedPropertyRequest
+import android.graphics.Color
 import com.superwall.sdk.config.models.OnDeviceCaching
 import com.superwall.sdk.config.models.Survey
 import com.superwall.sdk.dependencies.TriggerSessionManagerFactory
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.models.SerializableEntity
 import com.superwall.sdk.models.config.FeatureGatingBehavior
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.product.Product
+import com.superwall.sdk.models.product.ProductItem
+import com.superwall.sdk.models.product.ProductItemsDeserializer
+import com.superwall.sdk.models.product.ProductType
 import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.models.serialization.DateSerializer
 import com.superwall.sdk.models.serialization.URLSerializer
@@ -18,16 +25,11 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.net.URL
 import java.util.*
-import android.graphics.Color
-import com.superwall.sdk.logger.LogLevel
-import com.superwall.sdk.logger.LogScope
-import com.superwall.sdk.logger.Logger
-import com.superwall.sdk.models.product.ProductItem
-import com.superwall.sdk.models.product.ProductItemsDeserializer
-import com.superwall.sdk.models.product.ProductType
 
 @Serializable
-data class Paywalls(val paywalls: List<Paywall>): SerializableEntity
+data class Paywalls(
+    val paywalls: List<Paywall>,
+) : SerializableEntity
 
 @Serializable
 data class Paywall(
@@ -35,36 +37,35 @@ data class Paywall(
     val databaseId: String,
     var identifier: String,
     val name: String,
-    val url: @Serializable(with = URLSerializer::class) URL,
+    val url:
+        @Serializable(with = URLSerializer::class)
+        URL,
     @SerialName("paywalljs_event")
     val htmlSubstitutions: String,
-    @kotlinx.serialization.Transient()
-    var presentation: Presentation = Presentation(
-        PaywallPresentationStyle.MODAL,
-        PresentationCondition.ALWAYS
-    ),
-
     @SerialName("presentation_style_v2")
     private val presentationStyle: String,
-
+    @SerialName("presentation_delay")
+    private val presentationDelay: Long,
     private val presentationCondition: String,
-
+    @kotlinx.serialization.Transient()
+    var presentation: PaywallPresentationInfo =
+        PaywallPresentationInfo(
+            style = PaywallPresentationStyle.valueOf(presentationStyle.uppercase()),
+            condition = PresentationCondition.valueOf(presentationCondition.uppercase()),
+            delay = presentationDelay,
+        ),
     val backgroundColorHex: String,
     val darkBackgroundColorHex: String? = null,
-
     // Declared as private to prevent direct access
     @kotlinx.serialization.Transient()
     private var _products: List<Product> = emptyList(),
-
     @Serializable(with = ProductItemsDeserializer::class)
     @SerialName("products_v2")
     private var _productItems: List<ProductItem>,
-
     @kotlinx.serialization.Transient()
     var productIds: List<String> = arrayListOf(),
     @kotlinx.serialization.Transient()
     var responseLoadingInfo: LoadingInfo = LoadingInfo(),
-
     @kotlinx.serialization.Transient()
     var webviewLoadingInfo: LoadingInfo = LoadingInfo(),
     @kotlinx.serialization.Transient()
@@ -73,36 +74,26 @@ data class Paywall(
     var swProductVariablesTemplate: List<ProductVariable>? = null,
     var paywalljsVersion: String? = null,
     var isFreeTrialAvailable: Boolean = false,
-
-    /// The source of the presentation request. Either 'implicit', 'getPaywall', 'register'.
+    // / The source of the presentation request. Either 'implicit', 'getPaywall', 'register'.
     var presentationSourceType: String? = null,
-
     var featureGating: FeatureGatingBehavior = FeatureGatingBehavior.NonGated,
-
     @SerialName("computed_properties")
     var computedPropertyRequests: List<ComputedPropertyRequest> = emptyList(),
-
     var localNotifications: List<LocalNotification> = emptyList(),
-
     /**
      * Indicates whether the caching of the paywall is enabled or not.
-      */
+     */
     var onDeviceCache: OnDeviceCaching = OnDeviceCaching.Disabled,
-
     @kotlinx.serialization.Transient()
     var experiment: Experiment? = null,
-
     @kotlinx.serialization.Transient()
     var triggerSessionId: String? = null,
-
     @kotlinx.serialization.Transient()
     var closeReason: PaywallCloseReason = PaywallCloseReason.None,
-
     /**
      Surveys to potentially show when an action happens in the paywall.
      */
-    var surveys: List<Survey> = emptyList()
-
+    var surveys: List<Survey> = emptyList(),
 ) : SerializableEntity {
     // Public getter for productItems
     var productItems: List<ProductItem>
@@ -125,8 +116,9 @@ data class Paywall(
             Logger.debug(
                 logLevel = LogLevel.warn,
                 scope = LogScope.paywallViewController,
-                message = "Invalid paywall background color: ${this.backgroundColorHex}. " +
-                        "Defaulting to white."
+                message =
+                    "Invalid paywall background color: ${this.backgroundColorHex}. " +
+                        "Defaulting to white.",
             )
             Color.WHITE
         }
@@ -139,8 +131,9 @@ data class Paywall(
             Logger.debug(
                 logLevel = LogLevel.warn,
                 scope = LogScope.paywallViewController,
-                message = "Invalid paywall background color: ${this.darkBackgroundColorHex}. " +
-                        "Defaulting to white."
+                message =
+                    "Invalid paywall background color: ${this.darkBackgroundColorHex}. " +
+                        "Defaulting to white.",
             )
             null
         }
@@ -148,17 +141,7 @@ data class Paywall(
 
     init {
         productItems = _productItems
-        presentation = Presentation(
-            style = PaywallPresentationStyle.valueOf(presentationStyle.uppercase()),
-            condition = PresentationCondition.valueOf(presentationCondition.uppercase())
-        )
     }
-
-    @Serializable
-    data class Presentation(
-        val style: PaywallPresentationStyle,
-        val condition: PresentationCondition
-    )
 
     @Serializable
     data class LoadingInfo(
@@ -167,7 +150,7 @@ data class Paywall(
         @Serializable(with = DateSerializer::class)
         var endAt: Date? = null,
         @Serializable(with = DateSerializer::class)
-        var failAt: Date? = null
+        var failAt: Date? = null,
     )
 
     fun update(paywall: Paywall) {
@@ -180,8 +163,11 @@ data class Paywall(
         experiment = paywall.experiment
     }
 
-    fun getInfo(fromEvent: EventData?, factory: TriggerSessionManagerFactory): PaywallInfo {
-        return PaywallInfo(
+    fun getInfo(
+        fromEvent: EventData?,
+        factory: TriggerSessionManagerFactory,
+    ): PaywallInfo =
+        PaywallInfo(
             databaseId = databaseId,
             identifier = identifier,
             name = name,
@@ -209,9 +195,9 @@ data class Paywall(
             closeReason = closeReason,
             localNotifications = localNotifications,
             computedPropertyRequests = computedPropertyRequests,
-            surveys = surveys
+            surveys = surveys,
+            presentation = presentation,
         )
-    }
 
     companion object {
         private fun makeProducts(productItems: List<ProductItem>): List<Product> {
@@ -219,32 +205,37 @@ data class Paywall(
 
             for (productItem in productItems) {
                 when (productItem.name) {
-                    "primary" -> output.add(
-                        Product(type = ProductType.PRIMARY, id = productItem.fullProductId)
-                    )
-                    "secondary" -> output.add(
-                        Product(type = ProductType.SECONDARY, id = productItem.fullProductId)
-                    )
-                    "tertiary" -> output.add(
-                        Product(type = ProductType.TERTIARY, id = productItem.fullProductId)
-                    )
+                    "primary" ->
+                        output.add(
+                            Product(type = ProductType.PRIMARY, id = productItem.fullProductId),
+                        )
+                    "secondary" ->
+                        output.add(
+                            Product(type = ProductType.SECONDARY, id = productItem.fullProductId),
+                        )
+                    "tertiary" ->
+                        output.add(
+                            Product(type = ProductType.TERTIARY, id = productItem.fullProductId),
+                        )
                 }
             }
 
             return output
         }
 
-        fun stub(): Paywall {
-            return Paywall(
+        fun stub(): Paywall =
+            Paywall(
                 databaseId = "id",
                 identifier = "identifier",
                 name = "abac",
                 url = URL("https://google.com"),
                 htmlSubstitutions = "",
-                presentation = Presentation(
-                    PaywallPresentationStyle.MODAL,
-                    PresentationCondition.CHECK_USER_SUBSCRIPTION
-                ),
+                presentation =
+                    PaywallPresentationInfo(
+                        PaywallPresentationStyle.MODAL,
+                        PresentationCondition.CHECK_USER_SUBSCRIPTION,
+                        300,
+                    ),
                 presentationStyle = "MODAL",
                 presentationCondition = "CHECK_USER_SUBSCRIPTION",
                 backgroundColorHex = "000000",
@@ -260,9 +251,8 @@ data class Paywall(
                 paywalljsVersion = "",
                 isFreeTrialAvailable = false,
                 featureGating = FeatureGatingBehavior.NonGated,
-                localNotifications = arrayListOf()
+                localNotifications = arrayListOf(),
+                presentationDelay = 300,
             )
-
-        }
     }
 }

@@ -20,32 +20,34 @@ data class Config(
     @SerialName("disablePreload") var preloadingDisabled: PreloadingDisabled,
     @SerialName("localization") var localizationConfig: LocalizationConfig,
     var requestId: String? = null,
-    @Transient var locales: Set<String> = emptySet()
-
+    @Transient var locales: Set<String> = emptySet(),
 ) : SerializableEntity {
     init {
         locales = localizationConfig.locales.map { it.locale }.toSet()
     }
 
     val allComputedProperties: List<ComputedPropertyRequest>
-        get() = triggers.flatMap { trigger ->
-            trigger.rules.flatMap { rule ->
-                rule.computedPropertyRequests
+        get() =
+            triggers.flatMap { trigger ->
+                trigger.rules.flatMap { rule ->
+                    rule.computedPropertyRequests
+                }
             }
-        }
 
     val featureFlags: FeatureFlags
-        get() = FeatureFlags(
-            enableSessionEvents = rawFeatureFlags.find { it.key == "enable_session_events" }?.enabled
-                ?: false,
-            enablePostback = rawFeatureFlags.find { it.key == "enable_postback" }?.enabled ?: false,
-            enableUserIdSeed = rawFeatureFlags.find { it.key == "enable_userid_seed" }?.enabled ?: false,
-            disableVerboseEvents = rawFeatureFlags.find { it.key == "disable_verbose_events" }?.enabled ?: false,
-        )
+        get() =
+            FeatureFlags(
+                enableSessionEvents =
+                    rawFeatureFlags.find { it.key == "enable_session_events" }?.enabled
+                        ?: false,
+                enablePostback = rawFeatureFlags.find { it.key == "enable_postback" }?.enabled ?: false,
+                enableUserIdSeed = rawFeatureFlags.find { it.key == "enable_userid_seed" }?.enabled ?: false,
+                disableVerboseEvents = rawFeatureFlags.find { it.key == "disable_verbose_events" }?.enabled ?: false,
+            )
 
     companion object {
-        fun stub(): Config {
-            return Config(
+        fun stub(): Config =
+            Config(
                 triggers = setOf(Trigger.stub()),
                 paywalls = listOf(Paywall.stub()),
                 logLevel = 0,
@@ -53,8 +55,7 @@ data class Config(
                 appSessionTimeout = 3600000,
                 rawFeatureFlags = emptyList(),
                 preloadingDisabled = PreloadingDisabled.stub(),
-                localizationConfig = LocalizationConfig(locales = emptyList())
+                localizationConfig = LocalizationConfig(locales = emptyList()),
             )
-        }
     }
 }

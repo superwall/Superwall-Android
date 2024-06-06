@@ -18,19 +18,22 @@ sealed class FeatureGatingBehavior {
 
 @Serializer(forClass = FeatureGatingBehavior::class)
 object FeatureGatingBehaviorSerializer : KSerializer<FeatureGatingBehavior> {
-    override fun serialize(encoder: Encoder, value: FeatureGatingBehavior) {
-        val serialName = when (value) {
-            is FeatureGatingBehavior.Gated -> "GATED"
-            is FeatureGatingBehavior.NonGated -> "NON_GATED"
-        }
+    override fun serialize(
+        encoder: Encoder,
+        value: FeatureGatingBehavior,
+    ) {
+        val serialName =
+            when (value) {
+                is FeatureGatingBehavior.Gated -> "GATED"
+                is FeatureGatingBehavior.NonGated -> "NON_GATED"
+            }
         encoder.encodeString(serialName)
     }
 
-    override fun deserialize(decoder: Decoder): FeatureGatingBehavior {
-        return when (val value = decoder.decodeString()) {
+    override fun deserialize(decoder: Decoder): FeatureGatingBehavior =
+        when (val value = decoder.decodeString()) {
             "GATED" -> FeatureGatingBehavior.Gated
             "NON_GATED" -> FeatureGatingBehavior.NonGated
             else -> FeatureGatingBehavior.NonGated
         }
-    }
 }

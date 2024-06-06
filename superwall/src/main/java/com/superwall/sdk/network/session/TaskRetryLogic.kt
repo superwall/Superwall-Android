@@ -8,7 +8,7 @@ import kotlin.random.Random
 object TaskRetryLogic {
     fun delay(
         attempt: Int,
-        maxRetries: Int
+        maxRetries: Int,
     ): Long? {
         if (attempt > maxRetries) {
             return null

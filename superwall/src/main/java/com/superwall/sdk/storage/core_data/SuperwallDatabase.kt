@@ -14,26 +14,28 @@ import com.superwall.sdk.storage.core_data.entities.ManagedTriggerRuleOccurrence
 @Database(
     entities = [ManagedEventData::class, ManagedTriggerRuleOccurrence::class],
     version = 1,
-    exportSchema = false
+    exportSchema = false,
 )
 abstract class SuperwallDatabase : RoomDatabase() {
     abstract fun managedEventDataDao(): ManagedEventDataDao
+
     abstract fun managedTriggerRuleOccurrenceDao(): ManagedTriggerRuleOccurrenceDao
 
     companion object {
         @Volatile
         private var INSTANCE: SuperwallDatabase? = null
 
-        fun getDatabase(context: Context): SuperwallDatabase {
-            return INSTANCE ?: synchronized(this) {
-                val instance = Room.databaseBuilder(
-                    context.applicationContext,
-                    SuperwallDatabase::class.java,
-                    "superwall_database"
-                ).build()
+        fun getDatabase(context: Context): SuperwallDatabase =
+            INSTANCE ?: synchronized(this) {
+                val instance =
+                    Room
+                        .databaseBuilder(
+                            context.applicationContext,
+                            SuperwallDatabase::class.java,
+                            "superwall_database",
+                        ).build()
                 INSTANCE = instance
                 instance
             }
-        }
     }
 }

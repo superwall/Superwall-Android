@@ -5,7 +5,6 @@ import com.superwall.sdk.paywall.presentation.PaywallInfo
 import java.net.URL
 
 interface SuperwallDelegateJava {
-
     fun handleCustomPaywallAction(name: String) {}
 
     fun willDismissPaywall(paywallInfo: PaywallInfo) {}
@@ -29,7 +28,7 @@ interface SuperwallDelegateJava {
         scope: String,
         message: String? = null,
         info: Map<String, Any>? = null,
-        error: Throwable? = null
+        error: Throwable? = null,
     ) {
     }
 }

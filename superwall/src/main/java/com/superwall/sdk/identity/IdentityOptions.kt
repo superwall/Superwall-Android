@@ -19,5 +19,5 @@ data class IdentityOptions(
      * users of your app to switch accounts or delete/reinstall a lot, you'd set this when users log
      * in to an existing account.
      */
-    val restorePaywallAssignments: Boolean = false
+    val restorePaywallAssignments: Boolean = false,
 )

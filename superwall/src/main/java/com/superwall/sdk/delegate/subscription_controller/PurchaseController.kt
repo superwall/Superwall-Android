@@ -20,7 +20,6 @@ import com.superwall.sdk.delegate.RestorationResult
  * and best practices, see [Purchases and Subscription Status](https://docs.superwall.com/docs/advanced-configuration).
  */
 interface PurchaseController {
-
     /**
      * Called when the user initiates purchasing of a product.
      *
@@ -38,7 +37,7 @@ interface PurchaseController {
         activity: Activity,
         productDetails: ProductDetails,
         basePlanId: String?,
-        offerId: String?
+        offerId: String?,
     ): PurchaseResult
 
     /**
@@ -53,4 +52,3 @@ interface PurchaseController {
     @MainThread
     suspend fun restorePurchases(): RestorationResult
 }
-

@@ -3,15 +3,10 @@ package com.superwall.sdk.paywall.presentation
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
 import java.util.concurrent.Executors
 
 internal class PresentationItems {
@@ -48,7 +43,6 @@ internal class PresentationItems {
 data class LastPresentationItems(
     // The last paywall presentation request.
     val request: PresentationRequest,
-
     // The last state publisher.
-    val statePublisher: MutableSharedFlow<PaywallState>
+    val statePublisher: MutableSharedFlow<PaywallState>,
 )

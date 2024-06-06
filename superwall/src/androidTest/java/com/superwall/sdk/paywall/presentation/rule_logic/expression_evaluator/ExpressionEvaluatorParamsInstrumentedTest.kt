@@ -5,7 +5,6 @@ import org.junit.Test
 import java.util.*
 
 class ExpressionEvaluatorParamsTest {
-
     @Test
     fun expression_evaluator_params_test() {
         val expected = """
@@ -29,10 +28,11 @@ class ExpressionEvaluatorParamsTest {
         jsonValues.put("device", JSONObject(emptyMap<String, String>()))
         jsonValues.put("params", JSONObject(mapOf("id" to "567")))
 
-        val liquidExpressionParams = LiquidExpressionEvaluatorParams(
-            expression = "user.id == '123'",
-            values = jsonValues
-        )
+        val liquidExpressionParams =
+            LiquidExpressionEvaluatorParams(
+                expression = "user.id == '123'",
+                values = jsonValues,
+            )
 
         val jsonString = liquidExpressionParams.toJson()
         println("!! jsonString: $jsonString")
@@ -56,7 +56,6 @@ class ExpressionEvaluatorParamsTest {
         val params = values.getJSONObject("params")
         assert(params.getString("id") == "567")
 
-
         val base64String = liquidExpressionParams.toBase64Input()
         // Try to base64 decode the string
         val decodedString = Base64.getDecoder().decode(base64String)
@@ -78,7 +77,6 @@ class ExpressionEvaluatorParamsTest {
 
         val params2 = values2.getJSONObject("params")
         assert(params2.getString("id") == "567")
-
     }
 
     @Test
@@ -104,10 +102,11 @@ class ExpressionEvaluatorParamsTest {
         jsonValues.put("device", JSONObject(emptyMap<String, String>()))
         jsonValues.put("params", JSONObject(mapOf("id" to "567")))
 
-        val jsExpressionParams = JavascriptExpressionEvaluatorParams(
-            expressionJs = "user.id == '123'",
-            values = jsonValues
-        )
+        val jsExpressionParams =
+            JavascriptExpressionEvaluatorParams(
+                expressionJs = "user.id == '123'",
+                values = jsonValues,
+            )
 
         val jsonString = jsExpressionParams.toJson()
 
@@ -153,7 +152,4 @@ class ExpressionEvaluatorParamsTest {
         val params2 = values2.getJSONObject("params")
         assert(params2.getString("id") == "567")
     }
-
 }
-
-
