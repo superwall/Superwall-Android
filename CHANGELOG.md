@@ -2,6 +2,16 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 1.1.8
+
+### Enhancements
+
+- Toolchain and dependency updates
+
+### Fixes
+
+- SW-2863: Fixed a `NullPointerException` some users on Android 12 & 13 would experience when calling `configure`.
+
 ## 1.1.7
 
 ### Enhancements
@@ -12,7 +22,6 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 ### Fixes
 
 - SW-2854: Fixed issue where abandoning the transaction by pressing back would prevent the user from restarting the transaction.
-- SW-2863: Fixed a `NullPointerException` some users on Android 12 & 13 would experience when calling `configure`.
 
 ## 1.1.6
 
