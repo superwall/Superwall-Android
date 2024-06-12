@@ -2,6 +2,13 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 1.1.8
+
+### Enhancements
+
+- SW-2859: Adds error message to `paywallWebviewLoad_fail`.
+- SW-2866: Logs error when trying to purchase a product that has failed to load.
+
 ## 1.1.7
 
 ### Enhancements
