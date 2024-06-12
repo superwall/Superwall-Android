@@ -47,6 +47,7 @@ class Superwall(
     private val completion: (() -> Unit)?,
 ) : PaywallViewControllerEventDelegate {
     private var _options: SuperwallOptions? = options
+    private val ioScope = CoroutineScope(Dispatchers.IO)
 
     // Add a private variable for the purchase task
     private var purchaseTask: Job? = null
@@ -287,7 +288,7 @@ class Superwall(
 
         addListeners()
 
-        CoroutineScope(Dispatchers.IO).launch {
+        ioScope.launch {
             dependencyContainer.storage.configure(apiKey = apiKey)
             dependencyContainer.storage.recordAppInstall {
                 track(event = it)
@@ -304,7 +305,7 @@ class Superwall(
 
     // / Listens to config and the subscription status
     private fun addListeners() {
-        CoroutineScope(Dispatchers.IO).launch {
+        ioScope.launch {
             subscriptionStatus // Removes duplicates by default
                 .drop(1) // Drops the first item
                 .collect { newValue ->
@@ -326,7 +327,7 @@ class Superwall(
      * @param isHidden Toggles the paywall loading spinner on and off.
      */
     fun togglePaywallSpinner(isHidden: Boolean) {
-        CoroutineScope(Dispatchers.IO).launch {
+        ioScope.launch {
             val paywallViewController = dependencyContainer.paywallManager.presentedViewController ?: return@launch
             paywallViewController.togglePaywallSpinner(isHidden)
         }
@@ -372,6 +373,9 @@ class Superwall(
         dependencyContainer.paywallManager.resetCache()
         presentationItems.reset()
         dependencyContainer.configManager.reset()
+        ioScope.launch {
+            track(InternalSuperwallEvent.Reset)
+        }
     }
 
     //region Deep Links
@@ -388,7 +392,7 @@ class Superwall(
      * @return A `Boolean` that is `true` if the deep link was handled.
      */
     fun handleDeepLink(uri: Uri): Boolean {
-        CoroutineScope(Dispatchers.IO).launch {
+        ioScope.launch {
             track(InternalSuperwallEvent.DeepLink(uri = uri))
         }
         return dependencyContainer.debugManager.handle(deepLinkUrl = uri)
@@ -408,7 +412,7 @@ class Superwall(
      * Note: This will not reload any paywalls you've already preloaded via [preloadPaywalls].
      */
     fun preloadAllPaywalls() {
-        CoroutineScope(Dispatchers.IO).launch {
+        ioScope.launch {
             dependencyContainer.configManager.preloadAllPaywalls()
         }
     }
@@ -424,7 +428,7 @@ class Superwall(
      * @param eventNames A set of names of events whose paywalls you want to preload.
      */
     fun preloadPaywalls(eventNames: Set<String>) {
-        CoroutineScope(Dispatchers.IO).launch {
+        ioScope.launch {
             dependencyContainer.configManager.preloadPaywallsByNames(
                 eventNames = eventNames,
             )

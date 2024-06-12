@@ -358,6 +358,12 @@ sealed class SuperwallEvent {
             get() = "survey_close"
     }
 
+    // When Superwall.instance.reset is called
+    object Reset : SuperwallEvent() {
+        override val rawName: String
+            get() = "reset"
+    }
+
     open val rawName: String
         get() = this.toString()
 
