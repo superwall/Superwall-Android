@@ -16,7 +16,7 @@ import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
-import java.util.*
+import java.util.UUID
 
 open class Network(
     private val urlSession: CustomHttpUrlConnection = CustomHttpUrlConnection(),
@@ -42,6 +42,7 @@ open class Network(
             when (result.status) {
                 EventsResponse.Status.OK -> {
                 }
+
                 EventsResponse.Status.PARTIAL_SUCCESS -> {
                     Logger.debug(
                         logLevel = LogLevel.warn,
@@ -66,11 +67,7 @@ open class Network(
         isRetryingCallback: () -> Unit,
 //        injectedApplicationStatePublisher: (Flow<UIApplication.State>)? = null
     ): Config {
-        // Wait until the app is not in the background.
-        factory.appLifecycleObserver
-            .isInBackground
-            .filter { !it }
-            .first()
+        awaitUntilAppInForeground()
 
         return try {
             val requestId = UUID.randomUUID().toString()
@@ -169,6 +166,8 @@ open class Network(
 
     suspend fun getGeoInfo(): GeoInfo? =
         try {
+            awaitUntilAppInForeground()
+
             val geoWrapper =
                 urlSession.request(
                     Endpoint.geo(factory = factory),
@@ -200,4 +199,13 @@ open class Network(
             )
             throw error
         }
+
+    private suspend fun awaitUntilAppInForeground() {
+        // Wait until the app is not in the background.
+
+        factory.appLifecycleObserver
+            .isInBackground
+            .filter { !it }
+            .first()
+    }
 }
