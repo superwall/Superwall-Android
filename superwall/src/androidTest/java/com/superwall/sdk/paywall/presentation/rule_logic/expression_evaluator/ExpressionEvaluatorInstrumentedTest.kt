@@ -12,10 +12,11 @@ import com.superwall.sdk.models.triggers.TriggerRuleOutcome
 import com.superwall.sdk.models.triggers.UnmatchedRule
 import com.superwall.sdk.models.triggers.VariantOption
 import com.superwall.sdk.storage.StorageMock
+import junit.framework.TestCase.assertEquals
 import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
-import java.util.*
+import java.util.Date
 
 class RuleAttributeFactoryBuilder : RuleAttributesFactory {
     override suspend fun makeRuleAttributes(
@@ -79,8 +80,7 @@ class ExpressionEvaluatorInstrumentedTest {
                             createdAt = Date(),
                         ),
                 )
-
-            assert(result == TriggerRuleOutcome.match(rule = rule))
+            assertEquals(TriggerRuleOutcome.match(rule = rule), result)
         }
 
     @Test

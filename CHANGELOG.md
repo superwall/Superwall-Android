@@ -8,6 +8,11 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 - SW-2859: Adds error message to `paywallWebviewLoad_fail`.
 - SW-2866: Logs error when trying to purchase a product that has failed to load.
+- Toolchain and dependency updates
+
+### Fixes
+
+- SW-2863: Fixed a `NullPointerException` some users on Android 12 & 13 would experience when calling `configure`.
 
 ## 1.1.7
 
@@ -19,7 +24,6 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 ### Fixes
 
 - SW-2854: Fixed issue where abandoning the transaction by pressing back would prevent the user from restarting the transaction.
-
 
 ## 1.1.6
 
