@@ -708,6 +708,12 @@ sealed class InternalSuperwallEvent(
         }
     }
 
+    object Reset : InternalSuperwallEvent(SuperwallEvent.Reset) {
+        override val customParameters: Map<String, Any> = emptyMap()
+
+        override suspend fun getSuperwallParameters(): Map<String, Any> = emptyMap()
+    }
+
     data class Restore(
         val state: State,
         val paywallInfo: PaywallInfo,

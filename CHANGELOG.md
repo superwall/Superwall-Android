@@ -8,6 +8,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 - SW-2859: Adds error message to `paywallWebviewLoad_fail`.
 - SW-2866: Logs error when trying to purchase a product that has failed to load.
+- SW-2869: Add `Reset` event to track when `Superwall.instance.reset` is called.
 - SW-2867: Prevents Geo api from being called when app is in the background
 - Toolchain and dependency updates
 
