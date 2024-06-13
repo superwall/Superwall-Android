@@ -122,7 +122,7 @@ class ExternalNativePurchaseController(
         basePlanId: String?,
         offerId: String?,
     ): PurchaseResult {
-        //Clear previous purchase results to avoid emitting old results
+        // Clear previous purchase results to avoid emitting old results
         purchaseResults.value = null
 
         val fullId =

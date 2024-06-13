@@ -3,7 +3,9 @@ package com.superwall.sdk.config
 import android.content.Context
 import androidx.test.platform.app.InstrumentationRegistry
 import com.superwall.sdk.config.models.ConfigState
+import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.dependencies.DependencyContainer
+import com.superwall.sdk.identity.IdentityInfo
 import com.superwall.sdk.misc.Result
 import com.superwall.sdk.models.assignment.Assignment
 import com.superwall.sdk.models.assignment.ConfirmableAssignment
@@ -14,6 +16,7 @@ import com.superwall.sdk.models.triggers.TriggerRule
 import com.superwall.sdk.models.triggers.VariantOption
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.network.NetworkMock
+import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.StorageMock
@@ -22,8 +25,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.Locale
 
 class ConfigManagerUnderTest(
     private val context: Context,
@@ -32,6 +38,7 @@ class ConfigManagerUnderTest(
     private val paywallManager: PaywallManager,
     private val storeKitManager: StoreKitManager,
     private val factory: Factory,
+    private val deviceHelper: DeviceHelper,
 ) : ConfigManager(
         context = context,
         storage = storage,
@@ -39,6 +46,8 @@ class ConfigManagerUnderTest(
         paywallManager = paywallManager,
         storeKitManager = storeKitManager,
         factory = factory,
+        deviceHelper = deviceHelper,
+        options = SuperwallOptions(),
     ) {
     suspend fun setConfig(config: Config) {
         configState.emit(Result.Success(ConfigState.Retrieved(config)))
@@ -46,6 +55,13 @@ class ConfigManagerUnderTest(
 }
 
 class ConfigManagerTests {
+    private val helperFactory =
+        object : DeviceHelper.Factory {
+            override fun makeLocaleIdentifier() = Locale.US.toLanguageTag()
+
+            override suspend fun makeIdentityInfo() = IdentityInfo("test", "test")
+        }
+
     @Test
     fun test_confirmAssignment() =
         runTest {
@@ -61,19 +77,21 @@ class ConfigManagerTests {
                     paywallId = "jkl",
                 )
             val assignment = ConfirmableAssignment(experimentId = experimentId, variant = variant)
-            val dependencyContainer = DependencyContainer(context, null, null, activityProvider = null)
+            val dependencyContainer =
+                DependencyContainer(context, null, null, activityProvider = null)
             val network = NetworkMock(factory = dependencyContainer)
             val storage = StorageMock(context = context)
             val configManager =
                 ConfigManager(
                     context = context,
-                    options = null,
+                    options = SuperwallOptions(),
 //            storeKitManager = dependencyContainer.storeKitManager,
                     storage = storage,
                     network = network,
                     paywallManager = dependencyContainer.paywallManager,
                     storeKitManager = dependencyContainer.storeKitManager,
                     factory = dependencyContainer,
+                    deviceHelper = DeviceHelper(context, storage, network, helperFactory),
                 )
             configManager.confirmAssignment(assignment)
 
@@ -91,18 +109,20 @@ class ConfigManagerTests {
             // get context
             val context = InstrumentationRegistry.getInstrumentation().targetContext
 
-            val dependencyContainer = DependencyContainer(context, null, null, activityProvider = null)
+            val dependencyContainer =
+                DependencyContainer(context, null, null, activityProvider = null)
             val network = NetworkMock(factory = dependencyContainer)
             val storage = StorageMock(context = context)
             val configManager =
                 ConfigManager(
                     context = context,
-                    options = null,
+                    options = SuperwallOptions(),
                     storage = storage,
                     network = network,
                     paywallManager = dependencyContainer.paywallManager,
                     storeKitManager = dependencyContainer.storeKitManager,
                     factory = dependencyContainer,
+                    deviceHelper = DeviceHelper(context, storage, network, helperFactory),
                 )
 
             val job =
@@ -127,7 +147,8 @@ class ConfigManagerTests {
             // get context
             val context = InstrumentationRegistry.getInstrumentation().targetContext
 
-            val dependencyContainer = DependencyContainer(context, null, null, activityProvider = null)
+            val dependencyContainer =
+                DependencyContainer(context, null, null, activityProvider = null)
             val network = NetworkMock(factory = dependencyContainer)
             val storage = StorageMock(context = context)
             val configManager =
@@ -138,6 +159,7 @@ class ConfigManagerTests {
                     paywallManager = dependencyContainer.paywallManager,
                     storeKitManager = dependencyContainer.storeKitManager,
                     factory = dependencyContainer,
+                    deviceHelper = DeviceHelper(context, storage, network, helperFactory),
                 )
             configManager.setConfig(
                 Config.stub().apply { this.triggers = emptySet() },
@@ -155,7 +177,8 @@ class ConfigManagerTests {
             // get context
             val context = InstrumentationRegistry.getInstrumentation().targetContext
 
-            val dependencyContainer = DependencyContainer(context, null, null, activityProvider = null)
+            val dependencyContainer =
+                DependencyContainer(context, null, null, activityProvider = null)
             val network = NetworkMock(factory = dependencyContainer)
             val storage = StorageMock(context = context)
             val configManager =
@@ -166,6 +189,7 @@ class ConfigManagerTests {
                     paywallManager = dependencyContainer.paywallManager,
                     storeKitManager = dependencyContainer.storeKitManager,
                     factory = dependencyContainer,
+                    deviceHelper = DeviceHelper(context, storage, network, helperFactory),
                 )
 
             val variantId = "variantId"
