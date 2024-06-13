@@ -57,7 +57,17 @@ class TransactionManager(
         productId: String,
         paywallViewController: PaywallViewController,
     ) {
-        val product = storeKitManager.productsByFullId[productId] ?: return
+        val product =
+            storeKitManager.productsByFullId[productId] ?: run {
+                Logger.debug(
+                    logLevel = LogLevel.error,
+                    scope = LogScope.paywallTransactions,
+                    message =
+                        "Trying to purchase ($productId) but the product has failed to load. Visit https://superwall.com/l/missing-products to diagnose.",
+                )
+                return
+            }
+
         val rawStoreProduct = product.rawStoreProduct
         println("!!! Purchasing product ${rawStoreProduct.hasFreeTrial}")
         val productDetails = rawStoreProduct.underlyingProductDetails

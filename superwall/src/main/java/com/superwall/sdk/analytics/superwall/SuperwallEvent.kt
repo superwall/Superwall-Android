@@ -282,6 +282,7 @@ sealed class SuperwallEvent {
     // / When a paywall's website fails to load.
     data class PaywallWebviewLoadFail(
         val paywallInfo: PaywallInfo,
+        val errorMessage: String?,
     ) : SuperwallEvent() {
         override val rawName: String
             get() = "paywallWebviewLoad_fail"

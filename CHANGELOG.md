@@ -6,6 +6,8 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ### Enhancements
 
+- SW-2859: Adds error message to `paywallWebviewLoad_fail`.
+- SW-2866: Logs error when trying to purchase a product that has failed to load.
 - Toolchain and dependency updates
 
 ### Fixes
