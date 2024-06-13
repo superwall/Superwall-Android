@@ -18,6 +18,7 @@ import com.superwall.sdk.storage.Storage
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.newSingleThreadContext
@@ -45,16 +46,20 @@ class ExpressionEvaluator(
         private val mutex = Mutex()
     }
 
+    var sandboxInitialiser: Job? = null
+
     init {
         if (JavaScriptSandbox.isSupported()) {
-            CoroutineScope(singleThreadContext).launch {
-                mutex.withLock {
-                    if (jsSandbox == null) {
-                        jsSandbox = JavaScriptSandbox.createConnectedInstanceAsync(context).await()
+            sandboxInitialiser =
+                CoroutineScope(singleThreadContext).launch {
+                    mutex.withLock {
+                        if (jsSandbox == null) {
+                            jsSandbox = JavaScriptSandbox.createConnectedInstanceAsync(context).await()
+                        }
                     }
                 }
-            }
         } else {
+            sandboxInitialiser = null
             Logger.debug(
                 logLevel = LogLevel.debug,
                 scope = LogScope.superwallCore,
@@ -91,7 +96,8 @@ class ExpressionEvaluator(
         val base64Params =
             getBase64Params(rule, eventData) ?: return TriggerRuleOutcome.noMatch(UnmatchedRule.Source.EXPRESSION, rule.experiment.id)
 
-        return if (jsSandbox != null) {
+        return if (jsSandbox != null || sandboxInitialiser != null) {
+            sandboxInitialiser?.join()
             evaluateUsingJSSandbox(
                 base64Params = base64Params,
                 rule = rule,
