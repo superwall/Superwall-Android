@@ -87,7 +87,7 @@ class SWWebView(
                 override fun onReceivedError(
                     view: WebView?,
                     request: WebResourceRequest?,
-                    error: WebResourceError?,
+                    error: WebResourceError,
                 ) {
                     CoroutineScope(Dispatchers.Main).launch {
                         trackPaywallError(error)
