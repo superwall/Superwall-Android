@@ -30,7 +30,6 @@ import com.superwall.sdk.store.StoreKitManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -52,6 +51,8 @@ open class ConfigManager(
         RequestFactory,
         DeviceInfoFactory,
         RuleAttributesFactory
+
+    val ioScope = CoroutineScope(Dispatchers.IO)
 
     // The configuration of the Superwall dashboard
     val configState = MutableStateFlow<Result<ConfigState>>(Result.Success(ConfigState.Retrieving))
@@ -89,7 +90,7 @@ open class ConfigManager(
     suspend fun fetchConfiguration() {
         try {
             val configDeferred =
-                CoroutineScope(Dispatchers.IO).async {
+                ioScope.async {
                     network.getConfig {
                         CoroutineScope(Dispatchers.IO).launch {
                             // Emit retrying state
@@ -99,7 +100,7 @@ open class ConfigManager(
                 }
 
             val geoDeferred =
-                CoroutineScope(Dispatchers.IO).async {
+                ioScope.async {
                     deviceHelper.getGeoInfo()
                 }
 
@@ -107,7 +108,7 @@ open class ConfigManager(
             val config = configDeferred.await()
             geoDeferred.await()
 
-            CoroutineScope(Dispatchers.IO).launch { sendProductsBack(config) }
+            ioScope.launch { sendProductsBack(config) }
 
             Logger.debug(
                 logLevel = LogLevel.debug,
@@ -138,7 +139,7 @@ open class ConfigManager(
 
             // TODO: Re-enable those params
 //                storeKitManager.loadPurchasedProducts()
-            CoroutineScope(Dispatchers.IO).launch { preloadPaywalls() }
+            ioScope.launch { preloadPaywalls() }
         } catch (e: Throwable) {
             configState.emit(Result.Failure(e))
             Logger.debug(
@@ -155,7 +156,7 @@ open class ConfigManager(
 
         unconfirmedAssignments = mutableMapOf()
         choosePaywallVariants(config.triggers)
-        CoroutineScope(Dispatchers.IO).launch { preloadPaywalls() }
+        ioScope.launch { preloadPaywalls() }
     }
 
     private fun choosePaywallVariants(triggers: Set<Trigger>) {
@@ -184,7 +185,7 @@ open class ConfigManager(
                 }
 
                 if (options.paywalls.shouldPreload) {
-                    CoroutineScope(Dispatchers.IO).launch { preloadAllPaywalls() }
+                    ioScope.launch { preloadAllPaywalls() }
                 }
             } catch (e: Throwable) {
                 Logger.debug(
@@ -199,7 +200,7 @@ open class ConfigManager(
 
     fun confirmAssignment(assignment: ConfirmableAssignment) {
         val postback: AssignmentPostback = AssignmentPostback.create(assignment)
-        GlobalScope.launch(Dispatchers.IO) { network.confirmAssignments(postback) }
+        ioScope.launch(Dispatchers.IO) { network.confirmAssignments(postback) }
 
         updateAssignments { confirmedAssignments ->
             ConfigLogic.move(
@@ -245,7 +246,7 @@ open class ConfigManager(
             return
         }
         currentPreloadingTask =
-            CoroutineScope(Dispatchers.IO).launch {
+            ioScope.launch {
                 val config = configState.awaitFirstValidConfig() ?: return@launch
 
                 val expressionEvaluator =

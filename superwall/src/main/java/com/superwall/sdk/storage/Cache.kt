@@ -6,8 +6,8 @@ import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.storage.memory.LRUCache
 import com.superwall.sdk.storage.memory.PerpetualCache
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExecutorCoroutineDispatcher
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.newSingleThreadContext
 import kotlinx.coroutines.runBlocking
@@ -17,7 +17,7 @@ import java.io.File
 class Cache(
     val context: Context,
     private val ioQueue: ExecutorCoroutineDispatcher = newSingleThreadContext(Cache.ioQueuePrefix),
-) {
+) : CoroutineScope by CoroutineScope(ioQueue) {
     companion object {
         private const val userSpecificDocumentDirectoryPrefix = "com.superwall.document.userSpecific.Store"
         private const val appSpecificDocumentDirectoryPrefix = "com.superwall.document.appSpecific.Store"
@@ -66,7 +66,7 @@ class Cache(
     ) {
         memCache[storable.key] = data
 
-        GlobalScope.launch(ioQueue) {
+        launch {
             val file = File(storable.path(context = context))
             val jsonString = Json.encodeToString(storable.serializer, data)
             file.writeText(jsonString, Charsets.UTF_8)
@@ -76,7 +76,7 @@ class Cache(
     fun <T : Any> delete(storable: Storable<T>) {
         memCache.remove(storable.key)
 
-        GlobalScope.launch(ioQueue) {
+        launch {
             val file = File(storable.path(context = context))
             if (file.exists()) {
                 file.delete()
