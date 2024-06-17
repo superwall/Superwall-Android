@@ -59,13 +59,18 @@ class ScreenshotTestExecutor {
         screenshotPaywallTest(UITestHandler.test9Info) {
             it.waitFor { it is SuperwallEvent.PaywallWebviewLoadComplete }
             delay(1000)
+
+            // We scroll a bit to display the button
             Superwall.instance.paywallViewController
                 ?.webView
                 ?.scrollBy(0, 300)
+            // We delay a bit to ensure the button is visible
             delay(100)
+            // We scroll back to the top
             Superwall.instance.paywallViewController
                 ?.webView
                 ?.scrollTo(0, 0)
+            // We delay a bit to ensure scroll has finished
             delay(1000)
         }
     }
