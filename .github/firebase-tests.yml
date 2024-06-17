@@ -1,0 +1,9 @@
+android-pixel-7:
+  type: instrumentation
+  app: app/build/outputs/apk/debug/app-debug.apk
+  test: app/build/outputs/apk/androidTest/app-debug-androidTest.apk
+  device:
+    - model: panther
+      version: 33
+      locale: 'en'
+      orientation: portrait
