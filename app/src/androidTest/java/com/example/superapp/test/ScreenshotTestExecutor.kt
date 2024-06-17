@@ -4,8 +4,10 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.dropbox.dropshots.Dropshots
 import com.dropbox.dropshots.ThresholdValidator
 import com.example.superapp.utils.awaitUntilShimmerDisappears
+import com.example.superapp.utils.awaitUntilWebviewAppears
 import com.example.superapp.utils.paywallDoesntPresentFor
 import com.example.superapp.utils.paywallPresentsFor
+import com.example.superapp.utils.screenshotFlow
 import com.example.superapp.utils.screenshotPaywallTest
 import com.example.superapp.utils.waitFor
 import com.superwall.sdk.Superwall
@@ -72,6 +74,28 @@ class ScreenshotTestExecutor {
                     ?.scrollTo(0, 0)
                 // We delay a bit to ensure scroll has finished
                 delay(1000)
+            }
+        }
+
+    @Test
+    fun test_paywall_reappers_after_dismissing() =
+        with(dropshots) {
+            screenshotFlow(UITestHandler.test11Info) {
+                step("first_paywall") {
+                    it.waitFor { it is SuperwallEvent.PaywallOpen }
+                    awaitUntilShimmerDisappears()
+                    awaitUntilWebviewAppears()
+                    delay(100)
+                }
+                step("second_paywall") {
+                    it.waitFor { it is SuperwallEvent.PaywallOpen }
+                    awaitUntilWebviewAppears()
+                    delay(1000)
+                }
+                step("third_paywall") {
+                    it.waitFor { it is SuperwallEvent.PaywallOpen }
+                    delay(1000)
+                }
             }
         }
 }

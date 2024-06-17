@@ -33,6 +33,7 @@ import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
 import com.superwall.sdk.delegate.SuperwallDelegate
 import com.superwall.superapp.test.UITestHandler.tests
 import com.superwall.superapp.ui.theme.MyApplicationTheme
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
@@ -41,13 +42,13 @@ class UITestInfo(
     val number: Int,
     val description: String,
     val testCaseType: TestCaseType = TestCaseType.iOS,
-    test: suspend Context.() -> Unit,
+    test: suspend Context.(testDispatcher: CoroutineScope) -> Unit,
 ) {
     private val events = MutableStateFlow<SuperwallEvent?>(null)
 
     fun events() = events
 
-    val test: suspend Context.() -> Unit = {
+    val test: suspend Context.(testDispatcher: CoroutineScope) -> Unit = {
         Superwall.instance.delegate =
             object : SuperwallDelegate {
                 override fun handleSuperwallEvent(eventInfo: SuperwallEventInfo) {
@@ -59,7 +60,7 @@ class UITestInfo(
                     events.value = eventInfo.event
                 }
             }
-        test.invoke(this)
+        test.invoke(this, it)
     }
 }
 
@@ -133,7 +134,7 @@ fun UITestTable() {
                         onClick = {
                             scope.launch {
                                 launch(Dispatchers.IO) {
-                                    item.test(context)
+                                    item.test(context, this)
                                 }
                             }
                         },

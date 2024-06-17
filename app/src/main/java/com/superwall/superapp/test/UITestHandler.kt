@@ -21,6 +21,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 object UITestHandler {
     var test0Info =
@@ -192,22 +193,26 @@ object UITestHandler {
                 "8 seconds and present again without any name. Then it should present again" +
                 " with the name Sawyer.",
             test = {
-                Superwall.instance.setUserAttributes(mapOf("first_name" to "Claire"))
-                Superwall.instance.register(event = "present_data")
+                runBlocking {
+                    Superwall.instance.setUserAttributes(mapOf("first_name" to "Claire"))
+                    Superwall.instance.register(event = "present_data")
+                }
+                val scope = CoroutineScope(Dispatchers.IO)
+                scope.launch {
+                    // Dismiss any view controllers
+                    delay(8000)
 
-                delay(8000)
+                    // Dismiss any view controllers
+                    Superwall.instance.dismiss()
+                    Superwall.instance.setUserAttributes(mapOf("first_name" to null))
+                    Superwall.instance.register(event = "present_data")
 
-                // Dismiss any view controllers
-                Superwall.instance.dismiss()
-                Superwall.instance.setUserAttributes(mapOf("first_name" to null))
-                Superwall.instance.register(event = "present_data")
-
-                delay(8000)
-
-                // Dismiss any view controllers
-                Superwall.instance.dismiss()
-                Superwall.instance.setUserAttributes(mapOf("first_name" to "Sawyer"))
-                Superwall.instance.register(event = "present_data")
+                    delay(8000)
+                    // Dismiss any view controllers
+                    Superwall.instance.dismiss()
+                    Superwall.instance.setUserAttributes(mapOf("first_name" to "Sawyer"))
+                    Superwall.instance.register(event = "present_data")
+                }
             },
         )
     var test12Info =

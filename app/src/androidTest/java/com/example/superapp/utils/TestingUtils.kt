@@ -1,6 +1,7 @@
 package com.example.superapp.utils
 
 import android.view.View
+import android.webkit.WebView
 import androidx.core.view.children
 import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
@@ -17,12 +18,63 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
+import java.util.LinkedList
+
+class ScreenshotTestFlow(
+    val testInfo: UITestInfo,
+) {
+    var steps: LinkedList<Step> = LinkedList()
+
+    fun step(
+        name: String,
+        action: suspend Dropshots.(UITestInfo) -> Unit,
+    ) {
+        steps.add(
+            Step(name) {
+                action(it)
+                runBlocking {
+                    assertSnapshot("SW_TestCase_${testInfo.number}_$name")
+                }
+            },
+        )
+    }
+
+    data class Step(
+        val name: String,
+        val action: suspend Dropshots.(UITestInfo) -> Unit,
+    )
+}
 
 @DslMarker
 annotation class ScreenshotTestDSL
 
 @DslMarker
 annotation class UiTestDSL
+
+@ScreenshotTestDSL
+fun Dropshots.screenshotFlow(
+    testInfo: UITestInfo,
+    flow: ScreenshotTestFlow.() -> Unit,
+) {
+    val flow = ScreenshotTestFlow(testInfo).apply(flow)
+    val scenario = ActivityScenario.launch(MainActivity::class.java)
+    val testCase = testInfo
+    scenario.moveToState(Lifecycle.State.STARTED)
+    scenario.onActivity {
+        val ctx = it
+        runTest {
+            testCase.test(ctx, this@runTest)
+        }
+    }
+    runBlocking {
+        flow.steps.forEach {
+            it.action(this@screenshotFlow, testCase)
+        }
+    }
+    closeActivity()
+    scenario.close()
+}
 
 @ScreenshotTestDSL
 fun Dropshots.screenshotPaywallTest(
@@ -35,7 +87,7 @@ fun Dropshots.screenshotPaywallTest(
     scenario.onActivity {
         val ctx = it
         runBlocking {
-            testCase.test(ctx)
+            testCase.test(ctx, this)
         }
     }
     runBlocking {
@@ -54,6 +106,7 @@ fun Dropshots.paywallPresentsFor(testInfo: UITestInfo) {
         // Since there is a delay between webview finishing loading and the actual renler
         // We need to wait for the webview to finish loading before taking the snapshot
         awaitUntilShimmerDisappears()
+        delay(100)
     }
 }
 
@@ -73,6 +126,18 @@ suspend fun awaitUntilShimmerDisappears() {
             .children
             .find { it is ShimmerView }!!
     while (shimmer.visibility == View.VISIBLE) {
+        delay(100)
+    }
+    delay(100)
+}
+
+@UiTestDSL
+suspend fun awaitUntilWebviewAppears() {
+    val shimmer =
+        Superwall.instance.paywallViewController!!
+            .children
+            .find { it is WebView }!!
+    while (shimmer.visibility != View.VISIBLE) {
         delay(100)
     }
     delay(100)
