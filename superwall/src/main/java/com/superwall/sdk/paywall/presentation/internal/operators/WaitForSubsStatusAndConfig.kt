@@ -36,7 +36,7 @@ internal suspend fun Superwall.waitForSubsStatusAndConfig(
     dependencyContainer: DependencyContainer? = null,
 ) {
     val dependencyContainer = dependencyContainer ?: this.dependencyContainer
-
+    val scope = CoroutineScope(Dispatchers.IO)
     val subscriptionStatusTask =
         getValueWithTimeout(
             task = {
@@ -47,7 +47,7 @@ internal suspend fun Superwall.waitForSubsStatusAndConfig(
                 } catch (e: CancellationException) {
                     // Handle exception, cancel the task, and log timeout and fail the request
                     // Logic here...
-                    CoroutineScope(Dispatchers.Default).launch {
+                    scope.launch {
                         val trackedEvent =
                             InternalSuperwallEvent.PresentationRequest(
                                 eventData = request.presentationInfo.eventData,
@@ -97,7 +97,7 @@ internal suspend fun Superwall.waitForSubsStatusAndConfig(
                                         result.getSuccess()?.getConfig() != null
                                     }
                             } catch (e: CancellationException) {
-                                CoroutineScope(Dispatchers.Default).launch {
+                                scope.launch {
                                     val trackedEvent =
                                         InternalSuperwallEvent.PresentationRequest(
                                             eventData = request.presentationInfo.eventData,
@@ -178,34 +178,36 @@ private suspend fun <T> getValueWithTimeout(
     task: suspend () -> T,
     timeout: Long,
 ): ValueResult<T> {
+    val scope = CoroutineScope(Dispatchers.IO)
     // Deferred object to hold the result of the 'task'
     val valueResult = CompletableDeferred<T>()
 
     // Start the given task in a separate coroutine and store its result in 'valueResult'
     val valueTask =
-        CoroutineScope(Dispatchers.Default).async {
-            try {
-                val result = task()
-                valueResult.complete(result)
-            } catch (e: CancellationException) {
-                // Rethrow any cancellation exception to be handled by the caller
-                throw e
+        scope
+            .async {
+                try {
+                    val result = task()
+                    valueResult.complete(result)
+                } catch (e: CancellationException) {
+                    // Rethrow any cancellation exception to be handled by the caller
+                    throw e
+                }
             }
-        }
 
     // SharedFlow to act as a signal for when the timeout has occurred
     val publisher = MutableSharedFlow<Unit>()
 
     // Job to introduce the delay for the timeout
     val delayJob =
-        CoroutineScope(Dispatchers.Default).launch {
+        scope.launch {
             delay(timeout) // Wait for the timeout duration
             publisher.emit(Unit) // Emit a signal indicating timeout has occurred
         }
 
     // Job to listen for the timeout signal and cancel the 'valueTask'
     val collectionJob =
-        CoroutineScope(Dispatchers.Default).launch {
+        scope.launch {
             publisher.collect {
                 valueTask.cancel() // Cancel the task
                 valueResult.cancel() // Cancel the result deferred
