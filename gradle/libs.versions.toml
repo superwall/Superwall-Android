@@ -31,7 +31,7 @@ mockk_version = "1.12.8"
 threetenbpVersion = "1.6.8"
 workRuntimeKtxVersion = "2.9.0"
 serialization_version = "1.6.0"
-
+dropshot_version = "0.4.2"
 
 [libraries]
 
@@ -98,3 +98,4 @@ ui_test_manifest = { module = "androidx.compose.ui:ui-test-manifest" }
 androidApplication = { id = "com.android.application", version.ref = "gradle_plugin_version" }
 kotlinAndroid = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "serialization_version" }
+dropshot = { id = "com.dropbox.dropshots", version.ref = "dropshot_version" }
