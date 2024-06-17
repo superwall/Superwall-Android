@@ -282,6 +282,7 @@ sealed class SuperwallEvent {
     // / When a paywall's website fails to load.
     data class PaywallWebviewLoadFail(
         val paywallInfo: PaywallInfo,
+        val errorMessage: String?,
     ) : SuperwallEvent() {
         override val rawName: String
             get() = "paywallWebviewLoad_fail"
@@ -355,6 +356,12 @@ sealed class SuperwallEvent {
     class SurveyClose : SuperwallEvent() {
         override val rawName: String
             get() = "survey_close"
+    }
+
+    // When Superwall.instance.reset is called
+    object Reset : SuperwallEvent() {
+        override val rawName: String
+            get() = "reset"
     }
 
     open val rawName: String

@@ -2,6 +2,21 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 1.1.8
+
+### Enhancements
+
+- SW-2859: Adds error message to `paywallWebviewLoad_fail`.
+- SW-2866: Logs error when trying to purchase a product that has failed to load.
+- SW-2869: Add `Reset` event to track when `Superwall.instance.reset` is called.
+- SW-2867: Prevents Geo api from being called when app is in the background
+- SW-2431: Improves coroutine scope usages & threading limits
+- Toolchain and dependency updates
+
+### Fixes
+
+- SW-2863: Fixed a `NullPointerException` some users on Android 12 & 13 would experience when calling `configure`.
+
 ## 1.1.7
 
 ### Enhancements
@@ -12,7 +27,6 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 ### Fixes
 
 - SW-2854: Fixed issue where abandoning the transaction by pressing back would prevent the user from restarting the transaction.
-
 
 ## 1.1.6
 

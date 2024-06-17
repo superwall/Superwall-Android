@@ -15,16 +15,15 @@ plugins {
     id("com.android.library")
     kotlin("android")
     kotlin("kapt")
-    kotlin("plugin.serialization") version "1.8.21"
-    // Maven publishing
+    alias(libs.plugins.serialization) // Maven publishing
     id("maven-publish")
     id("signing")
 }
 
-version = "1.1.7"
+version = "1.1.8"
 
 android {
-    compileSdk = 33
+    compileSdk = 34
     namespace = "com.superwall.sdk"
 
     defaultConfig {
@@ -69,17 +68,18 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.4.7"
+        kotlinCompilerExtensionVersion = "1.5.0"
     }
 
     kotlinOptions {
         jvmTarget = "1.8"
     }
 
-    packagingOptions {
+    packaging {
         resources.excludes += "META-INF/LICENSE.md"
     }
 
@@ -173,15 +173,15 @@ tasks.register("generateBuildInfo") {
 }
 
 dependencies {
-    implementation("androidx.work:work-runtime-ktx:2.8.1")
-    implementation("androidx.lifecycle:lifecycle-process:2.5.0")
-    implementation("androidx.room:room-runtime:2.5.2")
-    implementation("androidx.room:room-ktx:2.5.2")
-    kapt("androidx.room:room-compiler:2.5.2")
-    implementation("androidx.javascriptengine:javascriptengine:1.0.0-beta01")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-guava:1.6.0")
+    implementation(libs.work.runtime.ktx)
+    implementation(libs.lifecycle.process)
+    implementation(libs.room.runtime)
+    implementation(libs.room.ktx)
+    kapt(libs.room.compiler)
+    implementation(libs.javascriptengine)
+    implementation(libs.kotlinx.coroutines.guava)
 
-    implementation("org.threeten:threetenbp:1.6.8")
+    implementation(libs.threetenbp)
     // Billing
     implementation(libs.billing)
 

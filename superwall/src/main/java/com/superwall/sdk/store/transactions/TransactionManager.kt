@@ -31,7 +31,6 @@ import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -44,6 +43,8 @@ class TransactionManager(
     private val factory: Factory,
     private val context: Context,
 ) {
+    val scope = CoroutineScope(Dispatchers.IO)
+
     interface Factory :
         OptionsFactory,
         TriggerFactory,
@@ -57,7 +58,17 @@ class TransactionManager(
         productId: String,
         paywallViewController: PaywallViewController,
     ) {
-        val product = storeKitManager.productsByFullId[productId] ?: return
+        val product =
+            storeKitManager.productsByFullId[productId] ?: run {
+                Logger.debug(
+                    logLevel = LogLevel.error,
+                    scope = LogScope.paywallTransactions,
+                    message =
+                        "Trying to purchase ($productId) but the product has failed to load. Visit https://superwall.com/l/missing-products to diagnose.",
+                )
+                return
+            }
+
         val rawStoreProduct = product.rawStoreProduct
         println("!!! Purchasing product ${rawStoreProduct.hasFreeTrial}")
         val productDetails = rawStoreProduct.underlyingProductDetails
@@ -179,7 +190,7 @@ class TransactionManager(
         )
 
         // Launch a coroutine to handle async tasks
-        CoroutineScope(Dispatchers.Default).launch {
+        scope.launch {
             val paywallInfo = paywallViewController.info
             val trackedEvent =
                 InternalSuperwallEvent.Transaction(
@@ -204,7 +215,7 @@ class TransactionManager(
         product: StoreProduct,
         paywallViewController: PaywallViewController,
     ) {
-        GlobalScope.launch(Dispatchers.Default) {
+        scope.launch {
             Logger.debug(
                 LogLevel.debug,
                 LogScope.paywallTransactions,
@@ -236,7 +247,7 @@ class TransactionManager(
         product: StoreProduct,
         paywallViewController: PaywallViewController,
     ) {
-        GlobalScope.launch(Dispatchers.Default) {
+        scope.launch {
             Logger.debug(
                 LogLevel.debug,
                 LogScope.paywallTransactions,
@@ -275,7 +286,7 @@ class TransactionManager(
         product: StoreProduct,
         paywallViewController: PaywallViewController,
     ) {
-        GlobalScope.launch(Dispatchers.Default) {
+        scope.launch {
             Logger.debug(
                 LogLevel.debug,
                 LogScope.paywallTransactions,
@@ -304,7 +315,7 @@ class TransactionManager(
     }
 
     private suspend fun handlePendingTransaction(paywallViewController: PaywallViewController) {
-        GlobalScope.launch(Dispatchers.Default) {
+        scope.launch {
             Logger.debug(
                 LogLevel.debug,
                 LogScope.paywallTransactions,
@@ -405,7 +416,7 @@ class TransactionManager(
         product: StoreProduct,
         paywallViewController: PaywallViewController,
     ) {
-        GlobalScope.launch(Dispatchers.Default) {
+        scope.launch {
             Logger.debug(
                 LogLevel.debug,
                 LogScope.paywallTransactions,

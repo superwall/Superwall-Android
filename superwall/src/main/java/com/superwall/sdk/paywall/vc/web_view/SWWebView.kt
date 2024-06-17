@@ -87,10 +87,10 @@ class SWWebView(
                 override fun onReceivedError(
                     view: WebView?,
                     request: WebResourceRequest?,
-                    error: WebResourceError?,
+                    error: WebResourceError,
                 ) {
                     CoroutineScope(Dispatchers.Main).launch {
-                        trackPaywallError()
+                        trackPaywallError(error)
                     }
                 }
             }
@@ -135,14 +135,17 @@ class SWWebView(
         super.loadUrl(urlString)
     }
 
-    private suspend fun trackPaywallError() {
+    private suspend fun trackPaywallError(webResourceError: WebResourceError) {
         delegate?.paywall?.webviewLoadingInfo?.failAt = Date()
 
         val paywallInfo = delegate?.info ?: return
 
         val trackedEvent =
             InternalSuperwallEvent.PaywallWebviewLoad(
-                state = InternalSuperwallEvent.PaywallWebviewLoad.State.Fail(),
+                state =
+                    InternalSuperwallEvent.PaywallWebviewLoad.State.Fail(
+                        "Code: ${webResourceError.errorCode} - ${webResourceError.description}",
+                    ),
                 paywallInfo = paywallInfo,
             )
         Superwall.instance.track(trackedEvent)

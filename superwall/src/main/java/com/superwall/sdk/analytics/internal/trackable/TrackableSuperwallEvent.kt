@@ -596,7 +596,9 @@ sealed class InternalSuperwallEvent(
         sealed class State {
             class Start : State()
 
-            class Fail : State()
+            data class Fail(
+                val errorMessage: String,
+            ) : State()
 
             class Timeout : State()
 
@@ -619,6 +621,7 @@ sealed class InternalSuperwallEvent(
                     is PaywallWebviewLoad.State.Fail ->
                         SuperwallEvent.PaywallWebviewLoadFail(
                             paywallInfo,
+                            state.errorMessage,
                         )
 
                     is PaywallWebviewLoad.State.Complete ->
@@ -703,6 +706,12 @@ sealed class InternalSuperwallEvent(
             params.putAll(paywallInfo.eventParams())
             return params
         }
+    }
+
+    object Reset : InternalSuperwallEvent(SuperwallEvent.Reset) {
+        override val customParameters: Map<String, Any> = emptyMap()
+
+        override suspend fun getSuperwallParameters(): Map<String, Any> = emptyMap()
     }
 
     data class Restore(
