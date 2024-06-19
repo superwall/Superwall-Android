@@ -26,15 +26,17 @@ class ScreenshotTestFlow(
 ) {
     var steps: LinkedList<Step> = LinkedList()
 
+    @ScreenshotTestDSL
     fun step(
-        name: String,
+        name: String? = null,
         action: suspend Dropshots.(UITestInfo) -> Unit,
     ) {
+        val stepName = name ?: "step_${steps.size + 1}"
         steps.add(
-            Step(name) {
+            Step(stepName) {
                 action(it)
                 runBlocking {
-                    assertSnapshot("SW_TestCase_${testInfo.number}_$name")
+                    assertSnapshot("SW_TestCase_${testInfo.number}_$stepName")
                 }
             },
         )
@@ -64,7 +66,7 @@ fun Dropshots.screenshotFlow(
     scenario.onActivity {
         val ctx = it
         runTest {
-            testCase.test(ctx, this@runTest)
+            testCase.test(ctx)
         }
     }
     runBlocking {
@@ -87,7 +89,7 @@ fun Dropshots.screenshotPaywallTest(
     scenario.onActivity {
         val ctx = it
         runBlocking {
-            testCase.test(ctx, this)
+            testCase.test(ctx)
         }
     }
     runBlocking {
@@ -106,7 +108,8 @@ fun Dropshots.paywallPresentsFor(testInfo: UITestInfo) {
         // Since there is a delay between webview finishing loading and the actual renler
         // We need to wait for the webview to finish loading before taking the snapshot
         awaitUntilShimmerDisappears()
-        delay(100)
+        awaitUntilWebviewAppears()
+        delay(1000)
     }
 }
 
@@ -115,7 +118,7 @@ fun Dropshots.paywallDoesntPresentFor(testInfo: UITestInfo) {
     screenshotPaywallTest(testInfo) {
         it.waitFor { it is SuperwallEvent.PaywallPresentationRequest }
         // We delay a bit to ensure the paywall doesn't render after presentation request
-        delay(3000)
+        delay(4000)
     }
 }
 

@@ -88,11 +88,12 @@ object UITestHandler {
             test = {
                 // Present the paywall.
                 Superwall.instance.register(event = "present_video")
-
-                // Dismiss after 4 seconds
-                delay(4000)
-                Superwall.instance.dismiss()
-                Superwall.instance.register(event = "present_video")
+                it.launch {
+                    // Dismiss after 4 seconds
+                    delay(4000)
+                    Superwall.instance.dismiss()
+                    Superwall.instance.register(event = "present_video")
+                }
             },
         )
     var test5Info =
@@ -132,17 +133,20 @@ object UITestHandler {
                 )
                 Superwall.instance.register(event = "present_and_rule_user")
 
-                delay(8000)
-                Superwall.instance.dismiss()
+                it.launch {
 
-                // Remove those attributes.
-                Superwall.instance.setUserAttributes(
-                    mapOf(
-                        "should_display" to null,
-                        "some_value" to null,
-                    ),
-                )
-                Superwall.instance.register(event = "present_and_rule_user")
+                    delay(8000)
+                    Superwall.instance.dismiss()
+
+                    // Remove those attributes.
+                    Superwall.instance.setUserAttributes(
+                        mapOf(
+                            "should_display" to null,
+                            "some_value" to null,
+                        ),
+                    )
+                    Superwall.instance.register(event = "present_and_rule_user")
+                }
             },
         )
     var test8Info =
@@ -197,8 +201,7 @@ object UITestHandler {
                     Superwall.instance.setUserAttributes(mapOf("first_name" to "Claire"))
                     Superwall.instance.register(event = "present_data")
                 }
-                val scope = CoroutineScope(Dispatchers.IO)
-                scope.launch {
+                it.launch {
                     // Dismiss any view controllers
                     delay(8000)
 

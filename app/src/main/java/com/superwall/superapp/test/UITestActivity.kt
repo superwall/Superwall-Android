@@ -48,7 +48,7 @@ class UITestInfo(
 
     fun events() = events
 
-    val test: suspend Context.(testDispatcher: CoroutineScope) -> Unit = {
+    val test: suspend Context.() -> Unit = {
         Superwall.instance.delegate =
             object : SuperwallDelegate {
                 override fun handleSuperwallEvent(eventInfo: SuperwallEventInfo) {
@@ -60,7 +60,8 @@ class UITestInfo(
                     events.value = eventInfo.event
                 }
             }
-        test.invoke(this, it)
+        val scope = CoroutineScope(Dispatchers.IO)
+        test.invoke(this, scope)
     }
 }
 
@@ -134,7 +135,7 @@ fun UITestTable() {
                         onClick = {
                             scope.launch {
                                 launch(Dispatchers.IO) {
-                                    item.test(context, this)
+                                    item.test(context)
                                 }
                             }
                         },
