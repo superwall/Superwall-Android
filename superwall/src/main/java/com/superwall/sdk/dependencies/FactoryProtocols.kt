@@ -8,7 +8,7 @@ import com.superwall.sdk.analytics.trigger_session.TriggerSessionManager
 import com.superwall.sdk.billing.GoogleBillingWrapper
 import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.config.options.SuperwallOptions
-import com.superwall.sdk.debug.DebugViewController
+import com.superwall.sdk.debug.DebugView
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.identity.IdentityInfo
 import com.superwall.sdk.identity.IdentityManager
@@ -20,15 +20,15 @@ import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.network.Api
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.network.device.DeviceInfo
-import com.superwall.sdk.paywall.manager.PaywallViewControllerCache
+import com.superwall.sdk.paywall.manager.PaywallViewCache
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
-import com.superwall.sdk.paywall.vc.PaywallViewController
-import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegateAdapter
+import com.superwall.sdk.paywall.vc.PaywallView
+import com.superwall.sdk.paywall.vc.delegate.PaywallViewDelegateAdapter
 import com.superwall.sdk.paywall.vc.web_view.templating.models.JsonVariables
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
@@ -126,15 +126,15 @@ interface HasExternalPurchaseControllerFactory {
     fun makeHasExternalPurchaseController(): Boolean
 }
 
-interface ViewControllerFactory {
+interface ViewFactory {
     // NOTE: THIS MUST BE EXECUTED ON THE MAIN THREAD (no way to enforce in Kotlin)
-    suspend fun makePaywallViewController(
+    suspend fun makePaywallView(
         paywall: Paywall,
-        cache: PaywallViewControllerCache?,
-        delegate: PaywallViewControllerDelegateAdapter?,
-    ): PaywallViewController
+        cache: PaywallViewCache?,
+        delegate: PaywallViewDelegateAdapter?,
+    ): PaywallView
 
-    fun makeDebugViewController(id: String?): DebugViewController
+    fun makeDebugViewController(id: String?): DebugView
 }
 
 // ViewControllerFactory & CacheFactory & DeviceInfoFactory,
@@ -156,7 +156,7 @@ interface ViewControllerFactory {
 // }
 
 interface CacheFactory {
-    fun makeCache(): PaywallViewControllerCache
+    fun makeCache(): PaywallViewCache
 }
 
 interface VariablesFactory {

@@ -7,21 +7,24 @@ import com.superwall.sdk.paywall.presentation.internal.getPaywallComponents
 import com.superwall.sdk.paywall.presentation.internal.operators.logErrors
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.paywall.presentation.rule_logic.RuleEvaluationOutcome
-import com.superwall.sdk.paywall.vc.PaywallViewController
+import com.superwall.sdk.paywall.vc.PaywallView
 import kotlinx.coroutines.flow.MutableSharedFlow
 
 data class PaywallComponents(
-    val viewController: PaywallViewController,
+    val view: PaywallView,
     val presenter: Activity?,
     val rulesOutcome: RuleEvaluationOutcome,
     val debugInfo: Map<String, Any>,
-)
+){
+    @Deprecated("Will be removed in the upcoming versions, use PaywallComponents.view instead")
+    val viewController: PaywallView = view
+}
 
 @Throws(Throwable::class)
 suspend fun Superwall.getPaywall(
     request: PresentationRequest,
     publisher: MutableSharedFlow<PaywallState> = MutableSharedFlow(),
-): PaywallViewController =
+): PaywallView =
     try {
         val paywallComponents = getPaywallComponents(request, publisher)
 

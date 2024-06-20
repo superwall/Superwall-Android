@@ -7,7 +7,7 @@ import com.superwall.sdk.paywall.presentation.internal.operators.checkUserSubscr
 import com.superwall.sdk.paywall.presentation.internal.operators.confirmHoldoutAssignment
 import com.superwall.sdk.paywall.presentation.internal.operators.confirmPaywallAssignment
 import com.superwall.sdk.paywall.presentation.internal.operators.evaluateRules
-import com.superwall.sdk.paywall.presentation.internal.operators.getPaywallViewController
+import com.superwall.sdk.paywall.presentation.internal.operators.getPaywallView
 import com.superwall.sdk.paywall.presentation.internal.operators.getPresenterIfNecessary
 import com.superwall.sdk.paywall.presentation.internal.operators.waitForSubsStatusAndConfig
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
@@ -44,7 +44,7 @@ suspend fun Superwall.getPaywallComponents(
 
     confirmHoldoutAssignment(request = request, rulesOutcome = rulesOutcome)
 
-    val paywallViewController = getPaywallViewController(request, rulesOutcome, debugInfo, publisher, dependencyContainer)
+    val paywallViewController = getPaywallView(request, rulesOutcome, debugInfo, publisher, dependencyContainer)
 
     val presenter = getPresenterIfNecessary(paywallViewController, rulesOutcome, request, publisher)
 

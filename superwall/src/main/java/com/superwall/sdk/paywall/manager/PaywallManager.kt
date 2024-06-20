@@ -2,12 +2,12 @@ package com.superwall.sdk.paywall.manager
 
 import com.superwall.sdk.dependencies.CacheFactory
 import com.superwall.sdk.dependencies.DeviceHelperFactory
-import com.superwall.sdk.dependencies.ViewControllerFactory
+import com.superwall.sdk.dependencies.ViewFactory
 import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.paywall.request.PaywallRequestManager
-import com.superwall.sdk.paywall.vc.PaywallViewController
+import com.superwall.sdk.paywall.vc.PaywallView
 import com.superwall.sdk.paywall.vc.delegate.PaywallLoadingState
-import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegateAdapter
+import com.superwall.sdk.paywall.vc.delegate.PaywallViewDelegateAdapter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -18,16 +18,20 @@ class PaywallManager(
     private val paywallRequestManager: PaywallRequestManager,
 ) {
     interface Factory :
-        ViewControllerFactory,
+        ViewFactory,
         CacheFactory,
         DeviceHelperFactory
 
-    var presentedViewController: PaywallViewController? = null
-        get() = cache.activePaywallViewController
 
-    private var _cache: PaywallViewControllerCache? = null
+    @Deprecated("Will be removed in the upcoming versions, use curentView instead")
+    var presentedViewController: PaywallView? = currentView
 
-    private val cache: PaywallViewControllerCache
+    var currentView: PaywallView? = null
+        get() = cache.activePaywallView
+
+    private var _cache: PaywallViewCache? = null
+
+    private val cache: PaywallViewCache
         get() {
             if (_cache == null) {
                 _cache = createCache()
@@ -35,32 +39,46 @@ class PaywallManager(
             return _cache!!
         }
 
-    private fun createCache(): PaywallViewControllerCache {
-        val cache: PaywallViewControllerCache = factory.makeCache()
+    private fun createCache(): PaywallViewCache {
+        val cache: PaywallViewCache = factory.makeCache()
         _cache = cache
         return cache
     }
 
+
+    @Deprecated("Will be removed in the upcoming versions, use removePaywallView instead")
     fun removePaywallViewController(forKey: String) {
-        cache.removePaywallViewController(forKey)
+        removePaywallView(forKey)
+    }
+
+    fun removePaywallView(forKey: String) {
+        cache.removePaywallView(forKey)
     }
 
     fun resetCache() {
         CoroutineScope(Dispatchers.Main).launch {
-            for (paywallViewController in cache.getAllPaywallViewControllers()) {
-                paywallViewController.webView.destroy()
+            for (view in cache.getAllPaywallViews()) {
+                view.webView.destroy()
             }
 
             cache.removeAll()
         }
     }
 
+    @Deprecated("Will be removed in the upcoming versions, use getPaywallView instead")
     suspend fun getPaywallViewController(
         request: PaywallRequest,
         isForPresentation: Boolean,
         isPreloading: Boolean,
-        delegate: PaywallViewControllerDelegateAdapter?,
-    ): PaywallViewController =
+        delegate: PaywallViewDelegateAdapter?,
+    ): PaywallView = getPaywallView(request, isForPresentation, isPreloading, delegate)
+
+    suspend fun getPaywallView(
+        request: PaywallRequest,
+        isForPresentation: Boolean,
+        isPreloading: Boolean,
+        delegate: PaywallViewDelegateAdapter?,
+    ): PaywallView =
         withContext(Dispatchers.Main) {
             val paywall = paywallRequestManager.getPaywall(request)
 
@@ -72,7 +90,7 @@ class PaywallManager(
                 )
 
             if (!request.isDebuggerLaunched) {
-                cache.getPaywallViewController(cacheKey)?.let { viewController ->
+                cache.getPaywallView(cacheKey)?.let { viewController ->
                     if (!isPreloading) {
                         viewController.delegate = delegate
                         viewController.paywall.update(paywall)
@@ -81,24 +99,24 @@ class PaywallManager(
                 }
             }
 
-            val paywallViewController =
-                factory.makePaywallViewController(
+            val paywallView =
+                factory.makePaywallView(
                     paywall = paywall,
                     cache = cache,
                     delegate = delegate,
                 )
-            cache.save(paywallViewController, cacheKey)
+            cache.save(paywallView, cacheKey)
 
             if (isForPresentation) {
                 // Only preload if it's actually gonna present the view.
                 // Not if we're just checking its result
                 // TODO: Handle the preloading
-                if (paywallViewController.loadingState is PaywallLoadingState.Unknown) {
-                    paywallViewController.loadWebView()
+                if (paywallView.loadingState is PaywallLoadingState.Unknown) {
+                    paywallView.loadWebView()
                 }
 //            paywallViewController.loadViewIfNeeded()
             }
 
-            return@withContext paywallViewController
+            return@withContext paywallView
         }
 }

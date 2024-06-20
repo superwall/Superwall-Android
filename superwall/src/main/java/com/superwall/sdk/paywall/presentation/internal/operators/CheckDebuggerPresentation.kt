@@ -3,7 +3,7 @@ package com.superwall.sdk.paywall.presentation.internal.operators
 // File.kt
 
 import com.superwall.sdk.Superwall
-import com.superwall.sdk.debug.DebugViewControllerActivity
+import com.superwall.sdk.debug.DebugViewActivity
 import com.superwall.sdk.paywall.presentation.internal.InternalPresentationLogic
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatusReason
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
@@ -14,7 +14,7 @@ suspend fun Superwall.checkDebuggerPresentation(
     request: PresentationRequest,
     paywallStatePublisher: MutableSharedFlow<PaywallState>?,
 ) {
-    if (!request.flags.isDebuggerLaunched || request.presenter is DebugViewControllerActivity) {
+    if (!request.flags.isDebuggerLaunched || request.presenter is DebugViewActivity) {
         return
     }
 

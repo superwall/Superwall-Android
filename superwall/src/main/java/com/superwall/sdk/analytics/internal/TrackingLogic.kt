@@ -4,7 +4,7 @@ import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEventObjc
-import com.superwall.sdk.paywall.vc.PaywallViewController
+import com.superwall.sdk.paywall.vc.PaywallView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.ExperimentalSerializationApi
@@ -159,7 +159,7 @@ sealed class TrackingLogic {
         fun canTriggerPaywall(
             event: Trackable,
             triggers: Set<String>,
-            paywallViewController: PaywallViewController?,
+            paywallView: PaywallView?,
         ): ImplicitTriggerOutcome {
             if (event is TrackableSuperwallEvent && event.superwallEvent.rawName == SuperwallEventObjc.DeepLink.rawName) {
                 return ImplicitTriggerOutcome.DeepLinkTrigger
@@ -177,7 +177,7 @@ sealed class TrackingLogic {
                     SuperwallEventObjc.PaywallDecline.rawName,
                 )
 
-            val referringEventName = paywallViewController?.info?.presentedByEventWithName
+            val referringEventName = paywallView?.info?.presentedByEventWithName
             if (referringEventName != null) {
                 if (notAllowedReferringEventNames.contains(referringEventName)) {
                     println("!! canTriggerPaywall: notAllowedReferringEventNames.contains(referringEventName) $referringEventName")
@@ -196,7 +196,7 @@ sealed class TrackingLogic {
                 }
             }
 
-            if (paywallViewController != null) {
+            if (paywallView != null) {
                 println("!! canTriggerPaywall: paywallViewController != null")
                 return ImplicitTriggerOutcome.DontTriggerPaywall
             }

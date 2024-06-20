@@ -1,22 +1,28 @@
 package com.superwall.sdk.paywall.vc.delegate
 
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
-import com.superwall.sdk.paywall.vc.PaywallViewController
+import com.superwall.sdk.paywall.vc.PaywallView
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent
 
-interface PaywallViewControllerDelegate {
+@Deprecated("Will be removed in the upcoming versions, use PaywallViewDelegate instead")
+typealias PaywallViewControllerDelegate = PaywallViewDelegate
+
+@Deprecated("Will be removed in the upcoming versions, use PaywallViewEventDelegate instead")
+typealias PaywallViewControllerEventDelegate = PaywallViewEventDelegate
+
+interface PaywallViewDelegate {
     // TODO: missing `shouldDismiss`
     fun didFinish(
-        paywall: PaywallViewController,
+        paywall: PaywallView,
         result: PaywallResult,
         shouldDismiss: Boolean,
     )
 }
 
-interface PaywallViewControllerEventDelegate {
+interface PaywallViewEventDelegate {
     suspend fun eventDidOccur(
         paywallEvent: PaywallWebEvent,
-        paywallViewController: PaywallViewController,
+        paywallView: PaywallView,
     )
 }
 

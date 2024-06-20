@@ -36,7 +36,7 @@ import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.paywall.manager.PaywallCacheLogic
 import com.superwall.sdk.paywall.manager.PaywallManager
-import com.superwall.sdk.paywall.manager.PaywallViewControllerCache
+import com.superwall.sdk.paywall.manager.PaywallViewCache
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.get_presentation_result.internallyGetPresentationResult
@@ -48,8 +48,8 @@ import com.superwall.sdk.paywall.presentation.result.PresentationResult
 import com.superwall.sdk.paywall.vc.Survey.SurveyManager
 import com.superwall.sdk.paywall.vc.Survey.SurveyPresentationResult
 import com.superwall.sdk.paywall.vc.delegate.PaywallLoadingState
-import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegateAdapter
-import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerEventDelegate
+import com.superwall.sdk.paywall.vc.delegate.PaywallViewDelegateAdapter
+import com.superwall.sdk.paywall.vc.delegate.PaywallViewEventDelegate
 import com.superwall.sdk.paywall.vc.web_view.PaywallMessage
 import com.superwall.sdk.paywall.vc.web_view.SWWebView
 import com.superwall.sdk.paywall.vc.web_view.SWWebViewDelegate
@@ -64,18 +64,18 @@ import java.net.MalformedURLException
 import java.net.URL
 import java.util.*
 
-class PaywallViewController(
+class PaywallView(
     context: Context,
     override var paywall: Paywall,
-    val eventDelegate: PaywallViewControllerEventDelegate? = null,
-    var delegate: PaywallViewControllerDelegateAdapter? = null,
+    val eventDelegate: PaywallViewEventDelegate? = null,
+    var delegate: PaywallViewDelegateAdapter? = null,
     val deviceHelper: DeviceHelper,
     val factory: Factory,
     val storage: Storage,
     val paywallManager: PaywallManager,
     override val webView: SWWebView,
-    val cache: PaywallViewControllerCache?,
-    private val loadingViewController: LoadingViewController = LoadingViewController(context),
+    val cache: PaywallViewCache?,
+    private val loadingView: LoadingView = LoadingView(context),
 ) : FrameLayout(context),
     PaywallMessageHandlerDelegate,
     SWWebViewDelegate,
@@ -200,7 +200,7 @@ class PaywallViewController(
         hideShimmerView()
 
         // Add the loading view and hide it
-        addView(loadingViewController)
+        addView(loadingView)
         hideLoadingView()
 
         setBackgroundColor(backgroundColor)
@@ -404,7 +404,7 @@ class PaywallViewController(
             paywallResult = result,
             paywallCloseReason = closeReason,
             activity = encapsulatingActivity,
-            paywallViewController = this,
+            paywallView = this,
             loadingState = loadingState,
             isDebuggerLaunched = request?.flags?.isDebuggerLaunched == true,
             paywallInfo = info,
@@ -497,7 +497,7 @@ class PaywallViewController(
 
     override fun eventDidOccur(paywallEvent: PaywallWebEvent) {
         CoroutineScope(Dispatchers.IO).launch {
-            eventDelegate?.eventDidOccur(paywallEvent, this@PaywallViewController)
+            eventDelegate?.eventDidOccur(paywallEvent, this@PaywallView)
         }
     }
 
@@ -530,13 +530,13 @@ class PaywallViewController(
             return
         }
         CoroutineScope(Dispatchers.Main).launch {
-            loadingViewController.visibility = View.VISIBLE
+            loadingView.visibility = View.VISIBLE
         }
     }
 
     private fun hideLoadingView() {
         CoroutineScope(Dispatchers.Main).launch {
-            loadingViewController.visibility = View.GONE
+            loadingView.visibility = View.GONE
         }
     }
 
@@ -669,7 +669,7 @@ class PaywallViewController(
             val trackedEvent =
                 InternalSuperwallEvent.PaywallWebviewLoad(
                     state = InternalSuperwallEvent.PaywallWebviewLoad.State.Start(),
-                    paywallInfo = this@PaywallViewController.info,
+                    paywallInfo = this@PaywallView.info,
                 )
             Superwall.instance.track(trackedEvent)
         }
@@ -699,13 +699,13 @@ class PaywallViewController(
         } catch (e: MalformedURLException) {
             Logger.debug(
                 logLevel = LogLevel.debug,
-                scope = LogScope.paywallViewController,
+                scope = LogScope.paywallView,
                 message = "Invalid URL provided for \"Open In-App URL\" click behavior.",
             )
         } catch (e: Throwable) {
             Logger.debug(
                 logLevel = LogLevel.debug,
-                scope = LogScope.paywallViewController,
+                scope = LogScope.paywallView,
                 message = "Exception thrown for \"Open In-App URL\" click behavior.",
             )
         }
@@ -720,13 +720,13 @@ class PaywallViewController(
         } catch (e: MalformedURLException) {
             Logger.debug(
                 logLevel = LogLevel.debug,
-                scope = LogScope.paywallViewController,
+                scope = LogScope.paywallView,
                 message = "Invalid URL provided for \"Open External URL\" click behavior.",
             )
         } catch (e: Throwable) {
             Logger.debug(
                 logLevel = LogLevel.debug,
-                scope = LogScope.paywallViewController,
+                scope = LogScope.paywallView,
                 message = "Exception thrown for \"Open External URL\" click behavior.",
             )
         }
@@ -750,7 +750,7 @@ class PaywallViewController(
         webView.evaluateJavascript("window.paywall.accept([$payload])", null)
         Logger.debug(
             logLevel = LogLevel.debug,
-            scope = LogScope.paywallViewController,
+            scope = LogScope.paywallView,
             message = "Game controller event occurred: $payload",
         )
     }

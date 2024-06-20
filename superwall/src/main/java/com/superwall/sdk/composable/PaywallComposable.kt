@@ -19,8 +19,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.paywall.presentation.get_paywall.getPaywall
 import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
-import com.superwall.sdk.paywall.vc.PaywallViewController
-import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegate
+import com.superwall.sdk.paywall.vc.PaywallView
+import com.superwall.sdk.paywall.vc.delegate.PaywallViewDelegate
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -30,7 +30,7 @@ fun PaywallComposable(
     event: String,
     params: Map<String, Any>? = null,
     paywallOverrides: PaywallOverrides? = null,
-    delegate: PaywallViewControllerDelegate,
+    delegate: PaywallViewDelegate,
     errorComposable: @Composable ((Throwable) -> Unit) = { error: Throwable ->
         // Default error composable
         Text(text = "No paywall to display")
@@ -48,7 +48,7 @@ fun PaywallComposable(
         }
     },
 ) {
-    val viewState = remember { mutableStateOf<PaywallViewController?>(null) }
+    val viewState = remember { mutableStateOf<PaywallView?>(null) }
     val errorState = remember { mutableStateOf<Throwable?>(null) }
     val context = LocalContext.current
 

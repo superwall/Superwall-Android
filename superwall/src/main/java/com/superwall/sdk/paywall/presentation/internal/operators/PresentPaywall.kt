@@ -13,7 +13,7 @@ import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationReques
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatusReason
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
-import com.superwall.sdk.paywall.vc.PaywallViewController
+import com.superwall.sdk.paywall.vc.PaywallView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -24,7 +24,7 @@ import kotlinx.coroutines.withContext
  * Presents the paywall view controller, stores the presentation request for future use,
  * and sends back a `presented` state to the paywall state publisher.
  *
- * @param paywallViewController The paywall view controller to present.
+ * @param paywallView The paywall view controller to present.
  * @param presenter The view controller to present the paywall on.
  * @param unsavedOccurrence The trigger rule occurrence to save, if available.
  * @param debugInfo Information to help with debugging.
@@ -33,8 +33,8 @@ import kotlinx.coroutines.withContext
  *
  * @return A publisher that contains info for the next pipeline operator.
  */
-suspend fun Superwall.presentPaywallViewController(
-    paywallViewController: PaywallViewController,
+suspend fun Superwall.presentPaywallView(
+    paywallView: PaywallView,
     presenter: Activity,
     unsavedOccurrence: TriggerRuleOccurrence?,
     debugInfo: Map<String, Any>,
@@ -47,11 +47,11 @@ suspend fun Superwall.presentPaywallViewController(
             type = request.flags.type,
             status = PaywallPresentationRequestStatus.Presentation,
             statusReason = null,
-            factory = this@presentPaywallViewController.dependencyContainer,
+            factory = this@presentPaywallView.dependencyContainer,
         )
     track(trackedEvent)
 
-    paywallViewController.present(
+    paywallView.present(
         presenter = presenter,
         request = request,
         unsavedOccurrence = unsavedOccurrence,
@@ -59,7 +59,7 @@ suspend fun Superwall.presentPaywallViewController(
         paywallStatePublisher = paywallStatePublisher,
     ) { isPresented ->
         if (isPresented) {
-            val state = PaywallState.Presented(paywallViewController.info)
+            val state = PaywallState.Presented(paywallView.info)
             CoroutineScope(Dispatchers.IO).launch {
                 paywallStatePublisher.emit(state)
             }
@@ -84,3 +84,19 @@ suspend fun Superwall.presentPaywallViewController(
         }
     }
 }
+
+@Deprecated("Will be removed in the upcoming versions, use `presentPaywallView` instead.")
+suspend fun Superwall.presentPaywallViewController(
+    paywallView: PaywallView,
+    presenter: Activity,
+    unsavedOccurrence: TriggerRuleOccurrence?,
+    debugInfo: Map<String, Any>,
+    request: PresentationRequest,
+    paywallStatePublisher: MutableSharedFlow<PaywallState>,
+) = presentPaywallView(
+    paywallView = paywallView,
+    presenter = presenter,
+    unsavedOccurrence = unsavedOccurrence,
+    debugInfo = debugInfo,
+    request = request,
+    paywallStatePublisher = paywallStatePublisher,)

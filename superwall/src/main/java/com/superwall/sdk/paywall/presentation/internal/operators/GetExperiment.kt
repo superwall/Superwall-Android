@@ -72,7 +72,7 @@ suspend fun Superwall.getExperiment(
                     error = rulesOutcome.triggerResult.error,
                 )
             }
-            errorType = PaywallPresentationRequestStatusReason.NoPaywallViewController()
+            errorType = PaywallPresentationRequestStatusReason.NoPaywallView()
             paywallStatePublisher?.emit(PaywallState.PresentationError(rulesOutcome.triggerResult.error))
         }
     }

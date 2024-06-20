@@ -24,8 +24,9 @@ import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.PresentationItems
 import com.superwall.sdk.paywall.presentation.internal.dismiss
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
-import com.superwall.sdk.paywall.vc.PaywallViewController
+import com.superwall.sdk.paywall.vc.PaywallView
 import com.superwall.sdk.paywall.vc.SuperwallPaywallActivity
+import com.superwall.sdk.paywall.vc.delegate.PaywallViewEventDelegate
 import com.superwall.sdk.paywall.vc.SuperwallStoreOwner
 import com.superwall.sdk.paywall.vc.ViewModelFactory
 import com.superwall.sdk.paywall.vc.ViewStorageViewModel
@@ -60,7 +61,7 @@ class Superwall(
     options: SuperwallOptions?,
     private var activityProvider: ActivityProvider?,
     private val completion: (() -> Unit)?,
-) : PaywallViewControllerEventDelegate {
+) : PaywallViewEventDelegate {
     private var _options: SuperwallOptions? = options
     private val ioScope = CoroutineScope(Dispatchers.IO)
     internal var context: Context = context.applicationContext
@@ -79,10 +80,10 @@ class Superwall(
     internal val presentationItems: PresentationItems = PresentationItems()
 
     /**
-     * The presented paywall view controller.
+     * The presented paywall view.
      */
-    val paywallViewController: PaywallViewController?
-        get() = dependencyContainer.paywallManager.presentedViewController
+    val paywallView: PaywallView?
+        get() = dependencyContainer.paywallManager.currentView
 
     /**
      * A convenience variable to access and change the paywall options that you passed
@@ -104,7 +105,7 @@ class Superwall(
      * Determines whether a paywall is being presented.
      */
     val isPaywallPresented: Boolean
-        get() = paywallViewController != null
+        get() = paywallView != null
 
     /**
      * The delegate that handles Superwall lifecycle events.
@@ -182,12 +183,12 @@ class Superwall(
         get() = dependencyContainer.identityManager.isLoggedIn
 
     /**
-     * The `PaywallInfo` object of the most recently presented view controller.
+     * The `PaywallInfo` object of the most recently presented view.
      */
     val latestPaywallInfo: PaywallInfo?
         get() {
             val presentedPaywallInfo =
-                dependencyContainer.paywallManager.presentedViewController?.info
+                dependencyContainer.paywallManager.currentView?.info
             return presentedPaywallInfo ?: presentationItems.paywallInfo
         }
 
@@ -373,9 +374,9 @@ class Superwall(
      */
     fun togglePaywallSpinner(isHidden: Boolean) {
         ioScope.launch {
-            val paywallViewController =
-                dependencyContainer.paywallManager.presentedViewController ?: return@launch
-            paywallViewController.togglePaywallSpinner(isHidden)
+            val paywallView =
+                dependencyContainer.paywallManager.currentView ?: return@launch
+            paywallView.togglePaywallSpinner(isHidden)
         }
     }
 
@@ -486,12 +487,12 @@ class Superwall(
 
     override suspend fun eventDidOccur(
         paywallEvent: PaywallWebEvent,
-        paywallViewController: PaywallViewController,
+        paywallView: PaywallView,
     ) {
         withContext(Dispatchers.Main) {
             Logger.debug(
                 logLevel = LogLevel.debug,
-                scope = LogScope.paywallViewController,
+                scope = LogScope.paywallView,
                 message = "Event Did Occur",
                 info = mapOf("event" to paywallEvent),
             )
@@ -499,7 +500,7 @@ class Superwall(
             when (paywallEvent) {
                 is Closed -> {
                     dismiss(
-                        paywallViewController,
+                        paywallView,
                         result = PaywallResult.Declined(),
                         closeReason = PaywallCloseReason.ManualClose,
                     )
@@ -515,7 +516,7 @@ class Superwall(
                             try {
                                 dependencyContainer.transactionManager.purchase(
                                     paywallEvent.productId,
-                                    paywallViewController,
+                                    paywallView,
                                 )
                             } finally {
                                 // Ensure the task is cleared once the purchase is complete or if an error occurs
@@ -525,7 +526,7 @@ class Superwall(
                 }
 
                 is InitiateRestore -> {
-                    dependencyContainer.transactionManager.tryToRestore(paywallViewController)
+                    dependencyContainer.transactionManager.tryToRestore(paywallView)
                 }
 
                 is OpenedURL -> {
