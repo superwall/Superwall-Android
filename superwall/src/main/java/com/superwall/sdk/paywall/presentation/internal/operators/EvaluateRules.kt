@@ -33,7 +33,7 @@ suspend fun Superwall.evaluateRules(request: PresentationRequest): RuleEvaluatio
         // Called if the debugger is shown.
         val paywallId =
             request.presentationInfo.identifier
-                ?: throw PaywallPresentationRequestStatusReason.NoPaywallViewController()
+                ?: throw PaywallPresentationRequestStatusReason.NoPaywallView()
 
         RuleEvaluationOutcome(triggerResult = InternalTriggerResult.Paywall(Experiment.presentById(paywallId)))
     }

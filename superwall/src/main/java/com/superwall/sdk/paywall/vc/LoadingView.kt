@@ -6,7 +6,7 @@ import android.view.Gravity
 import android.widget.FrameLayout
 import android.widget.ProgressBar
 
-class LoadingViewController(
+class LoadingView(
     context: Context,
 ) : FrameLayout(context) {
     init {

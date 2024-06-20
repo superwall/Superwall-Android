@@ -27,8 +27,8 @@ suspend fun Superwall.dismiss() =
     withContext(Dispatchers.Main) {
         val completionSignal = CompletableDeferred<Unit>()
 
-        paywallViewController?.let {
-            dismiss(paywallViewController = it, result = PaywallResult.Declined()) {
+        paywallView?.let {
+            dismiss(paywallView = it, result = PaywallResult.Declined()) {
                 completionSignal.complete(Unit)
             }
         } ?: completionSignal.complete(Unit)
@@ -40,8 +40,8 @@ suspend fun Superwall.dismissForNextPaywall() =
     withContext(Dispatchers.Main) {
         val completionSignal = CompletableDeferred<Unit>()
 
-        paywallViewController?.let {
-            dismiss(paywallViewController = it, result = PaywallResult.Declined(), closeReason = PaywallCloseReason.ForNextPaywall) {
+        paywallView?.let {
+            dismiss(paywallView = it, result = PaywallResult.Declined(), closeReason = PaywallCloseReason.ForNextPaywall) {
                 completionSignal.complete(Unit)
             }
         } ?: completionSignal.complete(Unit)
