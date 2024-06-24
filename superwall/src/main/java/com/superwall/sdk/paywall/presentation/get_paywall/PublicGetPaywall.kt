@@ -7,7 +7,7 @@ import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.vc.PaywallView
-import com.superwall.sdk.paywall.vc.delegate.PaywallViewDelegate
+import com.superwall.sdk.paywall.vc.delegate.PaywallViewCallback
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewDelegateAdapter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -17,7 +17,7 @@ suspend fun Superwall.getPaywall(
     event: String,
     params: Map<String, Any>? = null,
     paywallOverrides: PaywallOverrides? = null,
-    delegate: PaywallViewDelegate,
+    delegate: PaywallViewCallback,
 ): PaywallView =
     withContext(Dispatchers.Main) {
         val view =

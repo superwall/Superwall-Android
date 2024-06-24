@@ -95,7 +95,7 @@ class PaywallManager(
             if (!request.isDebuggerLaunched) {
                 cache.getPaywallView(cacheKey)?.let { view ->
                     if (!isPreloading) {
-                        view.delegate = delegate
+                        view.callback = delegate
                         view.paywall.update(paywall)
                     }
                     return@withContext view

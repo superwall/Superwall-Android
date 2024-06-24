@@ -5,7 +5,7 @@ import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.SessionEventsManager
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
-import com.superwall.sdk.analytics.superwall.SuperwallEventObjc
+import com.superwall.sdk.analytics.superwall.SuperwallEvents
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
 import com.superwall.sdk.delegate.SubscriptionStatus
@@ -102,7 +102,7 @@ class TransactionManager(
                     superwallOptions.paywalls.shouldShowPurchaseFailureAlert
                 val triggers = factory.makeTriggers()
                 val transactionFailExists =
-                    triggers.contains(SuperwallEventObjc.TransactionFail.rawName)
+                    triggers.contains(SuperwallEvents.TransactionFail.rawName)
 
                 if (shouldShowPurchaseFailureAlert && !transactionFailExists) {
                     trackFailure(
@@ -336,7 +336,7 @@ class TransactionManager(
             )
         Superwall.instance.track(trackedEvent)
 
-        paywallView.presentAlert(
+        paywallView.showAlert(
             "Waiting for Approval",
             "Thank you! This purchase is pending approval from your parent. Please try again once it is approved.",
         )
@@ -403,7 +403,7 @@ class TransactionManager(
                 ),
             )
 
-            paywallView.presentAlert(
+            paywallView.showAlert(
                 title = Superwall.instance.options.paywalls.restoreFailed.title,
                 message = Superwall.instance.options.paywalls.restoreFailed.message,
                 closeActionTitle = Superwall.instance.options.paywalls.restoreFailed.closeButtonTitle,
@@ -445,7 +445,7 @@ class TransactionManager(
             )
         Superwall.instance.track(trackedEvent)
 
-        paywallView.presentAlert(
+        paywallView.showAlert(
             "An error occurred",
             error.message ?: "Unknown error",
         )
