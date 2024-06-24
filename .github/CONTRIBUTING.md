@@ -25,7 +25,7 @@ To maintain readability and achieve code consistency, we follow the [Kotlin codi
 and [Android's Kotlin style guide](https://developer.android.com/kotlin/style-guide).
 We use [Ktlint](https://github.com/pinterest/ktlint) to check for style errors.
 
-To do this locally, you can install ktlint using `brew install ktlint` and either:
+To do this locally, you can either run the setup script or install ktlint using `brew install ktlint` and either:
 * Run `ktlint` from the root folder to detect style issues immediately.
 * Use `ktlint installGitPreCommitHook` to install a pre-commit hook that will run ktlint before every commit.
 
@@ -48,7 +48,6 @@ For the example app's and test app's, open either the:
 * `./app/` for the testing application
 * `./example/` for the example application
 
-If you are editing one the example apps, open the example app's `xcodeproj` directly. The advantage of this is that you can see linting issues on build.
 
 ## Git Workflow
 
@@ -63,7 +62,7 @@ When we're ready to cut a new release, we update the `version` in [build.gradle]
 ## Testing
 
 If you add new code, please make sure it gets tested! When fixing bugs, try to reproduce the bug in a unit test and then fix the test. This makes sure we never regress that issue again.
-Before creating a pull request, run all unit tests by pressing **Cmd + U**. Make sure they all pass and fix any broken tests.
+Before creating a pull request, run all unit and integration tests. Make sure they all pass and fix any broken tests.
 We also have a GitHub Action that runs the tests on push.
 
 ## Issues
