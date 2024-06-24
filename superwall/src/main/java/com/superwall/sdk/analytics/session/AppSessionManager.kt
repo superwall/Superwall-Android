@@ -15,7 +15,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.launch
-import java.util.*
+import java.util.Date
 
 interface AppManagerDelegate {
     suspend fun didUpdateAppSession(appSession: AppSession)
@@ -110,7 +110,13 @@ class AppSessionManager(
                 val userAttributes = delegate.makeUserAttributesEvent()
 
                 Superwall.instance.track(InternalSuperwallEvent.SessionStart())
-                Superwall.instance.track(InternalSuperwallEvent.DeviceAttributes(deviceAttributes))
+                if (didTrackAppLaunch) {
+                    Superwall.instance.track(
+                        InternalSuperwallEvent.DeviceAttributes(
+                            deviceAttributes,
+                        ),
+                    )
+                }
                 Superwall.instance.track(userAttributes)
             }
         } else {

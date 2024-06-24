@@ -2,6 +2,16 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 1.1.9
+
+### Fixes
+
+- SW-2872: Fixes issue where `deviceAttributes` event and fetching would not await for IP geo to complete.
+
+### Enhancements
+
+- Parallelized the fetching of configuration and IP geo info.
+
 ## 1.1.8
 
 ### Enhancements
