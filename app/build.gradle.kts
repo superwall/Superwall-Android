@@ -83,9 +83,10 @@ dependencies {
     androidTestImplementation(libs.test.rules)
     androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation(libs.ui.test.junit4)
-    debugImplementation(libs.leakcanary.android)
+    androidTestImplementation(libs.uiautomator)
 
     // Debug
+    debugImplementation(libs.leakcanary.android)
     debugImplementation(libs.ui.tooling)
     debugImplementation(libs.ui.test.manifest)
 }

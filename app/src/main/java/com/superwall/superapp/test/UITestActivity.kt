@@ -35,20 +35,23 @@ import com.superwall.superapp.test.UITestHandler.tests
 import com.superwall.superapp.ui.theme.MyApplicationTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 
 class UITestInfo(
     val number: Int,
     val description: String,
     val testCaseType: TestCaseType = TestCaseType.iOS,
-    test: suspend Context.(testDispatcher: CoroutineScope) -> Unit,
+    test: suspend Context.(testDispatcher: CoroutineScope, events: Flow<SuperwallEvent>) -> Unit,
 ) {
-    private val events = MutableStateFlow<SuperwallEvent?>(null)
+    private val events = MutableSharedFlow<SuperwallEvent?>(extraBufferCapacity = 50)
 
     fun events() = events
 
     val test: suspend Context.() -> Unit = {
+        val scope = CoroutineScope(Dispatchers.IO)
         Superwall.instance.delegate =
             object : SuperwallDelegate {
                 override fun handleSuperwallEvent(eventInfo: SuperwallEventInfo) {
@@ -57,11 +60,12 @@ class UITestInfo(
                         "\tEvent name:" + eventInfo.event.rawName + "" +
                             ",\n\tParams:" + eventInfo.params + "\n",
                     )
-                    events.value = eventInfo.event
+                    scope.launch {
+                        events.emit(eventInfo.event)
+                    }
                 }
             }
-        val scope = CoroutineScope(Dispatchers.IO)
-        test.invoke(this, scope)
+        test.invoke(this, scope, events().filterNotNull())
     }
 }
 

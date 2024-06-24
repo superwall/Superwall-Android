@@ -20,15 +20,16 @@ import com.superwall.superapp.ComposeActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlin.time.Duration.Companion.seconds
 
 object UITestHandler {
     var test0Info =
         UITestInfo(
             0,
             "Uses the identify function. Should see the name 'Jack' in the paywall.",
-            test = {
+            test = { scope, events ->
                 Superwall.instance.identify(userId = "test0")
                 Superwall.instance.setUserAttributes(attributes = mapOf("first_name" to "Jack"))
                 Superwall.instance.register(event = "present_data")
@@ -39,7 +40,7 @@ object UITestHandler {
         UITestInfo(
             1,
             "Uses the identify function. Should see the name 'Kate' in the paywall.",
-            test = {
+            test = { scope, events ->
                 // Set identity
                 Superwall.instance.identify(userId = "test1a")
                 Superwall.instance.setUserAttributes(mapOf("first_name" to "Jack"))
@@ -54,7 +55,7 @@ object UITestHandler {
         UITestInfo(
             2,
             "Calls `reset()`. No first name should be displayed.",
-            test = {
+            test = { scope, events ->
                 // TODO: The name doesn't get set to begin with so isn't an accurate test.
                 // Set identity
                 Superwall.instance.identify(userId = "test2")
@@ -68,7 +69,7 @@ object UITestHandler {
         UITestInfo(
             3,
             "Calls `reset()` multiple times. No first name should be displayed.",
-            test = {
+            test = { scope, events ->
                 // Set identity
                 Superwall.instance.identify(userId = "test3")
                 Superwall.instance.setUserAttributes(mapOf("first_name" to "Jack"))
@@ -85,13 +86,15 @@ object UITestHandler {
                 "t0 and a 2 in the video at t2. It will close after 4 seconds. A new paywall " +
                 "will be presented 1 second after close. This paywall should have a video " +
                 "playing and should be started from the beginning with a 0 on the screen. ",
-            test = {
+            test = { scope, events ->
                 // Present the paywall.
                 Superwall.instance.register(event = "present_video")
-                it.launch {
+                scope.launch {
                     // Dismiss after 4 seconds
-                    delay(4000)
+                    events.first { it is SuperwallEvent.PaywallWebviewLoadComplete }
+                    delay(1.seconds)
                     Superwall.instance.dismiss()
+                    delay(4.seconds)
                     Superwall.instance.register(event = "present_video")
                 }
             },
@@ -101,7 +104,7 @@ object UITestHandler {
             5,
             "Show paywall with override products. Paywall should appear with 2 products:" +
                 "1 monthly at \$12.99 and 1 annual at \$99.99.",
-            test = {
+            test = { scope, events ->
                 // TODO: Need to get some products from google play console and substitute in.
             },
         )
@@ -110,7 +113,7 @@ object UITestHandler {
             6,
             "Paywall should appear with 2 products: 1 monthly at \$4.99 and 1 annual at" +
                 " \$29.99.",
-            test = {
+            test = { scope, events ->
                 // TODO: This doesn't have the products that it should have - need to add to
                 //  google play console
                 Superwall.instance.register(event = "present_products")
@@ -122,7 +125,7 @@ object UITestHandler {
             "Adds a user attribute to verify rule on `present_and_rule_user` presents: " +
                 "user.should_display == true and user.some_value > 12. Then dismisses and removes " +
                 "those attributes. Make sure it's not presented.",
-            test = {
+            test = { scope, events ->
                 Superwall.instance.identify(userId = "test7")
                 Superwall.instance.setUserAttributes(
                     mapOf(
@@ -133,7 +136,7 @@ object UITestHandler {
                 )
                 Superwall.instance.register(event = "present_and_rule_user")
 
-                it.launch {
+                scope.launch {
 
                     delay(8000)
                     Superwall.instance.dismiss()
@@ -154,7 +157,7 @@ object UITestHandler {
             8,
             "Adds a user attribute to verify rule on `present_and_rule_user`. Verify it" +
                 " DOES NOT present: user.should_display == true and user.some_value > 12",
-            test = {
+            test = { scope, events ->
                 // TODO: Crashes on no rule match
                 Superwall.instance.identify(userId = "test7")
                 Superwall.instance.setUserAttributes(
@@ -172,7 +175,7 @@ object UITestHandler {
             9,
             "Sets subs status to active, paywall should present regardless of this," +
                 " then it sets the status back to inactive.",
-            test = {
+            test = { scope, events ->
                 Superwall.instance.setSubscriptionStatus(SubscriptionStatus.ACTIVE)
                 Superwall.instance.register(event = "present_always")
                 Superwall.instance.setSubscriptionStatus(SubscriptionStatus.INACTIVE)
@@ -186,7 +189,7 @@ object UITestHandler {
                 "products: 1 monthly at \$12.99 and 1 annual at \$99.99. After dismiss, paywall " +
                 "should be presented again with no override products. After dismiss, paywall " +
                 "should be presented one last time with no override products.",
-            test = {
+            test = { scope, events ->
                 // TODO: Product substitution
             },
         )
@@ -196,25 +199,27 @@ object UITestHandler {
             "Paywall should present with the name Claire. Then it should dismiss after" +
                 "8 seconds and present again without any name. Then it should present again" +
                 " with the name Sawyer.",
-            test = {
-                runBlocking {
-                    Superwall.instance.setUserAttributes(mapOf("first_name" to "Claire"))
-                    Superwall.instance.register(event = "present_data")
-                }
-                it.launch {
+            test = { scope, events ->
+
+                Superwall.instance.setUserAttributes(mapOf("first_name" to "Claire"))
+                Superwall.instance.register(event = "present_data")
+                scope.launch {
+                    events.first { it is SuperwallEvent.PaywallWebviewLoadComplete }
                     // Dismiss any view controllers
-                    delay(8000)
+                    delay(8.seconds)
 
                     // Dismiss any view controllers
                     Superwall.instance.dismiss()
                     Superwall.instance.setUserAttributes(mapOf("first_name" to null))
                     Superwall.instance.register(event = "present_data")
-
-                    delay(8000)
-                    // Dismiss any view controllers
-                    Superwall.instance.dismiss()
-                    Superwall.instance.setUserAttributes(mapOf("first_name" to "Sawyer"))
-                    Superwall.instance.register(event = "present_data")
+                    launch {
+                        events.first { it is SuperwallEvent.PaywallOpen }
+                        delay(10.seconds)
+                        // Dismiss any view controllers
+                        Superwall.instance.dismiss()
+                        Superwall.instance.setUserAttributes(mapOf("first_name" to "Sawyer"))
+                        Superwall.instance.register(event = "present_data")
+                    }
                 }
             },
         )
@@ -222,7 +227,7 @@ object UITestHandler {
         UITestInfo(
             12,
             "Test trigger: off. Paywall shouldn't present. Should print eventNotFound.",
-            test = {
+            test = { scope, events ->
                 Superwall.instance.register(event = "keep_this_trigger_off")
             },
         )
@@ -230,7 +235,7 @@ object UITestHandler {
         UITestInfo(
             13,
             "Test trigger: not in the dashboard. Paywall shouldn't present.",
-            test = {
+            test = { scope, events ->
                 Superwall.instance.register(event = "i_just_made_this_up_and_it_dne")
             },
         )
@@ -239,14 +244,17 @@ object UITestHandler {
             14,
             "Presents the paywall and then dismisses after 8 seconds. The paywall shouldn't " +
                 "display based on a paywall_close event.",
-            test = {
+            test = { scope, events ->
                 // Show a paywall
                 Superwall.instance.register(event = "present_always")
+                scope.launch {
+                    events.first { it is SuperwallEvent.PaywallWebviewLoadComplete }
 
-                delay(8000)
+                    delay(8000)
 
-                // Dismiss any view controllers
-                Superwall.instance.dismiss()
+                    // Dismiss any view controllers
+                    Superwall.instance.dismiss()
+                }
             },
         )
     var test15Info =
@@ -257,7 +265,7 @@ object UITestHandler {
                 "Verify that the console output contains a non-null experimentId. After the third " +
                 "presentation, manually close the paywall. During this test only 3 paywalls should " +
                 "event present. If more than 3 present, this test has failed.",
-            test = {
+            test = { scope, events ->
                 Superwall.instance.register(event = "present_always")
                 Superwall.instance.register(
                     event = "present_always",
@@ -294,9 +302,11 @@ object UITestHandler {
             16,
             "The paywall should present. In the console you should see a paywall_open event " +
                 "from the delegate followed by !!! TEST 16 !!!.",
-            test = {
+            test = { scope, events ->
+                var presentTriggered = false
                 val paywallPresentationHandler = PaywallPresentationHandler()
                 paywallPresentationHandler.onPresent { info ->
+                    presentTriggered = true
                     println("!!! TEST 16 !!! DID PRESENT PAYWALL")
                 }
 
@@ -305,6 +315,11 @@ object UITestHandler {
                     null,
                     paywallPresentationHandler,
                 )
+                scope.launch {
+                    events.first { it is SuperwallEvent.PaywallWebviewLoadComplete }
+                    delay(1.seconds)
+                    assert(presentTriggered)
+                }
             },
         )
     var test17Info =
@@ -315,7 +330,7 @@ object UITestHandler {
                 " the paywall will dismiss after 8s and one more paywall will display. After " +
                 "the third presentation, manually close the paywall. During this test only 3 " +
                 "paywalls should event present. If more than 3 present, this test has failed.",
-            test = {
+            test = { scope, events ->
                 Superwall.instance.identify(userId = "test0")
                 Superwall.instance.setUserAttributes(mapOf("first_name" to "Jack"))
                 Superwall.instance.register(event = "present_data")
@@ -353,16 +368,22 @@ object UITestHandler {
             18,
             "Open In-App browser from a manually presented paywall. Once the in-app " +
                 "browser opens, close it, and verify that the paywall is still showing.",
-            test = {
-                // Create a mock paywall view controller
-                val delegate = MockPaywallViewControllerDelegate()
+            test = { scope, events ->
+                scope.launch {
 
-                // Get the paywall view controller instance
-                val viewController =
-                    Superwall.instance.getPaywall(event = "present_urls", delegate = delegate)
+                    // Create a mock paywall view controller
+                    val delegate = MockPaywallViewControllerDelegate()
 
-                // Present using the convenience `SuperwallPaywallActivity` activity and verify test case.
-                SuperwallPaywallActivity.startWithView(context = this, view = viewController)
+                    // Get the paywall view controller instance
+                    val viewController =
+                        Superwall.instance.getPaywall(event = "present_urls", delegate = delegate)
+
+                    // Present using the convenience `SuperwallPaywallActivity` activity and verify test case.
+                    SuperwallPaywallActivity.startWithView(
+                        context = this@UITestInfo,
+                        view = viewController,
+                    )
+                }
             },
         )
     var test19Info =
@@ -371,7 +392,7 @@ object UITestHandler {
             "Clusterfucks by Jake™. Ths presents a paywall with no name. Then it dismisses" +
                 " after 8s. Then it presents again with no name, dismisses, and finally presents " +
                 "with the name Kate.",
-            test = {
+            test = { scope, events ->
                 // Set identity
                 Superwall.instance.identify(userId = "test19a")
                 Superwall.instance.setUserAttributes(mapOf("first_name" to "Jack"))
@@ -416,7 +437,7 @@ object UITestHandler {
             "Verify that external URLs can be opened in native browser from paywall. When" +
                 " the paywall opens, tap \"Perform\" for \"Open in Safari\". Afterwards, go back " +
                 "and verify the paywall is still displayed.",
-            test = {
+            test = { scope, events ->
                 // Present paywall with URLs
                 Superwall.instance.register("present_urls")
             },
@@ -426,7 +447,7 @@ object UITestHandler {
             21,
             "Present the paywall and make a purchase. After purchasing completes and " +
                 "the paywall dismisses, attempt to launch again. The paywall should NOT appear.",
-            test = {
+            test = { scope, events ->
                 Superwall.instance.register(event = "present_data")
             },
         )
@@ -435,7 +456,7 @@ object UITestHandler {
             22,
             "This is skipped! (Track an event shortly after another one is beginning to present. The " +
                 "session should not be cancelled out.)",
-            test = {
+            test = { scope, events ->
                 // TODO: This is skipped in the iOS SDK for now
             },
         )
@@ -444,7 +465,7 @@ object UITestHandler {
             23,
             "Case: Unsubscribed user, register event without a gating handler\n" +
                 "Result: paywall should display",
-            test = {
+            test = { scope, events ->
                 // Register event
                 Superwall.instance.register(event = "register_nongated_paywall")
             },
@@ -455,15 +476,16 @@ object UITestHandler {
             "Case: Subscribed user, register event without a gating handler\n" +
                 "Result: paywall should NOT display. Resets subscription status to inactive " +
                 "4s later.",
-            test = {
+            test = { scope, events ->
                 // Set user as subscribed
                 Superwall.instance.setSubscriptionStatus(SubscriptionStatus.ACTIVE)
 
                 // Register event - paywall shouldn't appear.
                 Superwall.instance.register(event = "register_nongated_paywall")
-
-                delay(4000)
-                Superwall.instance.setSubscriptionStatus(SubscriptionStatus.INACTIVE)
+                scope.launch {
+                    delay(4000)
+                    Superwall.instance.setSubscriptionStatus(SubscriptionStatus.INACTIVE)
+                }
             },
         )
     var test25Info =
@@ -471,7 +493,7 @@ object UITestHandler {
             25,
             "Tapping the button shouldn't present a paywall. These register calls don't " +
                 "have a feature gate. Differs from iOS in that there is no purchase taking place.",
-            test = {
+            test = { scope, events ->
                 var currentSubscriptionStatus = Superwall.instance.subscriptionStatus.value
 
                 Superwall.instance.setSubscriptionStatus(SubscriptionStatus.ACTIVE)
@@ -488,7 +510,7 @@ object UITestHandler {
             26,
             "Registers an event with a gating handler. The paywall should display, you should " +
                 "NOT see an alert when you close the paywall.",
-            test = {
+            test = { scope, events ->
                 Superwall.instance.register(event = "register_gated_paywalls") {
                     val alertController =
                         AlertControllerFactory.make(
@@ -506,7 +528,7 @@ object UITestHandler {
             27,
             "Tapping the button shouldn't present the paywall but should launch the " +
                 "feature block - an alert should present.",
-            test = {
+            test = { scope, events ->
                 var currentSubscriptionStatus = Superwall.instance.subscriptionStatus.value
 
                 Superwall.instance.setSubscriptionStatus(SubscriptionStatus.ACTIVE)
@@ -530,7 +552,7 @@ object UITestHandler {
         UITestInfo(
             28,
             "Should print out \"Paywall(experiment...)\".",
-            test = {
+            test = { scope, events ->
                 val result = Superwall.instance.getPresentationResult("present_data")
                 println("!!! TEST 28 !!! $result")
             },
@@ -539,7 +561,7 @@ object UITestHandler {
         UITestInfo(
             29,
             "Should print out \"noRuleMatch\".",
-            test = {
+            test = { scope, events ->
                 Superwall.instance.setUserAttributes(
                     mapOf(
                         "should_display" to null,
@@ -554,7 +576,7 @@ object UITestHandler {
         UITestInfo(
             30,
             "Should print out \"eventNotFound\".",
-            test = {
+            test = { scope, events ->
                 val result = Superwall.instance.getPresentationResult("some_random_not_found_event")
                 println("!!! TEST 30 !!! $result")
             },
@@ -563,7 +585,7 @@ object UITestHandler {
         UITestInfo(
             31,
             "Should print out \"holdout\".",
-            test = {
+            test = { scope, events ->
                 val result = Superwall.instance.getPresentationResult("holdout")
                 println("!!! TEST 31 !!! $result")
             },
@@ -573,7 +595,7 @@ object UITestHandler {
             32,
             "This sets the subscription status active, prints out \"userIsSubscribed\" " +
                 "and then returns subscription status to inactive.",
-            test = {
+            test = { scope, events ->
                 Superwall.instance.setSubscriptionStatus(SubscriptionStatus.ACTIVE)
                 val result = Superwall.instance.getPresentationResult("present_data")
                 println("!!! TEST 32 !!! $result")
@@ -584,7 +606,7 @@ object UITestHandler {
         UITestInfo(
             33,
             "Calls identify twice with the same ID before presenting a paywall",
-            test = {
+            test = { scope, events ->
                 // Set identity
                 Superwall.instance.identify(userId = "test33")
                 Superwall.instance.identify(userId = "test33")
@@ -596,7 +618,7 @@ object UITestHandler {
         UITestInfo(
             34,
             "Call reset 8s after a paywall is presented – should not cause a crash.",
-            test = {
+            test = { scope, events ->
                 Superwall.instance.register(event = "present_data")
 
                 delay(8000)
@@ -611,7 +633,7 @@ object UITestHandler {
             "Purchase from the paywall and then check that after the purchase has finished " +
                 "the result type `purchased` is printed to the console. The paywall should dismiss." +
                 " After doing this, try test 37",
-            test = {
+            test = { scope, events ->
                 // Create a mock paywall view controller
                 val delegate = MockPaywallViewControllerDelegate()
                 delegate.paywallViewControllerDidFinish { paywallViewController, paywallResult, shouldDismiss ->
@@ -631,7 +653,7 @@ object UITestHandler {
             36,
             "Close the paywall and check that after the purchase has finished \" " +
                 "\"the result type \"declined\" is printed to the console. The paywall should close.",
-            test = {
+            test = { scope, events ->
                 // Create a mock paywall view controller
                 val delegate = MockPaywallViewControllerDelegate()
                 delegate.paywallViewControllerDidFinish { paywallViewController, paywallResult, shouldDismiss ->
@@ -652,7 +674,7 @@ object UITestHandler {
             "Need to have purchased a product before calling this test, then present the " +
                 "paywall and tap \"restore\". The paywall should dismiss and the the console should" +
                 "print the paywallResult as \"restored\".",
-            test = {
+            test = { scope, events ->
                 // Create a mock paywall view controller
                 val delegate = MockPaywallViewControllerDelegate()
                 delegate.paywallViewControllerDidFinish { paywallViewController, paywallResult, shouldDismiss ->
@@ -720,7 +742,7 @@ object UITestHandler {
             "Unable to fetch config, not subscribed, and not gated. First disable " +
                 "internet on device. You should not be subscribed. You SHOULD " +
                 "see !!! ERROR HANDLER !!! in the console and the alert should NOT show.",
-            test = {
+            test = { scope, events ->
                 executeRegisterFeatureClosureTest(subscribed = false, gated = false)
             },
         )
@@ -730,7 +752,7 @@ object UITestHandler {
             "Unable to fetch config, not subscribed, and gated. First disable internet " +
                 "on device. You should not be subscribed.  You SHOULD " +
                 "see !!! ERROR HANDLER !!! in the console and the alert should NOT show.",
-            test = {
+            test = { scope, events ->
                 executeRegisterFeatureClosureTest(subscribed = false, gated = true)
             },
         )
@@ -740,7 +762,7 @@ object UITestHandler {
             "Unable to fetch config, subscribed, and not gated. First disable internet on " +
                 "device. You should NOT see !!! ERROR HANDLER !!! in the console and the alert " +
                 "SHOULD show.",
-            test = {
+            test = { scope, events ->
                 executeRegisterFeatureClosureTest(subscribed = true, gated = false)
             },
         )
@@ -750,7 +772,7 @@ object UITestHandler {
             "Unable to fetch config, subscribed, and gated. First disable internet on " +
                 "device. You should NOT see !!! ERROR HANDLER !!! in the console and the alert " +
                 "SHOULD show.",
-            test = {
+            test = { scope, events ->
                 executeRegisterFeatureClosureTest(subscribed = true, gated = true)
             },
         )
@@ -760,7 +782,7 @@ object UITestHandler {
             "Fetched config, not subscribed, and not gated. The paywall should show. On " +
                 "paywall dismiss you should NOT see !!! ERROR HANDLER !!! in the console and the " +
                 "alert should show when you dismiss the paywall.",
-            test = {
+            test = { scope, events ->
                 executeRegisterFeatureClosureTest(subscribed = false, gated = false)
                 delay(4000)
             },
@@ -771,7 +793,7 @@ object UITestHandler {
             "Fetched config, not subscribed, and gated. The paywall should show. You should " +
                 "NOT see !!! ERROR HANDLER !!! in the console and the alert should NOT show on " +
                 "paywall dismiss.",
-            test = {
+            test = { scope, events ->
                 executeRegisterFeatureClosureTest(subscribed = false, gated = true)
                 delay(4000)
             },
@@ -781,7 +803,7 @@ object UITestHandler {
             47,
             "Fetched config, subscribed, and not gated. The paywall should NOT show. You " +
                 "should NOT see !!! ERROR HANDLER !!! in the console and the alert SHOULD show.",
-            test = {
+            test = { scope, events ->
                 executeRegisterFeatureClosureTest(subscribed = true, gated = false)
             },
         )
@@ -790,7 +812,7 @@ object UITestHandler {
             48,
             "Fetched config, subscribed, and gated. The paywall should NOT show. You should" +
                 " NOT see !!! ERROR HANDLER !!! in the console and the alert SHOULD show.",
-            test = {
+            test = { scope, events ->
                 executeRegisterFeatureClosureTest(subscribed = true, gated = true)
                 delay(4000)
             },
@@ -804,7 +826,7 @@ object UITestHandler {
             "Change the API Key to the SessionStart UITest app. Clean install app and the " +
                 "paywall should show. The button does nothing.",
             test =
-                {},
+                { scope, events -> },
         )
     var test52Info =
         UITestInfo(
@@ -812,7 +834,7 @@ object UITestHandler {
             "Change the API Key to the AppInstall UITest app. Then restart the app and " +
                 "a paywall should show when the app is launched from a cold start. The button " +
                 "does nothing.",
-            test = {},
+            test = { scope, events -> },
         )
     var test53Info =
         UITestInfo(
@@ -820,14 +842,14 @@ object UITestHandler {
             "This covers test 49 too. Change the API Key to the AppLaunch UITest app. " +
                 "Then restart the app and a paywall should show when the app is launched from a " +
                 "cold start. Also should happen from a clean install. The button does nothing.",
-            test = {},
+            test = { scope, events -> },
         )
     var test56Info =
         UITestInfo(
             56,
             "The debugger should open when tapping on link. Currently the debugger isn't " +
                 "implemented.",
-            test = {
+            test = { scope, events ->
                 // Create a mock Superwall delegate
                 val delegate = MockSuperwallDelegate()
 
@@ -858,7 +880,7 @@ object UITestHandler {
             "Change API key to DeepLink. Present paywall from implicit trigger: " +
                 "`deepLink_open`. Verify the `Deep link event received successfully.` in the" +
                 " console.",
-            test = {
+            test = { scope, events ->
                 // Create a mock Superwall delegate
                 val delegate = MockSuperwallDelegate()
 
@@ -887,7 +909,7 @@ object UITestHandler {
             "Change API key to TransactionAbandon. Then, present paywall, try to purchase, " +
                 "then abandon the transaction. Another paywall will present. In the console " +
                 "you'll see !!! TEST 58 !!!",
-            test = {
+            test = { scope, events ->
                 // Create a mock Superwall delegate
                 val delegate = MockSuperwallDelegate()
 
@@ -916,7 +938,7 @@ object UITestHandler {
                 "then survey_response will be printed in the console. The paywall will dismiss " +
                 "and PaywallDecline will be printed in the console. Then a paywall should auto " +
                 "present after the decline.",
-            test = {
+            test = { scope, events ->
                 // Create a mock Superwall delegate
                 val delegate = MockSuperwallDelegate()
 
@@ -949,7 +971,7 @@ object UITestHandler {
                 "PurchaseResult.Failed(e). Then present paywall, go to purchase and cancel the " +
                 "purchase. This will trigger a transaction_fail and it will dismiss the paywall " +
                 "and present another paywall. In the console you'll see !!! TEST 60 !!!.",
-            test = {
+            test = { scope, events ->
                 // Create a mock Superwall delegate
                 val delegate = MockSuperwallDelegate()
 
@@ -975,7 +997,7 @@ object UITestHandler {
             62,
             "Verify that an invalid URL like `#` doesn't crash the app. Manually tap on" +
                 "the \"Open in-app #\" button.",
-            test = {
+            test = { scope, events ->
                 // Present paywall with URLs
                 Superwall.instance.register(event = "present_urls")
             },
@@ -985,7 +1007,7 @@ object UITestHandler {
             63,
             "Don't have an active subscription, present paywall, tap restore. Check " +
                 "the \"No Subscription Found\" alert pops up.",
-            test = {
+            test = { scope, events ->
                 // Create a mock paywall view controller
                 val delegate = MockPaywallViewControllerDelegate()
                 delegate.paywallViewControllerDidFinish { paywallViewController, paywallResult, shouldDismiss ->
@@ -1009,7 +1031,7 @@ object UITestHandler {
                 "Then open and close the paywall again to make sure survey doesn't show again. " +
                 "The console will just print out !!! TEST 63!!! with PaywallClose  and the feature " +
                 "block will fire again.",
-            test = {
+            test = { scope, events ->
                 // Create a mock Superwall delegate
                 val delegate = MockSuperwallDelegate()
 
@@ -1050,7 +1072,7 @@ object UITestHandler {
                 "show. Choose the other option and type \"Test\" and tap Submit. The console " +
                 "will print out !!! TEST 65!!! with PaywallClose and again with SurveyResponse. " +
                 "The feature block will fire.",
-            test = {
+            test = { scope, events ->
                 // Create a mock Superwall delegate
                 val delegate = MockSuperwallDelegate()
 
@@ -1090,7 +1112,7 @@ object UITestHandler {
             "Delete an reinstall app. Present paywall then tap close button. A survey will " +
                 "NOT show. The console will print out !!! TEST 66 !!! with PaywallClose. " +
                 "The feature block will fire.",
-            test = {
+            test = { scope, events ->
                 // Create a mock Superwall delegate
                 val delegate = MockSuperwallDelegate()
 
@@ -1135,7 +1157,7 @@ object UITestHandler {
                 "The console will print out !!! TEST 68 !!! with PaywallClose. Close the second " +
                 "paywall. The feature block will fire on close of the second paywall.",
             test =
-                {
+                { scope, events ->
                     // Create a mock Superwall delegate
                     val delegate = MockSuperwallDelegate()
 
@@ -1178,7 +1200,7 @@ object UITestHandler {
             "Delete an reinstall app. Present paywall then tap close button. Make sure a " +
                 "survey is displayed. Tap Option 1, make sure it dismisses and the console prints " +
                 "!!! TEST 70 !!! twice with both PaywallClose and SurveyResponse.",
-            test = {
+            test = { scope, events ->
                 // Create a mock Superwall delegate
                 val delegate = MockSuperwallDelegate()
 
@@ -1228,7 +1250,7 @@ object UITestHandler {
             "Delete an reinstall app. Present paywall then purchase product. Make sure the " +
                 "paywall closes and DOES NOT show a survey. The console should NOT print " +
                 "!!! TEST 71 !!!.",
-            test = {
+            test = { scope, events ->
                 // Create a mock Superwall delegate
                 val delegate = MockSuperwallDelegate()
 
@@ -1269,7 +1291,7 @@ object UITestHandler {
                 "\"!!! seed - 1: 2\", where 2 is a seed number. Then \"!!! user ID: abc\", then " +
                 " \"!!! seed - 2: 2\".",
             test =
-                {
+                { scope, events ->
                     Superwall.instance.identify(userId = "abc")
 
                     var seed = Superwall.instance.userAttributes["seed"]
@@ -1295,7 +1317,7 @@ object UITestHandler {
             "Delete an reinstall app. Present paywall then close the paywall. A survey will " +
                 "show. Tap the close button. The paywall will close and the console will print " +
                 "\"!!! TEST 74 !!! SurveyClose\".",
-            test = {
+            test = { scope, events ->
                 Superwall.instance.setSubscriptionStatus(SubscriptionStatus.INACTIVE)
                 // Create a mock Superwall delegate
                 val delegate = MockSuperwallDelegate()
@@ -1323,7 +1345,7 @@ object UITestHandler {
             "Present paywall then make a purchase. Make sure !!! TEST 75 !!! with  \"false\" " +
                 "for the transaction being nil, a product id, and a paywall id is printed to the " +
                 "console.",
-            test = {
+            test = { scope, events ->
                 // Create a mock Superwall delegate
                 val delegate = MockSuperwallDelegate()
 
@@ -1355,7 +1377,7 @@ object UITestHandler {
         UITestInfo(
             82,
             "Verify that our pricing gets templated in correctly.",
-            test = {
+            test = { scope, events ->
                 Superwall.instance.register(event = "price_readout")
             },
         )
@@ -1365,7 +1387,7 @@ object UITestHandler {
             "The first time launch is tapped you will land in holdout. Check Skipped paywall " +
                 "for holdout printed in console. Tapping launch again will present paywall. Will " +
                 "need to delete app to be able to do it again as it uses limits.",
-            test = {
+            test = { scope, events ->
                 Superwall.instance.register(event = "holdout_one_time_occurrence")
             },
         )
@@ -1376,7 +1398,7 @@ object UITestHandler {
                 "Verify that paywall loads in Tab 0. Go to Tab 2 and press `Another Paywall` button. " +
                 "Verify that paywall does not load (only 1 paywall can be displayed at once).",
             testCaseType = TestCaseType.Android,
-            test = {
+            test = { scope, events ->
                 val intent = Intent(this, ComposeActivity::class.java)
                 startActivity(intent)
             },
@@ -1388,7 +1410,7 @@ object UITestHandler {
                 "display again. You will need to delete and reinstall the app to test this again. " +
                 "This tests the occurrence limit.",
             testCaseType = TestCaseType.Android,
-            test = {
+            test = { scope, events ->
                 Superwall.instance.register(event = "one_time_occurrence")
             },
         )
@@ -1401,7 +1423,7 @@ object UITestHandler {
                 "minute, tap again, and it should show. You will need to delete and reinstall " +
                 "the app to test this again.",
             testCaseType = TestCaseType.Android,
-            test = {
+            test = { scope, events ->
                 Superwall.instance.register(event = "once_a_minute")
             },
         )
@@ -1412,7 +1434,7 @@ object UITestHandler {
                 "passed since the last once_a_minute event. You'll get a NoRuleMatch in the " +
                 "console.",
             testCaseType = TestCaseType.Android,
-            test = {
+            test = { scope, events ->
                 Superwall.instance.register(event = "one_day_since_last_event")
             },
         )
@@ -1421,7 +1443,7 @@ object UITestHandler {
             20,
             "Non-recurring product purchase. Purchase the product and",
             testCaseType = TestCaseType.Android,
-            test = {
+            test = { scope, events ->
                 // Create a mock Superwall delegate
                 val delegate = MockSuperwallDelegate()
 
@@ -1448,7 +1470,7 @@ object UITestHandler {
             "Tap launch button. Paywall should display. Tests that paywalls with products " +
                 "that have base plans and offerIds works.",
             testCaseType = TestCaseType.Android,
-            test = {
+            test = { scope, events ->
                 Superwall.instance.register(event = "subs_baseplan_offer_with_free_trial")
             },
         )
@@ -1458,7 +1480,7 @@ object UITestHandler {
             "Tap launch button. Paywall should display. Purchase then quit app. Notification" +
                 " should appear after a minute.",
             testCaseType = TestCaseType.Android,
-            test = {
+            test = { scope, events ->
                 Superwall.instance.register(event = "notifications")
             },
         )
@@ -1468,7 +1490,7 @@ object UITestHandler {
             "Tap button. You should see first_name: Jack printed out in user attributes " +
                 "then the user attributes shouldn't contain first_name",
             testCaseType = TestCaseType.Android,
-            test = {
+            test = { scope, events ->
                 Superwall.instance.setUserAttributes(attributes = mapOf("first_name" to "Jack"))
                 println(Superwall.instance.userAttributes)
                 Superwall.instance.setUserAttributes(attributes = mapOf("first_name" to null))

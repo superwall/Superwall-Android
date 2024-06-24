@@ -28,8 +28,9 @@ test_rules_version = "1.4.0"
 kotlin = "1.9.0"
 kotlinx_coroutines_core_version = "1.8.1"
 mockk_version = "1.12.8"
-threetenbpVersion = "1.6.8"
-workRuntimeKtxVersion = "2.9.0"
+threetenbp_version = "1.6.8"
+uiautomator_version = "2.3.0-alpha03"
+workRuntimeKtx_version = "2.9.0"
 serialization_version = "1.6.0"
 dropshot_version = "0.4.2"
 
@@ -54,7 +55,7 @@ browser = { module = "androidx.browser:browser", version.ref = "browser_version"
 # Compose
 compose_bom = { module = "androidx.compose:compose-bom", version.ref = "compose_version" }
 activity_compose = { module = "androidx.activity:activity-compose", version.ref = "activity_compose_version" }
-threetenbp = { module = "org.threeten:threetenbp", version.ref = "threetenbpVersion" }
+threetenbp = { module = "org.threeten:threetenbp", version.ref = "threetenbp_version" }
 ui = { module = "androidx.compose.ui:ui" }
 ui_graphics = { module = "androidx.compose.ui:ui-graphics" }
 ui_tooling_preview = { module = "androidx.compose.ui:ui-tooling-preview" }
@@ -67,7 +68,8 @@ material = { module = "com.google.android.material:material", version.ref = "mat
 constraintlayout = { module = "androidx.constraintlayout:constraintlayout", version.ref = "constraintlayout_version" }
 core_ktx = { module = "androidx.core:core-ktx", version.ref = "core_ktx_version" }
 lifecycle_runtime_ktx = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "lifecycle_runtime_ktx_version" }
-work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "workRuntimeKtxVersion" }
+uiautomator = { module = "androidx.test.uiautomator:uiautomator", version.ref = "uiautomator_version" }
+work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "workRuntimeKtx_version" }
 lifecycle-process = { module = "androidx.lifecycle:lifecycle-process", version.ref = "lifecycleProcessVersion" }
 
 # Coroutines
