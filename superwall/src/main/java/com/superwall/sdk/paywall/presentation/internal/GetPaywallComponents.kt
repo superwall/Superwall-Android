@@ -51,7 +51,7 @@ suspend fun Superwall.getPaywallComponents(
     confirmPaywallAssignment(rulesOutcome.confirmableAssignment, request, request.flags.isDebuggerLaunched)
 
     return PaywallComponents(
-        viewController = paywallViewController,
+        view = paywallViewController,
         presenter = presenter,
         rulesOutcome = rulesOutcome,
         debugInfo = debugInfo,

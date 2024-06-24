@@ -29,14 +29,14 @@ suspend fun Superwall.internallyPresent(
                 "Presenter must not be null"
             }
 
-        val paywallViewController = paywallComponents.viewController
+        val paywallView = paywallComponents.view
 
         // Note: Deviation from iOS. Unique to Android. This is also done in `PublicGetPaywall.kt`.
         // See comments there.
-        paywallViewController.prepareToDisplay()
+        paywallView.prepareToDisplay()
 
         presentPaywallView(
-            paywallView = paywallViewController,
+            paywallView = paywallView,
             presenter = presenter,
             unsavedOccurrence = paywallComponents.rulesOutcome.unsavedOccurrence,
             debugInfo = paywallComponents.debugInfo,

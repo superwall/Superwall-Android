@@ -326,7 +326,7 @@ class DependencyContainer(
     }
 
     override fun makeDebugViewController(id: String?): DebugView {
-        val viewController =
+        val view =
             DebugView(
                 context = context,
                 storeKitManager = storeKitManager,
@@ -336,9 +336,9 @@ class DependencyContainer(
                 debugManager = debugManager,
                 factory = this,
             )
-        viewController.paywallDatabaseId = id
+        view.paywallDatabaseId = id
         // Note: Modal presentation style is an iOS concept. In Android, you might handle this differently.
-        return viewController
+        return view
     }
 
     override fun makeCache(): PaywallViewCache = PaywallViewCache()

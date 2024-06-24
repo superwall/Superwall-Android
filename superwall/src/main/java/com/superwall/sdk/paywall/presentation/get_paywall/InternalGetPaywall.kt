@@ -28,12 +28,12 @@ suspend fun Superwall.getPaywall(
     try {
         val paywallComponents = getPaywallComponents(request, publisher)
 
-        paywallComponents.viewController.set(
+        paywallComponents.view.set(
             request = request,
             paywallStatePublisher = publisher,
             unsavedOccurrence = paywallComponents.rulesOutcome.unsavedOccurrence,
         )
-        paywallComponents.viewController
+        paywallComponents.view
     } catch (error: Throwable) {
         logErrors(request, error = error)
         // TODO: throw the proper error
