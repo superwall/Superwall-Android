@@ -311,12 +311,12 @@ class DependencyContainer(
                     paywall = paywall,
                     factory = this@DependencyContainer,
                     cache = cache,
-                    delegate = delegate,
+                    callback = delegate,
                     deviceHelper = deviceHelper,
                     paywallManager = paywallManager,
                     storage = storage,
                     webView = webView,
-                    eventDelegate = Superwall.instance,
+                    eventCallback = Superwall.instance,
                 )
             webView.delegate = paywallView
             messageHandler.delegate = paywallView

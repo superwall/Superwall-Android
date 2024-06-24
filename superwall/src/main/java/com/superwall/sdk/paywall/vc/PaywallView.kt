@@ -16,7 +16,7 @@ import androidx.browser.customtabs.CustomTabsIntent
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
-import com.superwall.sdk.analytics.superwall.SuperwallEventObjc
+import com.superwall.sdk.analytics.superwall.SuperwallEvents
 import com.superwall.sdk.config.models.OnDeviceCaching
 import com.superwall.sdk.config.options.PaywallOptions
 import com.superwall.sdk.dependencies.TriggerFactory
@@ -49,7 +49,7 @@ import com.superwall.sdk.paywall.vc.Survey.SurveyManager
 import com.superwall.sdk.paywall.vc.Survey.SurveyPresentationResult
 import com.superwall.sdk.paywall.vc.delegate.PaywallLoadingState
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewDelegateAdapter
-import com.superwall.sdk.paywall.vc.delegate.PaywallViewEventDelegate
+import com.superwall.sdk.paywall.vc.delegate.PaywallViewEventCallback
 import com.superwall.sdk.paywall.vc.web_view.PaywallMessage
 import com.superwall.sdk.paywall.vc.web_view.SWWebView
 import com.superwall.sdk.paywall.vc.web_view.SWWebViewDelegate
@@ -67,8 +67,8 @@ import java.util.*
 class PaywallView(
     context: Context,
     override var paywall: Paywall,
-    val eventDelegate: PaywallViewEventDelegate? = null,
-    var delegate: PaywallViewDelegateAdapter? = null,
+    val eventCallback: PaywallViewEventCallback? = null,
+    var callback: PaywallViewDelegateAdapter? = null,
     val deviceHelper: DeviceHelper,
     val factory: Factory,
     val storage: Storage,
@@ -81,6 +81,7 @@ class PaywallView(
     SWWebViewDelegate,
     ActivityEncapsulatable,
     GameControllerDelegate {
+
     interface Factory :
         TriggerSessionManagerFactory,
         TriggerFactory
@@ -109,12 +110,12 @@ class PaywallView(
     // / Stores the completion block when calling dismiss.
     private var dismissCompletionBlock: (() -> Unit)? = null
 
-    private var didCallDelegate = false
+    private var callbackInvoked = false
 
-    private var viewDidAppearCompletion: ((Boolean) -> Unit)? = null
+    private var viewCreatedCompletion: ((Boolean) -> Unit)? = null
 
-    // / Defines when Safari is presenting in app.
-    internal var isSafariVCPresented = false
+    // / Defines when Browser is presenting in app.
+    internal var isBrowserVCPresented = false
 
     internal var interceptTouchEvents = false
 
@@ -250,11 +251,15 @@ class PaywallView(
             cacheKey,
             presentationStyleOverride,
         )
-        viewDidAppearCompletion = completion
+        viewCreatedCompletion = completion
     }
 
-    fun viewWillAppear() {
-        if (isSafariVCPresented) {
+
+    @Deprecated("Will be removed in the upcoming versions, use beforeViewCreated instead")
+    fun viewWillAppear() = beforeViewCreated()
+
+    fun beforeViewCreated() {
+        if (isBrowserVCPresented) {
             return
         }
         shimmerView.checkForOrientationChanges()
@@ -275,7 +280,7 @@ class PaywallView(
 //        }
 //        addShimmerView(onPresent: true)
 
-        didCallDelegate = false
+        callbackInvoked = false
         paywall.closeReason = PaywallCloseReason.None
 
         Superwall.instance.dependencyContainer.delegateAdapter
@@ -288,8 +293,8 @@ class PaywallView(
         presentationWillPrepare = false
     }
 
-    fun viewWillDisappear() {
-        if (isSafariVCPresented) {
+    fun beforeOnDestroy() {
+        if (isBrowserVCPresented) {
             return
         }
         Superwall.instance.presentationItems.paywallInfo = info
@@ -297,8 +302,8 @@ class PaywallView(
             .willDismissPaywall(info)
     }
 
-    suspend fun viewDidDisappear() {
-        if (isSafariVCPresented) {
+    suspend fun destroyed() {
+        if (isBrowserVCPresented) {
             return
         }
 
@@ -319,8 +324,8 @@ class PaywallView(
 
         paywallStatePublisher?.emit(PaywallState.Dismissed(info, result))
 
-        if (!didCallDelegate) {
-            delegate?.didFinish(
+        if (!callbackInvoked) {
+            callback?.onFinished(
                 paywall = this,
                 result = result,
                 shouldDismiss = false,
@@ -376,7 +381,7 @@ class PaywallView(
                         isImplicit = true,
                     )
                 val paywallPresenterEvent = info.presentedByEventWithName
-                val presentedByPaywallDecline = paywallPresenterEvent == SuperwallEventObjc.PaywallDecline.rawName
+                val presentedByPaywallDecline = paywallPresenterEvent == SuperwallEvents.PaywallDecline.rawName
 
                 Superwall.instance.track(trackedEvent)
 
@@ -386,9 +391,9 @@ class PaywallView(
                 }
             }
 
-            delegate?.let {
-                didCallDelegate = true
-                it.didFinish(
+            callback?.let {
+                callbackInvoked = true
+                it.onFinished(
                     paywall = this,
                     result = result,
                     shouldDismiss = true,
@@ -435,9 +440,14 @@ class PaywallView(
 
     // / Lets the view controller know that presentation has finished.
     // Only called once per presentation.
-    fun viewDidAppear() {
-        viewDidAppearCompletion?.invoke(true)
-        viewDidAppearCompletion = null
+
+
+    @Deprecated("Will be removed in the upcoming versions, use onViewCreated instead")
+    fun viewDidAppear() = onViewCreated()
+
+    fun onViewCreated() {
+        viewCreatedCompletion?.invoke(true)
+        viewCreatedCompletion = null
 
         if (presentationDidFinishPrepare) {
             return
@@ -497,7 +507,7 @@ class PaywallView(
 
     override fun eventDidOccur(paywallEvent: PaywallWebEvent) {
         CoroutineScope(Dispatchers.IO).launch {
-            eventDelegate?.eventDidOccur(paywallEvent, this@PaywallView)
+            eventCallback?.eventDidOccur(paywallEvent, this@PaywallView)
         }
     }
 
@@ -558,7 +568,17 @@ class PaywallView(
         // TODO: Implement this
     }
 
+    @Deprecated("Will be removed in the upcoming versions, use presentAlert instead")
     fun presentAlert(
+        title: String? = null,
+        message: String? = null,
+        actionTitle: String? = null,
+        closeActionTitle: String = "Done",
+        action: (() -> Unit)? = null,
+        onClose: (() -> Unit)? = null,
+        ) = showAlert(title, message, actionTitle, closeActionTitle, action, onClose)
+
+    fun showAlert(
         title: String? = null,
         message: String? = null,
         actionTitle: String? = null,
@@ -689,13 +709,13 @@ class PaywallView(
 
     //region Deep linking
 
-    override fun presentSafariInApp(url: String) {
+    override fun presentBrowserInApp(url: String) {
         try {
             val parsedUrl = URL(url)
             val customTabsIntent = CustomTabsIntent.Builder().build()
             customTabsIntent.intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
             customTabsIntent.launchUrl(context, Uri.parse(parsedUrl.toString()))
-            isSafariVCPresented = true
+            isBrowserVCPresented = true
         } catch (e: MalformedURLException) {
             Logger.debug(
                 logLevel = LogLevel.debug,
@@ -711,7 +731,7 @@ class PaywallView(
         }
     }
 
-    override fun presentSafariExternal(url: String) {
+    override fun presentBrowserExternal(url: String) {
         try {
             val parsedUrl = URL(url)
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(parsedUrl.toString()))
@@ -743,6 +763,12 @@ class PaywallView(
 //            context.startActivity(deepLinkIntent)
 //        }
     }
+
+    @Deprecated("Will be removed in the upcoming versions, use presentBrowserInApp instead")
+    override fun presentSafariInApp(url: String) = presentBrowserInApp(url)
+
+    @Deprecated("Will be removed in the upcoming versions, use presentBrowserExternal instead")
+    override fun presentSafariExternal(url: String) = presentBrowserExternal(url)
 
     //region GameController
     override fun gameControllerEventDidOccur(event: GameControllerEvent) {

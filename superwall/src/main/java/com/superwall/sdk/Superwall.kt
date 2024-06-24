@@ -26,11 +26,10 @@ import com.superwall.sdk.paywall.presentation.internal.dismiss
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.vc.PaywallView
 import com.superwall.sdk.paywall.vc.SuperwallPaywallActivity
-import com.superwall.sdk.paywall.vc.delegate.PaywallViewEventDelegate
+import com.superwall.sdk.paywall.vc.delegate.PaywallViewEventCallback
 import com.superwall.sdk.paywall.vc.SuperwallStoreOwner
 import com.superwall.sdk.paywall.vc.ViewModelFactory
 import com.superwall.sdk.paywall.vc.ViewStorageViewModel
-import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerEventDelegate
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.Closed
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.Custom
@@ -38,7 +37,7 @@ import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.InitiateP
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.InitiateRestore
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.OpenedDeepLink
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.OpenedURL
-import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.OpenedUrlInSafari
+import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.OpenedUrlInChrome
 import com.superwall.sdk.storage.ActiveSubscriptionStatus
 import com.superwall.sdk.store.ExternalNativePurchaseController
 import kotlinx.coroutines.CoroutineScope
@@ -61,7 +60,7 @@ class Superwall(
     options: SuperwallOptions?,
     private var activityProvider: ActivityProvider?,
     private val completion: (() -> Unit)?,
-) : PaywallViewEventDelegate {
+) : PaywallViewEventCallback {
     private var _options: SuperwallOptions? = options
     private val ioScope = CoroutineScope(Dispatchers.IO)
     internal var context: Context = context.applicationContext
@@ -533,7 +532,7 @@ class Superwall(
                     dependencyContainer.delegateAdapter.paywallWillOpenURL(url = paywallEvent.url)
                 }
 
-                is OpenedUrlInSafari -> {
+                is OpenedUrlInChrome -> {
                     dependencyContainer.delegateAdapter.paywallWillOpenURL(url = paywallEvent.url)
                 }
 
