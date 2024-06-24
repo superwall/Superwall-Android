@@ -2,6 +2,22 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+
+## 1.1.9
+
+### Enhancements
+
+- Adds [https://github.com/square/leakcanary](LeakCanary) to the testing application to help discover memory leaks.
+
+### Deprecations
+
+- Deprecated configuration method `Superwall.configure(applicationContext: Context, ...)` in favor of `Superwall.configure(applicationContext: Application, ...)` to enforce type safety. The rest of the method signature remains the same.
+
+### Fixes
+
+- Fixes SW-2878 and it's related leaks. The `PaywallViewController` was not being properly detached when activity was stopped, causing memory leaks.
+
+
 ## 1.1.8
 
 ### Enhancements

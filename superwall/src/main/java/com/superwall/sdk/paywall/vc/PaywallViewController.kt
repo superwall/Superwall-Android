@@ -587,7 +587,7 @@ class PaywallViewController(
         action: (() -> Unit)? = null,
         onClose: (() -> Unit)? = null,
     ) {
-        val activity = encapsulatingActivity.let { it } ?: return
+        val activity = encapsulatingActivity ?: return
 
         val alertController =
             AlertControllerFactory.make(
@@ -957,7 +957,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-
+        (contentView?.parent as? ViewGroup)?.removeView(contentView)
         // Clear reference to activity in the view
         (contentView as? ActivityEncapsulatable)?.encapsulatingActivity = null
 

@@ -1,5 +1,6 @@
 package com.superwall.sdk
 
+import android.app.Application
 import android.content.Context
 import android.net.Uri
 import androidx.work.WorkManager
@@ -40,7 +41,7 @@ import kotlinx.coroutines.flow.update
 import java.util.*
 
 class Superwall(
-    internal var context: Context,
+    context: Context,
     private var apiKey: String,
     private var purchaseController: PurchaseController?,
     options: SuperwallOptions?,
@@ -49,6 +50,7 @@ class Superwall(
 ) : PaywallViewControllerEventDelegate {
     private var _options: SuperwallOptions? = options
     private val ioScope = CoroutineScope(Dispatchers.IO)
+    internal var context: Context = context.applicationContext
 
     // Add a private variable for the purchase task
     private var purchaseTask: Job? = null
@@ -217,7 +219,7 @@ class Superwall(
          * @return The configured [Superwall] instance.
          */
         fun configure(
-            applicationContext: Context,
+            applicationContext: Application,
             apiKey: String,
             purchaseController: PurchaseController? = null,
             options: SuperwallOptions? = null,
@@ -259,6 +261,25 @@ class Superwall(
                 true
             }
         }
+
+        @Deprecated(
+            "This constructor is too ambiguous and will be removed in upcoming versions. Use Superwall.configure(Application, ...) instead.",
+        )
+        fun configure(
+            applicationContext: Context,
+            apiKey: String,
+            purchaseController: PurchaseController? = null,
+            options: SuperwallOptions? = null,
+            activityProvider: ActivityProvider? = null,
+            completion: (() -> Unit)? = null,
+        ) = configure(
+            applicationContext.applicationContext as Application,
+            apiKey,
+            purchaseController,
+            options,
+            activityProvider,
+            completion,
+        )
     }
 
     private lateinit var _dependencyContainer: DependencyContainer
