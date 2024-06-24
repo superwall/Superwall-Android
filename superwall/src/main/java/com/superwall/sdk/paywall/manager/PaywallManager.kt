@@ -22,12 +22,15 @@ class PaywallManager(
         CacheFactory,
         DeviceHelperFactory
 
-
-    @Deprecated("Will be removed in the upcoming versions, use curentView instead")
-    var presentedViewController: PaywallView? = currentView
-
     var currentView: PaywallView? = null
         get() = cache.activePaywallView
+
+    @Deprecated("Will be removed in the upcoming versions, use curentView instead")
+    var presentedViewController: PaywallView?
+        get() = currentView
+        set(value) {
+           currentView = value
+        }
 
     private var _cache: PaywallViewCache? = null
 
@@ -90,12 +93,12 @@ class PaywallManager(
                 )
 
             if (!request.isDebuggerLaunched) {
-                cache.getPaywallView(cacheKey)?.let { viewController ->
+                cache.getPaywallView(cacheKey)?.let { view ->
                     if (!isPreloading) {
-                        viewController.delegate = delegate
-                        viewController.paywall.update(paywall)
+                        view.delegate = delegate
+                        view.paywall.update(paywall)
                     }
-                    return@withContext viewController
+                    return@withContext view
                 }
             }
 
