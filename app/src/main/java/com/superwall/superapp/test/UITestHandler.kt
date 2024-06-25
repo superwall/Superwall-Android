@@ -15,7 +15,9 @@ import com.superwall.sdk.paywall.presentation.dismiss
 import com.superwall.sdk.paywall.presentation.get_paywall.getPaywall
 import com.superwall.sdk.paywall.presentation.get_presentation_result.getPresentationResult
 import com.superwall.sdk.paywall.presentation.register
+import com.superwall.sdk.paywall.presentation.result.PresentationResult
 import com.superwall.sdk.paywall.vc.SuperwallPaywallActivity
+import com.superwall.sdk.view.fatalAssert
 import com.superwall.superapp.ComposeActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -41,14 +43,17 @@ object UITestHandler {
             1,
             "Uses the identify function. Should see the name 'Kate' in the paywall.",
             test = { scope, events ->
+
                 // Set identity
                 Superwall.instance.identify(userId = "test1a")
                 Superwall.instance.setUserAttributes(mapOf("first_name" to "Jack"))
+                scope.launch {
 
-                // Set new identity
-                Superwall.instance.identify(userId = "test1b")
-                Superwall.instance.setUserAttributes(mapOf("first_name" to "Kate"))
-                Superwall.instance.register(event = "present_data")
+                    // Set new identity
+                    Superwall.instance.identify(userId = "test1b")
+                    Superwall.instance.setUserAttributes(mapOf("first_name" to "Kate"))
+                    Superwall.instance.register(event = "present_data")
+                }
             },
         )
     var test2Info =
@@ -89,14 +94,12 @@ object UITestHandler {
             test = { scope, events ->
                 // Present the paywall.
                 Superwall.instance.register(event = "present_video")
-                scope.launch {
-                    // Dismiss after 4 seconds
-                    events.first { it is SuperwallEvent.PaywallWebviewLoadComplete }
-                    delay(1.seconds)
-                    Superwall.instance.dismiss()
-                    delay(4.seconds)
-                    Superwall.instance.register(event = "present_video")
-                }
+                // Dismiss after 4 seconds
+                events.first { it is SuperwallEvent.PaywallWebviewLoadComplete }
+                delay(1.seconds)
+                Superwall.instance.dismiss()
+                delay(4.seconds)
+                Superwall.instance.register(event = "present_video")
             },
         )
     var test5Info =
@@ -136,20 +139,17 @@ object UITestHandler {
                 )
                 Superwall.instance.register(event = "present_and_rule_user")
 
-                scope.launch {
+                delay(8000)
+                Superwall.instance.dismiss()
 
-                    delay(8000)
-                    Superwall.instance.dismiss()
-
-                    // Remove those attributes.
-                    Superwall.instance.setUserAttributes(
-                        mapOf(
-                            "should_display" to null,
-                            "some_value" to null,
-                        ),
-                    )
-                    Superwall.instance.register(event = "present_and_rule_user")
-                }
+                // Remove those attributes.
+                Superwall.instance.setUserAttributes(
+                    mapOf(
+                        "should_display" to null,
+                        "some_value" to null,
+                    ),
+                )
+                Superwall.instance.register(event = "present_and_rule_user")
             },
         )
     var test8Info =
@@ -203,24 +203,20 @@ object UITestHandler {
 
                 Superwall.instance.setUserAttributes(mapOf("first_name" to "Claire"))
                 Superwall.instance.register(event = "present_data")
-                scope.launch {
-                    events.first { it is SuperwallEvent.PaywallWebviewLoadComplete }
-                    // Dismiss any view controllers
-                    delay(8.seconds)
+                events.first { it is SuperwallEvent.PaywallWebviewLoadComplete }
+                // Dismiss any view controllers
+                delay(8.seconds)
 
-                    // Dismiss any view controllers
-                    Superwall.instance.dismiss()
-                    Superwall.instance.setUserAttributes(mapOf("first_name" to null))
-                    Superwall.instance.register(event = "present_data")
-                    launch {
-                        events.first { it is SuperwallEvent.PaywallOpen }
-                        delay(10.seconds)
-                        // Dismiss any view controllers
-                        Superwall.instance.dismiss()
-                        Superwall.instance.setUserAttributes(mapOf("first_name" to "Sawyer"))
-                        Superwall.instance.register(event = "present_data")
-                    }
-                }
+                // Dismiss any view controllers
+                Superwall.instance.dismiss()
+                Superwall.instance.setUserAttributes(mapOf("first_name" to null))
+                Superwall.instance.register(event = "present_data")
+                events.first { it is SuperwallEvent.PaywallOpen }
+                delay(10.seconds)
+                // Dismiss any view controllers
+                Superwall.instance.dismiss()
+                Superwall.instance.setUserAttributes(mapOf("first_name" to "Sawyer"))
+                Superwall.instance.register(event = "present_data")
             },
         )
     var test12Info =
@@ -247,14 +243,12 @@ object UITestHandler {
             test = { scope, events ->
                 // Show a paywall
                 Superwall.instance.register(event = "present_always")
-                scope.launch {
-                    events.first { it is SuperwallEvent.PaywallWebviewLoadComplete }
+                events.first { it is SuperwallEvent.PaywallWebviewLoadComplete }
 
-                    delay(8000)
+                delay(8000)
 
-                    // Dismiss any view controllers
-                    Superwall.instance.dismiss()
-                }
+                // Dismiss any view controllers
+                Superwall.instance.dismiss()
             },
         )
     var test15Info =
@@ -315,8 +309,8 @@ object UITestHandler {
                     null,
                     paywallPresentationHandler,
                 )
+                events.first { it is SuperwallEvent.PaywallWebviewLoadComplete }
                 scope.launch {
-                    events.first { it is SuperwallEvent.PaywallWebviewLoadComplete }
                     delay(1.seconds)
                     assert(presentTriggered)
                 }
@@ -369,21 +363,19 @@ object UITestHandler {
             "Open In-App browser from a manually presented paywall. Once the in-app " +
                 "browser opens, close it, and verify that the paywall is still showing.",
             test = { scope, events ->
-                scope.launch {
 
-                    // Create a mock paywall view controller
-                    val delegate = MockPaywallViewControllerDelegate()
+                // Create a mock paywall view controller
+                val delegate = MockPaywallViewControllerDelegate()
 
-                    // Get the paywall view controller instance
-                    val viewController =
-                        Superwall.instance.getPaywall(event = "present_urls", delegate = delegate)
+                // Get the paywall view controller instance
+                val viewController =
+                    Superwall.instance.getPaywall(event = "present_urls", delegate = delegate)
 
-                    // Present using the convenience `SuperwallPaywallActivity` activity and verify test case.
-                    SuperwallPaywallActivity.startWithView(
-                        context = this@UITestInfo,
-                        view = viewController,
-                    )
-                }
+                // Present using the convenience `SuperwallPaywallActivity` activity and verify test case.
+                SuperwallPaywallActivity.startWithView(
+                    context = this@UITestInfo,
+                    view = viewController,
+                )
             },
         )
     var test19Info =
@@ -483,6 +475,8 @@ object UITestHandler {
                 // Register event - paywall shouldn't appear.
                 Superwall.instance.register(event = "register_nongated_paywall")
                 scope.launch {
+
+                    events.first { it is SuperwallEvent.SubscriptionStatusDidChange }
                     delay(4000)
                     Superwall.instance.setSubscriptionStatus(SubscriptionStatus.INACTIVE)
                 }
@@ -500,9 +494,11 @@ object UITestHandler {
 
                 // Try to present paywall again
                 Superwall.instance.register(event = "register_nongated_paywall")
+                scope.launch {
 
-                delay(4000)
-                Superwall.instance.setSubscriptionStatus(currentSubscriptionStatus)
+                    delay(4000)
+                    Superwall.instance.setSubscriptionStatus(currentSubscriptionStatus)
+                }
             },
         )
     var test26Info =
@@ -543,8 +539,7 @@ object UITestHandler {
                         )
                     alertController.show()
                 }
-
-                delay(4000)
+                delay(8000)
                 Superwall.instance.setSubscriptionStatus(currentSubscriptionStatus)
             },
         )
@@ -553,8 +548,16 @@ object UITestHandler {
             28,
             "Should print out \"Paywall(experiment...)\".",
             test = { scope, events ->
-                val result = Superwall.instance.getPresentationResult("present_data")
-                println("!!! TEST 28 !!! $result")
+
+                scope.launch {
+
+                    val result = Superwall.instance.getPresentationResult("present_data")
+                    fatalAssert(
+                        result is PresentationResult.Paywall && result.experiment.id == "12859",
+                        "Expected Paywall(experiment...), got $result",
+                    )
+                    println("!!! TEST 28 !!! $result")
+                }
             },
         )
     var test29Info =
@@ -568,8 +571,13 @@ object UITestHandler {
                         "some_value" to null,
                     ),
                 )
+
                 val result = Superwall.instance.getPresentationResult("present_and_rule_user")
                 println("!!! TEST 29 !!! $result")
+                fatalAssert(
+                    result is PresentationResult.NoRuleMatch,
+                    "NoRuleMatch expected, received $result",
+                )
             },
         )
     var test30Info =
@@ -577,8 +585,16 @@ object UITestHandler {
             30,
             "Should print out \"eventNotFound\".",
             test = { scope, events ->
-                val result = Superwall.instance.getPresentationResult("some_random_not_found_event")
-                println("!!! TEST 30 !!! $result")
+                scope.launch {
+
+                    val result =
+                        Superwall.instance.getPresentationResult("some_random_not_found_event")
+                    fatalAssert(
+                        result is PresentationResult.EventNotFound,
+                        "NoRuleMatch expected, received $result",
+                    )
+                    println("!!! TEST 30 !!! $result")
+                }
             },
         )
     var test31Info =
@@ -586,8 +602,15 @@ object UITestHandler {
             31,
             "Should print out \"holdout\".",
             test = { scope, events ->
-                val result = Superwall.instance.getPresentationResult("holdout")
-                println("!!! TEST 31 !!! $result")
+                scope.launch {
+
+                    val result = Superwall.instance.getPresentationResult("holdout")
+                    fatalAssert(
+                        result is PresentationResult.Holdout,
+                        "NoRuleMatch expected, received $result",
+                    )
+                    println("!!! TEST 31 !!! $result")
+                }
             },
         )
     var test32Info =
@@ -597,9 +620,15 @@ object UITestHandler {
                 "and then returns subscription status to inactive.",
             test = { scope, events ->
                 Superwall.instance.setSubscriptionStatus(SubscriptionStatus.ACTIVE)
-                val result = Superwall.instance.getPresentationResult("present_data")
-                println("!!! TEST 32 !!! $result")
-                Superwall.instance.setSubscriptionStatus(SubscriptionStatus.INACTIVE)
+                scope.launch {
+                    val result = Superwall.instance.getPresentationResult("present_data")
+                    fatalAssert(
+                        result is PresentationResult.UserIsSubscribed,
+                        "UserIsSubscribed expected, received $result",
+                    )
+                    println("!!! TEST 32 !!! $result")
+                    Superwall.instance.setSubscriptionStatus(SubscriptionStatus.INACTIVE)
+                }
             },
         )
     var test33Info =
@@ -621,10 +650,11 @@ object UITestHandler {
             test = { scope, events ->
                 Superwall.instance.register(event = "present_data")
 
-                delay(8000)
-
-                // Call reset while it is still on screen
-                Superwall.instance.reset()
+                scope.launch {
+                    delay(8000)
+                    // Call reset while it is still on screen
+                    Superwall.instance.reset()
+                }
             },
         )
     var test35Info =

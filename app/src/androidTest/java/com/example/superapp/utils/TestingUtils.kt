@@ -1,7 +1,9 @@
 package com.example.superapp.utils
 
+import android.util.Log
 import android.view.View
 import android.webkit.WebView
+import androidx.appcompat.app.AlertDialog
 import androidx.core.view.children
 import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
@@ -20,15 +22,21 @@ import com.superwall.superapp.MainActivity
 import com.superwall.superapp.test.UITestInfo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.withContext
 import java.util.LinkedList
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
 class ScreenshotTestFlow(
     val testInfo: UITestInfo,
@@ -43,16 +51,20 @@ class ScreenshotTestFlow(
         val stepName = name ?: "step_${steps.size + 1}"
         steps.add(
             Step(stepName) { it, et ->
+                val step = "TestCase_${testInfo.number}${
+                    if (stepName.isEmpty()) "" else "_$stepName"
+                }"
+                Log.e(
+                    "Testing Flow",
+                    "Executing step $step",
+                )
+
                 action(et, it)
-                withContext(Dispatchers.Main) {
-                    launch {
-                        assertSnapshot(
-                            "SW_TestCase_${testInfo.number}${
-                                if (stepName.isEmpty()) "" else "_$stepName"
-                            }",
-                        )
-                    }
-                }
+                Log.e("Testing Flow", "Taking screenshot of $step")
+                assertSnapshot(
+                    "SW_$step",
+                )
+                Log.e("Testing Flow", "Taken screenshot of $step")
             },
         )
     }
@@ -77,20 +89,38 @@ fun Dropshots.screenshotFlow(
     val flow = ScreenshotTestFlow(testInfo).apply(flow)
     val scenario = ActivityScenario.launch(MainActivity::class.java)
     val testCase = testInfo
+    println("-----------")
+    println("Executing test case: ${testCase.number}")
+    println("Description:\n ${testCase.description}")
+    println("-----------")
+    val testReady = MutableStateFlow(false)
     scenario.moveToState(Lifecycle.State.STARTED)
+    val scope = CoroutineScope(Dispatchers.IO)
     scenario.onActivity {
         val ctx = it
 
         runBlocking {
-            launch(Dispatchers.IO) {
+            scope.launch {
+                testReady.first { it }
                 testCase.test(ctx)
             }
         }
     }
 
-    runTest(timeout = 10.minutes) {
-        flow.steps.forEach {
-            it.action(this@screenshotFlow, testCase, this)
+    runTest(timeout = 6.minutes) {
+        try {
+            flow.steps.forEach {
+                if (!testReady.value) {
+                    testReady.update { true }
+                }
+                it.action(this@screenshotFlow, testCase, this)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            scope.cancel()
+            throw e
+        } finally {
+            scope.cancel()
         }
     }
     closeActivity()
@@ -102,7 +132,7 @@ fun Dropshots.paywallPresentsFor(testInfo: UITestInfo) {
     screenshotFlow(testInfo) {
         step("") {
             it.waitFor { it is SuperwallEvent.PaywallWebviewLoadComplete }
-            // Since there is a delay between webview finishing loading and the actual renler
+            // Since there is a delay between webview finishing loading and the actual render
             // We need to wait for the webview to finish loading before taking the snapshot
             awaitUntilShimmerDisappears()
             awaitUntilWebviewAppears()
@@ -117,17 +147,16 @@ fun Dropshots.paywallDoesntPresentFor(testInfo: UITestInfo) {
         step("") {
             it.waitFor { it is SuperwallEvent.PaywallPresentationRequest }
             // We delay a bit to ensure the paywall doesn't render after presentation request
-            delay(4000)
+            delayFor(1.seconds)
         }
     }
 }
 
 @UiTestDSL
-suspend fun awaitUntilShimmerDisappears(): Boolean {
+suspend fun CoroutineScope.awaitUntilShimmerDisappears(): Boolean {
     while (getShimmerFromPaywall()?.visibility == View.VISIBLE) {
-        delay(100)
+        delayFor(100.milliseconds)
     }
-    delay(100)
     return true
 }
 
@@ -146,6 +175,14 @@ suspend fun awaitUntilWebviewAppears(): Boolean {
     val selector = UiSelector()
     val device = UiDevice.getInstance(getInstrumentation())
     device.wait(Until.findObject(By.clazz(WebView::class.java.name)), 10000)
+    return true
+}
+
+@UiTestDSL
+suspend fun awaitUntilDialogAppears(): Boolean {
+    val selector = UiSelector()
+    val device = UiDevice.getInstance(getInstrumentation())
+    device.wait(Until.findObject(By.clazz(AlertDialog::class.java.name)), 10000)
     return true
 }
 
@@ -176,3 +213,8 @@ fun closeActivity() {
             }
     }
 }
+
+suspend fun CoroutineScope.delayFor(duration: Duration) =
+    async(Dispatchers.IO) {
+        delay(duration)
+    }.await()
