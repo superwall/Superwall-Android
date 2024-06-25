@@ -4,8 +4,13 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## 1.1.9
 
+### Deprecations
+
+- Deprecated configuration method `Superwall.configure(applicationContext: Context, ...)` in favor of `Superwall.configure(applicationContext: Application, ...)` to enforce type safety. The rest of the method signature remains the same.
+
 ### Fixes
 
+- Fixes SW-2878 and it's related leaks. The `PaywallViewController` was not being properly detached when activity was stopped, causing memory leaks.
 - SW-2872: Fixes issue where `deviceAttributes` event and fetching would not await for IP geo to complete.
 
 ## 1.1.8
