@@ -38,6 +38,29 @@ path is provided. The notable ones in the public API are as follows:
 
 ## 1.1.9
 
+### Enhancements
+- Adds DSL methods for configuring the SDK. You can now use a configuration block:
+  ```kotlin
+  fun Application.configureSuperwall(
+        apiKey: String,
+        configure: SuperwallBuilder.() -> Unit,
+  )
+  ```
+  
+ This allows you to configure the SDK in a more idiomatic way:
+  ```kotlin
+     configureSuperwall(CONSTANT_API_KEY){
+        options {
+          logging {
+            level = LogLevel.debug
+          }
+          paywalls {
+            shouldPreload = false
+          }
+        }
+    }
+  ```
+
 ### Deprecations
 
 - Deprecated configuration method `Superwall.configure(applicationContext: Context, ...)` in favor of `Superwall.configure(applicationContext: Application, ...)` to enforce type safety. The rest of the method signature remains the same.
