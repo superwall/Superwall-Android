@@ -8,10 +8,6 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 - SW-2872: Fixes issue where `deviceAttributes` event and fetching would not await for IP geo to complete.
 
-### Enhancements
-
-- Parallelized the fetching of configuration and IP geo info.
-
 ## 1.1.8
 
 ### Enhancements
