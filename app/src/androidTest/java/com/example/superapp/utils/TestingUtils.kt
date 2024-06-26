@@ -107,7 +107,7 @@ fun Dropshots.screenshotFlow(
         }
     }
 
-    runTest(timeout = 6.minutes) {
+    runTest(timeout = 3.minutes) {
         try {
             flow.steps.forEach {
                 if (!testReady.value) {

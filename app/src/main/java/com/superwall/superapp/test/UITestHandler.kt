@@ -3,6 +3,7 @@ package com.superwall.superapp.test
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.superwall.SuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEvent.DeepLink
@@ -32,9 +33,11 @@ object UITestHandler {
             0,
             "Uses the identify function. Should see the name 'Jack' in the paywall.",
             test = { scope, events ->
+                Log.e("Registering event", "present_data")
                 Superwall.instance.identify(userId = "test0")
                 Superwall.instance.setUserAttributes(attributes = mapOf("first_name" to "Jack"))
                 Superwall.instance.register(event = "present_data")
+                Log.e("Registering event", "done")
             },
         )
 
