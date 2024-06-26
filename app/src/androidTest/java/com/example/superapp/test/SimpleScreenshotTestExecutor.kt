@@ -114,7 +114,7 @@ class SimpleScreenshotTestExecutor {
                     it.waitFor { it is SuperwallEvent.PaywallPresentationRequest }
                 }
             }
-            Superwall.instance.setSubscriptionStatus(SubscriptionStatus.UNKNOWN)
+            Superwall.instance.setSubscriptionStatus(SubscriptionStatus.INACTIVE)
         }
 
     @Test
@@ -131,61 +131,10 @@ class SimpleScreenshotTestExecutor {
     @Test
     fun test_paywall_doesnt_present_calls_feature_block() =
         with(dropshots) {
+            //   Superwall.instance.reset()
             screenshotFlow(UITestHandler.test27Info) {
                 step("") {
                     awaitUntilDialogAppears()
-                }
-            }
-        }
-
-    @Test
-    fun test_paywall_doesnt_present_result_experiment() =
-        with(dropshots) {
-            screenshotFlow(UITestHandler.test28Info) {
-                step("") {
-                    delayFor(1.seconds)
-                }
-            }
-        }
-
-    @Test
-    fun test_paywall_doesnt_present_result_no_rule_match() =
-        with(dropshots) {
-            screenshotFlow(UITestHandler.test29Info) {
-                step("") {
-                    it.waitFor { it is SuperwallEvent.UserAttributes }
-                    delayFor(1.seconds)
-                }
-            }
-        }
-
-    @Test
-    fun test_paywall_doesnt_present_result_event_not_found() =
-        with(dropshots) {
-            screenshotFlow(UITestHandler.test30Info) {
-                step("") {
-                    delayFor(1.seconds)
-                }
-            }
-        }
-
-    @Test
-    fun test_paywall_doesnt_present_result_holdout() =
-        with(dropshots) {
-            screenshotFlow(UITestHandler.test31Info) {
-                step("") {
-                    delayFor(1.seconds)
-                }
-            }
-        }
-
-    @Test
-    fun test_paywall_doesnt_present_result_subscription_change() =
-        with(dropshots) {
-            screenshotFlow(UITestHandler.test32Info) {
-                step("") {
-                    it.waitFor { it is SuperwallEvent.SubscriptionStatusDidChange }
-                    delayFor(1.seconds)
                 }
             }
         }

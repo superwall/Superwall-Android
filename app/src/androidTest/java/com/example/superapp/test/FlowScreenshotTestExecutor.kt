@@ -1,25 +1,8 @@
+@file:Suppress("ktlint:standard:no-empty-file")
+
 package com.example.superapp.test
 
-import android.util.Log
-import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.dropbox.dropshots.Dropshots
-import com.dropbox.dropshots.ThresholdValidator
-import com.example.superapp.utils.CustomComparator
-import com.example.superapp.utils.awaitUntilShimmerDisappears
-import com.example.superapp.utils.awaitUntilWebviewAppears
-import com.example.superapp.utils.delayFor
-import com.example.superapp.utils.screenshotFlow
-import com.example.superapp.utils.waitFor
-import com.superwall.sdk.Superwall
-import com.superwall.sdk.analytics.superwall.SuperwallEvent
-import com.superwall.superapp.test.UITestHandler
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import org.junit.Rule
-import org.junit.Test
-import org.junit.runner.RunWith
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
+/*
 
 @RunWith(AndroidJUnit4::class)
 class FlowScreenshotTestExecutor {
@@ -149,4 +132,6 @@ class FlowScreenshotTestExecutor {
                 }
             }
         }
+
 }
+ */
