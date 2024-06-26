@@ -1,8 +1,24 @@
 @file:Suppress("ktlint:standard:no-empty-file")
 
-package com.example.superapp.test
-
-/*
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.dropbox.dropshots.Dropshots
+import com.dropbox.dropshots.ThresholdValidator
+import com.example.superapp.utils.CustomComparator
+import com.example.superapp.utils.awaitUntilShimmerDisappears
+import com.example.superapp.utils.awaitUntilWebviewAppears
+import com.example.superapp.utils.delayFor
+import com.example.superapp.utils.screenshotFlow
+import com.example.superapp.utils.waitFor
+import com.superwall.sdk.Superwall
+import com.superwall.sdk.analytics.superwall.SuperwallEvent
+import com.superwall.superapp.test.UITestHandler
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 @RunWith(AndroidJUnit4::class)
 class FlowScreenshotTestExecutor {
@@ -18,18 +34,13 @@ class FlowScreenshotTestExecutor {
         with(dropshots) {
             screenshotFlow(UITestHandler.test4Info) {
                 step("first_paywall") {
-                    Log.e("Event", "first_paywall waiting for load complete")
                     it.waitFor { it is SuperwallEvent.PaywallWebviewLoadComplete }
-                    Log.e("Event", "first_paywall load complete")
                     awaitUntilShimmerDisappears()
                     awaitUntilWebviewAppears()
-                    Log.e("Event", "first_paywall webview load")
                     delayFor(100.milliseconds)
                 }
                 step("second_paywall") {
-                    Log.e("Event", "second_paywall paywall open")
                     awaitUntilWebviewAppears()
-                    Log.e("Event", "second_paywall delay")
                     delayFor(1.seconds)
                 }
             }
@@ -71,14 +82,12 @@ class FlowScreenshotTestExecutor {
                 }
                 step {
                     it.waitFor { it is SuperwallEvent.PaywallOpen }
-                    // delayFor(1.seconds)
                     awaitUntilWebviewAppears()
                     delayFor(1.seconds)
                 }
                 step {
                     it.waitFor { it is SuperwallEvent.PaywallClose }
                     it.waitFor { it is SuperwallEvent.PaywallOpen }
-                    // delayFor(1.seconds)
                     awaitUntilWebviewAppears()
                     delayFor(1.seconds)
                 }
@@ -124,7 +133,7 @@ class FlowScreenshotTestExecutor {
                             ?.scrollTo(0, 0)
                     }
                     // We delay a bit to ensure scroll has finished
-                    delayFor(100.milliseconds)
+                    delayFor(1.seconds)
                 }
 
                 step {
@@ -132,6 +141,4 @@ class FlowScreenshotTestExecutor {
                 }
             }
         }
-
 }
- */

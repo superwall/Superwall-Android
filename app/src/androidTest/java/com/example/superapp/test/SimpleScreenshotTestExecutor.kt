@@ -131,7 +131,6 @@ class SimpleScreenshotTestExecutor {
     @Test
     fun test_paywall_doesnt_present_calls_feature_block() =
         with(dropshots) {
-            //   Superwall.instance.reset()
             screenshotFlow(UITestHandler.test27Info) {
                 step("") {
                     awaitUntilDialogAppears()

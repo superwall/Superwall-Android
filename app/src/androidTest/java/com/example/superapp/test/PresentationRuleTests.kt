@@ -27,7 +27,6 @@ class PresentationRuleTests {
     @Test
     fun test_paywall_doesnt_present_result_experiment() =
         with(dropshots) {
-            // Superwall.instance.reset()
             screenshotFlow(UITestHandler.test28Info) {
                 step("") {
                     delayFor(1.seconds)
