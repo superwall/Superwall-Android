@@ -157,7 +157,7 @@ class PaywallMessageHandler(
 
         Logger.debug(
             logLevel = LogLevel.debug,
-            scope = LogScope.paywallViewController,
+            scope = LogScope.paywallView,
             message = "Posting Message",
             info = mapOf("message" to templateScript),
         )
@@ -167,7 +167,7 @@ class PaywallMessageHandler(
                 if (error != null) {
                     Logger.debug(
                         logLevel = LogLevel.error,
-                        scope = LogScope.paywallViewController,
+                        scope = LogScope.paywallView,
                         message = "Error Evaluating JS",
                         info = mapOf("message" to templateScript),
                         error = java.lang.Exception(error),
@@ -217,7 +217,7 @@ class PaywallMessageHandler(
 
         Logger.debug(
             logLevel = LogLevel.debug,
-            scope = LogScope.paywallViewController,
+            scope = LogScope.paywallView,
             message = "Posting Message",
             info = mapOf("message" to scriptSrc),
         )
@@ -229,7 +229,7 @@ class PaywallMessageHandler(
                     println("!! PaywallMessageHandler: Error: $error")
                     Logger.debug(
                         logLevel = LogLevel.error,
-                        scope = LogScope.paywallViewController,
+                        scope = LogScope.paywallView,
                         message = "Error Evaluating JS",
                         info = mapOf("message" to scriptSrc),
                         error = java.lang.Exception(error),
@@ -323,7 +323,7 @@ class PaywallMessageHandler(
             return
         }
 
-        val paywallDebugDescription = Superwall.instance.paywallViewController.toString()
+        val paywallDebugDescription = Superwall.instance.paywallView.toString()
 
         var info: MutableMap<String, Any> =
             mutableMapOf(
@@ -337,7 +337,7 @@ class PaywallMessageHandler(
 
         Logger.debug(
             logLevel = LogLevel.error,
-            scope = LogScope.paywallViewController,
+            scope = LogScope.paywallView,
             message = "Received Event on Hidden Superwall",
             info = info,
         )

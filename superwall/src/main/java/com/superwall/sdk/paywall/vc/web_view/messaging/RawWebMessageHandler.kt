@@ -22,7 +22,7 @@ class RawWebMessageHandler(
     public fun postMessage(message: String) {
         Logger.debug(
             logLevel = LogLevel.debug,
-            scope = LogScope.paywallViewController,
+            scope = LogScope.paywallView,
             message = "Did Receive Message",
             info = hashMapOf("message" to message),
         )
@@ -36,7 +36,7 @@ class RawWebMessageHandler(
             } catch (e: Throwable) {
                 Logger.debug(
                     logLevel = LogLevel.warn,
-                    scope = LogScope.paywallViewController,
+                    scope = LogScope.paywallView,
                     message = "Invalid WrappedPaywallEvent",
                     info = hashMapOf("message" to message),
                 )
@@ -45,7 +45,7 @@ class RawWebMessageHandler(
 
         Logger.debug(
             logLevel = LogLevel.debug,
-            scope = LogScope.paywallViewController,
+            scope = LogScope.paywallView,
             message = "Body Converted",
             info = hashMapOf("message" to message, "events" to wrappedPaywallMessages),
         )

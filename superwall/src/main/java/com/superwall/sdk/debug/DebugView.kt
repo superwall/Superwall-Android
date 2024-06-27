@@ -34,7 +34,7 @@ import com.superwall.sdk.debug.localizations.SWLocalizationActivity
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.dependencies.RequestFactory
 import com.superwall.sdk.dependencies.TriggerSessionManagerFactory
-import com.superwall.sdk.dependencies.ViewControllerFactory
+import com.superwall.sdk.dependencies.ViewFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
@@ -63,7 +63,7 @@ interface AppCompatActivityEncapsulatable {
     var encapsulatingActivity: AppCompatActivity?
 }
 
-class DebugViewController(
+class DebugView(
     private val context: Context,
     private val storeKitManager: StoreKitManager,
     private val network: Network,
@@ -75,7 +75,7 @@ class DebugViewController(
     AppCompatActivityEncapsulatable {
     interface Factory :
         RequestFactory,
-        ViewControllerFactory,
+        ViewFactory,
         TriggerSessionManagerFactory
 
     data class AlertOption(
@@ -405,7 +405,7 @@ class DebugViewController(
             } catch (error: Throwable) {
                 Logger.debug(
                     logLevel = LogLevel.error,
-                    scope = LogScope.debugViewController,
+                    scope = LogScope.debugView,
                     message = "Failed to Fetch Paywalls",
                     error = error,
                 )
@@ -452,7 +452,7 @@ class DebugViewController(
         } catch (error: Throwable) {
             Logger.debug(
                 logLevel = LogLevel.error,
-                scope = LogScope.debugViewController,
+                scope = LogScope.debugView,
                 message = "No Paywall Response",
                 error = error,
             )
@@ -463,7 +463,7 @@ class DebugViewController(
         val paywall = paywall ?: return
 
         val paywallVc =
-            factory.makePaywallViewController(
+            factory.makePaywallView(
                 paywall = paywall,
                 cache = null,
                 delegate = null,
@@ -590,7 +590,7 @@ class DebugViewController(
         if (paywall == null) {
             Logger.debug(
                 logLevel = LogLevel.error,
-                scope = LogScope.debugViewController,
+                scope = LogScope.debugView,
                 message = "Paywall is nil",
             )
             return
@@ -615,7 +615,7 @@ class DebugViewController(
         } catch (error: Throwable) {
             Logger.debug(
                 logLevel = LogLevel.error,
-                scope = LogScope.debugViewController,
+                scope = LogScope.debugView,
                 message = "Error retrieving products - ${error.message}",
             )
         }
@@ -745,7 +745,7 @@ class DebugViewController(
                     is PaywallState.PresentationError -> {
                         Logger.debug(
                             logLevel = LogLevel.error,
-                            scope = LogScope.debugViewController,
+                            scope = LogScope.debugView,
                             message = "Failed to Show Paywall",
                         )
                         presentAlert(
@@ -766,7 +766,7 @@ class DebugViewController(
     }
 }
 
-internal class DebugViewControllerActivity : AppCompatActivity() {
+internal class DebugViewActivity : AppCompatActivity() {
     companion object {
         private const val VIEW_KEY = "debugViewKey"
 
@@ -778,7 +778,7 @@ internal class DebugViewControllerActivity : AppCompatActivity() {
             ViewStorage.storeView(key, view)
 
             val intent =
-                Intent(context, DebugViewControllerActivity::class.java).apply {
+                Intent(context, DebugViewActivity::class.java).apply {
                     putExtra(VIEW_KEY, key)
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
                 }
@@ -827,26 +827,26 @@ internal class DebugViewControllerActivity : AppCompatActivity() {
     override fun onStart() {
         super.onStart()
 
-        val debugViewController = contentView as? DebugViewController ?: return
+        val debugView = contentView as? DebugView ?: return
 
-        debugViewController.isActive = true
+        debugView.isActive = true
     }
 
     override fun onStop() {
         super.onStop()
 
-        val debugViewController = contentView as? DebugViewController ?: return
+        val debugView = contentView as? DebugView ?: return
 
-        debugViewController.isActive = false
+        debugView.isActive = false
     }
 
     override fun onDestroy() {
         super.onDestroy()
 
-        val debugViewController = contentView as? DebugViewController ?: return
+        val debugView = contentView as? DebugView ?: return
 
         CoroutineScope(Dispatchers.IO).launch {
-            debugViewController.viewDestroyed()
+            debugView.viewDestroyed()
         }
 
         // Clear reference to activity in the view

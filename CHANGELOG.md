@@ -7,7 +7,26 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ### Deprecations
 
+
+This release includes multiple deprecations that will be removed in upcoming versions.
+Most are internal and will not affect the public API, those that will are marked as such and a simple migration
+path is provided. The notable ones in the public API are as follows:
+
 - Deprecated configuration method `Superwall.configure(applicationContext: Context, ...)` in favor of `Superwall.configure(applicationContext: Application, ...)` to enforce type safety. The rest of the method signature remains the same.
+- Deprecated `DebugViewControllerActivity` in favor of `DebugViewActivity`
+- Deprecated `PaywallViewController` in favor of `PaywallView`
+- Deprecated `PaywallViewControllerDelegate` in favor of `PaywallViewDelegate`
+- Deprecated `PaywallViewControllerEventDelegate` in favor of `PaywallViewEventDelegate`
+- Deprecated `Superwall.paywallViewController` in favor of `Superwall.paywallView`
+- Deprecated `Superwall.eventDidOccur` argument `paywallViewController` in favor of `paywallView`
+- Deprecated `Superwall.dismiss` in favor of `Superwall.presentPaywallView
+- Deprecated `Superwall.presentPaywallViewController` in favor of `Superwall.presentPaywallView`
+- Deprecated `Paywallmanager.getPaywallViewController` in favor of `PaywallManager.getPaywallView`
+- Deprecated `DebugManager.viewController` in favor of `DebugManager.view`
+- Deprecated `DebugViewController` in favor of `DebugView`
+- Deprecated `LogScope.debugViewController` in favor of `LogScope.debugView`
+- Deprecated `PaywallPresentationRequestStatus.NoPaywallViewController` in favor of `NoPaywallView`
+- 
 
 ### Fixes
 

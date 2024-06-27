@@ -15,19 +15,19 @@ import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallSkippedReason
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.paywall.presentation.rule_logic.RuleEvaluationOutcome
-import com.superwall.sdk.paywall.vc.PaywallViewController
+import com.superwall.sdk.paywall.vc.PaywallView
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
 
 data class PresentablePipelineOutput(
     val debugInfo: Map<String, Any>,
-    val paywallViewController: PaywallViewController,
+    val paywallView: PaywallView,
     val presenter: Activity,
     val confirmableAssignment: ConfirmableAssignment?,
 )
 
 suspend fun Superwall.getPresenterIfNecessary(
-    paywallViewController: PaywallViewController,
+    paywallView: PaywallView,
     rulesOutcome: RuleEvaluationOutcome,
     request: PresentationRequest,
     paywallStatePublisher: MutableSharedFlow<PaywallState>? = null,
@@ -39,7 +39,7 @@ suspend fun Superwall.getPresenterIfNecessary(
                 InternalPresentationLogic.UserSubscriptionOverrides(
                     isDebuggerLaunched = request.flags.isDebuggerLaunched,
                     shouldIgnoreSubscriptionStatus = request.paywallOverrides?.ignoreSubscriptionStatus,
-                    presentationCondition = paywallViewController.paywall.presentation.condition,
+                    presentationCondition = paywallView.paywall.presentation.condition,
                 ),
         )
     ) {
@@ -54,7 +54,7 @@ suspend fun Superwall.getPresenterIfNecessary(
                     request = request,
                     triggerResult = rulesOutcome.triggerResult,
                 )
-            paywallViewController.paywall.triggerSessionId = sessionId
+            paywallView.paywall.triggerSessionId = sessionId
             return null
         }
 
@@ -70,7 +70,7 @@ suspend fun Superwall.getPresenterIfNecessary(
             request = request,
             triggerResult = rulesOutcome.triggerResult,
         )
-    paywallViewController.paywall.triggerSessionId = sessionId
+    paywallView.paywall.triggerSessionId = sessionId
 
     val currentActivity = dependencyContainer.activityProvider?.getCurrentActivity()
 

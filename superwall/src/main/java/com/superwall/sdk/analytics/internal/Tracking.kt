@@ -135,7 +135,7 @@ private suspend fun Superwall.internallyHandleImplicitTrigger(
             event,
             dependencyContainer.configManager.triggersByEventName.keys
                 .toSet(),
-            paywallViewController,
+            paywallView,
         )
 
     var statePublisher = MutableSharedFlow<PaywallState>()

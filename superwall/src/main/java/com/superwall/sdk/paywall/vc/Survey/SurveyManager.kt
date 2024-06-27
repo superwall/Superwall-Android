@@ -25,7 +25,7 @@ import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
-import com.superwall.sdk.paywall.vc.PaywallViewController
+import com.superwall.sdk.paywall.vc.PaywallView
 import com.superwall.sdk.paywall.vc.delegate.PaywallLoadingState
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.SurveyAssignmentKey
@@ -41,7 +41,7 @@ object SurveyManager {
         paywallResult: PaywallResult,
         paywallCloseReason: PaywallCloseReason,
         activity: Activity?,
-        paywallViewController: PaywallViewController,
+        paywallView: PaywallView,
         loadingState: PaywallLoadingState,
         isDebuggerLaunched: Boolean,
         paywallInfo: PaywallInfo,
@@ -81,7 +81,7 @@ object SurveyManager {
         if (isHoldout) {
             Logger.debug(
                 logLevel = LogLevel.info,
-                scope = LogScope.paywallViewController,
+                scope = LogScope.paywallView,
                 message = "The survey will not present.",
             )
             completion(SurveyPresentationResult.HOLDOUT)
@@ -131,7 +131,7 @@ object SurveyManager {
                         customResponse = null,
                         paywallInfo = paywallInfo,
                         factory = factory,
-                        paywallViewController = paywallViewController,
+                        paywallView = paywallView,
                         completion = completion,
                     )
                 }
@@ -207,7 +207,7 @@ object SurveyManager {
                                 customResponse = customEditText.text.toString(),
                                 paywallInfo = paywallInfo,
                                 factory = factory,
-                                paywallViewController = paywallViewController,
+                                paywallView = paywallView,
                                 completion = completion,
                             )
                             otherDialog.dismiss()
@@ -237,7 +237,7 @@ object SurveyManager {
         customResponse: String?,
         paywallInfo: PaywallInfo,
         factory: TriggerFactory,
-        paywallViewController: PaywallViewController,
+        paywallView: PaywallView,
         completion: (SurveyPresentationResult) -> Unit,
     ) {
         if (isDebuggerLaunched) {
@@ -258,7 +258,7 @@ object SurveyManager {
                 TrackingLogic.canTriggerPaywall(
                     event,
                     factory.makeTriggers(),
-                    paywallViewController,
+                    paywallView,
                 )
 
             Superwall.instance.track(event)

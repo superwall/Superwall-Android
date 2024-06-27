@@ -39,7 +39,7 @@ internal class NotificationScheduler {
                 if (delay <= 0) {
                     Logger.debug(
                         logLevel = LogLevel.error,
-                        scope = LogScope.paywallViewController,
+                        scope = LogScope.paywallView,
                         message =
                             "Notification delay isn't greater than 0 milliseconds. " +
                                 "Notifications will not be scheduled.",

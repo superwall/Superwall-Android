@@ -115,7 +115,7 @@ data class Paywall(
         } catch (e: Throwable) {
             Logger.debug(
                 logLevel = LogLevel.warn,
-                scope = LogScope.paywallViewController,
+                scope = LogScope.paywallView,
                 message =
                     "Invalid paywall background color: ${this.backgroundColorHex}. " +
                         "Defaulting to white.",
@@ -130,7 +130,7 @@ data class Paywall(
         } catch (e: Throwable) {
             Logger.debug(
                 logLevel = LogLevel.warn,
-                scope = LogScope.paywallViewController,
+                scope = LogScope.paywallView,
                 message =
                     "Invalid paywall background color: ${this.darkBackgroundColorHex}. " +
                         "Defaulting to white.",

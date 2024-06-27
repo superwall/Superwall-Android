@@ -5,14 +5,14 @@ import com.superwall.sdk.analytics.model.TriggerSessionTrigger
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
-import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegateAdapter
+import com.superwall.sdk.paywall.vc.delegate.PaywallViewDelegateAdapter
 import kotlinx.coroutines.flow.StateFlow
 
 sealed class PresentationRequestType {
     object Presentation : PresentationRequestType()
 
     data class GetPaywall(
-        val adapter: PaywallViewControllerDelegateAdapter,
+        val adapter: PaywallViewDelegateAdapter,
     ) : PresentationRequestType()
 
     object GetPresentationResult : PresentationRequestType()
@@ -29,11 +29,11 @@ sealed class PresentationRequestType {
                 else -> "Unknown"
             }
 
-    val paywallVcDelegateAdapter: PaywallViewControllerDelegateAdapter?
-        get() = if (this is GetPaywall) this.adapter else null
+    @Deprecated("Will be removed in the upcoming versions, use paywallViewDelegateAdapter instead")
+    val paywallVcDelegateAdapter: PaywallViewDelegateAdapter? = paywallViewDelegateAdapter
 
-    val hasObjcDelegate: Boolean
-        get() = false
+    val paywallViewDelegateAdapter: PaywallViewDelegateAdapter?
+        get() = if (this is GetPaywall) this.adapter else null
 
     companion object {
         fun areEqual(

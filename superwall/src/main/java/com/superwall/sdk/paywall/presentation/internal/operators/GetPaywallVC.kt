@@ -17,18 +17,18 @@ import com.superwall.sdk.paywall.presentation.internal.userIsSubscribed
 import com.superwall.sdk.paywall.presentation.rule_logic.RuleEvaluationOutcome
 import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
-import com.superwall.sdk.paywall.vc.PaywallViewController
+import com.superwall.sdk.paywall.vc.PaywallView
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
 
 @Throws(Throwable::class)
-internal suspend fun Superwall.getPaywallViewController(
+internal suspend fun Superwall.getPaywallView(
     request: PresentationRequest,
     rulesOutcome: RuleEvaluationOutcome,
     debugInfo: Map<String, Any>,
     paywallStatePublisher: MutableSharedFlow<PaywallState>? = null,
     dependencyContainer: DependencyContainer,
-): PaywallViewController {
+): PaywallView {
     val experiment =
         getExperiment(
             request = request,
@@ -68,11 +68,11 @@ internal suspend fun Superwall.getPaywallViewController(
         val isForPresentation =
             request.flags.type != PresentationRequestType.GetImplicitPresentationResult &&
                 request.flags.type != PresentationRequestType.GetPresentationResult
-        val delegate = request.flags.type.paywallVcDelegateAdapter
+        val delegate = request.flags.type.paywallViewDelegateAdapter
 
         val webviewExists = WebView.getCurrentWebViewPackage() != null
         if (webviewExists) {
-            dependencyContainer.paywallManager.getPaywallViewController(
+            dependencyContainer.paywallManager.getPaywallView(
                 request = paywallRequest,
                 isForPresentation = isForPresentation,
                 isPreloading = false,
@@ -86,7 +86,7 @@ internal suspend fun Superwall.getPaywallViewController(
                     "Paywalls cannot be presented because the Android System WebView has been disabled" +
                         " by the user.",
             )
-            throw PaywallPresentationRequestStatusReason.NoPaywallViewController()
+            throw PaywallPresentationRequestStatusReason.NoPaywallView()
         }
     } catch (e: Throwable) {
         if (subscriptionStatus == SubscriptionStatus.ACTIVE) {
@@ -121,10 +121,10 @@ private suspend fun presentationFailure(
     Logger.debug(
         logLevel = LogLevel.error,
         scope = LogScope.paywallPresentation,
-        message = "Error Getting Paywall View Controller",
+        message = "Error Getting Paywall View",
         info = debugInfo,
         error = error,
     )
     paywallStatePublisher?.emit(PaywallState.PresentationError(error))
-    return PaywallPresentationRequestStatusReason.NoPaywallViewController()
+    return PaywallPresentationRequestStatusReason.NoPaywallView()
 }
