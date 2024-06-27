@@ -43,6 +43,8 @@ class ScreenshotTestFlow(
 ) {
     var steps: LinkedList<Step> = LinkedList()
 
+    private val device = "${android.os.Build.MANUFACTURER}_${android.os.Build.MODEL}"
+
     @ScreenshotTestDSL
     fun step(
         name: String? = null,
@@ -51,7 +53,8 @@ class ScreenshotTestFlow(
         val stepName = name ?: "step_${steps.size + 1}"
         steps.add(
             Step(stepName) { it, et ->
-                val step = "TestCase_${testInfo.number}${
+
+                val step = "${device}_TestCase_${testInfo.number}${
                     if (stepName.isEmpty()) "" else "_$stepName"
                 }"
                 Log.e(
