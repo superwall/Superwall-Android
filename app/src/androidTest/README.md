@@ -6,7 +6,7 @@ Note: currently screenshots are recorded only for Pixel 7, API 33. Devices with 
 
 ### Running the tests
 
-To run the tests, just run `./gradlew :app:connectedAndroidTest` from the root of the project.
+To run the tests, just run `./gradlew :app:connectedCheck` from the root of the project.
 This will run the integration tests on your adb connected device or emulator.
 
 ### Viewing tests results
@@ -16,7 +16,7 @@ If there are failing tests, the screenshots will be saved under `app/build/outpu
 
 ### Recording the screenshots
 
-To record the screenshots, run `./gradlew :app:connectedAndroidTest -Pdropshots.record` from the root of the project.
+To record the screenshots, run `./gradlew :app:connectedCheck -Pdropshots.record` from the root of the project.
 This will record new screenshots on your current device.
 
 ### Viewing the recorded screenshots
