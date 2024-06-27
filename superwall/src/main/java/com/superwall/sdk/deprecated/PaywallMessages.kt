@@ -29,7 +29,7 @@ sealed class PaywallMessage {
         val url: URL,
     ) : PaywallMessage()
 
-    data class OpenUrlInSafari(
+    data class OpenUrlInBrowser(
         val url: URL,
     ) : PaywallMessage()
 
@@ -70,7 +70,7 @@ private fun parsePaywallMessage(json: JSONObject): PaywallMessage {
         "close" -> PaywallMessage.Close
         "restore" -> PaywallMessage.Restore
         "open_url" -> PaywallMessage.OpenUrl(URL(json.getString("url")))
-        "open_url_external" -> PaywallMessage.OpenUrlInSafari(URL(json.getString("url")))
+        "open_url_external" -> PaywallMessage.OpenUrlInBrowser(URL(json.getString("url")))
         "open_deep_link" -> PaywallMessage.OpenDeepLink(Uri.parse(json.getString("link")))
         "purchase" -> PaywallMessage.Purchase(json.getString("product"))
         "custom" -> PaywallMessage.Custom(json.getString("data"))

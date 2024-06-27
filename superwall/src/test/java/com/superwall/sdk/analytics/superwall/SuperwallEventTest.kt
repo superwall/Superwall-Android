@@ -6,6 +6,6 @@ class SuperwallEventTest {
     @Test
     fun test_app_install() {
         val event = SuperwallEvent.AppInstall()
-        assert(event.objcEvent == SuperwallEventObjc.AppInstall)
+        assert(event.backingEvent == SuperwallEvents.AppInstall)
     }
 }

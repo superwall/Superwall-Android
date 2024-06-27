@@ -25,7 +25,7 @@ import com.superwall.sdk.paywall.presentation.internal.dismiss
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.vc.PaywallView
 import com.superwall.sdk.paywall.vc.SuperwallPaywallActivity
-import com.superwall.sdk.paywall.vc.delegate.PaywallViewEventDelegate
+import com.superwall.sdk.paywall.vc.delegate.PaywallViewEventCallback
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.*
 import com.superwall.sdk.storage.ActiveSubscriptionStatus
@@ -46,7 +46,7 @@ class Superwall(
     options: SuperwallOptions?,
     private var activityProvider: ActivityProvider?,
     private val completion: (() -> Unit)?,
-) : PaywallViewEventDelegate {
+) : PaywallViewEventCallback {
     private var _options: SuperwallOptions? = options
     private val ioScope = CoroutineScope(Dispatchers.IO)
     internal var context: Context = context.applicationContext
@@ -501,7 +501,7 @@ class Superwall(
                 is OpenedURL -> {
                     dependencyContainer.delegateAdapter.paywallWillOpenURL(url = paywallEvent.url)
                 }
-                is OpenedUrlInSafari -> {
+                is OpenedUrlInChrome -> {
                     dependencyContainer.delegateAdapter.paywallWillOpenURL(url = paywallEvent.url)
                 }
                 is OpenedDeepLink -> {

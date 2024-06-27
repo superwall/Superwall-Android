@@ -20,7 +20,7 @@ import com.superwall.sdk.Superwall
 import com.superwall.sdk.paywall.presentation.get_paywall.getPaywall
 import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
 import com.superwall.sdk.paywall.vc.PaywallView
-import com.superwall.sdk.paywall.vc.delegate.PaywallViewDelegate
+import com.superwall.sdk.paywall.vc.delegate.PaywallViewCallback
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -30,7 +30,7 @@ fun PaywallComposable(
     event: String,
     params: Map<String, Any>? = null,
     paywallOverrides: PaywallOverrides? = null,
-    delegate: PaywallViewDelegate,
+    delegate: PaywallViewCallback,
     errorComposable: @Composable ((Throwable) -> Unit) = { error: Throwable ->
         // Default error composable
         Text(text = "No paywall to display")
@@ -56,7 +56,7 @@ fun PaywallComposable(
         try {
             val newView = Superwall.instance.getPaywall(event, params, paywallOverrides, delegate)
             newView.encapsulatingActivity = context as? Activity
-            newView.viewWillAppear()
+            newView.beforeViewCreated()
             viewState.value = newView
         } catch (e: Throwable) {
             errorState.value = e
@@ -67,14 +67,14 @@ fun PaywallComposable(
         viewState.value != null -> {
             viewState.value?.let { viewToRender ->
                 DisposableEffect(viewToRender) {
-                    viewToRender.viewDidAppear()
+                    viewToRender.onViewCreated()
 
                     onDispose {
-                        viewToRender.viewWillDisappear()
+                        viewToRender.beforeOnDestroy()
                         viewToRender.encapsulatingActivity = null
 
                         CoroutineScope(Dispatchers.Main).launch {
-                            viewToRender.viewDidDisappear()
+                            viewToRender.destroyed()
                         }
                     }
                 }

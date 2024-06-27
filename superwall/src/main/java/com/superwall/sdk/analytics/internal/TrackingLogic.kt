@@ -3,7 +3,7 @@ package com.superwall.sdk.analytics.internal
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
-import com.superwall.sdk.analytics.superwall.SuperwallEventObjc
+import com.superwall.sdk.analytics.superwall.SuperwallEvents
 import com.superwall.sdk.paywall.vc.PaywallView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -145,12 +145,12 @@ sealed class TrackingLogic {
 
         @Throws(Exception::class)
         fun checkNotSuperwallEvent(event: String) {
-            // Try to create a SuperwallEventObjc from the event string
-            val superwallEventObjc =
-                SuperwallEventObjc.values().find { superwallEvent ->
+            // Try to create a SuperwallEvents event from the event string
+            val superwallEvent =
+                SuperwallEvents.values().find { superwallEvent ->
                     superwallEvent.rawName == event
                 }
-            if (superwallEventObjc != null) {
+            if (superwallEvent != null) {
                 // Log error saying do not track an event with the same name as a SuperwallEvent
                 throw Exception("Do not track an event with the same name as a SuperwallEvent")
             }
@@ -161,7 +161,7 @@ sealed class TrackingLogic {
             triggers: Set<String>,
             paywallView: PaywallView?,
         ): ImplicitTriggerOutcome {
-            if (event is TrackableSuperwallEvent && event.superwallEvent.rawName == SuperwallEventObjc.DeepLink.rawName) {
+            if (event is TrackableSuperwallEvent && event.superwallEvent.rawName == SuperwallEvents.DeepLink.rawName) {
                 return ImplicitTriggerOutcome.DeepLinkTrigger
             }
 
@@ -172,9 +172,9 @@ sealed class TrackingLogic {
 
             val notAllowedReferringEventNames: Set<String> =
                 setOf(
-                    SuperwallEventObjc.TransactionAbandon.rawName,
-                    SuperwallEventObjc.TransactionFail.rawName,
-                    SuperwallEventObjc.PaywallDecline.rawName,
+                    SuperwallEvents.TransactionAbandon.rawName,
+                    SuperwallEvents.TransactionFail.rawName,
+                    SuperwallEvents.PaywallDecline.rawName,
                 )
 
             val referringEventName = paywallView?.info?.presentedByEventWithName
@@ -186,11 +186,11 @@ sealed class TrackingLogic {
             }
 
             if (event is TrackableSuperwallEvent) {
-                return when (event.superwallEvent.objcEvent) {
-                    SuperwallEventObjc.TransactionAbandon,
-                    SuperwallEventObjc.TransactionFail,
-                    SuperwallEventObjc.SurveyResponse,
-                    SuperwallEventObjc.PaywallDecline,
+                return when (event.superwallEvent.backingEvent) {
+                    SuperwallEvents.TransactionAbandon,
+                    SuperwallEvents.TransactionFail,
+                    SuperwallEvents.SurveyResponse,
+                    SuperwallEvents.PaywallDecline,
                     -> ImplicitTriggerOutcome.ClosePaywallThenTriggerPaywall
                     else -> ImplicitTriggerOutcome.TriggerPaywall
                 }

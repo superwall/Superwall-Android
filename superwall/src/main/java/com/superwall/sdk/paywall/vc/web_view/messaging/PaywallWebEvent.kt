@@ -4,6 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.net.URL
 
+
 @Serializable
 sealed class PaywallWebEvent {
     object Closed : PaywallWebEvent()
@@ -26,7 +27,7 @@ sealed class PaywallWebEvent {
     ) : PaywallWebEvent()
 
     @SerialName("opened_url_in_safari")
-    data class OpenedUrlInSafari(
+    data class OpenedUrlInChrome(
         val url: URL,
     ) : PaywallWebEvent()
 
