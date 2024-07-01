@@ -43,6 +43,16 @@ jobs:
     - name: Build gradle project
       run: ./gradlew build
 
+    - name: Build test project
+      run: ./gradlew :app:assembleAndroidTest -DtestBuildType=debug
+
+    - name: Run tests on Firebase Test Lab
+      uses: asadmansr/Firebase-Test-Lab-Action@v1.0
+      with:
+        arg-spec: '.github/firebase-tests.yml:android-pixel-7'
+      env:
+        SERVICE_ACCOUNT: ${{ secrets.SERVICE_ACCOUNT }}
+
     # See what version we're on
     # Writes to superwall/build/version.json with the version set 
     # in the superwall build.gradle

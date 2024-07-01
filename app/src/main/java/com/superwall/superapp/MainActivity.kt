@@ -8,6 +8,10 @@ import com.superwall.sdk.Superwall
 import com.superwall.superapp.test.UITestActivity
 
 class MainActivity : AppCompatActivity() {
+    val events by lazy {
+        (applicationContext as MainApplication).events
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)

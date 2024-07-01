@@ -2,8 +2,11 @@ package com.superwall.superapp
 
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
+import com.superwall.sdk.config.options.PaywallOptions
+import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.delegate.SuperwallDelegate
 import com.superwall.sdk.paywall.presentation.register
+import kotlinx.coroutines.flow.MutableSharedFlow
 
 class MainApplication :
     android.app.Application(),
@@ -34,10 +37,19 @@ class MainApplication :
 //        configureWithRevenueCatInitialization()
     }
 
+    val events = MutableSharedFlow<SuperwallEventInfo>()
+
     fun configureWithAutomaticInitialization() {
         Superwall.configure(
             this,
             CONSTANT_API_KEY,
+            options =
+                SuperwallOptions().apply {
+                    paywalls =
+                        PaywallOptions().apply {
+                            shouldPreload = false
+                        }
+                },
         )
         Superwall.instance.delegate = this
 
