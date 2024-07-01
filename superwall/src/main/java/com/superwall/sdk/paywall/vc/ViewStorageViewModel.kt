@@ -1,8 +1,7 @@
-package com.superwall.sdk.paywall.vgc
+package com.superwall.sdk.paywall.vc
 
 import android.view.View
 import androidx.lifecycle.ViewModel
-import com.superwall.sdk.paywall.vc.ViewStorage
 
 /*
 * Stores already loaded or preloaded paywalls

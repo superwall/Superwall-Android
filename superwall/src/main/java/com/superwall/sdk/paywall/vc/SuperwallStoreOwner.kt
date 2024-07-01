@@ -4,9 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.ViewModelStoreOwner
-import com.superwall.sdk.paywall.vgc.ViewStorageViewModel
 
-internal object SuperwallStoreOwner : ViewModelStoreOwner {
+internal class SuperwallStoreOwner : ViewModelStoreOwner {
     override val viewModelStore: ViewModelStore = ViewModelStore()
 }
 

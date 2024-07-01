@@ -70,7 +70,7 @@ class Superwall(
 
     private val viewStorageViewModel =
         ViewModelProvider(
-            SuperwallStoreOwner,
+            SuperwallStoreOwner(),
             ViewModelFactory(),
         ).get(ViewStorageViewModel::class.java)
 
