@@ -49,7 +49,6 @@ import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.paywall.request.PaywallRequestManager
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
 import com.superwall.sdk.paywall.vc.ActivityEncapsulatable
-import com.superwall.sdk.paywall.vc.ViewStorage
 import com.superwall.sdk.store.StoreKitManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -775,7 +774,7 @@ internal class DebugViewControllerActivity : AppCompatActivity() {
             view: View,
         ) {
             val key = UUID.randomUUID().toString()
-            ViewStorage.storeView(key, view)
+            Superwall.instance.viewStore().storeView(key, view)
 
             val intent =
                 Intent(context, DebugViewControllerActivity::class.java).apply {
@@ -804,7 +803,7 @@ internal class DebugViewControllerActivity : AppCompatActivity() {
             return
         }
         val view =
-            ViewStorage.retrieveView(key) ?: run {
+            Superwall.instance.viewStore().retrieveView(key) ?: run {
                 finish() // Close the activity if the view associated with the key is not found
                 return
             }
