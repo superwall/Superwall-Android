@@ -1,7 +1,9 @@
 package com.superwall.sdk
 
+import android.app.Application
 import android.content.Context
 import android.net.Uri
+import androidx.lifecycle.ViewModelProvider
 import androidx.work.WorkManager
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
@@ -24,12 +26,23 @@ import com.superwall.sdk.paywall.presentation.internal.dismiss
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.vc.PaywallViewController
 import com.superwall.sdk.paywall.vc.SuperwallPaywallActivity
+import com.superwall.sdk.paywall.vc.SuperwallStoreOwner
+import com.superwall.sdk.paywall.vc.ViewModelFactory
+import com.superwall.sdk.paywall.vc.ViewStorageViewModel
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerEventDelegate
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent
-import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.*
+import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.Closed
+import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.Custom
+import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.InitiatePurchase
+import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.InitiateRestore
+import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.OpenedDeepLink
+import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.OpenedURL
+import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.OpenedUrlInSafari
 import com.superwall.sdk.storage.ActiveSubscriptionStatus
 import com.superwall.sdk.store.ExternalNativePurchaseController
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -37,10 +50,11 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.update
-import java.util.*
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class Superwall(
-    internal var context: Context,
+    context: Context,
     private var apiKey: String,
     private var purchaseController: PurchaseController?,
     options: SuperwallOptions?,
@@ -49,9 +63,18 @@ class Superwall(
 ) : PaywallViewControllerEventDelegate {
     private var _options: SuperwallOptions? = options
     private val ioScope = CoroutineScope(Dispatchers.IO)
+    internal var context: Context = context.applicationContext
 
     // Add a private variable for the purchase task
     private var purchaseTask: Job? = null
+
+    private val viewStorageViewModel =
+        ViewModelProvider(
+            SuperwallStoreOwner(),
+            ViewModelFactory(),
+        ).get(ViewStorageViewModel::class.java)
+
+    internal fun viewStore(): ViewStorageViewModel = viewStorageViewModel
 
     internal val presentationItems: PresentationItems = PresentationItems()
 
@@ -163,7 +186,8 @@ class Superwall(
      */
     val latestPaywallInfo: PaywallInfo?
         get() {
-            val presentedPaywallInfo = dependencyContainer.paywallManager.presentedViewController?.info
+            val presentedPaywallInfo =
+                dependencyContainer.paywallManager.presentedViewController?.info
             return presentedPaywallInfo ?: presentationItems.paywallInfo
         }
 
@@ -217,7 +241,7 @@ class Superwall(
          * @return The configured [Superwall] instance.
          */
         fun configure(
-            applicationContext: Context,
+            applicationContext: Application,
             apiKey: String,
             purchaseController: PurchaseController? = null,
             options: SuperwallOptions? = null,
@@ -259,6 +283,25 @@ class Superwall(
                 true
             }
         }
+
+        @Deprecated(
+            "This constructor is too ambiguous and will be removed in upcoming versions. Use Superwall.configure(Application, ...) instead.",
+        )
+        fun configure(
+            applicationContext: Context,
+            apiKey: String,
+            purchaseController: PurchaseController? = null,
+            options: SuperwallOptions? = null,
+            activityProvider: ActivityProvider? = null,
+            completion: (() -> Unit)? = null,
+        ) = configure(
+            applicationContext.applicationContext as Application,
+            apiKey,
+            purchaseController,
+            options,
+            activityProvider,
+            completion,
+        )
     }
 
     private lateinit var _dependencyContainer: DependencyContainer
@@ -284,7 +327,8 @@ class Superwall(
                 )
         }
 
-        val cachedSubsStatus = dependencyContainer.storage.get(ActiveSubscriptionStatus) ?: SubscriptionStatus.UNKNOWN
+        val cachedSubsStatus =
+            dependencyContainer.storage.get(ActiveSubscriptionStatus) ?: SubscriptionStatus.UNKNOWN
         setSubscriptionStatus(cachedSubsStatus)
 
         addListeners()
@@ -329,7 +373,8 @@ class Superwall(
      */
     fun togglePaywallSpinner(isHidden: Boolean) {
         ioScope.launch {
-            val paywallViewController = dependencyContainer.paywallManager.presentedViewController ?: return@launch
+            val paywallViewController =
+                dependencyContainer.paywallManager.presentedViewController ?: return@launch
             paywallViewController.togglePaywallSpinner(isHidden)
         }
     }
@@ -353,7 +398,9 @@ class Superwall(
      * Removes all of Superwall's pending local notifications.
      */
     fun cancelAllScheduledNotifications() {
-        WorkManager.getInstance(context).cancelAllWorkByTag(SuperwallPaywallActivity.NOTIFICATION_CHANNEL_ID)
+        WorkManager
+            .getInstance(context)
+            .cancelAllWorkByTag(SuperwallPaywallActivity.NOTIFICATION_CHANNEL_ID)
     }
 
     // MARK: - Reset
@@ -457,6 +504,7 @@ class Superwall(
                         closeReason = PaywallCloseReason.ManualClose,
                     )
                 }
+
                 is InitiatePurchase -> {
                     if (purchaseTask != null) {
                         // If a purchase is already in progress, do not start another
@@ -475,18 +523,23 @@ class Superwall(
                             }
                         }
                 }
+
                 is InitiateRestore -> {
                     dependencyContainer.transactionManager.tryToRestore(paywallViewController)
                 }
+
                 is OpenedURL -> {
                     dependencyContainer.delegateAdapter.paywallWillOpenURL(url = paywallEvent.url)
                 }
+
                 is OpenedUrlInSafari -> {
                     dependencyContainer.delegateAdapter.paywallWillOpenURL(url = paywallEvent.url)
                 }
+
                 is OpenedDeepLink -> {
                     dependencyContainer.delegateAdapter.paywallWillOpenDeepLink(url = paywallEvent.url)
                 }
+
                 is Custom -> {
                     dependencyContainer.delegateAdapter.handleCustomPaywallAction(name = paywallEvent.string)
                 }

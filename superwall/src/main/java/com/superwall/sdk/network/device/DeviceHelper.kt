@@ -17,6 +17,9 @@ import com.superwall.sdk.BuildConfig
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.dependencies.IdentityInfoFactory
 import com.superwall.sdk.dependencies.LocaleIdentifierFactory
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.geo.GeoInfo
 import com.superwall.sdk.network.Network
@@ -24,9 +27,16 @@ import com.superwall.sdk.paywall.vc.web_view.templating.models.DeviceTemplate
 import com.superwall.sdk.storage.LastPaywallView
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.TotalPaywallViews
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeout
 import java.text.SimpleDateFormat
 import java.time.Duration
-import java.util.*
+import java.util.Currency
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
+import kotlin.time.Duration.Companion.minutes
 
 enum class InterfaceStyle(
     val rawValue: String,
@@ -95,7 +105,7 @@ class DeviceHelper(
             return storage.get(TotalPaywallViews) ?: 0
         }
 
-    private var geoInfo: GeoInfo? = null
+    private val geoInfo: MutableStateFlow<GeoInfo?> = MutableStateFlow(null)
 
     val locale: String
         get() {
@@ -183,7 +193,8 @@ class DeviceHelper(
     val isSandbox: Boolean
         get() {
             // Not exactly the same as iOS, but similar
-            val isDebuggable: Boolean = (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+            val isDebuggable: Boolean =
+                (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
             return isDebuggable
         }
 
@@ -308,7 +319,8 @@ class DeviceHelper(
 
                 // Pad beta number and add to appendix
                 if (appendixComponents.size > 1) {
-                    appendixVersion = String.format("%03d", appendixComponents[1].toIntOrNull() ?: 0)
+                    appendixVersion =
+                        String.format("%03d", appendixComponents[1].toIntOrNull() ?: 0)
                     appendix += ".$appendixVersion"
                 }
             }
@@ -386,7 +398,21 @@ class DeviceHelper(
     suspend fun getTemplateDevice(): Map<String, Any> {
         val identityInfo = factory.makeIdentityInfo()
         val aliases = listOf(identityInfo.aliasId)
-
+        val geo =
+            try {
+                withTimeout(1.minutes) {
+                    geoInfo.first { it != null }
+                }
+            } catch (e: Throwable) {
+                Logger.debug(
+                    logLevel = LogLevel.error,
+                    scope = LogScope.device,
+                    message = "Failed to get geo info - timeout",
+                    info = emptyMap(),
+                    error = e,
+                )
+                null
+            }
         val deviceTemplate =
             DeviceTemplate(
                 publicApiKey = storage.apiKey,
@@ -433,18 +459,20 @@ class DeviceHelper(
                 appBuildString = appBuildString,
                 appBuildStringNumber = appBuildString.toInt(),
                 interfaceStyleMode = if (interfaceStyleOverride == null) "automatic" else "manual",
-                ipRegion = geoInfo?.region,
-                ipRegionCode = geoInfo?.regionCode,
-                ipCountry = geoInfo?.country,
-                ipCity = geoInfo?.city,
-                ipContinent = geoInfo?.continent,
-                ipTimezone = geoInfo?.timezone,
+                ipRegion = geo?.region,
+                ipRegionCode = geo?.regionCode,
+                ipCountry = geo?.country,
+                ipCity = geo?.city,
+                ipContinent = geo?.continent,
+                ipTimezone = geo?.timezone,
             )
 
         return deviceTemplate.toDictionary()
     }
 
     suspend fun getGeoInfo() {
-        geoInfo = network.getGeoInfo()
+        network.getGeoInfo().let {
+            geoInfo.value = it
+        }
     }
 }
