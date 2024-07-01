@@ -2,9 +2,13 @@ package com.superwall.sdk.config
 
 import android.content.Context
 import android.webkit.WebView
+import com.superwall.sdk.Superwall
+import com.superwall.sdk.analytics.internal.track
+import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.config.models.ConfigState
 import com.superwall.sdk.config.models.getConfig
 import com.superwall.sdk.config.options.SuperwallOptions
+import com.superwall.sdk.dependencies.DeviceHelperFactory
 import com.superwall.sdk.dependencies.DeviceInfoFactory
 import com.superwall.sdk.dependencies.RequestFactory
 import com.superwall.sdk.dependencies.RuleAttributesFactory
@@ -32,8 +36,12 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
 
 // TODO: Re-enable those params
@@ -50,7 +58,8 @@ open class ConfigManager(
     interface Factory :
         RequestFactory,
         DeviceInfoFactory,
-        RuleAttributesFactory
+        RuleAttributesFactory,
+        DeviceHelperFactory
 
     val ioScope = CoroutineScope(Dispatchers.IO)
 
@@ -103,11 +112,15 @@ open class ConfigManager(
                 ioScope.async {
                     deviceHelper.getGeoInfo()
                 }
+            val attributesDeferred = ioScope.async { factory.makeSessionDeviceAttributes() }
 
             // Await results from both operations
-            val config = configDeferred.await()
-            geoDeferred.await()
-
+            val (result, _, attributes) = listOf(configDeferred, geoDeferred, attributesDeferred).awaitAll()
+            ioScope.launch {
+                @Suppress("UNCHECKED_CAST")
+                Superwall.instance.track(InternalSuperwallEvent.DeviceAttributes(attributes as HashMap<String, Any>))
+            }
+            val config = result as Config
             ioScope.launch { sendProductsBack(config) }
 
             Logger.debug(
