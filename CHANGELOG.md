@@ -10,8 +10,9 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ### Fixes
 
-- Fixes SW-2878 and it's related leaks. The `PaywallViewController` was not being properly detached when activity was stopped, causing memory leaks.
+- SW-2878: and it's related leaks. The `PaywallViewController` was not being properly detached when activity was stopped, causing memory leaks.
 - SW-2872: Fixes issue where `deviceAttributes` event and fetching would not await for IP geo to complete.
+- Fixes issues on tablet devices where the paywall would close after rotation/configuration change.
 
 ## 1.1.8
 
