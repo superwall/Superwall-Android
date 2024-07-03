@@ -1,6 +1,5 @@
 package com.superwall.sdk.paywall.presentation.rule_logic
 
-import android.content.Context
 import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.dependencies.RuleAttributesFactory
 import com.superwall.sdk.models.assignment.ConfirmableAssignment
@@ -13,6 +12,7 @@ import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
 import com.superwall.sdk.models.triggers.TriggerRuleOutcome
 import com.superwall.sdk.models.triggers.UnmatchedRule
 import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.ExpressionEvaluator
+import com.superwall.sdk.paywall.presentation.rule_logic.javascript.JavascriptEvaluator
 import com.superwall.sdk.storage.Storage
 
 data class RuleEvaluationOutcome(
@@ -32,16 +32,18 @@ sealed class RuleMatchOutcome {
 }
 
 class RuleLogic(
-    private val context: Context,
     private val configManager: ConfigManager,
     private val storage: Storage,
     private val factory: RuleAttributesFactory,
+    private val javascriptEvaluator: JavascriptEvaluator,
 ) {
     suspend fun evaluateRules(
         event: EventData,
         triggers: Map<String, Trigger>,
     ): RuleEvaluationOutcome {
-        val trigger = triggers[event.name] ?: return RuleEvaluationOutcome(triggerResult = InternalTriggerResult.EventNotFound)
+        val trigger =
+            triggers[event.name]
+                ?: return RuleEvaluationOutcome(triggerResult = InternalTriggerResult.EventNotFound)
 
         val ruleMatchOutcome = findMatchingRule(event, trigger)
 
@@ -61,7 +63,12 @@ class RuleLogic(
         variant = confirmedAssignments[rule.experiment.id]
             ?: configManager.unconfirmedAssignments[rule.experiment.id]
             ?: run {
-                return RuleEvaluationOutcome(triggerResult = InternalTriggerResult.Error(PaywallNotFoundException()))
+                return RuleEvaluationOutcome(
+                    triggerResult =
+                        InternalTriggerResult.Error(
+                            PaywallNotFoundException(),
+                        ),
+                )
             }
 
         if (variant !in confirmedAssignments.values) {
@@ -73,13 +80,28 @@ class RuleLogic(
                 RuleEvaluationOutcome(
                     confirmableAssignment = confirmableAssignment,
                     unsavedOccurrence = matchedRuleItem.unsavedOccurrence,
-                    triggerResult = InternalTriggerResult.Holdout(Experiment(rule.experiment.id, rule.experiment.groupId, variant)),
+                    triggerResult =
+                        InternalTriggerResult.Holdout(
+                            Experiment(
+                                rule.experiment.id,
+                                rule.experiment.groupId,
+                                variant,
+                            ),
+                        ),
                 )
+
             Experiment.Variant.VariantType.TREATMENT ->
                 RuleEvaluationOutcome(
                     confirmableAssignment = confirmableAssignment,
                     unsavedOccurrence = matchedRuleItem.unsavedOccurrence,
-                    triggerResult = InternalTriggerResult.Paywall(Experiment(rule.experiment.id, rule.experiment.groupId, variant)),
+                    triggerResult =
+                        InternalTriggerResult.Paywall(
+                            Experiment(
+                                rule.experiment.id,
+                                rule.experiment.groupId,
+                                variant,
+                            ),
+                        ),
                 )
         }
     }
@@ -88,7 +110,7 @@ class RuleLogic(
         event: EventData,
         trigger: Trigger,
     ): RuleMatchOutcome {
-        val expressionEvaluator = ExpressionEvaluator(context, storage, factory)
+        val expressionEvaluator = ExpressionEvaluator(storage, factory, javascriptEvaluator)
 
         val unmatchedRules = mutableListOf<UnmatchedRule>()
 

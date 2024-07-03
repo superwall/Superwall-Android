@@ -11,7 +11,6 @@ import com.superwall.sdk.paywall.vc.delegate.PaywallViewDelegateAdapter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 class PaywallManager(
     private val factory: PaywallManager.Factory,
@@ -62,7 +61,6 @@ class PaywallManager(
             for (view in cache.getAllPaywallViews()) {
                 view.webView.destroy()
             }
-
             cache.removeAll()
         }
     }
@@ -80,16 +78,15 @@ class PaywallManager(
         isForPresentation: Boolean,
         isPreloading: Boolean,
         delegate: PaywallViewDelegateAdapter?,
-    ): PaywallView =
-        withContext(Dispatchers.Main) {
+    ): PaywallView {
             val paywall = paywallRequestManager.getPaywall(request)
 
-            val deviceInfo = factory.makeDeviceInfo()
-            val cacheKey =
-                PaywallCacheLogic.key(
-                    identifier = paywall.identifier,
-                    locale = deviceInfo.locale,
-                )
+        val deviceInfo = factory.makeDeviceInfo()
+        val cacheKey =
+            PaywallCacheLogic.key(
+                identifier = paywall.identifier,
+                locale = deviceInfo.locale,
+            )
 
             if (!request.isDebuggerLaunched) {
                 cache.getPaywallView(cacheKey)?.let { view ->
@@ -97,28 +94,27 @@ class PaywallManager(
                         view.callback = delegate
                         view.paywall.update(paywall)
                     }
-                    return@withContext view
+                    return view
                 }
             }
 
-            val paywallView =
-                factory.makePaywallView(
-                    paywall = paywall,
-                    cache = cache,
-                    delegate = delegate,
-                )
-            cache.save(paywallView, cacheKey)
-
-            if (isForPresentation) {
-                // Only preload if it's actually gonna present the view.
-                // Not if we're just checking its result
-                // TODO: Handle the preloading
-                if (paywallView.loadingState is PaywallLoadingState.Unknown) {
-                    paywallView.loadWebView()
-                }
+        val paywallView =
+            factory.makePaywallView(
+                paywall = paywall,
+                cache = cache,
+                delegate = delegate,
+            )
+        cache.save(paywallView, cacheKey)
+        if (isForPresentation) {
+            // Only preload if it's actually gonna present the view.
+            // Not if we're just checking its result
+            // TODO: Handle the preloading
+            if (paywallView.loadingState is PaywallLoadingState.Unknown) {
+                paywallView.loadWebView()
+            }
 //            paywallViewController.loadViewIfNeeded()
-            }
-
-            return@withContext paywallView
         }
+
+        return paywallView
+    }
 }

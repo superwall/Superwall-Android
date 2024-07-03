@@ -18,6 +18,7 @@ enum class LogScope {
     events,
     receipts,
     superwallCore,
+    jsEvaluator,
     paywallPresentation,
     paywallTransactions,
     paywallView,
