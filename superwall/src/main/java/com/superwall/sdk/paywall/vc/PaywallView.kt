@@ -211,6 +211,16 @@ class PaywallView(
         this.unsavedOccurrence = unsavedOccurrence
     }
 
+    internal fun setupShimmer(shimmerView: ShimmerView) {
+        this.shimmerView = shimmerView
+        shimmerView.setupFor(this, loadingState)
+    }
+
+    internal fun setupLoading(loadingView: LoadingViewController) {
+        this.loadingViewController = loadingView
+        loadingView.setupFor(this, loadingState)
+    }
+
     fun present(
         presenter: Activity,
         request: PresentationRequest,
@@ -220,16 +230,13 @@ class PaywallView(
         completion: (Boolean) -> Unit,
     ) {
         if (webView.parent == null) addView(webView)
+        cache?.acquireLoadingView()?.let {
+            setupLoading(it)
+        }
 
-        loadingViewController =
-            cache?.acquireLoadingView()?.apply {
-                setupFor(this@PaywallView, loadingState)
-            }
-
-        shimmerView =
-            cache?.acquireShimmerView()?.apply {
-                setupFor(this@PaywallView, loadingState)
-            }
+        cache?.acquireShimmerView()?.let {
+            setupShimmer(it)
+        }
         layoutSubviews()
         set(request, paywallStatePublisher, unsavedOccurrence)
         if (presentationStyleOverride != null && presentationStyleOverride != PaywallPresentationStyle.NONE) {

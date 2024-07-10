@@ -42,7 +42,7 @@ class ShimmerView(
 
     init {
         setLayerType(LAYER_TYPE_SOFTWARE, null)
-
+        setTag(TAG)
         checkForOrientationChanges()
     }
 

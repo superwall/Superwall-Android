@@ -12,6 +12,7 @@ import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.SD
 import com.superwall.sdk.paywall.presentation.rule_logic.tryToMatchOccurrence
 import com.superwall.sdk.storage.Storage
 import kotlinx.coroutines.guava.await
+import kotlinx.coroutines.runBlocking
 
 internal class SandboxJavascriptEvaluator(
     val jsSandbox: JavaScriptSandbox,
@@ -41,6 +42,12 @@ internal class SandboxJavascriptEvaluator(
         } else {
             val expressionMatched = result == "true"
             return rule.tryToMatchOccurrence(storage, expressionMatched)
+        }
+    }
+
+    override fun teardown() {
+        runBlocking {
+            jsSandbox?.close()
         }
     }
 }

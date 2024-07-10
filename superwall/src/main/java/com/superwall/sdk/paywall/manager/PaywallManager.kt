@@ -60,8 +60,20 @@ class PaywallManager(
         CoroutineScope(Dispatchers.Main).launch {
             for (view in cache.getAllPaywallViews()) {
                 view.webView.destroy()
+                val inactivePaywalls =
+                    cache.entries
+                        .filter {
+                            it.value is PaywallView &&
+                                    it.key != cache.activePaywallVcKey
+                        }.values
+                        .map { it as PaywallView }
+                for (paywallView in inactivePaywalls) {
+                    if (paywallView.paywall.identifier != cache.activePaywallVcKey) {
+                        paywallView.webView.destroy()
+                    }
+                }
+                cache.removeAll()
             }
-            cache.removeAll()
         }
     }
 

@@ -62,4 +62,8 @@ internal class WebviewJavascriptEvaluator(
 
         return deferred.await()
     }
+
+    override fun teardown() {
+        webView.destroy()
+    }
 }

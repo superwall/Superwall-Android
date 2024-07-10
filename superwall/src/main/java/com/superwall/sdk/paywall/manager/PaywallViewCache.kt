@@ -28,6 +28,14 @@ class PaywallViewCache(
 
     private val singleThreadContext = Dispatchers.IO
 
+    val entries =
+        store.views.entries
+            .map { it.key to it.value }
+            .toMap()
+
+    @Deprecated("Will be removed in the upcoming versions in favor of `getPaywallViews`")
+    fun getAllPaywallViewControllers(): List<PaywallView> = getAllPaywallViews()
+
     fun getAllPaywallViews(): List<PaywallView> =
         runBlocking(singleThreadContext) {
             store.all().filterIsInstance<PaywallView>().toList()

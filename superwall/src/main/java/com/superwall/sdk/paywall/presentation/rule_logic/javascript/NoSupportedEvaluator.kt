@@ -17,4 +17,6 @@ object NoSupportedEvaluator : JavascriptEvaluator {
             rule.experiment.id,
         )
     }
+
+    override fun teardown() {}
 }

@@ -4,11 +4,13 @@ import android.content.Context
 import com.superwall.sdk.models.triggers.TriggerRule
 import com.superwall.sdk.models.triggers.TriggerRuleOutcome
 
-fun interface JavascriptEvaluator {
+interface JavascriptEvaluator {
     suspend fun evaluate(
         base64params: String,
         rule: TriggerRule,
     ): TriggerRuleOutcome
+
+    fun teardown()
 
     fun interface Factory {
         suspend fun provideJavascriptEvaluator(context: Context): JavascriptEvaluator

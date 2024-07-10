@@ -16,6 +16,7 @@ class LoadingView(
     }
 
     init {
+        setTag(TAG)
         setBackgroundColor(Color.TRANSPARENT)
 
         // Create a ProgressBar with the default spinner style
