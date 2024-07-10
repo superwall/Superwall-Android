@@ -12,8 +12,9 @@ import com.example.superapp.utils.waitFor
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.superwall.SuperwallEvent
 import com.superwall.superapp.test.UITestHandler
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.async
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -28,6 +29,8 @@ class FlowScreenshotTestExecutor {
             resultValidator = ThresholdValidator(0.01f),
             imageComparator = CustomComparator(),
         )
+
+    val mainScope = CoroutineScope(Dispatchers.Main)
 
     @Test
     fun test_paywall_reappers_with_video() =
@@ -56,15 +59,25 @@ class FlowScreenshotTestExecutor {
                     awaitUntilWebviewAppears()
                     delayFor(500.milliseconds)
                     // We scroll a bit to display the button
-                    Superwall.instance.paywallViewController
-                        ?.webView
-                        ?.scrollBy(0, 300)
+                    mainScope
+                        .async {
+                            Superwall.instance.paywallViewController
+                                ?.webView
+                                ?.scrollBy(0, 300) ?: kotlin.run {
+                                throw IllegalStateException("No viewcontroller found")
+                            }
+                        }.await()
                     // We delay a bit to ensure the button is visible
                     delayFor(100.milliseconds)
                     // We scroll back to the top
-                    Superwall.instance.paywallViewController
-                        ?.webView
-                        ?.scrollTo(0, 0)
+                    mainScope
+                        .async {
+                            Superwall.instance.paywallViewController
+                                ?.webView
+                                ?.scrollTo(0, 0) ?: kotlin.run {
+                                throw IllegalStateException("No viewcontroller found")
+                            }
+                        }.await()
                     // We delay a bit to ensure scroll has finished
                     delayFor(1.seconds)
                 }
@@ -100,7 +113,8 @@ class FlowScreenshotTestExecutor {
             screenshotFlow(UITestHandler.test34Info) {
                 step("") {
                     it.waitFor { it is SuperwallEvent.PaywallWebviewLoadComplete }
-                    awaitUntilShimmerDisappears() || awaitUntilWebviewAppears()
+                    awaitUntilShimmerDisappears()
+                    awaitUntilWebviewAppears()
                 }
                 step {
                     it.waitFor { it is SuperwallEvent.Reset }
@@ -117,27 +131,29 @@ class FlowScreenshotTestExecutor {
                     it.waitFor { it is SuperwallEvent.PaywallWebviewLoadComplete }
                     awaitUntilShimmerDisappears()
                     awaitUntilWebviewAppears()
-                    delayFor(500.milliseconds)
-                    launch(Dispatchers.Main) {
-                        // We scroll a bit to display the button
-                        Superwall.instance.paywallViewController
-                            ?.webView
-                            ?.scrollBy(0, 300)
-                    }
+                    delayFor(100.milliseconds)
+                    mainScope
+                        .async {
+                            // We scroll a bit to display the button
+                            Superwall.instance.paywallViewController
+                                ?.webView
+                                ?.scrollBy(0, 300)
+                        }.await()
                     // We delay a bit to ensure the button is visible
                     delayFor(100.milliseconds)
                     // We scroll back to the top
-                    launch(Dispatchers.Main) {
-                        Superwall.instance.paywallViewController
-                            ?.webView
-                            ?.scrollTo(0, 0)
-                    }
+                    mainScope
+                        .async {
+                            Superwall.instance.paywallViewController
+                                ?.webView
+                                ?.scrollTo(0, 0)
+                        }.await()
                     // We delay a bit to ensure scroll has finished
-                    delayFor(1.seconds)
+                    delayFor(500.milliseconds)
                 }
 
                 step {
-                    it.waitFor { it is SuperwallEvent.PaywallClose }
+                    delayFor(10.seconds)
                 }
             }
         }
