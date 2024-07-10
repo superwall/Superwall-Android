@@ -321,7 +321,7 @@ open class ConfigManager(
                                     retryCount = 6,
                                 )
                             try {
-                                paywallManager.getPaywallViewController(
+                                paywallManager.getPaywallView(
                                     request = request,
                                     isForPresentation = true,
                                     isPreloading = true,

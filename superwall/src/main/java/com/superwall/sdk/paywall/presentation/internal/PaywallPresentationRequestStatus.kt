@@ -38,8 +38,8 @@ sealed class PaywallPresentationRequestStatusReason(
     /** The event provided was not found in any campaign on the dashboard. */
     class EventNotFound : PaywallPresentationRequestStatusReason("event_not_found")
 
-    /** There was an error getting the paywall view controller. */
-    class NoPaywallViewController : PaywallPresentationRequestStatusReason("no_paywall_view_controller")
+    /** There was an error getting the paywall view. */
+    class NoPaywallView : PaywallPresentationRequestStatusReason("no_paywall_view_controller")
 
     /** There isn't a view to present the paywall on. */
     class NoPresenter : PaywallPresentationRequestStatusReason("no_presenter")
@@ -54,4 +54,6 @@ sealed class PaywallPresentationRequestStatusReason(
     class SubscriptionStatusTimeout : PaywallPresentationRequestStatusReason("subscription_status_timeout")
 }
 
+@Deprecated("Will be removed in the upcoming versions, use NoPaywallView instead")
+typealias NoPaywallController = PaywallPresentationRequestStatusReason.NoPaywallView
 typealias PresentationPipelineError = PaywallPresentationRequestStatusReason

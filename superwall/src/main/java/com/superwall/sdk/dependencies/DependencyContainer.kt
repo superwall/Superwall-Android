@@ -18,7 +18,7 @@ import com.superwall.sdk.config.ConfigLogic
 import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.debug.DebugManager
-import com.superwall.sdk.debug.DebugViewController
+import com.superwall.sdk.debug.DebugView
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.delegate.SuperwallDelegateAdapter
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
@@ -36,7 +36,7 @@ import com.superwall.sdk.network.Network
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.network.device.DeviceInfo
 import com.superwall.sdk.paywall.manager.PaywallManager
-import com.superwall.sdk.paywall.manager.PaywallViewControllerCache
+import com.superwall.sdk.paywall.manager.PaywallViewCache
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
@@ -45,8 +45,8 @@ import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.paywall.request.PaywallRequestManager
 import com.superwall.sdk.paywall.request.PaywallRequestManagerDepFactory
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
-import com.superwall.sdk.paywall.vc.PaywallViewController
-import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegateAdapter
+import com.superwall.sdk.paywall.vc.PaywallView
+import com.superwall.sdk.paywall.vc.delegate.PaywallViewDelegateAdapter
 import com.superwall.sdk.paywall.vc.web_view.SWWebView
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallMessageHandler
 import com.superwall.sdk.paywall.vc.web_view.templating.models.JsonVariables
@@ -83,16 +83,16 @@ class DependencyContainer(
     StoreTransactionFactory,
     Storage.Factory,
     InternalSuperwallEvent.PresentationRequest.Factory,
-    ViewControllerFactory,
+    ViewFactory,
     PaywallManager.Factory,
     OptionsFactory,
     TriggerFactory,
     TransactionVerifierFactory,
     TransactionManager.Factory,
-    PaywallViewController.Factory,
+    PaywallView.Factory,
     ConfigManager.Factory,
     AppSessionManager.Factory,
-    DebugViewController.Factory {
+    DebugView.Factory {
     var network: Network
     override lateinit var api: Api
     override lateinit var deviceHelper: DeviceHelper
@@ -279,11 +279,11 @@ class DependencyContainer(
         return headers
     }
 
-    override suspend fun makePaywallViewController(
+    override suspend fun makePaywallView(
         paywall: Paywall,
-        cache: PaywallViewControllerCache?,
-        delegate: PaywallViewControllerDelegateAdapter?,
-    ): PaywallViewController {
+        cache: PaywallViewCache?,
+        delegate: PaywallViewDelegateAdapter?,
+    ): PaywallView {
         return withContext(Dispatchers.Main) {
             // TODO: Fix this up
 
@@ -305,29 +305,29 @@ class DependencyContainer(
 
             val webView = webViewDeffered.await()
 
-            val paywallViewController =
-                PaywallViewController(
+            val paywallView =
+                PaywallView(
                     context = context,
                     paywall = paywall,
                     factory = this@DependencyContainer,
                     cache = cache,
-                    delegate = delegate,
+                    callback = delegate,
                     deviceHelper = deviceHelper,
                     paywallManager = paywallManager,
                     storage = storage,
                     webView = webView,
-                    eventDelegate = Superwall.instance,
+                    eventCallback = Superwall.instance,
                 )
-            webView.delegate = paywallViewController
-            messageHandler.delegate = paywallViewController
+            webView.delegate = paywallView
+            messageHandler.delegate = paywallView
 
-            return@withContext paywallViewController
+            return@withContext paywallView
         }
     }
 
-    override fun makeDebugViewController(id: String?): DebugViewController {
-        val viewController =
-            DebugViewController(
+    override fun makeDebugViewController(id: String?): DebugView {
+        val view =
+            DebugView(
                 context = context,
                 storeKitManager = storeKitManager,
                 network = network,
@@ -336,12 +336,12 @@ class DependencyContainer(
                 debugManager = debugManager,
                 factory = this,
             )
-        viewController.paywallDatabaseId = id
+        view.paywallDatabaseId = id
         // Note: Modal presentation style is an iOS concept. In Android, you might handle this differently.
-        return viewController
+        return view
     }
 
-    override fun makeCache(): PaywallViewControllerCache = PaywallViewControllerCache(deviceHelper.locale)
+    override fun makeCache(): PaywallViewCache = PaywallViewCache()
 
     override fun makeDeviceInfo(): DeviceInfo =
         DeviceInfo(

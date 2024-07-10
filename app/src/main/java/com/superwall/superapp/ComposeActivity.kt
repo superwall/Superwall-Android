@@ -28,13 +28,13 @@ import androidx.compose.ui.unit.dp
 import com.superwall.sdk.composable.PaywallComposable
 import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
-import com.superwall.sdk.paywall.vc.PaywallViewController
-import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegate
+import com.superwall.sdk.paywall.vc.PaywallView
+import com.superwall.sdk.paywall.vc.delegate.PaywallViewCallback
 import com.superwall.superapp.ui.theme.MyApplicationTheme
 
 class ComposeActivity :
     ComponentActivity(),
-    PaywallViewControllerDelegate {
+    PaywallViewCallback {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -42,8 +42,8 @@ class ComposeActivity :
         }
     }
 
-    override fun didFinish(
-        paywall: PaywallViewController,
+    override fun onFinished(
+        paywall: PaywallView,
         result: PaywallResult,
         shouldDismiss: Boolean,
     ) {
@@ -54,7 +54,7 @@ class ComposeActivity :
 @Preview(showBackground = true)
 @Composable
 fun ComposeActivityContent(
-    @PreviewParameter(PreviewPaywallDelegateProvider::class) delegate: PaywallViewControllerDelegate,
+    @PreviewParameter(PreviewPaywallDelegateProvider::class) delegate: PaywallViewCallback,
 ) {
     val selectedTabIndex = remember { mutableStateOf(0) }
     val examplePaywallOverrides = PaywallOverrides()
@@ -101,7 +101,7 @@ fun ComposeActivityContent(
 @Composable
 fun TabContent0(
     paywallOverrides: PaywallOverrides?,
-    delegate: PaywallViewControllerDelegate,
+    delegate: PaywallViewCallback,
 ) {
     PaywallComposable(
         event = "no_products",
@@ -114,7 +114,7 @@ fun TabContent0(
 @Composable
 fun TabContent1(
     paywallOverrides: PaywallOverrides?,
-    delegate: PaywallViewControllerDelegate,
+    delegate: PaywallViewCallback,
 ) {
     PaywallComposable(
         event = "no-existing-event",
@@ -167,13 +167,13 @@ fun EventButton() {
 }
 
 // Mock Provider for Preview
-class PreviewPaywallDelegateProvider : PreviewParameterProvider<PaywallViewControllerDelegate> {
-    override val values: Sequence<PaywallViewControllerDelegate> =
+class PreviewPaywallDelegateProvider : PreviewParameterProvider<PaywallViewCallback> {
+    override val values: Sequence<PaywallViewCallback> =
         sequenceOf(
-            object : PaywallViewControllerDelegate {
-                // Mock implementation of PaywallViewControllerDelegate
-                override fun didFinish(
-                    paywall: PaywallViewController,
+            object : PaywallViewCallback {
+                // Mock implementation of PaywallViewDelegate
+                override fun onFinished(
+                    paywall: PaywallView,
                     result: PaywallResult,
                     shouldDismiss: Boolean,
                 ) {

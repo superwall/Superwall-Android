@@ -26,7 +26,7 @@ sealed class PaywallWebEvent {
     ) : PaywallWebEvent()
 
     @SerialName("opened_url_in_safari")
-    data class OpenedUrlInSafari(
+    data class OpenedUrlInChrome(
         val url: URL,
     ) : PaywallWebEvent()
 

@@ -367,8 +367,8 @@ object UITestHandler {
                 "browser opens, close it, and verify that the paywall is still showing.",
             test = { scope, events ->
 
-                // Create a mock paywall view controller
-                val delegate = MockPaywallViewControllerDelegate()
+                // Create a mock paywall view
+                val delegate = MockPaywallViewDelegate()
 
                 // Get the paywall view controller instance
                 val viewController =
@@ -668,17 +668,17 @@ object UITestHandler {
                 " After doing this, try test 37",
             test = { scope, events ->
                 // Create a mock paywall view controller
-                val delegate = MockPaywallViewControllerDelegate()
-                delegate.paywallViewControllerDidFinish { paywallViewController, paywallResult, shouldDismiss ->
-                    println("!!! TEST 35 !!! Result: $paywallResult, shouldDismiss: $shouldDismiss, paywallVc: $paywallViewController")
+                val delegate = MockPaywallViewDelegate()
+                delegate.paywallViewFinished { paywallView, paywallResult, shouldDismiss ->
+                    println("!!! TEST 35 !!! Result: $paywallResult, shouldDismiss: $shouldDismiss, paywallVc: $paywallView")
                 }
 
                 // Get the paywall view controller instance
-                val viewController =
+                val view =
                     Superwall.instance.getPaywall(event = "present_data", delegate = delegate)
 
                 // Present using the convenience `SuperwallPaywallActivity` activity and verify test case.
-                SuperwallPaywallActivity.startWithView(context = this, view = viewController)
+                SuperwallPaywallActivity.startWithView(context = this, view = view)
             },
         )
     var test36Info =
@@ -688,9 +688,9 @@ object UITestHandler {
                 "\"the result type \"declined\" is printed to the console. The paywall should close.",
             test = { scope, events ->
                 // Create a mock paywall view controller
-                val delegate = MockPaywallViewControllerDelegate()
-                delegate.paywallViewControllerDidFinish { paywallViewController, paywallResult, shouldDismiss ->
-                    println("!!! TEST 36 !!! Result: $paywallResult, shouldDismiss: $shouldDismiss, paywallVc: $paywallViewController")
+                val delegate = MockPaywallViewDelegate()
+                delegate.paywallViewFinished { paywallView, paywallResult, shouldDismiss ->
+                    println("!!! TEST 36 !!! Result: $paywallResult, shouldDismiss: $shouldDismiss, paywallVc: $paywallView")
                 }
 
                 // Get the paywall view controller instance
@@ -709,9 +709,9 @@ object UITestHandler {
                 "print the paywallResult as \"restored\".",
             test = { scope, events ->
                 // Create a mock paywall view controller
-                val delegate = MockPaywallViewControllerDelegate()
-                delegate.paywallViewControllerDidFinish { paywallViewController, paywallResult, shouldDismiss ->
-                    println("!!! TEST 37 !!! Result: $paywallResult, shouldDismiss: $shouldDismiss, paywallVc: $paywallViewController")
+                val delegate = MockPaywallViewDelegate()
+                delegate.paywallViewFinished { paywallView, paywallResult, shouldDismiss ->
+                    println("!!! TEST 37 !!! Result: $paywallResult, shouldDismiss: $shouldDismiss, paywallVc: $paywallView")
                 }
 
                 // Get the paywall view controller instance
@@ -1042,9 +1042,9 @@ object UITestHandler {
                 "the \"No Subscription Found\" alert pops up.",
             test = { scope, events ->
                 // Create a mock paywall view controller
-                val delegate = MockPaywallViewControllerDelegate()
-                delegate.paywallViewControllerDidFinish { paywallViewController, paywallResult, shouldDismiss ->
-                    println("!!! TEST 37 !!! Result: $paywallResult, shouldDismiss: $shouldDismiss, paywallVc: $paywallViewController")
+                val delegate = MockPaywallViewDelegate()
+                delegate.paywallViewFinished { paywallView, paywallResult, shouldDismiss ->
+                    println("!!! TEST 37 !!! Result: $paywallResult, shouldDismiss: $shouldDismiss, paywallVc: $paywallView")
                 }
 
                 // Get the paywall view controller instance
@@ -1256,9 +1256,9 @@ object UITestHandler {
                 }
 
                 // Create a mock paywall view controller
-                val paywallDelegate = MockPaywallViewControllerDelegate()
-                paywallDelegate.paywallViewControllerDidFinish { paywallViewController, paywallResult, shouldDismiss ->
-                    println("!!! TEST 70 !!! Result: $paywallResult, shouldDismiss: $shouldDismiss, paywallVc: $paywallViewController")
+                val paywallDelegate = MockPaywallViewDelegate()
+                paywallDelegate.paywallViewFinished { paywallView, paywallResult, shouldDismiss ->
+                    println("!!! TEST 70 !!! Result: $paywallResult, shouldDismiss: $shouldDismiss, paywallVc: $paywallView")
                     if (shouldDismiss) {
                         CoroutineScope(Dispatchers.IO).launch {
                             Superwall.instance.dismiss()

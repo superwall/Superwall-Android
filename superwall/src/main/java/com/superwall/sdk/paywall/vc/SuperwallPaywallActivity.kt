@@ -49,7 +49,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
 
         fun startWithView(
             context: Context,
-            view: PaywallViewController,
+            view: PaywallView,
             key: String = UUID.randomUUID().toString(),
             presentationStyleOverride: PaywallPresentationStyle? = null,
         ) {
@@ -111,7 +111,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         val viewStorageViewModel = Superwall.instance.viewStore()
 
         val view =
-            viewStorageViewModel.retrieveView(key) as? PaywallViewController ?: run {
+            viewStorageViewModel.retrieveView(key) as? PaywallView ?: run {
                 finish() // Close the activity if the view associated with the key is not found
                 return
             }
@@ -162,10 +162,10 @@ class SuperwallPaywallActivity : AppCompatActivity() {
 
     override fun onStart() {
         super.onStart()
-        val paywallVc = contentView as? PaywallViewController ?: return
+        val paywallVc = contentView as? PaywallView ?: return
 
-        if (paywallVc.isSafariVCPresented) {
-            paywallVc.isSafariVCPresented = false
+        if (paywallVc.isBrowserViewPresented) {
+            paywallVc.isBrowserViewPresented = false
         }
 
         paywallVc.viewWillAppear()
@@ -173,7 +173,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        val paywallVc = contentView as? PaywallViewController ?: return
+        val paywallVc = contentView as? PaywallView ?: return
 
         paywallVc.viewDidAppear()
     }
@@ -181,20 +181,20 @@ class SuperwallPaywallActivity : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
 
-        val paywallVc = contentView as? PaywallViewController ?: return
+        val paywallVc = contentView as? PaywallView ?: return
 
         CoroutineScope(Dispatchers.Main).launch {
-            paywallVc.viewWillDisappear()
+            paywallVc.destroyed()
         }
     }
 
     override fun onStop() {
         super.onStop()
 
-        val paywallVc = contentView as? PaywallViewController ?: return
+        val paywallVc = contentView as? PaywallView ?: return
 
         CoroutineScope(Dispatchers.Main).launch {
-            paywallVc.viewDidDisappear()
+            paywallVc.destroyed()
         }
     }
 

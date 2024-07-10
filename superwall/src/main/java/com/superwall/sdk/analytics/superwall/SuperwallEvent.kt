@@ -367,9 +367,9 @@ sealed class SuperwallEvent {
     open val rawName: String
         get() = this.toString()
 
-    open val objcEvent: SuperwallEventObjc
+    open val backingEvent: SuperwallEvents
         get() {
-            return SuperwallEventObjc.values().find { it.rawName == rawName }!!
+            return SuperwallEvents.values().find { it.rawName == rawName }!!
         }
 
     val canImplicitlyTriggerPaywall: Boolean

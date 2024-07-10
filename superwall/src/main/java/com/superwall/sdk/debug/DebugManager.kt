@@ -4,7 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.annotation.MainThread
 import com.superwall.sdk.Superwall
-import com.superwall.sdk.dependencies.ViewControllerFactory
+import com.superwall.sdk.dependencies.ViewFactory
 import com.superwall.sdk.paywall.presentation.dismiss
 import com.superwall.sdk.storage.Storage
 import kotlinx.coroutines.CoroutineScope
@@ -15,9 +15,9 @@ import kotlinx.coroutines.launch
 class DebugManager(
     private val context: Context,
     private val storage: Storage,
-    private val factory: ViewControllerFactory,
+    private val factory: ViewFactory,
 ) {
-    var viewController: DebugViewController? = null
+    var view: DebugView? = null
         @MainThread set
     var isDebuggerLaunched = false
 
@@ -55,7 +55,7 @@ class DebugManager(
             Superwall.instance.dismiss()
             launchDebugger(paywallDatabaseId)
         } else {
-            if (viewController == null) {
+            if (view == null) {
                 delay(200)
                 presentDebugger(paywallDatabaseId)
             } else {
@@ -68,33 +68,33 @@ class DebugManager(
     @MainThread
     suspend fun presentDebugger(paywallDatabaseId: String? = null) {
         isDebuggerLaunched = true
-        val currentViewController = viewController
-        if (currentViewController != null) {
-            if (currentViewController.isActive) return
+        val currentView = view
+        if (currentView != null) {
+            if (currentView.isActive) return
 
-            currentViewController.paywallDatabaseId = paywallDatabaseId
-            currentViewController.loadPreview()
+            currentView.paywallDatabaseId = paywallDatabaseId
+            currentView.loadPreview()
 
-            DebugViewControllerActivity.startWithView(
+            DebugViewActivity.startWithView(
                 context,
-                currentViewController,
+                currentView,
             )
         } else {
             val newViewController = factory.makeDebugViewController(paywallDatabaseId)
-            DebugViewControllerActivity.startWithView(
+            DebugViewActivity.startWithView(
                 context,
                 newViewController,
             )
-            viewController = newViewController
+            view = newViewController
         }
     }
 
     @MainThread
     suspend fun closeDebugger(animated: Boolean) {
         // suspend fun dismissViewController() {
-        viewController?.encapsulatingActivity?.finish()
+        view?.encapsulatingActivity?.finish()
 
-        viewController = null
+        view = null
         isDebuggerLaunched = false
 //        }
 //

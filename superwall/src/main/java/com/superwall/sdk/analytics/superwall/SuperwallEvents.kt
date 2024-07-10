@@ -1,6 +1,9 @@
 package com.superwall.sdk.analytics.superwall
 
-enum class SuperwallEventObjc(
+@Deprecated("Will be removed in the upcoming versions, use SuperwallEvents instead")
+typealias SuperwallEventObjc = SuperwallEvents
+
+enum class SuperwallEvents(
     val rawName: String,
 ) {
     FirstSeen("first_seen"),
