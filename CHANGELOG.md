@@ -2,16 +2,14 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
-## 1.1.9
+## 1.2.0
 
 ### Deprecations
-
 
 This release includes multiple deprecations that will be removed in upcoming versions.
 Most are internal and will not affect the public API, those that will are marked as such and a simple migration
 path is provided. The notable ones in the public API are as follows:
 
-- Deprecated configuration method `Superwall.configure(applicationContext: Context, ...)` in favor of `Superwall.configure(applicationContext: Application, ...)` to enforce type safety. The rest of the method signature remains the same.
 - Deprecated `DebugViewControllerActivity` in favor of `DebugViewActivity`
 - Deprecated `PaywallViewController` in favor of `PaywallView`
   - Deprecated belonging methods:
@@ -37,6 +35,12 @@ path is provided. The notable ones in the public API are as follows:
 - Deprecated `DebugViewController` in favor of `DebugView`
 - Deprecated `LogScope.debugViewController` in favor of `LogScope.debugView`
 - Deprecated `PaywallPresentationRequestStatus.NoPaywallViewController` in favor of `NoPaywallView`
+
+## 1.1.9
+
+### Deprecations
+
+- Deprecated configuration method `Superwall.configure(applicationContext: Context, ...)` in favor of `Superwall.configure(applicationContext: Application, ...)` to enforce type safety. The rest of the method signature remains the same.
 
 ### Fixes
 
