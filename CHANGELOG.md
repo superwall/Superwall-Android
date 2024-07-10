@@ -4,6 +4,29 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## 1.2.0
 
+### Enhancements
+- Adds DSL methods for configuring the SDK. You can now use a configuration block:
+  ```kotlin
+  fun Application.configureSuperwall(
+        apiKey: String,
+        configure: SuperwallBuilder.() -> Unit,
+  )
+  ```
+
+This allows you to configure the SDK in a more idiomatic way:
+  ```kotlin
+     configureSuperwall(CONSTANT_API_KEY){
+        options {
+          logging {
+            level = LogLevel.debug
+          }
+          paywalls {
+            shouldPreload = false
+          }
+        }
+    }
+  ```
+
 ### Deprecations
 
 This release includes multiple deprecations that will be removed in upcoming versions.
@@ -37,29 +60,6 @@ path is provided. The notable ones in the public API are as follows:
 - Deprecated `PaywallPresentationRequestStatus.NoPaywallViewController` in favor of `NoPaywallView`
 
 ## 1.1.9
-
-### Enhancements
-- Adds DSL methods for configuring the SDK. You can now use a configuration block:
-  ```kotlin
-  fun Application.configureSuperwall(
-        apiKey: String,
-        configure: SuperwallBuilder.() -> Unit,
-  )
-  ```
-  
- This allows you to configure the SDK in a more idiomatic way:
-  ```kotlin
-     configureSuperwall(CONSTANT_API_KEY){
-        options {
-          logging {
-            level = LogLevel.debug
-          }
-          paywalls {
-            shouldPreload = false
-          }
-        }
-    }
-  ```
 
 ### Deprecations
 
