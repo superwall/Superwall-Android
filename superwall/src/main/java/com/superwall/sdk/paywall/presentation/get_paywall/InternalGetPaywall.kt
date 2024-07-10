@@ -15,7 +15,7 @@ data class PaywallComponents(
     val presenter: Activity?,
     val rulesOutcome: RuleEvaluationOutcome,
     val debugInfo: Map<String, Any>,
-){
+) {
     @Deprecated("Will be removed in the upcoming versions, use PaywallComponents.view instead")
     val viewController: PaywallView = view
 }

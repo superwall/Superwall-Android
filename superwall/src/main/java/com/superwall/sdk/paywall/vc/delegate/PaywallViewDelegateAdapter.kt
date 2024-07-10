@@ -25,9 +25,7 @@ class PaywallViewDelegateAdapter(
     ) = withContext(Dispatchers.Main) {
         kotlinDelegate?.onFinished(paywall, result, shouldDismiss)
     }
-
 }
 
 @Deprecated("Will be removed in the upcoming versions, use PaywallViewDelegateAdapter instead")
 typealias PaywallViewControllerDelegateAdapter = PaywallViewDelegateAdapter
-

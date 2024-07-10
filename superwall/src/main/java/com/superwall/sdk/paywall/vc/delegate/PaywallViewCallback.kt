@@ -25,7 +25,6 @@ interface PaywallViewCallback {
         result: PaywallResult,
         shouldDismiss: Boolean,
     )
-
 }
 
 fun interface PaywallViewEventCallback {

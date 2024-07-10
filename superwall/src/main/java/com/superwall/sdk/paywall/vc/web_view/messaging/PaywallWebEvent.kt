@@ -4,7 +4,6 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.net.URL
 
-
 @Serializable
 sealed class PaywallWebEvent {
     object Closed : PaywallWebEvent()

@@ -12,8 +12,11 @@ typealias MockPaywallViewControllerDelegate = MockPaywallViewDelegate
 class MockPaywallViewDelegate : PaywallViewCallback {
     private var paywallViewFinished: ((PaywallView, PaywallResult, Boolean) -> Unit)? = null
 
-    override fun didFinish(paywall: PaywallView, result: PaywallResult, shouldDismiss: Boolean) =
-        onFinished(paywall, result, shouldDismiss)
+    override fun didFinish(
+        paywall: PaywallView,
+        result: PaywallResult,
+        shouldDismiss: Boolean,
+    ) = onFinished(paywall, result, shouldDismiss)
 
     override fun onFinished(
         paywall: PaywallView,

@@ -99,4 +99,5 @@ suspend fun Superwall.presentPaywallViewController(
     unsavedOccurrence = unsavedOccurrence,
     debugInfo = debugInfo,
     request = request,
-    paywallStatePublisher = paywallStatePublisher,)
+    paywallStatePublisher = paywallStatePublisher,
+)

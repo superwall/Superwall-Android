@@ -81,7 +81,6 @@ class PaywallView(
     SWWebViewDelegate,
     ActivityEncapsulatable,
     GameControllerDelegate {
-
     interface Factory :
         TriggerSessionManagerFactory,
         TriggerFactory
@@ -115,7 +114,7 @@ class PaywallView(
     private var viewCreatedCompletion: ((Boolean) -> Unit)? = null
 
     // / Defines when Browser is presenting in app.
-    internal var isBrowserVCPresented = false
+    internal var isBrowserViewPresented = false
 
     internal var interceptTouchEvents = false
 
@@ -254,12 +253,11 @@ class PaywallView(
         viewCreatedCompletion = completion
     }
 
-
     @Deprecated("Will be removed in the upcoming versions, use beforeViewCreated instead")
     fun viewWillAppear() = beforeViewCreated()
 
     fun beforeViewCreated() {
-        if (isBrowserVCPresented) {
+        if (isBrowserViewPresented) {
             return
         }
         shimmerView.checkForOrientationChanges()
@@ -294,7 +292,7 @@ class PaywallView(
     }
 
     fun beforeOnDestroy() {
-        if (isBrowserVCPresented) {
+        if (isBrowserViewPresented) {
             return
         }
         Superwall.instance.presentationItems.paywallInfo = info
@@ -303,7 +301,7 @@ class PaywallView(
     }
 
     suspend fun destroyed() {
-        if (isBrowserVCPresented) {
+        if (isBrowserViewPresented) {
             return
         }
 
@@ -441,7 +439,6 @@ class PaywallView(
     // / Lets the view controller know that presentation has finished.
     // Only called once per presentation.
 
-
     @Deprecated("Will be removed in the upcoming versions, use onViewCreated instead")
     fun viewDidAppear() = onViewCreated()
 
@@ -576,7 +573,7 @@ class PaywallView(
         closeActionTitle: String = "Done",
         action: (() -> Unit)? = null,
         onClose: (() -> Unit)? = null,
-        ) = showAlert(title, message, actionTitle, closeActionTitle, action, onClose)
+    ) = showAlert(title, message, actionTitle, closeActionTitle, action, onClose)
 
     fun showAlert(
         title: String? = null,
@@ -715,7 +712,7 @@ class PaywallView(
             val customTabsIntent = CustomTabsIntent.Builder().build()
             customTabsIntent.intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
             customTabsIntent.launchUrl(context, Uri.parse(parsedUrl.toString()))
-            isBrowserVCPresented = true
+            isBrowserViewPresented = true
         } catch (e: MalformedURLException) {
             Logger.debug(
                 logLevel = LogLevel.debug,

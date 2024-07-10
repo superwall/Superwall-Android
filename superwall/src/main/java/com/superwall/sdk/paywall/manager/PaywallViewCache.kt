@@ -28,7 +28,6 @@ class PaywallViewCache {
             CoroutineScope(singleThreadContext).launch { _activePaywallViewKey = value }.apply { }
         }
 
-
     @Deprecated("Will be removed in the upcoming versions, use activePaywallView instead")
     val activePaywallViewController: PaywallView? = activePaywallView
 
@@ -41,7 +40,6 @@ class PaywallViewCache {
     ) {
         CoroutineScope(singleThreadContext).launch { cache[key] = paywallView }
     }
-
 
     @Deprecated("Will be removed in the upcoming versions, use getPaywallView instead")
     fun getPaywallViewController(key: String): PaywallView? = getPaywallView(key)

@@ -29,7 +29,7 @@ class PaywallManager(
     var presentedViewController: PaywallView?
         get() = currentView
         set(value) {
-           currentView = value
+            currentView = value
         }
 
     private var _cache: PaywallViewCache? = null
@@ -47,7 +47,6 @@ class PaywallManager(
         _cache = cache
         return cache
     }
-
 
     @Deprecated("Will be removed in the upcoming versions, use removePaywallView instead")
     fun removePaywallViewController(forKey: String) {
