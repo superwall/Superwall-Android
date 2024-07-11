@@ -40,7 +40,7 @@ class FlowScreenshotTestExecutor {
                     it.waitFor { it is SuperwallEvent.PaywallWebviewLoadComplete }
                     awaitUntilShimmerDisappears()
                     awaitUntilWebviewAppears()
-                    delayFor(100.milliseconds)
+                    delayFor(500.milliseconds)
                 }
                 step("second_paywall") {
                     awaitUntilWebviewAppears()
@@ -61,7 +61,7 @@ class FlowScreenshotTestExecutor {
                     // We scroll a bit to display the button
                     mainScope
                         .async {
-                            Superwall.instance.paywallViewController
+                            Superwall.instance.paywallView
                                 ?.webView
                                 ?.scrollBy(0, 300) ?: kotlin.run {
                                 throw IllegalStateException("No viewcontroller found")
@@ -72,7 +72,7 @@ class FlowScreenshotTestExecutor {
                     // We scroll back to the top
                     mainScope
                         .async {
-                            Superwall.instance.paywallViewController
+                            Superwall.instance.paywallView
                                 ?.webView
                                 ?.scrollTo(0, 0) ?: kotlin.run {
                                 throw IllegalStateException("No viewcontroller found")
@@ -85,7 +85,7 @@ class FlowScreenshotTestExecutor {
         }
 
     @Test
-    fun test_paywall_reappers_after_dismissing() =
+    fun test_paywall_reappears_after_dismissing() =
         with(dropshots) {
             screenshotFlow(UITestHandler.test11Info) {
                 step {
@@ -99,7 +99,6 @@ class FlowScreenshotTestExecutor {
                     delayFor(1.seconds)
                 }
                 step {
-                    it.waitFor { it is SuperwallEvent.PaywallClose }
                     it.waitFor { it is SuperwallEvent.PaywallOpen }
                     awaitUntilWebviewAppears()
                     delayFor(1.seconds)
@@ -135,18 +134,25 @@ class FlowScreenshotTestExecutor {
                     mainScope
                         .async {
                             // We scroll a bit to display the button
-                            Superwall.instance.paywallViewController
+                            Superwall.instance.paywallView
                                 ?.webView
-                                ?.scrollBy(0, 300)
+                                ?.apply {
+                                    // Disable the scrollbar for the test
+                                    // so its not visible in screenshots
+                                    isVerticalScrollBarEnabled = false
+                                    scrollTo(0, 300)
+                                }
                         }.await()
                     // We delay a bit to ensure the button is visible
                     delayFor(100.milliseconds)
                     // We scroll back to the top
                     mainScope
                         .async {
-                            Superwall.instance.paywallViewController
+                            Superwall.instance.paywallView
                                 ?.webView
-                                ?.scrollTo(0, 0)
+                                ?.apply {
+                                    scrollTo(0, 0)
+                                }
                         }.await()
                     // We delay a bit to ensure scroll has finished
                     delayFor(500.milliseconds)

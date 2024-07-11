@@ -164,12 +164,12 @@ suspend fun CoroutineScope.awaitUntilShimmerDisappears(): Boolean {
 }
 
 private fun getShimmerFromPaywall() =
-    Superwall.instance.paywallViewController
+    Superwall.instance.paywallView
         ?.children
         ?.find { it is ShimmerView }
 
 private fun getWebviewFromPaywall() =
-    Superwall.instance.paywallViewController
+    Superwall.instance.paywallView
         ?.children
         ?.find { it is WebView }
 

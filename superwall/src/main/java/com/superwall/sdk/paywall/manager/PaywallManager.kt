@@ -64,7 +64,7 @@ class PaywallManager(
                     cache.entries
                         .filter {
                             it.value is PaywallView &&
-                                    it.key != cache.activePaywallVcKey
+                                it.key != cache.activePaywallVcKey
                         }.values
                         .map { it as PaywallView }
                 for (paywallView in inactivePaywalls) {
@@ -91,7 +91,7 @@ class PaywallManager(
         isPreloading: Boolean,
         delegate: PaywallViewDelegateAdapter?,
     ): PaywallView {
-            val paywall = paywallRequestManager.getPaywall(request)
+        val paywall = paywallRequestManager.getPaywall(request)
 
         val deviceInfo = factory.makeDeviceInfo()
         val cacheKey =
@@ -100,15 +100,15 @@ class PaywallManager(
                 locale = deviceInfo.locale,
             )
 
-            if (!request.isDebuggerLaunched) {
-                cache.getPaywallView(cacheKey)?.let { view ->
-                    if (!isPreloading) {
-                        view.callback = delegate
-                        view.paywall.update(paywall)
-                    }
-                    return view
+        if (!request.isDebuggerLaunched) {
+            cache.getPaywallView(cacheKey)?.let { view ->
+                if (!isPreloading) {
+                    view.callback = delegate
+                    view.paywall.update(paywall)
                 }
+                return view
             }
+        }
 
         val paywallView =
             factory.makePaywallView(

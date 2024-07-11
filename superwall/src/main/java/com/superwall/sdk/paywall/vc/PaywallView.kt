@@ -216,7 +216,7 @@ class PaywallView(
         shimmerView.setupFor(this, loadingState)
     }
 
-    internal fun setupLoading(loadingView: LoadingViewController) {
+    internal fun setupLoading(loadingView: LoadingView) {
         this.loadingViewController = loadingView
         loadingView.setupFor(this, loadingState)
     }
@@ -808,8 +808,8 @@ class PaywallView(
     // Android-specific
     fun prepareToDisplay() {
         // Check if the view already has a parent
-        val parentViewGroup = this.parent as? ViewGroup
-        parentViewGroup?.removeView(this)
+        val parentViewGroup = this@PaywallView.parent as? ViewGroup
+        parentViewGroup?.removeView(this@PaywallView)
 
         // This would normally be in iOS view will appear, but there's not a similar paradigm
         cache?.activePaywallVcKey = cacheKey

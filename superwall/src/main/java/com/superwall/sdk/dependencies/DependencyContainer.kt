@@ -297,7 +297,6 @@ class DependencyContainer(
         cache: PaywallViewCache?,
         delegate: PaywallViewDelegateAdapter?,
     ): PaywallView {
-
         val messageHandler =
             PaywallMessageHandler(
                 sessionEventsManager = sessionEventsManager,
@@ -351,8 +350,7 @@ class DependencyContainer(
         return view
     }
 
-    override fun makeCache(): PaywallViewCache =
-        PaywallViewCache(context, Superwall.instance.viewStore(), activityProvider!!)
+    override fun makeCache(): PaywallViewCache = PaywallViewCache(context, Superwall.instance.viewStore(), activityProvider!!)
 
     override fun makeDeviceInfo(): DeviceInfo =
         DeviceInfo(

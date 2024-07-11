@@ -63,8 +63,8 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                 val viewStorageViewModel = Superwall.instance.viewStore()
                 // If we started it directly and the view does not have shimmer and loading attached
                 // We set them up for this PaywallView
-                if (view.children.none { it is LoadingViewController || it is ShimmerView }) {
-                    (viewStorageViewModel.retrieveView(LoadingViewController.TAG) as LoadingViewController)
+                if (view.children.none { it is LoadingView || it is ShimmerView }) {
+                    (viewStorageViewModel.retrieveView(LoadingView.TAG) as LoadingView)
                         .let { view.setupLoading(it) }
                     (viewStorageViewModel.retrieveView(ShimmerView.TAG) as ShimmerView)
                         .let { view.setupShimmer(it) }
@@ -192,14 +192,14 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             paywallVc.isBrowserViewPresented = false
         }
 
-        paywallVc.viewWillAppear()
+        paywallVc.beforeViewCreated()
     }
 
     override fun onResume() {
         super.onResume()
         val paywallVc = contentView as? PaywallView ?: return
 
-        paywallVc.viewDidAppear()
+        paywallVc.onViewCreated()
     }
 
     override fun onPause() {
@@ -208,7 +208,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         val paywallVc = contentView as? PaywallView ?: return
 
         CoroutineScope(Dispatchers.Main).launch {
-            paywallVc.destroyed()
+            paywallVc.beforeOnDestroy()
         }
     }
 

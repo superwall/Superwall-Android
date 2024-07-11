@@ -77,8 +77,7 @@ class PaywallViewCache(
         }
     }
 
-    fun getPaywallView(key: String): PaywallView? =
-        runBlocking(singleThreadContext) { store.retrieveView(key) as PaywallView? }
+    fun getPaywallView(key: String): PaywallView? = runBlocking(singleThreadContext) { store.retrieveView(key) as PaywallView? }
 
     fun removePaywallView(key: String) {
         CoroutineScope(singleThreadContext).launch { store.removeView(key) }
