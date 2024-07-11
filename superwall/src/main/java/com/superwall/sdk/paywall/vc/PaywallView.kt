@@ -9,7 +9,6 @@ import android.os.Build
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
-import android.view.ViewTreeObserver
 import android.webkit.WebSettings
 import android.widget.FrameLayout
 import androidx.browser.customtabs.CustomTabsIntent
@@ -28,8 +27,6 @@ import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.AlertControllerFactory
-import com.superwall.sdk.misc.isDarkColor
-import com.superwall.sdk.misc.readableOverlayColor
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.PaywallPresentationStyle
 import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
@@ -62,7 +59,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import java.net.MalformedURLException
 import java.net.URL
-import java.util.*
+import java.util.Date
 
 class PaywallView(
     context: Context,
@@ -74,8 +71,8 @@ class PaywallView(
     val storage: Storage,
     val paywallManager: PaywallManager,
     override val webView: SWWebView,
-    val cache: PaywallViewCache?,
     private val loadingView: LoadingView = LoadingView(context),
+    private val cache: PaywallViewCache?,
 ) : FrameLayout(context),
     PaywallMessageHandlerDelegate,
     SWWebViewDelegate,
@@ -96,7 +93,9 @@ class PaywallView(
     // / The presentation style for the paywall.
     private var presentationStyle: PaywallPresentationStyle
 
-    private val shimmerView: ShimmerView
+    private var shimmerView: ShimmerView? = null
+
+    private var loadingViewController: LoadingView? = null
 
     var paywallStatePublisher: MutableSharedFlow<PaywallState>? = null
 
@@ -165,8 +164,9 @@ class PaywallView(
 
     private val cacheKey: String = PaywallCacheLogic.key(paywall.identifier, deviceHelper.locale)
 
-    private val backgroundColor: Int
+    val backgroundColor: Int
         get() {
+
             val style =
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
@@ -174,43 +174,26 @@ class PaywallView(
                     Configuration.UI_MODE_NIGHT_UNDEFINED
                 }
             return when (style) {
-                Configuration.UI_MODE_NIGHT_YES -> paywall.darkBackgroundColor ?: paywall.backgroundColor
+                Configuration.UI_MODE_NIGHT_YES ->
+                    paywall.darkBackgroundColor
+                        ?: paywall.backgroundColor
+
                 else -> paywall.backgroundColor
             }
         }
     //endregion
 
     //region Initialization
+    val mainScope = CoroutineScope(Dispatchers.Main)
 
     init {
         // Add the webView
-        addView(webView)
-
         id = View.generateViewId()
 
         // Add the shimmer view and hide it
-        this.shimmerView =
-            ShimmerView(
-                context,
-                backgroundColor,
-                !backgroundColor.isDarkColor(),
-                backgroundColor.readableOverlayColor(),
-            )
-        addView(shimmerView)
-        hideShimmerView()
-
-        // Add the loading view and hide it
-        addView(loadingView)
-        hideLoadingView()
 
         setBackgroundColor(backgroundColor)
 
-        // Listen for layout changes
-        val listener =
-            ViewTreeObserver.OnGlobalLayoutListener {
-                layoutSubviews()
-            }
-        viewTreeObserver.addOnGlobalLayoutListener(listener)
         presentationStyle = paywall.presentation.style
     }
 
@@ -228,6 +211,16 @@ class PaywallView(
         this.unsavedOccurrence = unsavedOccurrence
     }
 
+    internal fun setupShimmer(shimmerView: ShimmerView) {
+        this.shimmerView = shimmerView
+        shimmerView.setupFor(this, loadingState)
+    }
+
+    internal fun setupLoading(loadingView: LoadingView) {
+        this.loadingViewController = loadingView
+        loadingView.setupFor(this, loadingState)
+    }
+
     fun present(
         presenter: Activity,
         request: PresentationRequest,
@@ -236,8 +229,16 @@ class PaywallView(
         paywallStatePublisher: MutableSharedFlow<PaywallState>,
         completion: (Boolean) -> Unit,
     ) {
-        set(request, paywallStatePublisher, unsavedOccurrence)
+        if (webView.parent == null) addView(webView)
+        cache?.acquireLoadingView()?.let {
+            setupLoading(it)
+        }
 
+        cache?.acquireShimmerView()?.let {
+            setupShimmer(it)
+        }
+        layoutSubviews()
+        set(request, paywallStatePublisher, unsavedOccurrence)
         if (presentationStyleOverride != null && presentationStyleOverride != PaywallPresentationStyle.NONE) {
             presentationStyle = presentationStyleOverride
         } else {
@@ -260,7 +261,7 @@ class PaywallView(
         if (isBrowserViewPresented) {
             return
         }
-        shimmerView.checkForOrientationChanges()
+        shimmerView?.checkForOrientationChanges()
         presentationWillBegin()
     }
 
@@ -310,7 +311,8 @@ class PaywallView(
         }
 
         // Reset spinner
-        val isShowingSpinner = loadingState is PaywallLoadingState.LoadingPurchase || loadingState is PaywallLoadingState.ManualLoading
+        val isShowingSpinner =
+            loadingState is PaywallLoadingState.LoadingPurchase || loadingState is PaywallLoadingState.ManualLoading
         if (isShowingSpinner) {
             this.loadingState = PaywallLoadingState.Ready()
         }
@@ -379,7 +381,8 @@ class PaywallView(
                         isImplicit = true,
                     )
                 val paywallPresenterEvent = info.presentedByEventWithName
-                val presentedByPaywallDecline = paywallPresenterEvent == SuperwallEvents.PaywallDecline.rawName
+                val presentedByPaywallDecline =
+                    paywallPresenterEvent == SuperwallEvents.PaywallDecline.rawName
 
                 Superwall.instance.track(trackedEvent)
 
@@ -514,7 +517,7 @@ class PaywallView(
 
     fun layoutSubviews() {
         webView.layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
-        shimmerView.layoutParams =
+        shimmerView?.layoutParams =
             LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
     }
 
@@ -532,31 +535,40 @@ class PaywallView(
     }
 
     private fun showLoadingView() {
-        val transactionBackgroundView = Superwall.instance.options.paywalls.transactionBackgroundView
+        val transactionBackgroundView =
+            Superwall.instance.options.paywalls.transactionBackgroundView
         if (transactionBackgroundView != PaywallOptions.TransactionBackgroundView.SPINNER) {
             return
         }
-        CoroutineScope(Dispatchers.Main).launch {
-            loadingView.visibility = View.VISIBLE
+        loadingViewController?.let {
+            mainScope.launch {
+                loadingView?.visibility = View.VISIBLE
+            }
         }
     }
 
     private fun hideLoadingView() {
-        CoroutineScope(Dispatchers.Main).launch {
-            loadingView.visibility = View.GONE
+        loadingViewController?.let {
+            mainScope.launch {
+                loadingView?.visibility = View.GONE
+            }
         }
     }
 
     private fun showShimmerView() {
-        CoroutineScope(Dispatchers.Main).launch {
-            shimmerView.visibility = View.VISIBLE
+        shimmerView?.let {
+            mainScope.launch {
+                shimmerView?.visibility = View.VISIBLE
+            }
         }
         // TODO: Start shimmer animation if needed
     }
 
     private fun hideShimmerView() {
-        CoroutineScope(Dispatchers.Main).launch {
-            shimmerView.visibility = View.GONE
+        shimmerView?.let {
+            mainScope.launch {
+                shimmerView?.visibility = View.GONE
+            }
         }
         // TODO: Stop shimmer animation if needed
     }
@@ -618,6 +630,7 @@ class PaywallView(
                     loadingState = PaywallLoadingState.Ready()
                 }
             }
+
             else -> {
                 if (loadingState is PaywallLoadingState.Ready) {
                     loadingState = PaywallLoadingState.ManualLoading()
@@ -627,84 +640,94 @@ class PaywallView(
     }
 
     internal fun loadingStateDidChange(from: PaywallLoadingState) {
-        when (loadingState) {
-            is PaywallLoadingState.Unknown -> {
-            }
-            is PaywallLoadingState.LoadingPurchase, is PaywallLoadingState.ManualLoading -> {
-                // Add Loading View
-                showLoadingView()
-            }
-            is PaywallLoadingState.LoadingURL -> {
-                showShimmerView()
-                showRefreshButtonAfterTimeout(isVisible = true)
-                /* TODO: Animation
-                 UIView.springAnimate {
-                    self.webView.alpha = 0.0
-                    self.webView.transform = CGAffineTransform.identity.translatedBy(x: 0, y: -10)
-                  }
-                 */
-            }
-            is PaywallLoadingState.Ready -> {
-                /*
-          let translation = CGAffineTransform.identity.translatedBy(x: 0, y: 10)
-          let spinnerDidShow = oldValue == .loadingPurchase || oldValue == .manualLoading
-          webView.transform = spinnerDidShow ? .identity : translation
-                 */
-                showRefreshButtonAfterTimeout(false)
-                hideLoadingView()
-                hideShimmerView()
+        if (isActive) {
+            when (loadingState) {
+                is PaywallLoadingState.Unknown -> {
+                }
 
-                /*
+                is PaywallLoadingState.LoadingPurchase, is PaywallLoadingState.ManualLoading -> {
+                    // Add Loading View
+                    showLoadingView()
+                }
 
-                  if !spinnerDidShow {
-                    UIView.animate(
-                      withDuration: 0.6,
-                      delay: 0.25,
-                      animations: {
-                        self.shimmerView?.alpha = 0.0
-                        self.webView.alpha = 1.0
-                        self.webView.transform = .identity
-                      },
-                      completion: { _ in
-                        self.shimmerView?.removeFromSuperview()
-                        self.shimmerView = nil
+                is PaywallLoadingState.LoadingURL -> {
+                    showShimmerView()
+                    showRefreshButtonAfterTimeout(isVisible = true)
+                    /* TODO: Animation
+                     UIView.springAnimate {
+                        self.webView.alpha = 0.0
+                        self.webView.transform = CGAffineTransform.identity.translatedBy(x: 0, y: -10)
                       }
-                    )
-                         }
-                 */
+                     */
+                }
+
+                is PaywallLoadingState.Ready -> {
+                    /*
+              let translation = CGAffineTransform.identity.translatedBy(x: 0, y: 10)
+              let spinnerDidShow = oldValue == .loadingPurchase || oldValue == .manualLoading
+              webView.transform = spinnerDidShow ? .identity : translation
+                     */
+                    showRefreshButtonAfterTimeout(false)
+                    hideLoadingView()
+                    hideShimmerView()
+                    // webView.visibility = VISIBLE
+                    // webView.visibility = View.VISIBLE
+
+                    /*
+
+                      if !spinnerDidShow {
+                        UIView.animate(
+                          withDuration: 0.6,
+                          delay: 0.25,
+                          animations: {
+                            self.shimmerView?.alpha = 0.0
+                            self.webView.alpha = 1.0
+                            self.webView.transform = .identity
+                          },
+                          completion: { _ in
+                            self.shimmerView?.removeFromSuperview()
+                            self.shimmerView = nil
+                          }
+                        )
+                             }
+                     */
+                }
             }
         }
     }
 
     fun loadWebView() {
-        val url = paywall.url
-        if (paywall.webviewLoadingInfo.startAt == null) {
-            paywall.webviewLoadingInfo.startAt = Date()
-        }
-
         CoroutineScope(Dispatchers.IO).launch {
-            val trackedEvent =
-                InternalSuperwallEvent.PaywallWebviewLoad(
-                    state = InternalSuperwallEvent.PaywallWebviewLoad.State.Start(),
-                    paywallInfo = this@PaywallView.info,
-                )
-            Superwall.instance.track(trackedEvent)
+            val url = paywall.url
+            if (paywall.webviewLoadingInfo.startAt == null) {
+                paywall.webviewLoadingInfo.startAt = Date()
+            }
+
+            CoroutineScope(Dispatchers.IO).launch {
+                val trackedEvent =
+                    InternalSuperwallEvent.PaywallWebviewLoad(
+                        state = InternalSuperwallEvent.PaywallWebviewLoad.State.Start(),
+                        paywallInfo = this@PaywallView.info,
+                    )
+                Superwall.instance.track(trackedEvent)
+            }
+
+            launch(Dispatchers.Main) {
+                if (paywall.onDeviceCache is OnDeviceCaching.Enabled) {
+                    webView.settings.cacheMode = WebSettings.LOAD_CACHE_ELSE_NETWORK
+                } else {
+                    webView.settings.cacheMode = WebSettings.LOAD_DEFAULT
+                }
+                webView.loadUrl(url.toString())
+            }
+
+            loadingState = PaywallLoadingState.LoadingURL()
         }
-
-        if (paywall.onDeviceCache is OnDeviceCaching.Enabled) {
-            webView.settings.cacheMode = WebSettings.LOAD_CACHE_ELSE_NETWORK
-        } else {
-            webView.settings.cacheMode = WebSettings.LOAD_DEFAULT
-        }
-
-        webView.loadUrl(url.toString())
-
-        loadingState = PaywallLoadingState.LoadingURL()
     }
 
-    //endregion
+//endregion
 
-    //region Deep linking
+//region Deep linking
 
     override fun presentBrowserInApp(url: String) {
         try {
@@ -778,21 +801,21 @@ class PaywallView(
         )
     }
 
-    //endregion
+//endregion
 
-    //region Misc
+//region Misc
 
     // Android-specific
     fun prepareToDisplay() {
         // Check if the view already has a parent
-        val parentViewGroup = this.parent as? ViewGroup
-        parentViewGroup?.removeView(this)
+        val parentViewGroup = this@PaywallView.parent as? ViewGroup
+        parentViewGroup?.removeView(this@PaywallView)
 
         // This would normally be in iOS view will appear, but there's not a similar paradigm
         cache?.activePaywallVcKey = cacheKey
     }
 
-    //endregion
+//endregion
 }
 
 interface ActivityEncapsulatable {

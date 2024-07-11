@@ -1,6 +1,7 @@
 package com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator
 
 import ComputedPropertyRequest
+import androidx.javascriptengine.JavaScriptSandbox
 import androidx.test.platform.app.InstrumentationRegistry
 import com.superwall.sdk.dependencies.RuleAttributesFactory
 import com.superwall.sdk.models.events.EventData
@@ -11,10 +12,16 @@ import com.superwall.sdk.models.triggers.TriggerRule
 import com.superwall.sdk.models.triggers.TriggerRuleOutcome
 import com.superwall.sdk.models.triggers.UnmatchedRule
 import com.superwall.sdk.models.triggers.VariantOption
+import com.superwall.sdk.paywall.presentation.rule_logic.javascript.SandboxJavascriptEvaluator
+import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.StorageMock
 import junit.framework.TestCase.assertEquals
 import kotlinx.coroutines.async
+import kotlinx.coroutines.guava.await
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
+import org.junit.After
+import org.junit.Before
 import org.junit.Test
 import java.util.Date
 
@@ -33,6 +40,31 @@ class RuleAttributeFactoryBuilder : RuleAttributesFactory {
 }
 
 class ExpressionEvaluatorInstrumentedTest {
+    var sandbox: JavaScriptSandbox? = null
+
+    @Before
+    fun setup() =
+        runBlocking {
+            sandbox = JavaScriptSandbox.createConnectedInstanceAsync(InstrumentationRegistry.getInstrumentation().targetContext).await()
+        }
+
+    @After
+    fun tearDown() =
+        runBlocking {
+            sandbox?.killImmediatelyOnThread()
+            sandbox?.close()
+            sandbox = null
+        }
+
+    private fun evaluatorFor(
+        storage: Storage,
+        factory: RuleAttributesFactory,
+    ) = SandboxJavascriptEvaluator(
+        sandbox ?: error("Sandbox not initialized"),
+        factory = factory,
+        storage = storage,
+    )
+
     @Test
     fun test_happy_path_evaluator() =
         runTest {
@@ -43,7 +75,11 @@ class ExpressionEvaluatorInstrumentedTest {
 
             val expressionEvaluator =
                 ExpressionEvaluator(
-                    context = context,
+                    evaluator =
+                        evaluatorFor(
+                            factory = ruleAttributes,
+                            storage = storage,
+                        ),
                     storage = storage,
                     factory = ruleAttributes,
                 )
@@ -92,7 +128,11 @@ class ExpressionEvaluatorInstrumentedTest {
 
             val expressionEvaluator =
                 ExpressionEvaluator(
-                    context = context,
+                    evaluator =
+                        evaluatorFor(
+                            factory = ruleAttributes,
+                            storage = storage,
+                        ),
                     storage = storage,
                     factory = ruleAttributes,
                 )
@@ -182,7 +222,11 @@ class ExpressionEvaluatorInstrumentedTest {
 
             val expressionEvaluator: ExpressionEvaluator =
                 ExpressionEvaluator(
-                    context = context,
+                    evaluator =
+                        evaluatorFor(
+                            factory = ruleAttributes,
+                            storage = storage,
+                        ),
                     storage = storage,
                     factory = ruleAttributes,
                 )
@@ -280,7 +324,11 @@ class ExpressionEvaluatorInstrumentedTest {
 
             val expressionEvaluator: ExpressionEvaluator =
                 ExpressionEvaluator(
-                    context = context,
+                    evaluator =
+                        evaluatorFor(
+                            factory = ruleAttributes,
+                            storage = storage,
+                        ),
                     storage = storage,
                     factory = ruleAttributes,
                 )
@@ -320,17 +368,21 @@ class ExpressionEvaluatorInstrumentedTest {
 
             assert(result == TriggerRuleOutcome.match(rule = rule))
         }
-}
 
-fun runWithRule(rule: TriggerRule) {
-    val context = InstrumentationRegistry.getInstrumentation().targetContext
-    val ruleAttributes = RuleAttributeFactoryBuilder()
-    val storage = StorageMock(context = context)
+    suspend fun runWithRule(rule: TriggerRule) {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val ruleAttributes = RuleAttributeFactoryBuilder()
+        val storage = StorageMock(context = context)
 
-    val expressionEvaluator =
-        ExpressionEvaluator(
-            context = context,
-            storage = storage,
-            factory = ruleAttributes,
-        )
+        val expressionEvaluator =
+            ExpressionEvaluator(
+                evaluator =
+                    evaluatorFor(
+                        factory = ruleAttributes,
+                        storage = storage,
+                    ),
+                storage = storage,
+                factory = ruleAttributes,
+            )
+    }
 }

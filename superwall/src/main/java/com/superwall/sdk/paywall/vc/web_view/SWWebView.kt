@@ -9,7 +9,12 @@ import android.view.MotionEvent
 import android.view.inputmethod.BaseInputConnection
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
-import android.webkit.*
+import android.webkit.ConsoleMessage
+import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.SessionEventsManager
 import com.superwall.sdk.analytics.internal.track
@@ -22,7 +27,7 @@ import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallMessageHandlerDele
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import java.util.*
+import java.util.Date
 
 @Suppress("ktlint:standard:class-naming")
 interface _SWWebViewDelegate {
@@ -131,7 +136,6 @@ class SWWebView(
         // Use the new URL
         val urlString = newUri.toString()
         println("SWWebView.loadUrl: $urlString")
-
         super.loadUrl(urlString)
     }
 

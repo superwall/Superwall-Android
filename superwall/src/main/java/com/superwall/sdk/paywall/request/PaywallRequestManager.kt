@@ -12,10 +12,10 @@ import com.superwall.sdk.network.Network
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.store.StoreKitManager
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.newSingleThreadContext
 import kotlinx.coroutines.withContext
-import java.util.*
+import java.util.Date
 
 interface PaywallRequestManagerDepFactory :
     DeviceInfoFactory,
@@ -26,16 +26,16 @@ class PaywallRequestManager(
     private val storeKitManager: StoreKitManager,
     private val network: Network,
     private val factory: PaywallRequestManagerDepFactory,
+    private val ioScope: CoroutineScope,
 ) {
     // Single thread context to make this class similar to an actor. All functions in this class
     // must execute with this context.
-    private val singleThreadContext = newSingleThreadContext("PaywallRequestManagerThread")
 
     private val activeTasks: MutableMap<String, Deferred<Paywall>> = mutableMapOf()
     private val paywallsByHash: MutableMap<String, Paywall> = mutableMapOf()
 
     suspend fun getPaywall(request: PaywallRequest): Paywall =
-        withContext(singleThreadContext) {
+        withContext(ioScope.coroutineContext) {
             val deviceInfo = factory.makeDeviceInfo()
             val joinedSubstituteProductIds =
                 request.overrides.products
@@ -66,9 +66,10 @@ class PaywallRequestManager(
             activeTasks[requestHash] = deferredTask
 
             try {
-                val rawPaywall = getRawPaywall(request)
-                val finalPaywall = addProducts(rawPaywall, request)
-
+                val rawPaywall =
+                    getRawPaywall(request)
+                val finalPaywall =
+                    addProducts(rawPaywall, request)
                 saveRequestHash(requestHash, finalPaywall, request.isDebuggerLaunched)
 
                 deferredTask.complete(finalPaywall)
@@ -87,7 +88,7 @@ class PaywallRequestManager(
         paywall: Paywall,
         request: PaywallRequest,
     ): Paywall =
-        withContext(singleThreadContext) {
+        withContext(ioScope.coroutineContext) {
             val paywall = paywall
             paywall.experiment = request.responseIdentifiers.experiment
             paywall.presentationSourceType = request.presentationSourceType
@@ -98,7 +99,7 @@ class PaywallRequestManager(
         requestHash: String,
         paywall: Paywall,
         isDebuggerLaunched: Boolean,
-    ) = withContext(singleThreadContext) {
+    ) = withContext(ioScope.coroutineContext) {
         activeTasks.remove(requestHash)
         if (!isDebuggerLaunched) {
             paywallsByHash[requestHash] = paywall
@@ -106,7 +107,8 @@ class PaywallRequestManager(
     }
 
     suspend fun getRawPaywall(request: PaywallRequest): Paywall =
-        withContext(singleThreadContext) {
+
+        withContext(ioScope.coroutineContext) {
             println("!!getRawPaywall - ${request.responseIdentifiers.paywallId}")
             trackResponseStarted(event = request.eventData)
             val paywall = getPaywallResponse(request)
@@ -125,7 +127,7 @@ class PaywallRequestManager(
         }
 
     private suspend fun getPaywallResponse(request: PaywallRequest): Paywall =
-        withContext(singleThreadContext) {
+        withContext(ioScope.coroutineContext) {
             val responseLoadStartTime = Date()
             val paywallId = request.responseIdentifiers.paywallId
             val event = request.eventData
@@ -161,7 +163,7 @@ class PaywallRequestManager(
 
     // MARK: - Analytics
     private suspend fun trackResponseStarted(event: EventData?) =
-        withContext(singleThreadContext) {
+        withContext(ioScope.coroutineContext) {
             val trackedEvent =
                 InternalSuperwallEvent.PaywallLoad(
                     state = InternalSuperwallEvent.PaywallLoad.State.Start(),
@@ -173,7 +175,7 @@ class PaywallRequestManager(
     private suspend fun trackResponseLoaded(
         paywallInfo: PaywallInfo,
         event: EventData?,
-    ) = withContext(singleThreadContext) {
+    ) = withContext(ioScope.coroutineContext) {
         val responseLoadEvent =
             InternalSuperwallEvent.PaywallLoad(
                 InternalSuperwallEvent.PaywallLoad.State.Complete(paywallInfo = paywallInfo),
@@ -186,7 +188,7 @@ class PaywallRequestManager(
         paywall: Paywall,
         request: PaywallRequest,
     ): Paywall =
-        withContext(singleThreadContext) {
+        withContext(ioScope.coroutineContext) {
             var paywall = paywall
 
             paywall = trackProductsLoadStart(paywall, request)
@@ -205,7 +207,7 @@ class PaywallRequestManager(
         paywall: Paywall,
         request: PaywallRequest,
     ): Paywall =
-        withContext(singleThreadContext) {
+        withContext(ioScope.coroutineContext) {
             var paywall = paywall
 
             val result =
@@ -235,7 +237,7 @@ class PaywallRequestManager(
         paywall: Paywall,
         request: PaywallRequest,
     ): Paywall =
-        withContext(singleThreadContext) {
+        withContext(ioScope.coroutineContext) {
             var paywall = paywall
             paywall.productsLoadingInfo.startAt = Date()
             val paywallInfo = paywall.getInfo(request.eventData, factory)
@@ -253,7 +255,7 @@ class PaywallRequestManager(
         paywall: Paywall,
         event: EventData?,
     ): Paywall =
-        withContext(singleThreadContext) {
+        withContext(ioScope.coroutineContext) {
             var paywall = paywall
             paywall.productsLoadingInfo.endAt = Date()
             val paywallInfo = paywall.getInfo(event, factory)

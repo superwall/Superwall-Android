@@ -4,6 +4,8 @@ import ComputedPropertyRequest
 import android.app.Activity
 import android.app.Application
 import android.content.Context
+import android.webkit.WebView
+import androidx.javascriptengine.JavaScriptSandbox
 import androidx.lifecycle.ProcessLifecycleOwner
 import com.android.billingclient.api.Purchase
 import com.superwall.sdk.Superwall
@@ -41,6 +43,10 @@ import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
+import com.superwall.sdk.paywall.presentation.rule_logic.javascript.JavascriptEvaluator
+import com.superwall.sdk.paywall.presentation.rule_logic.javascript.NoSupportedEvaluator
+import com.superwall.sdk.paywall.presentation.rule_logic.javascript.SandboxJavascriptEvaluator
+import com.superwall.sdk.paywall.presentation.rule_logic.javascript.WebviewJavascriptEvaluator
 import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.paywall.request.PaywallRequestManager
 import com.superwall.sdk.paywall.request.PaywallRequestManagerDepFactory
@@ -58,12 +64,13 @@ import com.superwall.sdk.store.StoreKitManager
 import com.superwall.sdk.store.abstractions.transactions.GoogleBillingPurchaseTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import com.superwall.sdk.store.transactions.TransactionManager
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 class DependencyContainer(
     val context: Context,
@@ -92,7 +99,8 @@ class DependencyContainer(
     PaywallView.Factory,
     ConfigManager.Factory,
     AppSessionManager.Factory,
-    DebugView.Factory {
+    DebugView.Factory,
+    JavascriptEvaluator.Factory {
     var network: Network
     override lateinit var api: Api
     override lateinit var deviceHelper: DeviceHelper
@@ -110,12 +118,15 @@ class DependencyContainer(
     var storeKitManager: StoreKitManager
     val transactionManager: TransactionManager
     val googleBillingWrapper: GoogleBillingWrapper
+    private val uiScope = CoroutineScope(Dispatchers.Main)
+    private val ioScope = CoroutineScope(Dispatchers.IO)
+    private var evaluator: Deferred<JavascriptEvaluator>? = null
 
     init {
         // TODO: Add delegate adapter
 
         // For tracking when the app enters the background.
-        CoroutineScope(Dispatchers.Main).launch {
+        uiScope.launch {
             ProcessLifecycleOwner.get().lifecycle.addObserver(appLifecycleObserver)
         }
 
@@ -134,7 +145,8 @@ class DependencyContainer(
             activityProvider = this.activityProvider!!
         }
 
-        googleBillingWrapper = GoogleBillingWrapper(context, appLifecycleObserver = appLifecycleObserver)
+        googleBillingWrapper =
+            GoogleBillingWrapper(context, appLifecycleObserver = appLifecycleObserver)
 
         var purchaseController =
             InternalPurchaseController(
@@ -153,6 +165,7 @@ class DependencyContainer(
                 storeKitManager = storeKitManager,
                 network = network,
                 factory = this,
+                ioScope = ioScope,
             )
         paywallManager =
             PaywallManager(
@@ -203,10 +216,10 @@ class DependencyContainer(
         // Must be after session events
         appSessionManager =
             AppSessionManager(
-                context = context,
                 storage = storage,
                 configManager = configManager,
                 delegate = this,
+                backgroundScope = ioScope,
             )
 
         debugManager =
@@ -216,7 +229,7 @@ class DependencyContainer(
                 factory = this,
             )
 
-        CoroutineScope(Dispatchers.Main).launch {
+        uiScope.launch {
             ProcessLifecycleOwner.get().lifecycle.addObserver(appSessionManager)
         }
 
@@ -284,45 +297,41 @@ class DependencyContainer(
         cache: PaywallViewCache?,
         delegate: PaywallViewDelegateAdapter?,
     ): PaywallView {
-        return withContext(Dispatchers.Main) {
-            // TODO: Fix this up
+        val messageHandler =
+            PaywallMessageHandler(
+                sessionEventsManager = sessionEventsManager,
+                factory = this@DependencyContainer,
+            )
 
-            val messageHandler =
-                PaywallMessageHandler(
-                    sessionEventsManager = sessionEventsManager,
-                    factory = this@DependencyContainer,
-                )
+        val paywallView =
+            uiScope
+                .async {
+                    val webView =
+                        SWWebView(
+                            context = context,
+                            messageHandler = messageHandler,
+                            sessionEventsManager = sessionEventsManager,
+                        )
 
-            val webViewDeffered = CompletableDeferred<SWWebView>()
+                    val paywallView =
+                        PaywallView(
+                            context = context,
+                            paywall = paywall,
+                            factory = this@DependencyContainer,
+                            cache = cache,
+                            callback = delegate,
+                            deviceHelper = deviceHelper,
+                            paywallManager = paywallManager,
+                            storage = storage,
+                            webView = webView,
+                            eventCallback = Superwall.instance,
+                        )
+                    webView.delegate = paywallView
+                    messageHandler.delegate = paywallView
+                    paywallView
+                }.await()
 
-            val _webView =
-                SWWebView(
-                    context = context,
-                    messageHandler = messageHandler,
-                    sessionEventsManager = sessionEventsManager,
-                )
-            webViewDeffered.complete(_webView)
-
-            val webView = webViewDeffered.await()
-
-            val paywallView =
-                PaywallView(
-                    context = context,
-                    paywall = paywall,
-                    factory = this@DependencyContainer,
-                    cache = cache,
-                    callback = delegate,
-                    deviceHelper = deviceHelper,
-                    paywallManager = paywallManager,
-                    storage = storage,
-                    webView = webView,
-                    eventCallback = Superwall.instance,
-                )
-            webView.delegate = paywallView
-            messageHandler.delegate = paywallView
-
-            return@withContext paywallView
-        }
+        return paywallView
     }
 
     override fun makeDebugViewController(id: String?): DebugView {
@@ -341,7 +350,7 @@ class DependencyContainer(
         return view
     }
 
-    override fun makeCache(): PaywallViewCache = PaywallViewCache()
+    override fun makeCache(): PaywallViewCache = PaywallViewCache(context, Superwall.instance.viewStore(), activityProvider!!)
 
     override fun makeDeviceInfo(): DeviceInfo =
         DeviceInfo(
@@ -386,6 +395,7 @@ class DependencyContainer(
         presentationSourceType: String?,
         retryCount: Int,
     ): PaywallRequest =
+
         PaywallRequest(
             eventData = eventData,
             responseIdentifiers = responseIdentifiers,
@@ -497,7 +507,8 @@ class DependencyContainer(
     }
 
     override suspend fun makeStoreTransaction(transaction: Purchase): StoreTransaction {
-        val triggerSessionId = sessionEventsManager.triggerSession.getActiveTriggerSession()?.sessionId
+        val triggerSessionId =
+            sessionEventsManager.triggerSession.getActiveTriggerSession()?.sessionId
         return StoreTransaction(
             GoogleBillingPurchaseTransaction(
                 transaction = transaction,
@@ -513,4 +524,34 @@ class DependencyContainer(
     override suspend fun makeSuperwallOptions(): SuperwallOptions = configManager.options
 
     override suspend fun makeTriggers(): Set<String> = configManager.triggersByEventName.keys
+
+    override suspend fun provideJavascriptEvaluator(context: Context): JavascriptEvaluator {
+        val eval = evaluator
+        if (evaluator != null) {
+            eval?.await()
+        } else {
+            evaluator =
+                uiScope.async {
+                    when {
+                        JavaScriptSandbox.isSupported() ->
+                            ioScope
+                                .async {
+                                    val sandbox =
+                                        JavaScriptSandbox.createConnectedInstanceAsync(context).await()
+                                    SandboxJavascriptEvaluator(sandbox, this@DependencyContainer, storage)
+                                }.await()
+
+                        WebView.getCurrentWebViewPackage() != null ->
+                            WebviewJavascriptEvaluator(
+                                WebView(context),
+                                uiScope,
+                                storage,
+                            )
+
+                        else -> NoSupportedEvaluator
+                    }
+                }
+        }
+        return evaluator?.await() ?: throw IllegalStateException("Evaluator null when awaiting")
+    }
 }

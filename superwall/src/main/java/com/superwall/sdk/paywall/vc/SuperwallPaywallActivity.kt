@@ -22,6 +22,7 @@ import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import androidx.core.view.children
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.dependencies.DeviceHelperFactory
 import com.superwall.sdk.misc.isLightColor
@@ -42,7 +43,8 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         private const val REQUEST_CODE_NOTIFICATION_PERMISSION = 1001
         const val NOTIFICATION_CHANNEL_ID = "com.superwall.android.notifications"
         private const val NOTIFICATION_CHANNEL_NAME = "Trial Reminder Notifications"
-        private const val NOTIFICATION_CHANNEL_DESCRIPTION = "Notifications sent when a free trial is about to end."
+        private const val NOTIFICATION_CHANNEL_DESCRIPTION =
+            "Notifications sent when a free trial is about to end."
         private const val VIEW_KEY = "viewKey"
         private const val PRESENTATION_STYLE_KEY = "presentationStyleKey"
         private const val IS_LIGHT_BACKGROUND_KEY = "isLightBackgroundKey"
@@ -53,18 +55,34 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             key: String = UUID.randomUUID().toString(),
             presentationStyleOverride: PaywallPresentationStyle? = null,
         ) {
-            val viewStorageViewModel = Superwall.instance.viewStore()
-            viewStorageViewModel.storeView(key, view)
-
-            val intent =
-                Intent(context, SuperwallPaywallActivity::class.java).apply {
-                    putExtra(VIEW_KEY, key)
-                    putExtra(PRESENTATION_STYLE_KEY, presentationStyleOverride)
-                    putExtra(IS_LIGHT_BACKGROUND_KEY, view.paywall.backgroundColor.isLightColor())
-                    flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
+            // We force this in main scope in case the user started it from a non-main thread
+            CoroutineScope(Dispatchers.Main).launch {
+                if (view.webView.parent == null) {
+                    view.addView(view.webView)
                 }
-
-            context.startActivity(intent)
+                val viewStorageViewModel = Superwall.instance.viewStore()
+                // If we started it directly and the view does not have shimmer and loading attached
+                // We set them up for this PaywallView
+                if (view.children.none { it is LoadingView || it is ShimmerView }) {
+                    (viewStorageViewModel.retrieveView(LoadingView.TAG) as LoadingView)
+                        .let { view.setupLoading(it) }
+                    (viewStorageViewModel.retrieveView(ShimmerView.TAG) as ShimmerView)
+                        .let { view.setupShimmer(it) }
+                    view.layoutSubviews()
+                }
+                val intent =
+                    Intent(context, SuperwallPaywallActivity::class.java).apply {
+                        putExtra(VIEW_KEY, key)
+                        putExtra(PRESENTATION_STYLE_KEY, presentationStyleOverride)
+                        putExtra(
+                            IS_LIGHT_BACKGROUND_KEY,
+                            view.paywall.backgroundColor.isLightColor(),
+                        )
+                        flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
+                    }
+                viewStorageViewModel.storeView(key, view)
+                context.startActivity(intent)
+            }
         }
     }
 
@@ -143,17 +161,23 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             PaywallPresentationStyle.PUSH -> {
                 overridePendingTransition(R.anim.slide_in_left, R.anim.slide_in_left)
             }
+
             PaywallPresentationStyle.DRAWER -> {
             }
+
             PaywallPresentationStyle.FULLSCREEN -> {
             }
+
             PaywallPresentationStyle.FULLSCREEN_NO_ANIMATION -> {
             }
+
             PaywallPresentationStyle.MODAL -> {
             }
+
             PaywallPresentationStyle.NONE -> {
                 // Do nothing
             }
+
             null -> {
                 // Do nothing
             }
@@ -168,14 +192,14 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             paywallVc.isBrowserViewPresented = false
         }
 
-        paywallVc.viewWillAppear()
+        paywallVc.beforeViewCreated()
     }
 
     override fun onResume() {
         super.onResume()
         val paywallVc = contentView as? PaywallView ?: return
 
-        paywallVc.viewDidAppear()
+        paywallVc.onViewCreated()
     }
 
     override fun onPause() {
@@ -184,7 +208,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         val paywallVc = contentView as? PaywallView ?: return
 
         CoroutineScope(Dispatchers.Main).launch {
-            paywallVc.destroyed()
+            paywallVc.beforeOnDestroy()
         }
     }
 
@@ -264,8 +288,16 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         callback: NotificationPermissionCallback,
     ) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                if (!ActivityCompat.shouldShowRequestPermissionRationale(context as Activity, Manifest.permission.POST_NOTIFICATIONS)) {
+            if (ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.POST_NOTIFICATIONS,
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                if (!ActivityCompat.shouldShowRequestPermissionRationale(
+                        context as Activity,
+                        Manifest.permission.POST_NOTIFICATIONS,
+                    )
+                ) {
                     // First time asking or user previously denied without 'Don't ask again'
                     ActivityCompat.requestPermissions(
                         context,
@@ -285,7 +317,8 @@ class SuperwallPaywallActivity : AppCompatActivity() {
     }
 
     private fun areNotificationsEnabled(context: Context): Boolean {
-        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val notificationManager =
+            getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val channel = notificationManager.getNotificationChannel(NOTIFICATION_CHANNEL_ID)
         if (channel?.importance == NotificationManager.IMPORTANCE_NONE) {
             return false
@@ -300,7 +333,8 @@ class SuperwallPaywallActivity : AppCompatActivity() {
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == REQUEST_CODE_NOTIFICATION_PERMISSION && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            val isGranted = grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
+            val isGranted =
+                grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
             // Invoke the callback here
             notificationPermissionCallback?.onPermissionResult(isGranted)
         }

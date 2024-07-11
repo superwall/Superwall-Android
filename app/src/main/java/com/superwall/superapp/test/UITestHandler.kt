@@ -99,7 +99,7 @@ object UITestHandler {
                 Superwall.instance.register(event = "present_video")
                 // Dismiss after 4 seconds
                 events.first { it is SuperwallEvent.PaywallWebviewLoadComplete }
-                delay(1.seconds)
+                delay(4.seconds)
                 Superwall.instance.dismiss()
                 delay(4.seconds)
                 Superwall.instance.register(event = "present_video")
@@ -654,6 +654,7 @@ object UITestHandler {
                 Superwall.instance.register(event = "present_data")
 
                 scope.launch {
+                    events.first { it is SuperwallEvent.PaywallWebviewLoadComplete }
                     delay(8000)
                     // Call reset while it is still on screen
                     Superwall.instance.reset()

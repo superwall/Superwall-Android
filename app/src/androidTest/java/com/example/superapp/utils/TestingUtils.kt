@@ -110,7 +110,7 @@ fun Dropshots.screenshotFlow(
         }
     }
 
-    runTest(timeout = 3.minutes) {
+    runTest(timeout = 5.minutes) {
         try {
             flow.steps.forEach {
                 if (!testReady.value) {
@@ -164,12 +164,12 @@ suspend fun CoroutineScope.awaitUntilShimmerDisappears(): Boolean {
 }
 
 private fun getShimmerFromPaywall() =
-    Superwall.instance.paywallViewController
+    Superwall.instance.paywallView
         ?.children
         ?.find { it is ShimmerView }
 
 private fun getWebviewFromPaywall() =
-    Superwall.instance.paywallViewController
+    Superwall.instance.paywallView
         ?.children
         ?.find { it is WebView }
 

@@ -1,6 +1,5 @@
 package com.superwall.sdk.analytics.session
 
-import android.content.Context
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import com.superwall.sdk.Superwall
@@ -23,10 +22,10 @@ interface AppManagerDelegate {
 
 //
 class AppSessionManager(
-    private val context: Context,
     private val configManager: ConfigManager,
     private val storage: Storage,
     private val delegate: Factory,
+    private val backgroundScope: CoroutineScope,
 ) : DefaultLifecycleObserver {
     interface Factory :
         AppManagerDelegate,
@@ -52,7 +51,7 @@ class AppSessionManager(
     // Called when the app goes to the foreground
     override fun onStart(owner: LifecycleOwner) {
         super.onStart(owner)
-        CoroutineScope(Dispatchers.IO).launch {
+        backgroundScope.launch {
             Superwall.instance.track(InternalSuperwallEvent.AppOpen())
         }
         sessionCouldRefresh()
@@ -61,7 +60,7 @@ class AppSessionManager(
     // Called when the app goes to the background
     override fun onStop(owner: LifecycleOwner) {
         super.onStop(owner)
-        CoroutineScope(Dispatchers.IO).launch {
+        backgroundScope.launch {
             Superwall.instance.track(InternalSuperwallEvent.AppClose())
         }
         lastAppClose = Date()
@@ -73,12 +72,11 @@ class AppSessionManager(
     }
 
     fun listenForAppSessionTimeout() {
-        CoroutineScope(Dispatchers.Main).launch {
+        backgroundScope.launch {
             configManager.configState
                 .mapNotNull { it.getSuccess()?.getConfig() }
                 .collect { config ->
                     appSessionTimeout = config.appSessionTimeout
-
                     // Account for fact that dev may have delayed the init of Superwall
                     // such that applicationDidBecomeActive() doesn't activate.
                     if (!didTrackAppLaunch) {
@@ -91,7 +89,7 @@ class AppSessionManager(
     private fun sessionCouldRefresh() {
         detectNewSession()
         trackAppLaunch()
-        CoroutineScope(Dispatchers.IO).launch {
+        backgroundScope.launch {
             storage.recordFirstSeenTracked()
         }
     }
@@ -105,7 +103,7 @@ class AppSessionManager(
 
         if (didStartNewSession) {
             appSession = AppSession()
-            CoroutineScope(Dispatchers.IO).launch {
+            backgroundScope.launch {
                 val deviceAttributes = delegate.makeSessionDeviceAttributes()
                 val userAttributes = delegate.makeUserAttributesEvent()
 
@@ -129,7 +127,7 @@ class AppSessionManager(
         if (didTrackAppLaunch) {
             return
         }
-        CoroutineScope(Dispatchers.IO).launch {
+        backgroundScope.launch {
             Superwall.instance.track(InternalSuperwallEvent.AppLaunch())
         }
         didTrackAppLaunch = true

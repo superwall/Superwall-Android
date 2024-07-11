@@ -1,6 +1,7 @@
 package com.superwall.sdk.config
 
 import android.content.Context
+import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.superwall.sdk.config.models.ConfigState
 import com.superwall.sdk.config.options.SuperwallOptions
@@ -29,6 +30,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
 import java.util.Locale
 
 class ConfigManagerUnderTest(
@@ -54,6 +56,7 @@ class ConfigManagerUnderTest(
     }
 }
 
+@RunWith(AndroidJUnit4::class)
 class ConfigManagerTests {
     private val helperFactory =
         object : DeviceHelper.Factory {
@@ -98,9 +101,15 @@ class ConfigManagerTests {
             // Adding a delay because confirming assignments is on a queue
             delay(500)
 
-            assertTrue(network.assignmentsConfirmed)
-            assertEquals(storage.getConfirmedAssignments()[experimentId], variant)
-            assertNull(configManager.unconfirmedAssignments[experimentId])
+            try {
+                assertTrue(network.assignmentsConfirmed)
+                assertEquals(storage.getConfirmedAssignments()[experimentId], variant)
+                assertNull(configManager.unconfirmedAssignments[experimentId])
+            } catch (e: Throwable) {
+                throw e
+            } finally {
+                dependencyContainer.provideJavascriptEvaluator(context).teardown()
+            }
         }
 
     @Test
@@ -108,9 +117,9 @@ class ConfigManagerTests {
         runTest {
             // get context
             val context = InstrumentationRegistry.getInstrumentation().targetContext
-
             val dependencyContainer =
                 DependencyContainer(context, null, null, activityProvider = null)
+            val evaluator = dependencyContainer.provideJavascriptEvaluator(context)
             val network = NetworkMock(factory = dependencyContainer)
             val storage = StorageMock(context = context)
             val configManager =
@@ -137,8 +146,14 @@ class ConfigManagerTests {
 
             job.cancel()
 
-            assertTrue(storage.getConfirmedAssignments().isEmpty())
-            assertTrue(configManager.unconfirmedAssignments.isEmpty())
+            try {
+                assertTrue(storage.getConfirmedAssignments().isEmpty())
+                assertTrue(configManager.unconfirmedAssignments.isEmpty())
+            } catch (e: Throwable) {
+                throw e
+            } finally {
+                evaluator.teardown()
+            }
         }
 
     @Test
@@ -167,8 +182,14 @@ class ConfigManagerTests {
 
             configManager.getAssignments()
 
-            assertTrue(storage.getConfirmedAssignments().isEmpty())
-            assertTrue(configManager.unconfirmedAssignments.isEmpty())
+            try {
+                assertTrue(storage.getConfirmedAssignments().isEmpty())
+                assertTrue(configManager.unconfirmedAssignments.isEmpty())
+            } catch (e: Throwable) {
+                throw e
+            } finally {
+                dependencyContainer.provideJavascriptEvaluator(context).teardown()
+            }
         }
 
     @Test
@@ -223,7 +244,16 @@ class ConfigManagerTests {
 
             delay(1)
 
-            assertEquals(storage.getConfirmedAssignments()[experimentId], variantOption.toVariant())
-            assertTrue(configManager.unconfirmedAssignments.isEmpty())
+            try {
+                assertEquals(
+                    storage.getConfirmedAssignments()[experimentId],
+                    variantOption.toVariant(),
+                )
+                assertTrue(configManager.unconfirmedAssignments.isEmpty())
+            } catch (e: Throwable) {
+                throw e
+            } finally {
+                dependencyContainer.provideJavascriptEvaluator(context).teardown()
+            }
         }
 }
