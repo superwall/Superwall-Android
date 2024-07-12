@@ -4,10 +4,14 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="com.android.vending.BILLING" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>
 
     <application
         android:name=".MainApplication"
         package="com.superwall.superapp"
+        android:requestLegacyExternalStorage="true"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -51,7 +55,7 @@
             android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar"
             android:configChanges="orientation|screenSize|keyboardHidden">
         </activity>
-        <activity android:name="com.superwall.sdk.debug.DebugViewControllerActivity" />
+        <activity android:name="com.superwall.sdk.debug.DebugViewActivity" />
         <activity android:name="com.superwall.sdk.debug.localizations.SWLocalizationActivity" />
         <activity android:name="com.superwall.sdk.debug.SWConsoleActivity" />
     </application>

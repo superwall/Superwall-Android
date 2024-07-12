@@ -1,0 +1,45 @@
+package com.superwall.sdk.analytics.superwall
+
+@Deprecated("Will be removed in the upcoming versions, use SuperwallEvents instead")
+typealias SuperwallEventObjc = SuperwallEvents
+
+enum class SuperwallEvents(
+    val rawName: String,
+) {
+    FirstSeen("first_seen"),
+    AppOpen("app_open"),
+    AppLaunch("app_launch"),
+    AppInstall("app_install"),
+    SessionStart("session_start"),
+    AppClose("app_close"),
+    DeepLink("deepLink_open"),
+    TriggerFire("trigger_fire"),
+    PaywallOpen("paywall_open"),
+    PaywallClose("paywall_close"),
+    PaywallDecline("paywall_decline"),
+    TransactionStart("transaction_start"),
+    TransactionFail("transaction_fail"),
+    TransactionAbandon("transaction_abandon"),
+    TransactionComplete("transaction_complete"),
+    TransactionRestore("transaction_restore"),
+    TransactionTimeout("transaction_timeout"),
+    SubscriptionStart("subscription_start"),
+    SurveyResponse("survey_response"),
+    SurveyClose("survey_close"),
+    SubscriptionStatusDidChange("subscriptionStatus_didChange"),
+    FreeTrialStart("freeTrial_start"),
+    UserAttributes("user_attributes"),
+    NonRecurringProductPurchase("nonRecurringProduct_purchase"),
+    PaywallResponseLoadStart("paywallResponseLoad_start"),
+    PaywallResponseLoadNotFound("paywallResponseLoad_notFound"),
+    PaywallResponseLoadFail("paywallResponseLoad_fail"),
+    PaywallResponseLoadComplete("paywallResponseLoad_complete"),
+    PaywallWebviewLoadStart("paywallWebviewLoad_start"),
+    PaywallWebviewLoadFail("paywallWebviewLoad_fail"),
+    PaywallWebviewLoadComplete("paywallWebviewLoad_complete"),
+    PaywallWebviewLoadTimeout("paywallWebviewLoad_timeout"),
+    PaywallProductsLoadStart("paywallProductsLoad_start"),
+    PaywallProductsLoadFail("paywallProductsLoad_fail"),
+    PaywallProductsLoadComplete("paywallProductsLoad_complete"),
+    PaywallPresentationRequest("paywallPresentationRequest"),
+}

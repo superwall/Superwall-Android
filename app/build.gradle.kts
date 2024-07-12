@@ -2,6 +2,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     alias(libs.plugins.serialization)
+    alias(libs.plugins.dropshot)
 }
 
 android {
@@ -17,6 +18,14 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
+        testInstrumentationRunnerArguments["clearPackageData"] = "true"
+        testInstrumentationRunnerArguments["no-isolated-storage"] = "1"
+    }
+
+    testOptions {
+        execution = "ANDROIDX_TEST_ORCHESTRATOR"
+        animationsDisabled = true
+        resultsDir
     }
 
     buildTypes {
@@ -35,6 +44,7 @@ android {
     kotlinOptions {
         jvmTarget = "1.8"
     }
+
     buildFeatures {
         compose = true
     }
@@ -78,13 +88,17 @@ dependencies {
     androidTestImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.test.ext.junit)
     androidTestImplementation(libs.espresso.core)
+    androidTestImplementation(libs.test.core)
     androidTestImplementation(libs.test.runner)
     androidTestImplementation(libs.test.rules)
     androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation(libs.ui.test.junit4)
-    debugImplementation(libs.leakcanary.android)
+    androidTestImplementation(libs.uiautomator)
+    androidTestImplementation(libs.test.runner)
+    androidTestUtil(libs.orchestrator)
 
     // Debug
+    debugImplementation(libs.leakcanary.android)
     debugImplementation(libs.ui.tooling)
     debugImplementation(libs.ui.test.manifest)
 }

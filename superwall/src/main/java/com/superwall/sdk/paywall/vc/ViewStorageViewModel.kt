@@ -2,6 +2,7 @@ package com.superwall.sdk.paywall.vc
 
 import android.view.View
 import androidx.lifecycle.ViewModel
+import java.util.concurrent.ConcurrentHashMap
 
 /*
 * Stores already loaded or preloaded paywalls
@@ -9,14 +10,5 @@ import androidx.lifecycle.ViewModel
 internal class ViewStorageViewModel :
     ViewModel(),
     ViewStorage {
-    override val views = mutableMapOf<String, View>()
-
-    override fun storeView(
-        key: String,
-        view: View,
-    ) {
-        views[key] = view
-    }
-
-    override fun retrieveView(key: String): View? = views[key]
+    override val views = ConcurrentHashMap<String, View>()
 }

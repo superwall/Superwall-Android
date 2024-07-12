@@ -27,6 +27,7 @@ import com.superwall.sdk.network.Network
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.ExpressionEvaluator
+import com.superwall.sdk.paywall.presentation.rule_logic.javascript.JavascriptEvaluator
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
 import com.superwall.sdk.storage.DisableVerboseEvents
 import com.superwall.sdk.storage.Storage
@@ -37,7 +38,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.mapNotNull
@@ -54,14 +54,14 @@ open class ConfigManager(
     var options: SuperwallOptions,
     private val paywallManager: PaywallManager,
     private val factory: Factory,
+    private val ioScope: CoroutineScope = CoroutineScope(Dispatchers.IO),
 ) {
     interface Factory :
         RequestFactory,
         DeviceInfoFactory,
         RuleAttributesFactory,
-        DeviceHelperFactory
-
-    val ioScope = CoroutineScope(Dispatchers.IO)
+        DeviceHelperFactory,
+        JavascriptEvaluator.Factory
 
     // The configuration of the Superwall dashboard
     val configState = MutableStateFlow<Result<ConfigState>>(Result.Success(ConfigState.Retrieving))
@@ -115,7 +115,12 @@ open class ConfigManager(
             val attributesDeferred = ioScope.async { factory.makeSessionDeviceAttributes() }
 
             // Await results from both operations
-            val (result, _, attributes) = listOf(configDeferred, geoDeferred, attributesDeferred).awaitAll()
+            val (result, _, attributes) =
+                listOf(
+                    configDeferred,
+                    geoDeferred,
+                    attributesDeferred,
+                ).awaitAll()
             ioScope.launch {
                 @Suppress("UNCHECKED_CAST")
                 Superwall.instance.track(InternalSuperwallEvent.DeviceAttributes(attributes as HashMap<String, Any>))
@@ -258,13 +263,14 @@ open class ConfigManager(
         if (currentPreloadingTask != null) {
             return
         }
+
         currentPreloadingTask =
             ioScope.launch {
                 val config = configState.awaitFirstValidConfig() ?: return@launch
-
+                val js = factory.provideJavascriptEvaluator(context)
                 val expressionEvaluator =
                     ExpressionEvaluator(
-                        context = context,
+                        evaluator = js,
                         storage = storage,
                         factory = factory,
                     )
@@ -297,9 +303,11 @@ open class ConfigManager(
 
     // Preloads paywalls referenced by triggers.
     private suspend fun preloadPaywalls(paywallIdentifiers: Set<String>) {
-        val webviewExists = WebView.getCurrentWebViewPackage() != null
+        val webviewExists =
+            WebView.getCurrentWebViewPackage() != null
+
         if (webviewExists) {
-            coroutineScope {
+            ioScope.launch {
                 // List to hold all the Deferred objects
                 val tasks = mutableListOf<Deferred<Any>>()
 
@@ -321,7 +329,7 @@ open class ConfigManager(
                                     retryCount = 6,
                                 )
                             try {
-                                paywallManager.getPaywallViewController(
+                                paywallManager.getPaywallView(
                                     request = request,
                                     isForPresentation = true,
                                     isPreloading = true,
@@ -333,9 +341,8 @@ open class ConfigManager(
                         }
                     tasks.add(task)
                 }
-
                 // Await all tasks
-                tasks.forEach { it.await() }
+                tasks.awaitAll()
             }
         }
     }

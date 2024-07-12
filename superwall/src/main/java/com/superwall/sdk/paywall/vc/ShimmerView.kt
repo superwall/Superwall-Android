@@ -3,20 +3,31 @@ package com.superwall.sdk.paywall.vc
 import android.animation.ValueAnimator
 import android.content.Context
 import android.content.res.Configuration
-import android.graphics.*
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.LinearGradient
+import android.graphics.Paint
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffXfermode
+import android.graphics.Rect
+import android.graphics.Shader
 import android.graphics.drawable.VectorDrawable
 import android.util.AttributeSet
+import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.view.animation.LinearInterpolator
 import androidx.appcompat.widget.AppCompatImageView
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.BlendModeColorFilterCompat
+import androidx.core.graphics.BlendModeCompat
 import com.superwall.sdk.R
+import com.superwall.sdk.misc.isDarkColor
+import com.superwall.sdk.misc.readableOverlayColor
+import com.superwall.sdk.paywall.vc.delegate.PaywallLoadingState
 
 class ShimmerView(
     context: Context,
-    backgroundColor: Int,
-    val isLightBackground: Boolean,
-    val tintColor: Int,
     attrs: AttributeSet? = null,
 ) : AppCompatImageView(context, attrs) {
     private val paint = Paint()
@@ -25,10 +36,37 @@ class ShimmerView(
     private var vectorDrawable: VectorDrawable? = null
     private var maskBitmap: Bitmap? = null
 
-    init {
-        setBackgroundColor(backgroundColor)
-        setLayerType(LAYER_TYPE_SOFTWARE, null)
+    companion object {
+        internal const val TAG = "ShimmerView"
+    }
 
+    init {
+        setLayerType(LAYER_TYPE_SOFTWARE, null)
+        setTag(TAG)
+        checkForOrientationChanges()
+    }
+
+    private var background: Int = 0
+    private var isLightBackground: Boolean = false
+    private var tintColor: Int = 0
+
+    fun setupFor(
+        paywallViewController: PaywallView,
+        loadingState: PaywallLoadingState,
+    ) {
+        (this.parent as? ViewGroup)?.removeView(this)
+        background = paywallViewController.backgroundColor
+        setBackgroundColor(background)
+        isLightBackground = !background.isDarkColor()
+        tintColor = background.readableOverlayColor()
+        visibility =
+            when (loadingState) {
+                is PaywallLoadingState.LoadingURL ->
+                    VISIBLE
+
+                else -> GONE
+            }
+        paywallViewController.addView(this)
         checkForOrientationChanges()
     }
 
@@ -56,23 +94,20 @@ class ShimmerView(
             }
 
         // 25% alpha and tint color
-        val tintWithAlpha = Color.argb(64, Color.red(tintColor), Color.green(tintColor), Color.blue(tintColor))
-
-        val imageDrawable = ContextCompat.getDrawable(context, drawableResId)?.mutate() as? VectorDrawable
-        imageDrawable?.setColorFilter(tintWithAlpha, PorterDuff.Mode.SRC_IN)
-        setImageDrawable(imageDrawable)
+        val tintWithAlpha =
+            Color.argb(64, Color.red(tintColor), Color.green(tintColor), Color.blue(tintColor))
 
         // 100% alpha and tint color
         vectorDrawable = ContextCompat.getDrawable(context, drawableResId) as? VectorDrawable
-        vectorDrawable?.setColorFilter(tintColor, PorterDuff.Mode.SRC_IN)
 
         // Update the mask bitmap with the new drawable
-        vectorDrawable?.let {
-            maskBitmap = Bitmap.createBitmap(it.intrinsicWidth, it.intrinsicHeight, Bitmap.Config.ARGB_8888)
-            val canvas = Canvas(maskBitmap!!)
-            it.setBounds(0, 0, canvas.width, canvas.height)
-            it.draw(canvas)
-        }
+        setImageDrawable(vectorDrawable)
+        setColorFilter(
+            BlendModeColorFilterCompat.createBlendModeColorFilterCompat(
+                tintWithAlpha,
+                BlendModeCompat.SRC_IN,
+            ),
+        )
     }
 
     override fun onAttachedToWindow() {

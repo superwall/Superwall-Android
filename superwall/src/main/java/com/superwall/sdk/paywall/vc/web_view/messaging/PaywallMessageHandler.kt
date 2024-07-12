@@ -43,9 +43,15 @@ interface PaywallMessageHandlerDelegate {
 
     fun openDeepLink(url: String)
 
-    fun presentSafariInApp(url: String)
+    @Deprecated("Will be removed in the upcoming versions, use presentBrowserInApp instead")
+    fun presentSafariInApp(url: String) = presentBrowserInApp(url)
 
-    fun presentSafariExternal(url: String)
+    @Deprecated("Will be removed in the upcoming versions, use presentBrowserExternal instead")
+    fun presentSafariExternal(url: String) = presentBrowserExternal(url)
+
+    fun presentBrowserInApp(url: String)
+
+    fun presentBrowserExternal(url: String)
 }
 
 class PaywallMessageHandler(
@@ -98,7 +104,7 @@ class PaywallMessageHandler(
             }
 
             is PaywallMessage.OpenUrl -> openUrl(message.url)
-            is PaywallMessage.OpenUrlInSafari -> openUrlInSafari(message.url)
+            is PaywallMessage.OpenUrlInBrowser -> openUrlInBrowser(message.url)
             is PaywallMessage.OpenDeepLink -> openDeepLink(URL(message.url.toString()))
             is PaywallMessage.Restore -> restorePurchases()
             is PaywallMessage.Purchase -> purchaseProduct(withId = message.productId)
@@ -157,7 +163,7 @@ class PaywallMessageHandler(
 
         Logger.debug(
             logLevel = LogLevel.debug,
-            scope = LogScope.paywallViewController,
+            scope = LogScope.paywallView,
             message = "Posting Message",
             info = mapOf("message" to templateScript),
         )
@@ -167,7 +173,7 @@ class PaywallMessageHandler(
                 if (error != null) {
                     Logger.debug(
                         logLevel = LogLevel.error,
-                        scope = LogScope.paywallViewController,
+                        scope = LogScope.paywallView,
                         message = "Error Evaluating JS",
                         info = mapOf("message" to templateScript),
                         error = java.lang.Exception(error),
@@ -217,7 +223,7 @@ class PaywallMessageHandler(
 
         Logger.debug(
             logLevel = LogLevel.debug,
-            scope = LogScope.paywallViewController,
+            scope = LogScope.paywallView,
             message = "Posting Message",
             info = mapOf("message" to scriptSrc),
         )
@@ -229,7 +235,7 @@ class PaywallMessageHandler(
                     println("!! PaywallMessageHandler: Error: $error")
                     Logger.debug(
                         logLevel = LogLevel.error,
-                        scope = LogScope.paywallViewController,
+                        scope = LogScope.paywallView,
                         message = "Error Evaluating JS",
                         info = mapOf("message" to scriptSrc),
                         error = java.lang.Exception(error),
@@ -271,17 +277,20 @@ class PaywallMessageHandler(
         )
         hapticFeedback()
         delegate?.eventDidOccur(PaywallWebEvent.OpenedURL(url))
-        delegate?.presentSafariInApp(url.toString())
+        delegate?.presentBrowserInApp(url.toString())
     }
 
-    private fun openUrlInSafari(url: URL) {
+    @Deprecated("Will be removed in the upcoming versions, use openUrlInChrome instead")
+    private fun openUrlInSafari(url: URL) = openUrlInBrowser(url)
+
+    private fun openUrlInBrowser(url: URL) {
         detectHiddenPaywallEvent(
             "openUrlInSafari",
             mapOf("url" to url),
         )
         hapticFeedback()
-        delegate?.eventDidOccur(PaywallWebEvent.OpenedUrlInSafari(url))
-        delegate?.presentSafariExternal(url.toString())
+        delegate?.eventDidOccur(PaywallWebEvent.OpenedUrlInChrome(url))
+        delegate?.presentBrowserExternal(url.toString())
     }
 
     private fun openDeepLink(url: URL) {
@@ -323,7 +332,7 @@ class PaywallMessageHandler(
             return
         }
 
-        val paywallDebugDescription = Superwall.instance.paywallViewController.toString()
+        val paywallDebugDescription = Superwall.instance.paywallView.toString()
 
         var info: MutableMap<String, Any> =
             mutableMapOf(
@@ -337,7 +346,7 @@ class PaywallMessageHandler(
 
         Logger.debug(
             logLevel = LogLevel.error,
-            scope = LogScope.paywallViewController,
+            scope = LogScope.paywallView,
             message = "Received Event on Hidden Superwall",
             info = info,
         )

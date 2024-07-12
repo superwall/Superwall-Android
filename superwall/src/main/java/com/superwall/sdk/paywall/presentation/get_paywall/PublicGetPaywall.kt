@@ -6,9 +6,9 @@ import com.superwall.sdk.analytics.internal.trackable.UserInitiatedEvent
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
-import com.superwall.sdk.paywall.vc.PaywallViewController
-import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegate
-import com.superwall.sdk.paywall.vc.delegate.PaywallViewControllerDelegateAdapter
+import com.superwall.sdk.paywall.vc.PaywallView
+import com.superwall.sdk.paywall.vc.delegate.PaywallViewCallback
+import com.superwall.sdk.paywall.vc.delegate.PaywallViewDelegateAdapter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -17,15 +17,15 @@ suspend fun Superwall.getPaywall(
     event: String,
     params: Map<String, Any>? = null,
     paywallOverrides: PaywallOverrides? = null,
-    delegate: PaywallViewControllerDelegate,
-): PaywallViewController =
+    delegate: PaywallViewCallback,
+): PaywallView =
     withContext(Dispatchers.Main) {
-        val viewController =
+        val view =
             internallyGetPaywall(
                 event = event,
                 params = params,
                 paywallOverrides = paywallOverrides,
-                delegate = PaywallViewControllerDelegateAdapter(kotlinDelegate = delegate),
+                delegate = PaywallViewDelegateAdapter(kotlinDelegate = delegate),
             )
 
         // Note: Deviation from iOS. Unique to Android. This is also done in `InternalPresentation.kt`.
@@ -33,9 +33,9 @@ suspend fun Superwall.getPaywall(
         // would only handle presentation. This cannot be done is the shared `GetPaywallComponents.kt` because it's
         // also used for getting a presentation result, and we don't want that to have side effects. Opting to
         // do at the top-most point.
-        viewController.prepareToDisplay()
+        view.prepareToDisplay()
 
-        return@withContext viewController
+        return@withContext view
     }
 
 @Throws(Throwable::class)
@@ -43,8 +43,8 @@ private suspend fun Superwall.internallyGetPaywall(
     event: String,
     params: Map<String, Any>? = null,
     paywallOverrides: PaywallOverrides? = null,
-    delegate: PaywallViewControllerDelegateAdapter,
-): PaywallViewController =
+    delegate: PaywallViewDelegateAdapter,
+): PaywallView =
     withContext(Dispatchers.Main) {
         val trackableEvent =
             UserInitiatedEvent.Track(

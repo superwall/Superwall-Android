@@ -2,6 +2,63 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 1.2.0
+
+### Enhancements
+- Adds DSL methods for configuring the SDK. You can now use a configuration block:
+  ```kotlin
+  fun Application.configureSuperwall(
+        apiKey: String,
+        configure: SuperwallBuilder.() -> Unit,
+  )
+  ```
+
+This allows you to configure the SDK in a more idiomatic way:
+  ```kotlin
+     configureSuperwall(CONSTANT_API_KEY){
+        options {
+          logging {
+            level = LogLevel.debug
+          }
+          paywalls {
+            shouldPreload = false
+          }
+        }
+    }
+  ```
+
+### Deprecations
+
+This release includes multiple deprecations that will be removed in upcoming versions.
+Most are internal and will not affect the public API, those that will are marked as such and a simple migration
+path is provided. The notable ones in the public API are as follows:
+
+- Deprecated `DebugViewControllerActivity` in favor of `DebugViewActivity`
+- Deprecated `PaywallViewController` in favor of `PaywallView`
+  - Deprecated belonging methods:
+    - `viewWillAppear` in favor of `beforeViewCreated`
+    - `viewDidAppear` in favor of `onViewCreated`
+    - `viewWillDisappear` in favor of `beforeOnDestroy`
+    - `viewDidDisappear` in favor of `destroyed`
+    - `presentAlert` in favor of `showAlert`
+- Deprecated `PaywallViewControllerDelegate` in favor of `PaywallViewCallback`
+  - Deprecated belonging methods:
+    -  `didFinish` in favor of `onFinished`
+- Deprecated `PaywallViewControllerEventDelegate` in favor of `PaywallViewEventCallback`
+  - Users might also note deprecation of `PaywallWebEvent.OpenedUrlInSafari` in favor of `PaywallWebEvent.OpenedUrlInChrome`
+    -  `didFinish` in favor of `onFinished`
+
+- In `Superwall`, the following methods were deprecated:
+  - `Superwall.paywallViewController` in favor of `Superwall.paywallView`
+  - `Superwall.eventDidOccur` argument `paywallViewController` in favor of `paywallView`
+  - `Superwall.dismiss` in favor of `Superwall.presentPaywallView
+  - `Superwall.presentPaywallViewController` in favor of `Superwall.presentPaywallView`
+- Deprecated `Paywallmanager.getPaywallViewController` in favor of `PaywallManager.getPaywallView`
+- Deprecated `DebugManager.viewController` in favor of `DebugManager.view`
+- Deprecated `DebugViewController` in favor of `DebugView`
+- Deprecated `LogScope.debugViewController` in favor of `LogScope.debugView`
+- Deprecated `PaywallPresentationRequestStatus.NoPaywallViewController` in favor of `NoPaywallView`
+
 ## 1.1.9
 
 ### Deprecations

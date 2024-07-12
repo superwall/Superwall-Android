@@ -5,7 +5,7 @@ import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.internal.operators.*
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
-import com.superwall.sdk.paywall.vc.PaywallViewController
+import com.superwall.sdk.paywall.vc.PaywallView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -29,14 +29,14 @@ suspend fun Superwall.internallyPresent(
                 "Presenter must not be null"
             }
 
-        val paywallViewController = paywallComponents.viewController
+        val paywallView = paywallComponents.view
 
         // Note: Deviation from iOS. Unique to Android. This is also done in `PublicGetPaywall.kt`.
         // See comments there.
-        paywallViewController.prepareToDisplay()
+        paywallView.prepareToDisplay()
 
-        presentPaywallViewController(
-            paywallViewController = paywallViewController,
+        presentPaywallView(
+            paywallView = paywallView,
             presenter = presenter,
             unsavedOccurrence = paywallComponents.rulesOutcome.unsavedOccurrence,
             debugInfo = paywallComponents.debugInfo,
@@ -49,10 +49,10 @@ suspend fun Superwall.internallyPresent(
 }
 
 suspend fun Superwall.dismiss(
-    paywallViewController: PaywallViewController,
+    paywallView: PaywallView,
     result: PaywallResult,
     closeReason: PaywallCloseReason = PaywallCloseReason.SystemLogic,
     completion: (() -> Unit)? = null,
 ) = withContext(Dispatchers.Main) {
-    paywallViewController.dismiss(result, closeReason, completion)
+    paywallView.dismiss(result, closeReason, completion)
 }

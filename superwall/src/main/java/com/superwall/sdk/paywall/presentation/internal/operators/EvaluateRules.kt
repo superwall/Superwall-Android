@@ -23,17 +23,17 @@ suspend fun Superwall.evaluateRules(request: PresentationRequest): RuleEvaluatio
     return if (eventData != null) {
         val ruleLogic =
             RuleLogic(
-                context = context,
                 configManager = dependencyContainer.configManager,
                 storage = dependencyContainer.storage,
                 factory = dependencyContainer,
+                javascriptEvaluator = dependencyContainer.provideJavascriptEvaluator(context),
             )
         ruleLogic.evaluateRules(event = eventData, triggers = dependencyContainer.configManager.triggersByEventName)
     } else {
         // Called if the debugger is shown.
         val paywallId =
             request.presentationInfo.identifier
-                ?: throw PaywallPresentationRequestStatusReason.NoPaywallViewController()
+                ?: throw PaywallPresentationRequestStatusReason.NoPaywallView()
 
         RuleEvaluationOutcome(triggerResult = InternalTriggerResult.Paywall(Experiment.presentById(paywallId)))
     }
