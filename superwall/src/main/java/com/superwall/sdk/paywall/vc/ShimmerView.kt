@@ -67,6 +67,7 @@ class ShimmerView(
                 else -> GONE
             }
         paywallViewController.addView(this)
+        checkForOrientationChanges()
     }
 
     fun checkForOrientationChanges() {

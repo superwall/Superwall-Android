@@ -16,9 +16,13 @@ import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.superwall.SuperwallEvent
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.superapp.test.UITestHandler
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 @RunWith(AndroidJUnit4::class)
@@ -79,11 +83,37 @@ class SimpleScreenshotTestExecutor {
     @Test
     fun test_paywall_presents_with_handler_invoked() =
         with(dropshots) {
+            val mainScope = CoroutineScope(Dispatchers.Main)
             screenshotFlow(UITestHandler.test16Info) {
                 step("") {
                     it.waitFor { it is SuperwallEvent.PaywallWebviewLoadComplete }
                     awaitUntilShimmerDisappears() || awaitUntilWebviewAppears()
                     delayFor(2.seconds)
+                    mainScope
+                        .async {
+                            // We scroll a bit to display the button
+                            Superwall.instance.paywallView
+                                ?.webView
+                                ?.apply {
+                                    // Disable the scrollbar for the test
+                                    // so its not visible in screenshots
+                                    isVerticalScrollBarEnabled = false
+                                    scrollTo(0, 300)
+                                }
+                        }.await()
+                    // We delay a bit to ensure the button is visible
+                    delayFor(100.milliseconds)
+                    // We scroll back to the top
+                    mainScope
+                        .async {
+                            Superwall.instance.paywallView
+                                ?.webView
+                                ?.apply {
+                                    scrollTo(0, 0)
+                                }
+                        }.await()
+                    // We delay a bit to ensure scroll has finished
+                    delayFor(500.milliseconds)
                 }
             }
         }
