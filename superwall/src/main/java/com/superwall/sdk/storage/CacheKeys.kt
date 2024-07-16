@@ -7,6 +7,8 @@ import com.superwall.sdk.models.serialization.AnySerializer
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
+import com.superwall.sdk.utilities.DateUtils
+import com.superwall.sdk.utilities.dateFormat
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.Serializer
@@ -20,9 +22,7 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import java.io.File
 import java.security.MessageDigest
-import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale
 import java.util.TimeZone
 
 enum class SearchPathDirectory {
@@ -251,7 +251,7 @@ object DisableVerboseEvents : Storable<Boolean> {
 @Serializer(forClass = Date::class)
 object DateSerializer : KSerializer<Date> {
     private val format =
-        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
+        dateFormat(DateUtils.ISO_SECONDS_TIMEZONE).apply {
             timeZone = TimeZone.getTimeZone("UTC")
         }
 

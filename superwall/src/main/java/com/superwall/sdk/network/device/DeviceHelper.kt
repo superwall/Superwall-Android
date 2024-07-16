@@ -27,6 +27,8 @@ import com.superwall.sdk.paywall.vc.web_view.templating.models.DeviceTemplate
 import com.superwall.sdk.storage.LastPaywallView
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.TotalPaywallViews
+import com.superwall.sdk.utilities.DateUtils
+import com.superwall.sdk.utilities.dateFormat
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeout
@@ -205,7 +207,7 @@ class DeviceHelper(
         get() {
             val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
             val installDate = Date(packageInfo.firstInstallTime)
-            val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+            val formatter = dateFormat(DateUtils.SIMPLE)
             return formatter.format(installDate)
         }
 
@@ -240,42 +242,42 @@ class DeviceHelper(
 
     private val localDateFormat: SimpleDateFormat
         get() {
-            val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+            val formatter = dateFormat(DateUtils.yyyy_MM_dd)
             formatter.timeZone = TimeZone.getDefault()
             return formatter
         }
 
     private val utcDateFormat: SimpleDateFormat
         get() {
-            val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+            val formatter = dateFormat(DateUtils.yyyy_MM_dd)
             formatter.timeZone = TimeZone.getTimeZone("UTC")
             return formatter
         }
 
     private val utcTimeFormat: SimpleDateFormat
         get() {
-            val formatter = SimpleDateFormat("HH:mm:ss", Locale.US)
+            val formatter = dateFormat(DateUtils.HH_mm_ss)
             formatter.timeZone = TimeZone.getTimeZone("UTC")
             return formatter
         }
 
     private val localDateTimeFormat: SimpleDateFormat
         get() {
-            val formatter = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US)
+            val formatter = dateFormat(DateUtils.ISO_SECONDS)
             formatter.timeZone = TimeZone.getDefault()
             return formatter
         }
 
     private val localTimeFormat: SimpleDateFormat
         get() {
-            val formatter = SimpleDateFormat("HH:mm:ss", Locale.US)
+            val formatter = dateFormat(DateUtils.HH_mm_ss)
             formatter.timeZone = TimeZone.getDefault()
             return formatter
         }
 
     private val utcDateTimeFormat: SimpleDateFormat
         get() {
-            val formatter = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US)
+            val formatter = dateFormat(DateUtils.ISO_SECONDS)
             formatter.timeZone = TimeZone.getTimeZone("UTC")
             return formatter
         }

@@ -8,6 +8,7 @@ import com.superwall.sdk.store.abstractions.product.OfferType
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.product.SubscriptionPeriod
+import com.superwall.sdk.utilities.DateUtils
 import kotlinx.coroutines.*
 import org.junit.Test
 import java.math.BigDecimal
@@ -340,7 +341,7 @@ class ProductFetcherInstrumentedTest {
 
         val currentDate = LocalDate.now()
         val dateIn30Days = currentDate.plusMonths(1)
-        val dateFormatter = DateTimeFormatter.ofPattern("MMM dd, yyyy", Locale.getDefault())
+        val dateFormatter = DateTimeFormatter.ofPattern(DateUtils.MMM_dd_yyyy, Locale.getDefault())
         val formattedDate = dateIn30Days.format(dateFormatter)
         assert(storeProduct.trialPeriodEndDateString == formattedDate)
     }
@@ -390,7 +391,7 @@ class ProductFetcherInstrumentedTest {
 
         val currentDate = LocalDate.now()
         val dateIn30Days = currentDate.plusMonths(1)
-        val dateFormatter = DateTimeFormatter.ofPattern("MMM dd, yyyy", Locale.getDefault())
+        val dateFormatter = DateTimeFormatter.ofPattern(DateUtils.MMM_dd_yyyy, Locale.getDefault())
         val formattedDate = dateIn30Days.format(dateFormatter)
         assert(storeProduct.trialPeriodEndDateString == formattedDate)
     }
@@ -440,7 +441,7 @@ class ProductFetcherInstrumentedTest {
 
         val currentDate = LocalDate.now()
         val dateIn30Days = currentDate.plusMonths(1)
-        val dateFormatter = DateTimeFormatter.ofPattern("MMM dd, yyyy", Locale.getDefault())
+        val dateFormatter = DateTimeFormatter.ofPattern(DateUtils.MMM_dd_yyyy, Locale.getDefault())
         val formattedDate = dateIn30Days.format(dateFormatter)
         assert(storeProduct.trialPeriodEndDateString == formattedDate)
     }
@@ -492,7 +493,7 @@ class ProductFetcherInstrumentedTest {
 
         val currentDate = LocalDate.now()
         val dateIn30Days = currentDate.plusMonths(1)
-        val dateFormatter = DateTimeFormatter.ofPattern("MMM dd, yyyy", Locale.getDefault())
+        val dateFormatter = DateTimeFormatter.ofPattern(DateUtils.MMM_dd_yyyy, Locale.getDefault())
         val formattedDate = dateIn30Days.format(dateFormatter)
         assert(storeProduct.trialPeriodEndDateString == formattedDate)
     }
@@ -545,7 +546,7 @@ class ProductFetcherInstrumentedTest {
 
         val currentDate = LocalDate.now()
         val dateIn30Days = currentDate.plusMonths(1)
-        val dateFormatter = DateTimeFormatter.ofPattern("MMM dd, yyyy", Locale.getDefault())
+        val dateFormatter = DateTimeFormatter.ofPattern(DateUtils.MMM_dd_yyyy, Locale.getDefault())
         val formattedDate = dateIn30Days.format(dateFormatter)
         assert(storeProduct.trialPeriodEndDateString == formattedDate)
     }

@@ -1,12 +1,12 @@
 package com.superwall.sdk.models.serialization
 
+import com.superwall.sdk.utilities.dateFormat
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.contextual
 import org.junit.Assert.assertEquals
 import org.junit.Test
-import java.text.SimpleDateFormat
 import java.util.*
 import java.util.Calendar.*
 
@@ -19,7 +19,7 @@ class DateSerializerTest {
         val calendar =
             Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
                 time =
-                    SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+                    dateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
                         .apply {
                             timeZone = TimeZone.getTimeZone("UTC")
                         }.parse("2023-05-15T00:00:00.000Z")!!

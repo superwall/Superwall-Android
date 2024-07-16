@@ -1,5 +1,7 @@
 package com.superwall.sdk.models.serialization
 
+import com.superwall.sdk.utilities.DateUtils
+import com.superwall.sdk.utilities.dateFormat
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializer
 import kotlinx.serialization.encoding.Decoder
@@ -13,7 +15,7 @@ object DateSerializer : KSerializer<Date> {
     private val dateFormat =
         object : ThreadLocal<SimpleDateFormat>() {
             override fun initialValue() =
-                SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS").apply {
+                dateFormat(DateUtils.ISO_MILLIS).apply {
                     timeZone = TimeZone.getTimeZone("UTC")
                 }
         }
