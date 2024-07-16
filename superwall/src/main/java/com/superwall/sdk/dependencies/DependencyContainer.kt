@@ -290,7 +290,8 @@ class DependencyContainer(
                     Superwall.instance.subscriptionStatus.value
                         .toString(),
                 "Content-Type" to "application/json",
-                "X-Current-Time" to dateFormat(DateUtils.ISO_MILLIS).format(Date())
+                "X-Current-Time" to dateFormat(DateUtils.ISO_MILLIS).format(Date()),
+                "X-Static-Config-Build-Id" to (configManager.config?.buildId ?: ""),
             )
 
         return headers
