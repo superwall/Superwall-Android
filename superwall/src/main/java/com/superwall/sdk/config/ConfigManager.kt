@@ -25,6 +25,7 @@ import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.models.triggers.Trigger
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.network.device.DeviceHelper
+import com.superwall.sdk.paywall.manager.PaywallCacheLogic
 import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.ExpressionEvaluator
 import com.superwall.sdk.paywall.presentation.rule_logic.javascript.JavascriptEvaluator
@@ -359,16 +360,13 @@ open class ConfigManager(
 
         try {
             val newConfig =
-                network.getConfig {
-                    configState.update { Result.Success(ConfigState.Retrying) }
-                }
+                network.getConfig {}
             removeUnusedPaywallVCsFromCache(oldConfig, newConfig)
             processConfig(newConfig)
             configState.update { Result.Success(ConfigState.Retrieved(newConfig)) }
             Superwall.instance.track(InternalSuperwallEvent.ConfigRefresh)
             ioScope.launch { preloadPaywalls() }
         } catch (e: Exception) {
-            configState.update { Result.Success(ConfigState.Retrieved(oldConfig)) }
             Logger.debug(
                 logLevel = LogLevel.warn,
                 scope = LogScope.superwallCore,
@@ -395,7 +393,13 @@ open class ConfigManager(
             }
 
         missingPaywallIds.forEach {
-            paywallManager.removePaywallView(it)
+            val paywall = oldConfig.paywalls.first { wall -> wall.identifier == it }
+            val key =
+                PaywallCacheLogic.key(
+                    identifier = paywall.identifier,
+                    locale = factory.makeDeviceInfo().locale,
+                )
+            paywallManager.removePaywallView(key)
         }
     }
 
