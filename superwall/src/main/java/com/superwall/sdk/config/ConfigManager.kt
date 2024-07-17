@@ -361,6 +361,7 @@ open class ConfigManager(
         try {
             val newConfig =
                 network.getConfig {}
+            paywallManager.resetPaywallRequestCache()
             removeUnusedPaywallVCsFromCache(oldConfig, newConfig)
             processConfig(newConfig)
             configState.update { Result.Success(ConfigState.Retrieved(newConfig)) }
