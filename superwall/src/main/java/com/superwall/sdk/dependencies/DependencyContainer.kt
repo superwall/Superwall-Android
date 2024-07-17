@@ -14,7 +14,6 @@ import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.session.AppManagerDelegate
 import com.superwall.sdk.analytics.session.AppSession
 import com.superwall.sdk.analytics.session.AppSessionManager
-import com.superwall.sdk.analytics.trigger_session.TriggerSessionManager
 import com.superwall.sdk.billing.GoogleBillingWrapper
 import com.superwall.sdk.config.ConfigLogic
 import com.superwall.sdk.config.ConfigManager
@@ -84,7 +83,6 @@ class DependencyContainer(
     DeviceInfoFactory,
     AppManagerDelegate,
     RequestFactory,
-    TriggerSessionManagerFactory,
     RuleAttributesFactory,
     DeviceHelper.Factory,
     CacheFactory,
@@ -213,7 +211,6 @@ class DependencyContainer(
                 network = network,
                 storage = storage,
                 configManager = configManager,
-                factory = this,
             )
 
         // Must be after session events
@@ -246,10 +243,6 @@ class DependencyContainer(
                 factory = this,
                 context = context,
             )
-
-        // Calling this just to initialise the trigger session manager so it can start listening
-        // to config.
-        sessionEventsManager.triggerSession
     }
 
     override suspend fun makeHeaders(
@@ -434,17 +427,6 @@ class DependencyContainer(
                 ),
         )
 
-    override fun makeTriggerSessionManager(): TriggerSessionManager =
-        TriggerSessionManager(
-            delegate = sessionEventsManager,
-            sessionEventsManager = sessionEventsManager,
-            storage = storage,
-            configManager = configManager,
-            identityManager = identityManager,
-        )
-
-    override fun getTriggerSessionManager(): TriggerSessionManager = sessionEventsManager.triggerSession
-
     override fun makeStaticPaywall(
         paywallId: String?,
         isDebuggerLaunched: Boolean,
@@ -511,18 +493,14 @@ class DependencyContainer(
         ).templated()
     }
 
-    override suspend fun makeStoreTransaction(transaction: Purchase): StoreTransaction {
-        val triggerSessionId =
-            sessionEventsManager.triggerSession.getActiveTriggerSession()?.sessionId
-        return StoreTransaction(
+    override suspend fun makeStoreTransaction(transaction: Purchase): StoreTransaction =
+        StoreTransaction(
             GoogleBillingPurchaseTransaction(
                 transaction = transaction,
             ),
             configRequestId = configManager.config?.requestId ?: "",
             appSessionId = appSessionManager.appSession.id,
-            triggerSessionId = triggerSessionId,
         )
-    }
 
     override fun makeTransactionVerifier(): GoogleBillingWrapper = googleBillingWrapper
 

@@ -1,7 +1,6 @@
 package com.superwall.sdk.storage
 
 import android.content.Context
-import com.superwall.sdk.analytics.model.TriggerSession
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.models.serialization.AnySerializer
 import com.superwall.sdk.models.triggers.Experiment
@@ -12,7 +11,6 @@ import com.superwall.sdk.utilities.dateFormat
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.Serializer
-import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.descriptors.PrimitiveKind
@@ -143,17 +141,6 @@ object UserAttributes : Storable<
 
     override val serializer: KSerializer<Map<String, Any>>
         get() = MapSerializer(String.serializer(), AnySerializer)
-}
-
-object TriggerSessions : Storable<List<TriggerSession>> {
-    override val key: String
-        get() = "store.triggerSessions"
-
-    override val directory: SearchPathDirectory
-        get() = SearchPathDirectory.CACHE
-
-    override val serializer: KSerializer<List<TriggerSession>>
-        get() = ListSerializer(TriggerSession.serializer())
 }
 
 object Transactions : Storable<StoreTransaction> {

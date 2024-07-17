@@ -2,7 +2,6 @@ package com.superwall.sdk.paywall.presentation
 
 import ComputedPropertyRequest
 import com.superwall.sdk.config.models.Survey
-import com.superwall.sdk.dependencies.TriggerSessionManagerFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
@@ -29,7 +28,8 @@ data class PaywallInfo(
     @Serializable(with = URLSerializer::class)
     val url: URL,
     val experiment: Experiment?,
-    val triggerSessionId: String?,
+    @Deprecated("This will always be an empty string and will be removed in the next major update of the SDK.")
+    val triggerSessionId: String = "",
     @Deprecated(
         message = "Use productItems because a paywall can support more than three products",
         ReplaceWith("productsItems"),
@@ -61,7 +61,6 @@ data class PaywallInfo(
     val localNotifications: List<LocalNotification>,
     val computedPropertyRequests: List<ComputedPropertyRequest>,
     val surveys: List<Survey>,
-    val factory: TriggerSessionManagerFactory,
     val presentation: PaywallPresentationInfo,
 ) {
     constructor(
@@ -83,11 +82,9 @@ data class PaywallInfo(
         productsLoadFailTime: Date?,
         productsLoadCompleteTime: Date?,
         experiment: Experiment? = null,
-        triggerSessionId: String? = null,
         paywalljsVersion: String? = null,
         isFreeTrialAvailable: Boolean,
         presentationSourceType: String? = null,
-        factory: TriggerSessionManagerFactory,
         featureGatingBehavior: FeatureGatingBehavior = FeatureGatingBehavior.NonGated,
         localNotifications: List<LocalNotification>,
         computedPropertyRequests: List<ComputedPropertyRequest>,
@@ -103,7 +100,6 @@ data class PaywallInfo(
         presentedByEventAt = eventData?.createdAt?.toString(),
         presentedByEventWithId = eventData?.id?.lowercase(),
         experiment = experiment,
-        triggerSessionId = triggerSessionId,
         paywalljsVersion = paywalljsVersion,
         products = products,
         productItems = productItems,
@@ -139,7 +135,6 @@ data class PaywallInfo(
                     (endTime.time / 1000 - startTime.time / 1000).toDouble()
                 }
             },
-        factory = factory,
         localNotifications = localNotifications,
         computedPropertyRequests = computedPropertyRequests,
         closeReason = closeReason,
@@ -171,7 +166,8 @@ data class PaywallInfo(
                 "paywall_products_load_complete_time" to productsLoadCompleteTime,
                 "paywall_products_load_fail_time" to productsLoadFailTime,
                 "paywall_products_load_duration" to productsLoadDuration,
-                "trigger_session_id" to triggerSessionId,
+                // TODO remove in next major update
+                "trigger_session_id" to "",
                 "experiment_id" to experiment?.id,
                 "variant_id" to experiment?.variant?.id,
             )

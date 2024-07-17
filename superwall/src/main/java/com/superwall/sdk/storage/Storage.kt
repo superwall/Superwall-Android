@@ -171,7 +171,6 @@ open class Storage(
     }
 
     open fun clearCachedSessionEvents() {
-        cache.delete(TriggerSessions)
         cache.delete(Transactions)
     }
 

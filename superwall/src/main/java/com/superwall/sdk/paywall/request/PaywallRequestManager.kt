@@ -5,7 +5,6 @@ import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.dependencies.ConfigManagerFactory
 import com.superwall.sdk.dependencies.DeviceInfoFactory
-import com.superwall.sdk.dependencies.TriggerSessionManagerFactory
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.network.Network
@@ -19,7 +18,6 @@ import java.util.Date
 
 interface PaywallRequestManagerDepFactory :
     DeviceInfoFactory,
-    TriggerSessionManagerFactory,
     ConfigManagerFactory
 
 class PaywallRequestManager(
@@ -116,7 +114,6 @@ class PaywallRequestManager(
             val paywallInfo =
                 paywall.getInfo(
                     fromEvent = request.eventData,
-                    factory = factory,
                 )
             trackResponseLoaded(
                 paywallInfo,
@@ -215,7 +212,6 @@ class PaywallRequestManager(
                     substituteProducts = request.overrides.products,
                     paywall = paywall,
                     request = request,
-                    factory = factory,
                 )
             paywall = result.paywall
             paywall.productItems = result.productItems
@@ -240,7 +236,7 @@ class PaywallRequestManager(
         withContext(ioScope.coroutineContext) {
             var paywall = paywall
             paywall.productsLoadingInfo.startAt = Date()
-            val paywallInfo = paywall.getInfo(request.eventData, factory)
+            val paywallInfo = paywall.getInfo(request.eventData)
             val productLoadEvent =
                 InternalSuperwallEvent.PaywallProductsLoad(
                     state = InternalSuperwallEvent.PaywallProductsLoad.State.Start(),
@@ -258,7 +254,7 @@ class PaywallRequestManager(
         withContext(ioScope.coroutineContext) {
             var paywall = paywall
             paywall.productsLoadingInfo.endAt = Date()
-            val paywallInfo = paywall.getInfo(event, factory)
+            val paywallInfo = paywall.getInfo(event)
             val productLoadEvent =
                 InternalSuperwallEvent.PaywallProductsLoad(
                     state = InternalSuperwallEvent.PaywallProductsLoad.State.Complete(),
