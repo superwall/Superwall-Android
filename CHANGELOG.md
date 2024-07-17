@@ -2,6 +2,14 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+
+## 1.2.1
+
+### Enhancements
+
+- Adds the ability for the SDK to refresh the Superwall configuration every session start, subject to a feature flag.
+- Tracks a `config_refresh` Superwall event when the configuration is refreshed.
+
 ## 1.2.0
 
 ### Enhancements

@@ -702,6 +702,12 @@ sealed class InternalSuperwallEvent(
         }
     }
 
+    object ConfigRefresh : InternalSuperwallEvent(SuperwallEvent.ConfigRefresh) {
+        override val customParameters: Map<String, Any> = emptyMap()
+
+        override suspend fun getSuperwallParameters(): Map<String, Any> = emptyMap()
+    }
+
     object Reset : InternalSuperwallEvent(SuperwallEvent.Reset) {
         override val customParameters: Map<String, Any> = emptyMap()
 
