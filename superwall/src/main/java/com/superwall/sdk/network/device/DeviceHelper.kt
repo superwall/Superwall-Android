@@ -22,6 +22,7 @@ import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.geo.GeoInfo
+import com.superwall.sdk.network.JsonFactory
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.paywall.vc.web_view.templating.models.DeviceTemplate
 import com.superwall.sdk.storage.LastPaywallView
@@ -55,7 +56,8 @@ class DeviceHelper(
 ) {
     interface Factory :
         IdentityInfoFactory,
-        LocaleIdentifierFactory
+        LocaleIdentifierFactory,
+        JsonFactory
 
     private val connectivityManager =
         context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
@@ -415,6 +417,7 @@ class DeviceHelper(
                 )
                 null
             }
+        val capabilities: List<Capability> = listOf(Capability.PaywallEventReceiver())
         val deviceTemplate =
             DeviceTemplate(
                 publicApiKey = storage.apiKey,
@@ -467,6 +470,8 @@ class DeviceHelper(
                 ipCity = geo?.city,
                 ipContinent = geo?.continent,
                 ipTimezone = geo?.timezone,
+                capabilities = capabilities.map { it.name },
+                capabilitiesConfig = capabilities.toJson(factory.json()),
             )
 
         return deviceTemplate.toDictionary()

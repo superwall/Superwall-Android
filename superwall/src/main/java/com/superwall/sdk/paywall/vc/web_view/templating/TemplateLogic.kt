@@ -46,7 +46,6 @@ object TemplateLogic {
                 json.encodeToString(freeTrialTemplate),
 //            json.encodeToString(swProductTemplate)
             )
-
         val templatesString = "[" + encodedTemplates.joinToString(",") + "]"
         val templatesData = templatesString.toByteArray(Charsets.UTF_8)
 

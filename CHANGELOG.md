@@ -9,6 +9,8 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 - Adds the ability for the SDK to refresh the Superwall configuration every session start, subject to a feature flag.
 - Tracks a `config_refresh` Superwall event when the configuration is refreshed.
+- SW-2890: Adds `capabilities` to device attributes. This is a comma-separated list of capabilities the SDK has that you can target in audience filters. This release adds the `paywall_event_receiver` capability. This indicates that the paywall can receive transaction from the SDK.
+
 
 ## 1.2.0
 

@@ -15,8 +15,6 @@ import com.superwall.sdk.models.postback.PostBackResponse
 import com.superwall.sdk.models.postback.Postback
 import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonNamingStrategy
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.*
@@ -96,12 +94,7 @@ data class Endpoint<Response : SerializableEntity>(
             eventsRequest: EventsRequest,
             factory: ApiFactory,
         ): Endpoint<EventsResponse> {
-            val json =
-                Json {
-                    encodeDefaults = true
-                    namingStrategy = JsonNamingStrategy.SnakeCase
-                }
-            val bodyData = json.encodeToString(eventsRequest).toByteArray()
+            val bodyData = factory.json().encodeToString(eventsRequest).toByteArray()
             val collectorHost = factory.api.collector.host
 
             return Endpoint<EventsResponse>(
@@ -154,11 +147,7 @@ data class Endpoint<Response : SerializableEntity>(
             confirmableAssignments: AssignmentPostback,
             factory: ApiFactory,
         ): Endpoint<ConfirmedAssignmentResponse> {
-            val json =
-                Json {
-                    encodeDefaults = true
-                    namingStrategy = JsonNamingStrategy.SnakeCase
-                }
+            val json = factory.json()
             val bodyData = json.encodeToString(confirmableAssignments).toByteArray()
             val baseHost = factory.api.base.host
 
@@ -178,11 +167,7 @@ data class Endpoint<Response : SerializableEntity>(
             postback: Postback,
             factory: ApiFactory,
         ): Endpoint<PostBackResponse> {
-            val json =
-                Json {
-                    encodeDefaults = true
-                    namingStrategy = JsonNamingStrategy.SnakeCase
-                }
+            val json = factory.json()
             val bodyData = json.encodeToString(postback).toByteArray()
             val collectorHost = factory.api.collector.host
 
@@ -344,7 +329,7 @@ data class Endpoint<Response : SerializableEntity>(
 //                }
 //            }
 //            val baseHost = factory.api.base.host
-//
+// -m
 //            return Endpoint(
 //                components = Components(
 //                    host = baseHost,

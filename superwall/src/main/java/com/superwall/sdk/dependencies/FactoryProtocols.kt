@@ -17,6 +17,7 @@ import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.network.Api
+import com.superwall.sdk.network.JsonFactory
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.network.device.DeviceInfo
 import com.superwall.sdk.paywall.manager.PaywallViewCache
@@ -33,7 +34,7 @@ import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import kotlinx.coroutines.flow.StateFlow
 
-interface ApiFactory {
+interface ApiFactory : JsonFactory {
     // TODO: Think of an alternative way such that we don't need to do this:
     var api: Api
     var storage: Storage
