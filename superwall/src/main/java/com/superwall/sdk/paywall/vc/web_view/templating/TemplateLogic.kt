@@ -1,4 +1,7 @@
 import com.superwall.sdk.dependencies.VariablesFactory
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.paywall.vc.web_view.templating.models.FreeTrialTemplate
@@ -49,7 +52,11 @@ object TemplateLogic {
         val templatesString = "[" + encodedTemplates.joinToString(",") + "]"
         val templatesData = templatesString.toByteArray(Charsets.UTF_8)
 
-        println("!!! Template Logic: $templatesString")
+        Logger.debug(
+            LogLevel.debug,
+            LogScope.superwallCore,
+            "!!! Template Logic: $templatesString",
+        )
 
         return Base64.getEncoder().encodeToString(templatesData)
     }

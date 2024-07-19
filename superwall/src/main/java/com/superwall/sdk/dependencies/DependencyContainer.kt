@@ -302,6 +302,7 @@ class DependencyContainer(
             PaywallMessageHandler(
                 sessionEventsManager = sessionEventsManager,
                 factory = this@DependencyContainer,
+                ioScope = ioScope,
             )
 
         val paywallView =
