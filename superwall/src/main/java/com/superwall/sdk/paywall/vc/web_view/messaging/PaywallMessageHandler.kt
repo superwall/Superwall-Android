@@ -85,10 +85,17 @@ class PaywallMessageHandler(
     }
 
     fun handle(message: PaywallMessage) {
-        println("!! PaywallMessageHandler: Handling message: $message ${delegate?.paywall}, delegeate: $delegate")
+        Logger.debug(
+            LogLevel.debug,
+            LogScope.superwallCore,
+            "!! PaywallMessageHandler: Handling message: $message ${delegate?.paywall}, delegeate: $delegate",
+        )
         val paywall = delegate?.paywall ?: return
-        println("!! PaywallMessageHandler: Paywall: $paywall, delegeate: $delegate")
-        println("!! PaywallMessageHandler: delegeate: $delegate")
+        Logger.debug(
+            LogLevel.debug,
+            LogScope.superwallCore,
+            "!! PaywallMessageHandler: Paywall: $paywall, delegeate: $delegate",
+        )
         when (message) {
             is PaywallMessage.TemplateParamsAndUserAttributes ->
                 CoroutineScope(Dispatchers.IO).launch { passTemplatesToWebView(paywall) }
@@ -96,7 +103,11 @@ class PaywallMessageHandler(
             is PaywallMessage.OnReady -> {
                 delegate?.paywall?.paywalljsVersion = message.paywallJsVersion
                 val loadedAt = Date()
-                println("!!Ready!!")
+                Logger.debug(
+                    LogLevel.debug,
+                    LogScope.superwallCore,
+                    "!! PaywallMessageHandler: Ready !!",
+                )
                 CoroutineScope(Dispatchers.IO).launch { didLoadWebView(paywall, loadedAt) }
             }
 
@@ -124,7 +135,11 @@ class PaywallMessageHandler(
 
             is PaywallMessage.Custom -> handleCustomEvent(message.data)
             else -> {
-                println("!! PaywallMessageHandler: Unknown message type: $message")
+                Logger.debug(
+                    LogLevel.error,
+                    LogScope.superwallCore,
+                    "!! PaywallMessageHandler: Unknown message type: $message",
+                )
             }
         }
     }
@@ -212,7 +227,11 @@ class PaywallMessageHandler(
             }
         }
 
-        println("!! PaywallMessageHandler: didLoadWebView")
+        Logger.debug(
+            LogLevel.debug,
+            LogScope.superwallCore,
+            "!! PaywallMessageHandler: didLoadWebView",
+        )
 
         val htmlSubstitutions = paywall.htmlSubstitutions
         val eventData = delegate?.request?.presentationInfo?.eventData
@@ -227,7 +246,11 @@ class PaywallMessageHandler(
       window.paywall.accept64('$htmlSubstitutions');
     """
 
-        println("!! PaywallMessageHandler: $scriptSrc")
+        Logger.debug(
+            LogLevel.debug,
+            LogScope.superwallCore,
+            "!! PaywallMessageHandler: $scriptSrc",
+        )
 
         Logger.debug(
             logLevel = LogLevel.debug,
@@ -240,7 +263,6 @@ class PaywallMessageHandler(
         mainScope.launch {
             delegate?.webView?.evaluateJavascript(scriptSrc) { error ->
                 if (error != null) {
-                    println("!! PaywallMessageHandler: Error: $error")
                     Logger.debug(
                         logLevel = LogLevel.error,
                         scope = LogScope.paywallView,
