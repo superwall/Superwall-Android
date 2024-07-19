@@ -31,6 +31,8 @@ import java.net.URL
 import java.nio.charset.StandardCharsets
 import java.util.Base64
 import java.util.Date
+import java.util.LinkedList
+import java.util.Queue
 
 interface PaywallMessageHandlerDelegate {
     val request: PresentationRequest?
@@ -61,6 +63,7 @@ class PaywallMessageHandler(
     private val ioScope: CoroutineScope,
 ) {
     public var delegate: PaywallMessageHandlerDelegate? = null
+    private val queue: Queue<PaywallMessage> = LinkedList()
 
     @JavascriptInterface
     fun postMessage(message: String) {
@@ -122,14 +125,23 @@ class PaywallMessageHandler(
             is PaywallMessage.Restore -> restorePurchases()
             is PaywallMessage.Purchase -> purchaseProduct(withId = message.productId)
             is PaywallMessage.PaywallOpen -> {
-                ioScope.launch {
-                    pass(eventName = SuperwallEvents.PaywallOpen.rawName, paywall = paywall)
+                if (delegate?.paywall?.paywalljsVersion == null) {
+                    queue.offer(message)
+                } else {
+                    ioScope.launch {
+                        pass(eventName = SuperwallEvents.PaywallOpen.rawName, paywall = paywall)
+                    }
                 }
             }
+
             is PaywallMessage.PaywallClose -> {
-                ioScope.launch {
-                    val eventName = SuperwallEvents.PaywallClose.rawName
-                    pass(eventName = eventName, paywall = paywall)
+                if (delegate?.paywall?.paywalljsVersion == null) {
+                    queue.offer(message)
+                } else {
+                    ioScope.launch {
+                        val eventName = SuperwallEvents.PaywallClose.rawName
+                        pass(eventName = eventName, paywall = paywall)
+                    }
                 }
             }
 
@@ -297,6 +309,10 @@ class PaywallMessageHandler(
                     "var head = document.getElementsByTagName('head')[0];" +
                     "head.appendChild(meta);"
             delegate?.webView?.evaluateJavascript(preventZoom, null)
+            while (queue.isNotEmpty()) {
+                val item = queue.remove()
+                handle(item)
+            }
         }
     }
 
