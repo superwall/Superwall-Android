@@ -198,19 +198,19 @@ sealed class SuperwallEvent {
     sealed class Restore : SuperwallEvent() {
         object Start : Restore() {
             override val rawName: String
-                get() = "restore_start"
+                get() = SuperwallEvents.RestoreStart.rawName
         }
 
         data class Fail(
             val reason: String,
         ) : Restore() {
             override val rawName: String
-                get() = "restore_fail"
+                get() = SuperwallEvents.RestoreFail.rawName
         }
 
         object Complete : Restore() {
             override val rawName: String
-                get() = "restore_complete"
+                get() = SuperwallEvents.RestoreComplete.rawName
         }
     }
 

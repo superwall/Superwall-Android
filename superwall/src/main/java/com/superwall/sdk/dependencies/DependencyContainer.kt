@@ -31,6 +31,7 @@ import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.network.Api
+import com.superwall.sdk.network.JsonFactory
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.network.device.DeviceInfo
@@ -95,7 +96,8 @@ class DependencyContainer(
     ConfigManager.Factory,
     AppSessionManager.Factory,
     DebugView.Factory,
-    JavascriptEvaluator.Factory {
+    JavascriptEvaluator.Factory,
+    JsonFactory {
     var network: Network
     override lateinit var api: Api
     override lateinit var deviceHelper: DeviceHelper
@@ -508,6 +510,6 @@ class DependencyContainer(
     override suspend fun makeSuperwallOptions(): SuperwallOptions = configManager.options
 
     override suspend fun makeTriggers(): Set<String> = configManager.triggersByEventName.keys
-
+      
     override suspend fun provideJavascriptEvaluator(context: Context) = evaluator
 }
