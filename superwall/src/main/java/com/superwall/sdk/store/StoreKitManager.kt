@@ -7,7 +7,6 @@ import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.billing.BillingError
 import com.superwall.sdk.billing.DecomposedProductIds
 import com.superwall.sdk.billing.GoogleBillingWrapper
-import com.superwall.sdk.dependencies.TriggerSessionManagerFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
@@ -117,13 +116,11 @@ class StoreKitManager(
     suspend fun getProductVariables(
         paywall: Paywall,
         request: PaywallRequest,
-        factory: TriggerSessionManagerFactory,
     ): List<ProductVariable> {
         val output =
             getProducts(
                 paywall = paywall,
                 request = request,
-                factory = factory,
             )
 
         val productAttributes =
@@ -143,7 +140,6 @@ class StoreKitManager(
         substituteProducts: Map<String, StoreProduct>? = null,
         paywall: Paywall,
         request: PaywallRequest? = null,
-        factory: TriggerSessionManagerFactory,
     ): GetProductsResponse {
         val processingResult =
             removeAndStore(
@@ -157,7 +153,7 @@ class StoreKitManager(
             products = billingWrapper.awaitGetProducts(processingResult.fullProductIdsToLoad)
         } catch (error: Throwable) {
             paywall.productsLoadingInfo.failAt = Date()
-            val paywallInfo = paywall.getInfo(request?.eventData, factory)
+            val paywallInfo = paywall.getInfo(request?.eventData)
             val productLoadEvent =
                 InternalSuperwallEvent.PaywallProductsLoad(
                     state = InternalSuperwallEvent.PaywallProductsLoad.State.Fail(error.message),

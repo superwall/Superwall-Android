@@ -8,6 +8,7 @@ import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.SessionEventsManager
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
+import com.superwall.sdk.analytics.superwall.SuperwallEvents
 import com.superwall.sdk.dependencies.VariablesFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
@@ -30,6 +31,8 @@ import java.net.URL
 import java.nio.charset.StandardCharsets
 import java.util.Base64
 import java.util.Date
+import java.util.LinkedList
+import java.util.Queue
 
 interface PaywallMessageHandlerDelegate {
     val request: PresentationRequest?
@@ -57,8 +60,10 @@ interface PaywallMessageHandlerDelegate {
 class PaywallMessageHandler(
     private val sessionEventsManager: SessionEventsManager,
     private val factory: VariablesFactory,
+    private val ioScope: CoroutineScope,
 ) {
     public var delegate: PaywallMessageHandlerDelegate? = null
+    private val queue: Queue<PaywallMessage> = LinkedList()
 
     @JavascriptInterface
     fun postMessage(message: String) {
@@ -83,10 +88,17 @@ class PaywallMessageHandler(
     }
 
     fun handle(message: PaywallMessage) {
-        println("!! PaywallMessageHandler: Handling message: $message ${delegate?.paywall}, delegeate: $delegate")
+        Logger.debug(
+            LogLevel.debug,
+            LogScope.superwallCore,
+            "!! PaywallMessageHandler: Handling message: $message ${delegate?.paywall}, delegeate: $delegate",
+        )
         val paywall = delegate?.paywall ?: return
-        println("!! PaywallMessageHandler: Paywall: $paywall, delegeate: $delegate")
-        println("!! PaywallMessageHandler: delegeate: $delegate")
+        Logger.debug(
+            LogLevel.debug,
+            LogScope.superwallCore,
+            "!! PaywallMessageHandler: Paywall: $paywall, delegeate: $delegate",
+        )
         when (message) {
             is PaywallMessage.TemplateParamsAndUserAttributes ->
                 CoroutineScope(Dispatchers.IO).launch { passTemplatesToWebView(paywall) }
@@ -94,7 +106,11 @@ class PaywallMessageHandler(
             is PaywallMessage.OnReady -> {
                 delegate?.paywall?.paywalljsVersion = message.paywallJsVersion
                 val loadedAt = Date()
-                println("!!Ready!!")
+                Logger.debug(
+                    LogLevel.debug,
+                    LogScope.superwallCore,
+                    "!! PaywallMessageHandler: Ready !!",
+                )
                 CoroutineScope(Dispatchers.IO).launch { didLoadWebView(paywall, loadedAt) }
             }
 
@@ -109,14 +125,33 @@ class PaywallMessageHandler(
             is PaywallMessage.Restore -> restorePurchases()
             is PaywallMessage.Purchase -> purchaseProduct(withId = message.productId)
             is PaywallMessage.PaywallOpen -> {
-                CoroutineScope(Dispatchers.IO).launch {
-                    pass(eventName = "paywall_open", paywall = paywall)
+                if (delegate?.paywall?.paywalljsVersion == null) {
+                    queue.offer(message)
+                } else {
+                    ioScope.launch {
+                        pass(eventName = SuperwallEvents.PaywallOpen.rawName, paywall = paywall)
+                    }
+                }
+            }
+
+            is PaywallMessage.PaywallClose -> {
+                if (delegate?.paywall?.paywalljsVersion == null) {
+                    queue.offer(message)
+                } else {
+                    ioScope.launch {
+                        val eventName = SuperwallEvents.PaywallClose.rawName
+                        pass(eventName = eventName, paywall = paywall)
+                    }
                 }
             }
 
             is PaywallMessage.Custom -> handleCustomEvent(message.data)
             else -> {
-                println("!! PaywallMessageHandler: Unknown message type: $message")
+                Logger.debug(
+                    LogLevel.error,
+                    LogScope.superwallCore,
+                    "!! PaywallMessageHandler: Unknown message type: $message",
+                )
             }
         }
     }
@@ -204,7 +239,11 @@ class PaywallMessageHandler(
             }
         }
 
-        println("!! PaywallMessageHandler: didLoadWebView")
+        Logger.debug(
+            LogLevel.debug,
+            LogScope.superwallCore,
+            "!! PaywallMessageHandler: didLoadWebView",
+        )
 
         val htmlSubstitutions = paywall.htmlSubstitutions
         val eventData = delegate?.request?.presentationInfo?.eventData
@@ -219,7 +258,11 @@ class PaywallMessageHandler(
       window.paywall.accept64('$htmlSubstitutions');
     """
 
-        println("!! PaywallMessageHandler: $scriptSrc")
+        Logger.debug(
+            LogLevel.debug,
+            LogScope.superwallCore,
+            "!! PaywallMessageHandler: $scriptSrc",
+        )
 
         Logger.debug(
             logLevel = LogLevel.debug,
@@ -232,7 +275,6 @@ class PaywallMessageHandler(
         mainScope.launch {
             delegate?.webView?.evaluateJavascript(scriptSrc) { error ->
                 if (error != null) {
-                    println("!! PaywallMessageHandler: Error: $error")
                     Logger.debug(
                         logLevel = LogLevel.error,
                         scope = LogScope.paywallView,
@@ -267,6 +309,10 @@ class PaywallMessageHandler(
                     "var head = document.getElementsByTagName('head')[0];" +
                     "head.appendChild(meta);"
             delegate?.webView?.evaluateJavascript(preventZoom, null)
+            while (queue.isNotEmpty()) {
+                val item = queue.remove()
+                handle(item)
+            }
         }
     }
 

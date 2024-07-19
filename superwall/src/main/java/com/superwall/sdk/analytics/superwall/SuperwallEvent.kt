@@ -358,6 +358,12 @@ sealed class SuperwallEvent {
             get() = "survey_close"
     }
 
+    // When a configuration is refreshed successfully
+    object ConfigRefresh : SuperwallEvent() {
+        override val rawName: String
+            get() = "config_refresh"
+    }
+
     // When Superwall.instance.reset is called
     object Reset : SuperwallEvent() {
         override val rawName: String

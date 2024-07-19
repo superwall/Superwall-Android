@@ -4,7 +4,6 @@ import ComputedPropertyRequest
 import android.app.Activity
 import com.android.billingclient.api.Purchase
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
-import com.superwall.sdk.analytics.trigger_session.TriggerSessionManager
 import com.superwall.sdk.billing.GoogleBillingWrapper
 import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.config.options.SuperwallOptions
@@ -61,12 +60,6 @@ interface FeatureFlagsFactory {
 
 interface ComputedPropertyRequestsFactory {
     fun makeComputedPropertyRequests(): List<ComputedPropertyRequest>
-}
-
-interface TriggerSessionManagerFactory {
-    fun makeTriggerSessionManager(): TriggerSessionManager
-
-    fun getTriggerSessionManager(): TriggerSessionManager
 }
 
 // RequestFactory interface

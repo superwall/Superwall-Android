@@ -33,7 +33,6 @@ import com.superwall.sdk.Superwall
 import com.superwall.sdk.debug.localizations.SWLocalizationActivity
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.dependencies.RequestFactory
-import com.superwall.sdk.dependencies.TriggerSessionManagerFactory
 import com.superwall.sdk.dependencies.ViewFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
@@ -74,8 +73,7 @@ class DebugView(
     AppCompatActivityEncapsulatable {
     interface Factory :
         RequestFactory,
-        ViewFactory,
-        TriggerSessionManagerFactory
+        ViewFactory
 
     data class AlertOption(
         val title: String? = "",
@@ -438,7 +436,6 @@ class DebugView(
                 storeKitManager.getProductVariables(
                     paywall,
                     request = request,
-                    factory = factory,
                 )
             paywall.productVariables = productVariables
 
@@ -599,7 +596,6 @@ class DebugView(
             val (productsById, _) =
                 storeKitManager.getProducts(
                     paywall = paywall,
-                    factory = factory,
                 )
 
             val products = paywall.productIds.mapNotNull { productsById[it] }

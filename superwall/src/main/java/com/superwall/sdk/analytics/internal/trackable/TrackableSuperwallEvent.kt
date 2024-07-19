@@ -293,12 +293,6 @@ sealed class InternalSuperwallEvent(
                     "trigger_name" to triggerName,
                 )
 
-            val triggerSessionId =
-                sessionEventsManager.triggerSession.getActiveTriggerSession()?.sessionId
-            if (triggerSessionId != null) {
-                params["trigger_session_id"] = triggerSessionId
-            }
-
             return when (triggerResult) {
                 is InternalTriggerResult.NoRuleMatch -> {
                     params.apply {
@@ -706,6 +700,12 @@ sealed class InternalSuperwallEvent(
             params.putAll(paywallInfo.eventParams())
             return params
         }
+    }
+
+    object ConfigRefresh : InternalSuperwallEvent(SuperwallEvent.ConfigRefresh) {
+        override val customParameters: Map<String, Any> = emptyMap()
+
+        override suspend fun getSuperwallParameters(): Map<String, Any> = emptyMap()
     }
 
     object Reset : InternalSuperwallEvent(SuperwallEvent.Reset) {
