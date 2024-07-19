@@ -11,6 +11,8 @@ import com.superwall.sdk.misc.Result
 import com.superwall.sdk.models.assignment.Assignment
 import com.superwall.sdk.models.assignment.ConfirmableAssignment
 import com.superwall.sdk.models.config.Config
+import com.superwall.sdk.models.config.RawFeatureFlag
+import com.superwall.sdk.models.geo.GeoInfo
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.Trigger
 import com.superwall.sdk.models.triggers.TriggerRule
@@ -22,6 +24,14 @@ import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.StorageMock
 import com.superwall.sdk.store.StoreKitManager
+import io.mockk.Runs
+import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.every
+import io.mockk.just
+import io.mockk.mockk
+import io.mockk.spyk
+import io.mockk.verify
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
@@ -32,6 +42,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.util.Locale
+import kotlin.time.Duration
 
 class ConfigManagerUnderTest(
     private val context: Context,
@@ -255,5 +266,126 @@ class ConfigManagerTests {
             } finally {
                 dependencyContainer.provideJavascriptEvaluator(context).teardown()
             }
+        }
+
+    val mockDeviceHelper =
+        mockk<DeviceHelper> {
+            every { appVersion } returns "1.0"
+            every { locale } returns "en-US"
+            coEvery { getTemplateDevice() } returns emptyMap()
+        }
+
+    @Test
+    fun should_refresh_config_successfully() =
+        runTest(timeout = Duration.INFINITE) {
+            val mockNetwork =
+                mockk<Network> {
+                    coEvery { getConfig(any()) } returns Config.stub()
+                    coEvery { getGeoInfo() } returns mockk<GeoInfo>()
+                }
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+            val dependencyContainer =
+                DependencyContainer(context, null, null, activityProvider = null)
+            val storage = StorageMock(context = context)
+            val oldConfig =
+                Config.stub().copy(
+                    rawFeatureFlags =
+                        listOf(
+                            RawFeatureFlag("enable_config_refresh", true),
+                        ),
+                )
+
+            val mockPaywallManager =
+                mockk<PaywallManager> {
+                    every { resetPaywallRequestCache() } just Runs
+                    every { currentView } returns null
+                }
+
+            val mockContainer =
+                spyk(dependencyContainer) {
+                    every { deviceHelper } returns mockDeviceHelper
+                    every { paywallManager } returns mockPaywallManager
+                }
+
+            val testId = "123"
+            val configManager =
+                spyk(
+                    ConfigManager(
+                        context,
+                        dependencyContainer.storeKitManager,
+                        storage,
+                        mockNetwork,
+                        mockDeviceHelper,
+                        SuperwallOptions(),
+                        mockPaywallManager,
+                        mockContainer,
+                        this,
+                    ),
+                ) {
+                    every { config } returns
+                        oldConfig.copy(
+                            requestId = testId,
+                        )
+                }
+
+            configManager.refreshConfiguration()
+            coVerify { mockNetwork.getConfig(any()) }
+            verify { mockPaywallManager.resetPaywallRequestCache() }
+            assertTrue(configManager.config?.requestId === testId)
+        }
+
+    @Test
+    fun should_fail_refreshing_config_and_keep_old_config() =
+        runTest(timeout = Duration.INFINITE) {
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+            val mockNetwork =
+                mockk<Network> {
+                    coEvery { getConfig(any()) } throws IllegalStateException()
+                    coEvery { getGeoInfo() } returns mockk<GeoInfo>()
+                }
+            val dependencyContainer =
+                DependencyContainer(context, null, null, activityProvider = null)
+            val storage = StorageMock(context = context)
+            val oldConfig =
+                Config.stub().copy(
+                    rawFeatureFlags =
+                        listOf(
+                            RawFeatureFlag("enable_config_refresh", true),
+                        ),
+                )
+
+            val mockPaywallManager =
+                mockk<PaywallManager> {
+                    every { resetPaywallRequestCache() } just Runs
+                    every { currentView } returns null
+                }
+
+            val mockContainer =
+                spyk(dependencyContainer) {
+                    every { deviceHelper } returns mockDeviceHelper
+                    every { paywallManager } returns mockPaywallManager
+                }
+
+            val testId = "123"
+            val configManager =
+                spyk(
+                    ConfigManager(
+                        context,
+                        dependencyContainer.storeKitManager,
+                        storage,
+                        mockNetwork,
+                        mockDeviceHelper,
+                        SuperwallOptions(),
+                        mockPaywallManager,
+                        mockContainer,
+                        this,
+                    ),
+                ) {
+                    every { config } returns oldConfig.copy(requestId = testId)
+                }
+
+            configManager.refreshConfiguration()
+            coVerify { mockNetwork.getConfig(any()) }
+            assertTrue(configManager.config?.requestId === testId)
         }
 }

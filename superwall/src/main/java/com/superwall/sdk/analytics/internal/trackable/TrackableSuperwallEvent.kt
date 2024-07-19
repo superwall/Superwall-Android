@@ -438,7 +438,13 @@ sealed class InternalSuperwallEvent(
 
         override val customParameters: Map<String, Any>
             get() {
-                return paywallInfo.customParams()
+                return paywallInfo.customParams().let {
+                    if (superwallEvent is SuperwallEvent.TransactionAbandon) {
+                        it.plus("abandoned_product_id" to (product?.productIdentifier ?: ""))
+                    } else {
+                        it
+                    }
+                }
             }
 
         override val superwallEvent: SuperwallEvent
@@ -698,6 +704,12 @@ sealed class InternalSuperwallEvent(
             params.putAll(paywallInfo.eventParams())
             return params
         }
+    }
+
+    object ConfigRefresh : InternalSuperwallEvent(SuperwallEvent.ConfigRefresh) {
+        override val customParameters: Map<String, Any> = emptyMap()
+
+        override suspend fun getSuperwallParameters(): Map<String, Any> = emptyMap()
     }
 
     object Reset : InternalSuperwallEvent(SuperwallEvent.Reset) {

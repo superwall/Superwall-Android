@@ -38,6 +38,7 @@ data class Config(
     val featureFlags: FeatureFlags
         get() =
             FeatureFlags(
+                enableConfigRefresh = rawFeatureFlags.find { it.key == "enable_config_refresh" }?.enabled ?: false,
                 enableSessionEvents =
                     rawFeatureFlags.find { it.key == "enable_session_events" }?.enabled
                         ?: false,

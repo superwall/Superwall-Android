@@ -265,4 +265,8 @@ class PaywallRequestManager(
 
             return@withContext paywall
         }
+
+    internal fun resetCache() {
+        paywallsByHash.clear()
+    }
 }

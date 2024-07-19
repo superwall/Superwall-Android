@@ -198,19 +198,19 @@ sealed class SuperwallEvent {
     sealed class Restore : SuperwallEvent() {
         object Start : Restore() {
             override val rawName: String
-                get() = "restore_start"
+                get() = SuperwallEvents.RestoreStart.rawName
         }
 
         data class Fail(
             val reason: String,
         ) : Restore() {
             override val rawName: String
-                get() = "restore_fail"
+                get() = SuperwallEvents.RestoreFail.rawName
         }
 
         object Complete : Restore() {
             override val rawName: String
-                get() = "restore_complete"
+                get() = SuperwallEvents.RestoreComplete.rawName
         }
     }
 
@@ -356,6 +356,12 @@ sealed class SuperwallEvent {
     class SurveyClose : SuperwallEvent() {
         override val rawName: String
             get() = "survey_close"
+    }
+
+    // When a configuration is refreshed successfully
+    object ConfigRefresh : SuperwallEvent() {
+        override val rawName: String
+            get() = "config_refresh"
     }
 
     // When Superwall.instance.reset is called

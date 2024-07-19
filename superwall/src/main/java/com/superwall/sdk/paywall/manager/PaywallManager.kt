@@ -129,4 +129,8 @@ class PaywallManager(
 
         return paywallView
     }
+
+    internal fun resetPaywallRequestCache() {
+        paywallRequestManager.resetCache()
+    }
 }
