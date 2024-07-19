@@ -1,7 +1,6 @@
 package com.superwall.sdk.analytics.internal.trackable
 
 import android.net.Uri
-import com.superwall.sdk.analytics.SessionEventsManager
 import com.superwall.sdk.analytics.superwall.SuperwallEvent
 import com.superwall.sdk.analytics.superwall.TransactionProduct
 import com.superwall.sdk.config.models.Survey
@@ -280,7 +279,6 @@ sealed class InternalSuperwallEvent(
         val triggerResult: InternalTriggerResult,
         val triggerName: String,
         override var customParameters: HashMap<String, Any> = HashMap(),
-        private val sessionEventsManager: SessionEventsManager,
     ) : InternalSuperwallEvent(
             SuperwallEvent.TriggerFire(
                 eventName = triggerName,
