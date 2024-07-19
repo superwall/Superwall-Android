@@ -22,11 +22,14 @@ import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.geo.GeoInfo
+import com.superwall.sdk.network.JsonFactory
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.paywall.vc.web_view.templating.models.DeviceTemplate
 import com.superwall.sdk.storage.LastPaywallView
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.TotalPaywallViews
+import com.superwall.sdk.utilities.DateUtils
+import com.superwall.sdk.utilities.dateFormat
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeout
@@ -53,7 +56,8 @@ class DeviceHelper(
 ) {
     interface Factory :
         IdentityInfoFactory,
-        LocaleIdentifierFactory
+        LocaleIdentifierFactory,
+        JsonFactory
 
     private val connectivityManager =
         context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
@@ -205,7 +209,7 @@ class DeviceHelper(
         get() {
             val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
             val installDate = Date(packageInfo.firstInstallTime)
-            val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+            val formatter = dateFormat(DateUtils.SIMPLE)
             return formatter.format(installDate)
         }
 
@@ -240,42 +244,42 @@ class DeviceHelper(
 
     private val localDateFormat: SimpleDateFormat
         get() {
-            val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+            val formatter = dateFormat(DateUtils.yyyy_MM_dd)
             formatter.timeZone = TimeZone.getDefault()
             return formatter
         }
 
     private val utcDateFormat: SimpleDateFormat
         get() {
-            val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+            val formatter = dateFormat(DateUtils.yyyy_MM_dd)
             formatter.timeZone = TimeZone.getTimeZone("UTC")
             return formatter
         }
 
     private val utcTimeFormat: SimpleDateFormat
         get() {
-            val formatter = SimpleDateFormat("HH:mm:ss", Locale.US)
+            val formatter = dateFormat(DateUtils.HH_mm_ss)
             formatter.timeZone = TimeZone.getTimeZone("UTC")
             return formatter
         }
 
     private val localDateTimeFormat: SimpleDateFormat
         get() {
-            val formatter = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US)
+            val formatter = dateFormat(DateUtils.ISO_SECONDS)
             formatter.timeZone = TimeZone.getDefault()
             return formatter
         }
 
     private val localTimeFormat: SimpleDateFormat
         get() {
-            val formatter = SimpleDateFormat("HH:mm:ss", Locale.US)
+            val formatter = dateFormat(DateUtils.HH_mm_ss)
             formatter.timeZone = TimeZone.getDefault()
             return formatter
         }
 
     private val utcDateTimeFormat: SimpleDateFormat
         get() {
-            val formatter = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US)
+            val formatter = dateFormat(DateUtils.ISO_SECONDS)
             formatter.timeZone = TimeZone.getTimeZone("UTC")
             return formatter
         }
@@ -413,6 +417,7 @@ class DeviceHelper(
                 )
                 null
             }
+        val capabilities: List<Capability> = listOf(Capability.PaywallEventReceiver())
         val deviceTemplate =
             DeviceTemplate(
                 publicApiKey = storage.apiKey,
@@ -465,6 +470,8 @@ class DeviceHelper(
                 ipCity = geo?.city,
                 ipContinent = geo?.continent,
                 ipTimezone = geo?.timezone,
+                capabilities = capabilities.map { it.name },
+                capabilitiesConfig = capabilities.toJson(factory.json()),
             )
 
         return deviceTemplate.toDictionary()

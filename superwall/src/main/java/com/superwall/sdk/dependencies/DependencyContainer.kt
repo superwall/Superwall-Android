@@ -4,8 +4,6 @@ import ComputedPropertyRequest
 import android.app.Activity
 import android.app.Application
 import android.content.Context
-import android.webkit.WebView
-import androidx.javascriptengine.JavaScriptSandbox
 import androidx.lifecycle.ProcessLifecycleOwner
 import com.android.billingclient.api.Purchase
 import com.superwall.sdk.Superwall
@@ -14,7 +12,6 @@ import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.session.AppManagerDelegate
 import com.superwall.sdk.analytics.session.AppSession
 import com.superwall.sdk.analytics.session.AppSessionManager
-import com.superwall.sdk.analytics.trigger_session.TriggerSessionManager
 import com.superwall.sdk.billing.GoogleBillingWrapper
 import com.superwall.sdk.config.ConfigLogic
 import com.superwall.sdk.config.ConfigManager
@@ -34,6 +31,7 @@ import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.network.Api
+import com.superwall.sdk.network.JsonFactory
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.network.device.DeviceInfo
@@ -43,10 +41,8 @@ import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
+import com.superwall.sdk.paywall.presentation.rule_logic.javascript.DefaultJavascriptEvalutor
 import com.superwall.sdk.paywall.presentation.rule_logic.javascript.JavascriptEvaluator
-import com.superwall.sdk.paywall.presentation.rule_logic.javascript.NoSupportedEvaluator
-import com.superwall.sdk.paywall.presentation.rule_logic.javascript.SandboxJavascriptEvaluator
-import com.superwall.sdk.paywall.presentation.rule_logic.javascript.WebviewJavascriptEvaluator
 import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.paywall.request.PaywallRequestManager
 import com.superwall.sdk.paywall.request.PaywallRequestManagerDepFactory
@@ -64,13 +60,14 @@ import com.superwall.sdk.store.StoreKitManager
 import com.superwall.sdk.store.abstractions.transactions.GoogleBillingPurchaseTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import com.superwall.sdk.store.transactions.TransactionManager
+import com.superwall.sdk.utilities.DateUtils
+import com.superwall.sdk.utilities.dateFormat
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.launch
+import java.util.Date
 
 class DependencyContainer(
     val context: Context,
@@ -81,7 +78,6 @@ class DependencyContainer(
     DeviceInfoFactory,
     AppManagerDelegate,
     RequestFactory,
-    TriggerSessionManagerFactory,
     RuleAttributesFactory,
     DeviceHelper.Factory,
     CacheFactory,
@@ -100,7 +96,8 @@ class DependencyContainer(
     ConfigManager.Factory,
     AppSessionManager.Factory,
     DebugView.Factory,
-    JavascriptEvaluator.Factory {
+    JavascriptEvaluator.Factory,
+    JsonFactory {
     var network: Network
     override lateinit var api: Api
     override lateinit var deviceHelper: DeviceHelper
@@ -120,7 +117,14 @@ class DependencyContainer(
     val googleBillingWrapper: GoogleBillingWrapper
     private val uiScope = CoroutineScope(Dispatchers.Main)
     private val ioScope = CoroutineScope(Dispatchers.IO)
-    private var evaluator: Deferred<JavascriptEvaluator>? = null
+    private val evaluator by lazy {
+        DefaultJavascriptEvalutor(
+            ioScope = ioScope,
+            uiScope = uiScope,
+            context = context,
+            storage = storage,
+        )
+    }
 
     init {
         // TODO: Add delegate adapter
@@ -210,7 +214,6 @@ class DependencyContainer(
                 network = network,
                 storage = storage,
                 configManager = configManager,
-                factory = this,
             )
 
         // Must be after session events
@@ -243,10 +246,6 @@ class DependencyContainer(
                 factory = this,
                 context = context,
             )
-
-        // Calling this just to initialise the trigger session manager so it can start listening
-        // to config.
-        sessionEventsManager.triggerSession
     }
 
     override suspend fun makeHeaders(
@@ -287,6 +286,8 @@ class DependencyContainer(
                     Superwall.instance.subscriptionStatus.value
                         .toString(),
                 "Content-Type" to "application/json",
+                "X-Current-Time" to dateFormat(DateUtils.ISO_MILLIS).format(Date()),
+                "X-Static-Config-Build-Id" to (configManager.config?.buildId ?: ""),
             )
 
         return headers
@@ -301,6 +302,7 @@ class DependencyContainer(
             PaywallMessageHandler(
                 sessionEventsManager = sessionEventsManager,
                 factory = this@DependencyContainer,
+                ioScope = ioScope,
             )
 
         val paywallView =
@@ -429,17 +431,6 @@ class DependencyContainer(
                 ),
         )
 
-    override fun makeTriggerSessionManager(): TriggerSessionManager =
-        TriggerSessionManager(
-            delegate = sessionEventsManager,
-            sessionEventsManager = sessionEventsManager,
-            storage = storage,
-            configManager = configManager,
-            identityManager = identityManager,
-        )
-
-    override fun getTriggerSessionManager(): TriggerSessionManager = sessionEventsManager.triggerSession
-
     override fun makeStaticPaywall(
         paywallId: String?,
         isDebuggerLaunched: Boolean,
@@ -506,52 +497,20 @@ class DependencyContainer(
         ).templated()
     }
 
-    override suspend fun makeStoreTransaction(transaction: Purchase): StoreTransaction {
-        val triggerSessionId =
-            sessionEventsManager.triggerSession.getActiveTriggerSession()?.sessionId
-        return StoreTransaction(
+    override suspend fun makeStoreTransaction(transaction: Purchase): StoreTransaction =
+        StoreTransaction(
             GoogleBillingPurchaseTransaction(
                 transaction = transaction,
             ),
             configRequestId = configManager.config?.requestId ?: "",
             appSessionId = appSessionManager.appSession.id,
-            triggerSessionId = triggerSessionId,
         )
-    }
 
     override fun makeTransactionVerifier(): GoogleBillingWrapper = googleBillingWrapper
 
     override suspend fun makeSuperwallOptions(): SuperwallOptions = configManager.options
 
     override suspend fun makeTriggers(): Set<String> = configManager.triggersByEventName.keys
-
-    override suspend fun provideJavascriptEvaluator(context: Context): JavascriptEvaluator {
-        val eval = evaluator
-        if (evaluator != null) {
-            eval?.await()
-        } else {
-            evaluator =
-                uiScope.async {
-                    when {
-                        JavaScriptSandbox.isSupported() ->
-                            ioScope
-                                .async {
-                                    val sandbox =
-                                        JavaScriptSandbox.createConnectedInstanceAsync(context).await()
-                                    SandboxJavascriptEvaluator(sandbox, this@DependencyContainer, storage)
-                                }.await()
-
-                        WebView.getCurrentWebViewPackage() != null ->
-                            WebviewJavascriptEvaluator(
-                                WebView(context),
-                                uiScope,
-                                storage,
-                            )
-
-                        else -> NoSupportedEvaluator
-                    }
-                }
-        }
-        return evaluator?.await() ?: throw IllegalStateException("Evaluator null when awaiting")
-    }
+      
+    override suspend fun provideJavascriptEvaluator(context: Context) = evaluator
 }

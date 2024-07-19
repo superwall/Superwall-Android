@@ -21,6 +21,7 @@ data class Config(
     @SerialName("localization") var localizationConfig: LocalizationConfig,
     var requestId: String? = null,
     @Transient var locales: Set<String> = emptySet(),
+    @SerialName("build_id") val buildId: String,
 ) : SerializableEntity {
     init {
         locales = localizationConfig.locales.map { it.locale }.toSet()
@@ -37,6 +38,7 @@ data class Config(
     val featureFlags: FeatureFlags
         get() =
             FeatureFlags(
+                enableConfigRefresh = rawFeatureFlags.find { it.key == "enable_config_refresh" }?.enabled ?: false,
                 enableSessionEvents =
                     rawFeatureFlags.find { it.key == "enable_session_events" }?.enabled
                         ?: false,
@@ -56,6 +58,7 @@ data class Config(
                 rawFeatureFlags = emptyList(),
                 preloadingDisabled = PreloadingDisabled.stub(),
                 localizationConfig = LocalizationConfig(locales = emptyList()),
+                buildId = "stub-build-id",
             )
     }
 }

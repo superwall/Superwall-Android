@@ -1,7 +1,6 @@
 package com.superwall.sdk.paywall.presentation.internal
 
 import android.app.Activity
-import com.superwall.sdk.analytics.model.TriggerSessionTrigger
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
@@ -65,9 +64,9 @@ data class PresentationRequest(
      */
     val presentationSourceType: String?
         get() =
-            when (presentationInfo.triggerType) {
-                TriggerSessionTrigger.TriggerType.IMPLICIT -> "implicit"
-                TriggerSessionTrigger.TriggerType.EXPLICIT ->
+            when (presentationInfo) {
+                is PresentationInfo.ImplicitTrigger -> "implicit"
+                is PresentationInfo.ExplicitTrigger, is PresentationInfo.FromIdentifier ->
                     when (flags.type) {
                         is PresentationRequestType.GetPaywall -> "getPaywall"
                         is PresentationRequestType.Presentation -> "register"

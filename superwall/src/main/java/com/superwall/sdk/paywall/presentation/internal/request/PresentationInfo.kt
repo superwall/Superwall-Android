@@ -1,6 +1,5 @@
 package com.superwall.sdk.paywall.presentation.internal.request
 
-import com.superwall.sdk.analytics.model.TriggerSessionTrigger
 import com.superwall.sdk.models.events.EventData
 
 // EventData should be defined in Kotlin before this.
@@ -48,12 +47,5 @@ sealed class PresentationInfo {
             when (this) {
                 is FromIdentifier -> identifier
                 else -> null
-            }
-
-    val triggerType: TriggerSessionTrigger.TriggerType
-        get() =
-            when (this) {
-                is ImplicitTrigger -> TriggerSessionTrigger.TriggerType.IMPLICIT
-                else -> TriggerSessionTrigger.TriggerType.EXPLICIT
             }
 }

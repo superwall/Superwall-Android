@@ -20,7 +20,7 @@ plugins {
     id("signing")
 }
 
-version = "1.2.0"
+version = "1.2.1"
 
 android {
     compileSdk = 34
@@ -81,6 +81,7 @@ android {
 
     packaging {
         resources.excludes += "META-INF/LICENSE.md"
+        resources.excludes += "META-INF/LICENSE-notice.md"
     }
 
     publishing {
@@ -211,12 +212,11 @@ dependencies {
     // Test
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
-    testImplementation(libs.mockk)
-    // ??? Not sure if we need this
-    // testImplementation("org.json:json:20210307")
+    testImplementation(libs.mockk.core)
 
     // Test (Android)
     androidTestImplementation(libs.test.ext.junit)
     androidTestImplementation(libs.espresso.core)
     androidTestImplementation(libs.kotlinx.coroutines.test)
+    androidTestImplementation(libs.mockk.android)
 }

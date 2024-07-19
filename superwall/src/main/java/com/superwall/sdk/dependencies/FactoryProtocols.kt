@@ -4,7 +4,6 @@ import ComputedPropertyRequest
 import android.app.Activity
 import com.android.billingclient.api.Purchase
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
-import com.superwall.sdk.analytics.trigger_session.TriggerSessionManager
 import com.superwall.sdk.billing.GoogleBillingWrapper
 import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.config.options.SuperwallOptions
@@ -18,6 +17,7 @@ import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.network.Api
+import com.superwall.sdk.network.JsonFactory
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.network.device.DeviceInfo
 import com.superwall.sdk.paywall.manager.PaywallViewCache
@@ -34,7 +34,7 @@ import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import kotlinx.coroutines.flow.StateFlow
 
-interface ApiFactory {
+interface ApiFactory : JsonFactory {
     // TODO: Think of an alternative way such that we don't need to do this:
     var api: Api
     var storage: Storage
@@ -61,12 +61,6 @@ interface FeatureFlagsFactory {
 
 interface ComputedPropertyRequestsFactory {
     fun makeComputedPropertyRequests(): List<ComputedPropertyRequest>
-}
-
-interface TriggerSessionManagerFactory {
-    fun makeTriggerSessionManager(): TriggerSessionManager
-
-    fun getTriggerSessionManager(): TriggerSessionManager
 }
 
 // RequestFactory interface

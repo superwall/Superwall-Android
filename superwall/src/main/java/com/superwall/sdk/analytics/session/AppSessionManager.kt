@@ -103,11 +103,16 @@ class AppSessionManager(
 
         if (didStartNewSession) {
             appSession = AppSession()
+
             backgroundScope.launch {
                 val deviceAttributes = delegate.makeSessionDeviceAttributes()
                 val userAttributes = delegate.makeUserAttributesEvent()
 
                 Superwall.instance.track(InternalSuperwallEvent.SessionStart())
+
+                // Only track device attributes if we've already tracked app launch before.
+                // This is because we track device attributes after the config is first fetched.
+                // Otherwise we'd track it twice and it won't contain geo info here on cold app start.
                 if (didTrackAppLaunch) {
                     Superwall.instance.track(
                         InternalSuperwallEvent.DeviceAttributes(
@@ -116,6 +121,10 @@ class AppSessionManager(
                     )
                 }
                 Superwall.instance.track(userAttributes)
+            }
+            // If we are returning to the app, we can refresh the config here.
+            backgroundScope.launch {
+                configManager.refreshConfiguration()
             }
         } else {
             appSession.endAt = null

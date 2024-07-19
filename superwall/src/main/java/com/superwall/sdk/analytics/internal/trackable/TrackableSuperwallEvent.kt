@@ -1,7 +1,6 @@
 package com.superwall.sdk.analytics.internal.trackable
 
 import android.net.Uri
-import com.superwall.sdk.analytics.SessionEventsManager
 import com.superwall.sdk.analytics.superwall.SuperwallEvent
 import com.superwall.sdk.analytics.superwall.TransactionProduct
 import com.superwall.sdk.config.models.Survey
@@ -280,7 +279,6 @@ sealed class InternalSuperwallEvent(
         val triggerResult: InternalTriggerResult,
         val triggerName: String,
         override var customParameters: HashMap<String, Any> = HashMap(),
-        private val sessionEventsManager: SessionEventsManager,
     ) : InternalSuperwallEvent(
             SuperwallEvent.TriggerFire(
                 eventName = triggerName,
@@ -292,12 +290,6 @@ sealed class InternalSuperwallEvent(
                 hashMapOf(
                     "trigger_name" to triggerName,
                 )
-
-            val triggerSessionId =
-                sessionEventsManager.triggerSession.getActiveTriggerSession()?.sessionId
-            if (triggerSessionId != null) {
-                params["trigger_session_id"] = triggerSessionId
-            }
 
             return when (triggerResult) {
                 is InternalTriggerResult.NoRuleMatch -> {
@@ -446,7 +438,13 @@ sealed class InternalSuperwallEvent(
 
         override val customParameters: Map<String, Any>
             get() {
-                return paywallInfo.customParams()
+                return paywallInfo.customParams().let {
+                    if (superwallEvent is SuperwallEvent.TransactionAbandon) {
+                        it.plus("abandoned_product_id" to (product?.productIdentifier ?: ""))
+                    } else {
+                        it
+                    }
+                }
             }
 
         override val superwallEvent: SuperwallEvent
@@ -706,6 +704,12 @@ sealed class InternalSuperwallEvent(
             params.putAll(paywallInfo.eventParams())
             return params
         }
+    }
+
+    object ConfigRefresh : InternalSuperwallEvent(SuperwallEvent.ConfigRefresh) {
+        override val customParameters: Map<String, Any> = emptyMap()
+
+        override suspend fun getSuperwallParameters(): Map<String, Any> = emptyMap()
     }
 
     object Reset : InternalSuperwallEvent(SuperwallEvent.Reset) {

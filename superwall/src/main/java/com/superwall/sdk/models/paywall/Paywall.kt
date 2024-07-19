@@ -4,7 +4,6 @@ import ComputedPropertyRequest
 import android.graphics.Color
 import com.superwall.sdk.config.models.OnDeviceCaching
 import com.superwall.sdk.config.models.Survey
-import com.superwall.sdk.dependencies.TriggerSessionManagerFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
@@ -87,8 +86,6 @@ data class Paywall(
     @kotlinx.serialization.Transient()
     var experiment: Experiment? = null,
     @kotlinx.serialization.Transient()
-    var triggerSessionId: String? = null,
-    @kotlinx.serialization.Transient()
     var closeReason: PaywallCloseReason = PaywallCloseReason.None,
     /**
      Surveys to potentially show when an action happens in the paywall.
@@ -163,10 +160,7 @@ data class Paywall(
         experiment = paywall.experiment
     }
 
-    fun getInfo(
-        fromEvent: EventData?,
-        factory: TriggerSessionManagerFactory,
-    ): PaywallInfo =
+    fun getInfo(fromEvent: EventData?): PaywallInfo =
         PaywallInfo(
             databaseId = databaseId,
             identifier = identifier,
@@ -186,11 +180,9 @@ data class Paywall(
             productsLoadFailTime = productsLoadingInfo.failAt,
             productsLoadCompleteTime = productsLoadingInfo.endAt,
             experiment = experiment,
-            triggerSessionId = triggerSessionId,
             paywalljsVersion = paywalljsVersion,
             isFreeTrialAvailable = isFreeTrialAvailable,
             presentationSourceType = presentationSourceType,
-            factory = factory,
             featureGatingBehavior = featureGating,
             closeReason = closeReason,
             localNotifications = localNotifications,

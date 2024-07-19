@@ -19,7 +19,6 @@ import com.superwall.sdk.analytics.superwall.SuperwallEvents
 import com.superwall.sdk.config.models.OnDeviceCaching
 import com.superwall.sdk.config.options.PaywallOptions
 import com.superwall.sdk.dependencies.TriggerFactory
-import com.superwall.sdk.dependencies.TriggerSessionManagerFactory
 import com.superwall.sdk.game.GameControllerDelegate
 import com.superwall.sdk.game.GameControllerEvent
 import com.superwall.sdk.game.GameControllerManager
@@ -78,9 +77,7 @@ class PaywallView(
     SWWebViewDelegate,
     ActivityEncapsulatable,
     GameControllerDelegate {
-    interface Factory :
-        TriggerSessionManagerFactory,
-        TriggerFactory
+    interface Factory : TriggerFactory
     //region Public properties
 
     // MUST be set prior to presentation
@@ -126,7 +123,7 @@ class PaywallView(
 
     // / The paywall info
     override val info: PaywallInfo
-        get() = paywall.getInfo(request?.presentationInfo?.eventData, factory)
+        get() = paywall.getInfo(request?.presentationInfo?.eventData)
 
     // / The loading state of the paywall.
     override var loadingState: PaywallLoadingState = PaywallLoadingState.Unknown()
@@ -494,15 +491,12 @@ class PaywallView(
     }
 
     private suspend fun trackClose() {
-        val triggerSessionManager = factory.getTriggerSessionManager()
-
         val trackedEvent =
             InternalSuperwallEvent.PaywallClose(
                 info,
                 surveyPresentationResult,
             )
         Superwall.instance.track(trackedEvent)
-        triggerSessionManager.endSession()
     }
 
     override fun eventDidOccur(paywallEvent: PaywallWebEvent) {

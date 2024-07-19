@@ -25,6 +25,7 @@ import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.models.triggers.Trigger
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.network.device.DeviceHelper
+import com.superwall.sdk.paywall.manager.PaywallCacheLogic
 import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.ExpressionEvaluator
 import com.superwall.sdk.paywall.presentation.rule_logic.javascript.JavascriptEvaluator
@@ -42,6 +43,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 // TODO: Re-enable those params
@@ -94,17 +96,13 @@ open class ConfigManager(
             _unconfirmedAssignments = value.toMutableMap()
         }
 
-    // Remaining methods should be converted similarly, using Kotlin's coroutines for async tasks
-    // and other relevant Kotlin features. Here's an example of one method:
     suspend fun fetchConfiguration() {
         try {
             val configDeferred =
                 ioScope.async {
                     network.getConfig {
-                        CoroutineScope(Dispatchers.IO).launch {
-                            // Emit retrying state
-                            configState.emit(Result.Success(ConfigState.Retrying))
-                        }
+                        // Emit retrying state
+                        configState.update { Result.Success(ConfigState.Retrying) }
                     }
                 }
 
@@ -134,9 +132,7 @@ open class ConfigManager(
                 message = "Fetched Configuration: $config",
             )
 
-            storage.save(config.featureFlags.disableVerboseEvents, DisableVerboseEvents)
-            triggersByEventName = ConfigLogic.getTriggersByEventName(config.triggers)
-            choosePaywallVariants(config.triggers)
+            processConfig(config)
 
             // Preload all products
             if (options.paywalls.shouldPreload) {
@@ -214,6 +210,12 @@ open class ConfigManager(
                 )
             }
         }
+    }
+
+    private fun processConfig(config: Config) {
+        storage.save(config.featureFlags.disableVerboseEvents, DisableVerboseEvents)
+        triggersByEventName = ConfigLogic.getTriggersByEventName(config.triggers)
+        choosePaywallVariants(config.triggers)
     }
 
     fun confirmAssignment(assignment: ConfirmableAssignment) {
@@ -346,6 +348,63 @@ open class ConfigManager(
             }
         }
     }
+
+    internal suspend fun refreshConfiguration() {
+        // Make sure config already exists
+        val oldConfig = config ?: return
+
+        // Ensure the config refresh feature flag is enabled
+        if (!oldConfig.featureFlags.enableConfigRefresh) {
+            return
+        }
+
+        try {
+            val newConfig =
+                network.getConfig {}
+            paywallManager.resetPaywallRequestCache()
+            removeUnusedPaywallVCsFromCache(oldConfig, newConfig)
+            processConfig(newConfig)
+            configState.update { Result.Success(ConfigState.Retrieved(newConfig)) }
+            Superwall.instance.track(InternalSuperwallEvent.ConfigRefresh)
+            ioScope.launch { preloadPaywalls() }
+        } catch (e: Exception) {
+            Logger.debug(
+                logLevel = LogLevel.warn,
+                scope = LogScope.superwallCore,
+                message = "Failed to refresh configuration.",
+                info = null,
+                error = e,
+            )
+        }
+    }
+
+    private suspend fun removeUnusedPaywallVCsFromCache(
+        oldConfig: Config,
+        newConfig: Config,
+    ) {
+        val oldPaywallIds = oldConfig.paywalls.map { it.identifier }.toSet()
+        val newPaywallIds = newConfig.paywalls.map { it.identifier }.toSet()
+
+        val presentedPaywallId = paywallManager.currentView?.paywall?.identifier
+        val missingPaywallIds =
+            if (presentedPaywallId != null) {
+                oldPaywallIds.minus(presentedPaywallId).subtract(newPaywallIds)
+            } else {
+                oldPaywallIds.subtract(newPaywallIds)
+            }
+
+        missingPaywallIds.forEach {
+            val paywall = oldConfig.paywalls.first { wall -> wall.identifier == it }
+            val key =
+                PaywallCacheLogic.key(
+                    identifier = paywall.identifier,
+                    locale = factory.makeDeviceInfo().locale,
+                )
+            paywallManager.removePaywallView(key)
+        }
+    }
+
+// Assuming other necessary classes and objects are defined elsewhere
 
     // This sends product data back to the dashboard.
     private suspend fun sendProductsBack(config: Config) {

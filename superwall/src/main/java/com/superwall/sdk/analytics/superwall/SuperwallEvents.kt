@@ -42,4 +42,7 @@ enum class SuperwallEvents(
     PaywallProductsLoadFail("paywallProductsLoad_fail"),
     PaywallProductsLoadComplete("paywallProductsLoad_complete"),
     PaywallPresentationRequest("paywallPresentationRequest"),
+    RestoreStart("restore_start"),
+    RestoreFail("restore_fail"),
+    RestoreComplete("restore_complete"),
 }

@@ -16,6 +16,7 @@ import com.superwall.sdk.paywall.presentation.rule_logic.javascript.SandboxJavas
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.StorageMock
 import junit.framework.TestCase.assertEquals
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.runBlocking
@@ -56,14 +57,12 @@ class ExpressionEvaluatorInstrumentedTest {
             sandbox = null
         }
 
-    private fun evaluatorFor(
-        storage: Storage,
-        factory: RuleAttributesFactory,
-    ) = SandboxJavascriptEvaluator(
-        sandbox ?: error("Sandbox not initialized"),
-        factory = factory,
-        storage = storage,
-    )
+    private fun CoroutineScope.evaluatorFor(storage: Storage) =
+        SandboxJavascriptEvaluator(
+            sandbox ?: error("Sandbox not initialized"),
+            storage = storage,
+            ioScope = this,
+        )
 
     @Test
     fun test_happy_path_evaluator() =
@@ -77,7 +76,6 @@ class ExpressionEvaluatorInstrumentedTest {
                 ExpressionEvaluator(
                     evaluator =
                         evaluatorFor(
-                            factory = ruleAttributes,
                             storage = storage,
                         ),
                     storage = storage,
@@ -130,7 +128,6 @@ class ExpressionEvaluatorInstrumentedTest {
                 ExpressionEvaluator(
                     evaluator =
                         evaluatorFor(
-                            factory = ruleAttributes,
                             storage = storage,
                         ),
                     storage = storage,
@@ -224,7 +221,6 @@ class ExpressionEvaluatorInstrumentedTest {
                 ExpressionEvaluator(
                     evaluator =
                         evaluatorFor(
-                            factory = ruleAttributes,
                             storage = storage,
                         ),
                     storage = storage,
@@ -326,7 +322,6 @@ class ExpressionEvaluatorInstrumentedTest {
                 ExpressionEvaluator(
                     evaluator =
                         evaluatorFor(
-                            factory = ruleAttributes,
                             storage = storage,
                         ),
                     storage = storage,
@@ -368,21 +363,4 @@ class ExpressionEvaluatorInstrumentedTest {
 
             assert(result == TriggerRuleOutcome.match(rule = rule))
         }
-
-    suspend fun runWithRule(rule: TriggerRule) {
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val ruleAttributes = RuleAttributeFactoryBuilder()
-        val storage = StorageMock(context = context)
-
-        val expressionEvaluator =
-            ExpressionEvaluator(
-                evaluator =
-                    evaluatorFor(
-                        factory = ruleAttributes,
-                        storage = storage,
-                    ),
-                storage = storage,
-                factory = ruleAttributes,
-            )
-    }
 }

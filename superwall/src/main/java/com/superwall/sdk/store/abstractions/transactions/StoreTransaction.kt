@@ -17,8 +17,6 @@ class StoreTransaction(
     val configRequestId: String,
     @SerialName("app_session_id")
     val appSessionId: String,
-    @SerialName("trigger_session_id")
-    val triggerSessionId: String?,
 ) : StoreTransactionType {
     val id = UUID.randomUUID().toString()
 
