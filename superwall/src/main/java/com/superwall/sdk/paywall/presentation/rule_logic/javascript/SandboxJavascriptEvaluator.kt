@@ -25,8 +25,8 @@ internal class SandboxJavascriptEvaluator(
         rule: TriggerRule,
     ): TriggerRuleOutcome =
         withContext(ioScope.coroutineContext) {
-            val jsIsolate = jsSandbox?.createIsolate()
-            jsIsolate?.addOnTerminatedCallback {
+            val jsIsolate = jsSandbox.createIsolate()
+            jsIsolate.addOnTerminatedCallback {
                 Logger.debug(
                     logLevel = LogLevel.error,
                     scope = LogScope.superwallCore,
@@ -34,10 +34,10 @@ internal class SandboxJavascriptEvaluator(
                 )
             }
 
-            val resultFuture = jsIsolate?.evaluateJavaScriptAsync("$SDKJS\n $base64params")
+            val resultFuture = jsIsolate.evaluateJavaScriptAsync("$SDKJS\n $base64params")
 
-            val result = resultFuture?.await()
-            jsIsolate?.close()
+            val result = resultFuture.await()
+            jsIsolate.close()
 
             if (result.isNullOrEmpty()) {
                 TriggerRuleOutcome.noMatch(UnmatchedRule.Source.EXPRESSION, rule.experiment.id)
@@ -49,7 +49,7 @@ internal class SandboxJavascriptEvaluator(
 
     override fun teardown() {
         runBlocking {
-            jsSandbox?.close()
+            jsSandbox.close()
         }
     }
 }

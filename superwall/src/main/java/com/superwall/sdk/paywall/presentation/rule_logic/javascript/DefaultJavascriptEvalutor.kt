@@ -3,6 +3,7 @@ package com.superwall.sdk.paywall.presentation.rule_logic.javascript
 import android.content.Context
 import android.webkit.WebView
 import androidx.javascriptengine.JavaScriptSandbox
+import androidx.javascriptengine.SandboxDeadException
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
@@ -14,7 +15,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.guava.await
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 
 class DefaultJavascriptEvalutor(
@@ -22,6 +23,9 @@ class DefaultJavascriptEvalutor(
     private val uiScope: CoroutineScope,
     private val context: Context,
     private val storage: Storage,
+    private val createSandbox: suspend (ctx: Context) -> JavaScriptSandbox = {
+        JavaScriptSandbox.createConnectedInstanceAsync(it).await()
+    },
 ) : JavascriptEvaluator {
     private val mutex = Mutex()
     private var eval: Deferred<JavascriptEvaluator>? = null
@@ -37,11 +41,11 @@ class DefaultJavascriptEvalutor(
         try {
             // Try to evaluate with the existing evaluator
             createEvaluatorIfDoesntExist().evaluate(base64params, rule)
-        } catch (throwable: Throwable) {
+        } catch (throwable: SandboxDeadException) {
             // If evaluation failed, try teardown and recreate evaluator
             teardown()
             tryEvaluateWithFallback(base64params, rule)
-        } catch (e: Throwable) {
+        } catch (e: Exception) {
             Logger.debug(
                 logLevel = LogLevel.error,
                 scope = LogScope.superwallCore,
@@ -51,7 +55,7 @@ class DefaultJavascriptEvalutor(
         }
 
     override fun teardown() {
-        ioScope.launch {
+        runBlocking {
             try {
                 eval?.await()?.teardown()
             } catch (e: Exception) {
@@ -75,7 +79,7 @@ class DefaultJavascriptEvalutor(
 
     private suspend fun createSandboxEvaluator(context: Context): JavascriptEvaluator =
         try {
-            val sandbox = JavaScriptSandbox.createConnectedInstanceAsync(context).await()
+            val sandbox = createSandbox(context)
             SandboxJavascriptEvaluator(sandbox, ioScope, storage)
         } catch (e: Exception) {
             Logger.debug(
@@ -99,7 +103,7 @@ class DefaultJavascriptEvalutor(
     ): TriggerRuleOutcome =
         try {
             createEvaluatorIfDoesntExist().evaluate(base64params, rule)
-        } catch (e: Throwable) {
+        } catch (e: Exception) {
             teardown()
             createEvaluatorIfDoesntExist {
                 createWebViewEvaluator(context)
@@ -111,7 +115,7 @@ class DefaultJavascriptEvalutor(
             createNewEvaluator(context)
         },
     ): JavascriptEvaluator {
-        mutex.lock(this)
+        mutex.lock()
         val current = eval
         val evaluator =
             if (current == null) {
@@ -124,7 +128,7 @@ class DefaultJavascriptEvalutor(
             } else {
                 current.await()
             }
-        mutex.unlock(this)
+        mutex.unlock()
         return evaluator
     }
 }
