@@ -10,7 +10,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 - Adds the ability for the SDK to refresh the Superwall configuration every session start, subject to a feature flag.
 - Tracks a `config_refresh` Superwall event when the configuration is refreshed.
 - SW-2890: Adds `capabilities` to device attributes. This is a comma-separated list of capabilities the SDK has that you can target in audience filters. This release adds the `paywall_event_receiver` capability. This indicates that the paywall can receive transaction from the SDK.
-
+- SW-2902: Adds `abandoned_product_id` to a `transaction_abandon` event to use in audience filters. You can use this to show a paywall if a user abandons the transaction for a specific product.
 
 ## 1.2.0
 

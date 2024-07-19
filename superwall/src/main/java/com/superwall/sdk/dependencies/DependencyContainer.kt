@@ -4,8 +4,6 @@ import ComputedPropertyRequest
 import android.app.Activity
 import android.app.Application
 import android.content.Context
-import android.webkit.WebView
-import androidx.javascriptengine.JavaScriptSandbox
 import androidx.lifecycle.ProcessLifecycleOwner
 import com.android.billingclient.api.Purchase
 import com.superwall.sdk.Superwall
@@ -43,10 +41,8 @@ import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
+import com.superwall.sdk.paywall.presentation.rule_logic.javascript.DefaultJavascriptEvalutor
 import com.superwall.sdk.paywall.presentation.rule_logic.javascript.JavascriptEvaluator
-import com.superwall.sdk.paywall.presentation.rule_logic.javascript.NoSupportedEvaluator
-import com.superwall.sdk.paywall.presentation.rule_logic.javascript.SandboxJavascriptEvaluator
-import com.superwall.sdk.paywall.presentation.rule_logic.javascript.WebviewJavascriptEvaluator
 import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.paywall.request.PaywallRequestManager
 import com.superwall.sdk.paywall.request.PaywallRequestManagerDepFactory
@@ -67,11 +63,9 @@ import com.superwall.sdk.store.transactions.TransactionManager
 import com.superwall.sdk.utilities.DateUtils
 import com.superwall.sdk.utilities.dateFormat
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.launch
 import java.util.Date
 
@@ -123,7 +117,14 @@ class DependencyContainer(
     val googleBillingWrapper: GoogleBillingWrapper
     private val uiScope = CoroutineScope(Dispatchers.Main)
     private val ioScope = CoroutineScope(Dispatchers.IO)
-    private var evaluator: Deferred<JavascriptEvaluator>? = null
+    private val evaluator by lazy {
+        DefaultJavascriptEvalutor(
+            ioScope = ioScope,
+            uiScope = uiScope,
+            context = context,
+            storage = storage,
+        )
+    }
 
     init {
         // TODO: Add delegate adapter
@@ -509,40 +510,6 @@ class DependencyContainer(
     override suspend fun makeSuperwallOptions(): SuperwallOptions = configManager.options
 
     override suspend fun makeTriggers(): Set<String> = configManager.triggersByEventName.keys
-
-    override suspend fun provideJavascriptEvaluator(context: Context): JavascriptEvaluator {
-        val eval = evaluator
-        if (evaluator != null) {
-            eval?.await()
-        } else {
-            evaluator =
-                uiScope.async {
-                    when {
-                        JavaScriptSandbox.isSupported() ->
-                            ioScope
-                                .async {
-                                    val sandbox =
-                                        JavaScriptSandbox
-                                            .createConnectedInstanceAsync(context)
-                                            .await()
-                                    SandboxJavascriptEvaluator(
-                                        sandbox,
-                                        this@DependencyContainer,
-                                        storage,
-                                    )
-                                }.await()
-
-                        WebView.getCurrentWebViewPackage() != null ->
-                            WebviewJavascriptEvaluator(
-                                WebView(context),
-                                uiScope,
-                                storage,
-                            )
-
-                        else -> NoSupportedEvaluator
-                    }
-                }
-        }
-        return evaluator?.await() ?: throw IllegalStateException("Evaluator null when awaiting")
-    }
+      
+    override suspend fun provideJavascriptEvaluator(context: Context) = evaluator
 }

@@ -6,7 +6,6 @@ javascriptengineVersion = "1.0.0-beta01"
 kotlinxCoroutinesGuavaVersion = "1.8.1"
 leakcanaryAndroidVersion = "2.14"
 lifecycleProcessVersion = "2.8.1"
-mockk = "1.13.8"
 orchestratorVersion = "1.5.0"
 revenue_cat_version = "7.7.1"
 compose_version = "2024.05.00"
@@ -28,7 +27,7 @@ test_runner_version = "1.6.1"
 test_rules_version = "1.6.1"
 kotlin = "1.9.0"
 kotlinx_coroutines_core_version = "1.8.1"
-mockk_version = "1.12.8"
+mockk_version = "1.13.12"
 threetenbp_version = "1.6.8"
 uiautomator_version = "2.3.0"
 workRuntimeKtx_version = "2.9.0"
@@ -85,7 +84,7 @@ gson = { module = "com.google.code.gson:gson", version.ref = "gson_version" }
 # Test
 junit = { module = "junit:junit", version.ref = "junit_version" }
 kotlinx_coroutines_test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx_coroutines_test_version" }
-mockk = { module = "io.mockk:mockk", version.ref = "mockk_version" }
+mockk_core = { module = "io.mockk:mockk", version.ref = "mockk_version" }
 
 # Test (Android)
 test_ext_junit = { module = "androidx.test.ext:junit", version.ref = "test_ext_junit_version" }
@@ -94,6 +93,7 @@ test_runner = { module = "androidx.test:runner", version.ref = "test_runner_vers
 test_core = { module = "androidx.test:core", version.ref = "test_runner_version" }
 test_rules = { module = "androidx.test:rules", version.ref = "test_rules_version" }
 ui_test_junit4 = { module = "androidx.compose.ui:ui-test-junit4" }
+mockk_android = { module = "io.mockk:mockk-android", version.ref = "mockk_version" }
 
 # Debug
 ui_tooling = { module = "androidx.compose.ui:ui-tooling" }
