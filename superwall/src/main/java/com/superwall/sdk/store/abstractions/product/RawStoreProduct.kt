@@ -3,10 +3,11 @@ import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.ProductDetails.PricingPhase
 import com.android.billingclient.api.ProductDetails.SubscriptionOfferDetails
 import com.superwall.sdk.contrib.threeteen.AmountFormats
+import com.superwall.sdk.utilities.DateUtils
+import com.superwall.sdk.utilities.dateFormat
 import kotlinx.serialization.Transient
 import java.math.BigDecimal
 import java.math.RoundingMode
-import java.text.SimpleDateFormat
 import java.time.Period
 import java.util.Calendar
 import java.util.Currency
@@ -362,7 +363,7 @@ class RawStoreProduct(
 
     override val trialPeriodEndDateString by lazy {
         trialPeriodEndDate?.let {
-            val dateFormatter = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+            val dateFormatter = dateFormat(DateUtils.MMM_dd_yyyy)
             dateFormatter.format(it)
         } ?: ""
     }

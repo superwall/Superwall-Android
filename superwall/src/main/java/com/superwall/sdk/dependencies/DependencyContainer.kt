@@ -64,6 +64,8 @@ import com.superwall.sdk.store.StoreKitManager
 import com.superwall.sdk.store.abstractions.transactions.GoogleBillingPurchaseTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import com.superwall.sdk.store.transactions.TransactionManager
+import com.superwall.sdk.utilities.DateUtils
+import com.superwall.sdk.utilities.dateFormat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -71,6 +73,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.launch
+import java.util.Date
 
 class DependencyContainer(
     val context: Context,
@@ -287,6 +290,7 @@ class DependencyContainer(
                     Superwall.instance.subscriptionStatus.value
                         .toString(),
                 "Content-Type" to "application/json",
+                "X-Current-Time" to dateFormat(DateUtils.ISO_MILLIS).format(Date())
             )
 
         return headers
