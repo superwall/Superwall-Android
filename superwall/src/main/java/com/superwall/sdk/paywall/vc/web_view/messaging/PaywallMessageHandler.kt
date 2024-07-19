@@ -8,6 +8,7 @@ import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.SessionEventsManager
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
+import com.superwall.sdk.analytics.superwall.SuperwallEvents
 import com.superwall.sdk.dependencies.VariablesFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
@@ -57,6 +58,7 @@ interface PaywallMessageHandlerDelegate {
 class PaywallMessageHandler(
     private val sessionEventsManager: SessionEventsManager,
     private val factory: VariablesFactory,
+    private val ioScope: CoroutineScope,
 ) {
     public var delegate: PaywallMessageHandlerDelegate? = null
 
@@ -109,8 +111,14 @@ class PaywallMessageHandler(
             is PaywallMessage.Restore -> restorePurchases()
             is PaywallMessage.Purchase -> purchaseProduct(withId = message.productId)
             is PaywallMessage.PaywallOpen -> {
-                CoroutineScope(Dispatchers.IO).launch {
-                    pass(eventName = "paywall_open", paywall = paywall)
+                ioScope.launch {
+                    pass(eventName = SuperwallEvents.PaywallOpen.rawName, paywall = paywall)
+                }
+            }
+            is PaywallMessage.PaywallClose -> {
+                ioScope.launch {
+                    val eventName = SuperwallEvents.PaywallClose.rawName
+                    pass(eventName = eventName, paywall = paywall)
                 }
             }
 

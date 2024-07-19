@@ -47,6 +47,8 @@ sealed class PaywallMessage {
     ) : PaywallMessage()
 
     object PaywallOpen : PaywallMessage()
+
+    object PaywallClose : PaywallMessage()
 }
 
 fun parseWrappedPaywallMessages(jsonString: String): WrappedPaywallMessages {
