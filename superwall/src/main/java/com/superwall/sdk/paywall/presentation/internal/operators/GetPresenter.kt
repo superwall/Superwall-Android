@@ -99,12 +99,6 @@ suspend fun Superwall.attemptTriggerFire(
     request: PresentationRequest,
     triggerResult: InternalTriggerResult,
 ) {
-    if (request.flags.type == PresentationRequestType.GetImplicitPresentationResult ||
-        request.flags.type == PresentationRequestType.GetPresentationResult
-    ) {
-        return
-    }
-    val sessionEventsManager = dependencyContainer.sessionEventsManager
     // If eventName is null, the paywall is being presented by identifier, which is what the debugger uses and that's not supported.
     val eventName = request.presentationInfo.eventName ?: return
 
@@ -122,7 +116,6 @@ suspend fun Superwall.attemptTriggerFire(
         InternalSuperwallEvent.TriggerFire(
             triggerResult = triggerResult,
             triggerName = eventName,
-            sessionEventsManager = sessionEventsManager,
         )
     track(trackedEvent)
 }
