@@ -440,7 +440,13 @@ sealed class InternalSuperwallEvent(
 
         override val customParameters: Map<String, Any>
             get() {
-                return paywallInfo.customParams()
+                return paywallInfo.customParams().let {
+                    if (superwallEvent is SuperwallEvent.TransactionAbandon) {
+                        it.plus("abandoned_product_id" to (product?.productIdentifier ?: ""))
+                    } else {
+                        it
+                    }
+                }
             }
 
         override val superwallEvent: SuperwallEvent
