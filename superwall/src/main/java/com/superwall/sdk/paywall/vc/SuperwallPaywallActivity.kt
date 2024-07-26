@@ -17,6 +17,7 @@ import android.view.Window
 import android.view.WindowInsetsController
 import android.view.WindowManager
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.app.ActivityCompat
@@ -160,19 +161,33 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         // TODO: handle animation and style from `presentationStyleOverride`
         when (intent.getSerializableExtra(PRESENTATION_STYLE_KEY) as? PaywallPresentationStyle) {
             PaywallPresentationStyle.PUSH -> {
-                overridePendingTransition(R.anim.slide_in_left, R.anim.slide_in_left)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, R.anim.slide_in_left, R.anim.slide_in_left)
+                } else {
+                    overridePendingTransition(R.anim.slide_in_left, R.anim.slide_in_left)
+                }
             }
 
             PaywallPresentationStyle.DRAWER -> {
+                // TODO: Not yet supported in Android
             }
 
             PaywallPresentationStyle.FULLSCREEN -> {
+                enableEdgeToEdge()
             }
 
             PaywallPresentationStyle.FULLSCREEN_NO_ANIMATION -> {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, 0, 0)
+                    overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, 0, 0)
+                } else {
+                    overridePendingTransition(0, 0)
+                }
+                enableEdgeToEdge()
             }
 
             PaywallPresentationStyle.MODAL -> {
+                // TODO: Not yet supported in Android
             }
 
             PaywallPresentationStyle.NONE -> {
