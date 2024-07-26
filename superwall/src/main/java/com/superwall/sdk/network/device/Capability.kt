@@ -31,6 +31,10 @@ internal sealed class Capability(
                 SuperwallEvents.PaywallClose,
             ).map { it.rawName }
     }
+
+    @Serializable
+    @SerialName("multiple_paywall_urls")
+    object MultiplePaywallUrls : Capability("multiple_paywall_urls")
 }
 
 internal fun List<Capability>.toJson(json: Json): JsonElement = json.encodeToJsonElement(this)

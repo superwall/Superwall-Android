@@ -16,6 +16,7 @@ data class FeatureFlags(
     @SerialName("enable_postback") var enablePostback: Boolean,
     @SerialName("enable_userid_seed") var enableUserIdSeed: Boolean,
     @SerialName("disable_verbose_events") var disableVerboseEvents: Boolean,
+    @SerialName("enable_multiple_paywall_urls") var enableMultiplePaywallUrls: Boolean,
 )
 
 fun List<RawFeatureFlag>.value(

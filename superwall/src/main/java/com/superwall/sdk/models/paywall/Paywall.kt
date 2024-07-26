@@ -87,6 +87,8 @@ data class Paywall(
     var experiment: Experiment? = null,
     @kotlinx.serialization.Transient()
     var closeReason: PaywallCloseReason = PaywallCloseReason.None,
+    @SerialName("url_config")
+    val urlConfig: PaywallWebviewUrl.Config? = null,
     /**
      Surveys to potentially show when an action happens in the paywall.
      */
@@ -245,6 +247,13 @@ data class Paywall(
                 featureGating = FeatureGatingBehavior.NonGated,
                 localNotifications = arrayListOf(),
                 presentationDelay = 300,
+                urlConfig =
+                    PaywallWebviewUrl.Config(
+                        3,
+                        listOf(
+                            PaywallWebviewUrl("https://google.com", 1000L, 1),
+                        ),
+                    ),
             )
     }
 }

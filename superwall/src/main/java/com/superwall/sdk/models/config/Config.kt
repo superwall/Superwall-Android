@@ -38,6 +38,7 @@ data class Config(
     val featureFlags: FeatureFlags
         get() =
             FeatureFlags(
+                enableMultiplePaywallUrls = rawFeatureFlags.find { it.key == "enable_multiple_paywall_urls" }?.enabled ?: false,
                 enableConfigRefresh = rawFeatureFlags.find { it.key == "enable_config_refresh" }?.enabled ?: false,
                 enableSessionEvents =
                     rawFeatureFlags.find { it.key == "enable_session_events" }?.enabled

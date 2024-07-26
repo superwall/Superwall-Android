@@ -38,6 +38,7 @@ enum class SuperwallEvents(
     PaywallWebviewLoadFail("paywallWebviewLoad_fail"),
     PaywallWebviewLoadComplete("paywallWebviewLoad_complete"),
     PaywallWebviewLoadTimeout("paywallWebviewLoad_timeout"),
+    PaywallWebviewLoadFallback("paywallWebviewLoad_fallback"),
     PaywallProductsLoadStart("paywallProductsLoad_start"),
     PaywallProductsLoadFail("paywallProductsLoad_fail"),
     PaywallProductsLoadComplete("paywallProductsLoad_complete"),

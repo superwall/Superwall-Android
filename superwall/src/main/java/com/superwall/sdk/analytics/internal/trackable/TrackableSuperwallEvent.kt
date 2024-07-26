@@ -16,6 +16,7 @@ import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationReques
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatusReason
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.vc.Survey.SurveyPresentationResult
+import com.superwall.sdk.paywall.vc.web_view.WebviewError
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
@@ -595,8 +596,11 @@ sealed class InternalSuperwallEvent(
             class Start : State()
 
             data class Fail(
-                val errorMessage: String,
+                val error: WebviewError,
+                val urls: List<String>,
             ) : State()
+
+            object Fallback : State()
 
             class Timeout : State()
 
@@ -619,13 +623,17 @@ sealed class InternalSuperwallEvent(
                     is PaywallWebviewLoad.State.Fail ->
                         SuperwallEvent.PaywallWebviewLoadFail(
                             paywallInfo,
-                            state.errorMessage,
+                            state.error,
                         )
 
                     is PaywallWebviewLoad.State.Complete ->
                         SuperwallEvent.PaywallWebviewLoadComplete(
                             paywallInfo,
                         )
+
+                    is State.Fallback -> {
+                        SuperwallEvent.PaywallWebviewLoadFallback(paywallInfo)
+                    }
                 }
 
         override val customParameters: Map<String, Any>
@@ -633,7 +641,23 @@ sealed class InternalSuperwallEvent(
                 return paywallInfo.customParams()
             }
 
-        override suspend fun getSuperwallParameters(): HashMap<String, Any> = HashMap(paywallInfo.eventParams())
+        override suspend fun getSuperwallParameters(): HashMap<String, Any> {
+            val extras =
+                when (state) {
+                    is State.Fail ->
+                        mapOf(
+                            "error_message" to state.error,
+                            *state.urls
+                                .mapIndexed { i, it ->
+                                    "url_$i" to it
+                                }.toTypedArray(),
+                        )
+
+                    else -> mapOf()
+                }
+            val params = paywallInfo.eventParams() + extras
+            return HashMap(params)
+        }
     }
 
     class PaywallProductsLoad(

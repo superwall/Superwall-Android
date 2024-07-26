@@ -312,7 +312,6 @@ class DependencyContainer(
                         SWWebView(
                             context = context,
                             messageHandler = messageHandler,
-                            sessionEventsManager = sessionEventsManager,
                         )
 
                     val paywallView =
@@ -327,6 +326,7 @@ class DependencyContainer(
                             storage = storage,
                             webView = webView,
                             eventCallback = Superwall.instance,
+                            useMultipleUrls = configManager.config?.featureFlags?.enableMultiplePaywallUrls ?: false,
                         )
                     webView.delegate = paywallView
                     messageHandler.delegate = paywallView
@@ -511,6 +511,6 @@ class DependencyContainer(
     override suspend fun makeSuperwallOptions(): SuperwallOptions = configManager.options
 
     override suspend fun makeTriggers(): Set<String> = configManager.triggersByEventName.keys
-      
+
     override suspend fun provideJavascriptEvaluator(context: Context) = evaluator
 }

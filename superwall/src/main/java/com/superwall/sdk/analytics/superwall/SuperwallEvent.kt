@@ -7,6 +7,7 @@ import com.superwall.sdk.models.triggers.TriggerResult
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatus
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatusReason
+import com.superwall.sdk.paywall.vc.web_view.WebviewError
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
 import com.superwall.sdk.store.transactions.RestoreType
@@ -282,7 +283,7 @@ sealed class SuperwallEvent {
     // / When a paywall's website fails to load.
     data class PaywallWebviewLoadFail(
         val paywallInfo: PaywallInfo,
-        val errorMessage: String?,
+        val errorMessage: WebviewError?,
     ) : SuperwallEvent() {
         override val rawName: String
             get() = "paywallWebviewLoad_fail"
@@ -302,6 +303,14 @@ sealed class SuperwallEvent {
     ) : SuperwallEvent() {
         override val rawName: String
             get() = "paywallWebviewLoad_timeout"
+    }
+
+    // When the paywall uses a fallback URL
+    data class PaywallWebviewLoadFallback(
+        val paywallInfo: PaywallInfo,
+    ) : SuperwallEvent() {
+        override val rawName: String
+            get() = SuperwallEvents.PaywallWebviewLoadFallback.rawName
     }
 
     // / When the request to load the paywall's products started.

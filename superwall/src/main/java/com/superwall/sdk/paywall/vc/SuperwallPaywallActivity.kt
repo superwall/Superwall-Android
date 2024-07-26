@@ -34,6 +34,7 @@ import com.superwall.sdk.store.transactions.notifications.NotificationScheduler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.lang.ref.WeakReference
 import java.util.UUID
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
@@ -135,7 +136,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             }
 
         (view.parent as? ViewGroup)?.removeView(view)
-        view.encapsulatingActivity = this
+        view.encapsulatingActivity = WeakReference(this)
 
         setContentView(view)
 
