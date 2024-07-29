@@ -2,6 +2,12 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 1.2.2
+
+### Enhancements
+
+- Adds support for multiple paywall URLs, in case one CDN provider fails.
+- `ActivityEncapsulatable` now uses a WeakReference instead of a reference
 
 ## 1.2.1
 
