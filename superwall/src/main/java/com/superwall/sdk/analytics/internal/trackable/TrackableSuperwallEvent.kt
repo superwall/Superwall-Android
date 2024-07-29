@@ -749,4 +749,16 @@ sealed class InternalSuperwallEvent(
         override val customParameters: Map<String, Any>
             get() = paywallInfo.customParams()
     }
+
+    data class ErrorThrown(
+        val error: Exception,
+    ) : InternalSuperwallEvent(SuperwallEvent.ErrorThrown(error)) {
+        override val customParameters: Map<String, Any> = emptyMap()
+
+        override suspend fun getSuperwallParameters() =
+            mapOf(
+                "error_message" to (error.message ?: "No message"),
+                "error_stack_trace" to (error.stackTraceToString() ?: "No stack trace"),
+            )
+    }
 }

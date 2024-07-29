@@ -130,60 +130,65 @@ class IdentityManager(
         options: IdentityOptions? = null,
     ) {
         scope.launch {
-            IdentityLogic.sanitize(userId)?.let { sanitizedUserId ->
-                if (_appUserId == sanitizedUserId || sanitizedUserId == "") {
-                    if (sanitizedUserId == "") {
-                        Logger.debug(
-                            logLevel = LogLevel.error,
-                            scope = LogScope.identityManager,
-                            message = "The provided userId was empty.",
-                        )
-                    }
-                    return@launch
-                }
-
-                identityFlow.emit(false)
-
-                val oldUserId = _appUserId
-                if (oldUserId != null && sanitizedUserId != oldUserId) {
-                    Superwall.instance.reset(duringIdentify = true)
-                }
-
-                _appUserId = sanitizedUserId
-
-                // If we haven't gotten config yet, we need
-                // to leave this open to grab the appUserId for headers
-                identityJobs +=
-                    CoroutineScope(Dispatchers.IO).launch {
-                        val config = configManager.configState.awaitFirstValidConfig()
-
-                        if (config?.featureFlags?.enableUserIdSeed == true) {
-                            sanitizedUserId.sha256MappedToRange()?.let { seed ->
-                                _seed = seed
-                                saveIds()
-                            }
+            try {
+                IdentityLogic.sanitize(userId)?.let { sanitizedUserId ->
+                    if (_appUserId == sanitizedUserId || sanitizedUserId == "") {
+                        if (sanitizedUserId == "") {
+                            Logger.debug(
+                                logLevel = LogLevel.error,
+                                scope = LogScope.identityManager,
+                                message = "The provided userId was empty.",
+                            )
                         }
+                        return@launch
                     }
 
-                saveIds()
+                    identityFlow.emit(false)
 
-                CoroutineScope(Dispatchers.IO).launch {
-                    val trackableEvent = InternalSuperwallEvent.IdentityAlias()
-                    Superwall.instance.track(trackableEvent)
-                }
+                    val oldUserId = _appUserId
+                    if (oldUserId != null && sanitizedUserId != oldUserId) {
+                        Superwall.instance.reset(duringIdentify = true)
+                    }
 
-                if (options?.restorePaywallAssignments == true) {
+                    _appUserId = sanitizedUserId
+
+                    // If we haven't gotten config yet, we need
+                    // to leave this open to grab the appUserId for headers
                     identityJobs +=
                         CoroutineScope(Dispatchers.IO).launch {
-                            configManager.getAssignments()
-                            didSetIdentity()
+                            val config = configManager.configState.awaitFirstValidConfig()
+
+                            if (config?.featureFlags?.enableUserIdSeed == true) {
+                                sanitizedUserId.sha256MappedToRange()?.let { seed ->
+                                    _seed = seed
+                                    saveIds()
+                                }
+                            }
                         }
-                } else {
+
+                    saveIds()
+
                     CoroutineScope(Dispatchers.IO).launch {
-                        configManager.getAssignments()
+                        val trackableEvent = InternalSuperwallEvent.IdentityAlias()
+                        Superwall.instance.track(trackableEvent)
                     }
-                    didSetIdentity()
+
+                    if (options?.restorePaywallAssignments == true) {
+                        identityJobs +=
+                            CoroutineScope(Dispatchers.IO).launch {
+                                configManager.getAssignments()
+                                didSetIdentity()
+                            }
+                    } else {
+                        CoroutineScope(Dispatchers.IO).launch {
+                            configManager.getAssignments()
+                        }
+                        didSetIdentity()
+                    }
                 }
+            } catch (e: Exception) {
+                Superwall.instance.track(InternalSuperwallEvent.ErrorThrown(e))
+                throw e
             }
         }
     }

@@ -1,6 +1,7 @@
 package com.superwall.sdk.analytics.internal
 
 import com.superwall.sdk.Superwall
+import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
@@ -23,90 +24,100 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.*
+import java.util.Date
 
 suspend fun Superwall.track(event: Trackable): TrackingResult {
-    // Wait for the SDK to be fully initialized
-    Superwall.hasInitialized.first()
+    try {
+        // Wait for the SDK to be fully initialized
+        Superwall.hasInitialized.first()
 
-    // Get parameters to be sent to the delegate and stored in an event.
-    // now with Date
-    val eventCreatedAt = Date()
-    val parameters =
-        TrackingLogic.processParameters(
-            trackableEvent = event,
-            appSessionId = dependencyContainer.appSessionManager.appSession.id,
-        )
-
-    // For a trackable superwall event, send params to delegate
-    if (event is TrackableSuperwallEvent) {
-        val info =
-            SuperwallEventInfo(
-                event = event.superwallEvent,
-                params = parameters.delegateParams,
+        // Get parameters to be sent to the delegate and stored in an event.
+        // now with Date
+        val eventCreatedAt = Date()
+        val parameters =
+            TrackingLogic.processParameters(
+                trackableEvent = event,
+                appSessionId = dependencyContainer.appSessionManager.appSession.id,
             )
 
-        dependencyContainer.delegateAdapter.handleSuperwallEvent(eventInfo = info)
+        // For a trackable superwall event, send params to delegate
+        if (event is TrackableSuperwallEvent) {
+            val info =
+                SuperwallEventInfo(
+                    event = event.superwallEvent,
+                    params = parameters.delegateParams,
+                )
 
-        Logger.debug(
-            logLevel = LogLevel.debug,
-            scope = LogScope.events,
-            message = "Logged Event",
-            info = parameters.eventParams,
-        )
-    }
+            dependencyContainer.delegateAdapter.handleSuperwallEvent(eventInfo = info)
 
-    val eventData =
-        EventData(
-            name = event.rawName,
-            parameters = parameters.eventParams,
-            createdAt = eventCreatedAt,
-        )
-
-    // If config doesn't exist yet, we rely on previously saved feature flag
-    // to determine whether to disable verbose events.
-    val existingDisableVerboseEvents =
-        dependencyContainer.configManager.config
-            ?.featureFlags
-            ?.disableVerboseEvents
-    val previousDisableVerboseEvents = dependencyContainer.storage.get(DisableVerboseEvents)
-
-    val verboseEvents = existingDisableVerboseEvents ?: previousDisableVerboseEvents
-
-    if (TrackingLogic.isNotDisabledVerboseEvent(
-            event = event,
-            disableVerboseEvents = verboseEvents,
-            isSandbox = dependencyContainer.makeIsSandbox(),
-        )
-    ) {
-        dependencyContainer.eventsQueue.enqueue(
-            data = eventData,
-            event = event,
-        )
-    }
-    dependencyContainer.storage.coreDataManager.saveEventData(eventData)
-
-    if (event.canImplicitlyTriggerPaywall) {
-        CoroutineScope(Dispatchers.IO).launch {
-            Superwall.instance.handleImplicitTrigger(
-                event = event,
-                eventData = eventData,
+            Logger.debug(
+                logLevel = LogLevel.debug,
+                scope = LogScope.events,
+                message = "Logged Event",
+                info = parameters.eventParams,
             )
         }
-    }
 
-    return TrackingResult(
-        data = eventData,
-        parameters = parameters,
-    )
+        val eventData =
+            EventData(
+                name = event.rawName,
+                parameters = parameters.eventParams,
+                createdAt = eventCreatedAt,
+            )
+
+        // If config doesn't exist yet, we rely on previously saved feature flag
+        // to determine whether to disable verbose events.
+        val existingDisableVerboseEvents =
+            dependencyContainer.configManager.config
+                ?.featureFlags
+                ?.disableVerboseEvents
+        val previousDisableVerboseEvents = dependencyContainer.storage.get(DisableVerboseEvents)
+
+        val verboseEvents = existingDisableVerboseEvents ?: previousDisableVerboseEvents
+
+        if (TrackingLogic.isNotDisabledVerboseEvent(
+                event = event,
+                disableVerboseEvents = verboseEvents,
+                isSandbox = dependencyContainer.makeIsSandbox(),
+            )
+        ) {
+            dependencyContainer.eventsQueue.enqueue(
+                data = eventData,
+                event = event,
+            )
+        }
+        dependencyContainer.storage.coreDataManager.saveEventData(eventData)
+
+        if (event.canImplicitlyTriggerPaywall) {
+            CoroutineScope(Dispatchers.IO).launch {
+                Superwall.instance.handleImplicitTrigger(
+                    event = event,
+                    eventData = eventData,
+                )
+            }
+        }
+
+        return TrackingResult(
+            data = eventData,
+            parameters = parameters,
+        )
+    } catch (e: Exception) {
+        Superwall.instance.track(InternalSuperwallEvent.ErrorThrown(e))
+        throw e
+    }
 }
 
 suspend fun Superwall.handleImplicitTrigger(
     event: Trackable,
     eventData: EventData,
 ) = withContext(Dispatchers.Main) {
-    serialTaskManager.addTask {
-        internallyHandleImplicitTrigger(event, eventData)
+    try {
+        serialTaskManager.addTask {
+            internallyHandleImplicitTrigger(event, eventData)
+        }
+    } catch (e: Exception) {
+        Superwall.instance.track(InternalSuperwallEvent.ErrorThrown(e))
+        throw e
     }
 }
 
@@ -114,50 +125,57 @@ private suspend fun Superwall.internallyHandleImplicitTrigger(
     event: Trackable,
     eventData: EventData,
 ) = withContext(Dispatchers.Main) {
-    val presentationInfo = PresentationInfo.ImplicitTrigger(eventData)
-
-    var request =
-        dependencyContainer.makePresentationRequest(
-            presentationInfo = presentationInfo,
-            isPaywallPresented = isPaywallPresented,
-            type = PresentationRequestType.Presentation,
-        )
-
     try {
-        waitForSubsStatusAndConfig(request, null)
-    } catch (e: Throwable) {
-        logErrors(request, e)
-        return@withContext
-    }
+        val presentationInfo = PresentationInfo.ImplicitTrigger(eventData)
 
-    val outcome =
-        TrackingLogic.canTriggerPaywall(
-            event,
-            dependencyContainer.configManager.triggersByEventName.keys
-                .toSet(),
-            paywallView,
-        )
+        var request =
+            dependencyContainer.makePresentationRequest(
+                presentationInfo = presentationInfo,
+                isPaywallPresented = isPaywallPresented,
+                type = PresentationRequestType.Presentation,
+            )
 
-    var statePublisher = MutableSharedFlow<PaywallState>()
-
-    when (outcome) {
-        TrackingLogic.ImplicitTriggerOutcome.DeepLinkTrigger -> {
-            dismiss()
-        }
-        TrackingLogic.ImplicitTriggerOutcome.ClosePaywallThenTriggerPaywall -> {
-            val lastPresentationItems = presentationItems.last ?: return@withContext
-            dismissForNextPaywall()
-            statePublisher = lastPresentationItems.statePublisher
-        }
-        TrackingLogic.ImplicitTriggerOutcome.TriggerPaywall -> {}
-        TrackingLogic.ImplicitTriggerOutcome.DontTriggerPaywall -> {
+        try {
+            waitForSubsStatusAndConfig(request, null)
+        } catch (e: Throwable) {
+            logErrors(request, e)
             return@withContext
         }
 
-        else -> {}
+        val outcome =
+            TrackingLogic.canTriggerPaywall(
+                event,
+                dependencyContainer.configManager.triggersByEventName.keys
+                    .toSet(),
+                paywallView,
+            )
+
+        var statePublisher = MutableSharedFlow<PaywallState>()
+
+        when (outcome) {
+            TrackingLogic.ImplicitTriggerOutcome.DeepLinkTrigger -> {
+                dismiss()
+            }
+
+            TrackingLogic.ImplicitTriggerOutcome.ClosePaywallThenTriggerPaywall -> {
+                val lastPresentationItems = presentationItems.last ?: return@withContext
+                dismissForNextPaywall()
+                statePublisher = lastPresentationItems.statePublisher
+            }
+
+            TrackingLogic.ImplicitTriggerOutcome.TriggerPaywall -> {}
+            TrackingLogic.ImplicitTriggerOutcome.DontTriggerPaywall -> {
+                return@withContext
+            }
+
+            else -> {}
+        }
+
+        request.flags.isPaywallPresented = isPaywallPresented
+
+        internallyPresent(request, statePublisher)
+    } catch (e: Exception) {
+        Superwall.instance.track(InternalSuperwallEvent.ErrorThrown(e))
+        throw e
     }
-
-    request.flags.isPaywallPresented = isPaywallPresented
-
-    internallyPresent(request, statePublisher)
 }

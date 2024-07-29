@@ -370,6 +370,13 @@ sealed class SuperwallEvent {
             get() = "reset"
     }
 
+    data class ErrorThrown(
+        val e: Exception,
+    ) : SuperwallEvent() {
+        override val rawName: String
+            get() = "error_thrown"
+    }
+
     open val rawName: String
         get() = this.toString()
 
