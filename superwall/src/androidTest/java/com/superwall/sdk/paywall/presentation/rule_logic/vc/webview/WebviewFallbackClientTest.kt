@@ -4,6 +4,7 @@ import And
 import Given
 import Then
 import When
+import android.util.Log
 import android.webkit.WebView
 import androidx.test.platform.app.InstrumentationRegistry
 import com.superwall.sdk.analytics.SessionEventsManager
@@ -43,16 +44,18 @@ class WebviewFallbackClientTest {
 
     private val mainScope = CoroutineScope(Dispatchers.Main)
 
-    private fun createPaywallConfig(vararg configs: PaywallWebviewUrl) =
-        Paywall.stub().let {
-            it.copy(
-                urlConfig =
-                    it.urlConfig!!.copy(
-                        maxAttempts = configs.size,
-                        endpoints = configs.toList(),
-                    ),
-            )
-        }
+    private fun createPaywallConfig(
+        vararg configs: PaywallWebviewUrl,
+        maxAttemps: Int = configs.size,
+    ) = Paywall.stub().let {
+        it.copy(
+            urlConfig =
+                it.urlConfig!!.copy(
+                    maxAttempts = maxAttemps,
+                    endpoints = configs.toList(),
+                ),
+        )
+    }
 
     @Test
     fun test_successful_loading() =
@@ -281,6 +284,56 @@ class WebviewFallbackClientTest {
                                 } as WebviewClientEvent.OnError
                         val error = event.webviewError as WebviewError.AllUrlsFailed
                         assert(error.urls.containsAll(paywall.urlConfig!!.endpoints.map { it.url }))
+                    }
+                }
+            }
+        }
+
+    private fun failingUrl(
+        index: Int = 0,
+        score: Int = 10,
+    ) = PaywallWebviewUrl(
+        url = "https://www.this-url-doesnt-exist-$index.com/",
+        score = score,
+        timeout = 0,
+    )
+
+    @Test
+    fun test_fail_loading_when_max_attempts_breached() =
+        runTest(timeout = 60.seconds) {
+            val handler =
+                PaywallMessageHandler(
+                    mockk<SessionEventsManager>(),
+                    mockk<VariablesFactory>(),
+                    this,
+                )
+            val paywall =
+                createPaywallConfig(
+                    *(
+                        (0 until 3).map { failingUrl(it) } +
+                            (0 until 3).map { failingUrl(it + 3, 0) }
+                    ).toTypedArray(),
+                    maxAttemps = 3,
+                )
+            val context = InstrumentationRegistry.getInstrumentation().context
+            val webview =
+                mainScope
+                    .async {
+                        SWWebView(context, handler)
+                    }.await()
+            Given("We have list of paywall URLS") {
+                When("we try to load them") {
+                    mainScope.launch {
+                        webview.loadPaywallWithFallbackUrl(paywall)
+                    }
+                    Then("we reach max attempts") {
+                        val event =
+                            webview.waitForEvent(mainScope) {
+                                it is WebviewClientEvent.OnError && it.webviewError is WebviewError.MaxAttemptsReached
+                            } as WebviewClientEvent.OnError
+                        val error = event.webviewError as WebviewError.MaxAttemptsReached
+                        Log.e("WebviewFallbackClientTest", "errorUrls: ${error.urls}")
+                        assert(error.urls.size == paywall.urlConfig?.maxAttempts)
                     }
                 }
             }

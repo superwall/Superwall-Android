@@ -24,6 +24,8 @@ internal class WebviewFallbackClient(
     private val mainScope: CoroutineScope,
     private val loadUrl: (PaywallWebviewUrl) -> Unit,
 ) : DefaultWebviewClient(ioScope) {
+    private class MaxAttemptsReachedException : Exception("Max attempts reached")
+
     private var failureCount = 0
 
     private val urls = config.endpoints
@@ -88,7 +90,7 @@ internal class WebviewFallbackClient(
     }
 
     internal fun nextUrl(): PaywallWebviewUrl {
-        if (failureCount <= config.maxAttempts) {
+        if (failureCount < config.maxAttempts) {
             failureCount += 1
             return if (untriedUrls.all { it.score == 0 }) {
                 nextWeightedUrl(untriedUrls)
@@ -96,15 +98,16 @@ internal class WebviewFallbackClient(
                 nextWeightedUrl(untriedUrls.filter { it.score != 0 })
             }
         } else {
-            throw IllegalArgumentException("Max attempts reached")
+            throw MaxAttemptsReachedException()
         }
     }
 
-    override fun onPageFinished(
-        view: WebView,
-        url: String,
+    // HTML has loaded and started rendering
+    override fun onPageCommitVisible(
+        view: WebView?,
+        url: String?,
     ) {
-        super.onPageFinished(view, url)
+        super.onPageCommitVisible(view, url)
         failureCount = 0
     }
 
@@ -163,10 +166,29 @@ internal class WebviewFallbackClient(
             } catch (e: NoSuchElementException) {
                 // If there is no more URLS, we let the client know
                 ioScope.launch {
-                    webviewClientEvents.emit(WebviewClientEvent.OnError(WebviewError.AllUrlsFailed(urls.map { it.url })))
+                    webviewClientEvents.emit(
+                        WebviewClientEvent.OnError(
+                            WebviewError.AllUrlsFailed(
+                                urls.map { it.url },
+                            ),
+                        ),
+                    )
+                }
+                return
+            } catch (e: MaxAttemptsReachedException) {
+                // If we reached the max attempts, we let the client know
+                ioScope.launch {
+                    webviewClientEvents.emit(
+                        WebviewClientEvent.OnError(
+                            WebviewError.MaxAttemptsReached(
+                                urls.subtract(untriedUrls).map { it.url },
+                            ),
+                        ),
+                    )
                 }
                 return
             }
+
         if (failureCount > 0) {
             ioScope.launch {
                 webviewClientEvents.emit(WebviewClientEvent.LoadingFallback)
