@@ -2,16 +2,20 @@ package com.superwall.sdk.paywall.vc
 
 import android.app.Activity
 import android.content.Context
+import android.content.ContextWrapper
 import android.content.Intent
 import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
+import android.util.Log
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebSettings
 import android.widget.FrameLayout
+import androidx.appcompat.app.AppCompatActivity
 import androidx.browser.customtabs.CustomTabsIntent
+import androidx.fragment.app.FragmentManager
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
@@ -26,6 +30,7 @@ import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.AlertControllerFactory
+import com.superwall.sdk.misc.isLightColor
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.PaywallPresentationStyle
 import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
@@ -218,6 +223,43 @@ class PaywallView(
     internal fun setupLoading(loadingView: LoadingView) {
         this.loadingViewController = loadingView
         loadingView.setupFor(this, loadingState)
+    }
+
+    fun presentFragment(
+        fragmentManager: FragmentManager,
+        request: PresentationRequest,
+        unsavedOccurrence: TriggerRuleOccurrence?,
+        presentationStyleOverride: PaywallPresentationStyle?,
+        paywallStatePublisher: MutableSharedFlow<PaywallState>,
+        completion: (Boolean) -> Unit,
+    ) {
+        if (webView.parent == null) addView(webView)
+        cache?.acquireLoadingView()?.let {
+            setupLoading(it)
+        }
+
+        cache?.acquireShimmerView()?.let {
+            setupShimmer(it)
+        }
+        layoutSubviews()
+        set(request, paywallStatePublisher, unsavedOccurrence)
+        if (presentationStyleOverride != null && presentationStyleOverride != PaywallPresentationStyle.NONE) {
+            presentationStyle = presentationStyleOverride
+        } else {
+            presentationStyle = paywall.presentation.style
+        }
+        fragmentManager
+            .beginTransaction()
+            .add(
+                android.R.id.content,
+                SuperwallPaywallFragment.newInstance(
+                    key = cacheKey,
+                    isBackgroundLight = backgroundColor.isLightColor(),
+                    presentationStyleOverride = presentationStyleOverride,
+                ),
+                cacheKey,
+            ).commitNow()
+        viewCreatedCompletion = completion
     }
 
     fun present(
@@ -534,8 +576,36 @@ class PaywallView(
     private fun dismiss(presentationIsAnimated: Boolean) {
         // TODO: SW-2162 Implement animation support
         // https://linear.app/superwall/issue/SW-2162/%5Bandroid%5D-%5Bv1%5D-get-animated-presentation-working
+        if (true) {
+            val parent = getActivity()
+            Log.e("SuperView", "Encapsulating Activity: $parent")
+            Log.e(
+                "SuperView",
+                "Encapsulating ActivityManager: ${(parent as? AppCompatActivity)?.supportFragmentManager ?: "No manager for activity"}",
+            )
+            mainScope.launch {
+                val frag = parent?.supportFragmentManager?.findFragmentByTag(cacheKey)
+                parent
+                    ?.supportFragmentManager
+                    ?.beginTransaction()
+                    ?.remove(
+                        frag!!,
+                    )?.commitNow()
+            }
+        } else {
+            encapsulatingActivity?.get()?.finish()
+        }
+    }
 
-        encapsulatingActivity?.get()?.finish()
+    private fun getActivity(): AppCompatActivity? {
+        var context = (parent as View).context
+        while (context is ContextWrapper) {
+            if (context is AppCompatActivity) {
+                return context as AppCompatActivity
+            }
+            context = context.baseContext
+        }
+        return null
     }
 
     private fun showLoadingView() {
