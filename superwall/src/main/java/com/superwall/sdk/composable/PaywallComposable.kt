@@ -24,6 +24,7 @@ import com.superwall.sdk.paywall.vc.delegate.PaywallViewCallback
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.lang.ref.WeakReference
 
 @Composable
 fun PaywallComposable(
@@ -55,7 +56,7 @@ fun PaywallComposable(
     LaunchedEffect(Unit) {
         try {
             val newView = Superwall.instance.getPaywall(event, params, paywallOverrides, delegate)
-            newView.encapsulatingActivity = context as? Activity
+            newView.encapsulatingActivity = WeakReference(context as? Activity)
             newView.beforeViewCreated()
             viewState.value = newView
         } catch (e: Throwable) {

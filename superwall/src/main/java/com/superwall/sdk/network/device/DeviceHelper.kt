@@ -417,7 +417,8 @@ class DeviceHelper(
                 )
                 null
             }
-        val capabilities: List<Capability> = listOf(Capability.PaywallEventReceiver())
+        val capabilities: List<Capability> = listOf(Capability.PaywallEventReceiver(), Capability.MultiplePaywallUrls)
+
         val deviceTemplate =
             DeviceTemplate(
                 publicApiKey = storage.apiKey,

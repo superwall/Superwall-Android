@@ -455,7 +455,8 @@ class ConfigTest {
   "disable_preload": {
     "all": false,
     "triggers": []
-  }
+  },
+  "build_id": "test"
 }
             """.trimIndent()
 
