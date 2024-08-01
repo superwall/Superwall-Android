@@ -87,6 +87,12 @@ data class Paywall(
     var experiment: Experiment? = null,
     @kotlinx.serialization.Transient()
     var closeReason: PaywallCloseReason = PaywallCloseReason.None,
+    @Serializable
+    @SerialName("cache_key")
+    val cacheKey: String,
+    @Serializable
+    @SerialName("build_id")
+    val buildId: String,
     /**
      Surveys to potentially show when an action happens in the paywall.
      */
@@ -189,6 +195,8 @@ data class Paywall(
             computedPropertyRequests = computedPropertyRequests,
             surveys = surveys,
             presentation = presentation,
+            cacheKey = cacheKey,
+            buildId = buildId,
         )
 
     companion object {
@@ -245,6 +253,8 @@ data class Paywall(
                 featureGating = FeatureGatingBehavior.NonGated,
                 localNotifications = arrayListOf(),
                 presentationDelay = 300,
+                cacheKey = "123",
+                buildId = "test",
             )
     }
 }

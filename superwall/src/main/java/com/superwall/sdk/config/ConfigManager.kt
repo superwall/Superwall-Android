@@ -25,7 +25,6 @@ import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.models.triggers.Trigger
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.network.device.DeviceHelper
-import com.superwall.sdk.paywall.manager.PaywallCacheLogic
 import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.ExpressionEvaluator
 import com.superwall.sdk.paywall.presentation.rule_logic.javascript.JavascriptEvaluator
@@ -39,12 +38,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.seconds
 
 // TODO: Re-enable those params
 open class ConfigManager(
@@ -100,6 +101,7 @@ open class ConfigManager(
         try {
             val configDeferred =
                 ioScope.async {
+                    delay(20.seconds)
                     network.getConfig {
                         // Emit retrying state
                         configState.update { Result.Success(ConfigState.Retrying) }
@@ -382,25 +384,30 @@ open class ConfigManager(
         oldConfig: Config,
         newConfig: Config,
     ) {
-        val oldPaywallIds = oldConfig.paywalls.map { it.identifier }.toSet()
-        val newPaywallIds = newConfig.paywalls.map { it.identifier }.toSet()
+        val oldPaywalls = oldConfig.paywalls
+        val newPaywalls = newConfig.paywalls
 
         val presentedPaywallId = paywallManager.currentView?.paywall?.identifier
-        val missingPaywallIds =
-            if (presentedPaywallId != null) {
-                oldPaywallIds.minus(presentedPaywallId).subtract(newPaywallIds)
-            } else {
-                oldPaywallIds.subtract(newPaywallIds)
-            }
+        val oldPaywallCacheIds =
+            oldPaywalls
+                .map { it.identifier to it.cacheKey }
+                .toMap()
+        val newPaywallCacheIds = newPaywalls.map { it.identifier to it.cacheKey }.toMap()
 
-        missingPaywallIds.forEach {
-            val paywall = oldConfig.paywalls.first { wall -> wall.identifier == it }
-            val key =
-                PaywallCacheLogic.key(
-                    identifier = paywall.identifier,
-                    locale = factory.makeDeviceInfo().locale,
-                )
-            paywallManager.removePaywallView(key)
+        val removedIds =
+            oldPaywallCacheIds.values - newPaywallCacheIds.values.toSet()
+
+        val changedIds =
+            removedIds +
+                newPaywalls
+                    .filter {
+                        val oldCacheKey = oldPaywallCacheIds[it.identifier]
+                        val keyChanged = oldCacheKey != newPaywallCacheIds[it.identifier]
+                        oldCacheKey != null && keyChanged
+                    }.map { it.identifier } - presentedPaywallId
+
+        changedIds.toSet().filterNotNull().forEach {
+            paywallManager.removePaywallView(it)
         }
     }
 

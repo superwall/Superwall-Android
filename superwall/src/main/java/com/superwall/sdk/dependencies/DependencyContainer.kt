@@ -352,7 +352,7 @@ class DependencyContainer(
         return view
     }
 
-    override fun makeCache(): PaywallViewCache = PaywallViewCache(context, Superwall.instance.viewStore(), activityProvider!!)
+    override fun makeCache(): PaywallViewCache = PaywallViewCache(context, Superwall.instance.viewStore(), activityProvider!!, deviceHelper)
 
     override fun makeDeviceInfo(): DeviceInfo =
         DeviceInfo(
@@ -511,6 +511,6 @@ class DependencyContainer(
     override suspend fun makeSuperwallOptions(): SuperwallOptions = configManager.options
 
     override suspend fun makeTriggers(): Set<String> = configManager.triggersByEventName.keys
-      
+
     override suspend fun provideJavascriptEvaluator(context: Context) = evaluator
 }

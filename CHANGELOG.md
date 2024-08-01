@@ -2,6 +2,10 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 1.2.2
+
+### Enhancements
+- Adds `build_id` and `cache_key` to `PaywallInfo`.
 
 ## 1.2.1
 
