@@ -49,7 +49,15 @@ data class Paywall(
     @kotlinx.serialization.Transient()
     var presentation: PaywallPresentationInfo =
         PaywallPresentationInfo(
-            style = PaywallPresentationStyle.valueOf(presentationStyle.uppercase()),
+            style =
+                PaywallPresentationStyle.entries.find { it.rawValue == presentationStyle.uppercase() }
+                    ?: PaywallPresentationStyle.NONE.also {
+                        Logger.debug(
+                            LogLevel.warn,
+                            LogScope.paywallPresentation,
+                            "Unknown or unsupported presentation style: $presentationStyle",
+                        )
+                    },
             condition = PresentationCondition.valueOf(presentationCondition.uppercase()),
             delay = presentationDelay,
         ),

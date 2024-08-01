@@ -429,8 +429,8 @@ class ConfigTest {
     ],
     "presentation_condition": "CHECK_USER_SUBSCRIPTION",
     "presentation_delay": 0,
-    "presentation_style": "FULLSCREEN",
-    "presentation_style_v2": "FULLSCREEN",
+    "presentation_style": "NO_ANIMATION",
+    "presentation_style_v2": "NO_ANIMATION",
     "launch_option": "EXPLICIT",
     "dismissal_option": "NORMAL",
     "background_color_hex": "#000000"
