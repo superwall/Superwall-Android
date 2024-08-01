@@ -8,6 +8,12 @@ import com.superwall.sdk.paywall.vc.PaywallView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import java.net.URL
+import java.time.LocalDateTime
+import java.time.ZoneOffset
 import java.util.*
 
 sealed class TrackingLogic {
@@ -121,30 +127,27 @@ sealed class TrackingLogic {
         }
 
         @OptIn(ExperimentalSerializationApi::class)
-        private fun clean(input: Any?): Any? {
-            return input
-
-            // TODO: (Analytics) Fix this
-//            input?.let { value ->
-//                when (value) {
-//                    is List<*> -> null
-//                    is Map<*, *> -> null
-//                    else -> {
-//                        try {
-//                            Json.encodeToString(JsonElement.serializer(), value)
-//                            value
-//                        } catch (e: SerializationException) {
-//                            when (value) {
-//                                is LocalDateTime -> value.atZone(ZoneOffset.UTC).toInstant().toEpochMilli()
-//                                is URL -> value.toString()
-//                                else -> null
-//                            }
-//                        }
-//                    }
-//                }
-//            } ?: kotlin.run { return null }
-//            return null
-        }
+        private fun clean(input: Any?): Any? =
+            input?.let { value ->
+                when (value) {
+                    is List<*> -> null
+                    is Map<*, *> -> value.mapValues { clean(it.value) }.filterValues { it != null }
+                    is String -> value
+                    is Int, is Float, is Double, is Long, is Boolean -> value.toString()
+                    else -> {
+                        try {
+                            Json.encodeToString(value)
+                            value
+                        } catch (e: SerializationException) {
+                            when (value) {
+                                is LocalDateTime -> value.atZone(ZoneOffset.UTC).toInstant().toEpochMilli()
+                                is URL -> value.toString()
+                                else -> null
+                            }
+                        }
+                    }
+                }
+            } ?: null
 
         @Throws(Exception::class)
         fun checkNotSuperwallEvent(event: String) {

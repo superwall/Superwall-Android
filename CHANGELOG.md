@@ -11,6 +11,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 - SW-2900: Adds Superwall.instance.localeIdentifier as a convenience variable that you can use to dynamically update the locale used for evaluating rules and getting localized paywalls.
 - SW-2919: Adds a `custom_placement` event that you can attach to any element in the paywall with a dictionary of parameters. When the element is tapped, the event will be tracked. The name of the placement can be used to trigger a paywall and its params used in audience filters.
 - Adds support for bottom sheet presentation style
+- Adds `build_id` and `cache_key` to `PaywallInfo`.
 
 ## 1.2.1
 
