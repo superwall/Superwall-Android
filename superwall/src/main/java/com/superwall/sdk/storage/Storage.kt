@@ -199,6 +199,8 @@ open class Storage(
 
     //region Cache Reading & Writing
 
+    fun <T : Any> remove(storable: Storable<T>) = cache.delete(storable)
+
     fun <T> get(storable: Storable<T>): T? = cache.read(storable)
 
     fun <T : Any> save(

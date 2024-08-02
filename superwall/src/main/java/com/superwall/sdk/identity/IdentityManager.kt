@@ -16,6 +16,7 @@ import com.superwall.sdk.storage.DidTrackFirstSeen
 import com.superwall.sdk.storage.Seed
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.UserAttributes
+import com.superwall.sdk.utilities.withErrorTrackingAsync
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -130,7 +131,7 @@ class IdentityManager(
         options: IdentityOptions? = null,
     ) {
         scope.launch {
-            try {
+            withErrorTrackingAsync {
                 IdentityLogic.sanitize(userId)?.let { sanitizedUserId ->
                     if (_appUserId == sanitizedUserId || sanitizedUserId == "") {
                         if (sanitizedUserId == "") {
@@ -140,7 +141,7 @@ class IdentityManager(
                                 message = "The provided userId was empty.",
                             )
                         }
-                        return@launch
+                        return@withErrorTrackingAsync
                     }
 
                     identityFlow.emit(false)
@@ -186,9 +187,6 @@ class IdentityManager(
                         didSetIdentity()
                     }
                 }
-            } catch (e: Exception) {
-                Superwall.instance.track(InternalSuperwallEvent.ErrorThrown(e))
-                throw e
             }
         }
     }

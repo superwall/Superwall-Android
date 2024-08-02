@@ -3,7 +3,6 @@ package com.superwall.sdk.paywall.presentation
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.TrackingLogic
 import com.superwall.sdk.analytics.internal.track
-import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.UserInitiatedEvent
 import com.superwall.sdk.models.config.FeatureGatingBehavior
 import com.superwall.sdk.paywall.presentation.internal.InternalPresentationLogic
@@ -17,6 +16,8 @@ import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult.Decli
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult.Purchased
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult.Restored
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
+import com.superwall.sdk.utilities.withErrorTracking
+import com.superwall.sdk.utilities.withErrorTrackingAsync
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -28,15 +29,12 @@ suspend fun Superwall.dismiss() =
     withContext(Dispatchers.Main) {
         val completionSignal = CompletableDeferred<Unit>()
 
-        try {
+        withErrorTrackingAsync {
             paywallView?.let {
                 dismiss(paywallView = it, result = PaywallResult.Declined()) {
                     completionSignal.complete(Unit)
                 }
             } ?: completionSignal.complete(Unit)
-        } catch (e: Exception) {
-            Superwall.instance.track(InternalSuperwallEvent.ErrorThrown(e))
-            throw e
         }
 
         completionSignal.await()
@@ -46,7 +44,7 @@ suspend fun Superwall.dismissForNextPaywall() =
     withContext(Dispatchers.Main) {
         val completionSignal = CompletableDeferred<Unit>()
 
-        try {
+        withErrorTrackingAsync {
             paywallView?.let {
                 dismiss(
                     paywallView = it,
@@ -56,9 +54,6 @@ suspend fun Superwall.dismissForNextPaywall() =
                     completionSignal.complete(Unit)
                 }
             } ?: completionSignal.complete(Unit)
-        } catch (e: Exception) {
-            Superwall.instance.track(InternalSuperwallEvent.ErrorThrown(e))
-            throw e
         }
         completionSignal.await()
     }
@@ -85,7 +80,7 @@ private fun Superwall.internallyRegister(
         collectionWillStart.complete(Unit)
 
         publisher.collect { state ->
-            try {
+            withErrorTracking {
                 when (state) {
                     is PaywallState.Presented -> {
                         handler?.onPresentHandler?.invoke(state.paywallInfo)
@@ -129,9 +124,6 @@ private fun Superwall.internallyRegister(
                         handler?.onErrorHandler?.invoke(state.error)
                     }
                 }
-            } catch (e: Exception) {
-                Superwall.instance.track(InternalSuperwallEvent.ErrorThrown(e))
-                throw e
             }
         }
     }
@@ -169,7 +161,7 @@ private suspend fun Superwall.trackAndPresentPaywall(
             isFeatureGatable = isFeatureGatable,
         )
 
-    try {
+    withErrorTrackingAsync {
         val trackResult = track(trackableEvent)
 
         val presentationRequest =
@@ -181,8 +173,5 @@ private suspend fun Superwall.trackAndPresentPaywall(
             )
 
         internallyPresent(presentationRequest, publisher)
-    } catch (e: Exception) {
-        Superwall.instance.track(InternalSuperwallEvent.ErrorThrown(e))
-        throw e
     }
 }

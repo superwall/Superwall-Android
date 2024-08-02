@@ -1,7 +1,6 @@
 package com.superwall.sdk.analytics.internal
 
 import com.superwall.sdk.Superwall
-import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
@@ -18,6 +17,7 @@ import com.superwall.sdk.paywall.presentation.internal.operators.waitForSubsStat
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.storage.DisableVerboseEvents
+import com.superwall.sdk.utilities.withErrorTrackingAsync
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -27,7 +27,7 @@ import kotlinx.coroutines.withContext
 import java.util.Date
 
 suspend fun Superwall.track(event: Trackable): TrackingResult {
-    try {
+    return withErrorTrackingAsync {
         // Wait for the SDK to be fully initialized
         Superwall.hasInitialized.first()
 
@@ -97,13 +97,10 @@ suspend fun Superwall.track(event: Trackable): TrackingResult {
             }
         }
 
-        return TrackingResult(
+        return@withErrorTrackingAsync TrackingResult(
             data = eventData,
             parameters = parameters,
         )
-    } catch (e: Exception) {
-        Superwall.instance.track(InternalSuperwallEvent.ErrorThrown(e))
-        throw e
     }
 }
 
@@ -111,13 +108,8 @@ suspend fun Superwall.handleImplicitTrigger(
     event: Trackable,
     eventData: EventData,
 ) = withContext(Dispatchers.Main) {
-    try {
-        serialTaskManager.addTask {
-            internallyHandleImplicitTrigger(event, eventData)
-        }
-    } catch (e: Exception) {
-        Superwall.instance.track(InternalSuperwallEvent.ErrorThrown(e))
-        throw e
+    serialTaskManager.addTask {
+        internallyHandleImplicitTrigger(event, eventData)
     }
 }
 
@@ -125,7 +117,7 @@ private suspend fun Superwall.internallyHandleImplicitTrigger(
     event: Trackable,
     eventData: EventData,
 ) = withContext(Dispatchers.Main) {
-    try {
+    return@withContext withErrorTrackingAsync {
         val presentationInfo = PresentationInfo.ImplicitTrigger(eventData)
 
         var request =
@@ -139,7 +131,7 @@ private suspend fun Superwall.internallyHandleImplicitTrigger(
             waitForSubsStatusAndConfig(request, null)
         } catch (e: Throwable) {
             logErrors(request, e)
-            return@withContext
+            return@withErrorTrackingAsync
         }
 
         val outcome =
@@ -158,14 +150,14 @@ private suspend fun Superwall.internallyHandleImplicitTrigger(
             }
 
             TrackingLogic.ImplicitTriggerOutcome.ClosePaywallThenTriggerPaywall -> {
-                val lastPresentationItems = presentationItems.last ?: return@withContext
+                val lastPresentationItems = presentationItems.last ?: return@withErrorTrackingAsync
                 dismissForNextPaywall()
                 statePublisher = lastPresentationItems.statePublisher
             }
 
             TrackingLogic.ImplicitTriggerOutcome.TriggerPaywall -> {}
             TrackingLogic.ImplicitTriggerOutcome.DontTriggerPaywall -> {
-                return@withContext
+                return@withErrorTrackingAsync
             }
 
             else -> {}
@@ -174,8 +166,5 @@ private suspend fun Superwall.internallyHandleImplicitTrigger(
         request.flags.isPaywallPresented = isPaywallPresented
 
         internallyPresent(request, statePublisher)
-    } catch (e: Exception) {
-        Superwall.instance.track(InternalSuperwallEvent.ErrorThrown(e))
-        throw e
     }
 }

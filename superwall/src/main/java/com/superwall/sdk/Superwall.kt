@@ -40,6 +40,8 @@ import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.OpenedURL
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.OpenedUrlInChrome
 import com.superwall.sdk.storage.ActiveSubscriptionStatus
 import com.superwall.sdk.store.ExternalNativePurchaseController
+import com.superwall.sdk.utilities.withErrorTracking
+import com.superwall.sdk.utilities.withErrorTrackingAsync
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -77,12 +79,6 @@ class Superwall(
     internal fun viewStore(): ViewStorageViewModel = viewStorageViewModel
 
     internal val presentationItems: PresentationItems = PresentationItems()
-
-    private fun logException(e: Exception) {
-        ioScope.launch {
-            track(InternalSuperwallEvent.ErrorThrown(e))
-        }
-    }
 
     /**
      * The presented paywall view.
@@ -126,10 +122,8 @@ class Superwall(
      */
     @JvmName("setDelegate")
     fun setJavaDelegate(newValue: SuperwallDelegateJava?) {
-        try {
+        withErrorTracking {
             dependencyContainer.delegateAdapter.javaDelegate = newValue
-        } catch (e: Exception) {
-            logException(e)
         }
     }
 
@@ -258,45 +252,40 @@ class Superwall(
             activityProvider: ActivityProvider? = null,
             completion: (() -> Unit)? = null,
         ) {
-            try {
-                if (::instance.isInitialized) {
-                    Logger.debug(
-                        logLevel = LogLevel.warn,
-                        scope = LogScope.superwallCore,
-                        message = "Superwall.configure called multiple times. Please make sure you only call this once on app launch.",
-                    )
-                    completion?.invoke()
-                    return
-                }
-                val purchaseController =
-                    purchaseController
-                        ?: ExternalNativePurchaseController(context = applicationContext)
-                instance =
-                    Superwall(
-                        context = applicationContext,
-                        apiKey = apiKey,
-                        purchaseController = purchaseController,
-                        options = options,
-                        activityProvider = activityProvider,
-                        completion = completion,
-                    )
-
-                instance.setup()
-
+            if (::instance.isInitialized) {
                 Logger.debug(
-                    logLevel = LogLevel.debug,
+                    logLevel = LogLevel.warn,
                     scope = LogScope.superwallCore,
-                    message = "SDK Version - ${instance.dependencyContainer.deviceHelper.sdkVersion}",
+                    message = "Superwall.configure called multiple times. Please make sure you only call this once on app launch.",
+                )
+                completion?.invoke()
+                return
+            }
+            val purchaseController =
+                purchaseController
+                    ?: ExternalNativePurchaseController(context = applicationContext)
+            instance =
+                Superwall(
+                    context = applicationContext,
+                    apiKey = apiKey,
+                    purchaseController = purchaseController,
+                    options = options,
+                    activityProvider = activityProvider,
+                    completion = completion,
                 )
 
-                initialized = true
-                // Ping everyone about the initialization
-                _hasInitialized.update {
-                    true
-                }
-            } catch (e: Exception) {
-                instance.logException(e)
-                throw e
+            instance.setup()
+
+            Logger.debug(
+                logLevel = LogLevel.debug,
+                scope = LogScope.superwallCore,
+                message = "SDK Version - ${instance.dependencyContainer.deviceHelper.sdkVersion}",
+            )
+
+            initialized = true
+            // Ping everyone about the initialization
+            _hasInitialized.update {
+                true
             }
         }
 
@@ -333,9 +322,9 @@ class Superwall(
     internal val serialTaskManager = SerialTaskManager()
 
     internal fun setup() {
-        try {
+        withErrorTracking {
             synchronized(this) {
-                this._dependencyContainer =
+                _dependencyContainer =
                     DependencyContainer(
                         context = context,
                         purchaseController = purchaseController,
@@ -350,8 +339,10 @@ class Superwall(
             setSubscriptionStatus(cachedSubsStatus)
 
             addListeners()
+        }
 
-            ioScope.launch {
+        ioScope.launch {
+            withErrorTrackingAsync {
                 dependencyContainer.storage.configure(apiKey = apiKey)
                 dependencyContainer.storage.recordAppInstall {
                     track(event = it)
@@ -364,24 +355,23 @@ class Superwall(
                     completion?.invoke()
                 }
             }
-        } catch (e: Exception) {
-            logException(e)
-            throw e
         }
     }
 
     // / Listens to config and the subscription status
     private fun addListeners() {
         ioScope.launch {
-            subscriptionStatus // Removes duplicates by default
-                .drop(1) // Drops the first item
-                .collect { newValue ->
-                    // Save and handle the new value
-                    dependencyContainer.storage.save(newValue, ActiveSubscriptionStatus)
-                    dependencyContainer.delegateAdapter.subscriptionStatusDidChange(newValue)
-                    val event = InternalSuperwallEvent.SubscriptionStatusDidChange(newValue)
-                    track(event)
-                }
+            withErrorTrackingAsync {
+                subscriptionStatus // Removes duplicates by default
+                    .drop(1) // Drops the first item
+                    .collect { newValue ->
+                        // Save and handle the new value
+                        dependencyContainer.storage.save(newValue, ActiveSubscriptionStatus)
+                        dependencyContainer.delegateAdapter.subscriptionStatusDidChange(newValue)
+                        val event = InternalSuperwallEvent.SubscriptionStatusDidChange(newValue)
+                        track(event)
+                    }
+            }
         }
     }
 
@@ -394,15 +384,12 @@ class Superwall(
      * @param isHidden Toggles the paywall loading spinner on and off.
      */
     fun togglePaywallSpinner(isHidden: Boolean) {
-        try {
-            ioScope.launch {
+        ioScope.launch {
+            withErrorTracking {
                 val paywallView =
-                    dependencyContainer.paywallManager.currentView ?: return@launch
+                    dependencyContainer.paywallManager.currentView ?: return@withErrorTracking
                 paywallView.togglePaywallSpinner(isHidden)
             }
-        } catch (e: Exception) {
-            logException(e)
-            throw e
         }
     }
 
@@ -410,11 +397,8 @@ class Superwall(
      * Do not use this function, this is for internal use only.
      */
     fun setPlatformWrapper(wrapper: String) {
-        try {
+        withErrorTracking {
             dependencyContainer.deviceHelper.platformWrapper = wrapper
-        } catch (e: Exception) {
-            logException(e)
-            throw e
         }
     }
 
@@ -423,11 +407,8 @@ class Superwall(
      * back to using the system setting.
      */
     fun setInterfaceStyle(interfaceStyle: InterfaceStyle?) {
-        try {
+        withErrorTracking {
             dependencyContainer.deviceHelper.interfaceStyleOverride = interfaceStyle
-        } catch (e: Exception) {
-            logException(e)
-            throw e
         }
     }
 
@@ -435,13 +416,10 @@ class Superwall(
      * Removes all of Superwall's pending local notifications.
      */
     fun cancelAllScheduledNotifications() {
-        try {
+        withErrorTracking {
             WorkManager
                 .getInstance(context)
                 .cancelAllWorkByTag(SuperwallPaywallActivity.NOTIFICATION_CHANNEL_ID)
-        } catch (e: Exception) {
-            logException(e)
-            throw e
         }
     }
 
@@ -451,11 +429,8 @@ class Superwall(
      * Resets the [userId], on-device paywall assignments, and data stored by Superwall.
      */
     fun reset() {
-        try {
+        withErrorTracking {
             reset(duringIdentify = false)
-        } catch (e: Exception) {
-            logException(e)
-            throw e
         }
     }
 
@@ -463,7 +438,7 @@ class Superwall(
      * Asynchronously resets. Presentation of paywalls is suspended until reset completes.
      */
     internal fun reset(duringIdentify: Boolean) {
-        try {
+        withErrorTracking {
             dependencyContainer.identityManager.reset(duringIdentify)
             dependencyContainer.storage.reset()
             dependencyContainer.paywallManager.resetCache()
@@ -472,9 +447,6 @@ class Superwall(
             ioScope.launch {
                 track(InternalSuperwallEvent.Reset)
             }
-        } catch (e: Exception) {
-            logException(e)
-            throw e
         }
     }
 
@@ -491,17 +463,13 @@ class Superwall(
      * @param uri The URL of the deep link.
      * @return A `Boolean` that is `true` if the deep link was handled.
      */
-    fun handleDeepLink(uri: Uri): Boolean {
-        try {
+    fun handleDeepLink(uri: Uri): Boolean =
+        withErrorTracking<Boolean> {
             ioScope.launch {
                 track(InternalSuperwallEvent.DeepLink(uri = uri))
             }
-            return dependencyContainer.debugManager.handle(deepLinkUrl = uri)
-        } catch (e: Exception) {
-            logException(e)
-            throw e
+            dependencyContainer.debugManager.handle(deepLinkUrl = uri)
         }
-    }
 
     //endregion
 
@@ -518,11 +486,8 @@ class Superwall(
      */
     fun preloadAllPaywalls() {
         ioScope.launch {
-            try {
+            withErrorTrackingAsync {
                 dependencyContainer.configManager.preloadAllPaywalls()
-            } catch (e: Exception) {
-                logException(e)
-                throw e
             }
         }
     }
@@ -539,13 +504,10 @@ class Superwall(
      */
     fun preloadPaywalls(eventNames: Set<String>) {
         ioScope.launch {
-            try {
+            withErrorTrackingAsync {
                 dependencyContainer.configManager.preloadPaywallsByNames(
                     eventNames = eventNames,
                 )
-            } catch (e: Exception) {
-                logException(e)
-                throw e
             }
         }
     }
@@ -556,7 +518,7 @@ class Superwall(
         paywallView: PaywallView,
     ) {
         withContext(Dispatchers.Main) {
-            try {
+            withErrorTrackingAsync {
                 Logger.debug(
                     logLevel = LogLevel.debug,
                     scope = LogScope.paywallView,
@@ -576,7 +538,7 @@ class Superwall(
                     is InitiatePurchase -> {
                         if (purchaseTask != null) {
                             // If a purchase is already in progress, do not start another
-                            return@withContext
+                            return@withErrorTrackingAsync
                         }
                         purchaseTask =
                             launch {
@@ -612,9 +574,6 @@ class Superwall(
                         dependencyContainer.delegateAdapter.handleCustomPaywallAction(name = paywallEvent.string)
                     }
                 }
-            } catch (e: Exception) {
-                logException(e)
-                throw e
             }
         }
     }

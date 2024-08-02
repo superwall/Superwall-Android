@@ -7,6 +7,7 @@ import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import com.superwall.sdk.utilities.DateUtils
+import com.superwall.sdk.utilities.ErrorTracking
 import com.superwall.sdk.utilities.dateFormat
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationException
@@ -231,6 +232,14 @@ object DisableVerboseEvents : Storable<Boolean> {
         get() = Boolean.serializer()
 }
 
+internal object ErrorLog : Storable<ErrorTracking.ErrorOccurence> {
+    override val key: String
+        get() = "store.errorLog"
+    override val directory: SearchPathDirectory
+        get() = SearchPathDirectory.CACHE
+    override val serializer: KSerializer<ErrorTracking.ErrorOccurence>
+        get() = ErrorTracking.ErrorOccurence.serializer()
+}
 //endregion
 
 // region Serializers
