@@ -32,6 +32,7 @@ uiautomator_version = "2.3.0"
 workRuntimeKtx_version = "2.9.0"
 serialization_version = "1.6.0"
 dropshot_version = "0.4.2"
+jetbrainsKotlinJvmVersion = "1.9.0"
 
 [libraries]
 
@@ -102,3 +103,4 @@ androidApplication = { id = "com.android.application", version.ref = "gradle_plu
 kotlinAndroid = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "serialization_version" }
 dropshot = { id = "com.dropbox.dropshots", version.ref = "dropshot_version" }
+jetbrainsKotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "jetbrainsKotlinJvmVersion" }
