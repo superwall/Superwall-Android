@@ -511,6 +511,6 @@ class DependencyContainer(
     override suspend fun makeSuperwallOptions(): SuperwallOptions = configManager.options
 
     override suspend fun makeTriggers(): Set<String> = configManager.triggersByEventName.keys
-      
+
     override suspend fun provideJavascriptEvaluator(context: Context) = evaluator
 }
