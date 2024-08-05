@@ -9,6 +9,7 @@ import com.superwall.sdk.paywall.presentation.internal.InternalPresentationLogic
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.dismiss
 import com.superwall.sdk.paywall.presentation.internal.internallyPresent
+import com.superwall.sdk.paywall.presentation.internal.internallyPresentFragment
 import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
@@ -41,7 +42,11 @@ suspend fun Superwall.dismissForNextPaywall() =
         val completionSignal = CompletableDeferred<Unit>()
 
         paywallView?.let {
-            dismiss(paywallView = it, result = PaywallResult.Declined(), closeReason = PaywallCloseReason.ForNextPaywall) {
+            dismiss(
+                paywallView = it,
+                result = PaywallResult.Declined(),
+                closeReason = PaywallCloseReason.ForNextPaywall,
+            ) {
                 completionSignal.complete(Unit)
             }
         } ?: completionSignal.complete(Unit)
@@ -160,5 +165,12 @@ private suspend fun Superwall.trackAndPresentPaywall(
             type = PresentationRequestType.Presentation,
         )
 
-    internallyPresent(presentationRequest, publisher)
+    if (
+        // dependencyContainer.configManager.options.paywalls.useFragment
+        false
+    ) {
+        internallyPresentFragment(presentationRequest, publisher)
+    } else {
+        internallyPresent(presentationRequest, publisher)
+    }
 }

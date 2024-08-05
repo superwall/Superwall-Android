@@ -1,5 +1,6 @@
 package com.superwall.sdk.paywall.presentation.internal
 
+import androidx.appcompat.app.AppCompatActivity
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.internal.operators.*
@@ -38,6 +39,43 @@ suspend fun Superwall.internallyPresent(
         presentPaywallView(
             paywallView = paywallView,
             presenter = presenter,
+            unsavedOccurrence = paywallComponents.rulesOutcome.unsavedOccurrence,
+            debugInfo = paywallComponents.debugInfo,
+            request = request,
+            paywallStatePublisher = publisher,
+        )
+    } catch (e: Throwable) {
+        logErrors(request, e)
+    }
+}
+
+@Throws(Throwable::class)
+suspend fun Superwall.internallyPresentFragment(
+    request: PresentationRequest,
+    publisher: MutableSharedFlow<PaywallState>,
+) {
+    try {
+        checkNoPaywallAlreadyPresented(request, publisher)
+
+        // Print a log here to indicate that the paywall is being presented.
+        val paywallComponents = getPaywallComponents(request, publisher)
+
+        val presenter =
+            requireNotNull(paywallComponents.presenter) {
+                "Presenter must not be null"
+            }
+
+        val paywallView = paywallComponents.view
+
+        // Note: Deviation from iOS. Unique to Android. This is also done in `PublicGetPaywall.kt`.
+        // See comments there.
+        paywallView.prepareToDisplay()
+
+        presentPaywallFragment(
+            paywallView = paywallView,
+            manager =
+                (presenter as? AppCompatActivity)?.supportFragmentManager
+                    ?: throw IllegalStateException("Presenter must be a FragmentActivity"),
             unsavedOccurrence = paywallComponents.rulesOutcome.unsavedOccurrence,
             debugInfo = paywallComponents.debugInfo,
             request = request,

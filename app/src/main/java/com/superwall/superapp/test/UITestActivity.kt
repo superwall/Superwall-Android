@@ -3,8 +3,8 @@ package com.superwall.superapp.test
 import android.content.Context
 import android.os.Bundle
 import android.util.Log
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -83,7 +83,7 @@ enum class TestCaseType(
         }
 }
 
-class UITestActivity : ComponentActivity() {
+class UITestActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
