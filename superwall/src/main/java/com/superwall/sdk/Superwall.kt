@@ -3,7 +3,6 @@ package com.superwall.sdk
 import android.app.Application
 import android.content.Context
 import android.net.Uri
-import android.util.Log
 import androidx.lifecycle.ViewModelProvider
 import androidx.work.WorkManager
 import com.superwall.sdk.analytics.internal.track
@@ -283,10 +282,6 @@ class Superwall(
             _hasInitialized.update {
                 true
             }
-            Log.e(
-                "Executing cel",
-                uniffi.cel.withContext("foo == 42"),
-            )
         }
 
         @Deprecated(
