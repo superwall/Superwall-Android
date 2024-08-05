@@ -26,7 +26,7 @@ sealed interface PassableValue {
     @Serializable
     @SerialName("map")
     data class MapValue(
-        val value: Map<String, PassableMap>,
+        val value: Map<String, PassableValue>,
     ) : PassableValue
 
     @Serializable
@@ -43,7 +43,7 @@ sealed interface PassableValue {
     ) : PassableValue
 
     @Serializable
-    @SerialName("uInt")
+    @SerialName("uint")
     data class UIntValue(
         val value: Long,
     ) : PassableValue

@@ -4,6 +4,7 @@ import com.superwall.sdk.paywall.presentation.rule_logic.cel.ExecutionContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.Test
+import uniffi.cel.evaluateWithContext
 
 class CELTest {
     val json =
@@ -60,5 +61,36 @@ class CELTest {
 
         val serializedJson = json.encodeToString(executionContext)
         println("Serialized JSON: $serializedJson")
+        val result = uniffi.cel.evaluateWithContext(celState)
+        assert(result == "true")
+    }
+
+    @Test
+    fun evaluate_expression_from_rules() {
+        val celState = """        {
+                    "variables": {
+                        "map": {
+                            "user": {
+                                "type": "map",
+                                "value": {
+                                    "should_display": {
+                                        "type": "bool",
+                                        "value": true
+                                    },
+                                    "some_value": {
+                                        "type": "uint",
+                                        "value": 13
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "expression": "user.should_display == true && user.some_value > 12"
+    }
+"""
+        val executionContext = json.decodeFromString<ExecutionContext>(celState)
+        val serializedJson = json.encodeToString(executionContext)
+        val result = evaluateWithContext(celState)
+        assert(result == "true")
     }
 }
