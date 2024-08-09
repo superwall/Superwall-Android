@@ -186,6 +186,8 @@ dependencies {
     // Billing
     implementation(libs.billing)
 
+    implementation("net.java.dev.jna:jna:5.14.0@aar")
+
     // Browser
     implementation(libs.browser)
 
