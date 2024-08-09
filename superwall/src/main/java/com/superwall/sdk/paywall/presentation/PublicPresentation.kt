@@ -16,6 +16,8 @@ import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult.Decli
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult.Purchased
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult.Restored
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
+import com.superwall.sdk.utilities.withErrorTracking
+import com.superwall.sdk.utilities.withErrorTrackingAsync
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -27,11 +29,13 @@ suspend fun Superwall.dismiss() =
     withContext(Dispatchers.Main) {
         val completionSignal = CompletableDeferred<Unit>()
 
-        paywallView?.let {
-            dismiss(paywallView = it, result = PaywallResult.Declined()) {
-                completionSignal.complete(Unit)
-            }
-        } ?: completionSignal.complete(Unit)
+        withErrorTrackingAsync {
+            paywallView?.let {
+                dismiss(paywallView = it, result = PaywallResult.Declined()) {
+                    completionSignal.complete(Unit)
+                }
+            } ?: completionSignal.complete(Unit)
+        }
 
         completionSignal.await()
     }
@@ -40,12 +44,17 @@ suspend fun Superwall.dismissForNextPaywall() =
     withContext(Dispatchers.Main) {
         val completionSignal = CompletableDeferred<Unit>()
 
-        paywallView?.let {
-            dismiss(paywallView = it, result = PaywallResult.Declined(), closeReason = PaywallCloseReason.ForNextPaywall) {
-                completionSignal.complete(Unit)
-            }
-        } ?: completionSignal.complete(Unit)
-
+        withErrorTrackingAsync {
+            paywallView?.let {
+                dismiss(
+                    paywallView = it,
+                    result = PaywallResult.Declined(),
+                    closeReason = PaywallCloseReason.ForNextPaywall,
+                ) {
+                    completionSignal.complete(Unit)
+                }
+            } ?: completionSignal.complete(Unit)
+        }
         completionSignal.await()
     }
 
@@ -71,47 +80,49 @@ private fun Superwall.internallyRegister(
         collectionWillStart.complete(Unit)
 
         publisher.collect { state ->
-            when (state) {
-                is PaywallState.Presented -> {
-                    handler?.onPresentHandler?.invoke(state.paywallInfo)
-                }
+            withErrorTracking {
+                when (state) {
+                    is PaywallState.Presented -> {
+                        handler?.onPresentHandler?.invoke(state.paywallInfo)
+                    }
 
-                is PaywallState.Dismissed -> {
-                    val (paywallInfo, paywallResult) = state
-                    handler?.onDismissHandler?.invoke(paywallInfo)
-                    when (paywallResult) {
-                        is Purchased, is Restored -> {
-                            completion?.invoke()
-                        }
-
-                        is Declined -> {
-                            val closeReason = paywallInfo.closeReason
-                            val featureGating = paywallInfo.featureGatingBehavior
-                            if (closeReason != PaywallCloseReason.ForNextPaywall && featureGating == FeatureGatingBehavior.NonGated) {
+                    is PaywallState.Dismissed -> {
+                        val (paywallInfo, paywallResult) = state
+                        handler?.onDismissHandler?.invoke(paywallInfo)
+                        when (paywallResult) {
+                            is Purchased, is Restored -> {
                                 completion?.invoke()
                             }
-                            if (closeReason == PaywallCloseReason.WebViewFailedToLoad && featureGating == FeatureGatingBehavior.Gated) {
-                                val error =
-                                    InternalPresentationLogic.presentationError(
-                                        domain = "SWKPresentationError",
-                                        code = 106,
-                                        title = "Webview Failed",
-                                        value = "Trying to present gated paywall but the webview could not load.",
-                                    )
-                                handler?.onErrorHandler?.invoke(error)
+
+                            is Declined -> {
+                                val closeReason = paywallInfo.closeReason
+                                val featureGating = paywallInfo.featureGatingBehavior
+                                if (closeReason != PaywallCloseReason.ForNextPaywall && featureGating == FeatureGatingBehavior.NonGated) {
+                                    completion?.invoke()
+                                }
+                                if (closeReason == PaywallCloseReason.WebViewFailedToLoad && featureGating == FeatureGatingBehavior.Gated) {
+                                    val error =
+                                        InternalPresentationLogic.presentationError(
+                                            domain = "SWKPresentationError",
+                                            code = 106,
+                                            title = "Webview Failed",
+                                            value = "Trying to present gated paywall but the webview could not load.",
+                                        )
+                                    handler?.onErrorHandler?.invoke(error)
+                                }
                             }
                         }
                     }
-                }
 
-                is PaywallState.Skipped -> {
-                    val (reason) = state
-                    handler?.onSkipHandler?.invoke(reason)
-                    completion?.invoke()
-                }
+                    is PaywallState.Skipped -> {
+                        val (reason) = state
+                        handler?.onSkipHandler?.invoke(reason)
+                        completion?.invoke()
+                    }
 
-                is PaywallState.PresentationError -> {
-                    handler?.onErrorHandler?.invoke(state.error)
+                    is PaywallState.PresentationError -> {
+                        handler?.onErrorHandler?.invoke(state.error)
+                    }
                 }
             }
         }
@@ -150,15 +161,17 @@ private suspend fun Superwall.trackAndPresentPaywall(
             isFeatureGatable = isFeatureGatable,
         )
 
-    val trackResult = track(trackableEvent)
+    withErrorTrackingAsync {
+        val trackResult = track(trackableEvent)
 
-    val presentationRequest =
-        dependencyContainer.makePresentationRequest(
-            PresentationInfo.ExplicitTrigger(trackResult.data),
-            paywallOverrides,
-            isPaywallPresented = isPaywallPresented,
-            type = PresentationRequestType.Presentation,
-        )
+        val presentationRequest =
+            dependencyContainer.makePresentationRequest(
+                PresentationInfo.ExplicitTrigger(trackResult.data),
+                paywallOverrides,
+                isPaywallPresented = isPaywallPresented,
+                type = PresentationRequestType.Presentation,
+            )
 
-    internallyPresent(presentationRequest, publisher)
+        internallyPresent(presentationRequest, publisher)
+    }
 }

@@ -51,37 +51,42 @@ suspend fun Superwall.presentPaywallView(
         )
     track(trackedEvent)
 
-    paywallView.present(
-        presenter = presenter,
-        request = request,
-        unsavedOccurrence = unsavedOccurrence,
-        presentationStyleOverride = request.paywallOverrides?.presentationStyle,
-        paywallStatePublisher = paywallStatePublisher,
-    ) { isPresented ->
-        if (isPresented) {
-            val state = PaywallState.Presented(paywallView.info)
-            CoroutineScope(Dispatchers.IO).launch {
-                paywallStatePublisher.emit(state)
-            }
-        } else {
-            Logger.debug(
-                logLevel = LogLevel.info,
-                scope = LogScope.paywallPresentation,
-                message = "Paywall Already Presented",
-                info = debugInfo,
-            )
-            val error =
-                InternalPresentationLogic.presentationError(
-                    domain = "SWKPresentationError",
-                    code = 102,
-                    title = "Paywall Already Presented",
-                    value = "Trying to present paywall while another paywall is presented.",
+    try {
+        paywallView.present(
+            presenter = presenter,
+            request = request,
+            unsavedOccurrence = unsavedOccurrence,
+            presentationStyleOverride = request.paywallOverrides?.presentationStyle,
+            paywallStatePublisher = paywallStatePublisher,
+        ) { isPresented ->
+            if (isPresented) {
+                val state = PaywallState.Presented(paywallView.info)
+                CoroutineScope(Dispatchers.IO).launch {
+                    paywallStatePublisher.emit(state)
+                }
+            } else {
+                Logger.debug(
+                    logLevel = LogLevel.info,
+                    scope = LogScope.paywallPresentation,
+                    message = "Paywall Already Presented",
+                    info = debugInfo,
                 )
-            CoroutineScope(Dispatchers.IO).launch {
-                paywallStatePublisher.emit(PaywallState.PresentationError(error))
+                val error =
+                    InternalPresentationLogic.presentationError(
+                        domain = "SWKPresentationError",
+                        code = 102,
+                        title = "Paywall Already Presented",
+                        value = "Trying to present paywall while another paywall is presented.",
+                    )
+                CoroutineScope(Dispatchers.IO).launch {
+                    paywallStatePublisher.emit(PaywallState.PresentationError(error))
+                }
+                throw PaywallPresentationRequestStatusReason.PaywallAlreadyPresented()
             }
-            throw PaywallPresentationRequestStatusReason.PaywallAlreadyPresented()
         }
+    } catch (error: Throwable) {
+        logErrors(request, error = error)
+        throw error
     }
 }
 
