@@ -2,6 +2,9 @@ package com.superwall.superapp
 
 import android.app.Activity
 import android.content.Context
+import android.graphics.Color
+import android.widget.FrameLayout
+import androidx.core.view.updateLayoutParams
 import com.android.billingclient.api.ProductDetails
 import com.revenuecat.purchases.*
 import com.revenuecat.purchases.interfaces.GetStoreProductsCallback
@@ -139,10 +142,17 @@ class RevenueCatPurchaseController(
         offerId: String?,
     ): PurchaseResult {
         // Find products matching productId from RevenueCat
-        val products = Purchases.sharedInstance.awaitProducts(listOf(productDetails.productId))
-
+        Superwall.instance.paywallView?.addView(
+            FrameLayout(context).apply {
+                setBackgroundColor(Color.RED)
+                updateLayoutParams<FrameLayout.LayoutParams> {
+                    FrameLayout.LayoutParams(400, 200)
+                }
+            },
+        )
         // Choose the product which matches the given base plan.
         // If no base plan set, select first product or fail.
+        val products = Purchases.sharedInstance.awaitProducts(listOf(productDetails.productId))
         val product =
             products.firstOrNull { it.googleProduct?.basePlanId == basePlanId }
                 ?: products.firstOrNull()

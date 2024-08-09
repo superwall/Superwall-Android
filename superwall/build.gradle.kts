@@ -188,13 +188,14 @@ dependencies {
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
     kapt(libs.room.compiler)
-    implementation("net.java.dev.jna:jna:5.14.0@aar")
     implementation(libs.javascriptengine)
     implementation(libs.kotlinx.coroutines.guava)
 
     implementation(libs.threetenbp)
     // Billing
     implementation(libs.billing)
+
+    implementation("net.java.dev.jna:jna:5.14.0@aar")
 
     // Browser
     implementation(libs.browser)

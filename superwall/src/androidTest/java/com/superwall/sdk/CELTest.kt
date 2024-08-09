@@ -1,9 +1,12 @@
 package com.superwall.sdk
 
+import android.util.Log
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.ExecutionContext
+import com.superwall.sdk.paywall.presentation.rule_logic.cel.PassableValue
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.Test
+import uniffi.cel.HostContext
 import uniffi.cel.evaluateWithContext
 
 class CELTest {
@@ -61,7 +64,13 @@ class CELTest {
 
         val serializedJson = json.encodeToString(executionContext)
         println("Serialized JSON: $serializedJson")
-        val result = uniffi.cel.evaluateWithContext(celState)
+        val result =
+            uniffi.cel.evaluateWithContext(
+                celState,
+                object : HostContext {
+                    override fun computedProperty(name: String): String = Json.encodeToString(PassableValue.UIntValue(0))
+                },
+            )
         assert(result == "true")
     }
 
@@ -85,12 +94,26 @@ class CELTest {
                             }
                         }
                     },
-                    "expression": "user.should_display == true && user.some_value > 12"
+                    "platform" : {
+                        "daysSinceEvent": "9"
+                    },
+                    "expression": "platform.daysSinceEvent"
     }
 """
         val executionContext = json.decodeFromString<ExecutionContext>(celState)
         val serializedJson = json.encodeToString(executionContext)
-        val result = evaluateWithContext(celState)
+        val result =
+            evaluateWithContext(
+                celState,
+                object : HostContext {
+                    override fun computedProperty(name: String): String {
+                        val res = json.encodeToString(PassableValue.UIntValue(3) as PassableValue)
+                        Log.e("CELTest", "computedProperty: $name -> $res")
+                        return res
+                    }
+                },
+            )
+        Log.e("CELTest", "Result: $result")
         assert(result == "true")
     }
 }

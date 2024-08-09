@@ -7,6 +7,7 @@ import kotlinx.serialization.Serializable
 data class ExecutionContext(
     val variables: PassableMap,
     val expression: String,
+    val platform: Map<String, String>,
 )
 
 @Serializable
