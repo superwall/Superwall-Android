@@ -46,7 +46,7 @@ sealed interface PassableValue {
     @Serializable
     @SerialName("uint")
     data class UIntValue(
-        val value: Long,
+        val value: ULong,
     ) : PassableValue
 
     @Serializable

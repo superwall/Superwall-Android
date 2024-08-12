@@ -79,7 +79,8 @@ internal fun Map<String, Any>.toPassableValue(): PassableValue.MapValue {
 private fun Any.toPassableValue(): PassableValue =
     when (this) {
         is Int -> PassableValue.IntValue(this)
-        is Long -> PassableValue.UIntValue(this)
+        is Long -> PassableValue.UIntValue(this.toULong())
+        is ULong -> PassableValue.UIntValue(this)
         is Double -> PassableValue.FloatValue(this)
         is String -> PassableValue.StringValue(this)
         is ByteArray -> PassableValue.BytesValue(this)
