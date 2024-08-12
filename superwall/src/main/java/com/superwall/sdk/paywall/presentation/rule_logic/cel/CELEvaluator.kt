@@ -50,7 +50,7 @@ class CELEvaluator(
                     ): String {
                         // TODO: Not implemented
                         // This is where we would call the native code to get the computed property
-                        return "0"
+                        return json.encodeToString(PassableValue.StringValue("TODO").toString())
                     }
                 },
             )
@@ -65,7 +65,12 @@ class CELEvaluator(
     }
 }
 
-private fun TriggerRule.celExpression(): CelExpression = expression?.replace("and", "&&")?.replace("or", "||") ?: "true"
+private fun TriggerRule.celExpression(): CelExpression =
+    (
+        expression?.replace("and", "&&")?.replace("or", "||") ?: expressionJs
+            ?.replace("and", "&&")
+            ?.replace("or", "||") ?: "true"
+    )
 
 // PassableValues match the types in our Rust package
 internal fun Map<String, Any>.toPassableValue(): PassableValue.MapValue {
@@ -85,11 +90,22 @@ private fun Any.toPassableValue(): PassableValue =
         is String -> PassableValue.StringValue(this)
         is ByteArray -> PassableValue.BytesValue(this)
         is Boolean -> PassableValue.BoolValue(this)
-        is List<*> -> PassableValue.ListValue(this.map { it?.toPassableValue() ?: PassableValue.NullValue })
+        is List<*> ->
+            PassableValue.ListValue(
+                this.map {
+                    it?.toPassableValue() ?: PassableValue.NullValue
+                },
+            )
+
         is Map<*, *> -> {
             val stringKeyMap = this.filterKeys { it is String }.mapKeys { it.key as String }
-            PassableValue.MapValue(stringKeyMap.mapValues { it.value?.toPassableValue() ?: PassableValue.NullValue })
+            PassableValue.MapValue(
+                stringKeyMap.mapValues {
+                    it.value?.toPassableValue() ?: PassableValue.NullValue
+                },
+            )
         }
+
         is PassableValue -> this
         else -> throw IllegalArgumentException("Unsupported type: $this")
     }

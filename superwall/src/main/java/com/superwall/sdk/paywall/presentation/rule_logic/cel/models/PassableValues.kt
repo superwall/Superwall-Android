@@ -80,6 +80,6 @@ sealed interface PassableValue {
     ) : PassableValue
 
     @Serializable
-    @SerialName("null")
+    @SerialName("Null")
     object NullValue : PassableValue
 }
