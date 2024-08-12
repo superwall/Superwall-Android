@@ -17,4 +17,3 @@ include ':app'
 include ':superwall'
 include 'example:app'
 project(':example:app').projectDir = new File('example/app')
-include ':cel-evaluator'

@@ -1,4 +1,4 @@
-package com.superwall.sdk.paywall.presentation.rule_logic.cel
+package com.superwall.sdk.paywall.presentation.rule_logic.cel.models
 import kotlinx.serialization.Polymorphic
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
