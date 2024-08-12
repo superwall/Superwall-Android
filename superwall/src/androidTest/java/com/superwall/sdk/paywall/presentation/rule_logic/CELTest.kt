@@ -73,7 +73,7 @@ class CELTest {
                         args: String,
                     ): String =
                         Json.encodeToString(
-                            PassableValue.UIntValue(0),
+                            PassableValue.UIntValue(0uL),
                         )
                 },
             )
@@ -116,7 +116,7 @@ class CELTest {
                         name: String,
                         args: String,
                     ): String {
-                        val res = json.encodeToString(PassableValue.UIntValue(3) as PassableValue)
+                        val res = json.encodeToString(PassableValue.UIntValue(3uL) as PassableValue)
                         Log.e("CELTest", "computedProperty: $name -> $res")
                         return res
                     }
