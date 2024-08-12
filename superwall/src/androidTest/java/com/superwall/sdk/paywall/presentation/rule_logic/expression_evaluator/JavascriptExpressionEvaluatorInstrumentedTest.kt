@@ -40,7 +40,7 @@ class RuleAttributeFactoryBuilder : RuleAttributesFactory {
         )
 }
 
-class ExpressionEvaluatorInstrumentedTest {
+class JavascriptExpressionEvaluatorInstrumentedTest {
     var sandbox: JavaScriptSandbox? = null
 
     @Before

@@ -5,6 +5,9 @@ import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.triggers.TriggerRule
 import com.superwall.sdk.models.triggers.TriggerRuleOutcome
 import com.superwall.sdk.models.triggers.UnmatchedRule
+import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.ExecutionContext
+import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.PassableMap
+import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.PassableValue
 import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.ExpressionEvaluating
 import com.superwall.sdk.paywall.presentation.rule_logic.tryToMatchOccurrence
 import com.superwall.sdk.storage.Storage
@@ -41,7 +44,14 @@ class CELEvaluator(
             evaluateWithContext(
                 json.encodeToString(executionContext),
                 object : HostContext {
-                    override fun computedProperty(name: String): String = "0"
+                    override fun computedProperty(
+                        name: String,
+                        args: String,
+                    ): String {
+                        // TODO: Not implemented
+                        // This is where we would call the native code to get the computed property
+                        return "0"
+                    }
                 },
             )
         return if (result == "true") {
@@ -58,7 +68,7 @@ class CELEvaluator(
 private fun TriggerRule.celExpression(): CelExpression = expression?.replace("and", "&&")?.replace("or", "||") ?: "true"
 
 // PassableValues match the types in our Rust package
-private fun Map<String, Any>.toPassableValue(): PassableValue.MapValue {
+internal fun Map<String, Any>.toPassableValue(): PassableValue.MapValue {
     val passableMap =
         this.mapValues { (_, value) ->
             value.toPassableValue()

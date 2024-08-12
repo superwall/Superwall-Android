@@ -732,6 +732,7 @@ internal interface UniffiCallbackInterfaceHostContextMethod0 : com.sun.jna.Callb
     fun callback(
         `uniffiHandle`: Long,
         `name`: RustBuffer.ByValue,
+        `args`: RustBuffer.ByValue,
         `uniffiOutReturn`: RustBuffer,
         uniffiCallStatus: UniffiRustCallStatus,
     )
@@ -770,6 +771,17 @@ internal interface UniffiLib : Library {
     }
 
     fun uniffi_cel_eval_fn_init_callback_vtable_hostcontext(`vtable`: UniffiVTableCallbackInterfaceHostContext): Unit
+
+    fun uniffi_cel_eval_fn_func_evaluate_ast(
+        `ast`: RustBuffer.ByValue,
+        uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
+
+    fun uniffi_cel_eval_fn_func_evaluate_ast_with_context(
+        `definition`: RustBuffer.ByValue,
+        `context`: Long,
+        uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
 
     fun uniffi_cel_eval_fn_func_evaluate_with_context(
         `definition`: RustBuffer.ByValue,
@@ -993,6 +1005,10 @@ internal interface UniffiLib : Library {
         uniffi_out_err: UniffiRustCallStatus,
     ): Unit
 
+    fun uniffi_cel_eval_checksum_func_evaluate_ast(): Short
+
+    fun uniffi_cel_eval_checksum_func_evaluate_ast_with_context(): Short
+
     fun uniffi_cel_eval_checksum_func_evaluate_with_context(): Short
 
     fun uniffi_cel_eval_checksum_method_hostcontext_computed_property(): Short
@@ -1012,10 +1028,16 @@ private fun uniffiCheckContractApiVersion(lib: UniffiLib) {
 
 @Suppress("UNUSED_PARAMETER")
 private fun uniffiCheckApiChecksums(lib: UniffiLib) {
+    if (lib.uniffi_cel_eval_checksum_func_evaluate_ast() != 54749.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_cel_eval_checksum_func_evaluate_ast_with_context() != 12617.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_cel_eval_checksum_func_evaluate_with_context() != 36836.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_cel_eval_checksum_method_hostcontext_computed_property() != 16648.toShort()) {
+    if (lib.uniffi_cel_eval_checksum_method_hostcontext_computed_property() != 19093.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
 }
@@ -1117,7 +1139,10 @@ public object FfiConverterString : FfiConverter<String, RustBuffer.ByValue> {
 }
 
 public interface HostContext {
-    fun `computedProperty`(`name`: kotlin.String): kotlin.String
+    fun `computedProperty`(
+        `name`: kotlin.String,
+        `args`: kotlin.String,
+    ): kotlin.String
 
     companion object
 }
@@ -1160,14 +1185,15 @@ internal object uniffiCallbackInterfaceHostContext {
         override fun callback(
             `uniffiHandle`: Long,
             `name`: RustBuffer.ByValue,
+            `args`: RustBuffer.ByValue,
             `uniffiOutReturn`: RustBuffer,
             uniffiCallStatus: UniffiRustCallStatus,
         ) {
             val uniffiObj = FfiConverterTypeHostContext.handleMap.get(uniffiHandle)
-            val makeCall = {
-                uniffiObj.`computedProperty`(
-                    FfiConverterString.lift(`name`),
-                )
+            val makeCall = {  uniffiObj.`computedProperty`(
+                FfiConverterString.lift(`name`),
+                FfiConverterString.lift(`args`),
+            )
             }
             val writeReturn = { value: kotlin.String -> uniffiOutReturn.setValue(FfiConverterString.lower(value)) }
             uniffiTraitInterfaceCall(uniffiCallStatus, makeCall, writeReturn)
@@ -1195,6 +1221,30 @@ internal object uniffiCallbackInterfaceHostContext {
 
 // The ffiConverter which transforms the Callbacks in to handles to pass to Rust.
 public object FfiConverterTypeHostContext : FfiConverterCallbackInterface<HostContext>()
+
+fun `evaluateAst`(`ast`: kotlin.String): kotlin.String =
+    FfiConverterString.lift(
+        uniffiRustCall { _status ->
+            UniffiLib.INSTANCE.uniffi_cel_eval_fn_func_evaluate_ast(
+                FfiConverterString.lower(`ast`),
+                _status,
+            )
+        },
+    )
+
+fun `evaluateAstWithContext`(
+    `definition`: kotlin.String,
+    `context`: HostContext,
+): kotlin.String =
+    FfiConverterString.lift(
+        uniffiRustCall { _status ->
+            UniffiLib.INSTANCE.uniffi_cel_eval_fn_func_evaluate_ast_with_context(
+                FfiConverterString.lower(`definition`),
+                FfiConverterTypeHostContext.lower(`context`),
+                _status,
+            )
+        },
+    )
 
 fun `evaluateWithContext`(
     `definition`: kotlin.String,
