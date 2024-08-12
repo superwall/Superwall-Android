@@ -8,6 +8,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 - Adds support for multiple paywall URLs, in case one CDN provider fails.
 - `ActivityEncapsulatable` now uses a WeakReference instead of a reference
+- Adds support for bottom sheet presentation style
 
 ## 1.2.1
 
