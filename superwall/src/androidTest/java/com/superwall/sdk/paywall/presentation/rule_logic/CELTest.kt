@@ -1,8 +1,8 @@
-package com.superwall.sdk
+package com.superwall.sdk.paywall.presentation.rule_logic
 
 import android.util.Log
-import com.superwall.sdk.paywall.presentation.rule_logic.cel.ExecutionContext
-import com.superwall.sdk.paywall.presentation.rule_logic.cel.PassableValue
+import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.ExecutionContext
+import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.PassableValue
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.Test
@@ -65,10 +65,16 @@ class CELTest {
         val serializedJson = json.encodeToString(executionContext)
         println("Serialized JSON: $serializedJson")
         val result =
-            uniffi.cel.evaluateWithContext(
+            evaluateWithContext(
                 celState,
                 object : HostContext {
-                    override fun computedProperty(name: String): String = Json.encodeToString(PassableValue.UIntValue(0))
+                    override fun computedProperty(
+                        name: String,
+                        args: String,
+                    ): String =
+                        Json.encodeToString(
+                            PassableValue.UIntValue(0),
+                        )
                 },
             )
         assert(result == "true")
@@ -106,7 +112,10 @@ class CELTest {
             evaluateWithContext(
                 celState,
                 object : HostContext {
-                    override fun computedProperty(name: String): String {
+                    override fun computedProperty(
+                        name: String,
+                        args: String,
+                    ): String {
                         val res = json.encodeToString(PassableValue.UIntValue(3) as PassableValue)
                         Log.e("CELTest", "computedProperty: $name -> $res")
                         return res
