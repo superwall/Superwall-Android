@@ -8,113 +8,127 @@ internal sealed interface CELNode {
     abstract fun mapAll(transform: (CELExpression) -> CELExpression): CELExpression
 }
 
+internal interface ToExprString {
+    fun toExprString(): String
+}
+
 @Serializable
 @SerialName("CELRelationOp")
 @Polymorphic
-internal sealed class CELRelationOp {
+internal sealed class CELRelationOp : ToExprString {
     @SerialName("LessThan")
     @Serializable
     object LessThan : CELRelationOp() {
-        override fun toString() = "<"
+        override fun toExprString() = "<"
     }
 
     @SerialName("LessThanEq")
     @Serializable
     object LessThanEq : CELRelationOp() {
-        override fun toString() = "<="
+        override fun toExprString() = "<="
     }
 
     @SerialName("GreaterThan")
     @Serializable
     object GreaterThan : CELRelationOp() {
-        override fun toString() = ">"
+        override fun toExprString() = ">"
     }
 
     @SerialName("GreaterThanEq")
     @Serializable
     object GreaterThanEq : CELRelationOp() {
-        override fun toString() = ">="
+        override fun toExprString() = ">="
     }
 
     @SerialName("Equals")
     @Serializable
     object Equals : CELRelationOp() {
-        override fun toString() = "=="
+        override fun toExprString() = "=="
     }
 
     @SerialName("NotEquals")
     @Serializable
     object NotEquals : CELRelationOp() {
-        override fun toString() = "!="
+        override fun toExprString() = "!="
     }
 
     @SerialName("In")
     @Serializable
     object In : CELRelationOp() {
-        override fun toString() = "in"
+        override fun toExprString() = "in"
     }
 }
 
 @Serializable
 @SerialName("CELArithmeticOp")
 @Polymorphic
-internal sealed class CELArithmeticOp {
+internal sealed class CELArithmeticOp : ToExprString {
     @SerialName("Add")
     @Serializable
     object Add : CELArithmeticOp() {
-        override fun toString() = "+"
+        override fun toExprString() = "+"
     }
 
     @SerialName("Subtract")
     @Serializable
     object Subtract : CELArithmeticOp() {
-        override fun toString() = "-"
+        override fun toExprString() = "-"
     }
 
     @SerialName("Divide")
     @Serializable
     object Divide : CELArithmeticOp() {
-        override fun toString() = "/"
+        override fun toExprString() = "/"
     }
 
     @SerialName("Multiply")
     @Serializable
     object Multiply : CELArithmeticOp() {
-        override fun toString() = "*"
+        override fun toExprString() = "*"
     }
 
     @SerialName("Modulus")
     @Serializable
     object Modulus : CELArithmeticOp() {
-        override fun toString() = "%"
+        override fun toExprString() = "%"
     }
 }
 
 @Serializable
 @SerialName("CELUnaryOp")
 @Polymorphic
-internal sealed class CELUnaryOp {
+internal sealed class CELUnaryOp : ToExprString {
     @SerialName("Not")
     @Serializable
-    object Not : CELUnaryOp()
+    object Not : CELUnaryOp() {
+        override fun toExprString() = "!"
+    }
 
     @SerialName("DoubleNot")
     @Serializable
-    object DoubleNot : CELUnaryOp()
+    object DoubleNot : CELUnaryOp() {
+        override fun toExprString() = "!!"
+    }
 
     @SerialName("Minus")
     @Serializable
-    object Minus : CELUnaryOp()
+    object Minus : CELUnaryOp() {
+        override fun toExprString() = "-"
+    }
 
     @SerialName("DoubleMinus")
     @Serializable
-    object DoubleMinus : CELUnaryOp()
+    object DoubleMinus : CELUnaryOp() {
+        override fun toExprString() = "--"
+    }
 }
 
 @Serializable
 @SerialName("CELExpression")
 @Polymorphic
-internal sealed class CELExpression : CELNode {
+internal sealed class CELExpression :
+    CELNode,
+    ToExprString {
     @SerialName("Arithmetic")
     @Serializable
     data class Arithmetic(
@@ -131,7 +145,7 @@ internal sealed class CELExpression : CELNode {
                 ),
             )
 
-        override fun toString(): String = "$left $op $right"
+        override fun toExprString(): String = "(${left.toExprString()} ${op.toExprString()} ${right.toExprString()})"
     }
 
     @SerialName("Relation")
@@ -150,7 +164,7 @@ internal sealed class CELExpression : CELNode {
                 ),
             )
 
-        override fun toString(): String = "$left $op $right"
+        override fun toExprString(): String = "(${left.toExprString()} ${op.toExprString()} ${right.toExprString()})"
     }
 
     @SerialName("Ternary")
@@ -169,7 +183,7 @@ internal sealed class CELExpression : CELNode {
                 ),
             )
 
-        override fun toString(): String = "$condition ? $trueExpr : $falseExpr"
+        override fun toExprString(): String = "(${condition.toExprString()} ? ${trueExpr.toExprString()} : ${falseExpr.toExprString()})"
     }
 
     @SerialName("Or")
@@ -186,7 +200,7 @@ internal sealed class CELExpression : CELNode {
                 ),
             )
 
-        override fun toString(): String = "$left || $right"
+        override fun toExprString(): String = "(${left.toExprString()} || ${right.toExprString()})"
     }
 
     @SerialName("And")
@@ -203,7 +217,7 @@ internal sealed class CELExpression : CELNode {
                 ),
             )
 
-        override fun toString(): String = "($left && $right)"
+        override fun toExprString(): String = "(${left.toExprString()} && ${right.toExprString()})"
     }
 
     @SerialName("Unary")
@@ -220,7 +234,7 @@ internal sealed class CELExpression : CELNode {
                 ),
             )
 
-        override fun toString(): String = "+$expr)"
+        override fun toExprString(): String = "${op.toExprString()}(${expr.toExprString()})"
     }
 
     @SerialName("Member")
@@ -236,6 +250,8 @@ internal sealed class CELExpression : CELNode {
                     member,
                 ),
             )
+
+        override fun toExprString(): String = "${expr.toExprString()}${member.toExprString()}"
     }
 
     @SerialName("FunctionCall")
@@ -253,6 +269,12 @@ internal sealed class CELExpression : CELNode {
                     arguments.map { it.mapAll(transform) },
                 ),
             )
+
+        override fun toExprString(): String {
+            val receiverStr = receiver?.toExprString()?.plus(".") ?: ""
+            val argsStr = arguments.joinToString(", ") { it.toExprString() }
+            return "$receiverStr${function.toExprString()}($argsStr)"
+        }
     }
 
     @SerialName("List")
@@ -267,7 +289,7 @@ internal sealed class CELExpression : CELNode {
                 ),
             )
 
-        override fun toString(): String = "[${elements.joinToString(", ")}]"
+        override fun toExprString(): String = "[${elements.joinToString(", ") { it.toExprString() }}]"
     }
 
     @SerialName("Map")
@@ -283,6 +305,9 @@ internal sealed class CELExpression : CELNode {
                     },
                 ),
             )
+
+        override fun toExprString(): String =
+            "{${entries.joinToString(", ") { (key, value) -> "${key.toExprString()}: ${value.toExprString()}" }}}"
     }
 
     @SerialName("Atom")
@@ -292,7 +317,7 @@ internal sealed class CELExpression : CELNode {
     ) : CELExpression() {
         override fun mapAll(transform: (CELExpression) -> CELExpression): CELExpression = transform(this)
 
-        override fun toString(): String = value.toString()
+        override fun toExprString(): String = value.toExprString()
     }
 
     @SerialName("Ident")
@@ -302,73 +327,100 @@ internal sealed class CELExpression : CELNode {
     ) : CELExpression() {
         override fun mapAll(transform: (CELExpression) -> CELExpression): CELExpression = transform(this)
 
-        override fun toString(): String = name
+        override fun toExprString(): String = name
     }
 }
 
 @Serializable
 @SerialName("CELMember")
 @Polymorphic
-internal sealed class CELMember {
+internal sealed class CELMember : ToExprString {
     @SerialName("Attribute")
     @Serializable
     data class Attribute(
         @SerialName("name") val name: String,
-    ) : CELMember()
+    ) : CELMember() {
+        override fun toExprString(): String = ".$name"
+    }
 
     @SerialName("Index")
     @Serializable
     data class Index(
         @SerialName("expr") val expr: CELExpression,
-    ) : CELMember()
+    ) : CELMember() {
+        override fun toExprString(): String = "[${expr.toExprString()}]"
+    }
 
     @SerialName("Fields")
     @Serializable
     data class Fields(
         @SerialName("fields") val fields: List<Pair<String, CELExpression>>,
-    ) : CELMember()
+    ) : CELMember() {
+        override fun toExprString(): String = "{${fields.joinToString(", ") { (key, value) -> "$key: ${value.toExprString()}" }}}"
+    }
 }
 
 @Serializable
 @SerialName("CELAtom")
-internal sealed class CELAtom {
+internal sealed class CELAtom : ToExprString {
     @SerialName("Int")
     @Serializable
     data class Int(
         @SerialName("value") val value: Long,
-    ) : CELAtom()
+    ) : CELAtom() {
+        override fun toExprString() = value.toString()
+    }
 
     @SerialName("UInt")
     @Serializable
     data class UInt(
         @SerialName("value") val value: ULong,
-    ) : CELAtom()
+    ) : CELAtom() {
+        override fun toExprString() = "${value}u"
+    }
 
     @SerialName("Float")
     @Serializable
     data class Float(
         @SerialName("value") val value: Double,
-    ) : CELAtom()
+    ) : CELAtom() {
+        override fun toExprString() = value.toString()
+    }
 
     @SerialName("String")
     @Serializable
     data class String(
         @SerialName("value") val value: kotlin.String,
-    ) : CELAtom()
+    ) : CELAtom() {
+        override fun toExprString() = "\"$value\""
+    }
 
     @SerialName("Bytes")
     @Serializable
     data class Bytes(
         @SerialName("value") val value: ByteArray,
-    ) : CELAtom()
+    ) : CELAtom() {
+        override fun toExprString() = "b\"${value.joinToString("") { "%02x".format(it) }}\""
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+            other as Bytes
+            return value.contentEquals(other.value)
+        }
+    }
 
     @SerialName("Bool")
     @Serializable
     data class Bool(
         @SerialName("value") val value: Boolean,
-    ) : CELAtom()
+    ) : CELAtom() {
+        override fun toExprString() = value.toString()
+    }
 
     @SerialName("Null")
     @Serializable
-    object Null : CELAtom()
+    object Null : CELAtom() {
+        override fun toExprString() = "null"
+    }
 }
