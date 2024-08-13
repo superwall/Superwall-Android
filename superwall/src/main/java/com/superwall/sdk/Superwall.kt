@@ -78,6 +78,12 @@ class Superwall(
 
     internal val presentationItems: PresentationItems = PresentationItems()
 
+    var localeIdentifier: String?
+        get() = dependencyContainer.configManager.options.localeIdentifier
+        set(value) {
+            dependencyContainer.configManager.options.localeIdentifier = value
+        }
+
     /**
      * The presented paywall view.
      */
@@ -382,8 +388,12 @@ class Superwall(
     /**
      * Do not use this function, this is for internal use only.
      */
-    fun setPlatformWrapper(wrapper: String) {
+    fun setPlatformWrapper(
+        wrapper: String,
+        version: String,
+    ) {
         dependencyContainer.deviceHelper.platformWrapper = wrapper
+        dependencyContainer.deviceHelper.platformWrapperVersion = version
     }
 
     /**
