@@ -34,7 +34,7 @@ data class Paywalls(
 data class Paywall(
     @SerialName("id")
     val databaseId: String,
-    var identifier: String,
+    var identifier: PaywallIdentifier,
     val name: String,
     val url:
         @Serializable(with = URLSerializer::class)
@@ -99,7 +99,7 @@ data class Paywall(
     val urlConfig: PaywallWebviewUrl.Config? = null,
     @Serializable
     @SerialName("cache_key")
-    val cacheKey: String,
+    val cacheKey: CacheKey,
     @Serializable
     @SerialName("build_id")
     val buildId: String,

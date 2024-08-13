@@ -20,6 +20,8 @@ import com.superwall.sdk.misc.awaitFirstValidConfig
 import com.superwall.sdk.models.assignment.AssignmentPostback
 import com.superwall.sdk.models.assignment.ConfirmableAssignment
 import com.superwall.sdk.models.config.Config
+import com.superwall.sdk.models.paywall.CacheKey
+import com.superwall.sdk.models.paywall.PaywallIdentifier
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.models.triggers.Trigger
@@ -385,14 +387,14 @@ open class ConfigManager(
         val newPaywalls = newConfig.paywalls
 
         val presentedPaywallId = paywallManager.currentView?.paywall?.identifier
-        val oldPaywallCacheIds =
+        val oldPaywallCacheIds: Map<PaywallIdentifier, CacheKey> =
             oldPaywalls
                 .map { it.identifier to it.cacheKey }
                 .toMap()
-        val newPaywallCacheIds = newPaywalls.map { it.identifier to it.cacheKey }.toMap()
+        val newPaywallCacheIds: Map<PaywallIdentifier, CacheKey> = newPaywalls.map { it.identifier to it.cacheKey }.toMap()
 
-        val removedIds =
-            oldPaywallCacheIds.values - newPaywallCacheIds.values.toSet()
+        val removedIds: Set<PaywallIdentifier> =
+            (oldPaywallCacheIds.keys - newPaywallCacheIds.keys).toSet()
 
         val changedIds =
             removedIds +
