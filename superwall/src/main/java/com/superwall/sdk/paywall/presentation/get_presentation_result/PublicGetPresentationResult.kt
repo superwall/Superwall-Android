@@ -44,7 +44,7 @@ internal suspend fun Superwall.internallyGetPresentationResult(
     val eventData =
         EventData(
             name = event.rawName,
-            parameters = parameters.eventParams,
+            parameters = parameters.audienceFilterParams,
             createdAt = eventCreatedAt,
         )
 

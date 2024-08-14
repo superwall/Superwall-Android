@@ -146,7 +146,7 @@ data class PaywallInfo(
         product: StoreProduct? = null,
         otherParams: Map<String, Any?>? = null,
     ): Map<String, Any> {
-        var output = customParams()
+        var output = audienceFilterParams()
 
         val params =
             mutableMapOf(
@@ -211,8 +211,8 @@ data class PaywallInfo(
         return output
     }
 
-    // / Parameters that can be used in rules.
-    fun customParams(): MutableMap<String, Any> {
+    // Parameters that can be used in audience filters.
+    fun audienceFilterParams(): MutableMap<String, Any> {
         val featureGatingSerialized =
             Json {}.encodeToString(FeatureGatingBehavior.serializer(), featureGatingBehavior)
 

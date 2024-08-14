@@ -54,14 +54,14 @@ suspend fun Superwall.track(event: Trackable): TrackingResult {
                 logLevel = LogLevel.debug,
                 scope = LogScope.events,
                 message = "Logged Event",
-                info = parameters.eventParams,
+                info = parameters.audienceFilterParams,
             )
         }
 
         val eventData =
             EventData(
                 name = event.rawName,
-                parameters = parameters.eventParams,
+                parameters = parameters.audienceFilterParams,
                 createdAt = eventCreatedAt,
             )
 
