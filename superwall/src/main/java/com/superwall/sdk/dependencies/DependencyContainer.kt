@@ -355,7 +355,7 @@ class DependencyContainer(
         return view
     }
 
-    override fun makeCache(): PaywallViewCache = PaywallViewCache(context, Superwall.instance.viewStore(), activityProvider!!)
+    override fun makeCache(): PaywallViewCache = PaywallViewCache(context, Superwall.instance.viewStore(), activityProvider!!, deviceHelper)
 
     override fun makeDeviceInfo(): DeviceInfo =
         DeviceInfo(

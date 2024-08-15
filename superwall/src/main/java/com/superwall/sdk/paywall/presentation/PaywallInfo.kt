@@ -62,6 +62,8 @@ data class PaywallInfo(
     val computedPropertyRequests: List<ComputedPropertyRequest>,
     val surveys: List<Survey>,
     val presentation: PaywallPresentationInfo,
+    val buildId: String,
+    val cacheKey: String,
 ) {
     constructor(
         databaseId: String,
@@ -91,6 +93,8 @@ data class PaywallInfo(
         closeReason: PaywallCloseReason,
         surveys: List<Survey>,
         presentation: PaywallPresentationInfo,
+        buildId: String,
+        cacheKey: String,
     ) : this(
         databaseId = databaseId,
         identifier = identifier,
@@ -140,6 +144,8 @@ data class PaywallInfo(
         closeReason = closeReason,
         surveys = surveys,
         presentation = presentation,
+        cacheKey = cacheKey,
+        buildId = buildId,
     )
 
     fun eventParams(

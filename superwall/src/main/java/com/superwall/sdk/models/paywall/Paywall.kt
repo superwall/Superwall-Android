@@ -34,7 +34,7 @@ data class Paywalls(
 data class Paywall(
     @SerialName("id")
     val databaseId: String,
-    var identifier: String,
+    var identifier: PaywallIdentifier,
     val name: String,
     val url:
         @Serializable(with = URLSerializer::class)
@@ -97,6 +97,12 @@ data class Paywall(
     var closeReason: PaywallCloseReason = PaywallCloseReason.None,
     @SerialName("url_config")
     val urlConfig: PaywallWebviewUrl.Config? = null,
+    @Serializable
+    @SerialName("cache_key")
+    val cacheKey: CacheKey,
+    @Serializable
+    @SerialName("build_id")
+    val buildId: String,
     /**
      Surveys to potentially show when an action happens in the paywall.
      */
@@ -199,6 +205,8 @@ data class Paywall(
             computedPropertyRequests = computedPropertyRequests,
             surveys = surveys,
             presentation = presentation,
+            cacheKey = cacheKey,
+            buildId = buildId,
         )
 
     companion object {
@@ -262,6 +270,8 @@ data class Paywall(
                             PaywallWebviewUrl("https://google.com", 1000L, 1),
                         ),
                     ),
+                cacheKey = "123",
+                buildId = "test",
             )
     }
 }
