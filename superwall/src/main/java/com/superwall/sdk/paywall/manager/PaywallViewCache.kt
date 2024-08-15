@@ -2,6 +2,7 @@ package com.superwall.sdk.paywall.manager
 
 import android.content.Context
 import com.superwall.sdk.misc.ActivityProvider
+import com.superwall.sdk.models.paywall.PaywallIdentifier
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.paywall.vc.LoadingView
 import com.superwall.sdk.paywall.vc.PaywallView
@@ -81,11 +82,11 @@ class PaywallViewCache(
 
     fun getPaywallView(key: String): PaywallView? = runBlocking(singleThreadContext) { store.retrieveView(key) as PaywallView? }
 
-    fun removePaywallView(key: String) {
+    fun removePaywallView(identifier: PaywallIdentifier) {
         CoroutineScope(singleThreadContext).launch {
             store.removeView(
                 PaywallCacheLogic.key(
-                    key,
+                    identifier,
                     locale = deviceHelper.locale,
                 ),
             )
