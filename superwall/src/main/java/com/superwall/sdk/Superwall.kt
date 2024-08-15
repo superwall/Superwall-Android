@@ -573,6 +573,23 @@ class Superwall(
                     is Custom -> {
                         dependencyContainer.delegateAdapter.handleCustomPaywallAction(name = paywallEvent.string)
                     }
+
+                    is PaywallWebEvent.CustomPlacement -> {
+                        track(
+                            InternalSuperwallEvent.CustomPlacement(
+                                placementName = paywallEvent.name,
+                                params =
+                                    paywallEvent.params.let {
+                                        val map = mutableMapOf<String, Any>()
+                                        for (key in it.keys()) {
+                                            map[key] = it.get(key)
+                                        }
+                                        map
+                                    },
+                                paywallInfo = paywallView.info,
+                            ),
+                        )
+                    }
                 }
             }
         }

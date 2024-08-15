@@ -379,6 +379,10 @@ sealed class SuperwallEvent {
             get() = "reset"
     }
 
+    object CustomPlacement : SuperwallEvent() {
+        override val rawName: String = SuperwallEvents.CustomPlacement.rawName
+    }
+
     object ErrorThrown : SuperwallEvent() {
         override val rawName: String
             get() = "error_thrown"

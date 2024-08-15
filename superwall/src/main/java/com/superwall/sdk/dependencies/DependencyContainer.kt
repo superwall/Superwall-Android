@@ -381,7 +381,7 @@ class DependencyContainer(
     override fun makeUserAttributesEvent(): InternalSuperwallEvent.Attributes =
         InternalSuperwallEvent.Attributes(
             appInstalledAtString = deviceHelper.appInstalledAtString,
-            customParameters = HashMap(identityManager.userAttributes),
+            audienceFilterParams = HashMap(identityManager.userAttributes),
         )
 
     override fun makeHasExternalPurchaseController(): Boolean = storeKitManager.purchaseController.hasExternalPurchaseController

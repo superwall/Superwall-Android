@@ -46,6 +46,11 @@ sealed class PaywallMessage {
         val data: String,
     ) : PaywallMessage()
 
+    data class CustomPlacement(
+        val name: String,
+        val params: JSONObject,
+    ) : PaywallMessage()
+
     object PaywallOpen : PaywallMessage()
 
     object PaywallClose : PaywallMessage()
@@ -82,7 +87,14 @@ private fun parsePaywallMessage(json: JSONObject): PaywallMessage {
                 json.getString("product"),
                 json.getString("product_identifier"),
             )
+
         "custom" -> PaywallMessage.Custom(json.getString("data"))
+        "register_placement" ->
+            PaywallMessage.CustomPlacement(
+                json.getString("name"),
+                json.getJSONObject("params"),
+            )
+
         else -> throw IllegalArgumentException("Unknown event name: $eventName")
     }
 }

@@ -2,6 +2,7 @@ package com.superwall.sdk.paywall.vc.web_view.messaging
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import org.json.JSONObject
 import java.net.URL
 
 @Serializable
@@ -33,5 +34,11 @@ sealed class PaywallWebEvent {
     @SerialName("opened_deep_link")
     data class OpenedDeepLink(
         val url: URL,
+    ) : PaywallWebEvent()
+
+    @SerialName("custom_placement")
+    data class CustomPlacement(
+        val name: String,
+        val params: JSONObject,
     ) : PaywallWebEvent()
 }
