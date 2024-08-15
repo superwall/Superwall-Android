@@ -6,7 +6,6 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
-import android.util.Log
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
@@ -212,7 +211,6 @@ class PaywallView(
     }
 
     internal fun setupShimmer(shimmerView: ShimmerView) {
-        Log.e("SuperView", "Setting up shimmer view")
         this.shimmerView = shimmerView
         shimmerView.setupFor(this, loadingState)
     }

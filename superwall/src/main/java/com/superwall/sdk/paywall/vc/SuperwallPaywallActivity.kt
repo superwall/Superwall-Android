@@ -14,7 +14,6 @@ import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.view.Window
@@ -57,6 +56,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         private const val VIEW_KEY = "viewKey"
         private const val PRESENTATION_STYLE_KEY = "presentationStyleKey"
         private const val IS_LIGHT_BACKGROUND_KEY = "isLightBackgroundKey"
+        private const val ACTIVE_PAYWALL_TAG = "active_paywall"
 
         fun startWithView(
             context: Context,
@@ -107,16 +107,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
 
     private val mainScope = CoroutineScope(Dispatchers.Main)
 
-    private fun paywallView(): PaywallView? {
-        val content = contentView ?: error("Content view is null")
-        if (content is PaywallView) {
-            return content
-        } else if (content is CoordinatorLayout) {
-            return (content.getChildAt(0) as FrameLayout).getChildAt(0) as PaywallView
-        } else {
-            return null
-        }
-    }
+    private fun paywallView(): PaywallView? = contentView?.findViewWithTag<PaywallView>(ACTIVE_PAYWALL_TAG)
 
     private fun setupBottomSheetLayout(paywallView: PaywallView) {
         val activityView =
@@ -125,14 +116,14 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         initBottomSheetBehavior()
         val container =
             activityView.findViewById<FrameLayout>(com.superwall.sdk.R.id.container)
-        container.setOnClickListener { finish() }
+        activityView.setOnClickListener { finish() }
         container.addView(paywallView)
         container.requestLayout()
     }
 
     private fun initBottomSheetBehavior() {
         var bottomSheetBehavior = BottomSheetBehavior.from((contentView as ViewGroup).getChildAt(0))
-        bottomSheetBehavior.halfExpandedRatio = 0.62f
+        bottomSheetBehavior.halfExpandedRatio = 0.7f
         // Expanded by default
         bottomSheetBehavior.state = BottomSheetBehavior.STATE_HALF_EXPANDED
         bottomSheetBehavior.skipCollapsed = true
@@ -202,6 +193,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         val isBottomSheetStyle = presentationStyle == PaywallPresentationStyle.DRAWER
 
         (view.parent as? ViewGroup)?.removeView(view)
+        view.tag = ACTIVE_PAYWALL_TAG
         view.encapsulatingActivity = WeakReference(this)
         // If it's a bottom sheet, we set activity as transparent and show the UI in a bottom sheet container
         if (isBottomSheetStyle && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -303,7 +295,6 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             setDuration(300) // milliseconds
             addUpdateListener { animator ->
                 val e = ((animator.animatedValue as Int) / colorFrom)
-                Log.e("Percentage", " -------------------------- $e -------------")
                 if (e < 0.1) {
                     super.finish()
                 }
