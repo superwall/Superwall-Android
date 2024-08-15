@@ -112,6 +112,10 @@ interface DeviceHelperFactory {
     suspend fun makeSessionDeviceAttributes(): HashMap<String, Any>
 }
 
+interface ConfigAttributesFactory {
+    fun makeConfigAttributes(): InternalSuperwallEvent.ConfigAttributes
+}
+
 interface UserAttributesEventFactory {
     fun makeUserAttributesEvent(): InternalSuperwallEvent.Attributes
 }

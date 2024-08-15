@@ -98,7 +98,8 @@ class DependencyContainer(
     AppSessionManager.Factory,
     DebugView.Factory,
     JavascriptEvaluator.Factory,
-    JsonFactory {
+    JsonFactory,
+    ConfigAttributesFactory {
     var network: Network
     override lateinit var api: Api
     override lateinit var deviceHelper: DeviceHelper
@@ -329,7 +330,9 @@ class DependencyContainer(
                             storage = storage,
                             webView = webView,
                             eventCallback = Superwall.instance,
-                            useMultipleUrls = configManager.config?.featureFlags?.enableMultiplePaywallUrls ?: false,
+                            useMultipleUrls =
+                                configManager.config?.featureFlags?.enableMultiplePaywallUrls
+                                    ?: false,
                         )
                     webView.delegate = paywallView
                     messageHandler.delegate = paywallView
@@ -516,4 +519,12 @@ class DependencyContainer(
     override suspend fun makeTriggers(): Set<String> = configManager.triggersByEventName.keys
 
     override suspend fun provideJavascriptEvaluator(context: Context) = evaluator
+
+    override fun makeConfigAttributes(): InternalSuperwallEvent.ConfigAttributes =
+        InternalSuperwallEvent.ConfigAttributes(
+            options = configManager.options,
+            hasExternalPurchaseController = makeHasExternalPurchaseController(),
+            hasDelegate = delegateAdapter.kotlinDelegate != null || delegateAdapter.javaDelegate != null,
+            platformWrapper = deviceHelper.platformWrapper,
+        )
 }

@@ -47,4 +47,5 @@ enum class SuperwallEvents(
     RestoreFail("restore_fail"),
     RestoreComplete("restore_complete"),
     CustomPlacement("custom_placement"),
+    ConfigAttributes("config_attributes"),
 }

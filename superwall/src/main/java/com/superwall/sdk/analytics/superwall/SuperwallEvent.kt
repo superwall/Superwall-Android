@@ -59,6 +59,11 @@ sealed class SuperwallEvent {
             get() = "session_start"
     }
 
+    object ConfigAttributes : SuperwallEvent() {
+        override val rawName: String
+            get() = "config_attributes"
+    }
+
     // / When device attributes are sent to the backend.
     data class DeviceAttributes(
         val attributes: Map<String, Any>,
