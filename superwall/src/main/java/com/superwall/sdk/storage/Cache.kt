@@ -75,7 +75,6 @@ class Cache(
 
     fun <T : Any> delete(storable: Storable<T>) {
         memCache.remove(storable.key)
-
         launch {
             val file = File(storable.path(context = context))
             if (file.exists()) {

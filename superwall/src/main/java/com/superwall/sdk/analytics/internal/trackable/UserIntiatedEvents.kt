@@ -5,7 +5,7 @@ interface TrackableUserInitiatedEvent : Trackable
 sealed class UserInitiatedEvent(
     override val rawName: String,
     override val canImplicitlyTriggerPaywall: Boolean,
-    override var customParameters: Map<String, Any> = emptyMap(),
+    override var audienceFilterParams: Map<String, Any> = emptyMap(),
     val isFeatureGatable: Boolean,
 ) : TrackableUserInitiatedEvent {
     class Track(

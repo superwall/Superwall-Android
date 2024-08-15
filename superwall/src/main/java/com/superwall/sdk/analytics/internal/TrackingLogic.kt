@@ -32,7 +32,7 @@ sealed class TrackingLogic {
                 val superwallParameters = trackableEvent.getSuperwallParameters().toMutableMap()
                 superwallParameters["app_session_id"] = appSessionId
 
-                val customParameters = trackableEvent.customParameters
+                val dirtyAudienceFilterParams = trackableEvent.audienceFilterParams
                 val eventName = trackableEvent.rawName
 
                 val delegateParams: MutableMap<String, Any> = mutableMapOf("is_superwall" to true)
@@ -40,7 +40,7 @@ sealed class TrackingLogic {
                 // Add a special property if it's a superwall event
                 val isStandardEvent = trackableEvent is TrackableSuperwallEvent
 
-                val eventParams: MutableMap<String, Any> =
+                val audienceFilterParams: MutableMap<String, Any> =
                     mutableMapOf(
                         "\$is_standard_event" to isStandardEvent,
                         "\$event_name" to eventName,
@@ -51,7 +51,7 @@ sealed class TrackingLogic {
                 superwallParameters.forEach { (key, value) ->
                     clean(value)?.let {
                         val keyWithDollar = "$$key"
-                        eventParams[keyWithDollar] = it
+                        audienceFilterParams[keyWithDollar] = it
 
                         // no $ for delegate methods
                         delegateParams[key] = it
@@ -59,18 +59,18 @@ sealed class TrackingLogic {
                 }
 
                 // Filter then assign custom parameters
-                customParameters.forEach { (key, value) ->
+                dirtyAudienceFilterParams.forEach { (key, value) ->
                     clean(value)?.let {
                         if (key.startsWith("$")) {
                             // Log dropping key due to $ signs not allowed
                         } else {
                             delegateParams[key] = it
-                            eventParams[key] = it
+                            audienceFilterParams[key] = it
                         }
                     }
                 }
 
-                return@withContext TrackingParameters(delegateParams, eventParams)
+                return@withContext TrackingParameters(delegateParams, audienceFilterParams)
             }
 
         fun isNotDisabledVerboseEvent(
@@ -92,6 +92,7 @@ sealed class TrackingLogic {
                     is InternalSuperwallEvent.PaywallLoad.State.Start,
                     is InternalSuperwallEvent.PaywallLoad.State.Complete,
                     -> !disableVerboseEvents
+
                     else -> true
                 }
             }
@@ -101,6 +102,7 @@ sealed class TrackingLogic {
                     is InternalSuperwallEvent.PaywallProductsLoad.State.Start,
                     is InternalSuperwallEvent.PaywallProductsLoad.State.Complete,
                     -> !disableVerboseEvents
+
                     else -> true
                 }
             }
@@ -110,6 +112,7 @@ sealed class TrackingLogic {
                     is InternalSuperwallEvent.PaywallWebviewLoad.State.Start,
                     is InternalSuperwallEvent.PaywallWebviewLoad.State.Complete,
                     -> !disableVerboseEvents
+
                     else -> true
                 }
             }
@@ -175,6 +178,7 @@ sealed class TrackingLogic {
                     SuperwallEvents.TransactionAbandon.rawName,
                     SuperwallEvents.TransactionFail.rawName,
                     SuperwallEvents.PaywallDecline.rawName,
+                    SuperwallEvents.CustomPlacement.rawName,
                 )
 
             val referringEventName = paywallView?.info?.presentedByEventWithName
@@ -191,7 +195,9 @@ sealed class TrackingLogic {
                     SuperwallEvents.TransactionFail,
                     SuperwallEvents.SurveyResponse,
                     SuperwallEvents.PaywallDecline,
+                    SuperwallEvents.CustomPlacement,
                     -> ImplicitTriggerOutcome.ClosePaywallThenTriggerPaywall
+
                     else -> ImplicitTriggerOutcome.TriggerPaywall
                 }
             }

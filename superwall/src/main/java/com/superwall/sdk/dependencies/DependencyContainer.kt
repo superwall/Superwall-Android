@@ -61,6 +61,7 @@ import com.superwall.sdk.store.abstractions.transactions.GoogleBillingPurchaseTr
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import com.superwall.sdk.store.transactions.TransactionManager
 import com.superwall.sdk.utilities.DateUtils
+import com.superwall.sdk.utilities.ErrorTracker
 import com.superwall.sdk.utilities.dateFormat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -126,6 +127,8 @@ class DependencyContainer(
         )
     }
 
+    internal val errorTracker: ErrorTracker
+
     init {
         // TODO: Add delegate adapter
 
@@ -163,7 +166,7 @@ class DependencyContainer(
         delegateAdapter = SuperwallDelegateAdapter()
         storage = Storage(context = context, factory = this)
         network = Network(factory = this)
-
+        errorTracker = ErrorTracker(scope = ioScope, cache = storage)
         paywallRequestManager =
             PaywallRequestManager(
                 storeKitManager = storeKitManager,
@@ -378,7 +381,7 @@ class DependencyContainer(
     override fun makeUserAttributesEvent(): InternalSuperwallEvent.Attributes =
         InternalSuperwallEvent.Attributes(
             appInstalledAtString = deviceHelper.appInstalledAtString,
-            customParameters = HashMap(identityManager.userAttributes),
+            audienceFilterParams = HashMap(identityManager.userAttributes),
         )
 
     override fun makeHasExternalPurchaseController(): Boolean = storeKitManager.purchaseController.hasExternalPurchaseController

@@ -14,6 +14,7 @@ import com.superwall.sdk.models.triggers.UnmatchedRule
 import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.ExpressionEvaluator
 import com.superwall.sdk.paywall.presentation.rule_logic.javascript.JavascriptEvaluator
 import com.superwall.sdk.storage.Storage
+import com.superwall.sdk.utilities.withErrorTrackingAsync
 
 data class RuleEvaluationOutcome(
     val confirmableAssignment: ConfirmableAssignment? = null,
@@ -41,68 +42,70 @@ class RuleLogic(
         event: EventData,
         triggers: Map<String, Trigger>,
     ): RuleEvaluationOutcome {
-        val trigger =
-            triggers[event.name]
-                ?: return RuleEvaluationOutcome(triggerResult = InternalTriggerResult.EventNotFound)
+        return withErrorTrackingAsync<RuleEvaluationOutcome> {
+            val trigger =
+                triggers[event.name]
+                    ?: return@withErrorTrackingAsync RuleEvaluationOutcome(triggerResult = InternalTriggerResult.EventNotFound)
 
-        val ruleMatchOutcome = findMatchingRule(event, trigger)
+            val ruleMatchOutcome = findMatchingRule(event, trigger)
 
-        val matchedRuleItem: MatchedItem =
-            when (ruleMatchOutcome) {
-                is RuleMatchOutcome.Matched -> ruleMatchOutcome.item
-                is RuleMatchOutcome.NoMatchingRules -> return RuleEvaluationOutcome(
-                    triggerResult = InternalTriggerResult.NoRuleMatch(ruleMatchOutcome.unmatchedRules),
-                )
+            val matchedRuleItem: MatchedItem =
+                when (ruleMatchOutcome) {
+                    is RuleMatchOutcome.Matched -> ruleMatchOutcome.item
+                    is RuleMatchOutcome.NoMatchingRules -> return@withErrorTrackingAsync RuleEvaluationOutcome(
+                        triggerResult = InternalTriggerResult.NoRuleMatch(ruleMatchOutcome.unmatchedRules),
+                    )
+                }
+
+            val rule = matchedRuleItem.rule
+            val confirmedAssignments = storage.getConfirmedAssignments()
+            val variant: Experiment.Variant
+            var confirmableAssignment: ConfirmableAssignment? = null
+
+            variant = confirmedAssignments[rule.experiment.id]
+                ?: configManager.unconfirmedAssignments[rule.experiment.id]
+                ?: run {
+                    return@withErrorTrackingAsync RuleEvaluationOutcome(
+                        triggerResult =
+                            InternalTriggerResult.Error(
+                                PaywallNotFoundException(),
+                            ),
+                    )
+                }
+
+            if (variant !in confirmedAssignments.values) {
+                confirmableAssignment = ConfirmableAssignment(rule.experiment.id, variant)
             }
 
-        val rule = matchedRuleItem.rule
-        val confirmedAssignments = storage.getConfirmedAssignments()
-        val variant: Experiment.Variant
-        var confirmableAssignment: ConfirmableAssignment? = null
+            return@withErrorTrackingAsync when (variant.type) {
+                Experiment.Variant.VariantType.HOLDOUT ->
+                    RuleEvaluationOutcome(
+                        confirmableAssignment = confirmableAssignment,
+                        unsavedOccurrence = matchedRuleItem.unsavedOccurrence,
+                        triggerResult =
+                            InternalTriggerResult.Holdout(
+                                Experiment(
+                                    rule.experiment.id,
+                                    rule.experiment.groupId,
+                                    variant,
+                                ),
+                            ),
+                    )
 
-        variant = confirmedAssignments[rule.experiment.id]
-            ?: configManager.unconfirmedAssignments[rule.experiment.id]
-            ?: run {
-                return RuleEvaluationOutcome(
-                    triggerResult =
-                        InternalTriggerResult.Error(
-                            PaywallNotFoundException(),
-                        ),
-                )
+                Experiment.Variant.VariantType.TREATMENT ->
+                    RuleEvaluationOutcome(
+                        confirmableAssignment = confirmableAssignment,
+                        unsavedOccurrence = matchedRuleItem.unsavedOccurrence,
+                        triggerResult =
+                            InternalTriggerResult.Paywall(
+                                Experiment(
+                                    rule.experiment.id,
+                                    rule.experiment.groupId,
+                                    variant,
+                                ),
+                            ),
+                    )
             }
-
-        if (variant !in confirmedAssignments.values) {
-            confirmableAssignment = ConfirmableAssignment(rule.experiment.id, variant)
-        }
-
-        return when (variant.type) {
-            Experiment.Variant.VariantType.HOLDOUT ->
-                RuleEvaluationOutcome(
-                    confirmableAssignment = confirmableAssignment,
-                    unsavedOccurrence = matchedRuleItem.unsavedOccurrence,
-                    triggerResult =
-                        InternalTriggerResult.Holdout(
-                            Experiment(
-                                rule.experiment.id,
-                                rule.experiment.groupId,
-                                variant,
-                            ),
-                        ),
-                )
-
-            Experiment.Variant.VariantType.TREATMENT ->
-                RuleEvaluationOutcome(
-                    confirmableAssignment = confirmableAssignment,
-                    unsavedOccurrence = matchedRuleItem.unsavedOccurrence,
-                    triggerResult =
-                        InternalTriggerResult.Paywall(
-                            Experiment(
-                                rule.experiment.id,
-                                rule.experiment.groupId,
-                                variant,
-                            ),
-                        ),
-                )
         }
     }
 
