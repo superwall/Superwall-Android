@@ -422,7 +422,7 @@ class Superwall(
             dependencyContainer.deviceHelper.platformWrapper = wrapper
             dependencyContainer.deviceHelper.platformWrapperVersion = version
             ioScope.launch {
-                track(dependencyContainer.makeConfigAttributes())
+                track(InternalSuperwallEvent.DeviceAttributes(dependencyContainer.makeSessionDeviceAttributes()))
             }
         }
     }

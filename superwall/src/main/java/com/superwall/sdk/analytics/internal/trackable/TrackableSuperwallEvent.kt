@@ -279,23 +279,18 @@ sealed class InternalSuperwallEvent(
     ) : InternalSuperwallEvent(SuperwallEvent.ConfigAttributes) {
         override val customParameters: Map<String, Any> = emptyMap()
 
-        override suspend fun getSuperwallParameters(): HashMap<String, Any> {
-            val params: Map<String, Any> =
-                listOfNotNull(
-                    "using_purchase_controller" to hasExternalPurchaseController,
-                    "has_delegate" to hasDelegate,
-                    platformWrapper?.let {
-                        "platform_wrapper" to it
-                    },
-                ).toMap()
-            return hashMapOf(
+        override suspend fun getSuperwallParameters(): HashMap<String, Any> =
+            hashMapOf(
                 *options
                     .toMap()
-                    .plus(params)
-                    .toList()
+                    .plus(
+                        mapOf(
+                            "using_purchase_controller" to hasExternalPurchaseController,
+                            "has_delegate" to hasDelegate,
+                        ),
+                    ).toList()
                     .toTypedArray(),
             )
-        }
     }
 
     class DeviceAttributes(
