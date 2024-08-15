@@ -55,9 +55,17 @@ class PaywallViewCache(
 
     fun save(
         paywallView: PaywallView,
-        key: String,
+        identifier: PaywallIdentifier,
     ) {
-        CoroutineScope(singleThreadContext).launch { store.storeView(key, paywallView) }
+        CoroutineScope(singleThreadContext).launch {
+            store.storeView(
+                PaywallCacheLogic.key(
+                    identifier,
+                    locale = deviceHelper.locale,
+                ),
+                paywallView,
+            )
+        }
     }
 
     fun acquireLoadingView(): LoadingView {

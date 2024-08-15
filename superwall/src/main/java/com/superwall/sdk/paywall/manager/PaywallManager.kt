@@ -117,7 +117,7 @@ class PaywallManager(
                 cache = cache,
                 delegate = delegate,
             )
-        cache.save(paywallView, cacheKey)
+        cache.save(paywallView, paywall.identifier)
         if (isForPresentation) {
             // Only preload if it's actually gonna present the view.
             // Not if we're just checking its result
