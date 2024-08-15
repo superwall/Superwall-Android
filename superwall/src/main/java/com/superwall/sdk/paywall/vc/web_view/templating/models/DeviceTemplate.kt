@@ -61,6 +61,10 @@ data class DeviceTemplate(
     val capabilities: List<String>,
     @SerialName("capabilities_config")
     val capabilitiesConfig: JsonElement,
+    @SerialName("platform_wrapper")
+    val platformWrapper: String,
+    @SerialName("platform_wrapper_version")
+    val platformWrapperVersion: String,
 ) {
     fun toDictionary(): Map<String, Any> {
         val json = Json { encodeDefaults = true }
