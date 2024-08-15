@@ -425,8 +425,8 @@ class PaywallView(
             paywallInfo = info,
             storage = storage,
             factory = factory,
-        ) { result ->
-            this.surveyPresentationResult = result
+        ) { res ->
+            this.surveyPresentationResult = res
             dismiss()
         }
     }
@@ -509,9 +509,9 @@ class PaywallView(
         Superwall.instance.track(trackedEvent)
     }
 
-    override fun eventDidOccur(paywallEvent: PaywallWebEvent) {
+    override fun eventDidOccur(paywallWebEvent: PaywallWebEvent) {
         CoroutineScope(Dispatchers.IO).launch {
-            eventCallback?.eventDidOccur(paywallEvent, this@PaywallView)
+            eventCallback?.eventDidOccur(paywallWebEvent, this@PaywallView)
         }
     }
 
@@ -546,7 +546,7 @@ class PaywallView(
         }
         loadingViewController?.let {
             mainScope.launch {
-                loadingView?.visibility = View.VISIBLE
+                it.visibility = View.VISIBLE
             }
         }
     }
@@ -554,7 +554,7 @@ class PaywallView(
     private fun hideLoadingView() {
         loadingViewController?.let {
             mainScope.launch {
-                loadingView?.visibility = View.GONE
+                it.visibility = View.GONE
             }
         }
     }
@@ -562,26 +562,27 @@ class PaywallView(
     private fun showShimmerView() {
         shimmerView?.let {
             mainScope.launch {
-                shimmerView?.visibility = View.VISIBLE
+                it.visibility = View.VISIBLE
             }
         }
-        // TODO: Start shimmer animation if needed
     }
 
     private fun hideShimmerView() {
         shimmerView?.let {
             mainScope.launch {
-                shimmerView?.visibility = View.GONE
+                it.visibility = View.GONE
             }
         }
-        // TODO: Stop shimmer animation if needed
     }
 
     fun showRefreshButtonAfterTimeout(isVisible: Boolean) {
         // TODO: Implement this
     }
 
-    @Deprecated("Will be removed in the upcoming versions, use presentAlert instead")
+    @Deprecated(
+        "Will be removed in the upcoming versions, use presentAlert instead",
+        ReplaceWith("showAlert(title, message, actionTitle, closeActionTitle, action, onClose)"),
+    )
     fun presentAlert(
         title: String? = null,
         message: String? = null,

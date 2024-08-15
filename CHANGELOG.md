@@ -9,7 +9,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 - Adds support for multiple paywall URLs, in case one CDN provider fails.
 - `ActivityEncapsulatable` now uses a WeakReference instead of a reference
 - SW-2919: Adds a `custom_placement` event that you can attach to any element in the paywall with a dictionary of parameters. When the element is tapped, the event will be tracked. The name of the placement can be used to trigger a paywall and its params used in audience filters.
-
+- Adds support for bottom sheet presentation style
 
 ## 1.2.1
 
