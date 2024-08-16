@@ -67,3 +67,19 @@ class PaywallOptions {
     // **Note:** This feature is still in development and could change.
     var transactionBackgroundView: TransactionBackgroundView? = TransactionBackgroundView.SPINNER
 }
+
+internal fun PaywallOptions.toMap() =
+    mapOf(
+        "is_haptic_feedback_enabled" to isHapticFeedbackEnabled,
+        "restore_failed" to
+            mapOf(
+                "title" to restoreFailed.title,
+                "message" to restoreFailed.message,
+                "close_button_title" to restoreFailed.closeButtonTitle,
+            ),
+        "should_show_purchase_failure_alert" to shouldShowPurchaseFailureAlert,
+        "should_preload" to shouldPreload,
+        "use_cached_templates" to useCachedTemplates,
+        "automatically_dismiss" to automaticallyDismiss,
+        "transaction_background_view" to transactionBackgroundView?.name,
+    )

@@ -2,6 +2,8 @@ package com.superwall.sdk.paywall.vc
 
 import android.Manifest
 import android.R
+import android.animation.ArgbEvaluator
+import android.animation.ValueAnimator
 import android.app.Activity
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -9,6 +11,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.os.Build
 import android.os.Bundle
 import android.view.View
@@ -16,13 +19,17 @@ import android.view.ViewGroup
 import android.view.Window
 import android.view.WindowInsetsController
 import android.view.WindowManager
+import android.widget.FrameLayout
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.children
+import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.dependencies.DeviceHelperFactory
 import com.superwall.sdk.misc.isLightColor
@@ -34,6 +41,7 @@ import com.superwall.sdk.store.transactions.notifications.NotificationScheduler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.lang.ref.WeakReference
 import java.util.UUID
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
@@ -48,6 +56,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         private const val VIEW_KEY = "viewKey"
         private const val PRESENTATION_STYLE_KEY = "presentationStyleKey"
         private const val IS_LIGHT_BACKGROUND_KEY = "isLightBackgroundKey"
+        private const val ACTIVE_PAYWALL_TAG = "active_paywall"
 
         fun startWithView(
             context: Context,
@@ -88,16 +97,63 @@ class SuperwallPaywallActivity : AppCompatActivity() {
 
     private var contentView: View? = null
     private var notificationPermissionCallback: NotificationPermissionCallback? = null
+    private val isBottomSheetView
+        get() = contentView is CoordinatorLayout && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
 
     override fun setContentView(view: View) {
         super.setContentView(view)
         contentView = view
     }
 
+    private val mainScope = CoroutineScope(Dispatchers.Main)
+
+    private fun paywallView(): PaywallView? = contentView?.findViewWithTag<PaywallView>(ACTIVE_PAYWALL_TAG)
+
+    private fun setupBottomSheetLayout(paywallView: PaywallView) {
+        val activityView =
+            layoutInflater.inflate(com.superwall.sdk.R.layout.activity_bottom_sheet, null)
+        setContentView(activityView)
+        initBottomSheetBehavior()
+        val container =
+            activityView.findViewById<FrameLayout>(com.superwall.sdk.R.id.container)
+        activityView.setOnClickListener { finish() }
+        container.addView(paywallView)
+        container.requestLayout()
+    }
+
+    private fun initBottomSheetBehavior() {
+        var bottomSheetBehavior = BottomSheetBehavior.from((contentView as ViewGroup).getChildAt(0))
+        bottomSheetBehavior.halfExpandedRatio = 0.7f
+        // Expanded by default
+        bottomSheetBehavior.state = BottomSheetBehavior.STATE_HALF_EXPANDED
+        bottomSheetBehavior.skipCollapsed = true
+        bottomSheetBehavior.addBottomSheetCallback(
+            object :
+                BottomSheetBehavior.BottomSheetCallback() {
+                override fun onStateChanged(
+                    bottomSheet: View,
+                    newState: Int,
+                ) {
+                    if (newState == BottomSheetBehavior.STATE_HIDDEN) {
+                        finish()
+                    }
+                }
+
+                override fun onSlide(
+                    bottomSheet: View,
+                    slideOffset: Float,
+                ) {
+                }
+            },
+        )
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         AppCompatDelegate.setCompatVectorFromResourcesEnabled(true)
+        val presentationStyle =
+            intent.getSerializableExtra(PRESENTATION_STYLE_KEY) as? PaywallPresentationStyle
 
         // Show content behind the status bar
         window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
@@ -134,10 +190,17 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                 return
             }
 
-        (view.parent as? ViewGroup)?.removeView(view)
-        view.encapsulatingActivity = this
+        val isBottomSheetStyle = presentationStyle == PaywallPresentationStyle.DRAWER
 
-        setContentView(view)
+        (view.parent as? ViewGroup)?.removeView(view)
+        view.tag = ACTIVE_PAYWALL_TAG
+        view.encapsulatingActivity = WeakReference(this)
+        // If it's a bottom sheet, we set activity as transparent and show the UI in a bottom sheet container
+        if (isBottomSheetStyle && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            setupBottomSheetLayout(view)
+        } else {
+            setContentView(view)
+        }
 
         onBackPressedDispatcher.addCallback(
             this,
@@ -159,26 +222,38 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         // TODO: handle animation and style from `presentationStyleOverride`
         when (intent.getSerializableExtra(PRESENTATION_STYLE_KEY) as? PaywallPresentationStyle) {
             PaywallPresentationStyle.PUSH -> {
-                overridePendingTransition(R.anim.slide_in_left, R.anim.slide_in_left)
-            }
-
-            PaywallPresentationStyle.DRAWER -> {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    overrideActivityTransition(
+                        OVERRIDE_TRANSITION_OPEN,
+                        R.anim.slide_in_left,
+                        R.anim.slide_in_left,
+                    )
+                } else {
+                    overridePendingTransition(R.anim.slide_in_left, R.anim.slide_in_left)
+                }
             }
 
             PaywallPresentationStyle.FULLSCREEN -> {
+                enableEdgeToEdge()
             }
 
             PaywallPresentationStyle.FULLSCREEN_NO_ANIMATION -> {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, 0, 0)
+                    overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, 0, 0)
+                } else {
+                    overridePendingTransition(0, 0)
+                }
+                enableEdgeToEdge()
             }
 
             PaywallPresentationStyle.MODAL -> {
+                // TODO: Not yet supported in Android
             }
-
-            PaywallPresentationStyle.NONE -> {
-                // Do nothing
-            }
-
-            null -> {
+            PaywallPresentationStyle.NONE,
+            PaywallPresentationStyle.DRAWER,
+            null,
+            -> {
                 // Do nothing
             }
         }
@@ -186,7 +261,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
 
     override fun onStart() {
         super.onStart()
-        val paywallVc = contentView as? PaywallView ?: return
+        val paywallVc = paywallView() ?: return
 
         if (paywallVc.isBrowserViewPresented) {
             paywallVc.isBrowserViewPresented = false
@@ -195,19 +270,54 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         paywallVc.beforeViewCreated()
     }
 
+    private fun setBottomSheetTransparency() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            setTranslucent(true)
+            val colorFrom = Color.argb(0, 0, 0, 0)
+            val colorTo = Color.argb(200, 0, 0, 0)
+            with(ValueAnimator.ofObject(ArgbEvaluator(), colorFrom, colorTo)) {
+                setDuration(600) // milliseconds
+                addUpdateListener { animator -> window.setBackgroundDrawable(ColorDrawable(animator.animatedValue as Int)) }
+                start()
+            }
+        } else {
+            window.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+            setTheme(android.R.style.Theme_Translucent_NoTitleBar)
+        }
+    }
+
+    private fun hideBottomSheetAndFinish() {
+        val colorFrom = Color.argb(200, 0, 0, 0)
+        val colorTo = Color.argb(0, 0, 0, 0)
+
+        // First animate the background dim, then call finish on the view
+        with(ValueAnimator.ofObject(ArgbEvaluator(), colorFrom, colorTo)) {
+            setDuration(300) // milliseconds
+            addUpdateListener { animator ->
+                val e = ((animator.animatedValue as Int) / colorFrom)
+                if (e < 0.1) {
+                    super.finish()
+                }
+                window.setBackgroundDrawable(ColorDrawable(animator.animatedValue as Int))
+            }
+            start()
+        }
+    }
+
     override fun onResume() {
         super.onResume()
-        val paywallVc = contentView as? PaywallView ?: return
-
+        val paywallVc = paywallView() ?: return
+        if (isBottomSheetView) {
+            setBottomSheetTransparency()
+        }
         paywallVc.onViewCreated()
     }
 
     override fun onPause() {
         super.onPause()
 
-        val paywallVc = contentView as? PaywallView ?: return
-
-        CoroutineScope(Dispatchers.Main).launch {
+        val paywallVc = paywallView() ?: return
+        mainScope.launch {
             paywallVc.beforeOnDestroy()
         }
     }
@@ -215,9 +325,9 @@ class SuperwallPaywallActivity : AppCompatActivity() {
     override fun onStop() {
         super.onStop()
 
-        val paywallVc = contentView as? PaywallView ?: return
+        val paywallVc = paywallView() ?: return
 
-        CoroutineScope(Dispatchers.Main).launch {
+        mainScope.launch {
             paywallVc.destroyed()
         }
     }
@@ -226,7 +336,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         super.onDestroy()
         (contentView?.parent as? ViewGroup)?.removeView(contentView)
         // Clear reference to activity in the view
-        (contentView as? ActivityEncapsulatable)?.encapsulatingActivity = null
+        (paywallView() as? ActivityEncapsulatable)?.encapsulatingActivity = null
 
         // Clear the reference to the contentView
         contentView = null
@@ -235,6 +345,16 @@ class SuperwallPaywallActivity : AppCompatActivity() {
     //region Notifications
     interface NotificationPermissionCallback {
         fun onPermissionResult(granted: Boolean)
+    }
+
+    override fun finish() {
+        if (isBottomSheetView) {
+            mainScope.launch {
+                hideBottomSheetAndFinish()
+            }
+        } else {
+            super.finish()
+        }
     }
 
     suspend fun attemptToScheduleNotifications(

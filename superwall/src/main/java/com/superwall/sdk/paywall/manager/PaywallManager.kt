@@ -3,6 +3,7 @@ package com.superwall.sdk.paywall.manager
 import com.superwall.sdk.dependencies.CacheFactory
 import com.superwall.sdk.dependencies.DeviceHelperFactory
 import com.superwall.sdk.dependencies.ViewFactory
+import com.superwall.sdk.models.paywall.PaywallIdentifier
 import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.paywall.request.PaywallRequestManager
 import com.superwall.sdk.paywall.vc.PaywallView
@@ -52,8 +53,8 @@ class PaywallManager(
         removePaywallView(forKey)
     }
 
-    fun removePaywallView(forKey: String) {
-        cache.removePaywallView(forKey)
+    fun removePaywallView(identifier: PaywallIdentifier) {
+        cache.removePaywallView(identifier)
     }
 
     fun resetCache() {
@@ -116,7 +117,7 @@ class PaywallManager(
                 cache = cache,
                 delegate = delegate,
             )
-        cache.save(paywallView, cacheKey)
+        cache.save(paywallView, paywall.identifier)
         if (isForPresentation) {
             // Only preload if it's actually gonna present the view.
             // Not if we're just checking its result

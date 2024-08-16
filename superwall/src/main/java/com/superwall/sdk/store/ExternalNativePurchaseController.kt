@@ -13,6 +13,7 @@ import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
+import com.superwall.sdk.models.product.ProductType
 import com.superwall.sdk.store.abstractions.product.OfferType
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import kotlinx.coroutines.CompletableDeferred
@@ -140,14 +141,21 @@ class ExternalNativePurchaseController(
                 offerType = offerId?.let { OfferType.Offer(id = it) },
             )
 
-        val offerToken = rawStoreProduct.selectedOffer?.offerToken ?: ""
+        val offerToken = rawStoreProduct.selectedOffer?.offerToken
+
+        val isOneTime = productDetails.productType == BillingClient.ProductType.INAPP && offerToken.isNullOrEmpty()
 
         val productDetailsParams =
             BillingFlowParams.ProductDetailsParams
                 .newBuilder()
                 .setProductDetails(productDetails)
-                .setOfferToken(offerToken)
-                .build()
+                .also {
+                    // Do not set empty offer token for one time products
+                    // as Google play is not supporting it since June 12th 2024
+                    if (!isOneTime) {
+                        it.setOfferToken(offerToken ?: "")
+                    }
+                }.build()
 
         val flowParams =
             BillingFlowParams

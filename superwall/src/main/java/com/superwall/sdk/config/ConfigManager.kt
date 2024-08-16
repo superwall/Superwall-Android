@@ -20,12 +20,13 @@ import com.superwall.sdk.misc.awaitFirstValidConfig
 import com.superwall.sdk.models.assignment.AssignmentPostback
 import com.superwall.sdk.models.assignment.ConfirmableAssignment
 import com.superwall.sdk.models.config.Config
+import com.superwall.sdk.models.paywall.CacheKey
+import com.superwall.sdk.models.paywall.PaywallIdentifier
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.models.triggers.Trigger
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.network.device.DeviceHelper
-import com.superwall.sdk.paywall.manager.PaywallCacheLogic
 import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.ExpressionEvaluator
 import com.superwall.sdk.paywall.presentation.rule_logic.javascript.JavascriptEvaluator
@@ -382,25 +383,30 @@ open class ConfigManager(
         oldConfig: Config,
         newConfig: Config,
     ) {
-        val oldPaywallIds = oldConfig.paywalls.map { it.identifier }.toSet()
-        val newPaywallIds = newConfig.paywalls.map { it.identifier }.toSet()
+        val oldPaywalls = oldConfig.paywalls
+        val newPaywalls = newConfig.paywalls
 
         val presentedPaywallId = paywallManager.currentView?.paywall?.identifier
-        val missingPaywallIds =
-            if (presentedPaywallId != null) {
-                oldPaywallIds.minus(presentedPaywallId).subtract(newPaywallIds)
-            } else {
-                oldPaywallIds.subtract(newPaywallIds)
-            }
+        val oldPaywallCacheIds: Map<PaywallIdentifier, CacheKey> =
+            oldPaywalls
+                .map { it.identifier to it.cacheKey }
+                .toMap()
+        val newPaywallCacheIds: Map<PaywallIdentifier, CacheKey> = newPaywalls.map { it.identifier to it.cacheKey }.toMap()
 
-        missingPaywallIds.forEach {
-            val paywall = oldConfig.paywalls.first { wall -> wall.identifier == it }
-            val key =
-                PaywallCacheLogic.key(
-                    identifier = paywall.identifier,
-                    locale = factory.makeDeviceInfo().locale,
-                )
-            paywallManager.removePaywallView(key)
+        val removedIds: Set<PaywallIdentifier> =
+            (oldPaywallCacheIds.keys - newPaywallCacheIds.keys).toSet()
+
+        val changedIds =
+            removedIds +
+                newPaywalls
+                    .filter {
+                        val oldCacheKey = oldPaywallCacheIds[it.identifier]
+                        val keyChanged = oldCacheKey != newPaywallCacheIds[it.identifier]
+                        oldCacheKey != null && keyChanged
+                    }.map { it.identifier } - presentedPaywallId
+
+        changedIds.toSet().filterNotNull().forEach {
+            paywallManager.removePaywallView(it)
         }
     }
 

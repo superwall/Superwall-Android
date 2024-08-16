@@ -56,6 +56,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
+import java.lang.ref.WeakReference
 import java.net.MalformedURLException
 import java.net.URL
 import java.util.Date
@@ -72,6 +73,7 @@ class PaywallView(
     override val webView: SWWebView,
     private val loadingView: LoadingView = LoadingView(context),
     private val cache: PaywallViewCache?,
+    private val useMultipleUrls: Boolean,
 ) : FrameLayout(context),
     PaywallMessageHandlerDelegate,
     SWWebViewDelegate,
@@ -97,7 +99,7 @@ class PaywallView(
     var paywallStatePublisher: MutableSharedFlow<PaywallState>? = null
 
     // The full screen activity instance if this view controller has been presented in one.
-    override var encapsulatingActivity: Activity? = null
+    override var encapsulatingActivity: WeakReference<Activity>? = null
 
     // / Stores the ``PaywallResult`` on dismiss of paywall.
     private var paywallResult: PaywallResult? = null
@@ -181,7 +183,7 @@ class PaywallView(
     //endregion
 
     //region Initialization
-    val mainScope = CoroutineScope(Dispatchers.Main)
+    private val mainScope = CoroutineScope(Dispatchers.Main)
 
     init {
         // Add the webView
@@ -402,22 +404,30 @@ class PaywallView(
             }
         }
 
+        val dismiss = {
+            CoroutineScope(Dispatchers.IO).launch {
+                dismissView()
+            }
+        }
+
         SurveyManager.presentSurveyIfAvailable(
             paywall.surveys,
             paywallResult = result,
             paywallCloseReason = closeReason,
-            activity = encapsulatingActivity,
+            activity =
+                encapsulatingActivity?.get() ?: run {
+                    dismiss()
+                    return
+                },
             paywallView = this,
             loadingState = loadingState,
             isDebuggerLaunched = request?.flags?.isDebuggerLaunched == true,
             paywallInfo = info,
             storage = storage,
             factory = factory,
-        ) { result ->
-            this.surveyPresentationResult = result
-            CoroutineScope(Dispatchers.IO).launch {
-                dismissView()
-            }
+        ) { res ->
+            this.surveyPresentationResult = res
+            dismiss()
         }
     }
 
@@ -499,9 +509,9 @@ class PaywallView(
         Superwall.instance.track(trackedEvent)
     }
 
-    override fun eventDidOccur(paywallEvent: PaywallWebEvent) {
+    override fun eventDidOccur(paywallWebEvent: PaywallWebEvent) {
         CoroutineScope(Dispatchers.IO).launch {
-            eventCallback?.eventDidOccur(paywallEvent, this@PaywallView)
+            eventCallback?.eventDidOccur(paywallWebEvent, this@PaywallView)
         }
     }
 
@@ -525,7 +535,7 @@ class PaywallView(
         // TODO: SW-2162 Implement animation support
         // https://linear.app/superwall/issue/SW-2162/%5Bandroid%5D-%5Bv1%5D-get-animated-presentation-working
 
-        encapsulatingActivity?.finish()
+        encapsulatingActivity?.get()?.finish()
     }
 
     private fun showLoadingView() {
@@ -536,7 +546,7 @@ class PaywallView(
         }
         loadingViewController?.let {
             mainScope.launch {
-                loadingView?.visibility = View.VISIBLE
+                it.visibility = View.VISIBLE
             }
         }
     }
@@ -544,7 +554,7 @@ class PaywallView(
     private fun hideLoadingView() {
         loadingViewController?.let {
             mainScope.launch {
-                loadingView?.visibility = View.GONE
+                it.visibility = View.GONE
             }
         }
     }
@@ -552,26 +562,27 @@ class PaywallView(
     private fun showShimmerView() {
         shimmerView?.let {
             mainScope.launch {
-                shimmerView?.visibility = View.VISIBLE
+                it.visibility = View.VISIBLE
             }
         }
-        // TODO: Start shimmer animation if needed
     }
 
     private fun hideShimmerView() {
         shimmerView?.let {
             mainScope.launch {
-                shimmerView?.visibility = View.GONE
+                it.visibility = View.GONE
             }
         }
-        // TODO: Stop shimmer animation if needed
     }
 
     fun showRefreshButtonAfterTimeout(isVisible: Boolean) {
         // TODO: Implement this
     }
 
-    @Deprecated("Will be removed in the upcoming versions, use presentAlert instead")
+    @Deprecated(
+        "Will be removed in the upcoming versions, use presentAlert instead",
+        ReplaceWith("showAlert(title, message, actionTitle, closeActionTitle, action, onClose)"),
+    )
     fun presentAlert(
         title: String? = null,
         message: String? = null,
@@ -589,7 +600,7 @@ class PaywallView(
         action: (() -> Unit)? = null,
         onClose: (() -> Unit)? = null,
     ) {
-        val activity = encapsulatingActivity ?: return
+        val activity = encapsulatingActivity?.get() ?: return
 
         val alertController =
             AlertControllerFactory.make(
@@ -697,7 +708,7 @@ class PaywallView(
                 paywall.webviewLoadingInfo.startAt = Date()
             }
 
-            CoroutineScope(Dispatchers.IO).launch {
+            launch {
                 val trackedEvent =
                     InternalSuperwallEvent.PaywallWebviewLoad(
                         state = InternalSuperwallEvent.PaywallWebviewLoad.State.Start(),
@@ -706,13 +717,17 @@ class PaywallView(
                 Superwall.instance.track(trackedEvent)
             }
 
-            launch(Dispatchers.Main) {
+            mainScope.launch {
                 if (paywall.onDeviceCache is OnDeviceCaching.Enabled) {
                     webView.settings.cacheMode = WebSettings.LOAD_CACHE_ELSE_NETWORK
                 } else {
                     webView.settings.cacheMode = WebSettings.LOAD_DEFAULT
                 }
-                webView.loadUrl(url.toString())
+                if (useMultipleUrls) {
+                    webView.loadPaywallWithFallbackUrl(paywall)
+                } else {
+                    webView.loadUrl(url.toString())
+                }
             }
 
             loadingState = PaywallLoadingState.LoadingURL()
@@ -813,5 +828,5 @@ class PaywallView(
 }
 
 interface ActivityEncapsulatable {
-    var encapsulatingActivity: Activity?
+    var encapsulatingActivity: WeakReference<Activity>?
 }

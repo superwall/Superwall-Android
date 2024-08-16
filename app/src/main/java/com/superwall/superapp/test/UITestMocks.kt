@@ -25,7 +25,7 @@ class MockPaywallViewDelegate : PaywallViewCallback {
     ) {
         paywallViewFinished?.invoke(paywall, result, shouldDismiss)
         if (shouldDismiss) {
-            paywall.encapsulatingActivity?.finish()
+            paywall.encapsulatingActivity?.get()?.finish()
         }
     }
 

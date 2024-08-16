@@ -61,6 +61,7 @@ import com.superwall.sdk.store.abstractions.transactions.GoogleBillingPurchaseTr
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import com.superwall.sdk.store.transactions.TransactionManager
 import com.superwall.sdk.utilities.DateUtils
+import com.superwall.sdk.utilities.ErrorTracker
 import com.superwall.sdk.utilities.dateFormat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -97,7 +98,8 @@ class DependencyContainer(
     AppSessionManager.Factory,
     DebugView.Factory,
     JavascriptEvaluator.Factory,
-    JsonFactory {
+    JsonFactory,
+    ConfigAttributesFactory {
     var network: Network
     override lateinit var api: Api
     override lateinit var deviceHelper: DeviceHelper
@@ -125,6 +127,8 @@ class DependencyContainer(
             storage = storage,
         )
     }
+
+    internal val errorTracker: ErrorTracker
 
     init {
         // TODO: Add delegate adapter
@@ -163,7 +167,7 @@ class DependencyContainer(
         delegateAdapter = SuperwallDelegateAdapter()
         storage = Storage(context = context, factory = this)
         network = Network(factory = this)
-
+        errorTracker = ErrorTracker(scope = ioScope, cache = storage)
         paywallRequestManager =
             PaywallRequestManager(
                 storeKitManager = storeKitManager,
@@ -258,7 +262,7 @@ class DependencyContainer(
         val headers =
             mapOf(
                 "Authorization" to auth,
-                "X-Platform" to "iOS",
+                "X-Platform" to "Android",
                 "X-Platform-Environment" to "SDK",
                 "X-Platform-Wrapper" to deviceHelper.platformWrapper,
                 "X-App-User-ID" to (identityManager.appUserId ?: ""),
@@ -312,7 +316,6 @@ class DependencyContainer(
                         SWWebView(
                             context = context,
                             messageHandler = messageHandler,
-                            sessionEventsManager = sessionEventsManager,
                         )
 
                     val paywallView =
@@ -327,6 +330,9 @@ class DependencyContainer(
                             storage = storage,
                             webView = webView,
                             eventCallback = Superwall.instance,
+                            useMultipleUrls =
+                                configManager.config?.featureFlags?.enableMultiplePaywallUrls
+                                    ?: false,
                         )
                     webView.delegate = paywallView
                     messageHandler.delegate = paywallView
@@ -352,7 +358,7 @@ class DependencyContainer(
         return view
     }
 
-    override fun makeCache(): PaywallViewCache = PaywallViewCache(context, Superwall.instance.viewStore(), activityProvider!!)
+    override fun makeCache(): PaywallViewCache = PaywallViewCache(context, Superwall.instance.viewStore(), activityProvider!!, deviceHelper)
 
     override fun makeDeviceInfo(): DeviceInfo =
         DeviceInfo(
@@ -378,7 +384,7 @@ class DependencyContainer(
     override fun makeUserAttributesEvent(): InternalSuperwallEvent.Attributes =
         InternalSuperwallEvent.Attributes(
             appInstalledAtString = deviceHelper.appInstalledAtString,
-            customParameters = HashMap(identityManager.userAttributes),
+            audienceFilterParams = HashMap(identityManager.userAttributes),
         )
 
     override fun makeHasExternalPurchaseController(): Boolean = storeKitManager.purchaseController.hasExternalPurchaseController
@@ -511,6 +517,13 @@ class DependencyContainer(
     override suspend fun makeSuperwallOptions(): SuperwallOptions = configManager.options
 
     override suspend fun makeTriggers(): Set<String> = configManager.triggersByEventName.keys
-      
+
     override suspend fun provideJavascriptEvaluator(context: Context) = evaluator
+
+    override fun makeConfigAttributes(): InternalSuperwallEvent.ConfigAttributes =
+        InternalSuperwallEvent.ConfigAttributes(
+            options = configManager.options,
+            hasExternalPurchaseController = makeHasExternalPurchaseController(),
+            hasDelegate = delegateAdapter.kotlinDelegate != null || delegateAdapter.javaDelegate != null,
+        )
 }

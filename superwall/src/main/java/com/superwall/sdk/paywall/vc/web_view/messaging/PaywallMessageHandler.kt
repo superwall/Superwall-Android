@@ -27,6 +27,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import org.json.JSONObject
 import java.net.URL
 import java.nio.charset.StandardCharsets
 import java.util.Base64
@@ -146,6 +147,7 @@ class PaywallMessageHandler(
             }
 
             is PaywallMessage.Custom -> handleCustomEvent(message.data)
+            is PaywallMessage.CustomPlacement -> handleCustomPlacement(message.name, message.params)
             else -> {
                 Logger.debug(
                     LogLevel.error,
@@ -366,6 +368,13 @@ class PaywallMessageHandler(
             mapOf("custom_event" to customEvent),
         )
         delegate?.eventDidOccur(PaywallWebEvent.Custom(customEvent))
+    }
+
+    private fun handleCustomPlacement(
+        name: String,
+        params: JSONObject,
+    ) {
+        delegate?.eventDidOccur(PaywallWebEvent.CustomPlacement(name, params))
     }
 
     private fun detectHiddenPaywallEvent(

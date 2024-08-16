@@ -34,7 +34,7 @@ data class Paywalls(
 data class Paywall(
     @SerialName("id")
     val databaseId: String,
-    var identifier: String,
+    var identifier: PaywallIdentifier,
     val name: String,
     val url:
         @Serializable(with = URLSerializer::class)
@@ -49,7 +49,15 @@ data class Paywall(
     @kotlinx.serialization.Transient()
     var presentation: PaywallPresentationInfo =
         PaywallPresentationInfo(
-            style = PaywallPresentationStyle.valueOf(presentationStyle.uppercase()),
+            style =
+                PaywallPresentationStyle.entries.find { it.rawValue == presentationStyle.uppercase() }
+                    ?: PaywallPresentationStyle.NONE.also {
+                        Logger.debug(
+                            LogLevel.warn,
+                            LogScope.paywallPresentation,
+                            "Unknown or unsupported presentation style: $presentationStyle",
+                        )
+                    },
             condition = PresentationCondition.valueOf(presentationCondition.uppercase()),
             delay = presentationDelay,
         ),
@@ -87,6 +95,14 @@ data class Paywall(
     var experiment: Experiment? = null,
     @kotlinx.serialization.Transient()
     var closeReason: PaywallCloseReason = PaywallCloseReason.None,
+    @SerialName("url_config")
+    val urlConfig: PaywallWebviewUrl.Config? = null,
+    @Serializable
+    @SerialName("cache_key")
+    val cacheKey: CacheKey,
+    @Serializable
+    @SerialName("build_id")
+    val buildId: String,
     /**
      Surveys to potentially show when an action happens in the paywall.
      */
@@ -189,6 +205,8 @@ data class Paywall(
             computedPropertyRequests = computedPropertyRequests,
             surveys = surveys,
             presentation = presentation,
+            cacheKey = cacheKey,
+            buildId = buildId,
         )
 
     companion object {
@@ -245,6 +263,15 @@ data class Paywall(
                 featureGating = FeatureGatingBehavior.NonGated,
                 localNotifications = arrayListOf(),
                 presentationDelay = 300,
+                urlConfig =
+                    PaywallWebviewUrl.Config(
+                        3,
+                        listOf(
+                            PaywallWebviewUrl("https://google.com", 1000L, 1),
+                        ),
+                    ),
+                cacheKey = "123",
+                buildId = "test",
             )
     }
 }

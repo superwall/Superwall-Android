@@ -62,6 +62,8 @@ data class PaywallInfo(
     val computedPropertyRequests: List<ComputedPropertyRequest>,
     val surveys: List<Survey>,
     val presentation: PaywallPresentationInfo,
+    val buildId: String,
+    val cacheKey: String,
 ) {
     constructor(
         databaseId: String,
@@ -91,6 +93,8 @@ data class PaywallInfo(
         closeReason: PaywallCloseReason,
         surveys: List<Survey>,
         presentation: PaywallPresentationInfo,
+        buildId: String,
+        cacheKey: String,
     ) : this(
         databaseId = databaseId,
         identifier = identifier,
@@ -140,13 +144,15 @@ data class PaywallInfo(
         closeReason = closeReason,
         surveys = surveys,
         presentation = presentation,
+        cacheKey = cacheKey,
+        buildId = buildId,
     )
 
     fun eventParams(
         product: StoreProduct? = null,
         otherParams: Map<String, Any?>? = null,
     ): Map<String, Any> {
-        var output = customParams()
+        var output = audienceFilterParams()
 
         val params =
             mutableMapOf(
@@ -211,8 +217,8 @@ data class PaywallInfo(
         return output
     }
 
-    // / Parameters that can be used in rules.
-    fun customParams(): MutableMap<String, Any> {
+    // Parameters that can be used in audience filters.
+    fun audienceFilterParams(): MutableMap<String, Any> {
         val featureGatingSerialized =
             Json {}.encodeToString(FeatureGatingBehavior.serializer(), featureGatingBehavior)
 

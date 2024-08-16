@@ -140,6 +140,7 @@ class DeviceHelper(
         get() = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
 
     var platformWrapper: String = ""
+    var platformWrapperVersion: String = ""
 
     private val _locale: Locale = Locale.getDefault()
 
@@ -417,7 +418,8 @@ class DeviceHelper(
                 )
                 null
             }
-        val capabilities: List<Capability> = listOf(Capability.PaywallEventReceiver())
+        val capabilities: List<Capability> = listOf(Capability.PaywallEventReceiver(), Capability.MultiplePaywallUrls)
+
         val deviceTemplate =
             DeviceTemplate(
                 publicApiKey = storage.apiKey,
@@ -472,6 +474,8 @@ class DeviceHelper(
                 ipTimezone = geo?.timezone,
                 capabilities = capabilities.map { it.name },
                 capabilitiesConfig = capabilities.toJson(factory.json()),
+                platformWrapper = platformWrapper,
+                platformWrapperVersion = platformWrapperVersion,
             )
 
         return deviceTemplate.toDictionary()

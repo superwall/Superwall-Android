@@ -4,22 +4,24 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-enum class PaywallPresentationStyle {
+enum class PaywallPresentationStyle(
+    val rawValue: String,
+) {
     @SerialName("MODAL")
-    MODAL,
+    MODAL("MODAL"),
 
     @SerialName("FULLSCREEN")
-    FULLSCREEN,
+    FULLSCREEN("FULLSCREEN"),
 
     @SerialName("NO_ANIMATION")
-    FULLSCREEN_NO_ANIMATION,
+    FULLSCREEN_NO_ANIMATION("NO_ANIMATION"),
 
     @SerialName("PUSH")
-    PUSH,
+    PUSH("PUSH"),
 
     @SerialName("DRAWER")
-    DRAWER,
+    DRAWER("DRAWER"),
 
     @SerialName("NONE")
-    NONE,
+    NONE("NONE"),
 }

@@ -2,6 +2,8 @@ package com.superwall.sdk.paywall.manager
 
 import android.content.Context
 import com.superwall.sdk.misc.ActivityProvider
+import com.superwall.sdk.models.paywall.PaywallIdentifier
+import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.paywall.vc.LoadingView
 import com.superwall.sdk.paywall.vc.PaywallView
 import com.superwall.sdk.paywall.vc.ShimmerView
@@ -15,6 +17,7 @@ class PaywallViewCache(
     private val appCtx: Context,
     private val store: ViewStorage,
     private val activityProvider: ActivityProvider,
+    private val deviceHelper: DeviceHelper,
 ) {
     private val ctx: Context = activityProvider.getCurrentActivity() ?: appCtx
     private var _activePaywallVcKey: String? = null
@@ -52,9 +55,17 @@ class PaywallViewCache(
 
     fun save(
         paywallView: PaywallView,
-        key: String,
+        identifier: PaywallIdentifier,
     ) {
-        CoroutineScope(singleThreadContext).launch { store.storeView(key, paywallView) }
+        CoroutineScope(singleThreadContext).launch {
+            store.storeView(
+                PaywallCacheLogic.key(
+                    identifier,
+                    locale = deviceHelper.locale,
+                ),
+                paywallView,
+            )
+        }
     }
 
     fun acquireLoadingView(): LoadingView {
@@ -79,8 +90,15 @@ class PaywallViewCache(
 
     fun getPaywallView(key: String): PaywallView? = runBlocking(singleThreadContext) { store.retrieveView(key) as PaywallView? }
 
-    fun removePaywallView(key: String) {
-        CoroutineScope(singleThreadContext).launch { store.removeView(key) }
+    fun removePaywallView(identifier: PaywallIdentifier) {
+        CoroutineScope(singleThreadContext).launch {
+            store.removeView(
+                PaywallCacheLogic.key(
+                    identifier,
+                    locale = deviceHelper.locale,
+                ),
+            )
+        }
     }
 
     fun removeAll() {

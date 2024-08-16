@@ -11,21 +11,23 @@ import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import android.webkit.ConsoleMessage
 import android.webkit.WebChromeClient
-import android.webkit.WebResourceError
-import android.webkit.WebResourceRequest
 import android.webkit.WebView
-import android.webkit.WebViewClient
 import com.superwall.sdk.Superwall
-import com.superwall.sdk.analytics.SessionEventsManager
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.game.dispatchKeyEvent
 import com.superwall.sdk.game.dispatchMotionEvent
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
+import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallMessageHandler
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallMessageHandlerDelegate
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.launch
 import java.util.Date
 
@@ -40,10 +42,11 @@ interface SWWebViewDelegate :
 
 class SWWebView(
     context: Context,
-    private val sessionEventsManager: SessionEventsManager,
     val messageHandler: PaywallMessageHandler,
+    private val onFinishedLoading: ((url: String) -> Unit)? = null,
 ) : WebView(context) {
     var delegate: SWWebViewDelegate? = null
+    private val mainScope = CoroutineScope(Dispatchers.Main)
 
     init {
 
@@ -74,31 +77,32 @@ class SWWebView(
             }
         // Set a WebViewClient
         this.webViewClient =
-            object : WebViewClient() {
-                override fun shouldOverrideUrlLoading(
-                    view: WebView?,
-                    request: WebResourceRequest?,
-                ): Boolean {
-                    return true // This will prevent the loading of URLs inside your WebView
-                }
+            DefaultWebviewClient(ioScope = CoroutineScope(Dispatchers.IO))
+        listenToWebviewClientEvents(this.webViewClient as DefaultWebviewClient)
+    }
 
-                override fun onPageFinished(
-                    view: WebView?,
-                    url: String?,
-                ) {
-                    // Do something when page loading finished
-                }
-
-                override fun onReceivedError(
-                    view: WebView?,
-                    request: WebResourceRequest?,
-                    error: WebResourceError,
-                ) {
-                    CoroutineScope(Dispatchers.Main).launch {
-                        trackPaywallError(error)
-                    }
-                }
-            }
+    internal fun loadPaywallWithFallbackUrl(paywall: Paywall) {
+        val client =
+            WebviewFallbackClient(
+                config =
+                    paywall.urlConfig
+                        ?: run {
+                            Logger.debug(
+                                LogLevel.error,
+                                LogScope.paywallView,
+                                "Tried to start a paywall with multiple URLS but without URL config",
+                            )
+                            return
+                        },
+                mainScope = mainScope,
+                ioScope = CoroutineScope(Dispatchers.IO),
+                loadUrl = {
+                    loadUrl(it.url)
+                },
+            )
+        this.webViewClient = client
+        listenToWebviewClientEvents(this.webViewClient as DefaultWebviewClient)
+        client.loadWithFallback()
     }
 
     // ???
@@ -139,19 +143,82 @@ class SWWebView(
         super.loadUrl(urlString)
     }
 
-    private suspend fun trackPaywallError(webResourceError: WebResourceError) {
-        delegate?.paywall?.webviewLoadingInfo?.failAt = Date()
+    private fun listenToWebviewClientEvents(client: DefaultWebviewClient) {
+        CoroutineScope(Dispatchers.IO).launch {
+            client.webviewClientEvents
+                .takeWhile {
+                    mainScope
+                        .async {
+                            webViewClient == client
+                        }.await()
+                }.collect {
+                    mainScope.launch {
+                        when (it) {
+                            is WebviewClientEvent.OnError -> {
+                                trackPaywallError(
+                                    it.webviewError,
+                                    when (val e = it.webviewError) {
+                                        is WebviewError.NetworkError ->
+                                            listOf(e.url)
 
-        val paywallInfo = delegate?.info ?: return
+                                        is WebviewError.NoUrls ->
+                                            emptyList()
 
-        val trackedEvent =
-            InternalSuperwallEvent.PaywallWebviewLoad(
-                state =
-                    InternalSuperwallEvent.PaywallWebviewLoad.State.Fail(
-                        "Code: ${webResourceError.errorCode} - ${webResourceError.description}",
-                    ),
-                paywallInfo = paywallInfo,
-            )
-        Superwall.instance.track(trackedEvent)
+                                        is WebviewError.MaxAttemptsReached ->
+                                            e.urls
+                                        is WebviewError.AllUrlsFailed -> e.urls
+                                    },
+                                )
+                            }
+
+                            is WebviewClientEvent.OnPageFinished -> {
+                                onFinishedLoading?.invoke(it.url)
+                            }
+
+                            is WebviewClientEvent.LoadingFallback -> {
+                                trackLoadFallback()
+                            }
+                        }
+                    }
+                }
+        }
+    }
+
+    private fun trackLoadFallback() {
+        mainScope.launch {
+            delegate?.paywall?.webviewLoadingInfo?.failAt = Date()
+
+            val paywallInfo = delegate?.info ?: return@launch
+
+            val trackedEvent =
+                InternalSuperwallEvent.PaywallWebviewLoad(
+                    state =
+                        InternalSuperwallEvent.PaywallWebviewLoad.State.Fallback,
+                    paywallInfo = paywallInfo,
+                )
+            Superwall.instance.track(trackedEvent)
+        }
+    }
+
+    private fun trackPaywallError(
+        error: WebviewError,
+        urls: List<String>,
+    ) {
+        mainScope.launch {
+            delegate?.paywall?.webviewLoadingInfo?.failAt = Date()
+
+            val paywallInfo = delegate?.info ?: return@launch
+
+            val trackedEvent =
+                InternalSuperwallEvent.PaywallWebviewLoad(
+                    state =
+                        InternalSuperwallEvent.PaywallWebviewLoad.State.Fail(
+                            error,
+                            urls,
+                        ),
+                    paywallInfo = paywallInfo,
+                )
+            Superwall.instance.track(trackedEvent)
+        }
     }
 }
