@@ -14,6 +14,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 - Adds `build_id` and `cache_key` to `PaywallInfo`.
 - SW-2917: Tracks a `config_attributes` event after calling `Superwall.configure`, which contains info about the configuration of the SDK. This gets tracked whenever you set the delegate.
 - Adds in device attributes tracking after setting the interface style override.
+- To comply with new Google Play Billing requirements we now avoid setting empty `offerToken` for one-time purchases
 
 ## 1.2.1
 
