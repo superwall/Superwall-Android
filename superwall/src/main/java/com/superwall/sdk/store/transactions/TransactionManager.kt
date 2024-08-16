@@ -490,7 +490,7 @@ class TransactionManager(
                 val notifications =
                     paywallInfo.localNotifications.filter { it.type == LocalNotificationType.TrialStarted }
                 val paywallActivity =
-                    paywallView.encapsulatingActivity as? SuperwallPaywallActivity
+                    paywallView.encapsulatingActivity?.get() as? SuperwallPaywallActivity
                         ?: return
                 paywallActivity.attemptToScheduleNotifications(
                     notifications = notifications,
