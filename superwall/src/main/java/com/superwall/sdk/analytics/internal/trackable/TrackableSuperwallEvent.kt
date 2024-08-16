@@ -801,7 +801,7 @@ sealed class InternalSuperwallEvent(
         val placementName: String,
         val paywallInfo: PaywallInfo,
         val params: Map<String, Any>,
-    ) : InternalSuperwallEvent(SuperwallEvent.CustomPlacement) {
+    ) : InternalSuperwallEvent(SuperwallEvent.CustomPlacement(placementName, paywallInfo, params)) {
         override val audienceFilterParams: Map<String, Any>
             get() = paywallInfo.audienceFilterParams() + params
 
