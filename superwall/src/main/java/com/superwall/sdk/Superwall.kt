@@ -84,6 +84,9 @@ class Superwall(
         get() = dependencyContainer.configManager.options.localeIdentifier
         set(value) {
             dependencyContainer.configManager.options.localeIdentifier = value
+            ioScope.launch {
+                track(dependencyContainer.makeConfigAttributes())
+            }
         }
 
     /**
@@ -106,6 +109,9 @@ class Superwall(
         get() = options.logging.level
         set(newValue) {
             options.logging.level = newValue
+            ioScope.launch {
+                track(dependencyContainer.makeConfigAttributes())
+            }
         }
 
     /**
@@ -121,6 +127,9 @@ class Superwall(
         get() = dependencyContainer.delegateAdapter.kotlinDelegate
         set(newValue) {
             dependencyContainer.delegateAdapter.kotlinDelegate = newValue
+            ioScope.launch {
+                track(dependencyContainer.makeConfigAttributes())
+            }
         }
 
     /**
@@ -130,6 +139,9 @@ class Superwall(
     fun setJavaDelegate(newValue: SuperwallDelegateJava?) {
         withErrorTracking {
             dependencyContainer.delegateAdapter.javaDelegate = newValue
+            ioScope.launch {
+                track(dependencyContainer.makeConfigAttributes())
+            }
         }
     }
 
@@ -409,6 +421,9 @@ class Superwall(
         withErrorTracking {
             dependencyContainer.deviceHelper.platformWrapper = wrapper
             dependencyContainer.deviceHelper.platformWrapperVersion = version
+            ioScope.launch {
+                track(InternalSuperwallEvent.DeviceAttributes(dependencyContainer.makeSessionDeviceAttributes()))
+            }
         }
     }
 
@@ -419,6 +434,9 @@ class Superwall(
     fun setInterfaceStyle(interfaceStyle: InterfaceStyle?) {
         withErrorTracking {
             dependencyContainer.deviceHelper.interfaceStyleOverride = interfaceStyle
+            ioScope.launch {
+                track(InternalSuperwallEvent.DeviceAttributes(dependencyContainer.makeSessionDeviceAttributes()))
+            }
         }
     }
 

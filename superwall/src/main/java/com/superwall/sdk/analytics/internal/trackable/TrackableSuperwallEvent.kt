@@ -5,6 +5,8 @@ import com.superwall.sdk.analytics.superwall.SuperwallEvent
 import com.superwall.sdk.analytics.superwall.TransactionProduct
 import com.superwall.sdk.config.models.Survey
 import com.superwall.sdk.config.models.SurveyOption
+import com.superwall.sdk.config.options.SuperwallOptions
+import com.superwall.sdk.config.options.toMap
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.dependencies.ComputedPropertyRequestsFactory
 import com.superwall.sdk.dependencies.FeatureFlagsFactory
@@ -267,6 +269,27 @@ sealed class InternalSuperwallEvent(
         override var audienceFilterParams: HashMap<String, Any> = HashMap(),
     ) : InternalSuperwallEvent(SuperwallEvent.SessionStart()) {
         override suspend fun getSuperwallParameters(): HashMap<String, Any> = HashMap()
+    }
+
+    class ConfigAttributes(
+        val options: SuperwallOptions,
+        val hasExternalPurchaseController: Boolean,
+        val hasDelegate: Boolean,
+    ) : InternalSuperwallEvent(SuperwallEvent.ConfigAttributes) {
+        override val audienceFilterParams: Map<String, Any> = emptyMap()
+
+        override suspend fun getSuperwallParameters(): HashMap<String, Any> =
+            hashMapOf(
+                *options
+                    .toMap()
+                    .plus(
+                        mapOf(
+                            "using_purchase_controller" to hasExternalPurchaseController,
+                            "has_delegate" to hasDelegate,
+                        ),
+                    ).toList()
+                    .toTypedArray(),
+            )
     }
 
     class DeviceAttributes(

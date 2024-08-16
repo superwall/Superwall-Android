@@ -12,6 +12,8 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 - SW-2919: Adds a `custom_placement` event that you can attach to any element in the paywall with a dictionary of parameters. When the element is tapped, the event will be tracked. The name of the placement can be used to trigger a paywall and its params used in audience filters.
 - Adds support for bottom sheet presentation style
 - Adds `build_id` and `cache_key` to `PaywallInfo`.
+- SW-2917: Tracks a `config_attributes` event after calling `Superwall.configure`, which contains info about the configuration of the SDK. This gets tracked whenever you set the delegate.
+- Adds in device attributes tracking after setting the interface style override.
 
 ## 1.2.1
 

@@ -85,3 +85,28 @@ class SuperwallOptions {
     // The log scope and level to print to the console.
     var logging: Logging = Logging()
 }
+
+internal fun SuperwallOptions.NetworkEnvironment.toMap(): Map<String, Any> =
+    listOfNotNull(
+        "host_domain" to hostDomain,
+        "base_host" to baseHost,
+        "collector_host" to collectorHost,
+        "scheme" to scheme,
+        port?.let { "port" to it },
+    ).toMap()
+
+internal fun SuperwallOptions.Logging.toMap(): Map<String, Any> =
+    mapOf(
+        "level" to level.toString(),
+        "scopes" to scopes.map { it.toString() },
+    )
+
+internal fun SuperwallOptions.toMap(): Map<String, Any> =
+    listOfNotNull(
+        "paywalls" to paywalls.toMap(),
+        "network_environment" to networkEnvironment.toMap(),
+        "is_external_data_collection_enabled" to isExternalDataCollectionEnabled,
+        localeIdentifier?.let { "locale_identifier" to it },
+        "is_game_controller_enabled" to isGameControllerEnabled,
+        "logging" to logging.toMap(),
+    ).toMap()
