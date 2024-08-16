@@ -525,6 +525,5 @@ class DependencyContainer(
             options = configManager.options,
             hasExternalPurchaseController = makeHasExternalPurchaseController(),
             hasDelegate = delegateAdapter.kotlinDelegate != null || delegateAdapter.javaDelegate != null,
-            platformWrapper = deviceHelper.platformWrapper,
         )
 }

@@ -275,9 +275,8 @@ sealed class InternalSuperwallEvent(
         val options: SuperwallOptions,
         val hasExternalPurchaseController: Boolean,
         val hasDelegate: Boolean,
-        val platformWrapper: String?,
     ) : InternalSuperwallEvent(SuperwallEvent.ConfigAttributes) {
-        override val customParameters: Map<String, Any> = emptyMap()
+        override val audienceFilterParams: Map<String, Any> = emptyMap()
 
         override suspend fun getSuperwallParameters(): HashMap<String, Any> =
             hashMapOf(
