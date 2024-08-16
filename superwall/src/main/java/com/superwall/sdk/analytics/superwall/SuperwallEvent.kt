@@ -384,7 +384,11 @@ sealed class SuperwallEvent {
             get() = "reset"
     }
 
-    object CustomPlacement : SuperwallEvent() {
+    data class CustomPlacement(
+        val placementName: String,
+        val paywallInfo: PaywallInfo,
+        val params: Map<String, Any>,
+    ) : SuperwallEvent() {
         override val rawName: String = SuperwallEvents.CustomPlacement.rawName
     }
 
