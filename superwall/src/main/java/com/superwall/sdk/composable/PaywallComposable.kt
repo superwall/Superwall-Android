@@ -80,6 +80,7 @@ fun PaywallComposable(
                     }
                 }
                 AndroidView(
+                    modifier = Modifier.fillMaxSize(),
                     factory = { context ->
                         viewToRender
                     },
