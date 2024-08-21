@@ -2,9 +2,16 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 1.2.4
+
+### Enhancements
+
+- Fixes issue with decoding custom placements from paywalls.
+
 ## 1.2.3
 
 ### Enhancements
+
 - Expose `placementName`, `paywallInfo` and `params` on a `custom_placement` event
 
 ## 1.2.2
