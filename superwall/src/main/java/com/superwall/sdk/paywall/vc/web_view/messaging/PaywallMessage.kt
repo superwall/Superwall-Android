@@ -89,7 +89,7 @@ private fun parsePaywallMessage(json: JSONObject): PaywallMessage {
             )
 
         "custom" -> PaywallMessage.Custom(json.getString("data"))
-        "register_placement" ->
+        "custom_placement" ->
             PaywallMessage.CustomPlacement(
                 json.getString("name"),
                 json.getJSONObject("params"),
