@@ -1,9 +1,9 @@
 package com.superwall.sdk.paywall.presentation.rule_logic.cel
 
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.PassableValue
+import com.superwall.supercel.HostContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import uniffi.cel.HostContext
 
 class PlatformProxy(
     private val json: Json,
@@ -22,7 +22,7 @@ class PlatformProxy(
         return PassableValue.NullValue
     }
 
-    override fun computedProperty(
+    override suspend fun computedProperty(
         name: String,
         args: String,
     ): String = json.encodeToString(invoke(name, json.decodeFromString(args)))
