@@ -15,9 +15,9 @@ import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.toPassableVa
 import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.ExpressionEvaluating
 import com.superwall.sdk.paywall.presentation.rule_logic.tryToMatchOccurrence
 import com.superwall.sdk.storage.Storage
+import com.superwall.supercel.evaluateAst
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import uniffi.cel.evaluateAst
 
 class ASTEvaluator(
     private val json: Json,
