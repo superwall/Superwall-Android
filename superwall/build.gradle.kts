@@ -193,9 +193,8 @@ dependencies {
 
     implementation(libs.threetenbp)
     // Billing
+    implementation("com.superwall.supercel:supercel:1.0.1@aar")
     implementation(libs.billing)
-
-    implementation("net.java.dev.jna:jna:5.14.0@aar")
 
     // Browser
     implementation(libs.browser)

@@ -11,10 +11,10 @@ import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.PassableValu
 import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.ExpressionEvaluating
 import com.superwall.sdk.paywall.presentation.rule_logic.tryToMatchOccurrence
 import com.superwall.sdk.storage.Storage
+import com.superwall.supercel.HostContext
+import com.superwall.supercel.evaluateWithContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import uniffi.cel.HostContext
-import uniffi.cel.evaluateWithContext
 
 typealias CelExpression = String
 
@@ -44,14 +44,10 @@ class CELEvaluator(
             evaluateWithContext(
                 json.encodeToString(executionContext),
                 object : HostContext {
-                    override fun computedProperty(
+                    override suspend fun computedProperty(
                         name: String,
                         args: String,
-                    ): String {
-                        // TODO: Not implemented
-                        // This is where we would call the native code to get the computed property
-                        return json.encodeToString(PassableValue.StringValue("TODO").toString())
-                    }
+                    ): String = json.encodeToString(PassableValue.StringValue("TODO").toString())
                 },
             )
         return if (result == "true") {
