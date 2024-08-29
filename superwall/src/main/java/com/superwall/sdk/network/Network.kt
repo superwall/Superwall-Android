@@ -4,6 +4,7 @@ import com.superwall.sdk.dependencies.ApiFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
+import com.superwall.sdk.misc.Either
 import com.superwall.sdk.models.assignment.Assignment
 import com.superwall.sdk.models.assignment.AssignmentPostback
 import com.superwall.sdk.models.assignment.ConfirmedAssignmentResponse
@@ -55,7 +56,7 @@ open class Network(
         }
     }
 
-    suspend fun getConfig(isRetryingCallback: suspend () -> Unit): Config {
+    suspend fun getConfig(isRetryingCallback: suspend () -> Unit): Either<Config> {
         awaitUntilAppInForeground()
 
         try {
@@ -69,7 +70,7 @@ open class Network(
                     isRetryingCallback = isRetryingCallback,
                 )
             config.requestId = requestId
-            return config
+            return Either.Success(config)
         } catch (error: Throwable) {
             Logger.debug(
                 logLevel = LogLevel.error,
@@ -77,7 +78,7 @@ open class Network(
                 message = "Request Failed: /static_config",
                 error = error,
             )
-            throw error
+            return Either.Failure(error)
         }
     }
 

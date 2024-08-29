@@ -1,6 +1,5 @@
 package com.superwall.sdk.analytics.internal
 
-import android.util.Log
 import androidx.test.platform.app.InstrumentationRegistry
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
@@ -51,7 +50,6 @@ class TrackingLogicTest {
             val attributes = deviceHelper.getTemplateDevice()
             val event = InternalSuperwallEvent.DeviceAttributes(HashMap(attributes))
             val res = TrackingLogic.processParameters(event, "appSessionId")
-            Log.e("res", res.toString())
-            assert(res.eventParams.isEmpty())
+            assert(res.audienceFilterParams.isEmpty())
         }
 }

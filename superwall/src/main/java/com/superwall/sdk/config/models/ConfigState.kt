@@ -3,6 +3,8 @@ package com.superwall.sdk.config.models
 import com.superwall.sdk.models.config.Config
 
 sealed class ConfigState {
+    object None : ConfigState()
+
     object Retrieving : ConfigState()
 
     object Retrying : ConfigState()
