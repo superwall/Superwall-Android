@@ -6,6 +6,7 @@ import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
 import com.superwall.sdk.Superwall
 import com.superwall.superapp.test.UITestActivity
+import java.lang.ref.WeakReference
 
 class MainActivity : AppCompatActivity() {
     val events by lazy {
@@ -15,6 +16,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        (application as MainApplication).activity = WeakReference(this)
 
         // Setup deep linking handling
         respondToDeepLinks()
