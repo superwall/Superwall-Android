@@ -1,6 +1,6 @@
 package com.superwall.sdk.paywall.presentation.rule_logic
 
-import com.superwall.sdk.config.ConfigManager
+import Assignments
 import com.superwall.sdk.dependencies.RuleAttributesFactory
 import com.superwall.sdk.models.assignment.ConfirmableAssignment
 import com.superwall.sdk.models.events.EventData
@@ -33,7 +33,7 @@ sealed class RuleMatchOutcome {
 }
 
 class RuleLogic(
-    private val configManager: ConfigManager,
+    private val assignments: Assignments,
     private val storage: Storage,
     private val factory: RuleAttributesFactory,
     private val javascriptEvaluator: JavascriptEvaluator,
@@ -63,7 +63,7 @@ class RuleLogic(
             var confirmableAssignment: ConfirmableAssignment? = null
 
             variant = confirmedAssignments[rule.experiment.id]
-                ?: configManager.unconfirmedAssignments[rule.experiment.id]
+                ?: assignments.unconfirmedAssignments[rule.experiment.id]
                 ?: run {
                     return@withErrorTrackingAsync RuleEvaluationOutcome(
                         triggerResult =

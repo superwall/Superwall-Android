@@ -16,6 +16,6 @@ fun Superwall.confirmHoldoutAssignment(
     if (request.flags.type == PresentationRequestType.GetImplicitPresentationResult) return
     if (rulesOutcome.triggerResult !is InternalTriggerResult.Holdout) return
     rulesOutcome.confirmableAssignment?.let {
-        container.configManager.confirmAssignment(it)
+        container.assignments.confirmAssignment(it)
     }
 }

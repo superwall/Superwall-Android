@@ -1,5 +1,6 @@
 package com.superwall.sdk.dependencies
 
+import Assignments
 import ComputedPropertyRequest
 import android.app.Activity
 import android.app.Application
@@ -16,6 +17,7 @@ import com.superwall.sdk.analytics.session.AppSessionManager
 import com.superwall.sdk.billing.GoogleBillingWrapper
 import com.superwall.sdk.config.ConfigLogic
 import com.superwall.sdk.config.ConfigManager
+import com.superwall.sdk.config.PaywallPreload
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.debug.DebugManager
 import com.superwall.sdk.debug.DebugView
@@ -104,6 +106,7 @@ class DependencyContainer(
     JavascriptEvaluator.Factory,
     JsonFactory,
     ConfigAttributesFactory,
+    PaywallPreload.Factory,
     ViewStoreFactory {
     var network: Network
     override lateinit var api: Api
@@ -132,6 +135,9 @@ class DependencyContainer(
             storage = storage,
         )
     }
+
+    internal val assignments: Assignments
+    private val paywallPreload: PaywallPreload
 
     internal val errorTracker: ErrorTracker
 
@@ -197,6 +203,21 @@ class DependencyContainer(
                 factory = this,
             )
 
+        assignments =
+            Assignments(
+                storage = storage,
+                network = network,
+                ioScope,
+            )
+
+        paywallPreload =
+            PaywallPreload(
+                factory = this,
+                storage = storage,
+                assignments = assignments,
+                paywallManager = paywallManager,
+            )
+
         configManager =
             ConfigManager(
                 context = context,
@@ -207,6 +228,10 @@ class DependencyContainer(
                 factory = this,
                 paywallManager = paywallManager,
                 deviceHelper = deviceHelper,
+                assignments = assignments,
+                ioScope = ioScope,
+                paywallPreload =
+                paywallPreload,
             )
 
         eventsQueue = EventsQueue(context, configManager = configManager, network = network)

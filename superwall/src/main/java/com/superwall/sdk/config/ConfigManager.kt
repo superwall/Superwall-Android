@@ -1,7 +1,7 @@
 package com.superwall.sdk.config
 
+import Assignments
 import android.content.Context
-import android.webkit.WebView
 import awaitUntilNetworkExists
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
@@ -16,28 +16,22 @@ import com.superwall.sdk.dependencies.RuleAttributesFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
+import com.superwall.sdk.misc.Either
 import com.superwall.sdk.misc.awaitFirstValidConfig
-import com.superwall.sdk.models.assignment.AssignmentPostback
-import com.superwall.sdk.models.assignment.ConfirmableAssignment
+import com.superwall.sdk.misc.fold
 import com.superwall.sdk.models.config.Config
-import com.superwall.sdk.models.paywall.CacheKey
-import com.superwall.sdk.models.paywall.PaywallIdentifier
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.models.triggers.Trigger
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.paywall.manager.PaywallManager
-import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.ExpressionEvaluator
 import com.superwall.sdk.paywall.presentation.rule_logic.javascript.JavascriptEvaluator
-import com.superwall.sdk.paywall.request.ResponseIdentifiers
 import com.superwall.sdk.storage.DisableVerboseEvents
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.StoreKitManager
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.Flow
@@ -57,6 +51,8 @@ open class ConfigManager(
     var options: SuperwallOptions,
     private val paywallManager: PaywallManager,
     private val factory: Factory,
+    private val assignments: Assignments,
+    private val paywallPreload: PaywallPreload,
     private val ioScope: CoroutineScope = CoroutineScope(Dispatchers.IO),
 ) {
     interface Factory :
@@ -88,56 +84,44 @@ open class ConfigManager(
         }
 
     // A memory store of assignments that are yet to be confirmed.
-    private var _unconfirmedAssignments = mutableMapOf<ExperimentID, Experiment.Variant>()
-    private var currentPreloadingTask: Job? = null
 
-    var unconfirmedAssignments: Map<ExperimentID, Experiment.Variant>
-        get() = _unconfirmedAssignments
-        set(value) {
-            _unconfirmedAssignments = value.toMutableMap()
-        }
+    val unconfirmedAssignments: Map<ExperimentID, Experiment.Variant>
+        get() = assignments.unconfirmedAssignments
 
     suspend fun fetchConfiguration() {
         fetchConfig()
     }
 
     private suspend fun fetchConfig() {
-        try {
-            val configDeferred =
-                ioScope.async {
-                    network.getConfig {
-                        // Emit retrying state
-                        configState.update { ConfigState.Retrying }
-                        context.awaitUntilNetworkExists()
-                    }
+        val configDeferred =
+            ioScope.async {
+                network.getConfig {
+                    // Emit retrying state
+                    configState.update { ConfigState.Retrying }
+                    context.awaitUntilNetworkExists()
                 }
-
-            val geoDeferred =
-                ioScope.async {
-                    deviceHelper.getGeoInfo()
-                }
-            val attributesDeferred = ioScope.async { factory.makeSessionDeviceAttributes() }
-
-            // Await results from both operations
-            val (result, _, attributes) =
-                listOf(
-                    configDeferred,
-                    geoDeferred,
-                    attributesDeferred,
-                ).awaitAll()
-            ioScope.launch {
-                @Suppress("UNCHECKED_CAST")
-                Superwall.instance.track(InternalSuperwallEvent.DeviceAttributes(attributes as HashMap<String, Any>))
             }
-            val config = result as Config
-            ioScope.launch { sendProductsBack(config) }
 
-            Logger.debug(
-                logLevel = LogLevel.debug,
-                scope = LogScope.superwallCore,
-                message = "Fetched Configuration: $config",
-            )
+        val geoDeferred =
+            ioScope.async {
+                deviceHelper.getGeoInfo()
+            }
+        val attributesDeferred = ioScope.async { factory.makeSessionDeviceAttributes() }
 
+        // Await results from both operations
+        val (result, _, attributes) =
+            listOf(
+                configDeferred,
+                geoDeferred,
+                attributesDeferred,
+            ).awaitAll()
+        ioScope.launch {
+            @Suppress("UNCHECKED_CAST")
+            Superwall.instance.track(InternalSuperwallEvent.DeviceAttributes(attributes as HashMap<String, Any>))
+        }
+        val configResult = result as Either<Config>
+
+        configResult.fold({ config ->
             processConfig(config)
 
             // Preload all products
@@ -160,7 +144,7 @@ open class ConfigManager(
             // TODO: Re-enable those params
 //                storeKitManager.loadPurchasedProducts()
             ioScope.launch { preloadPaywalls() }
-        } catch (e: Throwable) {
+        }, { e ->
             configState.update { ConfigState.Failed(e) }
             Logger.debug(
                 logLevel = LogLevel.error,
@@ -168,24 +152,15 @@ open class ConfigManager(
                 message = "Failed to Fetch Configuration",
                 error = e,
             )
-        }
+        })
     }
 
     fun reset() {
         val config = configState.value.getConfig() ?: return
 
-        unconfirmedAssignments = mutableMapOf()
-        choosePaywallVariants(config.triggers)
+        assignments.reset()
+        assignments.choosePaywallVariants(config.triggers)
         ioScope.launch { preloadPaywalls() }
-    }
-
-    private fun choosePaywallVariants(triggers: Set<Trigger>) {
-        updateAssignments { confirmedAssignments ->
-            ConfigLogic.chooseAssignments(
-                fromTriggers = triggers,
-                confirmedAssignments = confirmedAssignments,
-            )
-        }
     }
 
     suspend fun getAssignments() {
@@ -193,16 +168,7 @@ open class ConfigManager(
 
         config.triggers.takeUnless { it.isEmpty() }?.let { triggers ->
             try {
-                val assignments = network.getAssignments()
-
-                updateAssignments { confirmedAssignments ->
-                    ConfigLogic.transferAssignmentsFromServerToDisk(
-                        assignments = assignments,
-                        triggers = triggers,
-                        confirmedAssignments = confirmedAssignments,
-                        unconfirmedAssignments = unconfirmedAssignments,
-                    )
-                }
+                assignments.getAssignments(triggers)
 
                 if (options.paywalls.shouldPreload) {
                     ioScope.launch { preloadAllPaywalls() }
@@ -221,46 +187,10 @@ open class ConfigManager(
     private fun processConfig(config: Config) {
         storage.save(config.featureFlags.disableVerboseEvents, DisableVerboseEvents)
         triggersByEventName = ConfigLogic.getTriggersByEventName(config.triggers)
-        choosePaywallVariants(config.triggers)
-    }
-
-    fun confirmAssignment(assignment: ConfirmableAssignment) {
-        val postback: AssignmentPostback = AssignmentPostback.create(assignment)
-        ioScope.launch(Dispatchers.IO) { network.confirmAssignments(postback) }
-
-        updateAssignments { confirmedAssignments ->
-            ConfigLogic.move(
-                assignment,
-                unconfirmedAssignments,
-                confirmedAssignments,
-            )
-        }
-    }
-
-    private fun updateAssignments(operation: (Map<ExperimentID, Experiment.Variant>) -> ConfigLogic.AssignmentOutcome) {
-        var confirmedAssignments = storage.getConfirmedAssignments()
-
-        val updatedAssignments = operation(confirmedAssignments)
-        unconfirmedAssignments = updatedAssignments.unconfirmed.toMutableMap()
-        confirmedAssignments = updatedAssignments.confirmed.toMutableMap()
-
-        storage.saveConfirmedAssignments(confirmedAssignments)
+        assignments.choosePaywallVariants(config.triggers)
     }
 
     // Preloading Paywalls
-    private fun getTreatmentPaywallIds(
-        config: Config,
-        triggers: Set<Trigger>,
-    ): Set<String> {
-        val preloadableTriggers = ConfigLogic.filterTriggers(triggers, config.preloadingDisabled)
-        if (preloadableTriggers.isEmpty()) return emptySet()
-        val confirmedAssignments = storage.getConfirmedAssignments()
-        return ConfigLogic.getActiveTreatmentPaywallIds(
-            preloadableTriggers,
-            confirmedAssignments,
-            unconfirmedAssignments,
-        )
-    }
 
     // Preloads paywalls.
     private suspend fun preloadPaywalls() {
@@ -269,97 +199,20 @@ open class ConfigManager(
     }
 
     // Preloads paywalls referenced by triggers.
-    suspend fun preloadAllPaywalls() {
-        if (currentPreloadingTask != null) {
-            return
-        }
-
-        currentPreloadingTask =
-            ioScope.launch {
-                val config = configState.awaitFirstValidConfig() ?: return@launch
-                val js = factory.provideJavascriptEvaluator(context)
-                val expressionEvaluator =
-                    ExpressionEvaluator(
-                        evaluator = js,
-                        storage = storage,
-                        factory = factory,
-                    )
-                val triggers =
-                    ConfigLogic.filterTriggers(
-                        config.triggers,
-                        preloadingDisabled = config.preloadingDisabled,
-                    )
-                val confirmedAssignments = storage.getConfirmedAssignments()
-                val paywallIds =
-                    ConfigLogic.getAllActiveTreatmentPaywallIds(
-                        triggers = triggers,
-                        confirmedAssignments = confirmedAssignments,
-                        unconfirmedAssignments = unconfirmedAssignments,
-                        expressionEvaluator = expressionEvaluator,
-                    )
-                preloadPaywalls(paywallIdentifiers = paywallIds)
-
-                currentPreloadingTask = null
-            }
-    }
+    suspend fun preloadAllPaywalls() =
+        paywallPreload.preloadAllPaywalls(
+            configState.awaitFirstValidConfig(),
+            context,
+        )
 
     // Preloads paywalls referenced by the provided triggers.
-    suspend fun preloadPaywallsByNames(eventNames: Set<String>) {
-        val config = configState.awaitFirstValidConfig() ?: return
-        val triggersToPreload = config.triggers.filter { eventNames.contains(it.eventName) }
-        val triggerPaywallIdentifiers =
-            getTreatmentPaywallIds(
-                config,
-                triggersToPreload.toSet(),
-            )
-        preloadPaywalls(triggerPaywallIdentifiers)
-    }
+    suspend fun preloadPaywallsByNames(eventNames: Set<String>) =
+        paywallPreload.preloadPaywallsByNames(
+            configState.awaitFirstValidConfig(),
+            eventNames,
+        )
 
     // Preloads paywalls referenced by triggers.
-    private suspend fun preloadPaywalls(paywallIdentifiers: Set<String>) {
-        val webviewExists =
-            WebView.getCurrentWebViewPackage() != null
-
-        if (webviewExists) {
-            ioScope.launch {
-                // List to hold all the Deferred objects
-                val tasks = mutableListOf<Deferred<Any>>()
-
-                for (identifier in paywallIdentifiers) {
-                    val task =
-                        async {
-                            // Your asynchronous operation
-                            val request =
-                                factory.makePaywallRequest(
-                                    eventData = null,
-                                    responseIdentifiers =
-                                        ResponseIdentifiers(
-                                            paywallId = identifier,
-                                            experiment = null,
-                                        ),
-                                    overrides = null,
-                                    isDebuggerLaunched = false,
-                                    presentationSourceType = null,
-                                    retryCount = 6,
-                                )
-                            try {
-                                paywallManager.getPaywallView(
-                                    request = request,
-                                    isForPresentation = true,
-                                    isPreloading = true,
-                                    delegate = null,
-                                )
-                            } catch (e: Exception) {
-                                // Handle exception
-                            }
-                        }
-                    tasks.add(task)
-                }
-                // Await all tasks
-                tasks.awaitAll()
-            }
-        }
-    }
 
     internal suspend fun refreshConfiguration() {
         // Make sure config already exists
@@ -370,78 +223,27 @@ open class ConfigManager(
             return
         }
 
-        try {
-            val newConfig =
-                network.getConfig {
-                    context.awaitUntilNetworkExists()
-                }
-            paywallManager.resetPaywallRequestCache()
-            removeUnusedPaywallVCsFromCache(oldConfig, newConfig)
-            processConfig(newConfig)
-            configState.update { ConfigState.Retrieved(newConfig) }
-            Superwall.instance.track(InternalSuperwallEvent.ConfigRefresh)
-            ioScope.launch { preloadPaywalls() }
-        } catch (e: Exception) {
-            Logger.debug(
-                logLevel = LogLevel.warn,
-                scope = LogScope.superwallCore,
-                message = "Failed to refresh configuration.",
-                info = null,
-                error = e,
+        network
+            .getConfig {
+                context.awaitUntilNetworkExists()
+            }.fold(
+                onSuccess = { newConfig ->
+                    paywallManager.resetPaywallRequestCache()
+                    paywallPreload.removeUnusedPaywallVCsFromCache(oldConfig, newConfig)
+                    processConfig(newConfig)
+                    configState.update { ConfigState.Retrieved(newConfig) }
+                    Superwall.instance.track(InternalSuperwallEvent.ConfigRefresh)
+                    ioScope.launch { preloadPaywalls() }
+                },
+                onFailure = {
+                    Logger.debug(
+                        logLevel = LogLevel.warn,
+                        scope = LogScope.superwallCore,
+                        message = "Failed to refresh configuration.",
+                        info = null,
+                        error = it,
+                    )
+                },
             )
-        }
-    }
-
-    private suspend fun removeUnusedPaywallVCsFromCache(
-        oldConfig: Config,
-        newConfig: Config,
-    ) {
-        val oldPaywalls = oldConfig.paywalls
-        val newPaywalls = newConfig.paywalls
-
-        val presentedPaywallId = paywallManager.currentView?.paywall?.identifier
-        val oldPaywallCacheIds: Map<PaywallIdentifier, CacheKey> =
-            oldPaywalls
-                .map { it.identifier to it.cacheKey }
-                .toMap()
-        val newPaywallCacheIds: Map<PaywallIdentifier, CacheKey> =
-            newPaywalls.map { it.identifier to it.cacheKey }.toMap()
-
-        val removedIds: Set<PaywallIdentifier> =
-            (oldPaywallCacheIds.keys - newPaywallCacheIds.keys).toSet()
-
-        val changedIds =
-            removedIds +
-                newPaywalls
-                    .filter {
-                        val oldCacheKey = oldPaywallCacheIds[it.identifier]
-                        val keyChanged = oldCacheKey != newPaywallCacheIds[it.identifier]
-                        oldCacheKey != null && keyChanged
-                    }.map { it.identifier } - presentedPaywallId
-
-        changedIds.toSet().filterNotNull().forEach {
-            paywallManager.removePaywallView(it)
-        }
-    }
-
-// Assuming other necessary classes and objects are defined elsewhere
-
-    // This sends product data back to the dashboard.
-    private suspend fun sendProductsBack(config: Config) {
-//        if (!config.featureFlags.enablePostback) return@coroutineScope
-//        val milliseconds = 1000L
-//        val nanoseconds = milliseconds * 1_000_000L
-//        val duration = config.postback.postbackDelay * nanoseconds
-//
-//        delay(duration)
-//        try {
-//            val productIds = config.postback.productsToPostBack.map { it.identifier }
-//            val products = storeKitManager.getProducts(productIds)
-//            val postbackProducts = products.productsById.values.map(::PostbackProduct)
-//            val postback = Postback(postbackProducts)
-//            network.sendPostback(postback)
-//        } catch (e: Exception) {
-//            Logger.debug(LogLevel.ERROR, DebugViewController, "No Paywall Response", null, e)
-//        }
     }
 }
