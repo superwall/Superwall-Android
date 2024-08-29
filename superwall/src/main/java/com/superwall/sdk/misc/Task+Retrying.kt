@@ -9,7 +9,7 @@ import kotlin.coroutines.CoroutineContext
 suspend fun <T> retrying(
     coroutineContext: CoroutineContext,
     maxRetryCount: Int,
-    isRetryingCallback: (() -> Unit)?,
+    isRetryingCallback: (suspend () -> Unit)?,
     operation: suspend () -> T,
 ): T =
     withContext(coroutineContext) {

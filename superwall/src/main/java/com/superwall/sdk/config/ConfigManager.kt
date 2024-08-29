@@ -2,6 +2,7 @@ package com.superwall.sdk.config
 
 import android.content.Context
 import android.webkit.WebView
+import awaitUntilNetworkExists
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
@@ -15,7 +16,6 @@ import com.superwall.sdk.dependencies.RuleAttributesFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
-import com.superwall.sdk.misc.Result
 import com.superwall.sdk.misc.awaitFirstValidConfig
 import com.superwall.sdk.models.assignment.AssignmentPostback
 import com.superwall.sdk.models.assignment.ConfirmableAssignment
@@ -67,16 +67,16 @@ open class ConfigManager(
         JavascriptEvaluator.Factory
 
     // The configuration of the Superwall dashboard
-    val configState = MutableStateFlow<Result<ConfigState>>(Result.Success(ConfigState.Retrieving))
+    val configState = MutableStateFlow<ConfigState>(ConfigState.Retrieving)
 
     // Convenience variable to access config
     val config: Config?
-        get() = configState.value.getSuccess()?.getConfig()
+        get() = configState.value.getConfig()
 
     // A flow that emits just once only when `config` is non-`nil`.
     val hasConfig: Flow<Config> =
         configState
-            .mapNotNull { it.getSuccess()?.getConfig() }
+            .mapNotNull { it.getConfig() }
             .take(1)
 
     // A dictionary of triggers by their event name.
@@ -98,12 +98,17 @@ open class ConfigManager(
         }
 
     suspend fun fetchConfiguration() {
+        fetchConfig()
+    }
+
+    private suspend fun fetchConfig() {
         try {
             val configDeferred =
                 ioScope.async {
                     network.getConfig {
                         // Emit retrying state
-                        configState.update { Result.Success(ConfigState.Retrying) }
+                        configState.update { ConfigState.Retrying }
+                        context.awaitUntilNetworkExists()
                     }
                 }
 
@@ -150,13 +155,13 @@ open class ConfigManager(
                 }
             }
 
-            configState.emit(Result.Success(ConfigState.Retrieved(config)))
+            configState.update { ConfigState.Retrieved(config) }
 
             // TODO: Re-enable those params
 //                storeKitManager.loadPurchasedProducts()
             ioScope.launch { preloadPaywalls() }
         } catch (e: Throwable) {
-            configState.emit(Result.Failure(e))
+            configState.update { ConfigState.Failed(e) }
             Logger.debug(
                 logLevel = LogLevel.error,
                 scope = LogScope.superwallCore,
@@ -167,7 +172,7 @@ open class ConfigManager(
     }
 
     fun reset() {
-        val config = configState.value.getSuccess()?.getConfig() ?: return
+        val config = configState.value.getConfig() ?: return
 
         unconfirmedAssignments = mutableMapOf()
         choosePaywallVariants(config.triggers)
@@ -243,8 +248,10 @@ open class ConfigManager(
     }
 
     // Preloading Paywalls
-    private fun getTreatmentPaywallIds(triggers: Set<Trigger>): Set<String> {
-        val config = configState.value.getSuccess()?.getConfig() ?: return emptySet()
+    private fun getTreatmentPaywallIds(
+        config: Config,
+        triggers: Set<Trigger>,
+    ): Set<String> {
         val preloadableTriggers = ConfigLogic.filterTriggers(triggers, config.preloadingDisabled)
         if (preloadableTriggers.isEmpty()) return emptySet()
         val confirmedAssignments = storage.getConfirmedAssignments()
@@ -300,7 +307,11 @@ open class ConfigManager(
     suspend fun preloadPaywallsByNames(eventNames: Set<String>) {
         val config = configState.awaitFirstValidConfig() ?: return
         val triggersToPreload = config.triggers.filter { eventNames.contains(it.eventName) }
-        val triggerPaywallIdentifiers = getTreatmentPaywallIds(triggersToPreload.toSet())
+        val triggerPaywallIdentifiers =
+            getTreatmentPaywallIds(
+                config,
+                triggersToPreload.toSet(),
+            )
         preloadPaywalls(triggerPaywallIdentifiers)
     }
 
@@ -361,11 +372,13 @@ open class ConfigManager(
 
         try {
             val newConfig =
-                network.getConfig {}
+                network.getConfig {
+                    context.awaitUntilNetworkExists()
+                }
             paywallManager.resetPaywallRequestCache()
             removeUnusedPaywallVCsFromCache(oldConfig, newConfig)
             processConfig(newConfig)
-            configState.update { Result.Success(ConfigState.Retrieved(newConfig)) }
+            configState.update { ConfigState.Retrieved(newConfig) }
             Superwall.instance.track(InternalSuperwallEvent.ConfigRefresh)
             ioScope.launch { preloadPaywalls() }
         } catch (e: Exception) {
@@ -391,7 +404,8 @@ open class ConfigManager(
             oldPaywalls
                 .map { it.identifier to it.cacheKey }
                 .toMap()
-        val newPaywallCacheIds: Map<PaywallIdentifier, CacheKey> = newPaywalls.map { it.identifier to it.cacheKey }.toMap()
+        val newPaywallCacheIds: Map<PaywallIdentifier, CacheKey> =
+            newPaywalls.map { it.identifier to it.cacheKey }.toMap()
 
         val removedIds: Set<PaywallIdentifier> =
             (oldPaywallCacheIds.keys - newPaywallCacheIds.keys).toSet()

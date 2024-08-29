@@ -22,13 +22,6 @@ open class Network(
     private val urlSession: CustomHttpUrlConnection = CustomHttpUrlConnection(),
     private val factory: ApiFactory,
 ) {
-//    private val applicationStatePublisher: Flow<UIApplication.State> =
-//        UIApplication.shared.publisher { property ->
-//            if (property == "applicationState") {
-//                emit(UIApplication.sharedInstance().applicationState)
-//            }
-//        }
-
     suspend fun sendEvents(events: EventsRequest) {
         try {
             val result =
@@ -62,14 +55,10 @@ open class Network(
         }
     }
 
-    //    @MainActor
-    suspend fun getConfig(
-        isRetryingCallback: () -> Unit,
-//        injectedApplicationStatePublisher: (Flow<UIApplication.State>)? = null
-    ): Config {
+    suspend fun getConfig(isRetryingCallback: suspend () -> Unit): Config {
         awaitUntilAppInForeground()
 
-        return try {
+        try {
             val requestId = UUID.randomUUID().toString()
             val config =
                 urlSession.request<Config>(

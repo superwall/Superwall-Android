@@ -64,7 +64,7 @@ class Superwall(
     private val completion: (() -> Unit)?,
 ) : PaywallViewEventCallback {
     private var _options: SuperwallOptions? = options
-    private val ioScope = CoroutineScope(Dispatchers.IO)
+    internal val ioScope = CoroutineScope(Dispatchers.IO)
     internal var context: Context = context.applicationContext
 
     // Add a private variable for the purchase task
