@@ -74,7 +74,7 @@ class AppSessionManager(
     fun listenForAppSessionTimeout() {
         backgroundScope.launch {
             configManager.configState
-                .mapNotNull { it.getSuccess()?.getConfig() }
+                .mapNotNull { it.getConfig() }
                 .collect { config ->
                     appSessionTimeout = config.appSessionTimeout
                     // Account for fact that dev may have delayed the init of Superwall

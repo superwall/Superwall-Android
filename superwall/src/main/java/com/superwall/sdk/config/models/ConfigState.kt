@@ -11,7 +11,9 @@ sealed class ConfigState {
         val config: Config,
     ) : ConfigState()
 
-    object Failed : ConfigState()
+    data class Failed(
+        val throwable: Throwable,
+    ) : ConfigState()
 }
 
 fun ConfigState.getConfig(): Config? =
