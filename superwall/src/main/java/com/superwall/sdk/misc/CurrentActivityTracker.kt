@@ -3,6 +3,9 @@ package com.superwall.sdk.misc
 import android.app.Activity
 import android.app.Application
 import android.os.Bundle
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 
 class CurrentActivityTracker :
     Application.ActivityLifecycleCallbacks,
@@ -13,16 +16,28 @@ class CurrentActivityTracker :
         activity: Activity,
         savedInstanceState: Bundle?,
     ) {
-        println("!! onActivityCreated: $activity")
+        Logger.debug(
+            LogLevel.debug,
+            LogScope.all,
+            "!! onActivityCreated: $activity",
+        )
     }
 
     override fun onActivityStarted(activity: Activity) {
-        println("!! onActivityStarted: $activity")
+        Logger.debug(
+            LogLevel.debug,
+            LogScope.all,
+            "!! onActivityStarted: $activity",
+        )
         currentActivity = activity
     }
 
     override fun onActivityResumed(activity: Activity) {
-        println("!! onActivityResumed: $activity")
+        Logger.debug(
+            LogLevel.debug,
+            LogScope.all,
+            "!! onActivityResumed: $activity",
+        )
         currentActivity = activity
     }
 
@@ -36,14 +51,22 @@ class CurrentActivityTracker :
     ) {}
 
     override fun onActivityDestroyed(activity: Activity) {
-        println("!! onActivityDestroyed: $activity")
+        Logger.debug(
+            LogLevel.debug,
+            LogScope.all,
+            "!! onActivityDestroyed: $activity",
+        )
         if (currentActivity == activity) {
             currentActivity = null
         }
     }
 
     override fun getCurrentActivity(): Activity? {
-        println("!! getCurrentActivity: $currentActivity")
+        Logger.debug(
+            LogLevel.debug,
+            LogScope.all,
+            "!! getCurrentActivity: $currentActivity",
+        )
         return currentActivity
     }
 }

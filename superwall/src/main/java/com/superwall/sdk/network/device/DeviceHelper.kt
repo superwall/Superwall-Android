@@ -11,7 +11,6 @@ import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
-import android.util.Log
 import androidx.core.content.ContextCompat
 import com.superwall.sdk.BuildConfig
 import com.superwall.sdk.Superwall
@@ -123,7 +122,11 @@ class DeviceHelper(
                 val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
                 packageInfo.versionName
             } catch (e: PackageManager.NameNotFoundException) {
-                Log.e("DeviceHelper", "Failed to load version info", e)
+                Logger.debug(
+                    LogLevel.error,
+                    LogScope.device,
+                    "DeviceHelper: Failed to load version info - $e",
+                )
                 ""
             }
 

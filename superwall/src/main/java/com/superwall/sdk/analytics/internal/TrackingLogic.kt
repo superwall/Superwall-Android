@@ -4,6 +4,9 @@ import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEvents
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.paywall.vc.PaywallView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -172,7 +175,11 @@ sealed class TrackingLogic {
             }
 
             if (!triggers.contains(event.rawName)) {
-                println("!! canTriggerPaywall: triggers.contains(event.rawName) ${event.rawName} $triggers")
+                Logger.debug(
+                    LogLevel.debug,
+                    LogScope.all,
+                    "!! canTriggerPaywall: triggers.contains(event.rawName) ${event.rawName} $triggers",
+                )
                 return ImplicitTriggerOutcome.DontTriggerPaywall
             }
 
@@ -187,7 +194,11 @@ sealed class TrackingLogic {
             val referringEventName = paywallView?.info?.presentedByEventWithName
             if (referringEventName != null) {
                 if (notAllowedReferringEventNames.contains(referringEventName)) {
-                    println("!! canTriggerPaywall: notAllowedReferringEventNames.contains(referringEventName) $referringEventName")
+                    Logger.debug(
+                        LogLevel.debug,
+                        LogScope.all,
+                        "!! canTriggerPaywall: notAllowedReferringEventNames.contains(referringEventName) $referringEventName",
+                    )
                     return ImplicitTriggerOutcome.DontTriggerPaywall
                 }
             }
@@ -206,7 +217,11 @@ sealed class TrackingLogic {
             }
 
             if (paywallView != null) {
-                println("!! canTriggerPaywall: paywallViewController != null")
+                Logger.debug(
+                    LogLevel.debug,
+                    LogScope.all,
+                    "!! canTriggerPaywall: paywallViewController != null",
+                )
                 return ImplicitTriggerOutcome.DontTriggerPaywall
             }
 

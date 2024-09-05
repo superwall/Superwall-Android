@@ -1,5 +1,8 @@
 package com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator
 
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 import kotlinx.serialization.SerializationException
 import org.json.JSONObject
 import java.util.*
@@ -18,7 +21,11 @@ data class LiquidExpressionEvaluatorParams(
     fun toBase64Input(): String? =
         try {
             val jsonString = toJson()
-            println("!! jsonString: $jsonString")
+            Logger.debug(
+                LogLevel.debug,
+                LogScope.all,
+                "!! jsonString: $jsonString",
+            )
             jsonString.encodeToByteArray().toBase64()
         } catch (e: SerializationException) {
             null
