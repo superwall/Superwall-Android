@@ -19,6 +19,7 @@ import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.Either
 import com.superwall.sdk.misc.awaitFirstValidConfig
 import com.superwall.sdk.misc.fold
+import com.superwall.sdk.misc.then
 import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.ExperimentID
@@ -67,7 +68,15 @@ open class ConfigManager(
 
     // Convenience variable to access config
     val config: Config?
-        get() = configState.value.getConfig()
+        get() =
+            configState.value
+                .also {
+                    if (it is ConfigState.Failed) {
+                        ioScope.launch {
+                            fetchConfig()
+                        }
+                    }
+                }.getConfig()
 
     // A flow that emits just once only when `config` is non-`nil`.
     val hasConfig: Flow<Config> =
@@ -121,38 +130,35 @@ open class ConfigManager(
         }
         val configResult = result as Either<Config>
 
-        configResult.fold({ config ->
-            processConfig(config)
-
-            // Preload all products
-            if (options.paywalls.shouldPreload) {
-                val productIds = config.paywalls.flatMap { it.productIds }.toSet()
-                try {
-                    storeKitManager.products(productIds)
-                } catch (e: Throwable) {
-                    Logger.debug(
-                        logLevel = LogLevel.error,
-                        scope = LogScope.productsManager,
-                        message = "Failed to preload products",
-                        error = e,
-                    )
+        configResult
+            .then(::processConfig)
+            .then {
+                if (options.paywalls.shouldPreload) {
+                    val productIds = it.paywalls.flatMap { it.productIds }.toSet()
+                    try {
+                        storeKitManager.products(productIds)
+                    } catch (e: Throwable) {
+                        Logger.debug(
+                            logLevel = LogLevel.error,
+                            scope = LogScope.productsManager,
+                            message = "Failed to preload products",
+                            error = e,
+                        )
+                    }
                 }
-            }
-
-            configState.update { ConfigState.Retrieved(config) }
-
-            // TODO: Re-enable those params
-//                storeKitManager.loadPurchasedProducts()
-            ioScope.launch { preloadPaywalls() }
-        }, { e ->
-            configState.update { ConfigState.Failed(e) }
-            Logger.debug(
-                logLevel = LogLevel.error,
-                scope = LogScope.superwallCore,
-                message = "Failed to Fetch Configuration",
-                error = e,
-            )
-        })
+            }.then {
+                configState.update { _ -> ConfigState.Retrieved(it) }
+            }.fold(onSuccess = {
+                ioScope.launch { preloadPaywalls() }
+            }, onFailure = { e ->
+                configState.update { ConfigState.Failed(e) }
+                Logger.debug(
+                    logLevel = LogLevel.error,
+                    scope = LogScope.superwallCore,
+                    message = "Failed to Fetch Configuration",
+                    error = e,
+                )
+            })
     }
 
     fun reset() {
@@ -190,7 +196,7 @@ open class ConfigManager(
         assignments.choosePaywallVariants(config.triggers)
     }
 
-    // Preloading Paywalls
+// Preloading Paywalls
 
     // Preloads paywalls.
     private suspend fun preloadPaywalls() {
@@ -212,8 +218,6 @@ open class ConfigManager(
             eventNames,
         )
 
-    // Preloads paywalls referenced by triggers.
-
     internal suspend fun refreshConfiguration() {
         // Make sure config already exists
         val oldConfig = config ?: return
@@ -226,13 +230,15 @@ open class ConfigManager(
         network
             .getConfig {
                 context.awaitUntilNetworkExists()
+            }.then {
+                paywallManager.resetPaywallRequestCache()
+                paywallPreload.removeUnusedPaywallVCsFromCache(oldConfig, it)
+            }.then { config ->
+                processConfig(config)
+                configState.update { ConfigState.Retrieved(config) }
+                Superwall.instance.track(InternalSuperwallEvent.ConfigRefresh)
             }.fold(
                 onSuccess = { newConfig ->
-                    paywallManager.resetPaywallRequestCache()
-                    paywallPreload.removeUnusedPaywallVCsFromCache(oldConfig, newConfig)
-                    processConfig(newConfig)
-                    configState.update { ConfigState.Retrieved(newConfig) }
-                    Superwall.instance.track(InternalSuperwallEvent.ConfigRefresh)
                     ioScope.launch { preloadPaywalls() }
                 },
                 onFailure = {

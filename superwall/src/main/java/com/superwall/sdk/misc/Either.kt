@@ -16,6 +16,15 @@ sealed class Either<out T> {
         }
 }
 
+suspend fun <In> Either<In>.then(then: suspend (In) -> Unit): Either<In> =
+    when (this) {
+        is Either.Success -> {
+            then(this.value)
+            this
+        }
+        is Either.Failure -> this
+    }
+
 fun <In, Out> Either<In>.map(transform: (In) -> Out): Either<Out> =
     when (this) {
         is Either.Success -> Either.Success(transform(this.value))

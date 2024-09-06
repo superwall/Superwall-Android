@@ -7,16 +7,16 @@ import com.superwall.sdk.models.triggers.Trigger
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.storage.Storage
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 class Assignments(
     private val storage: Storage,
     private val network: Network,
     private val ioScope: CoroutineScope,
+    unconfirmedAssignments: Map<ExperimentID, Experiment.Variant> = emptyMap(),
 ) {
     // A memory store of assignments that are yet to be confirmed.
-    private var _unconfirmedAssignments = mutableMapOf<ExperimentID, Experiment.Variant>()
+    private var _unconfirmedAssignments = unconfirmedAssignments.toMutableMap()
     val unconfirmedAssignments: Map<ExperimentID, Experiment.Variant>
         get() = _unconfirmedAssignments
 
@@ -44,7 +44,7 @@ class Assignments(
 
     fun confirmAssignment(assignment: ConfirmableAssignment) {
         val postback: AssignmentPostback = AssignmentPostback.create(assignment)
-        ioScope.launch(Dispatchers.IO) { network.confirmAssignments(postback) }
+        ioScope.launch { network.confirmAssignments(postback) }
 
         updateAssignments { confirmedAssignments ->
             ConfigLogic.move(
