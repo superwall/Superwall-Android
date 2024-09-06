@@ -2,6 +2,13 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.0.0-Alpha
+
+- Removes `PaywallComposable` and Jetpack Compose support from main SDK
+- Adds `Superwall-Compose` module for Jetpack Compose support:
+    - You can find it at `com.superwall.sdk:superwall-compose:2.0.0-alpha`
+- Adds consumer proguard rules to enable consumer minification
+
 ## 1.5.0
 
 ### Enhancements
@@ -14,8 +21,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ### Fixes
 
-- Fixes concurrency issues with subscriptions triggered in Cordova apps 
-
+- Fixes concurrency issues with subscriptions triggered in Cordova apps
 ## 1.5.0-beta.2
 
 ## Enhancements

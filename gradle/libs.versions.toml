@@ -106,3 +106,4 @@ androidApplication = { id = "com.android.application", version.ref = "gradle_plu
 kotlinAndroid = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "serialization_version" }
 dropshot = { id = "com.dropbox.dropshots", version.ref = "dropshot_version" }
+androidLibrary = { id = "com.android.library", version.ref = "gradle_plugin_version" }
