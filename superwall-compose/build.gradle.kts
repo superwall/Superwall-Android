@@ -1,21 +1,11 @@
-
 import groovy.json.JsonBuilder
 import java.io.ByteArrayOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 
-buildscript {
-    extra["awsAccessKeyId"] = System.getenv("AWS_ACCESS_KEY_ID") ?: findProperty("aws_access_key_id")
-    extra["awsSecretAccessKey"] = System.getenv("AWS_SECRET_ACCESS_KEY") ?: findProperty("aws_secret_access_key")
-    extra["sonatypeUsername"] = System.getenv("SONATYPE_USERNAME") ?: findProperty("sonatype_username")
-    extra["sonatypePassword"] = System.getenv("SONATYPE_PASSWORD") ?: findProperty("sonatype_password")
-}
-
 plugins {
-    id("com.android.library")
-    kotlin("android")
-    kotlin("kapt")
-    alias(libs.plugins.serialization)
+    alias(libs.plugins.androidLibrary)
+    alias(libs.plugins.kotlinAndroid)
     id("maven-publish")
     id("signing")
 }
@@ -23,19 +13,14 @@ plugins {
 version = "1.2.4"
 
 android {
+    namespace = "com.superwall.sdk.composable"
     compileSdk = 34
-    namespace = "com.superwall.sdk"
 
     defaultConfig {
-        minSdkVersion(26)
-        targetSdkVersion(33)
-
-        aarMetadata {
-            minCompileSdk = 26
-        }
+        minSdk = 22
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        vectorDrawables.useSupportLibrary = true
+        consumerProguardFiles("../consumer-rules.pro")
 
         val gitSha =
             project
@@ -54,30 +39,28 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
-            consumerProguardFile("../proguard-rules.pro")
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "../proguard-rules.pro")
+            isMinifyEnabled = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "../proguard-rules.pro",
+            )
         }
     }
-
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
     }
-
-    buildFeatures {
-        buildConfig = true
-    }
-
     kotlinOptions {
         jvmTarget = "1.8"
     }
-
-    packaging {
-        resources.excludes += "META-INF/LICENSE.md"
-        resources.excludes += "META-INF/LICENSE-notice.md"
+    buildFeatures {
+        compose = true
+        buildConfig = true
     }
 
+    composeOptions {
+        kotlinCompilerExtensionVersion = "1.5.0"
+    }
     publishing {
         singleVariant("release") {
             withSourcesJar()
@@ -89,12 +72,12 @@ publishing {
     publications {
         register<MavenPublication>("release") {
             groupId = "com.superwall.sdk"
-            artifactId = "superwall-android"
+            artifactId = "superwall-compose"
             version = version
 
             pom {
-                name.set("Superwall")
-                description.set("Remotely configure paywalls without shipping app updates")
+                name.set("Superwall Compose")
+                description.set("Remotely configure paywalls without shipping app updates - Jetpack Compose support")
                 url.set("https://superwall.com")
 
                 licenses {
@@ -105,9 +88,9 @@ publishing {
                 }
                 developers {
                     developer {
-                        id.set("yusuftor")
-                        name.set("Yusuf Tor")
-                        email.set("yusuf@superwall.com")
+                        id.set("ianrumac")
+                        name.set("Ian Rumac")
+                        email.set("ian@superwall.com")
                     }
                 }
                 scm {
@@ -168,42 +151,19 @@ tasks.register("generateBuildInfo") {
 }
 
 dependencies {
-    implementation(libs.work.runtime.ktx)
-    implementation(libs.lifecycle.process)
-    implementation(libs.room.runtime)
-    implementation(libs.room.ktx)
-    kapt(libs.room.compiler)
-    implementation(libs.javascriptengine)
-    implementation(libs.kotlinx.coroutines.guava)
-
-    implementation(libs.threetenbp)
-    // Billing
-    implementation(libs.billing)
-
-    // Browser
-    implementation(libs.browser)
-
-    // Core
-    implementation(libs.core)
+    implementation(platform(libs.compose.bom))
+    implementation(libs.core.ktx)
     implementation(libs.appcompat)
     implementation(libs.material)
-    implementation(libs.core.ktx)
 
-    // Coroutines
-    implementation(libs.kotlinx.coroutines.core)
+    // Compose
+    implementation(libs.ui)
+    implementation(libs.ui.graphics)
+    implementation(libs.ui.tooling.preview)
+    implementation(libs.material3)
+    implementation(project(":superwall"))
 
-    // Serialization
-    implementation(libs.kotlinx.serialization.json)
-    implementation(libs.gson)
-
-    // Test
     testImplementation(libs.junit)
-    testImplementation(libs.kotlinx.coroutines.test)
-    testImplementation(libs.mockk.core)
-
-    // Test (Android)
     androidTestImplementation(libs.test.ext.junit)
     androidTestImplementation(libs.espresso.core)
-    androidTestImplementation(libs.kotlinx.coroutines.test)
-    androidTestImplementation(libs.mockk.android)
 }
