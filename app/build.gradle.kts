@@ -80,6 +80,7 @@ dependencies {
 
     // Superwall
     implementation(project(":superwall"))
+    implementation(project(":superwall-compose"))
 
     // Test
     testImplementation(libs.junit)
