@@ -5,6 +5,7 @@ import android.app.Activity
 import android.app.Application
 import android.content.Context
 import androidx.lifecycle.ProcessLifecycleOwner
+import androidx.lifecycle.ViewModelProvider
 import com.android.billingclient.api.Purchase
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.SessionEventsManager
@@ -48,6 +49,9 @@ import com.superwall.sdk.paywall.request.PaywallRequestManager
 import com.superwall.sdk.paywall.request.PaywallRequestManagerDepFactory
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
 import com.superwall.sdk.paywall.vc.PaywallView
+import com.superwall.sdk.paywall.vc.SuperwallStoreOwner
+import com.superwall.sdk.paywall.vc.ViewModelFactory
+import com.superwall.sdk.paywall.vc.ViewStorageViewModel
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewDelegateAdapter
 import com.superwall.sdk.paywall.vc.web_view.SWWebView
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallMessageHandler
@@ -99,7 +103,8 @@ class DependencyContainer(
     DebugView.Factory,
     JavascriptEvaluator.Factory,
     JsonFactory,
-    ConfigAttributesFactory {
+    ConfigAttributesFactory,
+    ViewStoreFactory {
     var network: Network
     override lateinit var api: Api
     override lateinit var deviceHelper: DeviceHelper
@@ -358,7 +363,7 @@ class DependencyContainer(
         return view
     }
 
-    override fun makeCache(): PaywallViewCache = PaywallViewCache(context, Superwall.instance.viewStore(), activityProvider!!, deviceHelper)
+    override fun makeCache(): PaywallViewCache = PaywallViewCache(context, makeViewStore(), activityProvider!!, deviceHelper)
 
     override fun makeDeviceInfo(): DeviceInfo =
         DeviceInfo(
@@ -526,4 +531,14 @@ class DependencyContainer(
             hasExternalPurchaseController = makeHasExternalPurchaseController(),
             hasDelegate = delegateAdapter.kotlinDelegate != null || delegateAdapter.javaDelegate != null,
         )
+
+    // Mark - ViewModel management
+
+    private val storeOwner
+        get() = SuperwallStoreOwner()
+    private val vmFactory
+        get() = ViewModelFactory()
+    private val vmProvider = ViewModelProvider(storeOwner, vmFactory)
+
+    override fun makeViewStore(): ViewStorageViewModel = vmProvider[ViewStorageViewModel::class.java]
 }

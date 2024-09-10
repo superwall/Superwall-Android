@@ -3,7 +3,6 @@ package com.superwall.sdk
 import android.app.Application
 import android.content.Context
 import android.net.Uri
-import androidx.lifecycle.ViewModelProvider
 import androidx.work.WorkManager
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
@@ -26,9 +25,6 @@ import com.superwall.sdk.paywall.presentation.internal.dismiss
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.vc.PaywallView
 import com.superwall.sdk.paywall.vc.SuperwallPaywallActivity
-import com.superwall.sdk.paywall.vc.SuperwallStoreOwner
-import com.superwall.sdk.paywall.vc.ViewModelFactory
-import com.superwall.sdk.paywall.vc.ViewStorageViewModel
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewEventCallback
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.Closed
@@ -69,14 +65,6 @@ class Superwall(
 
     // Add a private variable for the purchase task
     private var purchaseTask: Job? = null
-
-    private val viewStorageViewModel =
-        ViewModelProvider(
-            SuperwallStoreOwner(),
-            ViewModelFactory(),
-        ).get(ViewStorageViewModel::class.java)
-
-    internal fun viewStore(): ViewStorageViewModel = viewStorageViewModel
 
     internal val presentationItems: PresentationItems = PresentationItems()
 
@@ -239,7 +227,9 @@ class Superwall(
                 .filter { it }
                 .take(1)
 
-        lateinit var instance: Superwall
+        private var _instance: Superwall? = null
+        val instance: Superwall
+            get() = _instance ?: throw IllegalStateException("Superwall has not been initialized or configured.")
 
         /**
          * Configures a shared instance of [Superwall] for use throughout your app.
@@ -270,7 +260,10 @@ class Superwall(
             activityProvider: ActivityProvider? = null,
             completion: (() -> Unit)? = null,
         ) {
-            if (::instance.isInitialized) {
+            if (_hasInitialized.value && _instance == null) {
+                _hasInitialized.update { false }
+            }
+            if (_instance != null) {
                 Logger.debug(
                     logLevel = LogLevel.warn,
                     scope = LogScope.superwallCore,
@@ -282,7 +275,7 @@ class Superwall(
             val purchaseController =
                 purchaseController
                     ?: ExternalNativePurchaseController(context = applicationContext)
-            instance =
+            _instance =
                 Superwall(
                     context = applicationContext,
                     apiKey = apiKey,
@@ -355,7 +348,6 @@ class Superwall(
                 dependencyContainer.storage.get(ActiveSubscriptionStatus)
                     ?: SubscriptionStatus.UNKNOWN
             setSubscriptionStatus(cachedSubsStatus)
-
             addListeners()
         }
 
