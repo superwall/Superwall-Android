@@ -7,3 +7,7 @@ plugins {
     alias(libs.plugins.serialization) apply false
 }
 true
+
+buildscript {
+    apply(from = "./scripts/old-agp-auto-downgrade.gradle.kts")
+}
