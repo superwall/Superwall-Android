@@ -16,6 +16,9 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 ## 1.2.4
 
 ### Enhancements
+- For users who are not able to upgrade their AGP or Gradle versions, we have added a new artifact `superwall-android-agp-7` which keeps compatibility.
+
+### Enhancements
 
 - Fixes issue with decoding custom placements from paywalls.
 

@@ -115,6 +115,25 @@ jobs:
           sudo git push -u origin release/${{steps.version.outputs.prop}}
         fi
 
+    - name: Run Autodowngrade Task
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      run: |
+        if [ "${{ steps.check-tag.outputs.tag-exists }}" == "false" ]; then
+          ./gradlew downgradeAgpTask
+        fi
+
+    - name: Deploy Downgraded Version
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      run: |
+        if [ "${{ steps.check-tag.outputs.tag-exists }}" == "false" ]; then
+          ./gradlew publish -Paws_access_key_id=$AWS_ACCESS_KEY_ID -Paws_secret_access_key=$AWS_SECRET_ACCESS_KEY -PsonatypeUsername=$SONATYPE_USERNAME -PsonatypePassword=$SONATYPE_PASSWORD
+        fi
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
+        SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+
     - name: slack-send
       # Only notify on a new tag
       if: steps.check-tag.outputs.tag-exists == 'false'
