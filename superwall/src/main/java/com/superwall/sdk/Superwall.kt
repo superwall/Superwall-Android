@@ -340,8 +340,8 @@ class Superwall(
     internal val serialTaskManager = SerialTaskManager()
 
     internal fun setup() {
-        withErrorTracking {
-            synchronized(this) {
+        synchronized(this) {
+            try {
                 _dependencyContainer =
                     DependencyContainer(
                         context = context,
@@ -349,15 +349,18 @@ class Superwall(
                         options = _options,
                         activityProvider = activityProvider,
                     )
+            } catch (e: Exception) {
+                e.printStackTrace()
+                throw e
             }
-
-            val cachedSubsStatus =
-                dependencyContainer.storage.get(ActiveSubscriptionStatus)
-                    ?: SubscriptionStatus.UNKNOWN
-            setSubscriptionStatus(cachedSubsStatus)
-
-            addListeners()
         }
+
+        val cachedSubsStatus =
+            dependencyContainer.storage.get(ActiveSubscriptionStatus)
+                ?: SubscriptionStatus.UNKNOWN
+        setSubscriptionStatus(cachedSubsStatus)
+
+        addListeners()
 
         ioScope.launch {
             withErrorTrackingAsync {

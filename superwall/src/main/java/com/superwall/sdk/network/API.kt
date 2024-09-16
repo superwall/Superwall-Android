@@ -10,8 +10,6 @@ data class Api(
 ) {
     companion object {
         const val version1 = "/api/v1/"
-
-        //        const val scheme = "http"
         const val scheme = "https"
     }
 

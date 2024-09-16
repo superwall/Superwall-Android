@@ -19,10 +19,11 @@ import com.superwall.sdk.dependencies.LocaleIdentifierFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
+import com.superwall.sdk.misc.then
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.geo.GeoInfo
 import com.superwall.sdk.network.JsonFactory
-import com.superwall.sdk.network.Network
+import com.superwall.sdk.network.SuperwallAPI
 import com.superwall.sdk.paywall.vc.web_view.templating.models.DeviceTemplate
 import com.superwall.sdk.storage.LastPaywallView
 import com.superwall.sdk.storage.Storage
@@ -50,7 +51,7 @@ enum class InterfaceStyle(
 class DeviceHelper(
     private val context: Context,
     val storage: Storage,
-    val network: Network,
+    val network: SuperwallAPI,
     val factory: Factory,
 ) {
     interface Factory :
@@ -421,7 +422,8 @@ class DeviceHelper(
                 )
                 null
             }
-        val capabilities: List<Capability> = listOf(Capability.PaywallEventReceiver(), Capability.MultiplePaywallUrls)
+        val capabilities: List<Capability> =
+            listOf(Capability.PaywallEventReceiver(), Capability.MultiplePaywallUrls)
 
         val deviceTemplate =
             DeviceTemplate(
@@ -476,7 +478,10 @@ class DeviceHelper(
                 ipContinent = geo?.continent,
                 ipTimezone = geo?.timezone,
                 capabilities = capabilities.map { it.name },
-                capabilitiesConfig = capabilities.toJson(factory.json()),
+                capabilitiesConfig =
+                    capabilities.toJson(factory.json()).also {
+                        Log.e("DeviceHelper", "capabilitiesConfig: $it")
+                    },
                 platformWrapper = platformWrapper,
                 platformWrapperVersion = platformWrapperVersion,
             )
@@ -485,8 +490,10 @@ class DeviceHelper(
     }
 
     suspend fun getGeoInfo() {
-        network.getGeoInfo().let {
-            geoInfo.value = it
-        }
+        network
+            .getGeoInfo()
+            .then {
+                geoInfo.value = it
+            }
     }
 }

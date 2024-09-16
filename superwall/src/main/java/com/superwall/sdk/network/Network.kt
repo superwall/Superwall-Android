@@ -1,201 +1,128 @@
 package com.superwall.sdk.network
 
+import BaseHostService
+import GeoService
 import com.superwall.sdk.dependencies.ApiFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.Either
+import com.superwall.sdk.misc.map
+import com.superwall.sdk.misc.onError
 import com.superwall.sdk.models.assignment.Assignment
 import com.superwall.sdk.models.assignment.AssignmentPostback
-import com.superwall.sdk.models.assignment.ConfirmedAssignmentResponse
 import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.events.EventsRequest
 import com.superwall.sdk.models.events.EventsResponse
 import com.superwall.sdk.models.geo.GeoInfo
 import com.superwall.sdk.models.paywall.Paywall
-import com.superwall.sdk.network.session.CustomHttpUrlConnection
+import com.superwall.sdk.network.session.NetworkError
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import java.util.UUID
 
 open class Network(
-    private val urlSession: CustomHttpUrlConnection = CustomHttpUrlConnection(),
+    private val baseHostService: BaseHostService,
+    private val collectorService: CollectorService,
+    private val geoService: GeoService,
     private val factory: ApiFactory,
-) {
-    suspend fun sendEvents(events: EventsRequest) {
-        try {
-            val result =
-                urlSession.request<EventsResponse>(
-                    Endpoint.events(
-                        eventsRequest = events,
-                        factory = factory,
-                    ),
-                )
-
-            when (result.status) {
-                EventsResponse.Status.OK -> {
-                }
-
-                EventsResponse.Status.PARTIAL_SUCCESS -> {
+) : SuperwallAPI {
+    override suspend fun sendEvents(events: EventsRequest): Either<Unit, NetworkError> =
+        collectorService
+            .events(
+                events,
+            ).map {
+                if (it.status == EventsResponse.Status.PARTIAL_SUCCESS) {
                     Logger.debug(
                         logLevel = LogLevel.warn,
                         scope = LogScope.network,
                         message = "Request had partial success: /events",
                     )
                 }
-            }
-        } catch (error: Throwable) {
-            Logger.debug(
-                logLevel = LogLevel.error,
-                scope = LogScope.network,
-                message = "Request Failed: /events",
-                info = mapOf("payload" to events),
-                error = error,
-            )
-        }
-    }
+                Unit
+            }.logError("/events", mapOf("payload" to events))
 
-    suspend fun getConfig(isRetryingCallback: suspend () -> Unit): Either<Config> {
+    override suspend fun getConfig(isRetryingCallback: suspend () -> Unit): Either<Config, NetworkError> {
         awaitUntilAppInForeground()
 
-        try {
-            val requestId = UUID.randomUUID().toString()
-            val config =
-                urlSession.request<Config>(
-                    Endpoint.config(
-                        factory = factory,
-                        requestId = requestId,
-                    ),
-                    isRetryingCallback = isRetryingCallback,
-                )
-            config.requestId = requestId
-            return Either.Success(config)
-        } catch (error: Throwable) {
-            Logger.debug(
-                logLevel = LogLevel.error,
-                scope = LogScope.network,
-                message = "Request Failed: /static_config",
-                error = error,
-            )
-            return Either.Failure(error)
-        }
+        val requestId = UUID.randomUUID().toString()
+
+        return baseHostService
+            .config(
+                requestId,
+            ).map { config ->
+                config.requestId = requestId
+                config
+            }.logError("/static_config")
     }
 
-    open suspend fun confirmAssignments(confirmableAssignments: AssignmentPostback) {
-        try {
-            urlSession.request<ConfirmedAssignmentResponse>(
-                Endpoint.confirmAssignments(
-                    confirmableAssignments = confirmableAssignments,
-                    factory = factory,
-                ),
+    override suspend fun confirmAssignments(confirmableAssignments: AssignmentPostback) =
+        baseHostService
+            .confirmAssignments(confirmableAssignments)
+            .map { }
+            .logError("/confirm_assignments", mapOf("assignments" to confirmableAssignments))
+
+    override suspend fun getPaywall(
+        identifier: String?,
+        event: EventData?,
+    ): Either<Paywall, NetworkError> =
+        baseHostService
+            .paywall(identifier)
+            .logError(
+                "/paywall${identifier?.let { "/:$it" } ?: ""}",
+                if (identifier == null) {
+                    mapOf(
+                        "identifier" to (identifier ?: "none"),
+                        "event" to (event?.name ?: ""),
+                    )
+                } else {
+                    null
+                },
             )
-        } catch (error: Throwable) {
-            Logger.debug(
-                logLevel = LogLevel.error,
-                scope = LogScope.network,
-                message = "Request Failed: /confirm_assignments",
-                info = mapOf("assignments" to confirmableAssignments),
-                error = error,
-            )
-        }
+
+    override suspend fun getPaywalls(): Either<List<Paywall>, NetworkError> =
+        baseHostService
+            .paywalls()
+            .map {
+                it.paywalls
+            }.logError("/paywalls")
+
+    override suspend fun getGeoInfo(): Either<GeoInfo?, NetworkError> {
+        awaitUntilAppInForeground()
+
+        return geoService
+            .geo()
+            .map {
+                it.info
+            }.logError("/geo")
     }
 
-    suspend fun getPaywall(
-        identifier: String? = null,
-        event: EventData? = null,
-    ): Paywall =
-        try {
-            urlSession.request(
-                Endpoint.paywall(
-                    identifier = identifier,
-                    event = event,
-                    factory = factory,
-                ),
-            )
-        } catch (error: Throwable) {
-            if (identifier == null) {
-                Logger.debug(
-                    logLevel = LogLevel.error,
-                    scope = LogScope.network,
-                    message = "Request Failed: /paywall",
-                    info =
-                        mapOf(
-                            "identifier" to (identifier ?: "none"),
-                            "event" to (event?.name ?: ""),
-                        ),
-                    error = error,
-                )
-            } else {
-                Logger.debug(
-                    logLevel = LogLevel.error,
-                    scope = LogScope.network,
-                    message = "Request Failed: /paywall/:$identifier",
-                    error = error,
-                )
-            }
-            throw error
-        }
-
-    suspend fun getPaywalls(): List<Paywall> =
-        try {
-            val paywalls =
-                urlSession.request(
-                    Endpoint.paywalls(factory = factory),
-                )
-            paywalls.paywalls
-        } catch (error: Throwable) {
-            Logger.debug(
-                logLevel = LogLevel.error,
-                scope = LogScope.network,
-                message = "Request Failed: /paywalls",
-                error = error,
-            )
-            throw error
-        }
-
-    suspend fun getGeoInfo(): GeoInfo? =
-        try {
-            awaitUntilAppInForeground()
-
-            val geoWrapper =
-                urlSession.request(
-                    Endpoint.geo(factory = factory),
-                )
-            geoWrapper.info
-        } catch (error: Exception) {
-            Logger.debug(
-                logLevel = LogLevel.error,
-                scope = LogScope.network,
-                message = "Request Failed: /geo",
-                error = error,
-            )
-            null
-        }
-
-    open suspend fun getAssignments(): List<Assignment> =
-        try {
-            val result =
-                urlSession.request(
-                    Endpoint.assignments(factory = factory),
-                )
-            result.assignments
-        } catch (error: Throwable) {
-            Logger.debug(
-                logLevel = LogLevel.error,
-                scope = LogScope.network,
-                message = "Request Failed: /assignments",
-                error = error,
-            )
-            throw error
-        }
+    override suspend fun getAssignments(): Either<List<Assignment>, NetworkError> =
+        baseHostService
+            .assignments()
+            .map {
+                it.assignments
+            }.logError("/assignments")
 
     private suspend fun awaitUntilAppInForeground() {
         // Wait until the app is not in the background.
-
         factory.appLifecycleObserver
             .isInBackground
             .filter { !it }
             .first()
+    }
+
+    private fun <T> Either<T, NetworkError>.logError(
+        url: String,
+        data: Map<String, Any>? = null,
+    ) = onError {
+        Logger.debug(
+            logLevel = LogLevel.error,
+            scope = LogScope.network,
+            message = "Request Failed: $url",
+            info = data,
+            error = it,
+        )
     }
 }
