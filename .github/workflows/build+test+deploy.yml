@@ -91,7 +91,15 @@ jobs:
         GPG_SIGNING_KEY_PASSPHRASE: ${{ secrets.GPG_SIGNING_KEY_PASSPHRASE }}
         GPG_SIGNING_KEY_ID: ${{ secrets.GPG_SIGNING_KEY_ID }}
       run: |
-        ./gradlew publish \
+        ./gradlew :superwall:publish \
+          -Paws_access_key_id=$AWS_ACCESS_KEY_ID \
+          -Paws_secret_access_key=$AWS_SECRET_ACCESS_KEY \
+          -PsonatypeUsername=$SONATYPE_USERNAME \
+          -PsonatypePassword=$SONATYPE_PASSWORD \
+          -Pgpg_signing_key_passphrase=$GPG_SIGNING_KEY_PASSPHRASE \
+          -Pgpg_signing_key_id=$GPG_SIGNING_KEY_ID
+        
+        ./gradlew :superwall-compose:publish \
           -Paws_access_key_id=$AWS_ACCESS_KEY_ID \
           -Paws_secret_access_key=$AWS_SECRET_ACCESS_KEY \
           -PsonatypeUsername=$SONATYPE_USERNAME \
@@ -143,7 +151,7 @@ jobs:
         GPG_SIGNING_KEY_PASSPHRASE: ${{ secrets.GPG_SIGNING_KEY_PASSPHRASE }}
         GPG_SIGNING_KEY_ID: ${{ secrets.GPG_SIGNING_KEY_ID }}
       run: |
-        ./gradlew publish \
+        ./gradlew :superwall:publish \
           -Paws_access_key_id=$AWS_ACCESS_KEY_ID \
           -Paws_secret_access_key=$AWS_SECRET_ACCESS_KEY \
           -PsonatypeUsername=$SONATYPE_USERNAME \
