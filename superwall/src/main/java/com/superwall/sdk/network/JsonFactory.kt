@@ -6,6 +6,7 @@ import kotlinx.serialization.json.JsonNamingStrategy
 interface JsonFactory {
     fun json() =
         Json {
+            ignoreUnknownKeys = true
             encodeDefaults = true
             namingStrategy = JsonNamingStrategy.SnakeCase
         }

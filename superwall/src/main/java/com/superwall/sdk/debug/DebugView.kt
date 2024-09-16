@@ -37,6 +37,8 @@ import com.superwall.sdk.dependencies.ViewFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
+import com.superwall.sdk.misc.onError
+import com.superwall.sdk.misc.then
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.paywall.manager.PaywallManager
@@ -118,8 +120,10 @@ class DebugView(
             val imageView =
                 ImageView(context).apply {
                     // Apply a color filter with full opacity to test visibility
-                    val debuggerImage = ContextCompat.getDrawable(context, R.drawable.exit)?.mutate()
-                    debuggerImage?.colorFilter = PorterDuffColorFilter(Color.WHITE, PorterDuff.Mode.SRC_ATOP)
+                    val debuggerImage =
+                        ContextCompat.getDrawable(context, R.drawable.exit)?.mutate()
+                    debuggerImage?.colorFilter =
+                        PorterDuffColorFilter(Color.WHITE, PorterDuff.Mode.SRC_ATOP)
                     setImageDrawable(debuggerImage)
                     scaleType = ImageView.ScaleType.FIT_CENTER
 
@@ -152,8 +156,10 @@ class DebugView(
             val imageView =
                 ImageView(context).apply {
                     // Apply a color filter with full opacity to test visibility
-                    val debuggerImage = ContextCompat.getDrawable(context, R.drawable.debugger)?.mutate()
-                    debuggerImage?.colorFilter = PorterDuffColorFilter(Color.WHITE, PorterDuff.Mode.SRC_ATOP)
+                    val debuggerImage =
+                        ContextCompat.getDrawable(context, R.drawable.debugger)?.mutate()
+                    debuggerImage?.colorFilter =
+                        PorterDuffColorFilter(Color.WHITE, PorterDuff.Mode.SRC_ATOP)
                     setImageDrawable(debuggerImage)
                     scaleType = ImageView.ScaleType.FIT_CENTER
 
@@ -210,7 +216,8 @@ class DebugView(
                                 LinearLayout.LayoutParams.WRAP_CONTENT,
                                 LinearLayout.LayoutParams.WRAP_CONTENT,
                             ).apply {
-                                rightMargin = 8 // You can adjust the margin to control the space between the image and the text
+                                rightMargin =
+                                    8 // You can adjust the margin to control the space between the image and the text
                             }
                 }
             addView(playImageView)
@@ -279,7 +286,8 @@ class DebugView(
                                 LinearLayout.LayoutParams.WRAP_CONTENT,
                                 LinearLayout.LayoutParams.WRAP_CONTENT,
                             ).apply {
-                                leftMargin = 8 // You can adjust the margin to control the space between the text and the image
+                                leftMargin =
+                                    8 // You can adjust the margin to control the space between the text and the image
                             }
                 }
             addView(arrowImageView)
@@ -294,7 +302,8 @@ class DebugView(
         ConstraintLayout(context).apply {
             id = View.generateViewId()
             // shouldAnimateLightly = true
-            isFocusable = true // Depending on the view's properties, you might need to set focusability
+            isFocusable =
+                true // Depending on the view's properties, you might need to set focusability
             layoutParams =
                 LayoutParams(
                     LayoutParams.MATCH_CONSTRAINT,
@@ -319,7 +328,11 @@ class DebugView(
     }
 
     fun addSubviews() {
-        val layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT)
+        val layoutParams =
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+            )
 
         // Adding views to the layout
         addView(activityIndicator, layoutParams)
@@ -339,46 +352,164 @@ class DebugView(
         constraintSet.clone(this)
 
         // Applying constraints to previewContainerView
-        constraintSet.connect(previewContainerView.id, ConstraintSet.START, ConstraintSet.PARENT_ID, ConstraintSet.START)
-        constraintSet.connect(previewContainerView.id, ConstraintSet.END, ConstraintSet.PARENT_ID, ConstraintSet.END)
-        constraintSet.connect(previewContainerView.id, ConstraintSet.TOP, logoImageView.id, ConstraintSet.BOTTOM, dpToPx(5))
-        constraintSet.connect(previewContainerView.id, ConstraintSet.BOTTOM, bottomButton.id, ConstraintSet.TOP, dpToPx(5))
+        constraintSet.connect(
+            previewContainerView.id,
+            ConstraintSet.START,
+            ConstraintSet.PARENT_ID,
+            ConstraintSet.START,
+        )
+        constraintSet.connect(
+            previewContainerView.id,
+            ConstraintSet.END,
+            ConstraintSet.PARENT_ID,
+            ConstraintSet.END,
+        )
+        constraintSet.connect(
+            previewContainerView.id,
+            ConstraintSet.TOP,
+            logoImageView.id,
+            ConstraintSet.BOTTOM,
+            dpToPx(5),
+        )
+        constraintSet.connect(
+            previewContainerView.id,
+            ConstraintSet.BOTTOM,
+            bottomButton.id,
+            ConstraintSet.TOP,
+            dpToPx(5),
+        )
         constraintSet.constrainHeight(previewContainerView.id, 0)
 
         // Constraints for logoImageView (Centered horizontally at the top)
         constraintSet.constrainWidth(logoImageView.id, ConstraintSet.MATCH_CONSTRAINT)
         constraintSet.constrainHeight(logoImageView.id, dpToPx(20))
-        constraintSet.connect(logoImageView.id, ConstraintSet.TOP, ConstraintSet.PARENT_ID, ConstraintSet.TOP, dpToPx(30))
-        constraintSet.connect(logoImageView.id, ConstraintSet.START, consoleButton.id, ConstraintSet.END)
-        constraintSet.connect(logoImageView.id, ConstraintSet.END, exitButton.id, ConstraintSet.START)
+        constraintSet.connect(
+            logoImageView.id,
+            ConstraintSet.TOP,
+            ConstraintSet.PARENT_ID,
+            ConstraintSet.TOP,
+            dpToPx(30),
+        )
+        constraintSet.connect(
+            logoImageView.id,
+            ConstraintSet.START,
+            consoleButton.id,
+            ConstraintSet.END,
+        )
+        constraintSet.connect(
+            logoImageView.id,
+            ConstraintSet.END,
+            exitButton.id,
+            ConstraintSet.START,
+        )
 
         // Constraints for consoleButton (Top Left)
-        constraintSet.connect(consoleButton.id, ConstraintSet.START, ConstraintSet.PARENT_ID, ConstraintSet.START, dpToPx(25))
-        constraintSet.connect(consoleButton.id, ConstraintSet.TOP, ConstraintSet.PARENT_ID, ConstraintSet.TOP, dpToPx(30))
+        constraintSet.connect(
+            consoleButton.id,
+            ConstraintSet.START,
+            ConstraintSet.PARENT_ID,
+            ConstraintSet.START,
+            dpToPx(25),
+        )
+        constraintSet.connect(
+            consoleButton.id,
+            ConstraintSet.TOP,
+            ConstraintSet.PARENT_ID,
+            ConstraintSet.TOP,
+            dpToPx(30),
+        )
         constraintSet.constrainWidth(consoleButton.id, dpToPx(44))
 
         // Constraints for exitButton (Top Right)
-        constraintSet.connect(exitButton.id, ConstraintSet.END, ConstraintSet.PARENT_ID, ConstraintSet.END, dpToPx(25))
-        constraintSet.connect(exitButton.id, ConstraintSet.TOP, ConstraintSet.PARENT_ID, ConstraintSet.TOP, dpToPx(30))
+        constraintSet.connect(
+            exitButton.id,
+            ConstraintSet.END,
+            ConstraintSet.PARENT_ID,
+            ConstraintSet.END,
+            dpToPx(25),
+        )
+        constraintSet.connect(
+            exitButton.id,
+            ConstraintSet.TOP,
+            ConstraintSet.PARENT_ID,
+            ConstraintSet.TOP,
+            dpToPx(30),
+        )
         constraintSet.constrainWidth(exitButton.id, dpToPx(44))
 
         // Constraints for activityIndicator
-        constraintSet.connect(activityIndicator.id, ConstraintSet.START, previewContainerView.id, ConstraintSet.START)
-        constraintSet.connect(activityIndicator.id, ConstraintSet.END, previewContainerView.id, ConstraintSet.END)
-        constraintSet.connect(activityIndicator.id, ConstraintSet.TOP, previewContainerView.id, ConstraintSet.TOP)
-        constraintSet.connect(activityIndicator.id, ConstraintSet.BOTTOM, previewContainerView.id, ConstraintSet.BOTTOM)
+        constraintSet.connect(
+            activityIndicator.id,
+            ConstraintSet.START,
+            previewContainerView.id,
+            ConstraintSet.START,
+        )
+        constraintSet.connect(
+            activityIndicator.id,
+            ConstraintSet.END,
+            previewContainerView.id,
+            ConstraintSet.END,
+        )
+        constraintSet.connect(
+            activityIndicator.id,
+            ConstraintSet.TOP,
+            previewContainerView.id,
+            ConstraintSet.TOP,
+        )
+        constraintSet.connect(
+            activityIndicator.id,
+            ConstraintSet.BOTTOM,
+            previewContainerView.id,
+            ConstraintSet.BOTTOM,
+        )
 
         // Constraints for bottomButton
-        constraintSet.connect(bottomButton.id, ConstraintSet.START, ConstraintSet.PARENT_ID, ConstraintSet.START, dpToPx(25))
-        constraintSet.connect(bottomButton.id, ConstraintSet.END, ConstraintSet.PARENT_ID, ConstraintSet.END, dpToPx(25))
+        constraintSet.connect(
+            bottomButton.id,
+            ConstraintSet.START,
+            ConstraintSet.PARENT_ID,
+            ConstraintSet.START,
+            dpToPx(25),
+        )
+        constraintSet.connect(
+            bottomButton.id,
+            ConstraintSet.END,
+            ConstraintSet.PARENT_ID,
+            ConstraintSet.END,
+            dpToPx(25),
+        )
         constraintSet.constrainHeight(bottomButton.id, dpToPx(60))
-        constraintSet.connect(bottomButton.id, ConstraintSet.BOTTOM, ConstraintSet.PARENT_ID, ConstraintSet.BOTTOM, dpToPx(30))
+        constraintSet.connect(
+            bottomButton.id,
+            ConstraintSet.BOTTOM,
+            ConstraintSet.PARENT_ID,
+            ConstraintSet.BOTTOM,
+            dpToPx(30),
+        )
 
         // Constraints for previewPickerButton
-        constraintSet.connect(previewPickerButton.id, ConstraintSet.START, previewContainerView.id, ConstraintSet.START, dpToPx(25))
-        constraintSet.connect(previewPickerButton.id, ConstraintSet.END, previewContainerView.id, ConstraintSet.END, dpToPx(25))
+        constraintSet.connect(
+            previewPickerButton.id,
+            ConstraintSet.START,
+            previewContainerView.id,
+            ConstraintSet.START,
+            dpToPx(25),
+        )
+        constraintSet.connect(
+            previewPickerButton.id,
+            ConstraintSet.END,
+            previewContainerView.id,
+            ConstraintSet.END,
+            dpToPx(25),
+        )
         constraintSet.constrainHeight(previewPickerButton.id, dpToPx(30))
-        constraintSet.connect(previewPickerButton.id, ConstraintSet.BOTTOM, bottomButton.id, ConstraintSet.TOP, dpToPx(10))
+        constraintSet.connect(
+            previewPickerButton.id,
+            ConstraintSet.BOTTOM,
+            bottomButton.id,
+            ConstraintSet.TOP,
+            dpToPx(10),
+        )
 
         // Apply all the constraints
         constraintSet.applyTo(this)
@@ -396,17 +527,19 @@ class DebugView(
         }
 
         if (paywalls.isEmpty()) {
-            try {
-                paywalls = network.getPaywalls()
-                finishLoadingPreview()
-            } catch (error: Throwable) {
-                Logger.debug(
-                    logLevel = LogLevel.error,
-                    scope = LogScope.debugView,
-                    message = "Failed to Fetch Paywalls",
-                    error = error,
-                )
-            }
+            network
+                .getPaywalls()
+                .onError {
+                    Logger.debug(
+                        logLevel = LogLevel.error,
+                        scope = LogScope.debugView,
+                        message = "Failed to Fetch Paywalls",
+                        error = it,
+                    )
+                }.then {
+                    paywalls = it
+                    finishLoadingPreview()
+                }
         } else {
             finishLoadingPreview()
         }
@@ -480,10 +613,20 @@ class DebugView(
         val constraints =
             ConstraintSet().apply {
                 clone(previewContainerView)
-                connect(paywallVc.id, ConstraintSet.START, previewContainerView.id, ConstraintSet.START)
+                connect(
+                    paywallVc.id,
+                    ConstraintSet.START,
+                    previewContainerView.id,
+                    ConstraintSet.START,
+                )
                 connect(paywallVc.id, ConstraintSet.END, previewContainerView.id, ConstraintSet.END)
                 connect(paywallVc.id, ConstraintSet.TOP, previewContainerView.id, ConstraintSet.TOP)
-                connect(paywallVc.id, ConstraintSet.BOTTOM, previewContainerView.id, ConstraintSet.BOTTOM)
+                connect(
+                    paywallVc.id,
+                    ConstraintSet.BOTTOM,
+                    previewContainerView.id,
+                    ConstraintSet.BOTTOM,
+                )
             }
         constraints.applyTo(previewContainerView)
 
@@ -680,7 +823,8 @@ class DebugView(
 
         dialog.show()
         dialog.window?.findViewById<View>(androidx.appcompat.R.id.contentPanel)?.post {
-            val contentPanel = dialog.window?.findViewById<View>(androidx.appcompat.R.id.contentPanel)
+            val contentPanel =
+                dialog.window?.findViewById<View>(androidx.appcompat.R.id.contentPanel)
             // remove dialog's default background to make it look more like an action sheet
             contentPanel?.background = null
         }
@@ -715,9 +859,11 @@ class DebugView(
                 when (state) {
                     is PaywallState.Presented -> {
                         // bottomButton.showLoading = false
-                        val playButton = ResourcesCompat.getDrawable(resources, R.drawable.play_button, null)
+                        val playButton =
+                            ResourcesCompat.getDrawable(resources, R.drawable.play_button, null)
                         // bottomButton.setImageDrawable(playButton)
                     }
+
                     is PaywallState.Skipped -> {
                         val errorMessage =
                             when (state.paywallSkippedReason) {
@@ -731,12 +877,15 @@ class DebugView(
                             message = errorMessage,
                         )
                         // bottomButton.showLoading = false
-                        val playButton = ResourcesCompat.getDrawable(resources, R.drawable.play_button, null)
+                        val playButton =
+                            ResourcesCompat.getDrawable(resources, R.drawable.play_button, null)
                         //   bottomButton.setImageDrawable(playButton)
                     }
+
                     is PaywallState.Dismissed -> {
                         // Handle dismissed state if needed
                     }
+
                     is PaywallState.PresentationError -> {
                         Logger.debug(
                             logLevel = LogLevel.error,
@@ -748,7 +897,8 @@ class DebugView(
                             message = state.error.localizedMessage,
                         )
                         // bottomButton.showLoading = false
-                        val playButton = ResourcesCompat.getDrawable(resources, R.drawable.play_button, null)
+                        val playButton =
+                            ResourcesCompat.getDrawable(resources, R.drawable.play_button, null)
                         // bottomButton.setImageDrawable(playButton)
                     }
                 }

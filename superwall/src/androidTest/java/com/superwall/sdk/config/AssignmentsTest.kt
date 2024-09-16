@@ -5,6 +5,7 @@ import Given
 import Then
 import When
 import androidx.test.platform.app.InstrumentationRegistry
+import com.superwall.sdk.misc.Either
 import com.superwall.sdk.models.assignment.Assignment
 import com.superwall.sdk.models.assignment.ConfirmableAssignment
 import com.superwall.sdk.models.triggers.Experiment
@@ -68,7 +69,7 @@ class AssignmentsTest {
                         Assignment("exp1", "var1"),
                         Assignment("exp2", "var2"),
                     )
-                coEvery { network.getAssignments() } returns serverAssignments
+                coEvery { network.getAssignments() } returns Either.Success(serverAssignments)
 
                 When("We get assignments") {
                     assignments.getAssignments(triggers)
@@ -85,6 +86,8 @@ class AssignmentsTest {
     fun test_confirmAssignment() =
         runTest {
             val assignments = Assignments(storage, network, ioScope = this)
+            coEvery { network.confirmAssignments(any()) } returns Either.Success(Unit)
+
             Given("We have a confirmable assignment") {
                 val assignment =
                     ConfirmableAssignment(

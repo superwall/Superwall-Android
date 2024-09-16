@@ -22,7 +22,9 @@ import com.superwall.sdk.models.triggers.TriggerRule
 import com.superwall.sdk.models.triggers.VariantOption
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.network.NetworkMock
+import com.superwall.sdk.network.SuperwallAPI
 import com.superwall.sdk.network.device.DeviceHelper
+import com.superwall.sdk.network.session.NetworkError
 import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.StorageMock
@@ -51,7 +53,7 @@ import kotlin.time.Duration
 class ConfigManagerUnderTest(
     private val context: Context,
     private val storage: Storage,
-    private val network: Network,
+    private val network: SuperwallAPI,
     private val paywallManager: PaywallManager,
     private val storeKitManager: StoreKitManager,
     private val factory: Factory,
@@ -103,7 +105,7 @@ class ConfigManagerTests {
             val assignment = ConfirmableAssignment(experimentId = experimentId, variant = variant)
             val dependencyContainer =
                 DependencyContainer(context, null, null, activityProvider = null)
-            val network = NetworkMock(factory = dependencyContainer)
+            val network = NetworkMock()
             val storage = StorageMock(context = context)
             val assignments = Assignments(storage, network, this)
             val preload =
@@ -153,7 +155,7 @@ class ConfigManagerTests {
             val dependencyContainer =
                 DependencyContainer(context, null, null, activityProvider = null)
             val evaluator = dependencyContainer.provideJavascriptEvaluator(context)
-            val network = NetworkMock(factory = dependencyContainer)
+            val network = NetworkMock()
             val storage = StorageMock(context = context)
             val assignments = Assignments(storage, network, this)
             val preload =
@@ -210,7 +212,7 @@ class ConfigManagerTests {
 
             val dependencyContainer =
                 DependencyContainer(context, null, null, activityProvider = null)
-            val network = NetworkMock(factory = dependencyContainer)
+            val network = NetworkMock()
             val storage = StorageMock(context = context)
             val assignments = Assignments(storage, network, this)
             val preload =
@@ -258,7 +260,7 @@ class ConfigManagerTests {
 
             val dependencyContainer =
                 DependencyContainer(context, null, null, activityProvider = null)
-            val network = NetworkMock(factory = dependencyContainer)
+            val network = NetworkMock()
             val storage = StorageMock(context = context)
             val assignmentStore = Assignments(storage, network, this)
             val preload =
@@ -339,8 +341,8 @@ class ConfigManagerTests {
         runTest(timeout = Duration.INFINITE) {
             val mockNetwork =
                 mockk<Network> {
-                    coEvery { getConfig(any()) } returns Either.Success(Config.stub()) as Either<Config>
-                    coEvery { getGeoInfo() } returns mockk<GeoInfo>()
+                    coEvery { getConfig(any()) } returns Either.Success<Config, NetworkError>(Config.stub())
+                    coEvery { getGeoInfo() } returns Either.Success(mockk<GeoInfo>())
                 }
             val context = InstrumentationRegistry.getInstrumentation().targetContext
             val dependencyContainer =
@@ -411,8 +413,8 @@ class ConfigManagerTests {
             val context = InstrumentationRegistry.getInstrumentation().targetContext
             val mockNetwork =
                 mockk<Network> {
-                    coEvery { getConfig(any()) } returns Either.Failure(IllegalStateException("error"))
-                    coEvery { getGeoInfo() } returns mockk<GeoInfo>()
+                    coEvery { getConfig(any()) } returns Either.Failure(NetworkError.Unknown())
+                    coEvery { getGeoInfo() } returns Either.Success(mockk<GeoInfo>())
                 }
             val dependencyContainer =
                 DependencyContainer(context, null, null, activityProvider = null)

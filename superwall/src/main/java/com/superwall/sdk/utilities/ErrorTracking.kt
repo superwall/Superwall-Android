@@ -70,7 +70,11 @@ internal class ErrorTracker(
 // Utility methods and closures for error tracking
 
 internal fun Superwall.trackError(e: Throwable) {
-    dependencyContainer.errorTracker.trackError(e)
+    try {
+        dependencyContainer.errorTracker.trackError(e)
+    } catch (e: Exception) {
+        throw e
+    }
 }
 
 internal fun withErrorTracking(block: () -> Unit) {

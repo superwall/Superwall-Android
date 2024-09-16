@@ -1,57 +1,67 @@
 package com.superwall.sdk.misc
 
-sealed class Either<out T> {
-    data class Success<T>(
+sealed class Either<out T, E : Throwable> {
+    data class Success<T, E : Throwable>(
         val value: T,
-    ) : Either<T>()
+    ) : Either<T, E>()
 
-    data class Failure(
-        val error: Throwable,
-    ) : Either<Nothing>()
+    data class Failure<E : Throwable>(
+        val error: E,
+    ) : Either<Nothing, E>()
 
     fun getSuccess(): T? =
         when (this) {
-            is Success<T> -> this.value
+            is Success<T, E> -> this.value
             else -> null
         }
 }
 
-suspend fun <In> Either<In>.then(then: suspend (In) -> Unit): Either<In> =
+suspend fun <In, E : Throwable> Either<In, E>.then(then: suspend (In) -> Unit): Either<In, E> =
     when (this) {
         is Either.Success -> {
             then(this.value)
             this
         }
+
         is Either.Failure -> this
     }
 
-fun <In, Out> Either<In>.map(transform: (In) -> Out): Either<Out> =
+fun <In, Out, E : Throwable> Either<In, E>.map(transform: (In) -> Out): Either<Out, E> =
     when (this) {
         is Either.Success -> Either.Success(transform(this.value))
         is Either.Failure -> this
     }
 
-fun <T> Either<T>.mapError(transform: (Throwable) -> Throwable): Either<T> =
+fun <T, E : Throwable, F : Throwable> Either<T, E>.mapError(transform: (E) -> F): Either<T, *> =
     when (this) {
         is Either.Success -> this
         is Either.Failure -> Either.Failure(transform(this.error))
     }
 
-fun <T, Out> Either<T>.flatMap(transform: (T) -> Either<Out>): Either<Out> =
+fun <T, E : Throwable> Either<T, E>.onError(onError: (E) -> Unit): Either<T, E> =
+    when (this) {
+        is Either.Success -> this
+        is Either.Failure -> {
+            onError(this.error)
+            this
+        }
+    }
+
+fun <T, Out, E : Throwable> Either<T, E>.flatMap(transform: (T) -> Either<Out, E>): Either<Out, E> =
     when (this) {
         is Either.Success -> transform(this.value)
         is Either.Failure -> this
     }
 
-fun <T> Either<T>.unwrap(): T =
+fun <T> Either<T, out Throwable>.unwrap(): T =
     when (this) {
         is Either.Success -> this.value
         is Either.Failure -> throw this.error
     }
 
-suspend fun <T> Either<T>.fold(
+suspend fun <T, E : Throwable> Either<T, E>.fold(
     onSuccess: suspend (T) -> Unit,
-    onFailure: suspend (Throwable) -> Unit,
+    onFailure: suspend (E) -> Unit,
 ) {
     when (this) {
         is Either.Success -> onSuccess(this.value)

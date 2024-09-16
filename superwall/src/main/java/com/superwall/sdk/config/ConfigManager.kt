@@ -19,12 +19,13 @@ import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.Either
 import com.superwall.sdk.misc.awaitFirstValidConfig
 import com.superwall.sdk.misc.fold
+import com.superwall.sdk.misc.onError
 import com.superwall.sdk.misc.then
 import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.models.triggers.Trigger
-import com.superwall.sdk.network.Network
+import com.superwall.sdk.network.SuperwallAPI
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.paywall.presentation.rule_logic.javascript.JavascriptEvaluator
@@ -47,7 +48,7 @@ open class ConfigManager(
     private val context: Context,
     private val storeKitManager: StoreKitManager,
     private val storage: Storage,
-    private val network: Network,
+    private val network: SuperwallAPI,
     private val deviceHelper: DeviceHelper,
     var options: SuperwallOptions,
     private val paywallManager: PaywallManager,
@@ -128,7 +129,7 @@ open class ConfigManager(
             @Suppress("UNCHECKED_CAST")
             Superwall.instance.track(InternalSuperwallEvent.DeviceAttributes(attributes as HashMap<String, Any>))
         }
-        val configResult = result as Either<Config>
+        val configResult = result as Either<Config, Throwable>
 
         configResult
             .then(::processConfig)
@@ -174,11 +175,20 @@ open class ConfigManager(
 
         config.triggers.takeUnless { it.isEmpty() }?.let { triggers ->
             try {
-                assignments.getAssignments(triggers)
-
-                if (options.paywalls.shouldPreload) {
-                    ioScope.launch { preloadAllPaywalls() }
-                }
+                assignments
+                    .getAssignments(triggers)
+                    .then {
+                        if (options.paywalls.shouldPreload) {
+                            ioScope.launch { preloadAllPaywalls() }
+                        }
+                    }.onError {
+                        Logger.debug(
+                            logLevel = LogLevel.error,
+                            scope = LogScope.configManager,
+                            message = "Error retrieving assignments.",
+                            error = it,
+                        )
+                    }
             } catch (e: Throwable) {
                 Logger.debug(
                     logLevel = LogLevel.error,

@@ -42,7 +42,7 @@ class GoogleBillingWrapper(
 ) : PurchasesUpdatedListener,
     BillingClientStateListener {
     companion object {
-        private val productsCache = ConcurrentHashMap<String, Either<StoreProduct>>()
+        private val productsCache = ConcurrentHashMap<String, Either<StoreProduct, Throwable>>()
     }
 
     @get:Synchronized
