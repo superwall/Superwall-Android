@@ -4,6 +4,7 @@ import ComputedPropertyRequest
 import android.app.Activity
 import android.app.Application
 import android.content.Context
+import android.webkit.WebSettings
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.ViewModelProvider
 import com.android.billingclient.api.Purchase
@@ -255,6 +256,15 @@ class DependencyContainer(
                 factory = this,
                 context = context,
             )
+
+        /**
+         * This loads the webview libraries in the background thread, giving us 100-200ms less lag
+         * on first webview render.
+         * For more info check https://issuetracker.google.com/issues/245155339
+         */
+        ioScope.launch {
+            WebSettings.getDefaultUserAgent(context)
+        }
     }
 
     override suspend fun makeHeaders(

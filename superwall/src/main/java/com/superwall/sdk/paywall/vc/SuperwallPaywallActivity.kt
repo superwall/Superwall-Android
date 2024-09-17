@@ -76,11 +76,10 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                 // If we started it directly and the view does not have shimmer and loading attached
                 // We set them up for this PaywallView
                 if (view.children.none { it is LoadingView || it is ShimmerView }) {
-                    (viewStorageViewModel.retrieveView(LoadingView.TAG) as LoadingView)
-                        .let { view.setupLoading(it) }
-                    (viewStorageViewModel.retrieveView(ShimmerView.TAG) as ShimmerView)
-                        .let { view.setupShimmer(it) }
-                    view.layoutSubviews()
+                    val loading = (viewStorageViewModel.retrieveView(LoadingView.TAG) as LoadingView)
+
+                    val shimmer = (viewStorageViewModel.retrieveView(ShimmerView.TAG) as ShimmerView)
+                    view.setupWith(shimmer, loading)
                 }
                 val intent =
                     Intent(context, SuperwallPaywallActivity::class.java).apply {
