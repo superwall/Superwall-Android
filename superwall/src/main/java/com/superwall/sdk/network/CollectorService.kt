@@ -4,7 +4,6 @@ import com.superwall.sdk.dependencies.ApiFactory
 import com.superwall.sdk.models.events.EventsRequest
 import com.superwall.sdk.models.events.EventsResponse
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
-import com.superwall.sdk.network.session.NetworkService
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 

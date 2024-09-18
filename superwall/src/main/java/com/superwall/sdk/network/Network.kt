@@ -17,7 +17,6 @@ import com.superwall.sdk.models.events.EventsRequest
 import com.superwall.sdk.models.events.EventsResponse
 import com.superwall.sdk.models.geo.GeoInfo
 import com.superwall.sdk.models.paywall.Paywall
-import com.superwall.sdk.network.session.NetworkError
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import java.util.UUID
