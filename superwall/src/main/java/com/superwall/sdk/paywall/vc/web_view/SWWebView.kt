@@ -139,7 +139,11 @@ class SWWebView(
 
         // Use the new URL
         val urlString = newUri.toString()
-        println("SWWebView.loadUrl: $urlString")
+        Logger.debug(
+            LogLevel.debug,
+            LogScope.paywallView,
+            "SWWebView.loadUrl: $urlString",
+        )
         super.loadUrl(urlString)
     }
 

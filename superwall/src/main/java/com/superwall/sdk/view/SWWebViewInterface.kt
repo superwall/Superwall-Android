@@ -1,11 +1,13 @@
 package com.superwall.sdk.view
 
 import android.content.Context
-import android.util.Log
 import android.webkit.JavascriptInterface
 import com.superwall.sdk.deprecated.PaywallMessage
 import com.superwall.sdk.deprecated.WrappedPaywallMessages
 import com.superwall.sdk.deprecated.parseWrappedPaywallMessages
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 
 interface PaywallMessageDelegate {
     fun didReceiveMessage(message: PaywallMessage)
@@ -20,7 +22,12 @@ class SWWebViewInterface(
     @JavascriptInterface
     fun postMessage(message: String) {
         // Print out the message to the console using Log.d
-        Log.d("SWWebViewInterface", message)
+        Logger.debug(
+            LogLevel.debug,
+            LogScope.superwallCore,
+            "SWWebViewInterface",
+            message,
+        )
 
         // Attempt to parse the message to json
         // and print out the version number
@@ -28,13 +35,21 @@ class SWWebViewInterface(
         try {
             wrappedPaywallMessages = parseWrappedPaywallMessages(message)
         } catch (e: Throwable) {
-            Log.e("SWWebViewInterface", "Error parsing message", e)
+            Logger.debug(
+                LogLevel.error,
+                LogScope.superwallCore,
+                "SWWebViewInterface: Error parsing message$e",
+            )
             return
         }
 
         // Loop through the messages and print out the event name
         for (paywallMessage in wrappedPaywallMessages.payload.messages) {
-            Log.d("SWWebViewInterface", paywallMessage.javaClass.simpleName)
+            Logger.debug(
+                LogLevel.debug,
+                LogScope.superwallCore,
+                "SWWebViewInterface:" + paywallMessage.javaClass.simpleName,
+            )
             delegate.didReceiveMessage(paywallMessage)
         }
     }

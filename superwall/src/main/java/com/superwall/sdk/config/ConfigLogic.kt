@@ -1,5 +1,8 @@
 package com.superwall.sdk.config
 
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.models.assignment.Assignment
 import com.superwall.sdk.models.assignment.ConfirmableAssignment
 import com.superwall.sdk.models.config.Config
@@ -86,8 +89,16 @@ object ConfigLogic {
             groupIds.add(groupId)
             groupedTriggerRules.add(trigger.rules)
         }
-        println("!!! groupedTriggerRules")
-        println(groupedTriggerRules)
+        Logger.debug(
+            LogLevel.debug,
+            LogScope.configManager,
+            "!!! groupedTriggerRules",
+        )
+        Logger.debug(
+            LogLevel.debug,
+            LogScope.configManager,
+            groupedTriggerRules.toString(),
+        )
         return groupedTriggerRules
     }
 

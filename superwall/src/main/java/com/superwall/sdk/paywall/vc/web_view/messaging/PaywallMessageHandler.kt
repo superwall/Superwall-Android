@@ -1,7 +1,6 @@
 package com.superwall.sdk.paywall.vc.web_view.messaging
 
 import TemplateLogic
-import android.util.Log
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import com.superwall.sdk.Superwall
@@ -69,7 +68,11 @@ class PaywallMessageHandler(
     @JavascriptInterface
     fun postMessage(message: String) {
         // Print out the message to the console using Log.d
-        Log.d("SWWebViewInterface", message)
+        Logger.debug(
+            LogLevel.debug,
+            LogScope.superwallCore,
+            "SWWebViewInterface: $message",
+        )
 
         // Attempt to parse the message to json
         // and print out the version number
@@ -77,13 +80,21 @@ class PaywallMessageHandler(
         try {
             wrappedPaywallMessages = parseWrappedPaywallMessages(message)
         } catch (e: Throwable) {
-            Log.e("SWWebViewInterface", "Error parsing message", e)
+            Logger.debug(
+                LogLevel.debug,
+                LogScope.superwallCore,
+                "SWWebViewInterface: Error parsing message - $e",
+            )
             return
         }
 
         // Loop through the messages and print out the event name
         for (paywallMessage in wrappedPaywallMessages.payload.messages) {
-            Log.d("SWWebViewInterface", paywallMessage.javaClass.simpleName)
+            Logger.debug(
+                LogLevel.debug,
+                LogScope.superwallCore,
+                "SWWebViewInterface: ${paywallMessage.javaClass.simpleName}",
+            )
             handle(paywallMessage)
         }
     }

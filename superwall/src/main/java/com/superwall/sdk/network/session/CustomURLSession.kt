@@ -111,7 +111,11 @@ class CustomHttpUrlConnection {
             responseMessage = request.inputStream.bufferedReader().use { it.readText() }
             request.disconnect()
         } else {
-            println("!!!Error: ${request.responseCode}")
+            Logger.debug(
+                LogLevel.debug,
+                LogScope.network,
+                "!!!Error: ${request.responseCode}",
+            )
             request.disconnect()
             throw NetworkError.Unknown()
         }
@@ -154,7 +158,11 @@ class CustomHttpUrlConnection {
                         "request_duration" to requestDuration,
                     ),
                 )
-                println("!!!Error: ${e.message}")
+                Logger.debug(
+                    LogLevel.debug,
+                    LogScope.network,
+                    "!!!Error: ${e.message}",
+                )
                 throw NetworkError.Decoding()
             }
 

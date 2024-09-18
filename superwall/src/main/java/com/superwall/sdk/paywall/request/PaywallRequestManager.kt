@@ -5,6 +5,9 @@ import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.dependencies.ConfigManagerFactory
 import com.superwall.sdk.dependencies.DeviceInfoFactory
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.network.Network
@@ -107,7 +110,11 @@ class PaywallRequestManager(
     suspend fun getRawPaywall(request: PaywallRequest): Paywall =
 
         withContext(ioScope.coroutineContext) {
-            println("!!getRawPaywall - ${request.responseIdentifiers.paywallId}")
+            Logger.debug(
+                LogLevel.debug,
+                LogScope.all,
+                "!!getRawPaywall - ${request.responseIdentifiers.paywallId}",
+            )
             trackResponseStarted(event = request.eventData)
             val paywall = getPaywallResponse(request)
 
@@ -147,13 +154,21 @@ class PaywallRequestManager(
                     throw errorResponse
                 }
 
-            println("!!getPaywallResponse - $paywallId - $paywall")
+            Logger.debug(
+                LogLevel.debug,
+                LogScope.all,
+                "!!getPaywallResponse - $paywallId - $paywall",
+            )
 
             paywall.experiment = request.responseIdentifiers.experiment
             paywall.responseLoadingInfo.startAt = responseLoadStartTime
             paywall.responseLoadingInfo.endAt = Date()
 
-            println("!!getPaywallResponse - $paywallId - $paywall - ${paywall.experiment}")
+            Logger.debug(
+                LogLevel.debug,
+                LogScope.all,
+                "!!getPaywallResponse - $paywallId - $paywall - ${paywall.experiment}",
+            )
 
             return@withContext paywall
         }
