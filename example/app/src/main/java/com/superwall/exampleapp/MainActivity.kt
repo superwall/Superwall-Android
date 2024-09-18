@@ -19,10 +19,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,21 +46,60 @@ import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import com.superwall.exampleapp.ui.theme.SuperwallExampleAppTheme
 import com.superwall.sdk.Superwall
+import com.superwall.sdk.delegate.SuperwallDelegate
 import com.superwall.sdk.identity.identify
 import com.superwall.sdk.identity.setUserAttributes
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
 
-class MainActivity : ComponentActivity() {
+class MainActivity :
+    ComponentActivity(),
+    SuperwallDelegate {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         Superwall.configure(
-            applicationContext = this,
+            applicationContext = application,
             apiKey = "pk_3b18882b1683318b710c741f371f40f54e357c6f0baff1f4",
         )
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
         setContent {
             SuperwallExampleAppTheme {
+                var errorMessage =
+                    remember {
+                        mutableStateOf<String?>(null)
+                    }
+                Superwall.instance.delegate =
+                    object : SuperwallDelegate {
+                        override fun handleLog(
+                            level: String,
+                            scope: String,
+                            message: String?,
+                            info: Map<String, Any>?,
+                            error: Throwable?,
+                        ) {
+                            if (level == LogLevel.error.toString() &&
+                                scope == LogScope.productsManager.toString()
+                            ) {
+                                errorMessage.value = message
+                            }
+                            super.handleLog(level, scope, message, info, error)
+                        }
+                    }
+                if (errorMessage.value != null) {
+                    AlertDialog(
+                        onDismissRequest = { errorMessage.value = null },
+                        title = { Text("Error") },
+                        text = { Text(errorMessage.value ?: "") },
+                        confirmButton = {
+                            TextButton(onClick = { errorMessage.value = null }) {
+                                Text("OK")
+                            }
+                        },
+                    )
+                }
+
                 WelcomeScreen()
             }
         }
@@ -84,7 +125,10 @@ fun WelcomeScreen() {
                     .padding(bottom = 20.dp),
             contentAlignment = Alignment.Center,
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(16.dp),
+            ) {
                 Spacer(modifier = Modifier.weight(1f))
 
                 Text(

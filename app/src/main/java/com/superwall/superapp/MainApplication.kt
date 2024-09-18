@@ -1,12 +1,17 @@
 package com.superwall.superapp
 
+import android.app.Activity
+import androidx.appcompat.app.AlertDialog
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
 import com.superwall.sdk.config.options.PaywallOptions
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.delegate.SuperwallDelegate
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.paywall.presentation.register
 import kotlinx.coroutines.flow.MutableSharedFlow
+import java.lang.ref.WeakReference
 
 class MainApplication :
     android.app.Application(),
@@ -29,6 +34,8 @@ class MainApplication :
             SurveyResponse: pk_3698d9fe123f1e4aa8014ceca111096ca06fd68d31d9e662
          */
     }
+
+    var activity: WeakReference<Activity>? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -78,6 +85,28 @@ class MainApplication :
         params: Map<String, Any>? = null,
     ) {
         Superwall.instance.register(event, params)
+    }
+
+    override fun handleLog(
+        level: String,
+        scope: String,
+        message: String?,
+        info: Map<String, Any>?,
+        error: Throwable?,
+    ) {
+        val ctx = activity?.get() ?: return
+        if (level == LogLevel.error.toString() &&
+            scope == LogScope.productsManager.toString()
+        ) {
+            AlertDialog
+                .Builder(ctx)
+                .apply {
+                    setTitle("Error")
+                    setMessage(message)
+                    setPositiveButton("OK") { dialog, _ -> dialog.dismiss() }
+                }.show()
+        }
+        super.handleLog(level, scope, message, info, error)
     }
 
     override fun handleSuperwallEvent(withInfo: SuperwallEventInfo) {
