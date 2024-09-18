@@ -21,10 +21,10 @@ import com.superwall.sdk.models.triggers.Trigger
 import com.superwall.sdk.models.triggers.TriggerRule
 import com.superwall.sdk.models.triggers.VariantOption
 import com.superwall.sdk.network.Network
+import com.superwall.sdk.network.NetworkError
 import com.superwall.sdk.network.NetworkMock
 import com.superwall.sdk.network.SuperwallAPI
 import com.superwall.sdk.network.device.DeviceHelper
-import com.superwall.sdk.network.session.NetworkError
 import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.StorageMock

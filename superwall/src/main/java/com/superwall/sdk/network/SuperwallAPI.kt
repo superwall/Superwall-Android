@@ -8,7 +8,6 @@ import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.events.EventsRequest
 import com.superwall.sdk.models.geo.GeoInfo
 import com.superwall.sdk.models.paywall.Paywall
-import com.superwall.sdk.network.session.NetworkError
 
 interface SuperwallAPI {
     suspend fun sendEvents(events: EventsRequest): Either<Unit, NetworkError>

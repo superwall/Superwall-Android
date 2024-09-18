@@ -5,10 +5,10 @@ import com.superwall.sdk.models.assignment.ConfirmedAssignmentResponse
 import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.Paywalls
+import com.superwall.sdk.network.NetworkError
+import com.superwall.sdk.network.NetworkService
 import com.superwall.sdk.network.URLQueryItem
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
-import com.superwall.sdk.network.session.NetworkError
-import com.superwall.sdk.network.session.NetworkService
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 

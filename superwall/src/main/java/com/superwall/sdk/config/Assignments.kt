@@ -7,8 +7,8 @@ import com.superwall.sdk.models.assignment.ConfirmableAssignment
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.models.triggers.Trigger
+import com.superwall.sdk.network.NetworkError
 import com.superwall.sdk.network.SuperwallAPI
-import com.superwall.sdk.network.session.NetworkError
 import com.superwall.sdk.storage.Storage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch

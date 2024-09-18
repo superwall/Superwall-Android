@@ -39,6 +39,7 @@ import com.superwall.sdk.network.Api
 import com.superwall.sdk.network.CollectorService
 import com.superwall.sdk.network.JsonFactory
 import com.superwall.sdk.network.Network
+import com.superwall.sdk.network.RequestExecutor
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.network.device.DeviceInfo
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
@@ -185,6 +186,10 @@ class DependencyContainer(
             CustomHttpUrlConnection(
                 scope = ioScope,
                 json = json(),
+                requestExecutor =
+                    RequestExecutor { debugging, requestId ->
+                        makeHeaders(debugging, requestId)
+                    },
             )
         val options = options ?: SuperwallOptions()
 
