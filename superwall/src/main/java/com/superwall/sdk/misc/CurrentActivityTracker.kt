@@ -6,11 +6,12 @@ import android.os.Bundle
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
+import java.lang.ref.WeakReference
 
 class CurrentActivityTracker :
     Application.ActivityLifecycleCallbacks,
     ActivityProvider {
-    private var currentActivity: Activity? = null
+    private var currentActivity: WeakReference<Activity>? = null
 
     override fun onActivityCreated(
         activity: Activity,
@@ -29,7 +30,7 @@ class CurrentActivityTracker :
             LogScope.all,
             "!! onActivityStarted: $activity",
         )
-        currentActivity = activity
+        currentActivity = WeakReference(activity)
     }
 
     override fun onActivityResumed(activity: Activity) {
@@ -38,7 +39,7 @@ class CurrentActivityTracker :
             LogScope.all,
             "!! onActivityResumed: $activity",
         )
-        currentActivity = activity
+        currentActivity = WeakReference(activity)
     }
 
     override fun onActivityPaused(activity: Activity) {}
@@ -67,6 +68,6 @@ class CurrentActivityTracker :
             LogScope.all,
             "!! getCurrentActivity: $currentActivity",
         )
-        return currentActivity
+        return currentActivity?.get()
     }
 }
