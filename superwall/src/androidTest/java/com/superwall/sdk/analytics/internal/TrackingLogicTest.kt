@@ -52,6 +52,6 @@ class TrackingLogicTest {
             val event = InternalSuperwallEvent.DeviceAttributes(HashMap(attributes))
             val res = TrackingLogic.processParameters(event, "appSessionId")
             Log.e("res", res.toString())
-            assert(res.eventParams.isEmpty())
+            assert(res.audienceFilterParams.isEmpty())
         }
 }

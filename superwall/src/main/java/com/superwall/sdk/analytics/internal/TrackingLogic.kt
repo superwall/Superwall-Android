@@ -136,7 +136,7 @@ sealed class TrackingLogic {
                     is List<*> -> null
                     is Map<*, *> -> value.mapValues { clean(it.value) }.filterValues { it != null }
                     is String -> value
-                    is Int, is Float, is Double, is Long, is Boolean -> value.toString()
+                    is Int, is Float, is Double, is Long, is Boolean -> value
                     else -> {
                         try {
                             Json.encodeToString(value)
