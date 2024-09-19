@@ -4,8 +4,13 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## 1.2.5
 
+### Enhancements
+- Adds a `Modifier` to `PaywallComposable` to allow for more control
+- Adds a `PaywallView.setup(...)` method to allow for easy setup when using `PaywallView` directly
+
 ### Fixes
-- Resolves issue where users would get `UninitializedPropertyAccessException` when calling `Superwall.instance` 
+- Fixes issue with displaying `PaywallComposable`
+- Resolves issue where users would get `UninitializedPropertyAccessException` when calling `Superwall.instance`
 
 ## 1.2.4
 

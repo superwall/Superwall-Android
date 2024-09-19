@@ -19,7 +19,9 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.paywall.presentation.get_paywall.getPaywall
 import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
+import com.superwall.sdk.paywall.vc.LoadingView
 import com.superwall.sdk.paywall.vc.PaywallView
+import com.superwall.sdk.paywall.vc.ShimmerView
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewCallback
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -28,6 +30,7 @@ import java.lang.ref.WeakReference
 
 @Composable
 fun PaywallComposable(
+    modifier: Modifier = Modifier.fillMaxSize(),
     event: String,
     params: Map<String, Any>? = null,
     paywallOverrides: PaywallOverrides? = null,
@@ -57,6 +60,7 @@ fun PaywallComposable(
         try {
             val newView = Superwall.instance.getPaywall(event, params, paywallOverrides, delegate)
             newView.encapsulatingActivity = WeakReference(context as? Activity)
+            newView.setupWith(ShimmerView(context), LoadingView(context))
             newView.beforeViewCreated()
             viewState.value = newView
         } catch (e: Throwable) {
@@ -80,6 +84,7 @@ fun PaywallComposable(
                     }
                 }
                 AndroidView(
+                    modifier = modifier,
                     factory = { context ->
                         viewToRender
                     },

@@ -220,6 +220,18 @@ class PaywallView(
         loadingView.setupFor(this, loadingState)
     }
 
+    fun setupWith(
+        shimmerView: ShimmerView,
+        loadingView: LoadingView,
+    ) {
+        if (webView.parent == null) {
+            addView(webView)
+        }
+        this.shimmerView = shimmerView
+        this.loadingViewController = loadingView
+        layoutSubviews()
+    }
+
     fun present(
         presenter: Activity,
         request: PresentationRequest,
