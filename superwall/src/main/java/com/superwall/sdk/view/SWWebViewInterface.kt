@@ -25,8 +25,7 @@ class SWWebViewInterface(
         Logger.debug(
             LogLevel.debug,
             LogScope.superwallCore,
-            "SWWebViewInterface",
-            message,
+            "SWWebViewInterface: $message",
         )
 
         // Attempt to parse the message to json
