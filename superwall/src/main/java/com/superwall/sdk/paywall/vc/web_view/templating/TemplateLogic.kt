@@ -8,7 +8,6 @@ import com.superwall.sdk.paywall.vc.web_view.templating.models.FreeTrialTemplate
 import com.superwall.sdk.paywall.view_controller.web_view.templating.models.ProductTemplate
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import java.util.*
 
 object TemplateLogic {
     suspend fun getBase64EncodedTemplates(
@@ -58,7 +57,7 @@ object TemplateLogic {
             "!!! Template Logic: $templatesString",
         )
 
-        return Base64.getEncoder().encodeToString(templatesData)
+        return android.util.Base64.encodeToString(templatesData, android.util.Base64.DEFAULT)
     }
 
 //    private fun swProductTemplate(

@@ -31,6 +31,7 @@ import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.ExpressionEvaluator
 import com.superwall.sdk.paywall.presentation.rule_logic.javascript.JavascriptEvaluator
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
+import com.superwall.sdk.paywall.vc.web_view.WebViewSupport
 import com.superwall.sdk.storage.DisableVerboseEvents
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.StoreKitManager
@@ -307,7 +308,7 @@ open class ConfigManager(
     // Preloads paywalls referenced by triggers.
     private suspend fun preloadPaywalls(paywallIdentifiers: Set<String>) {
         val webviewExists =
-            WebView.getCurrentWebViewPackage() != null
+            WebViewSupport.isAvailable()
 
         if (webviewExists) {
             ioScope.launch {

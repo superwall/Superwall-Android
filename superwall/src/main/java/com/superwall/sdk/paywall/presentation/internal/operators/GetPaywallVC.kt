@@ -18,6 +18,7 @@ import com.superwall.sdk.paywall.presentation.rule_logic.RuleEvaluationOutcome
 import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
 import com.superwall.sdk.paywall.vc.PaywallView
+import com.superwall.sdk.paywall.vc.web_view.WebViewSupport
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
 
@@ -70,7 +71,7 @@ internal suspend fun Superwall.getPaywallView(
                 request.flags.type != PresentationRequestType.GetPresentationResult
         val delegate = request.flags.type.paywallViewDelegateAdapter
 
-        val webviewExists = WebView.getCurrentWebViewPackage() != null
+        val webviewExists = WebViewSupport.isAvailable()
         if (webviewExists) {
             dependencyContainer.paywallManager.getPaywallView(
                 request = paywallRequest,
