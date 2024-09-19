@@ -87,7 +87,7 @@ open class Network(
                 it.paywalls
             }.logError("/paywalls")
 
-    override suspend fun getGeoInfo(): Either<GeoInfo?, NetworkError> {
+    override suspend fun getGeoInfo(): Either<GeoInfo, NetworkError> {
         awaitUntilAppInForeground()
 
         return geoService

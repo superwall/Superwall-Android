@@ -5,14 +5,20 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Serializer
 import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
 import kotlin.random.Random
 
 @Serializable
 class LocalNotification(
+    @SerialName("id")
     val id: Int = Random.nextInt(),
+    @SerialName("type")
     val type: LocalNotificationType,
+    @SerialName("title")
     val title: String,
+    @SerialName("body")
     val body: String,
+    @SerialName("delay")
     val delay: Long,
 )
 
@@ -21,6 +27,7 @@ sealed class LocalNotificationType {
     @SerialName("TRIAL_STARTED")
     object TrialStarted : LocalNotificationType()
 
+    @SerialName("UNSUPPORTED")
     object Unsupported : LocalNotificationType()
 }
 
@@ -31,4 +38,16 @@ object LocalNotificationTypeSerializer : KSerializer<LocalNotificationType> {
             "TRIAL_STARTED" -> LocalNotificationType.TrialStarted
             else -> LocalNotificationType.Unsupported
         }
+
+    override fun serialize(
+        encoder: Encoder,
+        value: LocalNotificationType,
+    ) {
+        encoder.encodeString(
+            when (value) {
+                LocalNotificationType.TrialStarted -> "TRIAL_STARTED"
+                LocalNotificationType.Unsupported -> "UNSUPPORTED"
+            },
+        )
+    }
 }

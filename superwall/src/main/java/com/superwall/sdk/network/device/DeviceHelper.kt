@@ -26,6 +26,7 @@ import com.superwall.sdk.network.JsonFactory
 import com.superwall.sdk.network.SuperwallAPI
 import com.superwall.sdk.paywall.vc.web_view.templating.models.DeviceTemplate
 import com.superwall.sdk.storage.LastPaywallView
+import com.superwall.sdk.storage.LatestGeoInfo
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.TotalPaywallViews
 import com.superwall.sdk.utilities.DateUtils
@@ -109,7 +110,7 @@ class DeviceHelper(
             return storage.get(TotalPaywallViews) ?: 0
         }
 
-    private val geoInfo: MutableStateFlow<GeoInfo?> = MutableStateFlow(null)
+    private val geoInfo: MutableStateFlow<GeoInfo?> = MutableStateFlow(storage.get(LatestGeoInfo))
 
     val locale: String
         get() {
@@ -479,9 +480,7 @@ class DeviceHelper(
                 ipTimezone = geo?.timezone,
                 capabilities = capabilities.map { it.name },
                 capabilitiesConfig =
-                    capabilities.toJson(factory.json()).also {
-                        Log.e("DeviceHelper", "capabilitiesConfig: $it")
-                    },
+                    capabilities.toJson(factory.json()),
                 platformWrapper = platformWrapper,
                 platformWrapperVersion = platformWrapperVersion,
             )
@@ -489,11 +488,10 @@ class DeviceHelper(
         return deviceTemplate.toDictionary()
     }
 
-    suspend fun getGeoInfo() {
+    suspend fun getGeoInfo() =
         network
             .getGeoInfo()
             .then {
                 geoInfo.value = it
             }
-    }
 }

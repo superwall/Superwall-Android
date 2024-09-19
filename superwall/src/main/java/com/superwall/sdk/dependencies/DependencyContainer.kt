@@ -181,7 +181,7 @@ class DependencyContainer(
         storeKitManager = StoreKitManager(context, purchaseController, googleBillingWrapper)
 
         delegateAdapter = SuperwallDelegateAdapter()
-        storage = Storage(context = context, factory = this)
+        storage = Storage(context = context, factory = this, json = json())
         val httpConnection =
             CustomHttpUrlConnection(
                 scope = ioScope,

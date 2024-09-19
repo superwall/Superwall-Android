@@ -11,6 +11,7 @@ data class VariantOption(
     var type: Experiment.Variant.VariantType,
     @SerialName("variant_id")
     var id: String,
+    @SerialName("percentage")
     var percentage: Int,
     @SerialName("paywall_identifier")
     var paywallId: String? = null,

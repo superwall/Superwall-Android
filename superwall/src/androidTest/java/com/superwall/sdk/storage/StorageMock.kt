@@ -4,6 +4,8 @@ import android.content.Context
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.network.device.DeviceInfo
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonNamingStrategy
 
 class StorageFactoryMock : Storage.Factory {
     override fun makeDeviceInfo(): DeviceInfo = DeviceInfo(appInstalledAtString = "a", locale = "b")
@@ -22,7 +24,15 @@ class StorageMock(
 //    coreDataManager: CoreDataManagerFakeDataMock = CoreDataManagerFakeDataMock(),
     private var confirmedAssignments: Map<ExperimentID, Experiment.Variant> = mapOf(),
 //    cache: Cache = Cache(context)
-) : Storage(context = context, factory = StorageFactoryMock()) {
+) : Storage(
+        context = context,
+        factory = StorageFactoryMock(),
+        json =
+            Json {
+                namingStrategy = JsonNamingStrategy.SnakeCase
+                ignoreUnknownKeys = true
+            },
+    ) {
     var didClearCachedSessionEvents = false
 
     override fun clearCachedSessionEvents() {

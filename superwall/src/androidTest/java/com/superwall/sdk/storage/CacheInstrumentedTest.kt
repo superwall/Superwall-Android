@@ -4,6 +4,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonNamingStrategy
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -11,13 +13,19 @@ import java.util.*
 
 @RunWith(AndroidJUnit4::class)
 class CacheInstrumentedTest {
+    val json =
+        Json {
+            ignoreUnknownKeys = true
+            namingStrategy = JsonNamingStrategy.SnakeCase
+        }
+
     @Before
     fun setUp() =
         runBlocking {
             println("!!setUp - start")
             // Clear all caches
             val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-            val cache = Cache(appContext)
+            val cache = Cache(appContext, json = json)
             cache.delete(AppUserId)
             cache.delete(AliasId)
             cache.delete(UserAttributes)
@@ -28,7 +36,7 @@ class CacheInstrumentedTest {
     fun test_alias_id() =
         runTest {
             val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-            val cache = Cache(appContext)
+            val cache = Cache(appContext, json = json)
 
             // Test first read
             val aliasId = cache.read(AppUserId)
@@ -49,7 +57,7 @@ class CacheInstrumentedTest {
     fun test_app_user_id() =
         runTest {
             val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-            val cache = Cache(appContext)
+            val cache = Cache(appContext, json = json)
 
             // Test first read
             val appUserId = cache.read(AppUserId)
@@ -70,7 +78,7 @@ class CacheInstrumentedTest {
     fun test_user_attributes() =
         runTest {
             val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-            val cache = Cache(appContext)
+            val cache = Cache(appContext, json = json)
 
             // Test first read
             val userAttributes = cache.read(UserAttributes)
@@ -92,7 +100,7 @@ class CacheInstrumentedTest {
     fun test_last_paywall_view() =
         runTest {
             val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-            val cache = Cache(appContext)
+            val cache = Cache(appContext, json = json)
 
             // Test first read
             val lastPaywallView = cache.read(LastPaywallView)

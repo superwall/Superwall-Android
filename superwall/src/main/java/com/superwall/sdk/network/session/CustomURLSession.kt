@@ -11,7 +11,6 @@ import com.superwall.sdk.network.NetworkRequestData
 import com.superwall.sdk.network.RequestExecutor
 import com.superwall.sdk.network.authHeader
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
@@ -20,7 +19,6 @@ class CustomHttpUrlConnection(
     val json: Json,
     val requestExecutor: RequestExecutor,
 ) {
-    @OptIn(InternalSerializationApi::class)
     @Throws(NetworkError::class)
     suspend inline fun <reified Response : @Serializable Any> request(
         crossinline buildRequestData: suspend () -> NetworkRequestData<Response>,
@@ -54,7 +52,6 @@ class CustomHttpUrlConnection(
                             "request_duration" to it.duration,
                         ),
                     )
-                    e.printStackTrace()
                     Either.Failure(NetworkError.Decoding(e))
                 }
             }

@@ -14,9 +14,10 @@ class RequestExecutor(
 ) {
     suspend fun execute(requestData: NetworkRequestData<*>): Either<RequestResult, NetworkError> {
         try {
+            val headers = buildHeaders(requestData.isForDebugging, requestData.requestId)
             val request =
                 try {
-                    requestData.buildRequest()
+                    requestData.buildRequest(headers)
                 } catch (e: Throwable) {
                     return Either.Failure(NetworkError.Unknown(e))
                 }
@@ -94,7 +95,7 @@ class RequestExecutor(
                     responseCode,
                     responseMessage,
                     requestDuration,
-                    request.requestProperties.mapValues { it.value.joinToString() },
+                    headers,
                 ),
             )
         } catch (e: Throwable) {
@@ -102,7 +103,7 @@ class RequestExecutor(
         }
     }
 
-    private suspend fun <T : @Serializable Any> NetworkRequestData<T>.buildRequest(): HttpURLConnection? {
+    private fun <T : @Serializable Any> NetworkRequestData<T>.buildRequest(headers: Map<String, String>): HttpURLConnection? {
         val url: URL
 
         if (components != null) {
@@ -116,11 +117,6 @@ class RequestExecutor(
             return null
         }
 
-        val headers =
-            buildHeaders(
-                isForDebugging,
-                requestId,
-            )
         val connection = url.openConnection() as HttpURLConnection
         headers.forEach { header ->
             connection.setRequestProperty(header.key, header.value)

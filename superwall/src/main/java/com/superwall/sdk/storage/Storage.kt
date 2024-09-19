@@ -14,13 +14,15 @@ import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.storage.core_data.CoreDataManager
 import kotlinx.coroutines.*
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
 import java.util.Date
 
 open class Storage(
     context: Context,
+    private val json: Json,
     private val factory: Storage.Factory,
     // / The disk cache.
-    private val cache: Cache = Cache(context = context),
+    private val cache: Cache = Cache(context = context, json = json),
     // / The interface that manages core data.
     val coreDataManager: CoreDataManager = CoreDataManager(context = context),
 ) {
