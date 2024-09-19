@@ -11,7 +11,7 @@ android {
 
     defaultConfig {
         applicationId = "com.superwall.superapp"
-        minSdk = 26
+        minSdk = 22
         targetSdk = 34
         versionCode = 2
         versionName = "1.0.0"

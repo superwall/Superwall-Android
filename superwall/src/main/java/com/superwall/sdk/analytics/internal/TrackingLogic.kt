@@ -16,8 +16,8 @@ import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.net.URI
-import java.time.LocalDateTime
-import java.time.ZoneOffset
+import org.threeten.bp.LocalDateTime
+import org.threeten.bp.ZoneOffset
 import java.util.*
 
 sealed class TrackingLogic {

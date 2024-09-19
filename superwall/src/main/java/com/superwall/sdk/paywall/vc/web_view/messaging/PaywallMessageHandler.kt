@@ -1,7 +1,7 @@
 package com.superwall.sdk.paywall.vc.web_view.messaging
 
 import TemplateLogic
-import android.net.Uri
+import android.util.Base64
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import com.superwall.sdk.Superwall
@@ -29,7 +29,6 @@ import kotlinx.serialization.json.Json
 import org.json.JSONObject
 import java.net.URI
 import java.nio.charset.StandardCharsets
-import java.util.Base64
 import java.util.Date
 import java.util.LinkedList
 import java.util.Queue
@@ -187,7 +186,7 @@ class PaywallMessageHandler(
 
         // Encode the JSON string to Base64
         val base64Event =
-            encoder.encodeToString(jsonString.toByteArray(StandardCharsets.UTF_8))
+            Base64.encodeToString(jsonString.toByteArray(StandardCharsets.UTF_8), Base64.DEFAULT)
 
         passMessageToWebView(base64String = base64Event)
     }

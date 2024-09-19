@@ -7,14 +7,11 @@ import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.paywall.vc.web_view.templating.models.FreeTrialTemplate
 import com.superwall.sdk.paywall.vc.web_view.templating.models.JsonVariables
 import com.superwall.sdk.paywall.view_controller.web_view.templating.models.ProductTemplate
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import java.util.*
 
 object TemplateLogic {
     suspend fun getBase64EncodedTemplates(
         json: Json,
-        base64: Base64.Encoder,
         paywall: Paywall,
         event: EventData?,
         factory: VariablesFactory,
@@ -59,7 +56,7 @@ object TemplateLogic {
             "!!! Template Logic: $templatesString",
         )
 
-        return base64.encodeToString(templatesData)
+        return android.util.Base64.encodeToString(templatesData, android.util.Base64.DEFAULT)
     }
 
 //    private fun swProductTemplate(

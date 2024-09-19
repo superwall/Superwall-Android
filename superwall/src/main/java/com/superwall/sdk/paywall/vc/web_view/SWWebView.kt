@@ -11,8 +11,10 @@ import android.view.inputmethod.BaseInputConnection
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import android.webkit.ConsoleMessage
+import android.webkit.CookieManager
 import android.webkit.WebChromeClient
 import android.webkit.WebView
+import android.webkit.WebViewClient
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
@@ -61,6 +63,7 @@ class SWWebView(
     var onScrollChangeListener: OnScrollChangeListener? = null
     var scrollEnabled = true
 
+    private var lastWebViewClient : WebViewClient? = null
     init {
 
         addJavascriptInterface(messageHandler, "SWAndroid")
@@ -89,9 +92,13 @@ class SWWebView(
                 }
             }
         // Set a WebViewClient
-        this.webViewClient =
+        val client =
             DefaultWebviewClient(ioScope = CoroutineScope(Dispatchers.IO))
-        listenToWebviewClientEvents(this.webViewClient as DefaultWebviewClient)
+        this.webViewClient = client
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            lastWebViewClient = client
+        }
+        listenToWebviewClientEvents(client)
     }
 
     internal fun loadPaywallWithFallbackUrl(paywall: Paywall) {
@@ -117,7 +124,7 @@ class SWWebView(
                 },
             )
         this.webViewClient = client
-        listenToWebviewClientEvents(this.webViewClient as DefaultWebviewClient)
+        listenToWebviewClientEvents(client)
         client.loadWithFallback()
     }
 
@@ -175,7 +182,11 @@ class SWWebView(
                 .takeWhile {
                     mainScope
                         .async {
-                            webViewClient == client
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                webViewClient == client
+                            } else {
+                                lastWebViewClient == client
+                            }
                         }.await()
                 }.collect {
                     mainScope.launch {
@@ -293,7 +304,11 @@ class SWWebView(
 
 internal fun webViewExists(): Boolean =
     try {
-        WebView.getCurrentWebViewPackage() != null
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            WebView.getCurrentWebViewPackage()!=null
+        } else {
+            runCatching { CookieManager.getInstance() }.isSuccess
+        }
     } catch (e: Throwable) {
         false
     }

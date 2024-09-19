@@ -1,6 +1,7 @@
 package com.superwall.sdk.paywall.vc.web_view
 
 import android.graphics.Bitmap
+import android.os.Build
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
@@ -72,11 +73,19 @@ internal open class DefaultWebviewClient(
         ioScope.launch {
             webviewClientEvents.emit(
                 WebviewClientEvent.OnError(
-                    WebviewError.NetworkError(
-                        error.errorCode,
-                        error.description.toString(),
-                        forUrl,
-                    ),
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        WebviewError.NetworkError(
+                            error.errorCode,
+                            error.description.toString(),
+                            forUrl,
+                        )
+                    } else {
+                        WebviewError.NetworkError(
+                            -1,
+                            "Error description unavailable, Android API version < 23",
+                            forUrl,
+                        )
+                    }
                 ),
             )
         }
