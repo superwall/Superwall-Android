@@ -1,4 +1,4 @@
-package com.superwall.sdk.composable
+package com.superwall.sdk.compose
 
 import android.app.Activity
 import androidx.compose.foundation.layout.Arrangement
