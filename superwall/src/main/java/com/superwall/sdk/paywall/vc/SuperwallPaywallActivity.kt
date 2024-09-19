@@ -23,6 +23,7 @@ import android.widget.FrameLayout
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.coordinatorlayout.widget.CoordinatorLayout
@@ -495,6 +496,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             continuation.resume(Unit) // Resume immediately as there's nothing to schedule
             return@suspendCoroutine
         }
+
 
         createNotificationChannel()
 
