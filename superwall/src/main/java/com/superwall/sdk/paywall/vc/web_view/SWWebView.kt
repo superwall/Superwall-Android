@@ -12,8 +12,10 @@ import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import android.webkit.ConsoleMessage
 import android.webkit.RenderProcessGoneDetail
+import android.webkit.CookieManager
 import android.webkit.WebChromeClient
 import android.webkit.WebView
+import android.webkit.WebViewClient
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
@@ -75,6 +77,7 @@ class SWWebView(
             return true
         }
     }
+    private var lastWebViewClient : WebViewClient? = null
 
     internal fun prepareWebview() {
         addJavascriptInterface(messageHandler, "SWAndroid")
@@ -122,7 +125,10 @@ class SWWebView(
                 onCrashed = onRenderProcessCrashed,
             )
         this.webViewClient = client
-        listenToWebviewClientEvents(this.webViewClient as DefaultWebviewClient)
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            lastWebViewClient = client
+        }
+        listenToWebviewClientEvents(client)
         client.loadWithFallback()
     }
 
@@ -152,12 +158,17 @@ class SWWebView(
 
     override fun loadUrl(url: String) {
         prepareWebview()
-        this.webViewClient =
-            DefaultWebviewClient(
-                forUrl = url,
-                ioScope = CoroutineScope(Dispatchers.IO),
-                onWebViewCrash = onRenderProcessCrashed,
-            )
+        val client = DefaultWebviewClient(
+            forUrl = url,
+            ioScope = CoroutineScope(Dispatchers.IO),
+            onWebViewCrash = onRenderProcessCrashed,
+        )
+        this.webViewClient = client
+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            lastWebViewClient = client
+        }
+
         listenToWebviewClientEvents(this.webViewClient as DefaultWebviewClient)
         // Parse the url and add the query parameter
         val uri = Uri.parse(url)
@@ -186,7 +197,11 @@ class SWWebView(
                 .takeWhile {
                     mainScope
                         .async {
-                            webViewClient == client
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                webViewClient == client
+                            } else {
+                                lastWebViewClient == client
+                            }
                         }.await()
                 }.collect {
                     mainScope.launch {
@@ -336,7 +351,11 @@ class SWWebView(
 
 internal fun webViewExists(): Boolean =
     try {
-        WebView.getCurrentWebViewPackage() != null
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            WebView.getCurrentWebViewPackage()!=null
+        } else {
+            runCatching { CookieManager.getInstance() }.isSuccess
+        }
     } catch (e: Throwable) {
         false
     }
