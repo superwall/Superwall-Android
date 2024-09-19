@@ -22,6 +22,7 @@ import android.view.WindowManager
 import android.widget.FrameLayout
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.coordinatorlayout.widget.CoordinatorLayout
@@ -76,9 +77,11 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                 // If we started it directly and the view does not have shimmer and loading attached
                 // We set them up for this PaywallView
                 if (view.children.none { it is LoadingView || it is ShimmerView }) {
-                    val loading = (viewStorageViewModel.retrieveView(LoadingView.TAG) as LoadingView)
+                    val loading =
+                        (viewStorageViewModel.retrieveView(LoadingView.TAG) as LoadingView)
 
-                    val shimmer = (viewStorageViewModel.retrieveView(ShimmerView.TAG) as ShimmerView)
+                    val shimmer =
+                        (viewStorageViewModel.retrieveView(ShimmerView.TAG) as ShimmerView)
                     view.setupWith(shimmer, loading)
                 }
                 val intent =
@@ -109,7 +112,8 @@ class SuperwallPaywallActivity : AppCompatActivity() {
 
     private val mainScope = CoroutineScope(Dispatchers.Main)
 
-    private fun paywallView(): PaywallView? = contentView?.findViewWithTag<PaywallView>(ACTIVE_PAYWALL_TAG)
+    private fun paywallView(): PaywallView? =
+        contentView?.findViewWithTag<PaywallView>(ACTIVE_PAYWALL_TAG)
 
     private fun setupBottomSheetLayout(paywallView: PaywallView) {
         val activityView =
@@ -159,7 +163,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
 
         // Show content behind the status bar
         window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
-            View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE
         window.statusBarColor = Color.TRANSPARENT
         window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS)
         window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
@@ -380,6 +384,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             return@suspendCoroutine
         }
 
+
         createNotificationChannel()
 
         notificationPermissionCallback =
@@ -400,20 +405,22 @@ class SuperwallPaywallActivity : AppCompatActivity() {
     }
 
     private fun createNotificationChannel() {
-        val importance = NotificationManager.IMPORTANCE_DEFAULT
-        val channel =
-            NotificationChannel(
-                NOTIFICATION_CHANNEL_ID,
-                NOTIFICATION_CHANNEL_NAME,
-                importance,
-            ).apply {
-                description = NOTIFICATION_CHANNEL_DESCRIPTION
-            }
-        channel.setShowBadge(false)
-        // Register the channel with the system
-        val notificationManager: NotificationManager =
-            getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.createNotificationChannel(channel)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val importance = NotificationManager.IMPORTANCE_DEFAULT
+            val channel =
+                NotificationChannel(
+                    NOTIFICATION_CHANNEL_ID,
+                    NOTIFICATION_CHANNEL_NAME,
+                    importance,
+                ).apply {
+                    description = NOTIFICATION_CHANNEL_DESCRIPTION
+                }
+            channel.setShowBadge(false)
+            // Register the channel with the system
+            val notificationManager: NotificationManager =
+                getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(channel)
+        }
     }
 
     private fun checkAndRequestNotificationPermissions(
@@ -452,9 +459,11 @@ class SuperwallPaywallActivity : AppCompatActivity() {
     private fun areNotificationsEnabled(context: Context): Boolean {
         val notificationManager =
             getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val channel = notificationManager.getNotificationChannel(NOTIFICATION_CHANNEL_ID)
-        if (channel?.importance == NotificationManager.IMPORTANCE_NONE) {
-            return false
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = notificationManager.getNotificationChannel(NOTIFICATION_CHANNEL_ID)
+            if (channel?.importance == NotificationManager.IMPORTANCE_NONE) {
+                return false
+            }
         }
         return NotificationManagerCompat.from(context).areNotificationsEnabled()
     }

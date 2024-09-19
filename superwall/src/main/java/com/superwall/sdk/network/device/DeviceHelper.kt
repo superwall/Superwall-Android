@@ -33,7 +33,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeout
 import java.text.SimpleDateFormat
-import java.time.Duration
 import java.util.Currency
 import java.util.Date
 import java.util.Locale
@@ -62,44 +61,39 @@ class DeviceHelper(
         context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
     private val appInfo = context.packageManager.getPackageInfo(context.packageName, 0)
     private val appInstallDate = Date(appInfo.firstInstallTime)
-
     private val daysSinceInstall: Int
         get() {
-            val fromDate = appInstallDate
-            val toDate = Date()
-            val fromInstant = fromDate.toInstant()
-            val toInstant = toDate.toInstant()
-            val duration = Duration.between(fromInstant, toInstant)
+            val fromDate = org.threeten.bp.Instant.ofEpochMilli(appInstallDate.time)
+            val toDate = org.threeten.bp.Instant.now()
+            val duration = org.threeten.bp.Duration.between(fromDate, toDate)
             return duration.toDays().toInt()
         }
 
     private val minutesSinceInstall: Int
         get() {
-            val fromDate = appInstallDate
-            val toDate = Date()
-            val fromInstant = fromDate.toInstant()
-            val toInstant = toDate.toInstant()
-            val duration = Duration.between(fromInstant, toInstant)
+            val fromDate = org.threeten.bp.Instant.ofEpochMilli(appInstallDate.time)
+            val toDate = org.threeten.bp.Instant.now()
+            val duration = org.threeten.bp.Duration.between(fromDate, toDate)
             return duration.toMinutes().toInt()
         }
 
     private val daysSinceLastPaywallView: Int?
         get() {
-            val fromDate = storage.get(LastPaywallView) ?: return null
-            val toDate = Date()
-            val fromInstant = fromDate.toInstant()
-            val toInstant = toDate.toInstant()
-            val duration = Duration.between(fromInstant, toInstant)
+            val fromDate =
+                storage.get(LastPaywallView)?.let { org.threeten.bp.Instant.ofEpochMilli(it.time) }
+                    ?: return null
+            val toDate = org.threeten.bp.Instant.now()
+            val duration = org.threeten.bp.Duration.between(fromDate, toDate)
             return duration.toDays().toInt()
         }
 
     private val minutesSinceLastPaywallView: Int?
         get() {
-            val fromDate = storage.get(LastPaywallView) ?: return null
-            val toDate = Date()
-            val fromInstant = fromDate.toInstant()
-            val toInstant = toDate.toInstant()
-            val duration = Duration.between(fromInstant, toInstant)
+            val fromDate =
+                storage.get(LastPaywallView)?.let { org.threeten.bp.Instant.ofEpochMilli(it.time) }
+                    ?: return null
+            val toDate = org.threeten.bp.Instant.now()
+            val duration = org.threeten.bp.Duration.between(fromDate, toDate)
             return duration.toMinutes().toInt()
         }
 
@@ -186,12 +180,20 @@ class DeviceHelper(
                 return ""
             }
 
-            val networkCapabilities =
-                connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork)
-            return when {
-                networkCapabilities?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) == true -> "Cellular"
-                networkCapabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true -> "Wifi"
-                else -> ""
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val networkCapabilities =
+                    connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork)
+                return when {
+                    networkCapabilities?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) == true -> "Cellular"
+                    networkCapabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true -> "Wifi"
+                    else -> ""
+                }
+            } else {
+                when(connectivityManager.activeNetworkInfo?.type){
+                    ConnectivityManager.TYPE_MOBILE -> return "Cellular"
+                    ConnectivityManager.TYPE_WIFI -> return "Wifi"
+                    else -> return ""
+                }
             }
         }
 
@@ -421,7 +423,8 @@ class DeviceHelper(
                 )
                 null
             }
-        val capabilities: List<Capability> = listOf(Capability.PaywallEventReceiver(), Capability.MultiplePaywallUrls)
+        val capabilities: List<Capability> =
+            listOf(Capability.PaywallEventReceiver(), Capability.MultiplePaywallUrls)
 
         val deviceTemplate =
             DeviceTemplate(
@@ -461,8 +464,8 @@ class DeviceHelper(
                 localDateTime = localDateTimeString,
                 isSandbox = isSandbox.toString(),
                 subscriptionStatus =
-                    Superwall.instance.subscriptionStatus.value
-                        .toString(),
+                Superwall.instance.subscriptionStatus.value
+                    .toString(),
                 isFirstAppOpen = isFirstAppOpen,
                 sdkVersion = sdkVersion,
                 sdkVersionPadded = sdkVersionPadded,

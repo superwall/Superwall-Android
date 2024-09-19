@@ -2,7 +2,7 @@ package com.superwall.sdk.storage.core_data
 
 import ComputedPropertyRequest
 import android.content.Context
-import android.icu.util.Calendar
+import java.util.Calendar
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger

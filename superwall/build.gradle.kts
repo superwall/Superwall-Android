@@ -27,7 +27,7 @@ android {
     namespace = "com.superwall.sdk"
 
     defaultConfig {
-        minSdkVersion(26)
+        minSdkVersion(22)
         targetSdkVersion(33)
 
         aarMetadata {
