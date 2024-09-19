@@ -95,7 +95,7 @@ internal open class DefaultWebviewClient(
                             "Error description unavailable, Android API version < 23",
                             forUrl,
                         )
-                    },
+                    }
                 ),
             )
         }
