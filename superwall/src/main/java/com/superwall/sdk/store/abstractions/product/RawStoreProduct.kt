@@ -8,7 +8,7 @@ import com.superwall.sdk.utilities.dateFormat
 import kotlinx.serialization.Transient
 import java.math.BigDecimal
 import java.math.RoundingMode
-import java.time.Period
+import org.threeten.bp.Period
 import java.util.Calendar
 import java.util.Currency
 import java.util.Locale
