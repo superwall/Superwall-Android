@@ -1,6 +1,5 @@
 package com.superwall.sdk.analytics.internal
 
-import android.util.Log
 import androidx.test.platform.app.InstrumentationRegistry
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
@@ -51,7 +50,17 @@ class TrackingLogicTest {
             val attributes = deviceHelper.getTemplateDevice()
             val event = InternalSuperwallEvent.DeviceAttributes(HashMap(attributes))
             val res = TrackingLogic.processParameters(event, "appSessionId")
-            Log.e("res", res.toString())
-            assert(res.eventParams.isEmpty())
+            assert(
+                lazyMessage = { "Lists should be cleaned" },
+                value = res.audienceFilterParams.none { it.value is List<*> },
+            )
+            assert(
+                lazyMessage = { "Booleans should be serialized as booleans" },
+                value = res.audienceFilterParams["\$is_standard_event"] == true,
+            )
+            assert(
+                lazyMessage = { "Double should be serialized as double" },
+                value = res.audienceFilterParams["\$totalPaywallViews"] == 0.0,
+            )
         }
 }

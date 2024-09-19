@@ -28,6 +28,7 @@ import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
 import com.superwall.sdk.paywall.vc.PaywallView
+import com.superwall.sdk.paywall.vc.ViewStorage
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewDelegateAdapter
 import com.superwall.sdk.paywall.vc.web_view.templating.models.JsonVariables
 import com.superwall.sdk.storage.Storage
@@ -186,4 +187,8 @@ interface OptionsFactory {
 
 interface TriggerFactory {
     suspend fun makeTriggers(): Set<String>
+}
+
+internal interface ViewStoreFactory {
+    fun makeViewStore(): ViewStorage
 }

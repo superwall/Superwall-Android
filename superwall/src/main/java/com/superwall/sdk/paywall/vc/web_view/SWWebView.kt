@@ -99,6 +99,9 @@ class SWWebView(
                 loadUrl = {
                     loadUrl(it.url)
                 },
+                stopLoading = {
+                    stopLoading()
+                },
             )
         this.webViewClient = client
         listenToWebviewClientEvents(this.webViewClient as DefaultWebviewClient)

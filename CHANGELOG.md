@@ -2,6 +2,11 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 1.2.5
+
+### Fixes
+- Resolves issue where users would get `UninitializedPropertyAccessException` when calling `Superwall.instance` 
+
 ## 1.2.4
 
 ### Enhancements

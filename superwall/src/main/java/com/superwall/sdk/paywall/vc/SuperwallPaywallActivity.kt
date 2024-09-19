@@ -32,6 +32,9 @@ import androidx.core.view.children
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.dependencies.DeviceHelperFactory
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.isLightColor
 import com.superwall.sdk.models.paywall.LocalNotification
 import com.superwall.sdk.models.paywall.PaywallPresentationStyle
@@ -69,7 +72,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                 if (view.webView.parent == null) {
                     view.addView(view.webView)
                 }
-                val viewStorageViewModel = Superwall.instance.viewStore()
+                val viewStorageViewModel = Superwall.instance.dependencyContainer.makeViewStore()
                 // If we started it directly and the view does not have shimmer and loading attached
                 // We set them up for this PaywallView
                 if (view.children.none { it is LoadingView || it is ShimmerView }) {
@@ -182,7 +185,17 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             return
         }
 
-        val viewStorageViewModel = Superwall.instance.viewStore()
+        val viewStorageViewModel =
+            try {
+                Superwall.instance.dependencyContainer.makeViewStore()
+            } catch (e: Exception) {
+                Logger.debug(
+                    LogLevel.error,
+                    LogScope.paywallView,
+                    "Cannot access viewStore or create view - has Superwall been initialised?",
+                )
+                return
+            }
 
         val view =
             viewStorageViewModel.retrieveView(key) as? PaywallView ?: run {
@@ -250,6 +263,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             PaywallPresentationStyle.MODAL -> {
                 // TODO: Not yet supported in Android
             }
+
             PaywallPresentationStyle.NONE,
             PaywallPresentationStyle.DRAWER,
             null,
