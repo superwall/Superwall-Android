@@ -60,7 +60,7 @@ class Superwall(
     private val completion: (() -> Unit)?,
 ) : PaywallViewEventCallback {
     private var _options: SuperwallOptions? = options
-    private val ioScope = CoroutineScope(Dispatchers.IO)
+    internal val ioScope = CoroutineScope(Dispatchers.IO)
     internal var context: Context = context.applicationContext
 
     // Add a private variable for the purchase task
@@ -333,8 +333,8 @@ class Superwall(
     internal val serialTaskManager = SerialTaskManager()
 
     internal fun setup() {
-        withErrorTracking {
-            synchronized(this) {
+        synchronized(this) {
+            try {
                 _dependencyContainer =
                     DependencyContainer(
                         context = context,
@@ -342,14 +342,18 @@ class Superwall(
                         options = _options,
                         activityProvider = activityProvider,
                     )
+            } catch (e: Exception) {
+                e.printStackTrace()
+                throw e
             }
-
-            val cachedSubsStatus =
-                dependencyContainer.storage.get(ActiveSubscriptionStatus)
-                    ?: SubscriptionStatus.UNKNOWN
-            setSubscriptionStatus(cachedSubsStatus)
-            addListeners()
         }
+
+        val cachedSubsStatus =
+            dependencyContainer.storage.read(ActiveSubscriptionStatus)
+                ?: SubscriptionStatus.UNKNOWN
+        setSubscriptionStatus(cachedSubsStatus)
+
+        addListeners()
 
         ioScope.launch {
             withErrorTrackingAsync {
@@ -376,7 +380,7 @@ class Superwall(
                     .drop(1) // Drops the first item
                     .collect { newValue ->
                         // Save and handle the new value
-                        dependencyContainer.storage.save(newValue, ActiveSubscriptionStatus)
+                        dependencyContainer.storage.write(ActiveSubscriptionStatus, newValue)
                         dependencyContainer.delegateAdapter.subscriptionStatusDidChange(newValue)
                         val event = InternalSuperwallEvent.SubscriptionStatusDidChange(newValue)
                         track(event)

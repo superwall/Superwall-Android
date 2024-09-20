@@ -3,7 +3,7 @@ package com.superwall.sdk.analytics
 import com.superwall.sdk.analytics.session.AppSession
 import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.network.Network
-import com.superwall.sdk.storage.Storage
+import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
 import kotlinx.coroutines.*
 import kotlin.coroutines.CoroutineContext
@@ -16,7 +16,7 @@ fun interface SessionEventsDelegate {
 
 class SessionEventsManager(
 //    private val queue: SessionEnqueuable,
-    private val storage: Storage,
+    private val storage: LocalStorage,
     private val network: Network,
     private val configManager: ConfigManager,
 ) : CoroutineScope,

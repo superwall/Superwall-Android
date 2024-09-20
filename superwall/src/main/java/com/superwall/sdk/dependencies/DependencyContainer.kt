@@ -1,6 +1,9 @@
 package com.superwall.sdk.dependencies
 
+import Assignments
+import BaseHostService
 import ComputedPropertyRequest
+import GeoService
 import android.app.Activity
 import android.app.Application
 import android.content.Context
@@ -10,6 +13,7 @@ import androidx.lifecycle.ViewModelProvider
 import com.android.billingclient.api.Purchase
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.SessionEventsManager
+import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.session.AppManagerDelegate
 import com.superwall.sdk.analytics.session.AppSession
@@ -17,6 +21,7 @@ import com.superwall.sdk.analytics.session.AppSessionManager
 import com.superwall.sdk.billing.GoogleBillingWrapper
 import com.superwall.sdk.config.ConfigLogic
 import com.superwall.sdk.config.ConfigManager
+import com.superwall.sdk.config.PaywallPreload
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.debug.DebugManager
 import com.superwall.sdk.debug.DebugView
@@ -33,10 +38,13 @@ import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.network.Api
+import com.superwall.sdk.network.CollectorService
 import com.superwall.sdk.network.JsonFactory
 import com.superwall.sdk.network.Network
+import com.superwall.sdk.network.RequestExecutor
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.network.device.DeviceInfo
+import com.superwall.sdk.network.session.CustomHttpUrlConnection
 import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.paywall.manager.PaywallViewCache
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
@@ -59,7 +67,7 @@ import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallMessageHandler
 import com.superwall.sdk.paywall.vc.web_view.templating.models.JsonVariables
 import com.superwall.sdk.paywall.vc.web_view.templating.models.Variables
 import com.superwall.sdk.storage.EventsQueue
-import com.superwall.sdk.storage.Storage
+import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.store.InternalPurchaseController
 import com.superwall.sdk.store.StoreKitManager
 import com.superwall.sdk.store.abstractions.transactions.GoogleBillingPurchaseTransaction
@@ -90,7 +98,7 @@ class DependencyContainer(
     PaywallRequestManagerDepFactory,
     VariablesFactory,
     StoreTransactionFactory,
-    Storage.Factory,
+    LocalStorage.Factory,
     InternalSuperwallEvent.PresentationRequest.Factory,
     ViewFactory,
     PaywallManager.Factory,
@@ -105,13 +113,14 @@ class DependencyContainer(
     JavascriptEvaluator.Factory,
     JsonFactory,
     ConfigAttributesFactory,
+    PaywallPreload.Factory,
     ViewStoreFactory {
     var network: Network
-    override lateinit var api: Api
-    override lateinit var deviceHelper: DeviceHelper
-    override lateinit var storage: Storage
-    override lateinit var configManager: ConfigManager
-    override lateinit var identityManager: IdentityManager
+    override var api: Api
+    override var deviceHelper: DeviceHelper
+    override lateinit var storage: LocalStorage
+    override var configManager: ConfigManager
+    override var identityManager: IdentityManager
     override var appLifecycleObserver: AppLifecycleObserver = AppLifecycleObserver()
     var appSessionManager: AppSessionManager
     var sessionEventsManager: SessionEventsManager
@@ -133,6 +142,9 @@ class DependencyContainer(
             storage = storage,
         )
     }
+
+    internal val assignments: Assignments
+    private val paywallPreload: PaywallPreload
 
     internal val errorTracker: ErrorTracker
 
@@ -171,8 +183,45 @@ class DependencyContainer(
         storeKitManager = StoreKitManager(context, purchaseController, googleBillingWrapper)
 
         delegateAdapter = SuperwallDelegateAdapter()
-        storage = Storage(context = context, factory = this)
-        network = Network(factory = this)
+        storage = LocalStorage(context = context, factory = this, json = json())
+        val httpConnection =
+            CustomHttpUrlConnection(
+                json = json(),
+                requestExecutor =
+                    RequestExecutor { debugging, requestId ->
+                        makeHeaders(debugging, requestId)
+                    },
+            )
+        val options = options ?: SuperwallOptions()
+
+        api = Api(networkEnvironment = options.networkEnvironment)
+        network =
+            Network(
+                baseHostService =
+                    BaseHostService(
+                        host = api.base.host,
+                        Api.version1,
+                        factory = this,
+                        json = json(),
+                        customHttpUrlConnection = httpConnection,
+                    ),
+                collectorService =
+                    CollectorService(
+                        host = api.collector.host,
+                        version = Api.version1,
+                        factory = this,
+                        json = json(),
+                        customHttpUrlConnection = httpConnection,
+                    ),
+                geoService =
+                    GeoService(
+                        host = api.geo.host,
+                        version = Api.version1,
+                        factory = this,
+                        customHttpUrlConnection = httpConnection,
+                    ),
+                factory = this,
+            )
         errorTracker = ErrorTracker(scope = ioScope, cache = storage)
         paywallRequestManager =
             PaywallRequestManager(
@@ -187,15 +236,27 @@ class DependencyContainer(
                 factory = this,
             )
 
-        val options = options ?: SuperwallOptions()
-        api = Api(networkEnvironment = options.networkEnvironment)
-
         deviceHelper =
             DeviceHelper(
                 context = context,
                 storage = storage,
                 network = network,
                 factory = this,
+            )
+
+        assignments =
+            Assignments(
+                storage = storage,
+                network = network,
+                ioScope,
+            )
+
+        paywallPreload =
+            PaywallPreload(
+                factory = this,
+                storage = storage,
+                assignments = assignments,
+                paywallManager = paywallManager,
             )
 
         configManager =
@@ -208,6 +269,13 @@ class DependencyContainer(
                 factory = this,
                 paywallManager = paywallManager,
                 deviceHelper = deviceHelper,
+                assignments = assignments,
+                ioScope = ioScope,
+                paywallPreload =
+                paywallPreload,
+                track = {
+                    Superwall.instance.track(it)
+                },
             )
 
         eventsQueue = EventsQueue(context, configManager = configManager, network = network)

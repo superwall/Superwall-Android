@@ -6,18 +6,25 @@ import kotlinx.serialization.Transient
 
 @Serializable
 data class RawInterval(
+    @SerialName("type")
     val type: IntervalType,
     val minutes: Int? = null,
 ) {
+    @Serializable
     enum class IntervalType {
+        @SerialName("MINUTES")
         MINUTES,
+
+        @SerialName("INFINITY")
         INFINITY,
     }
 }
 
 @Serializable
 data class TriggerRuleOccurrence(
+    @SerialName("key")
     val key: String,
+    @SerialName("max_count")
     var maxCount: Int,
     @SerialName("interval")
     val rawInterval: RawInterval,

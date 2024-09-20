@@ -11,7 +11,7 @@ import com.superwall.sdk.models.triggers.TriggerRuleOutcome
 import com.superwall.sdk.models.triggers.UnmatchedRule
 import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.SDKJS
 import com.superwall.sdk.paywall.presentation.rule_logic.tryToMatchOccurrence
-import com.superwall.sdk.storage.Storage
+import com.superwall.sdk.storage.LocalStorage
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -21,7 +21,7 @@ import kotlinx.coroutines.launch
 internal class WebviewJavascriptEvaluator(
     private val webView: WebView,
     private val mainScope: CoroutineScope,
-    private val storage: Storage,
+    private val storage: LocalStorage,
 ) : JavascriptEvaluator {
     init {
         webView.settings.javaScriptEnabled = true

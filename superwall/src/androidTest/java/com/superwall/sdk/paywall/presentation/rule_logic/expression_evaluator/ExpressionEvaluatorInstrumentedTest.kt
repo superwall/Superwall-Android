@@ -13,7 +13,7 @@ import com.superwall.sdk.models.triggers.TriggerRuleOutcome
 import com.superwall.sdk.models.triggers.UnmatchedRule
 import com.superwall.sdk.models.triggers.VariantOption
 import com.superwall.sdk.paywall.presentation.rule_logic.javascript.SandboxJavascriptEvaluator
-import com.superwall.sdk.storage.Storage
+import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.storage.StorageMock
 import junit.framework.TestCase.assertEquals
 import kotlinx.coroutines.CoroutineScope
@@ -57,7 +57,7 @@ class ExpressionEvaluatorInstrumentedTest {
             sandbox = null
         }
 
-    private fun CoroutineScope.evaluatorFor(storage: Storage) =
+    private fun CoroutineScope.evaluatorFor(storage: LocalStorage) =
         SandboxJavascriptEvaluator(
             sandbox ?: error("Sandbox not initialized"),
             storage = storage,

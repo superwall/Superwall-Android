@@ -1,7 +1,7 @@
 package com.superwall.sdk.utilities
 
 import com.superwall.sdk.storage.ErrorLog
-import com.superwall.sdk.storage.Storage
+import com.superwall.sdk.storage.LocalStorage
 import io.mockk.Runs
 import io.mockk.coVerify
 import io.mockk.every
@@ -20,9 +20,9 @@ class ErrorTrackingTest {
     fun should_save_error_when_occured() =
         runTest {
             val storage =
-                mockk<Storage> {
-                    every { save(any(), ErrorLog) } just Runs
-                    every { get(ErrorLog) } returns null
+                mockk<LocalStorage> {
+                    every { write(any(), ErrorLog) } just Runs
+                    every { read(ErrorLog) } returns null
                 }
             val errorTracker: ErrorTracking =
                 ErrorTracker(this, storage, {
@@ -30,7 +30,7 @@ class ErrorTrackingTest {
                 })
 
             errorTracker.trackError(Exception("Test Error"))
-            coVerify { storage.save(any(), ErrorLog) }
+            coVerify { storage.write(any(), ErrorLog) }
         }
 
     @Test
@@ -38,10 +38,10 @@ class ErrorTrackingTest {
         runTest {
             val error = ErrorTracking.ErrorOccurence("Test Error", "Test Stacktrace", System.currentTimeMillis())
             val storage =
-                mockk<Storage> {
-                    every { save(any(), ErrorLog) } just Runs
-                    every { get(ErrorLog) } returns error
-                    every { remove(ErrorLog) } just Runs
+                mockk<LocalStorage> {
+                    every { write(any(), ErrorLog) } just Runs
+                    every { read(ErrorLog) } returns error
+                    every { delete(ErrorLog) } just Runs
                 }
 
             var tracked = MutableStateFlow(false)
@@ -54,6 +54,6 @@ class ErrorTrackingTest {
                     tracked.update { true }
                 })
 
-            coVerify { storage.get(ErrorLog) }
+            coVerify { storage.read(ErrorLog) }
         }
 }

@@ -3,6 +3,8 @@ package com.superwall.sdk.config.models
 import com.superwall.sdk.models.config.Config
 
 sealed class ConfigState {
+    object None : ConfigState()
+
     object Retrieving : ConfigState()
 
     object Retrying : ConfigState()
@@ -11,7 +13,9 @@ sealed class ConfigState {
         val config: Config,
     ) : ConfigState()
 
-    object Failed : ConfigState()
+    data class Failed(
+        val throwable: Throwable,
+    ) : ConfigState()
 }
 
 fun ConfigState.getConfig(): Config? =

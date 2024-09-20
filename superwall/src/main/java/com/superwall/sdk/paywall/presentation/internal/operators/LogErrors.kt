@@ -31,8 +31,6 @@ suspend fun Superwall.logErrors(
                 track(trackedEvent)
             }
         }
-    } else {
-        track(InternalSuperwallEvent.ErrorThrown(Exception(error)))
     }
 
     Logger.debug(

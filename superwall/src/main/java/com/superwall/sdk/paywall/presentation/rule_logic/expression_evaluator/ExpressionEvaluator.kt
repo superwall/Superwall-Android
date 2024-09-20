@@ -7,7 +7,7 @@ import com.superwall.sdk.models.triggers.TriggerRuleOutcome
 import com.superwall.sdk.models.triggers.UnmatchedRule
 import com.superwall.sdk.paywall.presentation.rule_logic.javascript.JavascriptEvaluator
 import com.superwall.sdk.paywall.presentation.rule_logic.tryToMatchOccurrence
-import com.superwall.sdk.storage.Storage
+import com.superwall.sdk.storage.LocalStorage
 import org.json.JSONObject
 
 interface ExpressionEvaluating {
@@ -18,7 +18,7 @@ interface ExpressionEvaluating {
 }
 
 class ExpressionEvaluator(
-    private val storage: Storage,
+    private val storage: LocalStorage,
     private val factory: RuleAttributesFactory,
     private val evaluator: JavascriptEvaluator,
 ) : ExpressionEvaluating {

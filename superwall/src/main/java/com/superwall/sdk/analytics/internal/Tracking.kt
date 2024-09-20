@@ -71,7 +71,7 @@ suspend fun Superwall.track(event: Trackable): TrackingResult {
             dependencyContainer.configManager.config
                 ?.featureFlags
                 ?.disableVerboseEvents
-        val previousDisableVerboseEvents = dependencyContainer.storage.get(DisableVerboseEvents)
+        val previousDisableVerboseEvents = dependencyContainer.storage.read(DisableVerboseEvents)
 
         val verboseEvents = existingDisableVerboseEvents ?: previousDisableVerboseEvents
 

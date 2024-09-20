@@ -9,7 +9,7 @@ import com.superwall.sdk.models.triggers.TriggerRuleOutcome
 import com.superwall.sdk.models.triggers.UnmatchedRule
 import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.SDKJS
 import com.superwall.sdk.paywall.presentation.rule_logic.tryToMatchOccurrence
-import com.superwall.sdk.storage.Storage
+import com.superwall.sdk.storage.LocalStorage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.runBlocking
@@ -18,7 +18,7 @@ import kotlinx.coroutines.withContext
 internal class SandboxJavascriptEvaluator(
     private val jsSandbox: JavaScriptSandbox,
     private val ioScope: CoroutineScope,
-    private val storage: Storage,
+    private val storage: LocalStorage,
 ) : JavascriptEvaluator {
     override suspend fun evaluate(
         base64params: String,

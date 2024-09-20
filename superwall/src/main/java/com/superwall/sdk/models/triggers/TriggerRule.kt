@@ -78,14 +78,21 @@ enum class TriggerPreloadBehavior(
 
 @Serializable
 data class TriggerRule(
+    @SerialName("experiment_id")
     var experimentId: String,
+    @SerialName("experiment_group_id")
     var experimentGroupId: String,
+    @SerialName("variants")
     var variants: List<VariantOption>,
+    @SerialName("expression")
     val expression: String? = null,
+    @SerialName("expression_js")
     val expressionJs: String? = null,
+    @SerialName("occurrence")
     val occurrence: TriggerRuleOccurrence? = null,
     @SerialName("computed_properties")
     val computedPropertyRequests: List<ComputedPropertyRequest> = emptyList(),
+    @SerialName("preload")
     val preload: TriggerPreload,
 ) {
     @Serializable(with = TriggerPreloadSerializer::class)
