@@ -3,8 +3,6 @@ package com.superwall.sdk.config
 import Assignments
 import android.content.Context
 import awaitUntilNetworkExists
-import com.superwall.sdk.Superwall
-import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.config.models.ConfigState
 import com.superwall.sdk.config.models.getConfig
@@ -19,6 +17,7 @@ import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.Either
 import com.superwall.sdk.misc.awaitFirstValidConfig
 import com.superwall.sdk.misc.fold
+import com.superwall.sdk.misc.into
 import com.superwall.sdk.misc.onError
 import com.superwall.sdk.misc.then
 import com.superwall.sdk.models.config.Config
@@ -60,6 +59,7 @@ open class ConfigManager(
     private val assignments: Assignments,
     private val paywallPreload: PaywallPreload,
     private val ioScope: CoroutineScope = CoroutineScope(Dispatchers.IO),
+    private val track: suspend (InternalSuperwallEvent) -> Unit,
 ) {
     private val CACHE_LIMIT = 300L
 
@@ -112,8 +112,8 @@ open class ConfigManager(
 
     private suspend fun fetchConfig() {
         configState.update { ConfigState.Retrieving }
+        val oldConfig = storage.read(LatestConfig)
         var isConfigFromCache = false
-        var oldConfig = storage.get(LatestConfig)
         var isGeoFromCache = false
 
         // If config is cached, get config from the network but timeout after 300ms
@@ -129,22 +129,30 @@ open class ConfigManager(
                                     // Emit retrying state
                                     configState.update { ConfigState.Retrying }
                                     context.awaitUntilNetworkExists()
+                                }.into {
+                                    if (it is Either.Failure) {
+                                        isConfigFromCache = true
+                                        Either.Success(oldConfig)
+                                    } else {
+                                        it
+                                    }
                                 }
                         }
                     } else {
-                        // If config refresh is disabled just fetch with a normal retry
+                        // If config refresh is disabled or there is no cache
+                        // just fetch with a normal retry
                         network
                             .getConfig {
                                 configState.update { ConfigState.Retrying }
                                 context.awaitUntilNetworkExists()
                             }.then {
-                                storage.save(it, LatestConfig)
+                                storage.write(LatestConfig, it)
                             }
                     }
                 } catch (e: Throwable) {
                     // If fetching config fails, default to the cached version
                     // Note: Only a timeout exception is possible here
-                    storage.get(LatestConfig)?.let {
+                    oldConfig?.let {
                         isConfigFromCache = true
                         Either.Success(it)
                     } ?: Either.Failure(e)
@@ -161,7 +169,7 @@ open class ConfigManager(
                             deviceHelper
                                 .getGeoInfo()
                                 .then {
-                                    storage.save(it, LatestGeoInfo)
+                                    storage.write(LatestGeoInfo, it)
                                 }
                         }
                     } else {
@@ -169,7 +177,7 @@ open class ConfigManager(
                     }
                 } catch (e: Throwable) {
                     // Loading timed out, we default to cached version
-                    storage.get(LatestGeoInfo)?.let {
+                    storage.read(LatestGeoInfo)?.let {
                         isGeoFromCache = true
                         Either.Success(it)
                     } ?: Either.Failure(e)
@@ -179,7 +187,7 @@ open class ConfigManager(
         val attributesDeferred = ioScope.async { factory.makeSessionDeviceAttributes() }
 
         // Await results from both operations
-        val (result, geo, attributes) =
+        val (result, _, attributes) =
             listOf(
                 configDeferred,
                 geoDeferred,
@@ -187,16 +195,15 @@ open class ConfigManager(
             ).awaitAll()
         ioScope.launch {
             @Suppress("UNCHECKED_CAST")
-            Superwall.instance.track(InternalSuperwallEvent.DeviceAttributes(attributes as HashMap<String, Any>))
+            track(InternalSuperwallEvent.DeviceAttributes(attributes as HashMap<String, Any>))
         }
 
         val configResult = result as Either<Config, Throwable>
-
         configResult
             .then(::processConfig)
             .then {
                 if (it.featureFlags.enableConfigRefresh) {
-                    storage.save(it, LatestConfig)
+                    storage.write(LatestConfig, it)
                 }
             }.then {
                 if (options.paywalls.shouldPreload) {
@@ -229,6 +236,9 @@ open class ConfigManager(
                 onFailure =
                     { e ->
                         configState.update { ConfigState.Failed(e) }
+                        if (!isConfigFromCache) {
+                            refreshConfiguration()
+                        }
                         Logger.debug(
                             logLevel = LogLevel.error,
                             scope = LogScope.superwallCore,
@@ -278,9 +288,9 @@ open class ConfigManager(
     }
 
     private fun processConfig(config: Config) {
-        storage.save(config.featureFlags.disableVerboseEvents, DisableVerboseEvents)
+        storage.write(DisableVerboseEvents, config.featureFlags.disableVerboseEvents)
         if (config.featureFlags.enableConfigRefresh) {
-            storage.save(config, LatestConfig)
+            storage.write(LatestConfig, config)
         }
         triggersByEventName = ConfigLogic.getTriggersByEventName(config.triggers)
         assignments.choosePaywallVariants(config.triggers)
@@ -319,7 +329,7 @@ open class ConfigManager(
             processConfig(config)
             configState.update { ConfigState.Retrieved(config) }
             if (isRefresh) {
-                Superwall.instance.track(InternalSuperwallEvent.ConfigRefresh)
+                track(InternalSuperwallEvent.ConfigRefresh)
             }
         }.fold(
             onSuccess = { newConfig ->

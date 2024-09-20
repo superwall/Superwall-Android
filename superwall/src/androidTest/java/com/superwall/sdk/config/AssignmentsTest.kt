@@ -11,7 +11,7 @@ import com.superwall.sdk.models.assignment.ConfirmableAssignment
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.Trigger
 import com.superwall.sdk.network.Network
-import com.superwall.sdk.storage.Storage
+import com.superwall.sdk.storage.LocalStorage
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -24,7 +24,7 @@ import org.junit.Before
 import org.junit.Test
 
 class AssignmentsTest {
-    private lateinit var storage: Storage
+    private lateinit var storage: LocalStorage
     private lateinit var network: Network
 
     @Before

@@ -9,12 +9,12 @@ import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.models.triggers.Trigger
 import com.superwall.sdk.network.NetworkError
 import com.superwall.sdk.network.SuperwallAPI
-import com.superwall.sdk.storage.Storage
+import com.superwall.sdk.storage.LocalStorage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 class Assignments(
-    private val storage: Storage,
+    private val storage: LocalStorage,
     private val network: SuperwallAPI,
     private val ioScope: CoroutineScope,
     unconfirmedAssignments: Map<ExperimentID, Experiment.Variant> = emptyMap(),

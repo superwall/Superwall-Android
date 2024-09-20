@@ -1,6 +1,6 @@
 package com.superwall.sdk.config.models
 
-import com.superwall.sdk.storage.Storage
+import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.storage.SurveyAssignmentKey
 import kotlinx.serialization.Serializable
 
@@ -31,8 +31,8 @@ data class Survey(
         return randomNumber >= presentationProbability
     }
 
-    fun hasSeenSurvey(storage: Storage): Boolean {
-        val existingAssignmentKey = storage.get(SurveyAssignmentKey) ?: return false
+    fun hasSeenSurvey(storage: LocalStorage): Boolean {
+        val existingAssignmentKey = storage.read(SurveyAssignmentKey) ?: return false
 
         return existingAssignmentKey == assignmentKey
     }

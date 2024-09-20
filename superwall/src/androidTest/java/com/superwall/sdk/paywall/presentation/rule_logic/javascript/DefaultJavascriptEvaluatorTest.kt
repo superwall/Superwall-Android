@@ -5,7 +5,7 @@ import androidx.javascriptengine.JavaScriptSandbox
 import androidx.javascriptengine.SandboxDeadException
 import androidx.test.platform.app.InstrumentationRegistry
 import com.superwall.sdk.models.triggers.TriggerRule
-import com.superwall.sdk.storage.Storage
+import com.superwall.sdk.storage.LocalStorage
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
@@ -24,7 +24,7 @@ class DefaultJavascriptEvaluatorTest {
     @Test
     fun evaulate_succesfully_with_sandbox() =
         runTest {
-            val storage = mockk<Storage>()
+            val storage = mockk<LocalStorage>()
             mockkStatic(WebView::class) {
                 every { WebView.getCurrentWebViewPackage() } returns null
             }
@@ -42,7 +42,7 @@ class DefaultJavascriptEvaluatorTest {
     @Test
     fun fail_evaluating_with_sandbox_and_fallback_is_used() =
         runTest {
-            val storage = mockk<Storage>()
+            val storage = mockk<LocalStorage>()
 
             val sandbox = JavaScriptSandbox.createConnectedInstanceAsync(ctx()).await()
 

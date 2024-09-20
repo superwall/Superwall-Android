@@ -10,12 +10,10 @@ import com.superwall.sdk.network.NetworkError
 import com.superwall.sdk.network.NetworkRequestData
 import com.superwall.sdk.network.RequestExecutor
 import com.superwall.sdk.network.authHeader
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 class CustomHttpUrlConnection(
-    val scope: CoroutineScope,
     val json: Json,
     val requestExecutor: RequestExecutor,
 ) {
@@ -26,7 +24,6 @@ class CustomHttpUrlConnection(
         noinline isRetryingCallback: (suspend () -> Unit)? = null,
     ): Either<Response, NetworkError> {
         return retrying(
-            coroutineContext = scope.coroutineContext,
             maxRetryCount = retryCount,
             isRetryingCallback = isRetryingCallback,
         ) {

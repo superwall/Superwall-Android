@@ -7,7 +7,7 @@ import com.superwall.sdk.network.device.DeviceInfo
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNamingStrategy
 
-class StorageFactoryMock : Storage.Factory {
+class StorageFactoryMock : LocalStorage.Factory {
     override fun makeDeviceInfo(): DeviceInfo = DeviceInfo(appInstalledAtString = "a", locale = "b")
 
     override fun makeIsSandbox(): Boolean = true
@@ -24,7 +24,7 @@ class StorageMock(
 //    coreDataManager: CoreDataManagerFakeDataMock = CoreDataManagerFakeDataMock(),
     private var confirmedAssignments: Map<ExperimentID, Experiment.Variant> = mapOf(),
 //    cache: Cache = Cache(context)
-) : Storage(
+) : LocalStorage(
         context = context,
         factory = StorageFactoryMock(),
         json =

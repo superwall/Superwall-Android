@@ -13,7 +13,7 @@ import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.ExpressionEvaluator
 import com.superwall.sdk.paywall.presentation.rule_logic.javascript.JavascriptEvaluator
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
-import com.superwall.sdk.storage.Storage
+import com.superwall.sdk.storage.LocalStorage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -25,7 +25,7 @@ import kotlinx.coroutines.launch
 class PaywallPreload(
     val factory: Factory,
     val scope: CoroutineScope = CoroutineScope(Dispatchers.IO),
-    val storage: Storage,
+    val storage: LocalStorage,
     val assignments: Assignments,
     val paywallManager: PaywallManager,
 ) {

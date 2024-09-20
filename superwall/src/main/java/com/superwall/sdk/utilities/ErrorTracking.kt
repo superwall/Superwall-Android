@@ -4,7 +4,7 @@ import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.storage.ErrorLog
-import com.superwall.sdk.storage.Storage
+import com.superwall.sdk.storage.LocalStorage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.serialization.SerialName
@@ -33,7 +33,7 @@ internal interface ErrorTracking {
  **/
 internal class ErrorTracker(
     scope: CoroutineScope,
-    private val cache: Storage,
+    private val cache: LocalStorage,
     private val track: suspend (InternalSuperwallEvent.ErrorThrown) -> Unit = {
         Superwall.instance.track(
             it,
@@ -41,7 +41,7 @@ internal class ErrorTracker(
     },
 ) : ErrorTracking {
     init {
-        val exists = cache.get(ErrorLog)
+        val exists = cache.read(ErrorLog)
         if (exists != null) {
             scope.launch {
                 track(
@@ -51,7 +51,7 @@ internal class ErrorTracker(
                         exists.timestamp,
                     ),
                 )
-                cache.remove(ErrorLog)
+                cache.delete(ErrorLog)
             }
         }
     }
@@ -63,7 +63,7 @@ internal class ErrorTracker(
                 stacktrace = throwable.stackTraceToString(),
                 timestamp = System.currentTimeMillis(),
             )
-        cache.save(errorOccurence, ErrorLog)
+        cache.write(ErrorLog, errorOccurence)
     }
 }
 

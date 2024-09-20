@@ -1,9 +1,5 @@
 package com.superwall.sdk.misc
 
-import android.util.Log
-import kotlinx.coroutines.withTimeout
-import kotlin.time.Duration
-
 sealed class Either<out T, E : Throwable> {
     data class Success<T, E : Throwable>(
         val value: T,
@@ -74,19 +70,3 @@ suspend inline fun <T, E : Throwable> Either<T, E>.fold(
 }
 
 suspend inline fun <T, E : Throwable> Either<T, E>.into(crossinline map: suspend (Either<T, E>) -> Either<T, E>): Either<T, E> = map(this)
-
-suspend fun <T> eitherWithTimeout(
-    timeout: Duration,
-    run: suspend () -> Either<T, out Throwable>,
-): Either<T, out Throwable> {
-    return try {
-        withTimeout(timeout) {
-            val res = run()
-            Log.e("Either", "res: $res")
-            return@withTimeout res
-        }
-    } catch (e: Throwable) {
-        e.printStackTrace()
-        return Either.Failure(e)
-    }
-}

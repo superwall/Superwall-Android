@@ -86,7 +86,7 @@ class Cache(
 
     //region Clean
 
-    fun cleanUserFiles() {
+    fun clean() {
         memCache.clear()
         cleanDiskCache()
     }
