@@ -7,7 +7,6 @@ import Then
 import When
 import android.app.Application
 import android.content.Context
-import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.superwall.sdk.Superwall
@@ -115,7 +114,8 @@ class ConfigManagerTests {
                         type = Experiment.Variant.VariantType.TREATMENT,
                         paywallId = "jkl",
                     )
-                val assignment = ConfirmableAssignment(experimentId = experimentId, variant = variant)
+                val assignment =
+                    ConfirmableAssignment(experimentId = experimentId, variant = variant)
                 val dependencyContainer =
                     DependencyContainer(context, null, null, activityProvider = null)
                 val network = NetworkMock()
@@ -338,7 +338,10 @@ class ConfigManagerTests {
             Given("we have a ConfigManager with an old config") {
                 val mockNetwork =
                     mockk<Network> {
-                        coEvery { getConfig(any()) } returns Either.Success<Config, NetworkError>(Config.stub())
+                        coEvery { getConfig(any()) } returns
+                            Either.Success<Config, NetworkError>(
+                                Config.stub(),
+                            )
                         coEvery { getGeoInfo() } returns Either.Success(mockk<GeoInfo>())
                     }
                 val context = InstrumentationRegistry.getInstrumentation().targetContext
@@ -540,6 +543,14 @@ class ConfigManagerTests {
                     delay(200)
                     Either.Success(GeoInfo.stub())
                 }
+
+                coEvery {
+                    mockDeviceHelper.getGeoInfo()
+                } coAnswers {
+                    delay(200)
+                    Either.Success(GeoInfo.stub())
+                }
+
                 val context = InstrumentationRegistry.getInstrumentation().targetContext
 
                 val dependencyContainer =
@@ -592,6 +603,9 @@ class ConfigManagerTests {
                 coEvery { storage.read(LatestConfig) } returns null
                 coEvery { localStorage.read(LatestGeoInfo) } returns null
                 coEvery { storage.read(LatestGeoInfo) } returns null
+                coEvery {
+                    mockDeviceHelper.getGeoInfo()
+                } returns Either.Failure(NetworkError.Unknown())
                 coEvery {
                     mockNetwork.getGeoInfo()
                 } returns Either.Failure(NetworkError.Unknown())
@@ -653,6 +667,11 @@ class ConfigManagerTests {
                 coEvery {
                     mockNetwork.getGeoInfo()
                 } returns Either.Failure(NetworkError.Unknown())
+
+                coEvery {
+                    mockDeviceHelper.getGeoInfo()
+                } returns Either.Failure(NetworkError.Unknown())
+
                 coEvery { mockDeviceHelper.getTemplateDevice() } returns emptyMap()
 
                 val context = InstrumentationRegistry.getInstrumentation().targetContext
@@ -690,7 +709,9 @@ class ConfigManagerTests {
                                 )
 
                             Then("the new config should be set and used") {
-                                configManager.configState.drop(1).first { it is ConfigState.Retrieved }
+                                configManager.configState
+                                    .drop(1)
+                                    .first { it is ConfigState.Retrieved }
                                 assertEquals("not", configManager.config?.buildId)
                             }
                         }
@@ -715,6 +736,10 @@ class ConfigManagerTests {
                 coEvery { storage.read(LatestGeoInfo) } returns null
                 coEvery {
                     mockNetwork.getGeoInfo()
+                } returns Either.Success(GeoInfo.stub())
+
+                coEvery {
+                    mockDeviceHelper.getGeoInfo()
                 } returns Either.Success(GeoInfo.stub())
 
                 val context = InstrumentationRegistry.getInstrumentation().targetContext
@@ -773,7 +798,6 @@ class ConfigManagerTests {
                     async(Dispatchers.IO) {
                         delay(400)
                     }.await()
-                    Log.e("TEST", "Fetching new config after delay")
                     Either.Success(newConfig)
                 }
                 coEvery { mockDeviceHelper.getGeoInfo() } coAnswers {

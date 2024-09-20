@@ -45,6 +45,7 @@ import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
+import java.util.concurrent.atomic.AtomicInteger
 
 // TODO: Re-enable those params
 open class ConfigManager(
@@ -118,25 +119,38 @@ open class ConfigManager(
 
         // If config is cached, get config from the network but timeout after 300ms
         // and default to the cached version. Then, refresh in the background.
+        val configRetryCount: AtomicInteger = AtomicInteger(0)
+        var configDuration = 0L
         val configDeferred =
             ioScope.async {
-                try {
+                val start = System.currentTimeMillis()
+                (
                     if (oldConfig?.featureFlags?.enableConfigRefresh == true) {
-                        // If config refresh is enabled, try loading with a timeout
-                        withTimeout(CACHE_LIMIT) {
-                            network
-                                .getConfig {
-                                    // Emit retrying state
-                                    configState.update { ConfigState.Retrying }
-                                    context.awaitUntilNetworkExists()
-                                }.into {
-                                    if (it is Either.Failure) {
-                                        isConfigFromCache = true
-                                        Either.Success(oldConfig)
-                                    } else {
-                                        it
+                        try {
+                            // If config refresh is enabled, try loading with a timeout
+                            withTimeout(CACHE_LIMIT) {
+                                network
+                                    .getConfig {
+                                        // Emit retrying state
+                                        configState.update { ConfigState.Retrying }
+                                        configRetryCount.incrementAndGet()
+                                        context.awaitUntilNetworkExists()
+                                    }.into {
+                                        if (it is Either.Failure) {
+                                            isConfigFromCache = true
+                                            Either.Success(oldConfig)
+                                        } else {
+                                            it
+                                        }
                                     }
-                                }
+                            }
+                        } catch (e: Throwable) {
+                            // If fetching config fails, default to the cached version
+                            // Note: Only a timeout exception is possible here
+                            oldConfig?.let {
+                                isConfigFromCache = true
+                                Either.Success(it)
+                            } ?: Either.Failure(e)
                         }
                     } else {
                         // If config refresh is disabled or there is no cache
@@ -144,27 +158,21 @@ open class ConfigManager(
                         network
                             .getConfig {
                                 configState.update { ConfigState.Retrying }
+                                configRetryCount.incrementAndGet()
                                 context.awaitUntilNetworkExists()
-                            }.then {
-                                storage.write(LatestConfig, it)
                             }
                     }
-                } catch (e: Throwable) {
-                    // If fetching config fails, default to the cached version
-                    // Note: Only a timeout exception is possible here
-                    oldConfig?.let {
-                        isConfigFromCache = true
-                        Either.Success(it)
-                    } ?: Either.Failure(e)
+                ).also {
+                    configDuration = System.currentTimeMillis() - start
                 }
             }
 
         val geoDeferred =
             ioScope.async {
-                try {
-                    // If we have a cached config and refresh was enabled, try loading with
-                    // a timeout or load from cache
-                    if (config?.featureFlags?.enableConfigRefresh == true) {
+                if (config?.featureFlags?.enableConfigRefresh == true) {
+                    try {
+                        // If we have a cached config and refresh was enabled, try loading with
+                        // a timeout or load from cache
                         withTimeout(CACHE_LIMIT) {
                             deviceHelper
                                 .getGeoInfo()
@@ -172,15 +180,15 @@ open class ConfigManager(
                                     storage.write(LatestGeoInfo, it)
                                 }
                         }
-                    } else {
-                        deviceHelper.getGeoInfo()
+                    } catch (e: Throwable) {
+                        // Loading timed out, we default to cached version
+                        storage.read(LatestGeoInfo)?.let {
+                            isGeoFromCache = true
+                            Either.Success(it)
+                        } ?: Either.Failure(e)
                     }
-                } catch (e: Throwable) {
-                    // Loading timed out, we default to cached version
-                    storage.read(LatestGeoInfo)?.let {
-                        isGeoFromCache = true
-                        Either.Success(it)
-                    } ?: Either.Failure(e)
+                } else {
+                    deviceHelper.getGeoInfo()
                 }
             }
 
@@ -197,15 +205,21 @@ open class ConfigManager(
             @Suppress("UNCHECKED_CAST")
             track(InternalSuperwallEvent.DeviceAttributes(attributes as HashMap<String, Any>))
         }
-
         val configResult = result as Either<Config, Throwable>
         configResult
-            .then(::processConfig)
             .then {
-                if (it.featureFlags.enableConfigRefresh) {
-                    storage.write(LatestConfig, it)
+                ioScope.launch {
+                    track(
+                        InternalSuperwallEvent.ConfigRefresh(
+                            isCached = isConfigFromCache,
+                            buildId = it.buildId,
+                            fetchDuration = configDuration,
+                            retryCount = configRetryCount.get(),
+                        ),
+                    )
                 }
-            }.then {
+            }.then(::processConfig)
+            .then {
                 if (options.paywalls.shouldPreload) {
                     val productIds = it.paywalls.flatMap { it.productIds }.toSet()
                     try {
@@ -239,6 +253,7 @@ open class ConfigManager(
                         if (!isConfigFromCache) {
                             refreshConfiguration()
                         }
+                        track(InternalSuperwallEvent.ConfigFail(e.message ?: "Unknown error"))
                         Logger.debug(
                             logLevel = LogLevel.error,
                             scope = LogScope.superwallCore,
@@ -265,9 +280,7 @@ open class ConfigManager(
                 assignments
                     .getAssignments(triggers)
                     .then {
-                        if (options.paywalls.shouldPreload) {
-                            ioScope.launch { preloadAllPaywalls() }
-                        }
+                        ioScope.launch { preloadAllPaywalls() }
                     }.onError {
                         Logger.debug(
                             logLevel = LogLevel.error,
@@ -318,33 +331,40 @@ open class ConfigManager(
             eventNames,
         )
 
-    private suspend fun Either<Config, NetworkError>.handleConfigUpdate(isRefresh: Boolean) =
-        then {
-            paywallManager.resetPaywallRequestCache()
-            val oldConfig = config
-            if (oldConfig != null) {
-                paywallPreload.removeUnusedPaywallVCsFromCache(oldConfig, it)
-            }
-        }.then { config ->
-            processConfig(config)
-            configState.update { ConfigState.Retrieved(config) }
-            if (isRefresh) {
-                track(InternalSuperwallEvent.ConfigRefresh)
-            }
-        }.fold(
-            onSuccess = { newConfig ->
-                ioScope.launch { preloadPaywalls() }
-            },
-            onFailure = {
-                Logger.debug(
-                    logLevel = LogLevel.warn,
-                    scope = LogScope.superwallCore,
-                    message = "Failed to refresh configuration.",
-                    info = null,
-                    error = it,
-                )
-            },
+    private suspend fun Either<Config, NetworkError>.handleConfigUpdate(
+        fetchDuration: Long,
+        retryCount: Int,
+    ) = then {
+        paywallManager.resetPaywallRequestCache()
+        val oldConfig = config
+        if (oldConfig != null) {
+            paywallPreload.removeUnusedPaywallVCsFromCache(oldConfig, it)
+        }
+    }.then { config ->
+        processConfig(config)
+        configState.update { ConfigState.Retrieved(config) }
+        track(
+            InternalSuperwallEvent.ConfigRefresh(
+                isCached = false,
+                buildId = config.buildId,
+                fetchDuration = fetchDuration,
+                retryCount = retryCount,
+            ),
         )
+    }.fold(
+        onSuccess = { newConfig ->
+            ioScope.launch { preloadPaywalls() }
+        },
+        onFailure = {
+            Logger.debug(
+                logLevel = LogLevel.warn,
+                scope = LogScope.superwallCore,
+                message = "Failed to refresh configuration.",
+                info = null,
+                error = it,
+            )
+        },
+    )
 
     internal suspend fun refreshConfiguration() {
         // Make sure config already exists
@@ -355,9 +375,15 @@ open class ConfigManager(
             return
         }
 
+        var retryCount: AtomicInteger = AtomicInteger(0)
+        val startTime = System.currentTimeMillis()
         network
             .getConfig {
+                retryCount.incrementAndGet()
                 context.awaitUntilNetworkExists()
-            }.handleConfigUpdate(isRefresh = true)
+            }.handleConfigUpdate(
+                retryCount = retryCount.get(),
+                fetchDuration = System.currentTimeMillis() - startTime,
+            )
     }
 }

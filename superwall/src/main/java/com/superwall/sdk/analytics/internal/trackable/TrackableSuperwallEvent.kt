@@ -753,10 +753,29 @@ sealed class InternalSuperwallEvent(
         }
     }
 
-    object ConfigRefresh : InternalSuperwallEvent(SuperwallEvent.ConfigRefresh) {
+    data class ConfigRefresh(
+        val isCached: Boolean,
+        val buildId: String,
+        val retryCount: Int,
+        val fetchDuration: Long,
+    ) : InternalSuperwallEvent(SuperwallEvent.ConfigRefresh) {
         override val audienceFilterParams: Map<String, Any> = emptyMap()
 
-        override suspend fun getSuperwallParameters(): Map<String, Any> = emptyMap()
+        override suspend fun getSuperwallParameters(): Map<String, Any> =
+            mapOf(
+                "cache_status" to if (isCached) "CACHED" else "NOT_CACHED",
+                "config_build_id" to buildId,
+                "retry_count" to retryCount,
+                "fetch_duration" to fetchDuration,
+            )
+    }
+
+    data class ConfigFail(
+        val errorMessage: String,
+    ) : InternalSuperwallEvent(SuperwallEvent.ConfigFail) {
+        override val audienceFilterParams: Map<String, Any> = emptyMap()
+
+        override suspend fun getSuperwallParameters(): Map<String, Any> = mapOf("error_message" to errorMessage)
     }
 
     object Reset : InternalSuperwallEvent(SuperwallEvent.Reset) {
