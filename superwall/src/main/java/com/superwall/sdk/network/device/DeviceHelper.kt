@@ -488,11 +488,10 @@ class DeviceHelper(
         return deviceTemplate.toDictionary()
     }
 
-    suspend fun getGeoInfo() {
+    suspend fun getGeoInfo() =
         network
             .getGeoInfo()
             .then {
                 lastGeoInfo.value = it
             }
-    }
 }
