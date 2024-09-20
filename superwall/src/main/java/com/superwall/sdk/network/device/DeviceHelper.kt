@@ -110,7 +110,7 @@ class DeviceHelper(
             return storage.read(TotalPaywallViews) ?: 0
         }
 
-    private val geoInfo: MutableStateFlow<GeoInfo?> = MutableStateFlow(storage.read(LatestGeoInfo))
+    private val lastGeoInfo: MutableStateFlow<GeoInfo?> = MutableStateFlow(storage.read(LatestGeoInfo))
 
     val locale: String
         get() {
@@ -411,7 +411,7 @@ class DeviceHelper(
         val geo =
             try {
                 withTimeout(1.minutes) {
-                    geoInfo.first { it != null }
+                    lastGeoInfo.first { it != null }
                 }
             } catch (e: Throwable) {
                 Logger.debug(
@@ -488,10 +488,11 @@ class DeviceHelper(
         return deviceTemplate.toDictionary()
     }
 
-    suspend fun getGeoInfo() =
+    suspend fun getGeoInfo() {
         network
             .getGeoInfo()
             .then {
-                geoInfo.value = it
+                lastGeoInfo.value = it
             }
+    }
 }
