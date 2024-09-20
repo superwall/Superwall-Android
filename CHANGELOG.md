@@ -7,6 +7,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 ### Enhancements
 - Adds a `Modifier` to `PaywallComposable` to allow for more control
 - Adds a `PaywallView.setup(...)` method to allow for easy setup when using `PaywallView` directly
+- Adds support for `MODAL` presentation style
 
 ### Fixes
 - Fixes issue with displaying `PaywallComposable`
