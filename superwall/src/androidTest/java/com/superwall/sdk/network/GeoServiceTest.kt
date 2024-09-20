@@ -10,8 +10,6 @@ import com.superwall.sdk.models.geo.GeoInfo
 import com.superwall.sdk.models.geo.GeoWrapper
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
 import io.mockk.*
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -38,7 +36,6 @@ class GeoServiceTest {
                 factory = apiFactory,
                 customHttpUrlConnection =
                     CustomHttpUrlConnection(
-                        CoroutineScope(Dispatchers.IO),
                         Json { ignoreUnknownKeys = true },
                         executor,
                     ),

@@ -9,7 +9,7 @@ import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.config.models.getConfig
 import com.superwall.sdk.dependencies.DeviceHelperFactory
 import com.superwall.sdk.dependencies.UserAttributesEventFactory
-import com.superwall.sdk.storage.Storage
+import com.superwall.sdk.storage.LocalStorage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.mapNotNull
@@ -23,7 +23,7 @@ interface AppManagerDelegate {
 //
 class AppSessionManager(
     private val configManager: ConfigManager,
-    private val storage: Storage,
+    private val storage: LocalStorage,
     private val delegate: Factory,
     private val backgroundScope: CoroutineScope,
 ) : DefaultLifecycleObserver {

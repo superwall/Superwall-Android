@@ -50,7 +50,7 @@ class NetworkMock : SuperwallAPI {
         TODO("Not yet implemented")
     }
 
-    override suspend fun getGeoInfo(): Either<GeoInfo?, NetworkError> {
+    override suspend fun getGeoInfo(): Either<GeoInfo, NetworkError> {
         TODO("Not yet implemented")
     }
 

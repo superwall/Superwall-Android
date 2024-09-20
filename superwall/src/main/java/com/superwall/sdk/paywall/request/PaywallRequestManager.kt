@@ -140,43 +140,39 @@ class PaywallRequestManager(
             val event = request.eventData
 
             return@withContext (
-                    factory
-                        .makeStaticPaywall(
-                            paywallId = paywallId,
-                            isDebuggerLaunched = request.isDebuggerLaunched,
-                        )?.let {
-                            Either.Success<Paywall, Throwable>(it)
-                        } ?: network.getPaywall(
-                        identifier = paywallId,
-                        event = event,
-                    )
-                    ).then {
-                    Logger.debug(
-                        LogLevel.debug,
-                        LogScope.all,
-                        "!!getPaywallResponse - $paywallId - $it",
-                    )
-                }
-                .map {
-                    it.experiment = request.responseIdentifiers.experiment
-                    it.responseLoadingInfo.startAt = responseLoadStartTime
-                    it.responseLoadingInfo.endAt = Date()
-                    it
-                }.then {
-                    Logger.debug(
-                        LogLevel.debug,
-                        LogScope.all,
-                        "!!getPaywallResponse - $paywallId - $it - ${it.experiment}",
-                    )
-
-                }
-
-                .mapError {
-                    PaywallLogic.handlePaywallError(
-                        it,
-                        event,
-                    )
-                }
+                factory
+                    .makeStaticPaywall(
+                        paywallId = paywallId,
+                        isDebuggerLaunched = request.isDebuggerLaunched,
+                    )?.let {
+                        Either.Success<Paywall, Throwable>(it)
+                    } ?: network.getPaywall(
+                    identifier = paywallId,
+                    event = event,
+                )
+            ).then {
+                Logger.debug(
+                    LogLevel.debug,
+                    LogScope.all,
+                    "!!getPaywallResponse - $paywallId - $it",
+                )
+            }.map {
+                it.experiment = request.responseIdentifiers.experiment
+                it.responseLoadingInfo.startAt = responseLoadStartTime
+                it.responseLoadingInfo.endAt = Date()
+                it
+            }.then {
+                Logger.debug(
+                    LogLevel.debug,
+                    LogScope.all,
+                    "!!getPaywallResponse - $paywallId - $it - ${it.experiment}",
+                )
+            }.mapError {
+                PaywallLogic.handlePaywallError(
+                    it,
+                    event,
+                )
+            }
         }
 
     // MARK: - Analytics

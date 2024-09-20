@@ -13,8 +13,6 @@ import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.Paywalls
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
 import io.mockk.*
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -42,7 +40,6 @@ class BaseHostServiceTest {
                 json = Json { ignoreUnknownKeys = true },
                 customHttpUrlConnection =
                     CustomHttpUrlConnection(
-                        CoroutineScope(Dispatchers.IO),
                         Json { ignoreUnknownKeys = true },
                         executor,
                     ),

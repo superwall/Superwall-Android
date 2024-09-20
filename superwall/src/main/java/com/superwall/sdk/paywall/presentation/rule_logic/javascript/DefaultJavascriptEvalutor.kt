@@ -10,7 +10,7 @@ import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.models.triggers.TriggerRule
 import com.superwall.sdk.models.triggers.TriggerRuleOutcome
 import com.superwall.sdk.models.triggers.UnmatchedRule
-import com.superwall.sdk.storage.Storage
+import com.superwall.sdk.storage.LocalStorage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
@@ -22,7 +22,7 @@ class DefaultJavascriptEvalutor(
     private val ioScope: CoroutineScope,
     private val uiScope: CoroutineScope,
     private val context: Context,
-    private val storage: Storage,
+    private val storage: LocalStorage,
     private val createSandbox: suspend (ctx: Context) -> JavaScriptSandbox = {
         JavaScriptSandbox.createConnectedInstanceAsync(it).await()
     },

@@ -31,14 +31,14 @@ import com.superwall.sdk.paywall.vc.PaywallView
 import com.superwall.sdk.paywall.vc.ViewStorage
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewDelegateAdapter
 import com.superwall.sdk.paywall.vc.web_view.templating.models.JsonVariables
-import com.superwall.sdk.storage.Storage
+import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import kotlinx.coroutines.flow.StateFlow
 
 interface ApiFactory : JsonFactory {
     // TODO: Think of an alternative way such that we don't need to do this:
     var api: Api
-    var storage: Storage
+    var storage: LocalStorage
 
     //    var storage: Storage! { get }
     var deviceHelper: DeviceHelper

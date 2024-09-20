@@ -5,7 +5,9 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class RawFeatureFlag(
+    @SerialName("key")
     val key: String,
+    @SerialName("enabled")
     val enabled: Boolean,
 )
 

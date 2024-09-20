@@ -23,7 +23,7 @@ interface SuperwallAPI {
 
     suspend fun getPaywalls(): Either<List<Paywall>, NetworkError>
 
-    suspend fun getGeoInfo(): Either<GeoInfo?, NetworkError>
+    suspend fun getGeoInfo(): Either<GeoInfo, NetworkError>
 
     suspend fun getAssignments(): Either<List<Assignment>, NetworkError>
 }

@@ -59,12 +59,14 @@ fun <T> Either<T, out Throwable>.unwrap(): T =
         is Either.Failure -> throw this.error
     }
 
-suspend fun <T, E : Throwable> Either<T, E>.fold(
-    onSuccess: suspend (T) -> Unit,
-    onFailure: suspend (E) -> Unit,
+suspend inline fun <T, E : Throwable> Either<T, E>.fold(
+    crossinline onSuccess: suspend (T) -> Unit,
+    crossinline onFailure: suspend (E) -> Unit,
 ) {
     when (this) {
         is Either.Success -> onSuccess(this.value)
         is Either.Failure -> onFailure(this.error)
     }
 }
+
+suspend inline fun <T, E : Throwable> Either<T, E>.into(crossinline map: suspend (Either<T, E>) -> Either<T, E>): Either<T, E> = map(this)

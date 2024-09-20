@@ -27,7 +27,7 @@ import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.vc.PaywallView
 import com.superwall.sdk.paywall.vc.delegate.PaywallLoadingState
-import com.superwall.sdk.storage.Storage
+import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.storage.SurveyAssignmentKey
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -45,7 +45,7 @@ object SurveyManager {
         loadingState: PaywallLoadingState,
         isDebuggerLaunched: Boolean,
         paywallInfo: PaywallInfo,
-        storage: Storage,
+        storage: LocalStorage,
         factory: TriggerFactory,
         completion: (SurveyPresentationResult) -> Unit,
     ) {
@@ -75,7 +75,7 @@ object SurveyManager {
 
         if (!isDebuggerLaunched) {
             // Make sure we don't assess this survey with this assignment key again.
-            storage.save(survey.assignmentKey, SurveyAssignmentKey)
+            storage.write(SurveyAssignmentKey, survey.assignmentKey)
         }
 
         if (isHoldout) {

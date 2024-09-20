@@ -12,6 +12,7 @@ import androidx.lifecycle.ViewModelProvider
 import com.android.billingclient.api.Purchase
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.SessionEventsManager
+import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.session.AppManagerDelegate
 import com.superwall.sdk.analytics.session.AppSession
@@ -65,7 +66,7 @@ import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallMessageHandler
 import com.superwall.sdk.paywall.vc.web_view.templating.models.JsonVariables
 import com.superwall.sdk.paywall.vc.web_view.templating.models.Variables
 import com.superwall.sdk.storage.EventsQueue
-import com.superwall.sdk.storage.Storage
+import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.store.InternalPurchaseController
 import com.superwall.sdk.store.StoreKitManager
 import com.superwall.sdk.store.abstractions.transactions.GoogleBillingPurchaseTransaction
@@ -96,7 +97,7 @@ class DependencyContainer(
     PaywallRequestManagerDepFactory,
     VariablesFactory,
     StoreTransactionFactory,
-    Storage.Factory,
+    LocalStorage.Factory,
     InternalSuperwallEvent.PresentationRequest.Factory,
     ViewFactory,
     PaywallManager.Factory,
@@ -116,7 +117,7 @@ class DependencyContainer(
     var network: Network
     override var api: Api
     override var deviceHelper: DeviceHelper
-    override lateinit var storage: Storage
+    override lateinit var storage: LocalStorage
     override var configManager: ConfigManager
     override var identityManager: IdentityManager
     override var appLifecycleObserver: AppLifecycleObserver = AppLifecycleObserver()
@@ -181,10 +182,9 @@ class DependencyContainer(
         storeKitManager = StoreKitManager(context, purchaseController, googleBillingWrapper)
 
         delegateAdapter = SuperwallDelegateAdapter()
-        storage = Storage(context = context, factory = this)
+        storage = LocalStorage(context = context, factory = this, json = json())
         val httpConnection =
             CustomHttpUrlConnection(
-                scope = ioScope,
                 json = json(),
                 requestExecutor =
                     RequestExecutor { debugging, requestId ->
@@ -272,6 +272,9 @@ class DependencyContainer(
                 ioScope = ioScope,
                 paywallPreload =
                 paywallPreload,
+                track = {
+                    Superwall.instance.track(it)
+                },
             )
 
         eventsQueue = EventsQueue(context, configManager = configManager, network = network)

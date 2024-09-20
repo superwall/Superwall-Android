@@ -10,8 +10,6 @@ import com.superwall.sdk.models.events.EventsRequest
 import com.superwall.sdk.models.events.EventsResponse
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
 import io.mockk.*
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -41,7 +39,6 @@ class CollectorServiceTest {
                 json = Json { ignoreUnknownKeys = true },
                 customHttpUrlConnection =
                     CustomHttpUrlConnection(
-                        CoroutineScope(Dispatchers.IO),
                         Json { ignoreUnknownKeys = true },
                         executor,
                     ),

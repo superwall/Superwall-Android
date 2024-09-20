@@ -378,6 +378,12 @@ sealed class SuperwallEvent {
             get() = "config_refresh"
     }
 
+    // When a configuration fails to load
+    object ConfigFail : SuperwallEvent() {
+        override val rawName: String
+            get() = "config_fail"
+    }
+
     // When Superwall.instance.reset is called
     object Reset : SuperwallEvent() {
         override val rawName: String

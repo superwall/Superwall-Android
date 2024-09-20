@@ -4,10 +4,12 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.identity.IdentityInfo
+import com.superwall.sdk.models.geo.GeoInfo
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.storage.LastPaywallView
-import com.superwall.sdk.storage.Storage
+import com.superwall.sdk.storage.LatestGeoInfo
+import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.storage.TotalPaywallViews
 import io.mockk.every
 import io.mockk.mockk
@@ -17,12 +19,13 @@ import org.junit.Test
 
 class TrackingLogicTest {
     val store =
-        mockk<Storage> {
+        mockk<LocalStorage> {
             every { apiKey } returns "pk_test_1234"
             every { didTrackFirstSession } returns true
             every { didTrackFirstSeen } returns true
-            every { get(LastPaywallView) } returns null
-            every { get(TotalPaywallViews) } returns 0
+            every { read(LastPaywallView) } returns null
+            every { read(TotalPaywallViews) } returns 0
+            every { read(LatestGeoInfo) } returns GeoInfo.stub()
         }
     val network = mockk<Network>()
 

@@ -349,7 +349,7 @@ class Superwall(
         }
 
         val cachedSubsStatus =
-            dependencyContainer.storage.get(ActiveSubscriptionStatus)
+            dependencyContainer.storage.read(ActiveSubscriptionStatus)
                 ?: SubscriptionStatus.UNKNOWN
         setSubscriptionStatus(cachedSubsStatus)
 
@@ -380,7 +380,7 @@ class Superwall(
                     .drop(1) // Drops the first item
                     .collect { newValue ->
                         // Save and handle the new value
-                        dependencyContainer.storage.save(newValue, ActiveSubscriptionStatus)
+                        dependencyContainer.storage.write(ActiveSubscriptionStatus, newValue)
                         dependencyContainer.delegateAdapter.subscriptionStatusDidChange(newValue)
                         val event = InternalSuperwallEvent.SubscriptionStatusDidChange(newValue)
                         track(event)

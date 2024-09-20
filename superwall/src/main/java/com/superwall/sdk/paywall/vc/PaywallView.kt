@@ -51,7 +51,7 @@ import com.superwall.sdk.paywall.vc.web_view.SWWebView
 import com.superwall.sdk.paywall.vc.web_view.SWWebViewDelegate
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallMessageHandlerDelegate
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent
-import com.superwall.sdk.storage.Storage
+import com.superwall.sdk.storage.LocalStorage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -68,7 +68,7 @@ class PaywallView(
     var callback: PaywallViewDelegateAdapter? = null,
     val deviceHelper: DeviceHelper,
     val factory: Factory,
-    val storage: Storage,
+    val storage: LocalStorage,
     val paywallManager: PaywallManager,
     override val webView: SWWebView,
     private val loadingView: LoadingView = LoadingView(context),
