@@ -62,7 +62,7 @@ open class ConfigManager(
     private val ioScope: CoroutineScope = CoroutineScope(Dispatchers.IO),
     private val track: suspend (InternalSuperwallEvent) -> Unit,
 ) {
-    private val CACHE_LIMIT = 300L
+    private val CACHE_LIMIT = 1000L
 
     interface Factory :
         RequestFactory,
