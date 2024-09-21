@@ -78,7 +78,7 @@ jobs:
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       run: |
         if [ "${{ steps.check-tag.outputs.tag-exists }}" == "false" ]; then
-          ./gradlew :superwall:publish -Paws_access_key_id=$AWS_ACCESS_KEY_ID -Paws_secret_access_key=$AWS_SECRET_ACCESS_KEY -PsonatypeUsername=$SONATYPE_USERNAME -PsonatypePassword=$SONATYPE_PASSWORD -pgpg_signing_key=$GPG_SIGNING_KEY -Pgpg_signing_key_passphrase=$GPG_SIGNING_KEY_PASSPHRASE -Pgpg_signing_key_id=$GPG_SIGNING_KEY_ID
+          ./gradlew publish -Paws_access_key_id=$AWS_ACCESS_KEY_ID -Paws_secret_access_key=$AWS_SECRET_ACCESS_KEY -PsonatypeUsername=$SONATYPE_USERNAME -PsonatypePassword=$SONATYPE_PASSWORD -pgpg_signing_key=$GPG_SIGNING_KEY -Pgpg_signing_key_passphrase=$GPG_SIGNING_KEY_PASSPHRASE -Pgpg_signing_key_id=$GPG_SIGNING_KEY_ID
         fi
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -122,17 +122,20 @@ jobs:
           ./gradlew downgradeAgpTask
         fi
 
-    - name: Deploy Downgraded Version
+    - name: Deploy
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       run: |
         if [ "${{ steps.check-tag.outputs.tag-exists }}" == "false" ]; then
-          ./gradlew publish -Paws_access_key_id=$AWS_ACCESS_KEY_ID -Paws_secret_access_key=$AWS_SECRET_ACCESS_KEY -PsonatypeUsername=$SONATYPE_USERNAME -PsonatypePassword=$SONATYPE_PASSWORD
+          ./gradlew publish -Paws_access_key_id=$AWS_ACCESS_KEY_ID -Paws_secret_access_key=$AWS_SECRET_ACCESS_KEY -PsonatypeUsername=$SONATYPE_USERNAME -PsonatypePassword=$SONATYPE_PASSWORD -pgpg_signing_key=$GPG_SIGNING_KEY -Pgpg_signing_key_passphrase=$GPG_SIGNING_KEY_PASSPHRASE -Pgpg_signing_key_id=$GPG_SIGNING_KEY_ID
         fi
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
         SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+        GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
+        GPG_SIGNING_KEY_PASSPHRASE: ${{ secrets.GPG_SIGNING_KEY_PASSPHRASE }}
+        GPG_SIGNING_KEY_ID: ${{ secrets.GPG_SIGNING_KEY_ID }}
 
     - name: slack-send
       # Only notify on a new tag
