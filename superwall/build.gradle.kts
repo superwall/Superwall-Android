@@ -9,6 +9,9 @@ buildscript {
     extra["awsSecretAccessKey"] = System.getenv("AWS_SECRET_ACCESS_KEY") ?: findProperty("aws_secret_access_key")
     extra["sonatypeUsername"] = System.getenv("SONATYPE_USERNAME") ?: findProperty("sonatype_username")
     extra["sonatypePassword"] = System.getenv("SONATYPE_PASSWORD") ?: findProperty("sonatype_password")
+    extra["signingKeyId"] = System.getenv("GPG_SIGNING_KEY_ID") ?: findProperty("gpg_signing_key_id")
+    extra["signingPassword"] = System.getenv("GPG_SIGNING_KEY_PASSPHRASE") ?: findProperty("gpg_signing_key_passphrase")
+    extra["signingKey"] = System.getenv("GPG_SIGNING_KEY") ?: findProperty("gpg_signing_key")
 }
 
 plugins {
@@ -20,7 +23,7 @@ plugins {
     id("signing")
 }
 
-version = "1.2.4"
+version = "1.2.5"
 
 android {
     compileSdk = 34
@@ -161,6 +164,12 @@ publishing {
 }
 
 signing {
+    val signingKeyId: String? by extra
+    val signingPassword: String? by extra
+    val signingKey: String? by extra
+    if (signingKey != null && signingKeyId != null && signingPassword != null) {
+        useInMemoryPgpKeys(signingKeyId, signingKey, signingPassword)
+    }
     sign(publishing.publications["release"])
 }
 
