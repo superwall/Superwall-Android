@@ -280,7 +280,7 @@ open class ConfigManager(
                 assignments
                     .getAssignments(triggers)
                     .then {
-                        ioScope.launch { preloadAllPaywalls() }
+                        ioScope.launch { preloadPaywalls() }
                     }.onError {
                         Logger.debug(
                             logLevel = LogLevel.error,
