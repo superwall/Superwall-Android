@@ -1,6 +1,7 @@
 package com.superwall.sdk.paywall.vc.web_view.messaging
 
 import TemplateLogic
+import android.net.Uri
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import com.superwall.sdk.Superwall
@@ -133,7 +134,7 @@ class PaywallMessageHandler(
 
             is PaywallMessage.OpenUrl -> openUrl(message.url)
             is PaywallMessage.OpenUrlInBrowser -> openUrlInBrowser(message.url)
-            is PaywallMessage.OpenDeepLink -> openDeepLink(URL(message.url.toString()))
+            is PaywallMessage.OpenDeepLink -> openDeepLink(Uri.parse(message.url.toString()))
             is PaywallMessage.Restore -> restorePurchases()
             is PaywallMessage.Purchase -> purchaseProduct(withId = message.productId)
             is PaywallMessage.PaywallOpen -> {
@@ -352,7 +353,7 @@ class PaywallMessageHandler(
         delegate?.presentBrowserExternal(url.toString())
     }
 
-    private fun openDeepLink(url: URL) {
+    private fun openDeepLink(url: Uri) {
         detectHiddenPaywallEvent(
             "openDeepLink",
             mapOf("url" to url),

@@ -1,5 +1,6 @@
 package com.superwall.sdk.delegate
 
+import android.net.Uri
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import java.net.URL
@@ -21,7 +22,7 @@ interface SuperwallDelegate {
 
     fun paywallWillOpenURL(url: URL) {}
 
-    fun paywallWillOpenDeepLink(url: URL) {}
+    fun paywallWillOpenDeepLink(url: Uri) {}
 
     fun handleLog(
         level: String,

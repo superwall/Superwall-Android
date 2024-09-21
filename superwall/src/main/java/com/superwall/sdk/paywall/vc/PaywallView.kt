@@ -794,15 +794,12 @@ class PaywallView(
     }
 
     override fun openDeepLink(url: String) {
-        // TODO: Implement this
-//        dismiss(
-//            result = Result.DECLINED
-//        ) {
-//            eventDidOccur(PaywallWebEvent.OPENED_DEEP_LINK(url))
-//            val context = this.context // Or replace with appropriate context if not inside an activity/fragment
-//            val deepLinkIntent = Intent(Intent.ACTION_VIEW, Uri.parse(url.toString()))
-//            context.startActivity(deepLinkIntent)
-//        }
+        // TODO add track paywall dismiss
+        var uri = Uri.parse(url)
+        eventDidOccur(PaywallWebEvent.OpenedDeepLink(uri))
+        val context = encapsulatingActivity?.get()
+        val deepLinkIntent = Intent(Intent.ACTION_VIEW, uri)
+        context?.startActivity(deepLinkIntent)
     }
 
     @Deprecated("Will be removed in the upcoming versions, use presentBrowserInApp instead")
