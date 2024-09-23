@@ -1,7 +1,7 @@
 package com.superwall.sdk.paywall.vc.web_view.messaging
 
 import TemplateLogic
-import android.util.Log
+import android.net.Uri
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import com.superwall.sdk.Superwall
@@ -69,7 +69,11 @@ class PaywallMessageHandler(
     @JavascriptInterface
     fun postMessage(message: String) {
         // Print out the message to the console using Log.d
-        Log.d("SWWebViewInterface", message)
+        Logger.debug(
+            LogLevel.debug,
+            LogScope.superwallCore,
+            "SWWebViewInterface: $message",
+        )
 
         // Attempt to parse the message to json
         // and print out the version number
@@ -77,13 +81,21 @@ class PaywallMessageHandler(
         try {
             wrappedPaywallMessages = parseWrappedPaywallMessages(message)
         } catch (e: Throwable) {
-            Log.e("SWWebViewInterface", "Error parsing message", e)
+            Logger.debug(
+                LogLevel.debug,
+                LogScope.superwallCore,
+                "SWWebViewInterface: Error parsing message - $e",
+            )
             return
         }
 
         // Loop through the messages and print out the event name
         for (paywallMessage in wrappedPaywallMessages.payload.messages) {
-            Log.d("SWWebViewInterface", paywallMessage.javaClass.simpleName)
+            Logger.debug(
+                LogLevel.debug,
+                LogScope.superwallCore,
+                "SWWebViewInterface: ${paywallMessage.javaClass.simpleName}",
+            )
             handle(paywallMessage)
         }
     }
@@ -122,7 +134,7 @@ class PaywallMessageHandler(
 
             is PaywallMessage.OpenUrl -> openUrl(message.url)
             is PaywallMessage.OpenUrlInBrowser -> openUrlInBrowser(message.url)
-            is PaywallMessage.OpenDeepLink -> openDeepLink(URL(message.url.toString()))
+            is PaywallMessage.OpenDeepLink -> openDeepLink(Uri.parse(message.url.toString()))
             is PaywallMessage.Restore -> restorePurchases()
             is PaywallMessage.Purchase -> purchaseProduct(withId = message.productId)
             is PaywallMessage.PaywallOpen -> {
@@ -341,7 +353,7 @@ class PaywallMessageHandler(
         delegate?.presentBrowserExternal(url.toString())
     }
 
-    private fun openDeepLink(url: URL) {
+    private fun openDeepLink(url: Uri) {
         detectHiddenPaywallEvent(
             "openDeepLink",
             mapOf("url" to url),

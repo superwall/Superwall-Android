@@ -1,5 +1,8 @@
 package com.superwall.sdk.models.serialization
 
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 import kotlinx.serialization.*
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.descriptors.*
@@ -39,7 +42,11 @@ object AnyMapSerializer : KSerializer<Map<String, Any?>> {
                         else -> {
                             // TODO: Figure out when this is happening
                             put(k, JsonNull)
-                            println("!! Warning: Unsupported type ${v::class}, skipping...")
+                            Logger.debug(
+                                LogLevel.debug,
+                                LogScope.all,
+                                "!! Warning: Unsupported type ${v::class}, skipping...",
+                            )
 //                        throw SerializationException("$v is not supported")
                         }
                     }

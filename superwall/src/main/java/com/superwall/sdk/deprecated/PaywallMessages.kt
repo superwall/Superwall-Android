@@ -1,7 +1,9 @@
 package com.superwall.sdk.deprecated
 
 import android.net.Uri
-import android.util.Log
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 import org.json.JSONObject
 import java.net.URL
 
@@ -47,7 +49,11 @@ sealed class PaywallMessage {
 }
 
 fun parseWrappedPaywallMessages(jsonString: String): WrappedPaywallMessages {
-    Log.d("SWWebViewInterface", jsonString)
+    Logger.debug(
+        LogLevel.debug,
+        LogScope.all,
+        "SWWebViewInterface:$jsonString",
+    )
     val jsonObject = JSONObject(jsonString)
     val version = jsonObject.optInt("version", 1)
     val payloadJson = jsonObject.getJSONObject("payload")

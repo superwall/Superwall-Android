@@ -23,6 +23,7 @@ internal class WebviewFallbackClient(
     private val ioScope: CoroutineScope,
     private val mainScope: CoroutineScope,
     private val loadUrl: (PaywallWebviewUrl) -> Unit,
+    private val stopLoading: () -> Unit,
 ) : DefaultWebviewClient(ioScope) {
     private class MaxAttemptsReachedException : Exception("Max attempts reached")
 
@@ -31,6 +32,10 @@ internal class WebviewFallbackClient(
     private val urls = config.endpoints
 
     private val untriedUrls = urls.toMutableSet()
+
+    /*
+     * The state of currently Loading URL, reset to None when URL is loaded
+     * */
 
     private sealed interface UrlState {
         object None : UrlState
@@ -67,6 +72,9 @@ internal class WebviewFallbackClient(
                     timeoutFlow.first { it is UrlState.PageStarted || it is UrlState.PageError }
                 }
             } catch (e: TimeoutCancellationException) {
+                mainScope.launch {
+                    stopLoading()
+                }
                 timeoutFlow.update { UrlState.Timeout }
             }
         }
@@ -81,12 +89,12 @@ internal class WebviewFallbackClient(
         view: WebView?,
         url: String?,
     ) {
-        super.onLoadResource(view, url)
         ioScope.launch {
             if (timeoutFlow.value == UrlState.Loading) {
                 timeoutFlow.emit(UrlState.PageStarted)
             }
         }
+        super.onLoadResource(view, url)
     }
 
     internal fun nextUrl(): PaywallWebviewUrl {

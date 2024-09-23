@@ -32,6 +32,9 @@ import androidx.core.view.children
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.dependencies.DeviceHelperFactory
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.isLightColor
 import com.superwall.sdk.models.paywall.LocalNotification
 import com.superwall.sdk.models.paywall.PaywallPresentationStyle
@@ -69,15 +72,16 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                 if (view.webView.parent == null) {
                     view.addView(view.webView)
                 }
-                val viewStorageViewModel = Superwall.instance.viewStore()
+                val viewStorageViewModel = Superwall.instance.dependencyContainer.makeViewStore()
                 // If we started it directly and the view does not have shimmer and loading attached
                 // We set them up for this PaywallView
                 if (view.children.none { it is LoadingView || it is ShimmerView }) {
-                    (viewStorageViewModel.retrieveView(LoadingView.TAG) as LoadingView)
-                        .let { view.setupLoading(it) }
-                    (viewStorageViewModel.retrieveView(ShimmerView.TAG) as ShimmerView)
-                        .let { view.setupShimmer(it) }
-                    view.layoutSubviews()
+                    val loading =
+                        (viewStorageViewModel.retrieveView(LoadingView.TAG) as LoadingView)
+
+                    val shimmer =
+                        (viewStorageViewModel.retrieveView(ShimmerView.TAG) as ShimmerView)
+                    view.setupWith(shimmer, loading)
                 }
                 val intent =
                     Intent(context, SuperwallPaywallActivity::class.java).apply {
@@ -109,11 +113,14 @@ class SuperwallPaywallActivity : AppCompatActivity() {
 
     private fun paywallView(): PaywallView? = contentView?.findViewWithTag<PaywallView>(ACTIVE_PAYWALL_TAG)
 
-    private fun setupBottomSheetLayout(paywallView: PaywallView) {
+    private fun setupBottomSheetLayout(
+        paywallView: PaywallView,
+        isExpanded: Boolean,
+    ) {
         val activityView =
             layoutInflater.inflate(com.superwall.sdk.R.layout.activity_bottom_sheet, null)
         setContentView(activityView)
-        initBottomSheetBehavior()
+        initBottomSheetBehavior(isExpanded)
         val container =
             activityView.findViewById<FrameLayout>(com.superwall.sdk.R.id.container)
         activityView.setOnClickListener { finish() }
@@ -121,9 +128,9 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         container.requestLayout()
     }
 
-    private fun initBottomSheetBehavior() {
-        var bottomSheetBehavior = BottomSheetBehavior.from((contentView as ViewGroup).getChildAt(0))
-        bottomSheetBehavior.halfExpandedRatio = 0.7f
+    private fun initBottomSheetBehavior(isExpanded: Boolean) {
+        val bottomSheetBehavior = BottomSheetBehavior.from((contentView as ViewGroup).getChildAt(0))
+        bottomSheetBehavior.halfExpandedRatio = if (isExpanded) 0.95f else 0.7f
         // Expanded by default
         bottomSheetBehavior.state = BottomSheetBehavior.STATE_HALF_EXPANDED
         bottomSheetBehavior.skipCollapsed = true
@@ -182,7 +189,17 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             return
         }
 
-        val viewStorageViewModel = Superwall.instance.viewStore()
+        val viewStorageViewModel =
+            try {
+                Superwall.instance.dependencyContainer.makeViewStore()
+            } catch (e: Exception) {
+                Logger.debug(
+                    LogLevel.error,
+                    LogScope.paywallView,
+                    "Cannot access viewStore or create view - has Superwall been initialised?",
+                )
+                return
+            }
 
         val view =
             viewStorageViewModel.retrieveView(key) as? PaywallView ?: run {
@@ -190,14 +207,15 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                 return
             }
 
-        val isBottomSheetStyle = presentationStyle == PaywallPresentationStyle.DRAWER
+        val isBottomSheetStyle =
+            presentationStyle == PaywallPresentationStyle.DRAWER || presentationStyle == PaywallPresentationStyle.MODAL
 
         (view.parent as? ViewGroup)?.removeView(view)
         view.tag = ACTIVE_PAYWALL_TAG
         view.encapsulatingActivity = WeakReference(this)
         // If it's a bottom sheet, we set activity as transparent and show the UI in a bottom sheet container
         if (isBottomSheetStyle && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            setupBottomSheetLayout(view)
+            setupBottomSheetLayout(view, presentationStyle == PaywallPresentationStyle.MODAL)
         } else {
             setContentView(view)
         }
@@ -247,9 +265,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                 enableEdgeToEdge()
             }
 
-            PaywallPresentationStyle.MODAL -> {
-                // TODO: Not yet supported in Android
-            }
+            PaywallPresentationStyle.MODAL,
             PaywallPresentationStyle.NONE,
             PaywallPresentationStyle.DRAWER,
             null,

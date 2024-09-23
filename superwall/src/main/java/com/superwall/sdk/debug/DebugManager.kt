@@ -6,7 +6,7 @@ import androidx.annotation.MainThread
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.dependencies.ViewFactory
 import com.superwall.sdk.paywall.presentation.dismiss
-import com.superwall.sdk.storage.Storage
+import com.superwall.sdk.storage.LocalStorage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -14,7 +14,7 @@ import kotlinx.coroutines.launch
 
 class DebugManager(
     private val context: Context,
-    private val storage: Storage,
+    private val storage: LocalStorage,
     private val factory: ViewFactory,
 ) {
     var view: DebugView? = null

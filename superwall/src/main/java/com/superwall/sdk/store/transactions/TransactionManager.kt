@@ -70,7 +70,11 @@ class TransactionManager(
             }
 
         val rawStoreProduct = product.rawStoreProduct
-        println("!!! Purchasing product ${rawStoreProduct.hasFreeTrial}")
+        Logger.debug(
+            LogLevel.debug,
+            LogScope.paywallTransactions,
+            "!!! Purchasing product ${rawStoreProduct.hasFreeTrial}",
+        )
         val productDetails = rawStoreProduct.underlyingProductDetails
         val activity = activityProvider.getCurrentActivity() ?: return
 

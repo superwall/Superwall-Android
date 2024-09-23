@@ -15,7 +15,7 @@ import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.AppLifecycleObserver
-import com.superwall.sdk.misc.Result
+import com.superwall.sdk.misc.Either
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import kotlinx.coroutines.CoroutineScope
@@ -42,7 +42,7 @@ class GoogleBillingWrapper(
 ) : PurchasesUpdatedListener,
     BillingClientStateListener {
     companion object {
-        private val productsCache = ConcurrentHashMap<String, Result<StoreProduct>>()
+        private val productsCache = ConcurrentHashMap<String, Either<StoreProduct, Throwable>>()
     }
 
     @get:Synchronized
@@ -148,8 +148,8 @@ class GoogleBillingWrapper(
                 .mapNotNull { fullProductId ->
                     productsCache[fullProductId]?.let { result ->
                         when (result) {
-                            is Result.Success -> result.value
-                            is Result.Failure -> throw result.error
+                            is Either.Success -> result.value
+                            is Either.Failure -> throw result.error
                         }
                     }
                 }.toSet()
@@ -170,13 +170,13 @@ class GoogleBillingWrapper(
                         // Update cache with fetched products and collect their identifiers
                         val foundProductIds =
                             storeProducts.map { product ->
-                                productsCache[product.fullIdentifier] = Result.Success(product)
+                                productsCache[product.fullIdentifier] = Either.Success(product)
                                 product.fullIdentifier
                             }
 
                         // Identify and handle missing products
                         missingFullProductIds.filterNot { it in foundProductIds }.forEach { fullProductId ->
-                            productsCache[fullProductId] = Result.Failure(Exception("Failed to query product details for $fullProductId"))
+                            productsCache[fullProductId] = Either.Failure(Exception("Failed to query product details for $fullProductId"))
                         }
 
                         // Combine cached products (now including the newly fetched ones) with the fetched products
@@ -187,7 +187,7 @@ class GoogleBillingWrapper(
                     override fun onError(error: BillingError) {
                         // Identify and handle missing products
                         missingFullProductIds.forEach { fullProductId ->
-                            productsCache[fullProductId] = Result.Failure(error)
+                            productsCache[fullProductId] = Either.Failure(error)
                         }
                         continuation.resumeWithException(error)
                     }
@@ -469,10 +469,18 @@ class GoogleBillingWrapper(
         result: BillingResult,
         purchases: MutableList<Purchase>?,
     ) {
-        println("onPurchasesUpdated: $result")
+        Logger.debug(
+            LogLevel.debug,
+            LogScope.storeKitManager,
+            "onPurchasesUpdated: $result",
+        )
         if (result.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
             for (purchase in purchases) {
-                println("Purchase: $purchase")
+                Logger.debug(
+                    LogLevel.debug,
+                    LogScope.storeKitManager,
+                    "Purchase: $purchase",
+                )
                 CoroutineScope(Dispatchers.IO).launch {
                     purchaseResults.emit(
                         InternalPurchaseResult.Purchased(purchase),
@@ -484,12 +492,20 @@ class GoogleBillingWrapper(
                 purchaseResults.emit(InternalPurchaseResult.Cancelled)
             }
 
-            println("User cancelled purchase")
+            Logger.debug(
+                LogLevel.debug,
+                LogScope.storeKitManager,
+                "User cancelled purchase",
+            )
         } else {
             CoroutineScope(Dispatchers.IO).launch {
                 purchaseResults.emit(InternalPurchaseResult.Failed(Exception(result.responseCode.toString())))
             }
-            println("Purchase failed")
+            Logger.debug(
+                LogLevel.debug,
+                LogScope.storeKitManager,
+                "Purchase failed",
+            )
         }
     }
 

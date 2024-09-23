@@ -2,6 +2,8 @@ package com.superwall.sdk.storage
 
 import android.content.Context
 import com.superwall.sdk.delegate.SubscriptionStatus
+import com.superwall.sdk.models.config.Config
+import com.superwall.sdk.models.geo.GeoInfo
 import com.superwall.sdk.models.serialization.AnySerializer
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.ExperimentID
@@ -240,6 +242,25 @@ internal object ErrorLog : Storable<ErrorTracking.ErrorOccurence> {
     override val serializer: KSerializer<ErrorTracking.ErrorOccurence>
         get() = ErrorTracking.ErrorOccurence.serializer()
 }
+
+internal object LatestConfig : Storable<Config> {
+    override val key: String
+        get() = "store.configCache"
+    override val directory: SearchPathDirectory
+        get() = SearchPathDirectory.CACHE
+    override val serializer: KSerializer<Config>
+        get() = Config.serializer()
+}
+
+internal object LatestGeoInfo : Storable<GeoInfo> {
+    override val key: String
+        get() = "store.geoInfoCache"
+    override val directory: SearchPathDirectory
+        get() = SearchPathDirectory.CACHE
+    override val serializer: KSerializer<GeoInfo>
+        get() = GeoInfo.serializer()
+}
+
 //endregion
 
 // region Serializers

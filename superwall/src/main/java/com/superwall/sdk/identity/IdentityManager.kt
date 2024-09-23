@@ -13,8 +13,8 @@ import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.storage.AliasId
 import com.superwall.sdk.storage.AppUserId
 import com.superwall.sdk.storage.DidTrackFirstSeen
+import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.storage.Seed
-import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.UserAttributes
 import com.superwall.sdk.utilities.withErrorTrackingAsync
 import kotlinx.coroutines.CoroutineScope
@@ -32,10 +32,10 @@ import java.util.concurrent.Executors
 
 class IdentityManager(
     private val deviceHelper: DeviceHelper,
-    private val storage: Storage,
+    private val storage: LocalStorage,
     private val configManager: ConfigManager,
 ) {
-    private var _appUserId: String? = storage.get(AppUserId)
+    private var _appUserId: String? = storage.read(AppUserId)
 
     val appUserId: String?
         get() =
@@ -44,7 +44,7 @@ class IdentityManager(
             }
 
     private var _aliasId: String =
-        storage.get(AliasId) ?: IdentityLogic.generateAlias()
+        storage.read(AliasId) ?: IdentityLogic.generateAlias()
 
     val aliasId: String
         get() =
@@ -53,7 +53,7 @@ class IdentityManager(
             }
 
     private var _seed: Int =
-        storage.get(Seed) ?: IdentityLogic.generateSeed()
+        storage.read(Seed) ?: IdentityLogic.generateSeed()
 
     val seed: Int
         get() =
@@ -68,7 +68,7 @@ class IdentityManager(
             }
 
     private var _userAttributes: Map<String, Any> =
-        storage.get(UserAttributes) ?: emptyMap()
+        storage.read(UserAttributes) ?: emptyMap()
 
     val userAttributes: Map<String, Any>
         get() =
@@ -88,15 +88,15 @@ class IdentityManager(
     init {
         val extraAttributes = mutableMapOf<String, Any>()
 
-        val aliasId = storage.get(AliasId)
+        val aliasId = storage.read(AliasId)
         if (aliasId == null) {
-            storage.save(_aliasId, AliasId)
+            storage.write(AliasId, _aliasId)
             extraAttributes["aliasId"] = _aliasId
         }
 
-        val seed = storage.get(Seed)
+        val seed = storage.read(Seed)
         if (seed == null) {
-            storage.save(_seed, Seed)
+            storage.write(Seed, _seed)
             extraAttributes["seed"] = _seed
         }
 
@@ -112,7 +112,7 @@ class IdentityManager(
         CoroutineScope(Dispatchers.IO).launch {
             val neverCalledStaticConfig = storage.neverCalledStaticConfig
             val isFirstAppOpen =
-                !(storage.get(DidTrackFirstSeen) ?: false)
+                !(storage.read(DidTrackFirstSeen) ?: false)
 
             if (IdentityLogic.shouldGetAssignments(
                     isLoggedIn,
@@ -206,10 +206,10 @@ class IdentityManager(
         // called from the didSet of vars, who are already
         // being set within the queue.
         _appUserId?.let {
-            storage.save(it, AppUserId)
+            storage.write(AppUserId, it)
         }
-        storage.save(_aliasId, AliasId)
-        storage.save(_seed, Seed)
+        storage.write(AliasId, _aliasId)
+        storage.write(Seed, _seed)
 
         val newUserAttributes =
             mutableMapOf(
@@ -281,7 +281,7 @@ class IdentityManager(
                 Superwall.instance.track(trackableEvent)
             }
         }
-        storage.save(mergedAttributes, UserAttributes)
+        storage.write(UserAttributes, mergedAttributes)
         _userAttributes = mergedAttributes
     }
 }

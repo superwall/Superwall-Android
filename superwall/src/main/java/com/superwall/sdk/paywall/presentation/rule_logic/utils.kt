@@ -6,10 +6,10 @@ import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.models.triggers.TriggerRule
 import com.superwall.sdk.models.triggers.TriggerRuleOutcome
 import com.superwall.sdk.models.triggers.UnmatchedRule
-import com.superwall.sdk.storage.Storage
+import com.superwall.sdk.storage.LocalStorage
 
 internal suspend fun TriggerRule.tryToMatchOccurrence(
-    storage: Storage,
+    storage: LocalStorage,
     expressionMatched: Boolean,
 ): TriggerRuleOutcome {
     if (expressionMatched) {

@@ -23,7 +23,7 @@ suspend fun Superwall.evaluateRules(request: PresentationRequest): RuleEvaluatio
     return if (eventData != null) {
         val ruleLogic =
             RuleLogic(
-                configManager = dependencyContainer.configManager,
+                assignments = dependencyContainer.assignments,
                 storage = dependencyContainer.storage,
                 factory = dependencyContainer,
                 javascriptEvaluator = dependencyContainer.provideJavascriptEvaluator(context),

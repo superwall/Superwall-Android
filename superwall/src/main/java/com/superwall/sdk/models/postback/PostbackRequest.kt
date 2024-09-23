@@ -1,6 +1,7 @@
 package com.superwall.sdk.models.postback
 
 import com.superwall.sdk.models.SerializableEntity
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlin.random.Random
 
@@ -11,7 +12,9 @@ data class PostBackResponse(
 
 @Serializable
 data class PostbackRequest(
+    @SerialName("products")
     val products: List<PostbackProductIdentifier>,
+    @SerialName("delay")
     val delay: Int? = null,
 ) {
     val postbackDelay: Double
@@ -36,7 +39,9 @@ data class PostbackRequest(
 
 @Serializable
 data class PostbackProductIdentifier(
+    @SerialName("identifier")
     val identifier: String,
+    @SerialName("platform")
     val platform: String,
 ) {
     val isiOS: Boolean

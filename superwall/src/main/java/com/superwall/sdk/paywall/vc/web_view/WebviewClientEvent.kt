@@ -9,7 +9,7 @@ sealed class WebviewClientEvent {
         val webviewError: WebviewError,
     ) : WebviewClientEvent()
 
-    data object LoadingFallback : WebviewClientEvent()
+    object LoadingFallback : WebviewClientEvent()
 }
 
 sealed class WebviewError {
@@ -27,7 +27,7 @@ sealed class WebviewError {
         override fun toString(): String = "The webview has attempted to load too many times."
     }
 
-    data object NoUrls : WebviewError() {
+    object NoUrls : WebviewError() {
         override fun toString() = "There were no paywall URLs provided."
     }
 

@@ -3,7 +3,6 @@ package com.superwall.sdk
 import android.app.Application
 import android.content.Context
 import android.net.Uri
-import androidx.lifecycle.ViewModelProvider
 import androidx.work.WorkManager
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
@@ -26,9 +25,6 @@ import com.superwall.sdk.paywall.presentation.internal.dismiss
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.vc.PaywallView
 import com.superwall.sdk.paywall.vc.SuperwallPaywallActivity
-import com.superwall.sdk.paywall.vc.SuperwallStoreOwner
-import com.superwall.sdk.paywall.vc.ViewModelFactory
-import com.superwall.sdk.paywall.vc.ViewStorageViewModel
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewEventCallback
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.Closed
@@ -64,19 +60,11 @@ class Superwall(
     private val completion: (() -> Unit)?,
 ) : PaywallViewEventCallback {
     private var _options: SuperwallOptions? = options
-    private val ioScope = CoroutineScope(Dispatchers.IO)
+    internal val ioScope = CoroutineScope(Dispatchers.IO)
     internal var context: Context = context.applicationContext
 
     // Add a private variable for the purchase task
     private var purchaseTask: Job? = null
-
-    private val viewStorageViewModel =
-        ViewModelProvider(
-            SuperwallStoreOwner(),
-            ViewModelFactory(),
-        ).get(ViewStorageViewModel::class.java)
-
-    internal fun viewStore(): ViewStorageViewModel = viewStorageViewModel
 
     internal val presentationItems: PresentationItems = PresentationItems()
 
@@ -239,7 +227,9 @@ class Superwall(
                 .filter { it }
                 .take(1)
 
-        lateinit var instance: Superwall
+        private var _instance: Superwall? = null
+        val instance: Superwall
+            get() = _instance ?: throw IllegalStateException("Superwall has not been initialized or configured.")
 
         /**
          * Configures a shared instance of [Superwall] for use throughout your app.
@@ -270,7 +260,10 @@ class Superwall(
             activityProvider: ActivityProvider? = null,
             completion: (() -> Unit)? = null,
         ) {
-            if (::instance.isInitialized) {
+            if (_hasInitialized.value && _instance == null) {
+                _hasInitialized.update { false }
+            }
+            if (_instance != null) {
                 Logger.debug(
                     logLevel = LogLevel.warn,
                     scope = LogScope.superwallCore,
@@ -282,7 +275,7 @@ class Superwall(
             val purchaseController =
                 purchaseController
                     ?: ExternalNativePurchaseController(context = applicationContext)
-            instance =
+            _instance =
                 Superwall(
                     context = applicationContext,
                     apiKey = apiKey,
@@ -340,8 +333,8 @@ class Superwall(
     internal val serialTaskManager = SerialTaskManager()
 
     internal fun setup() {
-        withErrorTracking {
-            synchronized(this) {
+        synchronized(this) {
+            try {
                 _dependencyContainer =
                     DependencyContainer(
                         context = context,
@@ -349,15 +342,18 @@ class Superwall(
                         options = _options,
                         activityProvider = activityProvider,
                     )
+            } catch (e: Exception) {
+                e.printStackTrace()
+                throw e
             }
-
-            val cachedSubsStatus =
-                dependencyContainer.storage.get(ActiveSubscriptionStatus)
-                    ?: SubscriptionStatus.UNKNOWN
-            setSubscriptionStatus(cachedSubsStatus)
-
-            addListeners()
         }
+
+        val cachedSubsStatus =
+            dependencyContainer.storage.read(ActiveSubscriptionStatus)
+                ?: SubscriptionStatus.UNKNOWN
+        setSubscriptionStatus(cachedSubsStatus)
+
+        addListeners()
 
         ioScope.launch {
             withErrorTrackingAsync {
@@ -384,7 +380,7 @@ class Superwall(
                     .drop(1) // Drops the first item
                     .collect { newValue ->
                         // Save and handle the new value
-                        dependencyContainer.storage.save(newValue, ActiveSubscriptionStatus)
+                        dependencyContainer.storage.write(ActiveSubscriptionStatus, newValue)
                         dependencyContainer.delegateAdapter.subscriptionStatusDidChange(newValue)
                         val event = InternalSuperwallEvent.SubscriptionStatusDidChange(newValue)
                         track(event)

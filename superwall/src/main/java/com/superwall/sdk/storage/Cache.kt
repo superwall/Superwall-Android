@@ -17,6 +17,7 @@ import java.io.File
 class Cache(
     val context: Context,
     private val ioQueue: ExecutorCoroutineDispatcher = newSingleThreadContext(Cache.ioQueuePrefix),
+    private val json: Json,
 ) : CoroutineScope by CoroutineScope(ioQueue) {
     companion object {
         private const val userSpecificDocumentDirectoryPrefix = "com.superwall.document.userSpecific.Store"
@@ -41,7 +42,7 @@ class Cache(
                     var jsonString = ""
                     try {
                         jsonString = file.readText(Charsets.UTF_8)
-                        data = Json.decodeFromString(storable.serializer, jsonString)
+                        data = json.decodeFromString(storable.serializer, jsonString)
                         data?.let {
                             memCache[storable.key] = it
                         }
@@ -68,7 +69,7 @@ class Cache(
 
         launch {
             val file = File(storable.path(context = context))
-            val jsonString = Json.encodeToString(storable.serializer, data)
+            val jsonString = json.encodeToString(storable.serializer, data)
             file.writeText(jsonString, Charsets.UTF_8)
         }
     }
@@ -85,7 +86,7 @@ class Cache(
 
     //region Clean
 
-    fun cleanUserFiles() {
+    fun clean() {
         memCache.clear()
         cleanDiskCache()
     }

@@ -34,8 +34,11 @@ data class Paywalls(
 data class Paywall(
     @SerialName("id")
     val databaseId: String,
+    @SerialName("identifier")
     var identifier: PaywallIdentifier,
+    @SerialName("name")
     val name: String,
+    @SerialName("url")
     val url:
         @Serializable(with = URLSerializer::class)
         URL,
@@ -45,6 +48,7 @@ data class Paywall(
     private val presentationStyle: String,
     @SerialName("presentation_delay")
     private val presentationDelay: Long,
+    @SerialName("presentation_condition")
     private val presentationCondition: String,
     @kotlinx.serialization.Transient()
     var presentation: PaywallPresentationInfo =
@@ -61,7 +65,9 @@ data class Paywall(
             condition = PresentationCondition.valueOf(presentationCondition.uppercase()),
             delay = presentationDelay,
         ),
+    @SerialName("background_color_hex")
     val backgroundColorHex: String,
+    @SerialName("dark_background_color_hex")
     val darkBackgroundColorHex: String? = null,
     // Declared as private to prevent direct access
     @kotlinx.serialization.Transient()
@@ -83,13 +89,16 @@ data class Paywall(
     var isFreeTrialAvailable: Boolean = false,
     // / The source of the presentation request. Either 'implicit', 'getPaywall', 'register'.
     var presentationSourceType: String? = null,
+    @SerialName("feature_gating")
     var featureGating: FeatureGatingBehavior = FeatureGatingBehavior.NonGated,
     @SerialName("computed_properties")
     var computedPropertyRequests: List<ComputedPropertyRequest> = emptyList(),
+    @SerialName("local_notifications")
     var localNotifications: List<LocalNotification> = emptyList(),
     /**
      * Indicates whether the caching of the paywall is enabled or not.
      */
+    @SerialName("on_device_cache")
     var onDeviceCache: OnDeviceCaching = OnDeviceCaching.Disabled,
     @kotlinx.serialization.Transient()
     var experiment: Experiment? = null,
@@ -106,6 +115,7 @@ data class Paywall(
     /**
      Surveys to potentially show when an action happens in the paywall.
      */
+    @SerialName("surveys")
     var surveys: List<Survey> = emptyList(),
 ) : SerializableEntity {
     // Public getter for productItems

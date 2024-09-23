@@ -19,7 +19,8 @@ class PaywallViewCache(
     private val activityProvider: ActivityProvider,
     private val deviceHelper: DeviceHelper,
 ) {
-    private val ctx: Context = activityProvider.getCurrentActivity() ?: appCtx
+    private val ctx: Context
+        get() = activityProvider.getCurrentActivity() ?: appCtx
     private var _activePaywallVcKey: String? = null
     private val loadingView: LoadingView = LoadingView(context = ctx)
     private val shimmerView: ShimmerView = ShimmerView(context = ctx)

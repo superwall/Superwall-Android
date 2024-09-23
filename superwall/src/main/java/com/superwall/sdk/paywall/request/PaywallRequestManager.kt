@@ -5,6 +5,14 @@ import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.dependencies.ConfigManagerFactory
 import com.superwall.sdk.dependencies.DeviceInfoFactory
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
+import com.superwall.sdk.misc.Either
+import com.superwall.sdk.misc.map
+import com.superwall.sdk.misc.mapError
+import com.superwall.sdk.misc.onError
+import com.superwall.sdk.misc.then
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.network.Network
@@ -63,18 +71,17 @@ class PaywallRequestManager(
             val deferredTask = CompletableDeferred<Paywall>()
             activeTasks[requestHash] = deferredTask
 
-            try {
-                val rawPaywall =
-                    getRawPaywall(request)
-                val finalPaywall =
-                    addProducts(rawPaywall, request)
-                saveRequestHash(requestHash, finalPaywall, request.isDebuggerLaunched)
+            getRawPaywall(request)
+                .then {
+                    val finalPaywall =
+                        addProducts(it, request)
+                    saveRequestHash(requestHash, finalPaywall, request.isDebuggerLaunched)
 
-                deferredTask.complete(finalPaywall)
-            } catch (error: Throwable) {
-                activeTasks.remove(requestHash)
-                deferredTask.completeExceptionally(error)
-            }
+                    deferredTask.complete(finalPaywall)
+                }.onError {
+                    activeTasks.remove(requestHash)
+                    deferredTask.completeExceptionally(it)
+                }
 
             paywall = deferredTask.await()
             paywall = updatePaywall(paywall, request)
@@ -104,58 +111,68 @@ class PaywallRequestManager(
         }
     }
 
-    suspend fun getRawPaywall(request: PaywallRequest): Paywall =
+    suspend fun getRawPaywall(request: PaywallRequest): Either<Paywall, *> =
 
         withContext(ioScope.coroutineContext) {
-            println("!!getRawPaywall - ${request.responseIdentifiers.paywallId}")
-            trackResponseStarted(event = request.eventData)
-            val paywall = getPaywallResponse(request)
-
-            val paywallInfo =
-                paywall.getInfo(
-                    fromEvent = request.eventData,
-                )
-            trackResponseLoaded(
-                paywallInfo,
-                event = request.eventData,
+            Logger.debug(
+                LogLevel.debug,
+                LogScope.all,
+                "!!getRawPaywall - ${request.responseIdentifiers.paywallId}",
             )
-
-            return@withContext paywall
+            trackResponseStarted(event = request.eventData)
+            return@withContext getPaywallResponse(request)
+                .then {
+                    val paywallInfo =
+                        it.getInfo(
+                            fromEvent = request.eventData,
+                        )
+                    trackResponseLoaded(
+                        paywallInfo,
+                        event = request.eventData,
+                    )
+                }
         }
 
-    private suspend fun getPaywallResponse(request: PaywallRequest): Paywall =
+    private suspend fun getPaywallResponse(request: PaywallRequest): Either<Paywall, *> =
         withContext(ioScope.coroutineContext) {
             val responseLoadStartTime = Date()
             val paywallId = request.responseIdentifiers.paywallId
             val event = request.eventData
 
-            val paywall: Paywall =
-                try {
-                    factory.makeStaticPaywall(
+            return@withContext (
+                factory
+                    .makeStaticPaywall(
                         paywallId = paywallId,
                         isDebuggerLaunched = request.isDebuggerLaunched,
-                    ) ?: network.getPaywall(
-                        identifier = paywallId,
-                        event = event,
-                    )
-                } catch (error: Throwable) {
-                    val errorResponse =
-                        PaywallLogic.handlePaywallError(
-                            error,
-                            event,
-                        )
-                    throw errorResponse
-                }
-
-            println("!!getPaywallResponse - $paywallId - $paywall")
-
-            paywall.experiment = request.responseIdentifiers.experiment
-            paywall.responseLoadingInfo.startAt = responseLoadStartTime
-            paywall.responseLoadingInfo.endAt = Date()
-
-            println("!!getPaywallResponse - $paywallId - $paywall - ${paywall.experiment}")
-
-            return@withContext paywall
+                    )?.let {
+                        Either.Success<Paywall, Throwable>(it)
+                    } ?: network.getPaywall(
+                    identifier = paywallId,
+                    event = event,
+                )
+            ).then {
+                Logger.debug(
+                    LogLevel.debug,
+                    LogScope.all,
+                    "!!getPaywallResponse - $paywallId - $it",
+                )
+            }.map {
+                it.experiment = request.responseIdentifiers.experiment
+                it.responseLoadingInfo.startAt = responseLoadStartTime
+                it.responseLoadingInfo.endAt = Date()
+                it
+            }.then {
+                Logger.debug(
+                    LogLevel.debug,
+                    LogScope.all,
+                    "!!getPaywallResponse - $paywallId - $it - ${it.experiment}",
+                )
+            }.mapError {
+                PaywallLogic.handlePaywallError(
+                    it,
+                    event,
+                )
+            }
         }
 
     // MARK: - Analytics

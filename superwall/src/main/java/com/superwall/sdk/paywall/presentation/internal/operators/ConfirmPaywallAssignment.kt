@@ -29,6 +29,6 @@ fun Superwall.confirmPaywallAssignment(
     }
 
     confirmableAssignment?.let {
-        actualDependencyContainer.configManager.confirmAssignment(it)
+        actualDependencyContainer.assignments.confirmAssignment(it)
     }
 }

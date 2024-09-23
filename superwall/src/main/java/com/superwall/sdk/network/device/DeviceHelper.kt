@@ -11,7 +11,6 @@ import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
-import android.util.Log
 import androidx.core.content.ContextCompat
 import com.superwall.sdk.BuildConfig
 import com.superwall.sdk.Superwall
@@ -20,13 +19,15 @@ import com.superwall.sdk.dependencies.LocaleIdentifierFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
+import com.superwall.sdk.misc.then
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.geo.GeoInfo
 import com.superwall.sdk.network.JsonFactory
-import com.superwall.sdk.network.Network
+import com.superwall.sdk.network.SuperwallAPI
 import com.superwall.sdk.paywall.vc.web_view.templating.models.DeviceTemplate
 import com.superwall.sdk.storage.LastPaywallView
-import com.superwall.sdk.storage.Storage
+import com.superwall.sdk.storage.LatestGeoInfo
+import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.storage.TotalPaywallViews
 import com.superwall.sdk.utilities.DateUtils
 import com.superwall.sdk.utilities.dateFormat
@@ -50,8 +51,8 @@ enum class InterfaceStyle(
 
 class DeviceHelper(
     private val context: Context,
-    val storage: Storage,
-    val network: Network,
+    val storage: LocalStorage,
+    val network: SuperwallAPI,
     val factory: Factory,
 ) {
     interface Factory :
@@ -86,7 +87,7 @@ class DeviceHelper(
 
     private val daysSinceLastPaywallView: Int?
         get() {
-            val fromDate = storage.get(LastPaywallView) ?: return null
+            val fromDate = storage.read(LastPaywallView) ?: return null
             val toDate = Date()
             val fromInstant = fromDate.toInstant()
             val toInstant = toDate.toInstant()
@@ -96,7 +97,7 @@ class DeviceHelper(
 
     private val minutesSinceLastPaywallView: Int?
         get() {
-            val fromDate = storage.get(LastPaywallView) ?: return null
+            val fromDate = storage.read(LastPaywallView) ?: return null
             val toDate = Date()
             val fromInstant = fromDate.toInstant()
             val toInstant = toDate.toInstant()
@@ -106,10 +107,10 @@ class DeviceHelper(
 
     private val totalPaywallViews: Int
         get() {
-            return storage.get(TotalPaywallViews) ?: 0
+            return storage.read(TotalPaywallViews) ?: 0
         }
 
-    private val geoInfo: MutableStateFlow<GeoInfo?> = MutableStateFlow(null)
+    private val lastGeoInfo: MutableStateFlow<GeoInfo?> = MutableStateFlow(storage.read(LatestGeoInfo))
 
     val locale: String
         get() {
@@ -123,7 +124,11 @@ class DeviceHelper(
                 val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
                 packageInfo.versionName
             } catch (e: PackageManager.NameNotFoundException) {
-                Log.e("DeviceHelper", "Failed to load version info", e)
+                Logger.debug(
+                    LogLevel.error,
+                    LogScope.device,
+                    "DeviceHelper: Failed to load version info - $e",
+                )
                 ""
             }
 
@@ -406,7 +411,7 @@ class DeviceHelper(
         val geo =
             try {
                 withTimeout(1.minutes) {
-                    geoInfo.first { it != null }
+                    lastGeoInfo.first { it != null }
                 }
             } catch (e: Throwable) {
                 Logger.debug(
@@ -418,7 +423,8 @@ class DeviceHelper(
                 )
                 null
             }
-        val capabilities: List<Capability> = listOf(Capability.PaywallEventReceiver(), Capability.MultiplePaywallUrls)
+        val capabilities: List<Capability> =
+            listOf(Capability.PaywallEventReceiver(), Capability.MultiplePaywallUrls)
 
         val deviceTemplate =
             DeviceTemplate(
@@ -473,7 +479,8 @@ class DeviceHelper(
                 ipContinent = geo?.continent,
                 ipTimezone = geo?.timezone,
                 capabilities = capabilities.map { it.name },
-                capabilitiesConfig = capabilities.toJson(factory.json()),
+                capabilitiesConfig =
+                    capabilities.toJson(factory.json()),
                 platformWrapper = platformWrapper,
                 platformWrapperVersion = platformWrapperVersion,
             )
@@ -481,9 +488,10 @@ class DeviceHelper(
         return deviceTemplate.toDictionary()
     }
 
-    suspend fun getGeoInfo() {
-        network.getGeoInfo().let {
-            geoInfo.value = it
-        }
-    }
+    suspend fun getGeoInfo() =
+        network
+            .getGeoInfo()
+            .then {
+                lastGeoInfo.value = it
+            }
 }

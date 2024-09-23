@@ -99,6 +99,9 @@ class SWWebView(
                 loadUrl = {
                     loadUrl(it.url)
                 },
+                stopLoading = {
+                    stopLoading()
+                },
             )
         this.webViewClient = client
         listenToWebviewClientEvents(this.webViewClient as DefaultWebviewClient)
@@ -139,7 +142,11 @@ class SWWebView(
 
         // Use the new URL
         val urlString = newUri.toString()
-        println("SWWebView.loadUrl: $urlString")
+        Logger.debug(
+            LogLevel.debug,
+            LogScope.paywallView,
+            "SWWebView.loadUrl: $urlString",
+        )
         super.loadUrl(urlString)
     }
 

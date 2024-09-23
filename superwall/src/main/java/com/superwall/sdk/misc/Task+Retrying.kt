@@ -1,27 +1,30 @@
 package com.superwall.sdk.misc
 
 import com.superwall.sdk.network.session.TaskRetryLogic
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
-import kotlin.coroutines.CoroutineContext
 
 suspend fun <T> retrying(
-    coroutineContext: CoroutineContext,
     maxRetryCount: Int,
-    isRetryingCallback: (() -> Unit)?,
+    isRetryingCallback: (suspend () -> Unit)?,
     operation: suspend () -> T,
 ): T =
-    withContext(coroutineContext) {
+    run {
+        val job = Job()
         for (attempt in 0 until maxRetryCount) {
             try {
-                return@withContext operation()
+                withContext(job) {
+                    return@withContext operation()
+                }
+                return operation()
             } catch (e: Throwable) {
                 isRetryingCallback?.invoke()
                 val delayTime = TaskRetryLogic.delay(attempt, maxRetryCount) ?: break
                 delay(delayTime)
             }
         }
-        ensureActive()
+        job.ensureActive()
         operation()
     }

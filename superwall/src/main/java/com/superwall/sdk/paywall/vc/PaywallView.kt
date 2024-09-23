@@ -51,7 +51,7 @@ import com.superwall.sdk.paywall.vc.web_view.SWWebView
 import com.superwall.sdk.paywall.vc.web_view.SWWebViewDelegate
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallMessageHandlerDelegate
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent
-import com.superwall.sdk.storage.Storage
+import com.superwall.sdk.storage.LocalStorage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -68,7 +68,7 @@ class PaywallView(
     var callback: PaywallViewDelegateAdapter? = null,
     val deviceHelper: DeviceHelper,
     val factory: Factory,
-    val storage: Storage,
+    val storage: LocalStorage,
     val paywallManager: PaywallManager,
     override val webView: SWWebView,
     private val loadingView: LoadingView = LoadingView(context),
@@ -218,6 +218,18 @@ class PaywallView(
     internal fun setupLoading(loadingView: LoadingView) {
         this.loadingViewController = loadingView
         loadingView.setupFor(this, loadingState)
+    }
+
+    fun setupWith(
+        shimmerView: ShimmerView,
+        loadingView: LoadingView,
+    ) {
+        if (webView.parent == null) {
+            addView(webView)
+        }
+        this.shimmerView = shimmerView
+        this.loadingViewController = loadingView
+        layoutSubviews()
     }
 
     fun present(
@@ -782,15 +794,12 @@ class PaywallView(
     }
 
     override fun openDeepLink(url: String) {
-        // TODO: Implement this
-//        dismiss(
-//            result = Result.DECLINED
-//        ) {
-//            eventDidOccur(PaywallWebEvent.OPENED_DEEP_LINK(url))
-//            val context = this.context // Or replace with appropriate context if not inside an activity/fragment
-//            val deepLinkIntent = Intent(Intent.ACTION_VIEW, Uri.parse(url.toString()))
-//            context.startActivity(deepLinkIntent)
-//        }
+        // TODO add track paywall dismiss
+        var uri = Uri.parse(url)
+        eventDidOccur(PaywallWebEvent.OpenedDeepLink(uri))
+        val context = encapsulatingActivity?.get()
+        val deepLinkIntent = Intent(Intent.ACTION_VIEW, uri)
+        context?.startActivity(deepLinkIntent)
     }
 
     @Deprecated("Will be removed in the upcoming versions, use presentBrowserInApp instead")

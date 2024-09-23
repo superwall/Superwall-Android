@@ -1,5 +1,8 @@
 package com.superwall.sdk.models.serialization
 
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 import kotlinx.serialization.*
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.MapSerializer
@@ -48,7 +51,11 @@ object AnySerializer : KSerializer<Any> {
             }
             null -> encoder.encodeNull()
             else -> {
-                println("Warning: Unsupported type ${value::class}, skipping...")
+                Logger.debug(
+                    LogLevel.debug,
+                    LogScope.all,
+                    "Warning: Unsupported type ${value::class}, skipping...",
+                )
                 encoder.encodeNull()
             }
         }

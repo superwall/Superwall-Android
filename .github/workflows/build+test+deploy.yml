@@ -74,25 +74,20 @@ jobs:
         EXISTS=$(git tag -l | grep -Fxq "${{steps.version.outputs.prop}}" && echo 'true' || echo 'false')
         echo "::set-output name=tag-exists::$EXISTS"
 
-    - name: Configure GPG Key
-      run: |
-        export GPG_TTY=$(tty)
-        echo $GPG_SIGNING_KEY | base64 --decode | gpg --batch --import --passphrase $GPG_SIGNING_KEY_PASSPHRASE
-      env:
-        GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
-        GPG_SIGNING_KEY_PASSPHRASE: ${{ secrets.GPG_SIGNING_KEY_PASSPHRASE }}
-
     - name: Deploy
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       run: |
         if [ "${{ steps.check-tag.outputs.tag-exists }}" == "false" ]; then
-          ./gradlew publish -Paws_access_key_id=$AWS_ACCESS_KEY_ID -Paws_secret_access_key=$AWS_SECRET_ACCESS_KEY -PsonatypeUsername=$SONATYPE_USERNAME -PsonatypePassword=$SONATYPE_PASSWORD
+          ./gradlew publish -Paws_access_key_id=$AWS_ACCESS_KEY_ID -Paws_secret_access_key=$AWS_SECRET_ACCESS_KEY -PsonatypeUsername=$SONATYPE_USERNAME -PsonatypePassword=$SONATYPE_PASSWORD -pgpg_signing_key=$GPG_SIGNING_KEY -Pgpg_signing_key_passphrase=$GPG_SIGNING_KEY_PASSPHRASE -Pgpg_signing_key_id=$GPG_SIGNING_KEY_ID
         fi
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
         SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+        GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
+        GPG_SIGNING_KEY_PASSPHRASE: ${{ secrets.GPG_SIGNING_KEY_PASSPHRASE }}
+        GPG_SIGNING_KEY_ID: ${{ secrets.GPG_SIGNING_KEY_ID }}
 
     - name: Determine prerelease status
       id: prerelease
@@ -119,6 +114,28 @@ jobs:
           sudo git checkout -b release/${{steps.version.outputs.prop}}
           sudo git push -u origin release/${{steps.version.outputs.prop}}
         fi
+
+    - name: Run Autodowngrade Task
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      run: |
+        if [ "${{ steps.check-tag.outputs.tag-exists }}" == "false" ]; then
+          ./gradlew downgradeAgpTask
+        fi
+
+    - name: Deploy
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      run: |
+        if [ "${{ steps.check-tag.outputs.tag-exists }}" == "false" ]; then
+          ./gradlew publish -Paws_access_key_id=$AWS_ACCESS_KEY_ID -Paws_secret_access_key=$AWS_SECRET_ACCESS_KEY -PsonatypeUsername=$SONATYPE_USERNAME -PsonatypePassword=$SONATYPE_PASSWORD -pgpg_signing_key=$GPG_SIGNING_KEY -Pgpg_signing_key_passphrase=$GPG_SIGNING_KEY_PASSPHRASE -Pgpg_signing_key_id=$GPG_SIGNING_KEY_ID
+        fi
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
+        SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+        GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
+        GPG_SIGNING_KEY_PASSPHRASE: ${{ secrets.GPG_SIGNING_KEY_PASSPHRASE }}
+        GPG_SIGNING_KEY_ID: ${{ secrets.GPG_SIGNING_KEY_ID }}
 
     - name: slack-send
       # Only notify on a new tag
