@@ -2,6 +2,12 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 1.2.6
+
+### Fixes
+- Fixes issue where the paywall would not show in some cases when using `minutes_since`
+- Fixes issue with wrong URL being logged when a paywall fails to load
+
 ## 1.2.5
 
 ### Enhancements

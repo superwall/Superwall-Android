@@ -1,8 +1,6 @@
 package com.superwall.sdk.config
 
-import Assignments
 import android.content.Context
-import awaitUntilNetworkExists
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.config.models.ConfigState
 import com.superwall.sdk.config.models.getConfig
@@ -26,6 +24,7 @@ import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.models.triggers.Trigger
 import com.superwall.sdk.network.NetworkError
 import com.superwall.sdk.network.SuperwallAPI
+import com.superwall.sdk.network.awaitUntilNetworkExists
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.paywall.presentation.rule_logic.javascript.JavascriptEvaluator

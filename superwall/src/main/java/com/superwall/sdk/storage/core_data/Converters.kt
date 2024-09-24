@@ -21,7 +21,7 @@ class Converters {
     fun toDate(timestamp: Long): Date = Date(timestamp)
 
     @TypeConverter
-    fun toTimestamp(date: Date): Long = date.time
+    fun toTimestamp(date: Date?): Long? = date?.time
 
     /**
      * Filters out any values that can't be saved to the database.

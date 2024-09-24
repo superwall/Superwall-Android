@@ -35,6 +35,10 @@ internal sealed class Capability(
     @Serializable
     @SerialName("multiple_paywall_urls")
     object MultiplePaywallUrls : Capability("multiple_paywall_urls")
+
+    @Serializable
+    @SerialName("config_caching")
+    object ConfigCaching : Capability("config_caching")
 }
 
 internal fun List<Capability>.toJson(json: Json): JsonElement = json.encodeToJsonElement(this)
