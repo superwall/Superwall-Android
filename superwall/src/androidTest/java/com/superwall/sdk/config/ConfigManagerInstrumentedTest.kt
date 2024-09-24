@@ -535,18 +535,18 @@ class ConfigManagerTests {
                 coEvery { storage.write(any(), any()) } just Runs
                 coEvery { storage.read(LatestGeoInfo) } returns GeoInfo.stub()
                 coEvery { mockNetwork.getConfig(any()) } coAnswers {
-                    delay(400)
+                    delay(1200)
                     Either.Success(newConfig)
                 }
                 coEvery { mockNetwork.getGeoInfo() } coAnswers {
-                    delay(200)
+                    delay(1200)
                     Either.Success(GeoInfo.stub())
                 }
 
                 coEvery {
                     mockDeviceHelper.getGeoInfo()
                 } coAnswers {
-                    delay(200)
+                    delay(1200)
                     Either.Success(GeoInfo.stub())
                 }
 
@@ -609,7 +609,7 @@ class ConfigManagerTests {
                     mockNetwork.getGeoInfo()
                 } returns Either.Failure(NetworkError.Unknown())
                 coEvery { mockNetwork.getConfig(any()) } coAnswers {
-                    delay(500)
+                    delay(1200)
                     Either.Success(Config.stub().copy(buildId = "not"))
                 }
                 coEvery { mockDeviceHelper.getTemplateDevice() } returns emptyMap()
@@ -795,13 +795,13 @@ class ConfigManagerTests {
 
                 coEvery { mockNetwork.getConfig(any()) } coAnswers {
                     async(Dispatchers.IO) {
-                        delay(400)
+                        delay(1200)
                     }.await()
                     Either.Success(newConfig)
                 }
                 coEvery { mockDeviceHelper.getGeoInfo() } coAnswers {
                     async(Dispatchers.IO) {
-                        delay(400)
+                        delay(1200)
                     }.await()
                     Either.Success(newGeo)
                 }
