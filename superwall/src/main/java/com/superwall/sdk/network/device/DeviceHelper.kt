@@ -424,7 +424,7 @@ class DeviceHelper(
                 null
             }
         val capabilities: List<Capability> =
-            listOf(Capability.PaywallEventReceiver(), Capability.MultiplePaywallUrls)
+            listOf(Capability.PaywallEventReceiver(), Capability.MultiplePaywallUrls, Capability.ConfigCaching)
 
         val deviceTemplate =
             DeviceTemplate(
