@@ -1,6 +1,6 @@
 package com.superwall.sdk.paywall.presentation.rule_logic
 
-import Assignments
+import com.superwall.sdk.config.Assignments
 import com.superwall.sdk.dependencies.RuleAttributesFactory
 import com.superwall.sdk.models.assignment.ConfirmableAssignment
 import com.superwall.sdk.models.events.EventData

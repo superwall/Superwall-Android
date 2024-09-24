@@ -1,7 +1,5 @@
 package com.superwall.sdk.network
 
-import BaseHostService
-import GeoService
 import com.superwall.sdk.dependencies.ApiFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope

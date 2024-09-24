@@ -129,6 +129,12 @@ class SWWebView(
     }
 
     override fun loadUrl(url: String) {
+        this.webViewClient =
+            DefaultWebviewClient(
+                forUrl = url,
+                ioScope = CoroutineScope(Dispatchers.IO),
+            )
+        listenToWebviewClientEvents(this.webViewClient as DefaultWebviewClient)
         // Parse the url and add the query parameter
         val uri = Uri.parse(url)
 

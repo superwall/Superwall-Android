@@ -1,6 +1,6 @@
 package com.superwall.sdk.models.triggers
 
-import ComputedPropertyRequest
+import com.superwall.sdk.models.config.ComputedPropertyRequest
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable

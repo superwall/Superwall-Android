@@ -1,6 +1,5 @@
 package com.superwall.sdk.config
 
-import Assignments
 import android.content.Context
 import android.webkit.WebView
 import com.superwall.sdk.dependencies.RequestFactory

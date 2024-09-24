@@ -1,9 +1,9 @@
 package com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator
 
-import ComputedPropertyRequest
 import androidx.javascriptengine.JavaScriptSandbox
 import androidx.test.platform.app.InstrumentationRegistry
 import com.superwall.sdk.dependencies.RuleAttributesFactory
+import com.superwall.sdk.models.config.ComputedPropertyRequest
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.MatchedItem

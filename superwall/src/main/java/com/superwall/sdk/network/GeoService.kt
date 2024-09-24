@@ -1,6 +1,7 @@
+package com.superwall.sdk.network
+
 import com.superwall.sdk.dependencies.ApiFactory
 import com.superwall.sdk.models.geo.GeoWrapper
-import com.superwall.sdk.network.NetworkService
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
 
 class GeoService(

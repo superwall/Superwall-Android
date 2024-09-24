@@ -1,6 +1,5 @@
 package com.superwall.sdk.network
 
-import GeoService
 import Given
 import Then
 import When

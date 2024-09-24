@@ -1,4 +1,5 @@
-import com.superwall.sdk.config.ConfigLogic
+package com.superwall.sdk.config
+
 import com.superwall.sdk.misc.Either
 import com.superwall.sdk.misc.then
 import com.superwall.sdk.models.assignment.Assignment
