@@ -1,3 +1,5 @@
+package com.superwall.sdk.models.config
+
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable

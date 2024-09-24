@@ -1,11 +1,11 @@
 package com.superwall.sdk.storage.core_data
 
-import ComputedPropertyRequest
 import android.content.Context
 import android.icu.util.Calendar
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
+import com.superwall.sdk.models.config.ComputedPropertyRequest
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
 import com.superwall.sdk.storage.core_data.entities.ManagedEventData

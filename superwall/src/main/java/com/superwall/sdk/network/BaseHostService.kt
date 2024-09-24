@@ -1,3 +1,5 @@
+package com.superwall.sdk.network
+
 import com.superwall.sdk.dependencies.ApiFactory
 import com.superwall.sdk.misc.Either
 import com.superwall.sdk.models.assignment.AssignmentPostback
@@ -5,9 +7,6 @@ import com.superwall.sdk.models.assignment.ConfirmedAssignmentResponse
 import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.Paywalls
-import com.superwall.sdk.network.NetworkError
-import com.superwall.sdk.network.NetworkService
-import com.superwall.sdk.network.URLQueryItem
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json

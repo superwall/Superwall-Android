@@ -1,6 +1,5 @@
 package com.superwall.sdk.network.device
 
-import ComputedPropertyRequest
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.ApplicationInfo
@@ -20,6 +19,7 @@ import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.then
+import com.superwall.sdk.models.config.ComputedPropertyRequest
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.geo.GeoInfo
 import com.superwall.sdk.network.JsonFactory

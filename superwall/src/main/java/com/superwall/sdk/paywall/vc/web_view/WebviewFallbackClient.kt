@@ -24,7 +24,7 @@ internal class WebviewFallbackClient(
     private val mainScope: CoroutineScope,
     private val loadUrl: (PaywallWebviewUrl) -> Unit,
     private val stopLoading: () -> Unit,
-) : DefaultWebviewClient(ioScope) {
+) : DefaultWebviewClient("", ioScope) {
     private class MaxAttemptsReachedException : Exception("Max attempts reached")
 
     private var failureCount = 0

@@ -1,7 +1,6 @@
 package com.superwall.sdk.config
 
 import And
-import Assignments
 import Given
 import Then
 import When

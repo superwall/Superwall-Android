@@ -1,6 +1,5 @@
 package com.superwall.sdk.network
 
-import BaseHostService
 import Given
 import Then
 import When

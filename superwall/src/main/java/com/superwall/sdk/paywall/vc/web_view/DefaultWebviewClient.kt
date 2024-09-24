@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 
 internal open class DefaultWebviewClient(
+    private val forUrl: String = "",
     private val ioScope: CoroutineScope,
 ) : WebViewClient() {
     val webviewClientEvents: MutableSharedFlow<WebviewClientEvent> =
@@ -52,7 +53,7 @@ internal open class DefaultWebviewClient(
                             val body = it.data?.bufferedReader()?.use { it.readText() } ?: "Unknown"
                             "Error: ${errorResponse.reasonPhrase} -\n $body"
                         } ?: "Unknown error",
-                        request?.url?.toString() ?: "",
+                        forUrl,
                     ),
                 ),
             )
@@ -70,7 +71,7 @@ internal open class DefaultWebviewClient(
                     WebviewError.NetworkError(
                         error.errorCode,
                         error.description.toString(),
-                        request?.url?.toString() ?: "",
+                        forUrl,
                     ),
                 ),
             )

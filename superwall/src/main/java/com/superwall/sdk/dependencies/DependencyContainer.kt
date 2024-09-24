@@ -1,9 +1,5 @@
 package com.superwall.sdk.dependencies
 
-import Assignments
-import BaseHostService
-import ComputedPropertyRequest
-import GeoService
 import android.app.Activity
 import android.app.Application
 import android.content.Context
@@ -19,6 +15,7 @@ import com.superwall.sdk.analytics.session.AppManagerDelegate
 import com.superwall.sdk.analytics.session.AppSession
 import com.superwall.sdk.analytics.session.AppSessionManager
 import com.superwall.sdk.billing.GoogleBillingWrapper
+import com.superwall.sdk.config.Assignments
 import com.superwall.sdk.config.ConfigLogic
 import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.config.PaywallPreload
@@ -33,12 +30,15 @@ import com.superwall.sdk.identity.IdentityManager
 import com.superwall.sdk.misc.ActivityProvider
 import com.superwall.sdk.misc.AppLifecycleObserver
 import com.superwall.sdk.misc.CurrentActivityTracker
+import com.superwall.sdk.models.config.ComputedPropertyRequest
 import com.superwall.sdk.models.config.FeatureFlags
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.network.Api
+import com.superwall.sdk.network.BaseHostService
 import com.superwall.sdk.network.CollectorService
+import com.superwall.sdk.network.GeoService
 import com.superwall.sdk.network.JsonFactory
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.network.RequestExecutor
