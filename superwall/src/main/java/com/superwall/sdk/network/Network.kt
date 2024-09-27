@@ -78,9 +78,9 @@ open class Network(
                 },
             )
 
-    override suspend fun getPaywalls(): Either<List<Paywall>, NetworkError> =
+    override suspend fun getPaywalls(isForDebugging: Boolean): Either<List<Paywall>, NetworkError> =
         baseHostService
-            .paywalls()
+            .paywalls(isForDebugging)
             .map {
                 it.paywalls
             }.logError("/paywalls")

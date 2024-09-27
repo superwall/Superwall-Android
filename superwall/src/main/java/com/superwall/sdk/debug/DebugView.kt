@@ -37,8 +37,7 @@ import com.superwall.sdk.dependencies.ViewFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
-import com.superwall.sdk.misc.onError
-import com.superwall.sdk.misc.then
+import com.superwall.sdk.misc.fold
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.paywall.manager.PaywallManager
@@ -528,18 +527,18 @@ class DebugView(
 
         if (paywalls.isEmpty()) {
             network
-                .getPaywalls()
-                .onError {
+                .getPaywalls(true)
+                .fold({
+                    paywalls = it
+                    finishLoadingPreview()
+                }, {
                     Logger.debug(
                         logLevel = LogLevel.error,
                         scope = LogScope.debugView,
                         message = "Failed to Fetch Paywalls",
                         error = it,
                     )
-                }.then {
-                    paywalls = it
-                    finishLoadingPreview()
-                }
+                })
         } else {
             finishLoadingPreview()
         }

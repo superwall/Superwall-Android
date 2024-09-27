@@ -38,7 +38,7 @@ class BaseHostService(
             body = json.encodeToString(confirmableAssignments).toByteArray(),
         )
 
-    suspend fun paywalls() = get<Paywalls>("paywalls")
+    suspend fun paywalls(isForDebugging: Boolean = false) = get<Paywalls>(path = "paywalls", isForDebugging = isForDebugging)
 
     suspend fun paywall(identifier: String? = null): Either<Paywall, NetworkError> {
         // WARNING: Do not modify anything about this request without considering our cache eviction code
