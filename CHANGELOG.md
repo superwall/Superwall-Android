@@ -2,6 +2,14 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 1.2.7
+
+### Enhancements
+- Exposes current configuration status via `Superwall.instance.configurationStatus`
+
+### Fixes
+- Fixes issues with Paywall previews not loading
+
 ## 1.2.6
 
 ### Fixes

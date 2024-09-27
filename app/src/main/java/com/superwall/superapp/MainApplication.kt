@@ -1,6 +1,9 @@
 package com.superwall.superapp
 
 import android.app.Activity
+import android.os.StrictMode
+import android.os.StrictMode.ThreadPolicy
+import android.os.StrictMode.VmPolicy
 import androidx.appcompat.app.AlertDialog
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
@@ -39,6 +42,25 @@ class MainApplication :
 
     override fun onCreate() {
         super.onCreate()
+        StrictMode.setThreadPolicy(
+            ThreadPolicy
+                .Builder()
+                .detectCustomSlowCalls()
+                .detectResourceMismatches()
+                .detectUnbufferedIo() // or .detectAll() for all detectable problems
+                .penaltyLog()
+                .build(),
+        )
+        StrictMode.setVmPolicy(
+            VmPolicy
+                .Builder()
+                .detectLeakedSqlLiteObjects()
+                .detectActivityLeaks()
+                .detectLeakedRegistrationObjects()
+                .penaltyLog()
+                .penaltyDeath()
+                .build(),
+        )
 
         configureWithAutomaticInitialization()
 //        configureWithRevenueCatInitialization()

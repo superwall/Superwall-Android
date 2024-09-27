@@ -21,7 +21,7 @@ interface SuperwallAPI {
         event: EventData? = null,
     ): Either<Paywall, NetworkError>
 
-    suspend fun getPaywalls(): Either<List<Paywall>, NetworkError>
+    suspend fun getPaywalls(isForDebugging: Boolean = false): Either<List<Paywall>, NetworkError>
 
     suspend fun getGeoInfo(): Either<GeoInfo, NetworkError>
 

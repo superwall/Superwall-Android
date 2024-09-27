@@ -46,7 +46,7 @@ class NetworkMock : SuperwallAPI {
         TODO("Not yet implemented")
     }
 
-    override suspend fun getPaywalls(): Either<List<Paywall>, NetworkError> {
+    override suspend fun getPaywalls(isForDebugging: Boolean): Either<List<Paywall>, NetworkError> {
         TODO("Not yet implemented")
     }
 
