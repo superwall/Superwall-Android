@@ -6,6 +6,8 @@ import android.net.Uri
 import androidx.work.WorkManager
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
+import com.superwall.sdk.config.models.ConfigState
+import com.superwall.sdk.config.models.ConfigurationStatus
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.delegate.SuperwallDelegate
@@ -211,6 +213,23 @@ class Superwall(
      * [setSubscriptionStatus].
      */
     val subscriptionStatus: StateFlow<SubscriptionStatus> get() = _subscriptionStatus
+
+    /**
+     * A property that indicates current configuration state of the SDK.
+     *
+     * This is `ConfigurationStatus.Pending` when the SDK is yet to finish
+     * configuring. Upon successful configuration, it will change to `ConfigurationStatus.Configured`.
+     * On failure, it will change to `ConfigurationStatus.Failed`.
+     */
+    val configurationState: ConfigurationStatus
+        get() =
+            dependencyContainer.configManager.configState.value.let {
+                when (it) {
+                    is ConfigState.Retrieved -> ConfigurationStatus.Configured
+                    is ConfigState.Failed -> ConfigurationStatus.Failed
+                    else -> ConfigurationStatus.Pending
+                }
+            }
 
     companion object {
         /** A variable that is only `true` if ``instance`` is available for use.
