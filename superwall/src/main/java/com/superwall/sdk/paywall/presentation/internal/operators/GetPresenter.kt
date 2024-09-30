@@ -29,7 +29,18 @@ data class PresentablePipelineOutput(
     val confirmableAssignment: ConfirmableAssignment?,
 )
 
-suspend fun Superwall.getPresenterIfNecessary(
+/**
+ * Checks conditions for whether the paywall can present before accessing a window on
+ * which the paywall can present.
+ *
+ * @param paywallView The [PaywallView] to present.
+ * @param rulesOutcome The output from evaluating rules.
+ * @param request The presentation request.
+ * @param paywallStatePublisher A [MutableSharedFlow] that gets sent [PaywallState] objects.
+ *
+ * @return An [Activity] to present on, or null if presentation is not necessary.
+ */
+internal suspend fun Superwall.getPresenterIfNecessary(
     paywallView: PaywallView,
     rulesOutcome: RuleEvaluationOutcome,
     request: PresentationRequest,
@@ -95,7 +106,7 @@ suspend fun Superwall.getPresenterIfNecessary(
     return currentActivity
 }
 
-suspend fun Superwall.attemptTriggerFire(
+internal suspend fun Superwall.attemptTriggerFire(
     request: PresentationRequest,
     triggerResult: InternalTriggerResult,
 ) {

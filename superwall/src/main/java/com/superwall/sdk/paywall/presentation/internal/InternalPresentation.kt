@@ -13,8 +13,15 @@ import kotlinx.coroutines.withContext
 
 typealias PaywallStatePublisher = Flow<PaywallState>
 
+/**
+ * Runs a background task to present a paywall, publishing [PaywallState] objects that provide updates on the lifecycle of the paywall.
+ *
+ * @param request A presentation request of type [PresentationRequest] to feed into a presentation pipeline.
+ * @param publisher A publisher fed into the pipeline that sends state updates.
+ */
+
 @Throws(Throwable::class)
-suspend fun Superwall.internallyPresent(
+internal suspend fun Superwall.internallyPresent(
     request: PresentationRequest,
     publisher: MutableSharedFlow<PaywallState>,
 ) {
@@ -48,7 +55,7 @@ suspend fun Superwall.internallyPresent(
     }
 }
 
-suspend fun Superwall.dismiss(
+internal suspend fun Superwall.dismiss(
     paywallView: PaywallView,
     result: PaywallResult,
     closeReason: PaywallCloseReason = PaywallCloseReason.SystemLogic,
