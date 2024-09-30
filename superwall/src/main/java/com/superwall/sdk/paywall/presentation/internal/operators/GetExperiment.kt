@@ -30,7 +30,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
  * @return A data class that contains info for the next operation.
  */
 @Throws(Throwable::class)
-suspend fun Superwall.getExperiment(
+internal suspend fun Superwall.getExperiment(
     request: PresentationRequest,
     rulesOutcome: RuleEvaluationOutcome,
     debugInfo: Map<String, Any>,
