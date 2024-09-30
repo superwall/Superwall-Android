@@ -10,7 +10,7 @@ import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import kotlinx.coroutines.flow.MutableSharedFlow
 
-suspend fun Superwall.checkNoPaywallAlreadyPresented(
+internal suspend fun Superwall.checkNoPaywallAlreadyPresented(
     request: PresentationRequest,
     paywallStatePublisher: MutableSharedFlow<PaywallState>,
 ) {

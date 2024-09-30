@@ -26,9 +26,16 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import java.util.Date
 
+/**
+ * Tracks an analytical event by sending it to the server and, for internal Superwall events, the delegate.
+ *
+ * @param event The event you want to track.
+ * @return TrackingResult The result of the tracking operation.
+ */
 suspend fun Superwall.track(event: Trackable): Result<TrackingResult> {
     return withErrorTracking {
         // Wait for the SDK to be fully initialized
@@ -107,6 +114,24 @@ suspend fun Superwall.track(event: Trackable): Result<TrackingResult> {
         )
     }.toResult()
 }
+
+/**
+ * Tracks an analytical event synchronously.
+ * Warning: This blocks the calling thread.
+ * @param event The event you want to track.
+ * @return TrackingResult The result of the tracking operation.
+ */
+fun Superwall.trackSync(event: Trackable): Result<TrackingResult> =
+    runBlocking {
+        track(event)
+    }
+
+/**
+ * Attempts to implicitly trigger a paywall for a given analytical event.
+ *
+ * @param event The tracked event.
+ * @param eventData The event data that could trigger a paywall.
+ */
 
 suspend fun Superwall.handleImplicitTrigger(
     event: Trackable,
