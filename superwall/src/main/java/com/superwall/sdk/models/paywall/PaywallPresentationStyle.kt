@@ -14,7 +14,7 @@ enum class PaywallPresentationStyle(
     FULLSCREEN("FULLSCREEN"),
 
     @SerialName("NO_ANIMATION")
-    FULLSCREEN_NO_ANIMATION("NO_ANIMATION"),
+    FULLSCREEN_NO_ANIMATION("FULLSCREEN_NO_ANIMATION"),
 
     @SerialName("PUSH")
     PUSH("PUSH"),
