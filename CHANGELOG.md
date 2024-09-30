@@ -2,6 +2,12 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+
+## 1.2.8
+
+### Fixes
+- Fixes issues with Paywall presentation styles not being properly passed
+
 ## 1.2.7
 
 ### Enhancements

@@ -1,7 +1,6 @@
 package com.superwall.sdk.paywall.vc
 
 import android.Manifest
-import android.R
 import android.animation.ArgbEvaluator
 import android.animation.ValueAnimator
 import android.app.Activity
@@ -243,11 +242,14 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                     overrideActivityTransition(
                         OVERRIDE_TRANSITION_OPEN,
-                        R.anim.slide_in_left,
-                        R.anim.slide_in_left,
+                        com.superwall.sdk.R.anim.slide_in_right,
+                        com.superwall.sdk.R.anim.slide_out_left,
                     )
                 } else {
-                    overridePendingTransition(R.anim.slide_in_left, R.anim.slide_in_left)
+                    overridePendingTransition(
+                        com.superwall.sdk.R.anim.slide_in_right,
+                        com.superwall.sdk.R.anim.slide_out_left,
+                    )
                 }
             }
 
