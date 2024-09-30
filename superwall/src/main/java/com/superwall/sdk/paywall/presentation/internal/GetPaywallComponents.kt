@@ -15,6 +15,7 @@ import com.superwall.sdk.paywall.presentation.internal.operators.waitForEntitlem
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.runBlocking
 
 /**
  * Runs a pipeline of operations to get a paywall to present and associated components.
@@ -81,3 +82,21 @@ internal suspend fun Superwall.confirmAssignment(request: PresentationRequest): 
         }
     }
 }
+
+/**
+ * Synchronously runs a pipeline of operations to get a paywall to present and associated components.
+ *
+ * @param request The presentation request.
+ * @param publisher A `MutableStateFlow` that gets sent `PaywallState` objects.
+ * @return A `PaywallComponents` object that contains objects associated with the
+ * paywall view controller.
+ * @throws PresentationPipelineError object associated with stages of the pipeline.
+ */
+
+fun Superwall.getPaywallComponentsSync(
+    request: PresentationRequest,
+    publisher: MutableSharedFlow<PaywallState>? = null,
+): PaywallComponents =
+    runBlocking {
+        getPaywallComponents(request, publisher)
+    }

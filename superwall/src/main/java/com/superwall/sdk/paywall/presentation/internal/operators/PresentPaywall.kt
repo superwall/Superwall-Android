@@ -16,6 +16,7 @@ import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.paywall.view.PaywallView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -86,5 +87,36 @@ suspend fun Superwall.presentPaywallView(
     } catch (error: Throwable) {
         logErrors(request, error = error)
         throw error
+    }
+}
+
+/**
+ * A synchronous version of `presentPaywallView` which will invoke a callback with the paywall state.
+ * Warning: This blocks the calling thread.
+ **/
+
+fun Superwall.presentPaywallViewSync(
+    paywallView: PaywallView,
+    presenter: Activity,
+    unsavedOccurrence: TriggerRuleOccurrence?,
+    debugInfo: Map<String, Any>,
+    request: PresentationRequest,
+    onStateChanged: (PaywallState) -> Unit,
+) {
+    mainScope.launch {
+        val publisher = MutableSharedFlow<PaywallState>()
+        ioScope.launch {
+            publisher.collectLatest {
+                onStateChanged(it)
+            }
+        }
+        presentPaywallView(
+            paywallView = paywallView,
+            presenter = presenter,
+            unsavedOccurrence = unsavedOccurrence,
+            debugInfo = debugInfo,
+            request = request,
+            paywallStatePublisher = publisher,
+        )
     }
 }
