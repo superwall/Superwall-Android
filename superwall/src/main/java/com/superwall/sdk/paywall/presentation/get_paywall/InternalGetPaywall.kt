@@ -10,6 +10,9 @@ import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.paywall.presentation.rule_logic.RuleEvaluationOutcome
 import com.superwall.sdk.paywall.view.PaywallView
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 data class PaywallComponents(
     val view: PaywallView,
@@ -18,6 +21,14 @@ data class PaywallComponents(
     val debugInfo: Map<String, Any>,
 )
 
+/**
+ * Gets a paywall to present, publishing [PaywallState] objects that provide updates on the lifecycle of the paywall.
+ *
+ * @param request A presentation request of type [PresentationRequest] to feed into a presentation pipeline.
+ * @param publisher A [MutableSharedFlow] that emits [PaywallState] objects.
+ * @return A [PaywallView] to present.
+ * @throws Throwable if an error occurs during the process.
+ */
 @Throws(Throwable::class)
 internal suspend fun Superwall.getPaywall(
     request: PresentationRequest,
@@ -34,3 +45,29 @@ internal suspend fun Superwall.getPaywall(
         logErrors(request, error = it)
         Either.Failure(it)
     })
+
+/**
+ * Gets a paywall to present synchronously, providing updates on the lifecycle of the paywall through a callback.
+ * Warning: This blocks the calling thread until the paywall is returned.
+ *
+ * @param request A presentation request of type [PresentationRequest] to feed into a presentation pipeline.
+ * @param onStateChanged A callback function that receives [PaywallState] updates.
+ * @return A [PaywallView] to present.
+ * @throws Throwable if an error occurs during the process.
+ */
+@Throws(Throwable::class)
+fun Superwall.getPaywallSync(
+    request: PresentationRequest,
+    onStateChanged: (PaywallState) -> Unit = {},
+): PaywallView {
+    val scope = Superwall.instance.ioScope
+    val publisher = MutableSharedFlow<PaywallState>()
+    scope.launch {
+        publisher.collectLatest {
+            onStateChanged(it)
+        }
+    }
+    return runBlocking {
+        getPaywall(request, publisher)
+    }
+}
