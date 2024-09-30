@@ -260,7 +260,7 @@ class PaywallView(
             presenter,
             this,
             cacheKey,
-            presentationStyleOverride,
+            presentationStyle,
         )
         viewCreatedCompletion = completion
     }
