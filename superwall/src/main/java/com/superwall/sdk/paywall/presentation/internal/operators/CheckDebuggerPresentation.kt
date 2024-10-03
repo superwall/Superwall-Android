@@ -14,7 +14,7 @@ suspend fun Superwall.checkDebuggerPresentation(
     request: PresentationRequest,
     paywallStatePublisher: MutableSharedFlow<PaywallState>?,
 ) {
-    if (!request.flags.isDebuggerLaunched || request.presenter is DebugViewActivity) {
+    if (!request.flags.isDebuggerLaunched || request.presenter?.get() is DebugViewActivity) {
         return
     }
 

@@ -360,9 +360,11 @@ class PaywallView(
         paywallResult = null
         cache?.activePaywallVcKey = null
         isPresented = false
-
         dismissCompletionBlock?.invoke()
         dismissCompletionBlock = null
+        callback = null
+        removeAllViews()
+        detachAllViewsFromParent()
     }
 
     private fun resetPresentationPreparations() {
@@ -831,6 +833,11 @@ class PaywallView(
 
         // This would normally be in iOS view will appear, but there's not a similar paradigm
         cache?.activePaywallVcKey = cacheKey
+    }
+
+    fun cleanup() {
+        encapsulatingActivity?.clear()
+        (parent as? ViewGroup)?.removeAllViews()
     }
 
 //endregion

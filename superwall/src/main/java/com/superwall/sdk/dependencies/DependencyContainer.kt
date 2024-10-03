@@ -81,6 +81,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import java.lang.ref.WeakReference
 import java.util.Date
 
 class DependencyContainer(
@@ -507,7 +508,7 @@ class DependencyContainer(
     ): PresentationRequest =
         PresentationRequest(
             presentationInfo = presentationInfo,
-            presenter = presenter,
+            presenter = WeakReference(presenter),
             paywallOverrides = paywallOverrides,
             flags =
                 PresentationRequest.Flags(

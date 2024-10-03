@@ -6,6 +6,7 @@ import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewDelegateAdapter
 import kotlinx.coroutines.flow.StateFlow
+import java.lang.ref.WeakReference
 
 sealed class PresentationRequestType {
     object Presentation : PresentationRequestType()
@@ -48,7 +49,7 @@ sealed class PresentationRequestType {
 
 data class PresentationRequest(
     val presentationInfo: PresentationInfo,
-    var presenter: Activity? = null,
+    var presenter: WeakReference<Activity>? = null,
     var paywallOverrides: PaywallOverrides? = null,
     var flags: Flags,
 ) {

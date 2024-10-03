@@ -9,6 +9,7 @@ import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Resources
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Build
@@ -20,6 +21,7 @@ import android.view.WindowInsetsController
 import android.view.WindowManager
 import android.widget.FrameLayout
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
@@ -27,18 +29,26 @@ import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.children
+import androidx.core.view.updateLayoutParams
 import com.google.android.material.bottomsheet.BottomSheetBehavior
+import com.google.android.material.bottomsheet.BottomSheetBehavior.BottomSheetCallback
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.dependencies.DeviceHelperFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
+import com.superwall.sdk.misc.isDarkColor
 import com.superwall.sdk.misc.isLightColor
+import com.superwall.sdk.misc.readableOverlayColor
 import com.superwall.sdk.models.paywall.LocalNotification
 import com.superwall.sdk.models.paywall.PaywallPresentationStyle
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
+import com.superwall.sdk.paywall.vc.web_view.SWWebView
 import com.superwall.sdk.store.transactions.notifications.NotificationScheduler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -110,49 +120,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
 
     private val mainScope = CoroutineScope(Dispatchers.Main)
 
-    private fun paywallView(): PaywallView? = contentView?.findViewWithTag<PaywallView>(ACTIVE_PAYWALL_TAG)
-
-    private fun setupBottomSheetLayout(
-        paywallView: PaywallView,
-        isExpanded: Boolean,
-    ) {
-        val activityView =
-            layoutInflater.inflate(com.superwall.sdk.R.layout.activity_bottom_sheet, null)
-        setContentView(activityView)
-        initBottomSheetBehavior(isExpanded)
-        val container =
-            activityView.findViewById<FrameLayout>(com.superwall.sdk.R.id.container)
-        activityView.setOnClickListener { finish() }
-        container.addView(paywallView)
-        container.requestLayout()
-    }
-
-    private fun initBottomSheetBehavior(isExpanded: Boolean) {
-        val bottomSheetBehavior = BottomSheetBehavior.from((contentView as ViewGroup).getChildAt(0))
-        bottomSheetBehavior.halfExpandedRatio = if (isExpanded) 0.95f else 0.7f
-        // Expanded by default
-        bottomSheetBehavior.state = BottomSheetBehavior.STATE_HALF_EXPANDED
-        bottomSheetBehavior.skipCollapsed = true
-        bottomSheetBehavior.addBottomSheetCallback(
-            object :
-                BottomSheetBehavior.BottomSheetCallback() {
-                override fun onStateChanged(
-                    bottomSheet: View,
-                    newState: Int,
-                ) {
-                    if (newState == BottomSheetBehavior.STATE_HIDDEN) {
-                        finish()
-                    }
-                }
-
-                override fun onSlide(
-                    bottomSheet: View,
-                    slideOffset: Float,
-                ) {
-                }
-            },
-        )
-    }
+    private fun paywallView(): PaywallView? = contentView?.findViewWithTag(ACTIVE_PAYWALL_TAG)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -254,7 +222,30 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             }
 
             PaywallPresentationStyle.FULLSCREEN -> {
-                enableEdgeToEdge()
+                WindowCompat.setDecorFitsSystemWindows(window, true)
+
+                // Set the navigation bar color to the paywall background color
+                enableEdgeToEdge(
+                    navigationBarStyle =
+                        when (view.paywall.backgroundColor.isDarkColor()) {
+                            true -> SystemBarStyle.dark(view.paywall.backgroundColor)
+                            else ->
+                                SystemBarStyle.light(
+                                    scrim = view.paywall.backgroundColor,
+                                    darkScrim = view.paywall.backgroundColor.readableOverlayColor(),
+                                )
+                        },
+                )
+
+                // Set the bottom margin of the webview to the height of the system bars
+                ViewCompat.setOnApplyWindowInsetsListener(view.webView) { v, windowInsets ->
+                    val insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
+                    v.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                        bottomMargin = insets.bottom
+                    }
+
+                    WindowInsetsCompat.CONSUMED
+                }
             }
 
             PaywallPresentationStyle.FULLSCREEN_NO_ANIMATION -> {
@@ -274,6 +265,88 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             -> {
                 // Do nothing
             }
+        }
+    }
+
+    private fun setupBottomSheetLayout(
+        paywallView: PaywallView,
+        isModal: Boolean,
+    ) {
+        val activityView =
+            layoutInflater.inflate(com.superwall.sdk.R.layout.activity_bottom_sheet, null)
+        setContentView(activityView)
+        initBottomSheetBehavior(isModal)
+        val container =
+            activityView.findViewById<FrameLayout>(com.superwall.sdk.R.id.container)
+        activityView.setOnClickListener { finish() }
+        container.addView(paywallView)
+        container.requestLayout()
+    }
+
+    var callback: BottomSheetCallback? = null
+
+    private fun initBottomSheetBehavior(isModal: Boolean) {
+        val content = contentView as ViewGroup
+        val bottomSheetBehavior = BottomSheetBehavior.from(content.getChildAt(0))
+        if (!isModal) {
+            bottomSheetBehavior.halfExpandedRatio = 0.7f
+            // Expanded by default
+            bottomSheetBehavior.state = BottomSheetBehavior.STATE_HALF_EXPANDED
+        } else {
+            // If it's a Modal, we want it to cover only 95% of the screen when expanded
+            content.updateLayoutParams {
+                (this as FrameLayout.LayoutParams).topMargin =
+                    (Resources.getSystem().getDisplayMetrics().heightPixels * 0.05).toInt()
+            }
+            bottomSheetBehavior.state = BottomSheetBehavior.STATE_EXPANDED
+        }
+        content.invalidate()
+        bottomSheetBehavior.skipCollapsed = true
+        var currentWebViewScroll = 0
+        if (isModal) {
+            paywallView()?.webView?.onScrollChangeListener =
+                object : SWWebView.OnScrollChangeListener {
+                    override fun onScrollChanged(
+                        currentHorizontalScroll: Int,
+                        currentVerticalScroll: Int,
+                        oldHorizontalScroll: Int,
+                        oldcurrentVerticalScroll: Int,
+                    ) {
+                        currentWebViewScroll = currentVerticalScroll
+                    }
+                }
+        }
+
+        callback =
+            object :
+                BottomSheetBehavior.BottomSheetCallback() {
+                override fun onStateChanged(
+                    bottomSheet: View,
+                    newState: Int,
+                ) {
+                    // If it is an expanded modal and webview is scrolling, we do not allow dismissing
+                    if (isModal && newState == BottomSheetBehavior.STATE_DRAGGING && currentWebViewScroll > 0) {
+                        bottomSheetBehavior.state = BottomSheetBehavior.STATE_EXPANDED
+                    } else {
+                        // If it is a modal, we skip the half-collapsed state when collapsing
+                        if (isModal && newState == BottomSheetBehavior.STATE_HALF_EXPANDED) {
+                            bottomSheetBehavior.state = BottomSheetBehavior.STATE_EXPANDED
+                        } else if (newState == BottomSheetBehavior.STATE_HIDDEN) {
+                            finish()
+                        }
+                    }
+                }
+
+                override fun onSlide(
+                    bottomSheet: View,
+                    slideOffset: Float,
+                ) {
+                }
+            }
+        callback?.let {
+            bottomSheetBehavior.addBottomSheetCallback(
+                it,
+            )
         }
     }
 
@@ -352,7 +425,23 @@ class SuperwallPaywallActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        (contentView?.parent as? ViewGroup)?.removeView(contentView)
+        val content = contentView as ViewGroup
+        if (content is CoordinatorLayout) {
+            val bottomSheetBehavior = BottomSheetBehavior.from(content.getChildAt(0))
+            callback?.let {
+                bottomSheetBehavior.removeBottomSheetCallback(it)
+            }
+        }
+        val pv = intent.getStringExtra(VIEW_KEY)
+        if (pv != null) {
+            (
+                Superwall.instance.dependencyContainer
+                    .makeViewStore()
+                    .retrieveView(pv) as PaywallView
+            ).cleanup()
+        }
+        paywallView()?.webView?.onScrollChangeListener = null
+        content.removeAllViews()
         // Clear reference to activity in the view
         (paywallView() as? ActivityEncapsulatable)?.encapsulatingActivity = null
 

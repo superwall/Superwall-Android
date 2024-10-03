@@ -2,6 +2,12 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 1.2.9
+
+### Fixes
+
+- Fixes issues with `MODAL` presentation style and scrolling containers
+- Fixes issues with `FULLSCREEN` presentation style rendering behind navigation
 
 ## 1.2.8
 
