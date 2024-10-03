@@ -6,6 +6,7 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import com.superwall.sdk.Superwall
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
@@ -34,6 +35,12 @@ internal open class DefaultWebviewClient(
         view: WebView,
         url: String,
     ) {
+        if (Superwall.instance.options.paywalls.shouldPreload) {
+            // If webview contains videos, we want to pause them
+            // This prevents HLS from consuming resources in the background
+            val pauseAlllVideos = "document.querySelectorAll('video').forEach((it)=>it.pause());"
+            view.evaluateJavascript(pauseAlllVideos, null)
+        }
         ioScope.launch {
             webviewClientEvents.emit(WebviewClientEvent.OnPageFinished(url))
         }

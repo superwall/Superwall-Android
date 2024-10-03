@@ -831,6 +831,13 @@ class PaywallView(
 
         // This would normally be in iOS view will appear, but there's not a similar paradigm
         cache?.activePaywallVcKey = cacheKey
+        if (Superwall.instance.options.paywalls.shouldPreload) {
+            mainScope.launch {
+                // If webview contains videos, we want to start them
+                val resumeAllVideos = "document.querySelectorAll('video').forEach((it)=>it.play());"
+                webView.evaluateJavascript(resumeAllVideos, null)
+            }
+        }
     }
 
 //endregion
