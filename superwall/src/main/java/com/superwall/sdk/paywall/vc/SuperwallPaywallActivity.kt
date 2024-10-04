@@ -283,7 +283,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         container.requestLayout()
     }
 
-    var callback: BottomSheetCallback? = null
+    private var bottomSheetCallback: BottomSheetCallback? = null
 
     private fun initBottomSheetBehavior(isModal: Boolean) {
         val content = contentView as ViewGroup
@@ -296,7 +296,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             // If it's a Modal, we want it to cover only 95% of the screen when expanded
             content.updateLayoutParams {
                 (this as FrameLayout.LayoutParams).topMargin =
-                    (Resources.getSystem().getDisplayMetrics().heightPixels * 0.05).toInt()
+                    (Resources.getSystem().displayMetrics.heightPixels * 0.05).toInt()
             }
             bottomSheetBehavior.state = BottomSheetBehavior.STATE_EXPANDED
         }
@@ -317,9 +317,9 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                 }
         }
 
-        callback =
+        bottomSheetCallback =
             object :
-                BottomSheetBehavior.BottomSheetCallback() {
+                BottomSheetCallback() {
                 override fun onStateChanged(
                     bottomSheet: View,
                     newState: Int,
@@ -343,7 +343,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                 ) {
                 }
             }
-        callback?.let {
+        bottomSheetCallback?.let {
             bottomSheetBehavior.addBottomSheetCallback(
                 it,
             )
@@ -428,7 +428,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         val content = contentView as ViewGroup
         if (content is CoordinatorLayout) {
             val bottomSheetBehavior = BottomSheetBehavior.from(content.getChildAt(0))
-            callback?.let {
+            bottomSheetCallback?.let {
                 bottomSheetBehavior.removeBottomSheetCallback(it)
             }
         }
@@ -441,10 +441,10 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             ).cleanup()
         }
         paywallView()?.webView?.onScrollChangeListener = null
+        paywallView()?.cleanup()
         content.removeAllViews()
         // Clear reference to activity in the view
         (paywallView() as? ActivityEncapsulatable)?.encapsulatingActivity = null
-
         // Clear the reference to the contentView
         contentView = null
     }
