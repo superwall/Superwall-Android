@@ -48,6 +48,8 @@ class SWWebView(
     var delegate: SWWebViewDelegate? = null
     private val mainScope = CoroutineScope(Dispatchers.Main)
 
+    var onScrollChangeListener: OnScrollChangeListener? = null
+
     init {
 
         addJavascriptInterface(messageHandler, "SWAndroid")
@@ -179,6 +181,7 @@ class SWWebView(
 
                                         is WebviewError.MaxAttemptsReached ->
                                             e.urls
+
                                         is WebviewError.AllUrlsFailed -> e.urls
                                     },
                                 )
@@ -233,5 +236,34 @@ class SWWebView(
                 )
             Superwall.instance.track(trackedEvent)
         }
+    }
+
+    override fun onScrollChanged(
+        horizontalOrigin: Int,
+        verticalOrigin: Int,
+        oldHorizontal: Int,
+        oldVertical: Int,
+    ) {
+        super.onScrollChanged(horizontalOrigin, verticalOrigin, oldHorizontal, oldVertical)
+        onScrollChangeListener?.onScrollChanged(
+            horizontalOrigin,
+            verticalOrigin,
+            oldHorizontal,
+            oldVertical,
+        )
+    }
+
+    override fun destroy() {
+        onScrollChangeListener = null
+        super.destroy()
+    }
+
+    interface OnScrollChangeListener {
+        fun onScrollChanged(
+            currentHorizontalScroll: Int,
+            currentVerticalScroll: Int,
+            oldHorizontalScroll: Int,
+            oldcurrentVerticalScroll: Int,
+        )
     }
 }
