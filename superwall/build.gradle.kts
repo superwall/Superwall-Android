@@ -193,6 +193,7 @@ dependencies {
 
     implementation(libs.threetenbp)
     // Billing
+    implementation("com.superwall.supercel:supercel:1.0.1@aar")
     implementation(libs.billing)
 
     // Browser
