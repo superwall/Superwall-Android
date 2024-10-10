@@ -2,6 +2,10 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 1.3.0
+- Adds `Superwall.instance.confirmAllAssignments()`, which confirms assignments for all placements and returns an array of all confirmed experiment assignments. Note that the assignments may be different when a placement is registered due to changes in user, placement, or device parameters used in audience filters.
+
+
 ## 1.2.9
 
 ### Fixes
