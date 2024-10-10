@@ -384,6 +384,12 @@ sealed class SuperwallEvent {
             get() = "config_fail"
     }
 
+    // When `confirmAllAssignments` is invoked
+    object ConfirmAllAssignments : SuperwallEvent() {
+        override val rawName: String
+            get() = "confirm_all_assignments"
+    }
+
     // When Superwall.instance.reset is called
     object Reset : SuperwallEvent() {
         override val rawName: String

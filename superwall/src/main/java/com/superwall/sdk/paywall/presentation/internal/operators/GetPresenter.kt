@@ -62,6 +62,7 @@ suspend fun Superwall.getPresenterIfNecessary(
 
         is PresentationRequestType.GetImplicitPresentationResult,
         is PresentationRequestType.GetPresentationResult,
+        is PresentationRequestType.ConfirmAllAssignments,
         -> return null
         is PresentationRequestType.Presentation -> Unit
         else -> Unit

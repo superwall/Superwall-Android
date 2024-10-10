@@ -11,6 +11,8 @@ import java.lang.ref.WeakReference
 sealed class PresentationRequestType {
     object Presentation : PresentationRequestType()
 
+    object ConfirmAllAssignments : PresentationRequestType()
+
     data class GetPaywall(
         val adapter: PaywallViewDelegateAdapter,
     ) : PresentationRequestType()
@@ -26,6 +28,7 @@ sealed class PresentationRequestType {
                 is GetPaywall -> "getPaywallViewController"
                 is GetPresentationResult -> "getPresentationResult"
                 is GetImplicitPresentationResult -> "getImplicitPresentationResult"
+                is ConfirmAllAssignments -> "confirmAllAssignments"
                 else -> "Unknown"
             }
 
@@ -73,6 +76,7 @@ data class PresentationRequest(
                         is PresentationRequestType.Presentation -> "register"
                         is PresentationRequestType.GetPresentationResult -> null
                         is PresentationRequestType.GetImplicitPresentationResult -> null
+                        is PresentationRequestType.ConfirmAllAssignments -> null
                         else -> null
                     }
             }

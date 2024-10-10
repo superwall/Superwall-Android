@@ -19,11 +19,16 @@ import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.ActivityProvider
 import com.superwall.sdk.misc.SerialTaskManager
+import com.superwall.sdk.models.assignment.ConfirmedAssignment
+import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.network.device.InterfaceStyle
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.PresentationItems
+import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
+import com.superwall.sdk.paywall.presentation.internal.confirmAssignment
 import com.superwall.sdk.paywall.presentation.internal.dismiss
+import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.vc.PaywallView
 import com.superwall.sdk.paywall.vc.SuperwallPaywallActivity
@@ -52,6 +57,7 @@ import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Date
 
 class Superwall(
     context: Context,
@@ -555,6 +561,67 @@ class Superwall(
         }
     }
     //endregion
+
+    /**
+     * Gets an array of all confirmed experiment assignments.
+     * @return An array of `ConfirmedAssignments` objects.
+     * */
+
+    fun getAssignments(): List<ConfirmedAssignment> =
+        dependencyContainer.storage.getConfirmedAssignments().map { ConfirmedAssignment(it.key, it.value) }
+
+    /**
+     * Confirms all experiment assignments and returns them in an array.
+     *
+     * This tracks ``SuperwallEvent/confirmAllAssignments`` in the delegate.
+     *
+     * Note that the assignments may be different when a placement is registered due to changes
+     * in user, placement, or device parameters used in audience filters.
+     * @return An array of `ConfirmedAssignments` objects.
+     */
+
+    suspend fun confirmAllAssignments(): List<ConfirmedAssignment> {
+        val event = InternalSuperwallEvent.ConfirmAllAssignments
+        track(event)
+        val triggers = dependencyContainer.configManager.config?.triggers ?: return emptyList()
+        val storedAssignments = dependencyContainer.storage.getConfirmedAssignments()
+        val assignments =
+            storedAssignments
+                .map {
+                    ConfirmedAssignment(it.key, it.value)
+                }.toMutableSet()
+
+        triggers.forEach {
+            val eventData = EventData(name = it.eventName, parameters = emptyMap(), createdAt = Date())
+            val request =
+                dependencyContainer.makePresentationRequest(
+                    presentationInfo = PresentationInfo.ExplicitTrigger(eventData),
+                    paywallOverrides = null,
+                    isPaywallPresented = false,
+                    type = PresentationRequestType.ConfirmAllAssignments,
+                )
+            confirmAssignment(request)?.let {
+                assignments.add(it)
+            }
+        }
+        return assignments.toList()
+    }
+
+    /**
+     * Confirms all experiment assignments and returns them in an array.
+     *
+     * This tracks ``SuperwallEvent/ConfirmAllAssignments`` in the delegate.
+     *
+     * Note that the assignments may be different when a placement is registered due to changes
+     * in user, placement, or device parameters used in audience filters.
+     * @param callback callback that will receive the confirmed assignments.
+     */
+    fun Superwall.confirmAllAssignments(callback: (List<ConfirmedAssignment>) -> Unit) {
+        ioScope.launch {
+            val assignments = confirmAllAssignments()
+            callback(assignments)
+        }
+    }
 
     override suspend fun eventDidOccur(
         paywallEvent: PaywallWebEvent,

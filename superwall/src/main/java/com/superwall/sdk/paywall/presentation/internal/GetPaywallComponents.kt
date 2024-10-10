@@ -1,6 +1,7 @@
 package com.superwall.sdk.paywall.presentation.internal
 
 import com.superwall.sdk.Superwall
+import com.superwall.sdk.models.assignment.ConfirmedAssignment
 import com.superwall.sdk.paywall.presentation.get_paywall.PaywallComponents
 import com.superwall.sdk.paywall.presentation.internal.operators.checkDebuggerPresentation
 import com.superwall.sdk.paywall.presentation.internal.operators.checkUserSubscription
@@ -11,6 +12,7 @@ import com.superwall.sdk.paywall.presentation.internal.operators.getPaywallView
 import com.superwall.sdk.paywall.presentation.internal.operators.getPresenterIfNecessary
 import com.superwall.sdk.paywall.presentation.internal.operators.waitForSubsStatusAndConfig
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
+import com.superwall.sdk.utilities.withErrorTrackingAsync
 import kotlinx.coroutines.flow.MutableSharedFlow
 
 /**
@@ -56,4 +58,21 @@ suspend fun Superwall.getPaywallComponents(
         rulesOutcome = rulesOutcome,
         debugInfo = debugInfo,
     )
+}
+
+internal suspend fun Superwall.confirmAssignment(request: PresentationRequest): ConfirmedAssignment? {
+    return withErrorTrackingAsync {
+        waitForSubsStatusAndConfig(request)
+        val rules = evaluateRules(request)
+        confirmHoldoutAssignment(request, rules)
+        val confirmableAssignment = rules.confirmableAssignment
+        confirmPaywallAssignment(confirmableAssignment, request, request.flags.isDebuggerLaunched)
+
+        return@withErrorTrackingAsync confirmableAssignment?.let {
+            ConfirmedAssignment(
+                experimentId = it.experimentId,
+                variant = it.variant,
+            )
+        }
+    }
 }
