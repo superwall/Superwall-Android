@@ -21,7 +21,7 @@ data class PaywallComponents(
 }
 
 @Throws(Throwable::class)
-suspend fun Superwall.getPaywall(
+internal suspend fun Superwall.getPaywall(
     request: PresentationRequest,
     publisher: MutableSharedFlow<PaywallState> = MutableSharedFlow(),
 ): PaywallView =

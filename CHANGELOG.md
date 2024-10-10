@@ -4,10 +4,14 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## 1.3.0
 
+### Enhancements
+- The existing `getPaywall` method has been deprecated and renamed to `getPaywallOrThrow`. The new `getPaywall` method now returns a `kotlin.Result<PaywallView>` instead of throwing an exception.
+
 ### Fixes
 
 - Fixes issues with Paywall sometimes not displaying when returning from background 
 - Fixes issue with SDK crashing when WebView is not available
+- Update visibility of internal `getPaywall` methods to `internal` to prevent misuse
 
 ## 1.2.9
 
