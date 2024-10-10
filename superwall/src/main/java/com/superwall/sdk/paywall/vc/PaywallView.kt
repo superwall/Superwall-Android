@@ -362,9 +362,6 @@ class PaywallView(
         isPresented = false
         dismissCompletionBlock?.invoke()
         dismissCompletionBlock = null
-        callback = null
-        removeAllViews()
-        detachAllViewsFromParent()
     }
 
     private fun resetPresentationPreparations() {
@@ -837,7 +834,10 @@ class PaywallView(
 
     fun cleanup() {
         encapsulatingActivity?.clear()
+        callback = null
         (parent as? ViewGroup)?.removeAllViews()
+        removeAllViews()
+        detachAllViewsFromParent()
     }
 
 //endregion
