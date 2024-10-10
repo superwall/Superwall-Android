@@ -13,7 +13,6 @@ import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
-import com.superwall.sdk.models.product.ProductType
 import com.superwall.sdk.store.abstractions.product.OfferType
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import kotlinx.coroutines.CompletableDeferred
@@ -143,7 +142,8 @@ class ExternalNativePurchaseController(
 
         val offerToken = rawStoreProduct.selectedOffer?.offerToken
 
-        val isOneTime = productDetails.productType == BillingClient.ProductType.INAPP && offerToken.isNullOrEmpty()
+        val isOneTime =
+            productDetails.productType == BillingClient.ProductType.INAPP && offerToken.isNullOrEmpty()
 
         val productDetailsParams =
             BillingFlowParams.ProductDetailsParams
@@ -157,10 +157,38 @@ class ExternalNativePurchaseController(
                     }
                 }.build()
 
+        val shouldPassIdToPlayStore =
+            try {
+                Superwall.instance.options.passIdentifiersToPlayStore
+            } catch (e: Throwable) {
+                Logger.debug(
+                    logLevel = LogLevel.error,
+                    scope = LogScope.nativePurchaseController,
+                    message = "Error getting Superwall options",
+                )
+                false
+            }
+
+        val id =
+            try {
+                Superwall.instance.userId
+            } catch (e: Throwable) {
+                Logger.debug(
+                    logLevel = LogLevel.error,
+                    scope = LogScope.nativePurchaseController,
+                    message = "Error getting userId",
+                )
+                null
+            }
+
         val flowParams =
             BillingFlowParams
                 .newBuilder()
-                .setProductDetailsParamsList(listOf(productDetailsParams))
+                .apply {
+                    if (shouldPassIdToPlayStore && id != null) {
+                        setObfuscatedAccountId(id)
+                    }
+                }.setProductDetailsParamsList(listOf(productDetailsParams))
                 .build()
 
         Logger.debug(
@@ -191,9 +219,9 @@ class ExternalNativePurchaseController(
         return RestorationResult.Restored()
     }
 
-    //endregion
+//endregion
 
-    //region PurchasesUpdatedListener
+//region PurchasesUpdatedListener
 
     override fun onPurchasesUpdated(
         billingResult: BillingResult,
@@ -228,17 +256,19 @@ class ExternalNativePurchaseController(
         }
     }
 
-    //endregion
+//endregion
 
-    //region Private
+//region Private
 
     private suspend fun syncSubscriptionStatusAndWait() {
         val subscriptionPurchases = queryPurchasesOfType(BillingClient.ProductType.SUBS)
         val inAppPurchases = queryPurchasesOfType(BillingClient.ProductType.INAPP)
         val allPurchases = subscriptionPurchases + inAppPurchases
 
-        val hasActivePurchaseOrSubscription = allPurchases.any { it.purchaseState == Purchase.PurchaseState.PURCHASED }
-        val status: SubscriptionStatus = if (hasActivePurchaseOrSubscription) SubscriptionStatus.ACTIVE else SubscriptionStatus.INACTIVE
+        val hasActivePurchaseOrSubscription =
+            allPurchases.any { it.purchaseState == Purchase.PurchaseState.PURCHASED }
+        val status: SubscriptionStatus =
+            if (hasActivePurchaseOrSubscription) SubscriptionStatus.ACTIVE else SubscriptionStatus.INACTIVE
 
         if (!Superwall.initialized) {
             Logger.debug(
@@ -299,5 +329,5 @@ class ExternalNativePurchaseController(
             }
     }
 
-    //endregion
+//endregion
 }
