@@ -66,6 +66,7 @@ import com.superwall.sdk.paywall.vc.web_view.SWWebView
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallMessageHandler
 import com.superwall.sdk.paywall.vc.web_view.templating.models.JsonVariables
 import com.superwall.sdk.paywall.vc.web_view.templating.models.Variables
+import com.superwall.sdk.paywall.vc.web_view.webViewExists
 import com.superwall.sdk.storage.EventsQueue
 import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.store.InternalPurchaseController
@@ -332,7 +333,9 @@ class DependencyContainer(
          * For more info check https://issuetracker.google.com/issues/245155339
          */
         ioScope.launch {
-            WebSettings.getDefaultUserAgent(context)
+            if (webViewExists()) {
+                WebSettings.getDefaultUserAgent(context)
+            }
         }
     }
 

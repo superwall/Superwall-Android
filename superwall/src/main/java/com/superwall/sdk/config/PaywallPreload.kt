@@ -1,7 +1,6 @@
 package com.superwall.sdk.config
 
 import android.content.Context
-import android.webkit.WebView
 import com.superwall.sdk.dependencies.RequestFactory
 import com.superwall.sdk.dependencies.RuleAttributesFactory
 import com.superwall.sdk.models.config.Config
@@ -12,6 +11,7 @@ import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.ExpressionEvaluator
 import com.superwall.sdk.paywall.presentation.rule_logic.javascript.JavascriptEvaluator
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
+import com.superwall.sdk.paywall.vc.web_view.webViewExists
 import com.superwall.sdk.storage.LocalStorage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
@@ -87,8 +87,7 @@ class PaywallPreload(
 
     // Preloads paywalls referenced by triggers.
     private suspend fun preloadPaywalls(paywallIdentifiers: Set<String>) {
-        val webviewExists =
-            WebView.getCurrentWebViewPackage() != null
+        val webviewExists = webViewExists()
 
         if (webviewExists) {
             scope.launch {
