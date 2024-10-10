@@ -2,6 +2,12 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 1.3.0
+
+### Fixes
+
+- Fixes issues with Paywall sometimes not displaying when returning from background 
+
 ## 1.2.9
 
 ### Fixes
