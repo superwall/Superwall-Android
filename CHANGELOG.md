@@ -7,6 +7,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 ### Enhancements
 - The existing `getPaywall` method has been deprecated and renamed to `getPaywallOrThrow`. The new `getPaywall` method now returns a `kotlin.Result<PaywallView>` instead of throwing an exception.
 - Adds a new option to `SuperwallOptions` - `passIdentifiersToPlayStore` which allows you to pass the user's identifiers (from `Superwall.instance.identify(userId: String, ...)`) to the Play Store when making a purchase. Note: When passing in identifiers to use with the play store, please make sure to follow their [guidelines](https://developer.android.com/reference/com/android/billingclient/api/BillingFlowParams.Builder#setObfuscatedAccountId(java.lang.String).
+- Adds `Superwall.instance.confirmAllAssignments()`, which confirms assignments for all placements and returns an array of all confirmed experiment assignments. Note that the assignments may be different when a placement is registered due to changes in user, placement, or device parameters used in audience filters.
 
 ### Fixes
 
