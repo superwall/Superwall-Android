@@ -12,7 +12,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.newSingleThreadContext
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
-import java.io.File
 
 class Cache(
     val context: Context,
@@ -37,7 +36,7 @@ class Cache(
 
         if (data == null) {
             runBlocking(ioQueue) {
-                val file = File(storable.path(context = context))
+                val file = storable.file(context = context)
                 if (file.exists()) {
                     var jsonString = ""
                     try {
@@ -68,18 +67,36 @@ class Cache(
         memCache[storable.key] = data
 
         launch {
-            val file = File(storable.path(context = context))
-            val jsonString = json.encodeToString(storable.serializer, data)
-            file.writeText(jsonString, Charsets.UTF_8)
+            try {
+                val file = storable.file(context = context)
+                val jsonString = json.encodeToString(storable.serializer, data)
+                file.writeText(jsonString, Charsets.UTF_8)
+            } catch (e: Throwable) {
+                Logger.debug(
+                    logLevel = LogLevel.error,
+                    LogScope.cache,
+                    message = "Unable to write key: ${storable.key}",
+                    error = e,
+                )
+            }
         }
     }
 
     fun <T : Any> delete(storable: Storable<T>) {
         memCache.remove(storable.key)
         launch {
-            val file = File(storable.path(context = context))
-            if (file.exists()) {
-                file.delete()
+            try {
+                val file = storable.file(context = context)
+                if (file.exists()) {
+                    file.delete()
+                }
+            } catch (e: Throwable) {
+                Logger.debug(
+                    logLevel = LogLevel.error,
+                    LogScope.cache,
+                    message = "Unable to delete key: ${storable.key}",
+                    error = e,
+                )
             }
         }
     }
