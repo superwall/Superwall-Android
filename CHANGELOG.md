@@ -13,6 +13,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 - Fixes issues with Paywall sometimes not displaying when returning from background 
 - Fixes issue with SDK crashing when WebView is not available
+- Fixes issue with `SuperwallPaywallActivity` NPE
 - Update visibility of internal `getPaywall` methods to `internal` to prevent misuse
 
 ## 1.2.9

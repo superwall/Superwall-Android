@@ -425,8 +425,8 @@ class SuperwallPaywallActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        val content = contentView as ViewGroup
-        if (content is CoordinatorLayout) {
+        val content = contentView as? ViewGroup?
+        if (content != null && content is CoordinatorLayout) {
             val bottomSheetBehavior = BottomSheetBehavior.from(content.getChildAt(0))
             bottomSheetCallback?.let {
                 bottomSheetBehavior.removeBottomSheetCallback(it)
@@ -442,7 +442,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         }
         paywallView()?.webView?.onScrollChangeListener = null
         paywallView()?.cleanup()
-        content.removeAllViews()
+        content?.removeAllViews()
         // Clear reference to activity in the view
         (paywallView() as? ActivityEncapsulatable)?.encapsulatingActivity = null
         // Clear the reference to the contentView
