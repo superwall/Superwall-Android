@@ -51,7 +51,15 @@ interface Storable<T> {
     val directory: SearchPathDirectory
     val serializer: KSerializer<T>
 
-    fun path(context: Context): String = directory.fileDirectory(context).absolutePath + File.separator + key.toMD5()
+    fun file(context: Context): File =
+        File(
+            directory.fileDirectory(context).also {
+                if (!it.exists()) {
+                    it.mkdir()
+                }
+            },
+            key.toMD5(),
+        )
 }
 
 fun String.toMD5(): String {

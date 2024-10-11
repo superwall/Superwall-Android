@@ -10,6 +10,7 @@ import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.models.triggers.TriggerRule
 import com.superwall.sdk.models.triggers.TriggerRuleOutcome
 import com.superwall.sdk.models.triggers.UnmatchedRule
+import com.superwall.sdk.paywall.vc.web_view.webViewExists
 import com.superwall.sdk.storage.LocalStorage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
@@ -73,7 +74,7 @@ class DefaultJavascriptEvalutor(
     private suspend fun createNewEvaluator(context: Context): JavascriptEvaluator =
         when {
             JavaScriptSandbox.isSupported() -> createSandboxEvaluator(context)
-            WebView.getCurrentWebViewPackage() != null -> createWebViewEvaluator(context)
+            webViewExists() -> createWebViewEvaluator(context)
             else -> NoSupportedEvaluator
         }
 
