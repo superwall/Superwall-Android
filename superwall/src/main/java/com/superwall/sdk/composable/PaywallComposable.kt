@@ -57,15 +57,16 @@ fun PaywallComposable(
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
-        try {
-            val newView = Superwall.instance.getPaywall(event, params, paywallOverrides, delegate)
-            newView.encapsulatingActivity = WeakReference(context as? Activity)
-            newView.setupWith(ShimmerView(context), LoadingView(context))
-            newView.beforeViewCreated()
-            viewState.value = newView
-        } catch (e: Throwable) {
-            errorState.value = e
-        }
+        Superwall.instance
+            .getPaywall(event, params, paywallOverrides, delegate)
+            .onSuccess { newView ->
+                newView.encapsulatingActivity = WeakReference(context as? Activity)
+                newView.setupWith(ShimmerView(context), LoadingView(context))
+                newView.beforeViewCreated()
+                viewState.value = newView
+            }.onFailure {
+                errorState.value = it
+            }
     }
 
     when {
@@ -91,9 +92,11 @@ fun PaywallComposable(
                 )
             }
         }
+
         errorState.value != null -> {
             errorComposable(errorState.value!!)
         }
+
         else -> {
             loadingComposable()
         }

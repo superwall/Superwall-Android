@@ -13,7 +13,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 @Throws(Throwable::class)
-suspend fun Superwall.getPaywall(
+@Deprecated("Will be removed in the upcoming versions, use Superwall.getPaywall instead")
+suspend fun Superwall.getPaywallOrThrow(
     event: String,
     params: Map<String, Any>? = null,
     paywallOverrides: PaywallOverrides? = null,
@@ -36,6 +37,36 @@ suspend fun Superwall.getPaywall(
         view.prepareToDisplay()
 
         return@withContext view
+    }
+
+@Throws(Throwable::class)
+suspend fun Superwall.getPaywall(
+    event: String,
+    params: Map<String, Any>? = null,
+    paywallOverrides: PaywallOverrides? = null,
+    delegate: PaywallViewCallback,
+): Result<PaywallView> =
+    withContext(Dispatchers.Main) {
+        try {
+            val view =
+                internallyGetPaywall(
+                    event = event,
+                    params = params,
+                    paywallOverrides = paywallOverrides,
+                    delegate = PaywallViewDelegateAdapter(kotlinDelegate = delegate),
+                )
+
+            // Note: Deviation from iOS. Unique to Android. This is also done in `InternalPresentation.kt`.
+            // Ideally `InternalPresentation` would call this function to get the paywall, and `InternalPresentation.kt`
+            // would only handle presentation. This cannot be done is the shared `GetPaywallComponents.kt` because it's
+            // also used for getting a presentation result, and we don't want that to have side effects. Opting to
+            // do at the top-most point.
+            view.prepareToDisplay()
+
+            return@withContext Result.success(view)
+        } catch (error: Throwable) {
+            return@withContext Result.failure(error)
+        }
     }
 
 @Throws(Throwable::class)

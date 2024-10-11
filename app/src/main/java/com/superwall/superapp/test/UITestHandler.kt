@@ -377,7 +377,7 @@ object UITestHandler {
                 // Present using the convenience `SuperwallPaywallActivity` activity and verify test case.
                 SuperwallPaywallActivity.startWithView(
                     context = this@UITestInfo,
-                    view = viewController,
+                    view = viewController.getOrThrow(),
                 )
             },
         )
@@ -679,7 +679,7 @@ object UITestHandler {
                     Superwall.instance.getPaywall(event = "present_data", delegate = delegate)
 
                 // Present using the convenience `SuperwallPaywallActivity` activity and verify test case.
-                SuperwallPaywallActivity.startWithView(context = this, view = view)
+                SuperwallPaywallActivity.startWithView(context = this, view = view.getOrThrow())
             },
         )
     var test36Info =
@@ -699,7 +699,7 @@ object UITestHandler {
                     Superwall.instance.getPaywall(event = "present_data", delegate = delegate)
 
                 // Present using the convenience `SuperwallPaywallActivity` activity and verify test case.
-                SuperwallPaywallActivity.startWithView(context = this, view = viewController)
+                SuperwallPaywallActivity.startWithView(context = this, view = viewController.getOrThrow())
             },
         )
     var test37Info =
@@ -720,7 +720,7 @@ object UITestHandler {
                     Superwall.instance.getPaywall(event = "restore", delegate = delegate)
 
                 // Present using the convenience `SuperwallPaywallActivity` activity and verify test case.
-                SuperwallPaywallActivity.startWithView(context = this, view = viewController)
+                SuperwallPaywallActivity.startWithView(context = this, view = viewController.getOrThrow())
             },
         )
 
@@ -1053,7 +1053,7 @@ object UITestHandler {
                     Superwall.instance.getPaywall(event = "restore", delegate = delegate)
 
                 // Present using the convenience `SuperwallPaywallActivity` activity and verify test case.
-                SuperwallPaywallActivity.startWithView(context = this, view = viewController)
+                SuperwallPaywallActivity.startWithView(context = this, view = viewController.getOrThrow())
             },
         )
     var test64Info =
@@ -1275,7 +1275,7 @@ object UITestHandler {
                     )
 
                 // Present using the convenience `SuperwallPaywallActivity` activity and verify test case.
-                SuperwallPaywallActivity.startWithView(context = this, view = viewController)
+                SuperwallPaywallActivity.startWithView(context = this, view = viewController.getOrThrow())
             },
         )
     var test71Info =

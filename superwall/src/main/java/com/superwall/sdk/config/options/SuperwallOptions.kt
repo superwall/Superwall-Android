@@ -73,6 +73,9 @@ class SuperwallOptions {
     // Set this to `true` to forward events from the Game Controller to the Paywall via ``Superwall/gamepadValueChanged(gamepad:element:)``.
     var isGameControllerEnabled: Boolean = false
 
+    // Enables passing identifier to the Play Store as AccountId's. Defaults to `false`.
+    var passIdentifiersToPlayStore: Boolean = false
+
     // Configuration for printing to the console.
     class Logging {
         // Defines the minimum log level to print to the console. Defaults to `warn`.

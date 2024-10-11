@@ -267,3 +267,10 @@ class SWWebView(
         )
     }
 }
+
+internal fun webViewExists(): Boolean =
+    try {
+        WebView.getCurrentWebViewPackage() != null
+    } catch (e: Throwable) {
+        false
+    }

@@ -833,6 +833,12 @@ sealed class InternalSuperwallEvent(
         override val canImplicitlyTriggerPaywall: Boolean = true
     }
 
+    object ConfirmAllAssignments : InternalSuperwallEvent(SuperwallEvent.ConfirmAllAssignments) {
+        override val audienceFilterParams: Map<String, Any> = emptyMap()
+
+        override suspend fun getSuperwallParameters(): Map<String, Any> = emptyMap()
+    }
+
     internal data class ErrorThrown(
         val message: String,
         val stacktrace: String,
