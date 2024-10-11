@@ -23,7 +23,7 @@ plugins {
     id("signing")
 }
 
-version = "1.2.9"
+version = "1.3.0"
 
 android {
     compileSdk = 34
