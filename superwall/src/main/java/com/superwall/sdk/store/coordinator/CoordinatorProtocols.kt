@@ -21,3 +21,8 @@ interface TransactionRestorer {
     // obtaining the restored transactions
     suspend fun restorePurchases(): RestorationResult
 }
+
+interface Purchasing :
+    ProductPurchaser,
+    ProductsFetcher,
+    TransactionRestorer
