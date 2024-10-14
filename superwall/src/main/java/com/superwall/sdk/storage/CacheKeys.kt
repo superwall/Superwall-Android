@@ -5,6 +5,7 @@ import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.models.geo.GeoInfo
 import com.superwall.sdk.models.serialization.AnySerializer
+import com.superwall.sdk.models.transactions.SavedTransaction
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
@@ -15,6 +16,7 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.Serializer
 import kotlinx.serialization.builtins.MapSerializer
+import kotlinx.serialization.builtins.SetSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
@@ -269,6 +271,14 @@ internal object LatestGeoInfo : Storable<GeoInfo> {
         get() = GeoInfo.serializer()
 }
 
+internal object SavedTransactions : Storable<Set<SavedTransaction>> {
+    override val key: String
+        get() = "store.savedTransactions"
+    override val directory: SearchPathDirectory
+        get() = SearchPathDirectory.APP_SPECIFIC_DOCUMENTS
+    override val serializer: KSerializer<Set<SavedTransaction>>
+        get() = SetSerializer(SavedTransaction.serializer())
+}
 //endregion
 
 // region Serializers
