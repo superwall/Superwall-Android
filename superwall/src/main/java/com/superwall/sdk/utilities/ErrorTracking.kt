@@ -1,5 +1,6 @@
 package com.superwall.sdk.utilities
 
+import android.util.Log
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
@@ -57,6 +58,9 @@ internal class ErrorTracker(
         val exists = cache.read(ErrorLog)
         if (exists != null) {
             scope.launch {
+                Log.e("ErrorTracker", "Error occurred in the SDK")
+                Log.e("ErrorTracker", exists.message)
+                Log.e("ErrorTracker", "\n\n ------------------------- \n ${exists.stacktrace} \n\n -------------------------\n")
                 track(
                     InternalSuperwallEvent.ErrorThrown(
                         exists.message,
