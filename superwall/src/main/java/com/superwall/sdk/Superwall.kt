@@ -10,6 +10,7 @@ import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
 import com.superwall.sdk.config.models.ConfigState
 import com.superwall.sdk.config.models.ConfigurationStatus
 import com.superwall.sdk.config.options.SuperwallOptions
+import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.delegate.SuperwallDelegate
 import com.superwall.sdk.delegate.SuperwallDelegateJava
@@ -50,6 +51,8 @@ import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.OpenedURL
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.OpenedUrlInChrome
 import com.superwall.sdk.storage.ActiveSubscriptionStatus
 import com.superwall.sdk.store.ExternalNativePurchaseController
+import com.superwall.sdk.store.abstractions.product.StoreProduct
+import com.superwall.sdk.store.transactions.TransactionManager
 import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -683,6 +686,63 @@ class Superwall(
         }
     }
 
+    /**
+     *Initiates a purchase of a `StoreProduct`.
+     *
+     * Use this function to purchase any `StoreProduct`, regardless of whether you
+     * have a paywall or not. Superwall will handle the purchase with `GooglePlayBilling`
+     * and return the `PurchaseResult`. You'll see the data associated with the
+     * purchase on the Superwall dashboard.
+     *
+     * @param product: The `StoreProduct` you wish to purchase.
+     * @return A ``PurchaseResult``.
+     * - Note: You do not need to finish the transaction yourself after this.
+     * ``Superwall`` will handle this for you.
+     */
+
+    suspend fun purchase(product: StoreProduct): PurchaseResult =
+        dependencyContainer.transactionManager.purchase(
+            TransactionManager.PurchaseSource.External(
+                product,
+            ),
+        )
+
+    /**
+     * Initiates a purchase of a `StoreProduct` with a callback.
+     *
+     * Use this function to purchase any `StoreProduct`, regardless of whether you
+     * have a paywall or not. Superwall will handle the purchase with `GooglePlayBilling`
+     * and return the `PurchaseResult` in `onFinished`. You'll see the data associated with the
+     * purchase on the Superwall dashboard.
+     *
+     * @param product: The `StoreProduct` you wish to purchase.
+     * @param onFinished: A callback that will receive the `PurchaseResult`.
+     * - Note: You do not need to finish the transaction yourself after this.
+     * ``Superwall`` will handle this for you.
+     */
+
+    fun purchase(
+        product: StoreProduct,
+        onFinished: (PurchaseResult) -> Unit,
+    ) {
+        ioScope.launch {
+            val res =
+                dependencyContainer.transactionManager.purchase(
+                    TransactionManager.PurchaseSource.External(
+                        product,
+                    ),
+                )
+            onFinished(res)
+        }
+    }
+
+    /**
+     * Restores purchases
+     *
+     * Use this function to restore purchases made by the user.
+     * */
+    suspend fun restorePurchases() = dependencyContainer.transactionManager.tryToRestorePurchases(null)
+
     override suspend fun eventDidOccur(
         paywallEvent: PaywallWebEvent,
         paywallView: PaywallView,
@@ -713,8 +773,10 @@ class Superwall(
                         launch {
                             try {
                                 dependencyContainer.transactionManager.purchase(
-                                    paywallEvent.productId,
-                                    paywallView,
+                                    TransactionManager.PurchaseSource.Internal(
+                                        paywallEvent.productId,
+                                        paywallView,
+                                    ),
                                 )
                             } finally {
                                 // Ensure the task is cleared once the purchase is complete or if an error occurs
@@ -724,7 +786,7 @@ class Superwall(
                 }
 
                 is InitiateRestore -> {
-                    dependencyContainer.transactionManager.tryToRestore(paywallView)
+                    dependencyContainer.transactionManager.tryToRestorePurchases(paywallView)
                 }
 
                 is OpenedURL -> {
