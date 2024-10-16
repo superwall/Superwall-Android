@@ -9,7 +9,7 @@ lifecycleProcessVersion = "2.8.1"
 orchestratorVersion = "1.5.0"
 revenue_cat_version = "7.7.1"
 compose_version = "2024.05.00"
-kotlinx_serialization_json_version = "1.6.0"
+kotlinx_serialization_json_version = "1.6.3"
 gson_version = "2.8.5"
 activity_compose_version = "1.9.0"
 core_version = "1.13.1"
@@ -33,6 +33,7 @@ uiautomator_version = "2.3.0"
 workRuntimeKtx_version = "2.9.0"
 serialization_version = "1.6.0"
 dropshot_version = "0.4.2"
+jetbrainsKotlinJvmVersion = "1.9.0"
 
 [libraries]
 
@@ -104,3 +105,4 @@ androidApplication = { id = "com.android.application", version.ref = "gradle_plu
 kotlinAndroid = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "serialization_version" }
 dropshot = { id = "com.dropbox.dropshots", version.ref = "dropshot_version" }
+jetbrainsKotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "jetbrainsKotlinJvmVersion" }

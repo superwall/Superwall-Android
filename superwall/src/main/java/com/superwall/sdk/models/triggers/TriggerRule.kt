@@ -88,6 +88,8 @@ data class TriggerRule(
     val expression: String? = null,
     @SerialName("expression_js")
     val expressionJs: String? = null,
+    @SerialName("expression_cel")
+    val expressionCEL: String? = null,
     @SerialName("occurrence")
     val occurrence: TriggerRuleOccurrence? = null,
     @SerialName("computed_properties")

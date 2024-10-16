@@ -24,7 +24,7 @@ data class ComputedPropertyRequest(
         @SerialName("MINUTES_SINCE")
         MINUTES_SINCE("MINUTES_SINCE"),
 
-        @SerialName("HOUSE_SINCE")
+        @SerialName("HOURS_SINCE")
         HOURS_SINCE("HOURS_SINCE"),
 
         @SerialName("DAYS_SINCE")

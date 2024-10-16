@@ -51,7 +51,7 @@ import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
-import com.superwall.sdk.paywall.presentation.rule_logic.javascript.DefaultJavascriptEvalutor
+import com.superwall.sdk.paywall.presentation.rule_logic.cel.CELEvaluator
 import com.superwall.sdk.paywall.presentation.rule_logic.javascript.JavascriptEvaluator
 import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.paywall.request.PaywallRequestManager
@@ -137,11 +137,10 @@ class DependencyContainer(
     private val uiScope = CoroutineScope(Dispatchers.Main)
     private val ioScope = CoroutineScope(Dispatchers.IO)
     private val evaluator by lazy {
-        DefaultJavascriptEvalutor(
-            ioScope = ioScope,
-            uiScope = uiScope,
-            context = context,
-            storage = storage,
+        CELEvaluator(
+            json(),
+            storage = storage.coreDataManager,
+            factory = this,
         )
     }
 

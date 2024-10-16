@@ -8,7 +8,6 @@ import com.superwall.sdk.models.paywall.CacheKey
 import com.superwall.sdk.models.paywall.PaywallIdentifier
 import com.superwall.sdk.models.triggers.Trigger
 import com.superwall.sdk.paywall.manager.PaywallManager
-import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.ExpressionEvaluator
 import com.superwall.sdk.paywall.presentation.rule_logic.javascript.JavascriptEvaluator
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
 import com.superwall.sdk.paywall.vc.web_view.webViewExists
@@ -47,11 +46,7 @@ class PaywallPreload(
             scope.launch {
                 val js = factory.provideJavascriptEvaluator(context)
                 val expressionEvaluator =
-                    ExpressionEvaluator(
-                        evaluator = js,
-                        storage = storage,
-                        factory = factory,
-                    )
+                    js
                 val triggers =
                     ConfigLogic.filterTriggers(
                         config.triggers,
