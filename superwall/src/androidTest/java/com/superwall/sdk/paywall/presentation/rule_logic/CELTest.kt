@@ -3,11 +3,11 @@ package com.superwall.sdk.paywall.presentation.rule_logic
 import android.util.Log
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.ExecutionContext
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.PassableValue
+import com.superwall.supercel.HostContext
+import com.superwall.supercel.evaluateWithContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.Test
-import uniffi.cel.HostContext
-import uniffi.cel.evaluateWithContext
 
 class CELTest {
     val json =
@@ -68,7 +68,15 @@ class CELTest {
             evaluateWithContext(
                 celState,
                 object : HostContext {
-                    override fun computedProperty(
+                    override suspend fun computedProperty(
+                        name: String,
+                        args: String,
+                    ): String =
+                        Json.encodeToString(
+                            PassableValue.UIntValue(0uL),
+                        )
+
+                    override suspend fun deviceProperty(
                         name: String,
                         args: String,
                     ): String =

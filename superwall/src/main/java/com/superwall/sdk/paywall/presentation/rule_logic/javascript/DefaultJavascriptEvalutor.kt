@@ -81,7 +81,7 @@ class DefaultJavascriptEvalutor(
     private suspend fun createSandboxEvaluator(context: Context): JavascriptEvaluator =
         try {
             val sandbox = createSandbox(context)
-            SandboxJavascriptEvaluator(sandbox, ioScope, storage)
+            SandboxJavascriptEvaluator(sandbox, ioScope, storage.coreDataManager)
         } catch (e: Exception) {
             Logger.debug(
                 logLevel = LogLevel.error,
@@ -94,7 +94,7 @@ class DefaultJavascriptEvalutor(
     private suspend fun createWebViewEvaluator(context: Context): JavascriptEvaluator =
         uiScope
             .async {
-                WebviewJavascriptEvaluator(WebView(context), uiScope, storage)
+                WebviewJavascriptEvaluator(WebView(context), uiScope, storage.coreDataManager)
             }.await()
 
     // Tries to create a JSSandbox and if it fails, it falls back to a WebView
