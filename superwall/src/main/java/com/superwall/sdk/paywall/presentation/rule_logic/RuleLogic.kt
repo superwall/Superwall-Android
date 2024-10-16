@@ -12,8 +12,7 @@ import com.superwall.sdk.models.triggers.Trigger
 import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
 import com.superwall.sdk.models.triggers.TriggerRuleOutcome
 import com.superwall.sdk.models.triggers.UnmatchedRule
-import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.ExpressionEvaluator
-import com.superwall.sdk.paywall.presentation.rule_logic.javascript.JavascriptEvaluator
+import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.ExpressionEvaluating
 import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.utilities.withErrorTracking
 
@@ -37,7 +36,7 @@ class RuleLogic(
     private val assignments: Assignments,
     private val storage: LocalStorage,
     private val factory: RuleAttributesFactory,
-    private val javascriptEvaluator: JavascriptEvaluator,
+    private val javascriptEvaluator: ExpressionEvaluating,
 ) {
     suspend fun evaluateRules(
         event: EventData,
@@ -114,7 +113,7 @@ class RuleLogic(
         event: EventData,
         trigger: Trigger,
     ): RuleMatchOutcome {
-        val expressionEvaluator = ExpressionEvaluator(storage, factory, javascriptEvaluator)
+        val expressionEvaluator = javascriptEvaluator
 
         val unmatchedRules = mutableListOf<UnmatchedRule>()
 

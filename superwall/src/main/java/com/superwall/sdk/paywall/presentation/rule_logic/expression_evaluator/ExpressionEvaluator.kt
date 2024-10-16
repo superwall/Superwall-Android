@@ -28,7 +28,7 @@ class ExpressionEvaluator(
     ): TriggerRuleOutcome {
         // Expression matches all
         if (rule.expressionJs == null && rule.expression == null) {
-            return rule.tryToMatchOccurrence(storage, true)
+            return rule.tryToMatchOccurrence(storage.coreDataManager, true)
         }
 
         val base64Params =

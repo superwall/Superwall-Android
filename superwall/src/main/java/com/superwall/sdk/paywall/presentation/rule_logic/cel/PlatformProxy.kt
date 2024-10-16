@@ -26,4 +26,11 @@ class PlatformProxy(
         name: String,
         args: String,
     ): String = json.encodeToString(invoke(name, json.decodeFromString(args)))
+
+    override suspend fun deviceProperty(
+        name: String,
+        args: String,
+    ): String {
+        TODO("Not yet implemented")
+    }
 }

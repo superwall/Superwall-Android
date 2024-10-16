@@ -14,14 +14,14 @@ import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.toCELExpress
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.toPassableValue
 import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.ExpressionEvaluating
 import com.superwall.sdk.paywall.presentation.rule_logic.tryToMatchOccurrence
-import com.superwall.sdk.storage.Storage
+import com.superwall.sdk.storage.core_data.CoreDataManager
 import com.superwall.supercel.evaluateAst
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 class ASTEvaluator(
     private val json: Json,
-    private val storage: Storage,
+    private val storage: CoreDataManager,
     private val factory: RuleAttributesFactory,
 ) : ExpressionEvaluating {
     override suspend fun evaluateExpression(
