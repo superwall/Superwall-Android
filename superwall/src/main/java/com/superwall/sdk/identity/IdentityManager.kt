@@ -16,6 +16,7 @@ import com.superwall.sdk.storage.DidTrackFirstSeen
 import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.storage.Seed
 import com.superwall.sdk.storage.UserAttributes
+import com.superwall.sdk.utilities.withErrorTracking
 import com.superwall.sdk.utilities.withErrorTrackingAsync
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -83,6 +84,7 @@ class IdentityManager(
 
     private val queue = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
     private val scope = CoroutineScope(queue)
+    private val ioScope = CoroutineScope(Dispatchers.IO)
     private val identityJobs = CopyOnWriteArrayList<Job>()
 
     init {
@@ -109,20 +111,22 @@ class IdentityManager(
     }
 
     fun configure() {
-        CoroutineScope(Dispatchers.IO).launch {
-            val neverCalledStaticConfig = storage.neverCalledStaticConfig
-            val isFirstAppOpen =
-                !(storage.read(DidTrackFirstSeen) ?: false)
+        ioScope.launch {
+            withErrorTrackingAsync {
+                val neverCalledStaticConfig = storage.neverCalledStaticConfig
+                val isFirstAppOpen =
+                    !(storage.read(DidTrackFirstSeen) ?: false)
 
-            if (IdentityLogic.shouldGetAssignments(
-                    isLoggedIn,
-                    neverCalledStaticConfig,
-                    isFirstAppOpen,
-                )
-            ) {
-                configManager.getAssignments()
+                if (IdentityLogic.shouldGetAssignments(
+                        isLoggedIn,
+                        neverCalledStaticConfig,
+                        isFirstAppOpen,
+                    )
+                ) {
+                    configManager.getAssignments()
+                }
+                didSetIdentity()
             }
-            didSetIdentity()
         }
     }
 
@@ -156,7 +160,7 @@ class IdentityManager(
                     // If we haven't gotten config yet, we need
                     // to leave this open to grab the appUserId for headers
                     identityJobs +=
-                        CoroutineScope(Dispatchers.IO).launch {
+                        ioScope.launch {
                             val config = configManager.configState.awaitFirstValidConfig()
 
                             if (config?.featureFlags?.enableUserIdSeed == true) {
@@ -169,19 +173,19 @@ class IdentityManager(
 
                     saveIds()
 
-                    CoroutineScope(Dispatchers.IO).launch {
+                    ioScope.launch {
                         val trackableEvent = InternalSuperwallEvent.IdentityAlias()
                         Superwall.instance.track(trackableEvent)
                     }
 
                     if (options?.restorePaywallAssignments == true) {
                         identityJobs +=
-                            CoroutineScope(Dispatchers.IO).launch {
+                            ioScope.launch {
                                 configManager.getAssignments()
                                 didSetIdentity()
                             }
                     } else {
-                        CoroutineScope(Dispatchers.IO).launch {
+                        ioScope.launch {
                             configManager.getAssignments()
                         }
                         didSetIdentity()
@@ -202,29 +206,31 @@ class IdentityManager(
      * Saves the `aliasId`, `seed` and `appUserId` to storage and user attributes.
      */
     private fun saveIds() {
-        // This is not wrapped in a scope/mutex because is
-        // called from the didSet of vars, who are already
-        // being set within the queue.
-        _appUserId?.let {
-            storage.write(AppUserId, it)
-        }
-        storage.write(AliasId, _aliasId)
-        storage.write(Seed, _seed)
+        withErrorTracking {
+            // This is not wrapped in a scope/mutex because is
+            // called from the didSet of vars, who are already
+            // being set within the queue.
+            _appUserId?.let {
+                storage.write(AppUserId, it)
+            }
+            storage.write(AliasId, _aliasId)
+            storage.write(Seed, _seed)
 
-        val newUserAttributes =
-            mutableMapOf(
-                "aliasId" to _aliasId,
-                "seed" to _seed,
+            val newUserAttributes =
+                mutableMapOf(
+                    "aliasId" to _aliasId,
+                    "seed" to _seed,
+                )
+            _appUserId?.let { newUserAttributes["appUserId"] = it }
+
+            _mergeUserAttributes(
+                newUserAttributes = newUserAttributes,
             )
-        _appUserId?.let { newUserAttributes["appUserId"] = it }
-
-        _mergeUserAttributes(
-            newUserAttributes = newUserAttributes,
-        )
+        }
     }
 
     fun reset(duringIdentify: Boolean) {
-        CoroutineScope(Dispatchers.IO).launch {
+        ioScope.launch {
             identityFlow.emit(false)
         }
 
@@ -264,24 +270,26 @@ class IdentityManager(
         newUserAttributes: Map<String, Any?>,
         shouldTrackMerge: Boolean = true,
     ) {
-        val mergedAttributes =
-            IdentityLogic.mergeAttributes(
-                newAttributes = newUserAttributes,
-                oldAttributes = _userAttributes,
-                appInstalledAtString = deviceHelper.appInstalledAtString,
-            )
+        withErrorTracking {
+            val mergedAttributes =
+                IdentityLogic.mergeAttributes(
+                    newAttributes = newUserAttributes,
+                    oldAttributes = _userAttributes,
+                    appInstalledAtString = deviceHelper.appInstalledAtString,
+                )
 
-        if (shouldTrackMerge) {
-            CoroutineScope(Dispatchers.IO).launch {
-                val trackableEvent =
-                    InternalSuperwallEvent.Attributes(
-                        deviceHelper.appInstalledAtString,
-                        HashMap(mergedAttributes),
-                    )
-                Superwall.instance.track(trackableEvent)
+            if (shouldTrackMerge) {
+                ioScope.launch {
+                    val trackableEvent =
+                        InternalSuperwallEvent.Attributes(
+                            deviceHelper.appInstalledAtString,
+                            HashMap(mergedAttributes),
+                        )
+                    Superwall.instance.track(trackableEvent)
+                }
             }
+            storage.write(UserAttributes, mergedAttributes)
+            _userAttributes = mergedAttributes
         }
-        storage.write(UserAttributes, mergedAttributes)
-        _userAttributes = mergedAttributes
     }
 }

@@ -413,7 +413,6 @@ class DependencyContainer(
                             cache = cache,
                             callback = delegate,
                             deviceHelper = deviceHelper,
-                            paywallManager = paywallManager,
                             storage = storage,
                             webView = webView,
                             eventCallback = Superwall.instance,

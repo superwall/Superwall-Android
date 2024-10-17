@@ -47,16 +47,14 @@ object PaywallLogic {
     fun handlePaywallError(
         error: Throwable,
         event: EventData?,
-        trackEvent: (suspend (event: Trackable) -> TrackingResult)? = null,
+        trackEvent: (suspend (event: Trackable) -> Result<TrackingResult>)? = null,
     ): Throwable {
-        var _trackEvent: (suspend (event: Trackable) -> TrackingResult)? = trackEvent
+        var _trackEvent: (suspend (event: Trackable) -> Result<TrackingResult>)? = trackEvent
         if (_trackEvent == null) {
             _trackEvent = { event: Trackable ->
                 Superwall.instance.track(event)
             }
         }
-
-        // TODO: Handle the error
 
 //        if (error is CustomURLSession.NetworkError && error == .notFound) {
 //        if (error is)

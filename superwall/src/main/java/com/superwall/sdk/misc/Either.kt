@@ -19,14 +19,25 @@ sealed class Either<out T, E : Throwable> {
 suspend fun <In, E : Throwable> Either<In, E>.then(then: suspend (In) -> Unit): Either<In, E> =
     when (this) {
         is Either.Success -> {
-            then(this.value)
-            this
+            try {
+                then(this.value)
+                this
+            } catch (e: Throwable) {
+                (e as? E)?.let { Either.Failure(it) }
+                    ?: Either.Failure(IllegalStateException("Error in then block", e) as E)
+            }
         }
 
         is Either.Failure -> this
     }
 
 fun <In, Out, E : Throwable> Either<In, E>.map(transform: (In) -> Out): Either<Out, E> =
+    when (this) {
+        is Either.Success -> Either.Success(transform(this.value))
+        is Either.Failure -> this
+    }
+
+suspend fun <In, Out, E : Throwable> Either<In, E>.mapAsync(transform: suspend (In) -> Out): Either<Out, E> =
     when (this) {
         is Either.Success -> Either.Success(transform(this.value))
         is Either.Failure -> this
@@ -68,5 +79,11 @@ suspend inline fun <T, E : Throwable> Either<T, E>.fold(
         is Either.Failure -> onFailure(this.error)
     }
 }
+
+inline fun <T, E : Throwable> Either<T, E>.toResult() =
+    when (this) {
+        is Either.Success -> Result.success(this.value)
+        is Either.Failure -> Result.failure(this.error)
+    }
 
 suspend inline fun <T, E : Throwable> Either<T, E>.into(crossinline map: suspend (Either<T, E>) -> Either<T, E>): Either<T, E> = map(this)

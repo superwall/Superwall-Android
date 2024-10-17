@@ -18,7 +18,10 @@ import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.ActivityProvider
+import com.superwall.sdk.misc.Either
 import com.superwall.sdk.misc.SerialTaskManager
+import com.superwall.sdk.misc.fold
+import com.superwall.sdk.misc.toResult
 import com.superwall.sdk.models.assignment.ConfirmedAssignment
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.network.device.InterfaceStyle
@@ -254,7 +257,9 @@ class Superwall(
 
         private var _instance: Superwall? = null
         val instance: Superwall
-            get() = _instance ?: throw IllegalStateException("Superwall has not been initialized or configured.")
+            get() =
+                _instance
+                    ?: throw IllegalStateException("Superwall has not been initialized or configured.")
 
         /**
          * Configures a shared instance of [Superwall] for use throughout your app.
@@ -357,45 +362,46 @@ class Superwall(
     // / Used to serially execute register calls.
     internal val serialTaskManager = SerialTaskManager()
 
-    internal fun setup() {
+    internal fun setup(): Either<Unit, Throwable> =
         synchronized(this) {
-            try {
-                _dependencyContainer =
-                    DependencyContainer(
-                        context = context,
-                        purchaseController = purchaseController,
-                        options = _options,
-                        activityProvider = activityProvider,
-                    )
-            } catch (e: Exception) {
-                e.printStackTrace()
-                throw e
+            withErrorTracking {
+                try {
+                    _dependencyContainer =
+                        DependencyContainer(
+                            context = context,
+                            purchaseController = purchaseController,
+                            options = _options,
+                            activityProvider = activityProvider,
+                        )
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    throw e
+                }
+
+                val cachedSubsStatus =
+                    dependencyContainer.storage.read(ActiveSubscriptionStatus)
+                        ?: SubscriptionStatus.UNKNOWN
+                setSubscriptionStatus(cachedSubsStatus)
+
+                addListeners()
+
+                ioScope.launch {
+                    withErrorTrackingAsync {
+                        dependencyContainer.storage.configure(apiKey = apiKey)
+                        dependencyContainer.storage.recordAppInstall {
+                            track(event = it)
+                        }
+                        // Implicitly wait
+                        dependencyContainer.configManager.fetchConfiguration()
+                        dependencyContainer.identityManager.configure()
+
+                        CoroutineScope(Dispatchers.Main).launch {
+                            completion?.invoke()
+                        }
+                    }
+                }
             }
         }
-
-        val cachedSubsStatus =
-            dependencyContainer.storage.read(ActiveSubscriptionStatus)
-                ?: SubscriptionStatus.UNKNOWN
-        setSubscriptionStatus(cachedSubsStatus)
-
-        addListeners()
-
-        ioScope.launch {
-            withErrorTrackingAsync {
-                dependencyContainer.storage.configure(apiKey = apiKey)
-                dependencyContainer.storage.recordAppInstall {
-                    track(event = it)
-                }
-                // Implicitly wait
-                dependencyContainer.configManager.fetchConfiguration()
-                dependencyContainer.identityManager.configure()
-
-                CoroutineScope(Dispatchers.Main).launch {
-                    completion?.invoke()
-                }
-            }
-        }
-    }
 
     // / Listens to config and the subscription status
     private fun addListeners() {
@@ -512,13 +518,13 @@ class Superwall(
      * @param uri The URL of the deep link.
      * @return A `Boolean` that is `true` if the deep link was handled.
      */
-    fun handleDeepLink(uri: Uri): Boolean =
+    fun handleDeepLink(uri: Uri): Result<Boolean> =
         withErrorTracking<Boolean> {
             ioScope.launch {
                 track(InternalSuperwallEvent.DeepLink(uri = uri))
             }
             dependencyContainer.debugManager.handle(deepLinkUrl = uri)
-        }
+        }.toResult()
 
     //endregion
 
@@ -568,7 +574,9 @@ class Superwall(
      * */
 
     fun getAssignments(): List<ConfirmedAssignment> =
-        dependencyContainer.storage.getConfirmedAssignments().map { ConfirmedAssignment(it.key, it.value) }
+        dependencyContainer.storage
+            .getConfirmedAssignments()
+            .map { ConfirmedAssignment(it.key, it.value) }
 
     /**
      * Confirms all experiment assignments and returns them in an array.
@@ -580,31 +588,47 @@ class Superwall(
      * @return An array of `ConfirmedAssignments` objects.
      */
 
-    suspend fun confirmAllAssignments(): List<ConfirmedAssignment> {
-        val event = InternalSuperwallEvent.ConfirmAllAssignments
-        track(event)
-        val triggers = dependencyContainer.configManager.config?.triggers ?: return emptyList()
-        val storedAssignments = dependencyContainer.storage.getConfirmedAssignments()
-        val assignments =
-            storedAssignments
-                .map {
-                    ConfirmedAssignment(it.key, it.value)
-                }.toMutableSet()
+    suspend fun confirmAllAssignments(): Result<List<ConfirmedAssignment>> {
+        return withErrorTrackingAsync {
+            val event = InternalSuperwallEvent.ConfirmAllAssignments
+            track(event)
+            val triggers =
+                dependencyContainer.configManager.config?.triggers
+                    ?: return@withErrorTrackingAsync emptyList()
+            val storedAssignments = dependencyContainer.storage.getConfirmedAssignments()
+            val assignments =
+                storedAssignments
+                    .map {
+                        ConfirmedAssignment(it.key, it.value)
+                    }.toMutableSet()
 
-        triggers.forEach {
-            val eventData = EventData(name = it.eventName, parameters = emptyMap(), createdAt = Date())
-            val request =
-                dependencyContainer.makePresentationRequest(
-                    presentationInfo = PresentationInfo.ExplicitTrigger(eventData),
-                    paywallOverrides = null,
-                    isPaywallPresented = false,
-                    type = PresentationRequestType.ConfirmAllAssignments,
-                )
-            confirmAssignment(request)?.let {
-                assignments.add(it)
+            triggers.forEach {
+                val eventData =
+                    EventData(name = it.eventName, parameters = emptyMap(), createdAt = Date())
+                val request =
+                    dependencyContainer.makePresentationRequest(
+                        presentationInfo = PresentationInfo.ExplicitTrigger(eventData),
+                        paywallOverrides = null,
+                        isPaywallPresented = false,
+                        type = PresentationRequestType.ConfirmAllAssignments,
+                    )
+                confirmAssignment(request).fold(
+                    onSuccess = {
+                        it?.let {
+                            assignments.add(it)
+                        }
+                    },
+                ) {
+                    Logger.debug(
+                        logLevel = LogLevel.error,
+                        scope = LogScope.superwallCore,
+                        message = "Failed to confirm assignment",
+                        error = it,
+                    )
+                }
             }
-        }
-        return assignments.toList()
+            assignments.toList()
+        }.toResult()
     }
 
     /**
@@ -616,7 +640,7 @@ class Superwall(
      * in user, placement, or device parameters used in audience filters.
      * @param callback callback that will receive the confirmed assignments.
      */
-    fun Superwall.confirmAllAssignments(callback: (List<ConfirmedAssignment>) -> Unit) {
+    fun Superwall.confirmAllAssignments(callback: (Result<List<ConfirmedAssignment>>) -> Unit) {
         ioScope.launch {
             val assignments = confirmAllAssignments()
             callback(assignments)

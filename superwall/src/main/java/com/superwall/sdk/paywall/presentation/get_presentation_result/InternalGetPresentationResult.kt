@@ -12,14 +12,21 @@ import com.superwall.sdk.paywall.presentation.internal.getPaywallComponents
 import com.superwall.sdk.paywall.presentation.result.PresentationResult
 
 internal suspend fun Superwall.getPresentationResult(request: PresentationRequest): PresentationResult =
-    try {
-        val paywallComponents = getPaywallComponents(request)
-        val triggerResult = paywallComponents.rulesOutcome.triggerResult
-        val presentationResult = GetPresentationResultLogic.convertTriggerResult(triggerResult)
-        presentationResult
-    } catch (error: PresentationPipelineError) {
-        handle(error, request.flags.type)
-    }
+    getPaywallComponents(request)
+        .map {
+            GetPresentationResultLogic.convertTriggerResult(it.rulesOutcome.triggerResult)
+        }.fold(
+            onSuccess = {
+                return@fold it
+            },
+            onFailure = {
+                if (it is PresentationPipelineError) {
+                    return@fold handle(it, request.flags.type)
+                } else {
+                    throw it
+                }
+            },
+        )
 
 private fun handle(
     error: PresentationPipelineError,

@@ -155,7 +155,7 @@ open class LocalStorage(
     }
 
     // / Records the app install
-    fun recordAppInstall(trackEvent: suspend (Trackable) -> TrackingResult) {
+    fun recordAppInstall(trackEvent: suspend (Trackable) -> Result<TrackingResult>) {
         val didTrackAppInstall = read(DidTrackAppInstall) ?: false
         if (didTrackAppInstall) {
             return

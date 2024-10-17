@@ -38,6 +38,7 @@ import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.fold
+import com.superwall.sdk.misc.toResult
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.paywall.manager.PaywallManager
@@ -562,7 +563,7 @@ class DebugView(
                     presentationSourceType = null,
                     retryCount = 6,
                 )
-            var paywall = paywallRequestManager.getPaywall(request)
+            var paywall = paywallRequestManager.getPaywall(request).toResult().getOrThrow()
 
             val productVariables =
                 storeKitManager.getProductVariables(

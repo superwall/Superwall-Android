@@ -1,6 +1,8 @@
 package com.superwall.sdk.paywall.presentation.internal
 
 import com.superwall.sdk.Superwall
+import com.superwall.sdk.misc.Either
+import com.superwall.sdk.misc.toResult
 import com.superwall.sdk.models.assignment.ConfirmedAssignment
 import com.superwall.sdk.paywall.presentation.get_paywall.PaywallComponents
 import com.superwall.sdk.paywall.presentation.internal.operators.checkDebuggerPresentation
@@ -28,44 +30,54 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 suspend fun Superwall.getPaywallComponents(
     request: PresentationRequest,
     publisher: MutableSharedFlow<PaywallState>? = null,
-): PaywallComponents {
-    waitForSubsStatusAndConfig(request, publisher)
-    // TODO:
+): Result<PaywallComponents> =
+    withErrorTrackingAsync {
+        waitForSubsStatusAndConfig(request, publisher)
+        // TODO:
 //    val debugInfo = logPresentation(request)
-    val debugInfo = emptyMap<String, Any>()
+        val debugInfo = emptyMap<String, Any>()
 
-    checkDebuggerPresentation(request, publisher)
+        checkDebuggerPresentation(request, publisher)
 
-    val rulesOutcome = evaluateRules(request)
+        val rulesOutcome = evaluateRules(request)
+        val outcome = rulesOutcome.getOrThrow()
 
-    checkUserSubscription(
-        request = request,
-        triggerResult = rulesOutcome.triggerResult,
-        paywallStatePublisher = publisher,
-    )
+        checkUserSubscription(
+            request = request,
+            triggerResult = outcome.triggerResult,
+            paywallStatePublisher = publisher,
+        )
 
-    confirmHoldoutAssignment(request = request, rulesOutcome = rulesOutcome)
+        confirmHoldoutAssignment(request = request, rulesOutcome = outcome)
 
-    val paywallView = getPaywallView(request, rulesOutcome, debugInfo, publisher, dependencyContainer)
+        val paywallView =
+            getPaywallView(request, outcome, debugInfo, publisher, dependencyContainer).getOrThrow()
 
-    val presenter = getPresenterIfNecessary(paywallView, rulesOutcome, request, publisher)
+        val presenter = getPresenterIfNecessary(paywallView, outcome, request, publisher)
 
-    confirmPaywallAssignment(rulesOutcome.confirmableAssignment, request, request.flags.isDebuggerLaunched)
+        confirmPaywallAssignment(
+            outcome.confirmableAssignment,
+            request,
+            request.flags.isDebuggerLaunched,
+        )
 
-    return PaywallComponents(
-        view = paywallView,
-        presenter = presenter,
-        rulesOutcome = rulesOutcome,
-        debugInfo = debugInfo,
-    )
-}
+        PaywallComponents(
+            view = paywallView,
+            presenter = presenter,
+            rulesOutcome = outcome,
+            debugInfo = debugInfo,
+        )
+    }.toResult()
 
-internal suspend fun Superwall.confirmAssignment(request: PresentationRequest): ConfirmedAssignment? {
+internal suspend fun Superwall.confirmAssignment(request: PresentationRequest): Either<ConfirmedAssignment?, Throwable> {
     return withErrorTrackingAsync {
         waitForSubsStatusAndConfig(request)
         val rules = evaluateRules(request)
-        confirmHoldoutAssignment(request, rules)
-        val confirmableAssignment = rules.confirmableAssignment
+        if (rules.isFailure) {
+            throw rules.exceptionOrNull()!!
+        }
+        confirmHoldoutAssignment(request, rules.getOrThrow())
+        val confirmableAssignment = rules.getOrThrow().confirmableAssignment
         confirmPaywallAssignment(confirmableAssignment, request, request.flags.isDebuggerLaunched)
 
         return@withErrorTrackingAsync confirmableAssignment?.let {
