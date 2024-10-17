@@ -57,7 +57,7 @@ class DefaultJavascriptEvaluatorTest {
                     ctx(),
                     storage = storage,
                     createSandbox = {
-                        sandbox
+                        Result.success(sandbox)
                     },
                 )
             launch(Dispatchers.IO) {

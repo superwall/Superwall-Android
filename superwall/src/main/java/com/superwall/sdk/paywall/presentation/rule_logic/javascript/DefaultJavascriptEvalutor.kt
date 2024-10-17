@@ -7,11 +7,13 @@ import androidx.javascriptengine.SandboxDeadException
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
+import com.superwall.sdk.misc.toResult
 import com.superwall.sdk.models.triggers.TriggerRule
 import com.superwall.sdk.models.triggers.TriggerRuleOutcome
 import com.superwall.sdk.models.triggers.UnmatchedRule
 import com.superwall.sdk.paywall.vc.web_view.webViewExists
 import com.superwall.sdk.storage.LocalStorage
+import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
@@ -24,8 +26,10 @@ class DefaultJavascriptEvalutor(
     private val uiScope: CoroutineScope,
     private val context: Context,
     private val storage: LocalStorage,
-    private val createSandbox: suspend (ctx: Context) -> JavaScriptSandbox = {
-        JavaScriptSandbox.createConnectedInstanceAsync(it).await()
+    private val createSandbox: suspend (ctx: Context) -> Result<JavaScriptSandbox> = {
+        withErrorTracking {
+            JavaScriptSandbox.createConnectedInstanceAsync(it).await()
+        }.toResult()
     },
 ) : JavascriptEvaluator {
     private val mutex = Mutex()
@@ -79,17 +83,17 @@ class DefaultJavascriptEvalutor(
         }
 
     private suspend fun createSandboxEvaluator(context: Context): JavascriptEvaluator =
-        try {
-            val sandbox = createSandbox(context)
-            SandboxJavascriptEvaluator(sandbox, ioScope, storage)
-        } catch (e: Exception) {
-            Logger.debug(
-                logLevel = LogLevel.error,
-                scope = LogScope.superwallCore,
-                message = "Failed to create javascript sandbox evaluator: ${e.message}",
-            )
-            createWebViewEvaluator(context) // Fallback to WebView
-        }
+        createSandbox(context)
+            .fold(onSuccess = {
+                SandboxJavascriptEvaluator(it, ioScope, storage)
+            }, onFailure = {
+                Logger.debug(
+                    logLevel = LogLevel.error,
+                    scope = LogScope.superwallCore,
+                    message = "Failed to create javascript sandbox evaluator: ${it.message}",
+                )
+                createWebViewEvaluator(context) // Fallback to WebView
+            })
 
     private suspend fun createWebViewEvaluator(context: Context): JavascriptEvaluator =
         uiScope
