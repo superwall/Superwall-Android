@@ -7,6 +7,7 @@ import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
+import com.superwall.sdk.misc.toResult
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.paywall.presentation.dismiss
 import com.superwall.sdk.paywall.presentation.dismissForNextPaywall
@@ -26,7 +27,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Date
 
-suspend fun Superwall.track(event: Trackable): TrackingResult {
+suspend fun Superwall.track(event: Trackable): Result<TrackingResult> {
     return withErrorTrackingAsync {
         // Wait for the SDK to be fully initialized
         Superwall.hasInitialized.first()
@@ -101,7 +102,7 @@ suspend fun Superwall.track(event: Trackable): TrackingResult {
             data = eventData,
             parameters = parameters,
         )
-    }
+    }.toResult()
 }
 
 suspend fun Superwall.handleImplicitTrigger(

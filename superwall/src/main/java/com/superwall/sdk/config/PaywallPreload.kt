@@ -13,6 +13,7 @@ import com.superwall.sdk.paywall.presentation.rule_logic.javascript.JavascriptEv
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
 import com.superwall.sdk.paywall.vc.web_view.webViewExists
 import com.superwall.sdk.storage.LocalStorage
+import com.superwall.sdk.utilities.withErrorTrackingAsync
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -45,29 +46,31 @@ class PaywallPreload(
 
         currentPreloadingTask =
             scope.launch {
-                val js = factory.provideJavascriptEvaluator(context)
-                val expressionEvaluator =
-                    ExpressionEvaluator(
-                        evaluator = js,
-                        storage = storage,
-                        factory = factory,
-                    )
-                val triggers =
-                    ConfigLogic.filterTriggers(
-                        config.triggers,
-                        preloadingDisabled = config.preloadingDisabled,
-                    )
-                val confirmedAssignments = storage.getConfirmedAssignments()
-                val paywallIds =
-                    ConfigLogic.getAllActiveTreatmentPaywallIds(
-                        triggers = triggers,
-                        confirmedAssignments = confirmedAssignments,
-                        unconfirmedAssignments = assignments.unconfirmedAssignments,
-                        expressionEvaluator = expressionEvaluator,
-                    )
-                preloadPaywalls(paywallIdentifiers = paywallIds)
+                withErrorTrackingAsync {
+                    val js = factory.provideJavascriptEvaluator(context)
+                    val expressionEvaluator =
+                        ExpressionEvaluator(
+                            evaluator = js,
+                            storage = storage,
+                            factory = factory,
+                        )
+                    val triggers =
+                        ConfigLogic.filterTriggers(
+                            config.triggers,
+                            preloadingDisabled = config.preloadingDisabled,
+                        )
+                    val confirmedAssignments = storage.getConfirmedAssignments()
+                    val paywallIds =
+                        ConfigLogic.getAllActiveTreatmentPaywallIds(
+                            triggers = triggers,
+                            confirmedAssignments = confirmedAssignments,
+                            unconfirmedAssignments = assignments.unconfirmedAssignments,
+                            expressionEvaluator = expressionEvaluator,
+                        )
+                    preloadPaywalls(paywallIdentifiers = paywallIds)
 
-                currentPreloadingTask = null
+                    currentPreloadingTask = null
+                }
             }
     }
 
@@ -91,41 +94,43 @@ class PaywallPreload(
 
         if (webviewExists) {
             scope.launch {
-                // List to hold all the Deferred objects
-                val tasks = mutableListOf<Deferred<Any>>()
+                withErrorTrackingAsync {
+                    // List to hold all the Deferred objects
+                    val tasks = mutableListOf<Deferred<Any>>()
 
-                for (identifier in paywallIdentifiers) {
-                    val task =
-                        async {
-                            // Your asynchronous operation
-                            val request =
-                                factory.makePaywallRequest(
-                                    eventData = null,
-                                    responseIdentifiers =
-                                        ResponseIdentifiers(
-                                            paywallId = identifier,
-                                            experiment = null,
-                                        ),
-                                    overrides = null,
-                                    isDebuggerLaunched = false,
-                                    presentationSourceType = null,
-                                    retryCount = 6,
-                                )
-                            try {
-                                paywallManager.getPaywallView(
-                                    request = request,
-                                    isForPresentation = true,
-                                    isPreloading = true,
-                                    delegate = null,
-                                )
-                            } catch (e: Exception) {
-                                // Handle exception
+                    for (identifier in paywallIdentifiers) {
+                        val task =
+                            async {
+                                // Your asynchronous operation
+                                val request =
+                                    factory.makePaywallRequest(
+                                        eventData = null,
+                                        responseIdentifiers =
+                                            ResponseIdentifiers(
+                                                paywallId = identifier,
+                                                experiment = null,
+                                            ),
+                                        overrides = null,
+                                        isDebuggerLaunched = false,
+                                        presentationSourceType = null,
+                                        retryCount = 6,
+                                    )
+                                try {
+                                    paywallManager.getPaywallView(
+                                        request = request,
+                                        isForPresentation = true,
+                                        isPreloading = true,
+                                        delegate = null,
+                                    )
+                                } catch (e: Exception) {
+                                    // Handle exception
+                                }
                             }
-                        }
-                    tasks.add(task)
+                        tasks.add(task)
+                    }
+                    // Await all tasks
+                    tasks.awaitAll()
                 }
-                // Await all tasks
-                tasks.awaitAll()
             }
         }
     }

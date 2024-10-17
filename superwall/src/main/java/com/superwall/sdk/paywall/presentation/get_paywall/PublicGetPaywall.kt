@@ -3,6 +3,8 @@ package com.superwall.sdk.paywall.presentation.get_paywall
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.UserInitiatedEvent
+import com.superwall.sdk.misc.Either
+import com.superwall.sdk.misc.toResult
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
@@ -27,7 +29,7 @@ suspend fun Superwall.getPaywallOrThrow(
                 params = params,
                 paywallOverrides = paywallOverrides,
                 delegate = PaywallViewDelegateAdapter(kotlinDelegate = delegate),
-            )
+            ).toResult().getOrThrow()
 
         // Note: Deviation from iOS. Unique to Android. This is also done in `InternalPresentation.kt`.
         // Ideally `InternalPresentation` would call this function to get the paywall, and `InternalPresentation.kt`
@@ -47,25 +49,29 @@ suspend fun Superwall.getPaywall(
     delegate: PaywallViewCallback,
 ): Result<PaywallView> =
     withContext(Dispatchers.Main) {
-        try {
-            val view =
-                internallyGetPaywall(
-                    event = event,
-                    params = params,
-                    paywallOverrides = paywallOverrides,
-                    delegate = PaywallViewDelegateAdapter(kotlinDelegate = delegate),
-                )
+        val result =
+            internallyGetPaywall(
+                event = event,
+                params = params,
+                paywallOverrides = paywallOverrides,
+                delegate = PaywallViewDelegateAdapter(kotlinDelegate = delegate),
+            )
 
-            // Note: Deviation from iOS. Unique to Android. This is also done in `InternalPresentation.kt`.
-            // Ideally `InternalPresentation` would call this function to get the paywall, and `InternalPresentation.kt`
-            // would only handle presentation. This cannot be done is the shared `GetPaywallComponents.kt` because it's
-            // also used for getting a presentation result, and we don't want that to have side effects. Opting to
-            // do at the top-most point.
-            view.prepareToDisplay()
+        // Note: Deviation from iOS. Unique to Android. This is also done in `InternalPresentation.kt`.
+        // Ideally `InternalPresentation` would call this function to get the paywall, and `InternalPresentation.kt`
+        // would only handle presentation. This cannot be done is the shared `GetPaywallComponents.kt` because it's
+        // also used for getting a presentation result, and we don't want that to have side effects. Opting to
+        // do at the top-most point.
+        return@withContext when (result) {
+            is Either.Success -> {
+                val view = result.value
+                view.prepareToDisplay()
+                result.toResult()
+            }
 
-            return@withContext Result.success(view)
-        } catch (error: Throwable) {
-            return@withContext Result.failure(error)
+            is Either.Failure -> {
+                result.toResult()
+            }
         }
     }
 
@@ -75,7 +81,7 @@ private suspend fun Superwall.internallyGetPaywall(
     params: Map<String, Any>? = null,
     paywallOverrides: PaywallOverrides? = null,
     delegate: PaywallViewDelegateAdapter,
-): PaywallView =
+): Either<PaywallView, Throwable> =
     withContext(Dispatchers.Main) {
         val trackableEvent =
             UserInitiatedEvent.Track(
@@ -86,9 +92,14 @@ private suspend fun Superwall.internallyGetPaywall(
             )
         val trackResult = track(trackableEvent)
 
+        if (trackResult.isFailure) {
+            return@withContext Either.Failure(
+                trackResult.exceptionOrNull() ?: IllegalStateException("Error in tracking event"),
+            )
+        }
         val presentationRequest =
             dependencyContainer.makePresentationRequest(
-                PresentationInfo.ExplicitTrigger(trackResult.data),
+                PresentationInfo.ExplicitTrigger(trackResult.getOrThrow().data),
                 paywallOverrides = paywallOverrides,
                 isPaywallPresented = false,
                 type = PresentationRequestType.GetPaywall(delegate),

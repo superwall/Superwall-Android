@@ -18,6 +18,7 @@ import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.store.StoreKitManager
+import com.superwall.sdk.utilities.withErrorTrackingAsync
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
@@ -40,53 +41,55 @@ class PaywallRequestManager(
     private val activeTasks: MutableMap<String, Deferred<Paywall>> = mutableMapOf()
     private val paywallsByHash: MutableMap<String, Paywall> = mutableMapOf()
 
-    suspend fun getPaywall(request: PaywallRequest): Paywall =
-        withContext(ioScope.coroutineContext) {
-            val deviceInfo = factory.makeDeviceInfo()
-            val joinedSubstituteProductIds =
-                request.overrides.products
-                    ?.values
-                    ?.sortedBy { it.productIdentifier }
-                    ?.joinToString(separator = "") { it.productIdentifier }
-            val requestHash =
-                PaywallLogic.requestHash(
-                    identifier = request.responseIdentifiers.paywallId,
-                    event = request.eventData,
-                    locale = deviceInfo.locale,
-                    joinedSubstituteProductIds = joinedSubstituteProductIds,
-                )
+    suspend fun getPaywall(request: PaywallRequest): Either<Paywall, Throwable> =
+        withErrorTrackingAsync {
+            withContext(ioScope.coroutineContext) {
+                val deviceInfo = factory.makeDeviceInfo()
+                val joinedSubstituteProductIds =
+                    request.overrides.products
+                        ?.values
+                        ?.sortedBy { it.productIdentifier }
+                        ?.joinToString(separator = "") { it.productIdentifier }
+                val requestHash =
+                    PaywallLogic.requestHash(
+                        identifier = request.responseIdentifiers.paywallId,
+                        event = request.eventData,
+                        locale = deviceInfo.locale,
+                        joinedSubstituteProductIds = joinedSubstituteProductIds,
+                    )
 
-            var paywall = paywallsByHash[requestHash]
-            if (paywall != null && !request.isDebuggerLaunched) {
-                return@withContext updatePaywall(paywall, request)
-            }
-
-            val existingTask = activeTasks[requestHash]
-            if (existingTask != null) {
-                var paywall = existingTask.await()
-                paywall = updatePaywall(paywall, request)
-                return@withContext paywall
-            }
-
-            val deferredTask = CompletableDeferred<Paywall>()
-            activeTasks[requestHash] = deferredTask
-
-            getRawPaywall(request)
-                .then {
-                    val finalPaywall =
-                        addProducts(it, request)
-                    saveRequestHash(requestHash, finalPaywall, request.isDebuggerLaunched)
-
-                    deferredTask.complete(finalPaywall)
-                }.onError {
-                    activeTasks.remove(requestHash)
-                    deferredTask.completeExceptionally(it)
+                var paywall = paywallsByHash[requestHash]
+                if (paywall != null && !request.isDebuggerLaunched) {
+                    return@withContext updatePaywall(paywall, request)
                 }
 
-            paywall = deferredTask.await()
-            paywall = updatePaywall(paywall, request)
+                val existingTask = activeTasks[requestHash]
+                if (existingTask != null) {
+                    var paywall = existingTask.await()
+                    paywall = updatePaywall(paywall, request)
+                    return@withContext paywall
+                }
 
-            return@withContext paywall
+                val deferredTask = CompletableDeferred<Paywall>()
+                activeTasks[requestHash] = deferredTask
+
+                getRawPaywall(request)
+                    .then {
+                        val finalPaywall =
+                            addProducts(it, request)
+                        saveRequestHash(requestHash, finalPaywall, request.isDebuggerLaunched)
+
+                        deferredTask.complete(finalPaywall)
+                    }.onError {
+                        activeTasks.remove(requestHash)
+                        deferredTask.completeExceptionally(it)
+                    }
+
+                paywall = deferredTask.await()
+                paywall = updatePaywall(paywall, request)
+
+                return@withContext paywall
+            }
         }
 
     private suspend fun updatePaywall(

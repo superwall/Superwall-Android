@@ -4,6 +4,7 @@ import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.TrackingLogic
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.UserInitiatedEvent
+import com.superwall.sdk.misc.fold
 import com.superwall.sdk.models.config.FeatureGatingBehavior
 import com.superwall.sdk.paywall.presentation.internal.InternalPresentationLogic
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
@@ -129,14 +130,16 @@ private fun Superwall.internallyRegister(
     }
 
     serialTaskManager.addTask {
-        collectionWillStart.await()
-        trackAndPresentPaywall(
-            event = event,
-            params = params,
-            paywallOverrides = null,
-            isFeatureGatable = completion != null,
-            publisher = publisher,
-        )
+        withErrorTrackingAsync {
+            collectionWillStart.await()
+            trackAndPresentPaywall(
+                event = event,
+                params = params,
+                paywallOverrides = null,
+                isFeatureGatable = completion != null,
+                publisher = publisher,
+            )
+        }
     }
 }
 
@@ -163,15 +166,20 @@ private suspend fun Superwall.trackAndPresentPaywall(
 
     withErrorTrackingAsync {
         val trackResult = track(trackableEvent)
+        if (trackResult.isFailure) {
+            throw trackResult.exceptionOrNull() ?: Exception("Unknown error")
+        }
 
         val presentationRequest =
             dependencyContainer.makePresentationRequest(
-                PresentationInfo.ExplicitTrigger(trackResult.data),
+                PresentationInfo.ExplicitTrigger(trackResult.getOrThrow().data),
                 paywallOverrides,
                 isPaywallPresented = isPaywallPresented,
                 type = PresentationRequestType.Presentation,
             )
 
         internallyPresent(presentationRequest, publisher)
-    }
+    }.fold({}, onFailure = {
+        publisher.emit(PaywallState.PresentationError(it))
+    })
 }

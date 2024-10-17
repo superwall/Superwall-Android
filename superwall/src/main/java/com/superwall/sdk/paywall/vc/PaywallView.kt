@@ -26,12 +26,12 @@ import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.AlertControllerFactory
+import com.superwall.sdk.misc.toResult
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.PaywallPresentationStyle
 import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.paywall.manager.PaywallCacheLogic
-import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.paywall.manager.PaywallViewCache
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.PaywallInfo
@@ -52,6 +52,7 @@ import com.superwall.sdk.paywall.vc.web_view.SWWebViewDelegate
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallMessageHandlerDelegate
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent
 import com.superwall.sdk.storage.LocalStorage
+import com.superwall.sdk.utilities.withErrorTrackingAsync
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -69,9 +70,7 @@ class PaywallView(
     val deviceHelper: DeviceHelper,
     val factory: Factory,
     val storage: LocalStorage,
-    val paywallManager: PaywallManager,
     override val webView: SWWebView,
-    private val loadingView: LoadingView = LoadingView(context),
     private val cache: PaywallViewCache?,
     private val useMultipleUrls: Boolean,
 ) : FrameLayout(context),
@@ -386,17 +385,19 @@ class PaywallView(
                 val trackedEvent = InternalSuperwallEvent.PaywallDecline(paywallInfo = info)
 
                 val presentationResult =
-                    Superwall.instance.internallyGetPresentationResult(
-                        event = trackedEvent,
-                        isImplicit = true,
-                    )
+                    withErrorTrackingAsync {
+                        Superwall.instance.internallyGetPresentationResult(
+                            event = trackedEvent,
+                            isImplicit = true,
+                        )
+                    }.toResult()
                 val paywallPresenterEvent = info.presentedByEventWithName
                 val presentedByPaywallDecline =
                     paywallPresenterEvent == SuperwallEvents.PaywallDecline.rawName
 
                 Superwall.instance.track(trackedEvent)
-
-                if (presentationResult is PresentationResult.Paywall && !presentedByPaywallDecline) {
+                val capturedResult = presentationResult.getOrNull()
+                if (capturedResult != null && capturedResult is PresentationResult.Paywall && !presentedByPaywallDecline) {
                     // Logic here, similar to the Swift one
                     return
                 }

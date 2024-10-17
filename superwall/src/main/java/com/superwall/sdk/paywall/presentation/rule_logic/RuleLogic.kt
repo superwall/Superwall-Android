@@ -2,6 +2,7 @@ package com.superwall.sdk.paywall.presentation.rule_logic
 
 import com.superwall.sdk.config.Assignments
 import com.superwall.sdk.dependencies.RuleAttributesFactory
+import com.superwall.sdk.misc.Either
 import com.superwall.sdk.models.assignment.ConfirmableAssignment
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.triggers.Experiment
@@ -41,8 +42,8 @@ class RuleLogic(
     suspend fun evaluateRules(
         event: EventData,
         triggers: Map<String, Trigger>,
-    ): RuleEvaluationOutcome {
-        return withErrorTrackingAsync<RuleEvaluationOutcome> {
+    ): Either<RuleEvaluationOutcome, Throwable> {
+        return withErrorTrackingAsync {
             val trigger =
                 triggers[event.name]
                     ?: return@withErrorTrackingAsync RuleEvaluationOutcome(triggerResult = InternalTriggerResult.EventNotFound)
