@@ -2,6 +2,11 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 1.3.1
+
+### Fixes
+- Fixes issue when destroying activities during sleep would cause a background crash
+
 ## 1.3.0
 
 ### Enhancements
