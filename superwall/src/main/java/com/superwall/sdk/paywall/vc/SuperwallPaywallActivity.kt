@@ -43,6 +43,7 @@ import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.isDarkColor
 import com.superwall.sdk.misc.isLightColor
+import com.superwall.sdk.misc.onError
 import com.superwall.sdk.misc.readableOverlayColor
 import com.superwall.sdk.models.paywall.LocalNotification
 import com.superwall.sdk.models.paywall.PaywallPresentationStyle
@@ -442,6 +443,12 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                         .retrieveView(pv) as? PaywallView?
                 )?.cleanup()
             }
+        }.onError {
+            Logger.debug(
+                LogLevel.error,
+                LogScope.paywallView,
+                "Error cleaning up PaywallView: $it",
+            )
         }
         paywallView()?.webView?.onScrollChangeListener = null
         paywallView()?.cleanup()
