@@ -22,7 +22,7 @@ suspend fun Superwall.internallyPresent(
         checkNoPaywallAlreadyPresented(request, publisher)
 
         // Print a log here to indicate that the paywall is being presented.
-        val paywallComponents = getPaywallComponents(request, publisher)
+        val paywallComponents = getPaywallComponents(request, publisher).getOrThrow()
 
         val presenter =
             requireNotNull(paywallComponents.presenter) {

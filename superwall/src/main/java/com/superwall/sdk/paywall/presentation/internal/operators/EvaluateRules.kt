@@ -1,6 +1,7 @@
 package com.superwall.sdk.paywall.presentation.internal.operators
 
 import com.superwall.sdk.Superwall
+import com.superwall.sdk.misc.toResult
 import com.superwall.sdk.models.assignment.ConfirmableAssignment
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.InternalTriggerResult
@@ -17,7 +18,7 @@ data class AssignmentPipelineOutput(
     val debugInfo: Map<String, Any>,
 )
 
-suspend fun Superwall.evaluateRules(request: PresentationRequest): RuleEvaluationOutcome {
+suspend fun Superwall.evaluateRules(request: PresentationRequest): Result<RuleEvaluationOutcome> {
     val eventData = request.presentationInfo.eventData
 
     return if (eventData != null) {
@@ -28,13 +29,26 @@ suspend fun Superwall.evaluateRules(request: PresentationRequest): RuleEvaluatio
                 factory = dependencyContainer,
                 javascriptEvaluator = dependencyContainer.provideJavascriptEvaluator(context),
             )
-        ruleLogic.evaluateRules(event = eventData, triggers = dependencyContainer.configManager.triggersByEventName)
+        ruleLogic
+            .evaluateRules(
+                event = eventData,
+                triggers = dependencyContainer.configManager.triggersByEventName,
+            ).toResult()
     } else {
         // Called if the debugger is shown.
         val paywallId =
             request.presentationInfo.identifier
-                ?: throw PaywallPresentationRequestStatusReason.NoPaywallView()
+                ?: return Result.failure(
+                    PaywallPresentationRequestStatusReason.NoPaywallView(),
+                )
 
-        RuleEvaluationOutcome(triggerResult = InternalTriggerResult.Paywall(Experiment.presentById(paywallId)))
+        Result.success(
+            RuleEvaluationOutcome(
+                triggerResult =
+                    InternalTriggerResult.Paywall(
+                        Experiment.presentById(paywallId),
+                    ),
+            ),
+        )
     }
 }

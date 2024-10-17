@@ -11,6 +11,7 @@ import com.superwall.sdk.models.triggers.Trigger
 import com.superwall.sdk.network.NetworkError
 import com.superwall.sdk.network.SuperwallAPI
 import com.superwall.sdk.storage.LocalStorage
+import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -49,26 +50,30 @@ class Assignments(
             }
 
     fun confirmAssignment(assignment: ConfirmableAssignment) {
-        val postback: AssignmentPostback = AssignmentPostback.create(assignment)
-        ioScope.launch { network.confirmAssignments(postback) }
+        withErrorTracking {
+            val postback: AssignmentPostback = AssignmentPostback.create(assignment)
+            ioScope.launch { network.confirmAssignments(postback) }
 
-        updateAssignments { confirmedAssignments ->
-            ConfigLogic.move(
-                assignment,
-                unconfirmedAssignments,
-                confirmedAssignments,
-            )
+            updateAssignments { confirmedAssignments ->
+                ConfigLogic.move(
+                    assignment,
+                    unconfirmedAssignments,
+                    confirmedAssignments,
+                )
+            }
         }
     }
 
     private fun updateAssignments(operation: (Map<ExperimentID, Experiment.Variant>) -> ConfigLogic.AssignmentOutcome) {
-        var confirmedAssignments = storage.getConfirmedAssignments()
+        withErrorTracking {
+            var confirmedAssignments = storage.getConfirmedAssignments()
 
-        val updatedAssignments = operation(confirmedAssignments)
-        _unconfirmedAssignments = updatedAssignments.unconfirmed.toMutableMap()
-        confirmedAssignments = updatedAssignments.confirmed.toMutableMap()
+            val updatedAssignments = operation(confirmedAssignments)
+            _unconfirmedAssignments = updatedAssignments.unconfirmed.toMutableMap()
+            confirmedAssignments = updatedAssignments.confirmed.toMutableMap()
 
-        storage.saveConfirmedAssignments(confirmedAssignments)
+            storage.saveConfirmedAssignments(confirmedAssignments)
+        }
     }
 
     fun reset() {

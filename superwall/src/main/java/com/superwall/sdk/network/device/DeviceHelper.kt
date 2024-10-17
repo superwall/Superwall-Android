@@ -18,7 +18,9 @@ import com.superwall.sdk.dependencies.LocaleIdentifierFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
+import com.superwall.sdk.misc.fold
 import com.superwall.sdk.misc.then
+import com.superwall.sdk.misc.toResult
 import com.superwall.sdk.models.config.ComputedPropertyRequest
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.geo.GeoInfo
@@ -31,6 +33,7 @@ import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.storage.TotalPaywallViews
 import com.superwall.sdk.utilities.DateUtils
 import com.superwall.sdk.utilities.dateFormat
+import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeout
@@ -110,7 +113,8 @@ class DeviceHelper(
             return storage.read(TotalPaywallViews) ?: 0
         }
 
-    private val lastGeoInfo: MutableStateFlow<GeoInfo?> = MutableStateFlow(storage.read(LatestGeoInfo))
+    private val lastGeoInfo: MutableStateFlow<GeoInfo?> =
+        MutableStateFlow(storage.read(LatestGeoInfo))
 
     val locale: String
         get() {
@@ -213,10 +217,14 @@ class DeviceHelper(
 
     val appInstalledAtString: String
         get() {
-            val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-            val installDate = Date(packageInfo.firstInstallTime)
+            val date =
+                withErrorTracking<Date> {
+
+                    val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+                    return@withErrorTracking Date(packageInfo.firstInstallTime)
+                }
             val formatter = dateFormat(DateUtils.SIMPLE)
-            return formatter.format(installDate)
+            return formatter.format(date.getSuccess() ?: Date())
         }
 
     var interfaceStyleOverride: InterfaceStyle? = null
@@ -406,27 +414,31 @@ class DeviceHelper(
     }
 
     suspend fun getTemplateDevice(): Map<String, Any> {
-        val identityInfo = factory.makeIdentityInfo()
-        val aliases = listOf(identityInfo.aliasId)
-        val geo =
-            try {
-                withTimeout(1.minutes) {
-                    lastGeoInfo.first { it != null }
+        return withErrorTracking {
+            val identityInfo = factory.makeIdentityInfo()
+            val aliases = listOf(identityInfo.aliasId)
+            val geo =
+                try {
+                    withTimeout(1.minutes) {
+                        lastGeoInfo.first { it != null }
+                    }
+                } catch (e: Throwable) {
+                    Logger.debug(
+                        logLevel = LogLevel.error,
+                        scope = LogScope.device,
+                        message = "Failed to get geo info - timeout",
+                        info = emptyMap(),
+                        error = e,
+                    )
+                    null
                 }
-            } catch (e: Throwable) {
-                Logger.debug(
-                    logLevel = LogLevel.error,
-                    scope = LogScope.device,
-                    message = "Failed to get geo info - timeout",
-                    info = emptyMap(),
-                    error = e,
+            val capabilities: List<Capability> =
+                listOf(
+                    Capability.PaywallEventReceiver(),
+                    Capability.MultiplePaywallUrls,
+                    Capability.ConfigCaching,
                 )
-                null
-            }
-        val capabilities: List<Capability> =
-            listOf(Capability.PaywallEventReceiver(), Capability.MultiplePaywallUrls, Capability.ConfigCaching)
 
-        val deviceTemplate =
             DeviceTemplate(
                 publicApiKey = storage.apiKey,
                 platform = "Android",
@@ -484,8 +496,20 @@ class DeviceHelper(
                 platformWrapper = platformWrapper,
                 platformWrapperVersion = platformWrapperVersion,
             )
-
-        return deviceTemplate.toDictionary()
+        }.toResult().fold(
+            onSuccess = { deviceTemplate ->
+                return@fold deviceTemplate.toDictionary()
+            },
+            onFailure = {
+                Logger.debug(
+                    logLevel = LogLevel.error,
+                    scope = LogScope.device,
+                    message = "Failed to get device template",
+                    error = it,
+                )
+                return@fold emptyMap()
+            },
+        )
     }
 
     suspend fun getGeoInfo() =
