@@ -50,6 +50,7 @@ import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.vc.web_view.SWWebView
 import com.superwall.sdk.store.transactions.notifications.NotificationScheduler
+import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -425,6 +426,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+
         val content = contentView as? ViewGroup?
         if (content != null && content is CoordinatorLayout) {
             val bottomSheetBehavior = BottomSheetBehavior.from(content.getChildAt(0))
@@ -433,12 +435,14 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             }
         }
         val pv = intent.getStringExtra(VIEW_KEY)
-        if (pv != null) {
-            (
-                Superwall.instance.dependencyContainer
-                    .makeViewStore()
-                    .retrieveView(pv) as PaywallView
-            ).cleanup()
+        withErrorTracking {
+            if (pv != null) {
+                (
+                    Superwall.instance.dependencyContainer
+                        .makeViewStore()
+                        .retrieveView(pv) as? PaywallView?
+                )?.cleanup()
+            }
         }
         paywallView()?.webView?.onScrollChangeListener = null
         paywallView()?.cleanup()
