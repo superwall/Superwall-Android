@@ -52,7 +52,7 @@ import com.superwall.sdk.paywall.vc.web_view.SWWebViewDelegate
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallMessageHandlerDelegate
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent
 import com.superwall.sdk.storage.LocalStorage
-import com.superwall.sdk.utilities.withErrorTrackingAsync
+import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -385,7 +385,7 @@ class PaywallView(
                 val trackedEvent = InternalSuperwallEvent.PaywallDecline(paywallInfo = info)
 
                 val presentationResult =
-                    withErrorTrackingAsync {
+                    withErrorTracking {
                         Superwall.instance.internallyGetPresentationResult(
                             event = trackedEvent,
                             isImplicit = true,

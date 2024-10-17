@@ -18,7 +18,6 @@ import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult.Purch
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult.Restored
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.utilities.withErrorTracking
-import com.superwall.sdk.utilities.withErrorTrackingAsync
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -30,7 +29,7 @@ suspend fun Superwall.dismiss() =
     withContext(Dispatchers.Main) {
         val completionSignal = CompletableDeferred<Unit>()
 
-        withErrorTrackingAsync {
+        withErrorTracking {
             paywallView?.let {
                 dismiss(paywallView = it, result = PaywallResult.Declined()) {
                     completionSignal.complete(Unit)
@@ -45,7 +44,7 @@ suspend fun Superwall.dismissForNextPaywall() =
     withContext(Dispatchers.Main) {
         val completionSignal = CompletableDeferred<Unit>()
 
-        withErrorTrackingAsync {
+        withErrorTracking {
             paywallView?.let {
                 dismiss(
                     paywallView = it,
@@ -110,6 +109,7 @@ private fun Superwall.internallyRegister(
                                             value = "Trying to present gated paywall but the webview could not load.",
                                         )
                                     handler?.onErrorHandler?.invoke(error)
+                                } else {
                                 }
                             }
                         }
@@ -130,7 +130,7 @@ private fun Superwall.internallyRegister(
     }
 
     serialTaskManager.addTask {
-        withErrorTrackingAsync {
+        withErrorTracking {
             collectionWillStart.await()
             trackAndPresentPaywall(
                 event = event,
@@ -164,7 +164,7 @@ private suspend fun Superwall.trackAndPresentPaywall(
             isFeatureGatable = isFeatureGatable,
         )
 
-    withErrorTrackingAsync {
+    withErrorTracking {
         val trackResult = track(trackableEvent)
         if (trackResult.isFailure) {
             throw trackResult.exceptionOrNull() ?: Exception("Unknown error")

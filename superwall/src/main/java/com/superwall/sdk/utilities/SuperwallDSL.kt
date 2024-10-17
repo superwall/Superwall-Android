@@ -12,7 +12,7 @@ class SuperwallBuilder {
     var options: SuperwallOptions? = null
         private set
     var activityProvider: ActivityProvider? = null
-    var completion: (() -> Unit)? = null
+    var completion: ((Result<Unit>) -> Unit)? = null
 
     @SuperwallDSL
     fun options(action: SuperwallOptions.() -> Unit) {

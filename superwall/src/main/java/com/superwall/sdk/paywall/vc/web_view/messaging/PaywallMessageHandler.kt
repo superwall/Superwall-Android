@@ -2,7 +2,6 @@ package com.superwall.sdk.paywall.vc.web_view.messaging
 
 import TemplateLogic
 import android.net.Uri
-import android.util.Log
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import com.superwall.sdk.Superwall
@@ -175,7 +174,6 @@ class PaywallMessageHandler(
         eventName: String,
         paywall: Paywall,
     ) {
-        Log.e("PaywallMessageHandler", "pass: $eventName")
         val json = Json { encodeDefaults = true }
         val eventList =
             listOf(

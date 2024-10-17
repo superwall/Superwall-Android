@@ -97,30 +97,7 @@ internal fun Superwall.trackError(e: Throwable) {
     }
 }
 
-@JvmName("trackErrorInternalNoReturn")
-internal fun withErrorTracking(block: () -> Unit): Either<Unit, Throwable> =
-    try {
-        block()
-        Either.Success(Unit)
-    } catch (e: Throwable) {
-        if (e.shouldLog()) {
-            Superwall.instance.trackError(e)
-        }
-        Either.Failure(e)
-    }
-
-internal suspend fun <T> withErrorTrackingAsync(block: suspend () -> T): Either<T, Throwable> =
-    try {
-        Either.Success(block())
-    } catch (e: Throwable) {
-        if (e.shouldLog()) {
-            Superwall.instance.trackError(e)
-        }
-
-        Either.Failure(e)
-    }
-
-internal fun <T> withErrorTracking(block: () -> T): Either<T, Throwable> =
+internal inline fun <T> withErrorTracking(block: () -> T): Either<T, Throwable> =
     try {
         Either.Success(block())
     } catch (e: Throwable) {

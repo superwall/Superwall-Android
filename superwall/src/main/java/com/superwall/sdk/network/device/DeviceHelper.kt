@@ -34,7 +34,6 @@ import com.superwall.sdk.storage.TotalPaywallViews
 import com.superwall.sdk.utilities.DateUtils
 import com.superwall.sdk.utilities.dateFormat
 import com.superwall.sdk.utilities.withErrorTracking
-import com.superwall.sdk.utilities.withErrorTrackingAsync
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeout
@@ -415,7 +414,7 @@ class DeviceHelper(
     }
 
     suspend fun getTemplateDevice(): Map<String, Any> {
-        return withErrorTrackingAsync {
+        return withErrorTracking {
             val identityInfo = factory.makeIdentityInfo()
             val aliases = listOf(identityInfo.aliasId)
             val geo =

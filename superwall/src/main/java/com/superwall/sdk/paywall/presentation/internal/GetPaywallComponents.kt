@@ -14,7 +14,7 @@ import com.superwall.sdk.paywall.presentation.internal.operators.getPaywallView
 import com.superwall.sdk.paywall.presentation.internal.operators.getPresenterIfNecessary
 import com.superwall.sdk.paywall.presentation.internal.operators.waitForSubsStatusAndConfig
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
-import com.superwall.sdk.utilities.withErrorTrackingAsync
+import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.flow.MutableSharedFlow
 
 /**
@@ -31,7 +31,7 @@ suspend fun Superwall.getPaywallComponents(
     request: PresentationRequest,
     publisher: MutableSharedFlow<PaywallState>? = null,
 ): Result<PaywallComponents> =
-    withErrorTrackingAsync {
+    withErrorTracking {
         waitForSubsStatusAndConfig(request, publisher)
         // TODO:
 //    val debugInfo = logPresentation(request)
@@ -70,7 +70,7 @@ suspend fun Superwall.getPaywallComponents(
     }.toResult()
 
 internal suspend fun Superwall.confirmAssignment(request: PresentationRequest): Either<ConfirmedAssignment?, Throwable> {
-    return withErrorTrackingAsync {
+    return withErrorTracking {
         waitForSubsStatusAndConfig(request)
         val rules = evaluateRules(request)
         if (rules.isFailure) {
@@ -80,7 +80,7 @@ internal suspend fun Superwall.confirmAssignment(request: PresentationRequest): 
         val confirmableAssignment = rules.getOrThrow().confirmableAssignment
         confirmPaywallAssignment(confirmableAssignment, request, request.flags.isDebuggerLaunched)
 
-        return@withErrorTrackingAsync confirmableAssignment?.let {
+        return@withErrorTracking confirmableAssignment?.let {
             ConfirmedAssignment(
                 experimentId = it.experimentId,
                 variant = it.variant,

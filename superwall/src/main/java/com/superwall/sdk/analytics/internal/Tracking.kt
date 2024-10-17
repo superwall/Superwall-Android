@@ -18,7 +18,7 @@ import com.superwall.sdk.paywall.presentation.internal.operators.waitForSubsStat
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.storage.DisableVerboseEvents
-import com.superwall.sdk.utilities.withErrorTrackingAsync
+import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -28,7 +28,7 @@ import kotlinx.coroutines.withContext
 import java.util.Date
 
 suspend fun Superwall.track(event: Trackable): Result<TrackingResult> {
-    return withErrorTrackingAsync {
+    return withErrorTracking {
         // Wait for the SDK to be fully initialized
         Superwall.hasInitialized.first()
 
@@ -98,7 +98,7 @@ suspend fun Superwall.track(event: Trackable): Result<TrackingResult> {
             }
         }
 
-        return@withErrorTrackingAsync TrackingResult(
+        return@withErrorTracking TrackingResult(
             data = eventData,
             parameters = parameters,
         )
@@ -118,7 +118,7 @@ private suspend fun Superwall.internallyHandleImplicitTrigger(
     event: Trackable,
     eventData: EventData,
 ) = withContext(Dispatchers.Main) {
-    return@withContext withErrorTrackingAsync {
+    return@withContext withErrorTracking {
         val presentationInfo = PresentationInfo.ImplicitTrigger(eventData)
 
         var request =
@@ -132,7 +132,7 @@ private suspend fun Superwall.internallyHandleImplicitTrigger(
             waitForSubsStatusAndConfig(request, null)
         } catch (e: Throwable) {
             logErrors(request, e)
-            return@withErrorTrackingAsync
+            return@withErrorTracking
         }
 
         val outcome =
@@ -151,14 +151,14 @@ private suspend fun Superwall.internallyHandleImplicitTrigger(
             }
 
             TrackingLogic.ImplicitTriggerOutcome.ClosePaywallThenTriggerPaywall -> {
-                val lastPresentationItems = presentationItems.last ?: return@withErrorTrackingAsync
+                val lastPresentationItems = presentationItems.last ?: return@withErrorTracking
                 dismissForNextPaywall()
                 statePublisher = lastPresentationItems.statePublisher
             }
 
             TrackingLogic.ImplicitTriggerOutcome.TriggerPaywall -> {}
             TrackingLogic.ImplicitTriggerOutcome.DontTriggerPaywall -> {
-                return@withErrorTrackingAsync
+                return@withErrorTracking
             }
 
             else -> {}

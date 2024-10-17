@@ -18,7 +18,7 @@ import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.store.StoreKitManager
-import com.superwall.sdk.utilities.withErrorTrackingAsync
+import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
@@ -42,7 +42,7 @@ class PaywallRequestManager(
     private val paywallsByHash: MutableMap<String, Paywall> = mutableMapOf()
 
     suspend fun getPaywall(request: PaywallRequest): Either<Paywall, Throwable> =
-        withErrorTrackingAsync {
+        withErrorTracking {
             withContext(ioScope.coroutineContext) {
                 val deviceInfo = factory.makeDeviceInfo()
                 val joinedSubstituteProductIds =

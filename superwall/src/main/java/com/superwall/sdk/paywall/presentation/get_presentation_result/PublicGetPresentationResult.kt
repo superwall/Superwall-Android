@@ -9,7 +9,7 @@ import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.presentation.result.PresentationResult
-import com.superwall.sdk.utilities.withErrorTrackingAsync
+import com.superwall.sdk.utilities.withErrorTracking
 import java.util.Date
 import java.util.HashMap
 
@@ -17,7 +17,7 @@ suspend fun Superwall.getPresentationResult(
     event: String,
     params: Map<String, Any>? = null,
 ): Result<PresentationResult> =
-    withErrorTrackingAsync {
+    withErrorTracking {
         val event =
             UserInitiatedEvent.Track(
                 rawName = event,
@@ -26,7 +26,7 @@ suspend fun Superwall.getPresentationResult(
                 isFeatureGatable = false,
             )
 
-        return@withErrorTrackingAsync internallyGetPresentationResult(
+        return@withErrorTracking internallyGetPresentationResult(
             event,
             isImplicit = false,
         )
