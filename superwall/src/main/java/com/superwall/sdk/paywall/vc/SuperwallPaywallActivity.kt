@@ -424,7 +424,6 @@ class SuperwallPaywallActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        super.onDestroy()
         val content = contentView as? ViewGroup?
         if (content != null && content is CoordinatorLayout) {
             val bottomSheetBehavior = BottomSheetBehavior.from(content.getChildAt(0))
@@ -434,11 +433,19 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         }
         val pv = intent.getStringExtra(VIEW_KEY)
         if (pv != null) {
-            (
-                Superwall.instance.dependencyContainer
-                    .makeViewStore()
-                    .retrieveView(pv) as PaywallView
-            ).cleanup()
+            try {
+                (
+                    Superwall.instance.dependencyContainer
+                        .makeViewStore()
+                        .retrieveView(pv) as? PaywallView?
+                )?.cleanup()
+            } catch (e: Throwable) {
+                Logger.debug(
+                    LogLevel.debug,
+                    LogScope.paywallView,
+                    "Cache cleanup failed - application going to sleep.",
+                )
+            }
         }
         paywallView()?.webView?.onScrollChangeListener = null
         paywallView()?.cleanup()
@@ -447,6 +454,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         (paywallView() as? ActivityEncapsulatable)?.encapsulatingActivity = null
         // Clear the reference to the contentView
         contentView = null
+        super.onDestroy()
     }
 
     //region Notifications
