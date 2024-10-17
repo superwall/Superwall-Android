@@ -47,7 +47,6 @@ import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.OpenedUrl
 import com.superwall.sdk.storage.ActiveSubscriptionStatus
 import com.superwall.sdk.store.ExternalNativePurchaseController
 import com.superwall.sdk.utilities.withErrorTracking
-import com.superwall.sdk.utilities.withErrorTrackingAsync
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -68,7 +67,7 @@ class Superwall(
     private var purchaseController: PurchaseController?,
     options: SuperwallOptions?,
     private var activityProvider: ActivityProvider?,
-    private val completion: (() -> Unit)?,
+    private val completion: ((Result<Unit>) -> Unit)?,
 ) : PaywallViewEventCallback {
     private var _options: SuperwallOptions? = options
     internal val ioScope = CoroutineScope(Dispatchers.IO)
@@ -288,7 +287,7 @@ class Superwall(
             purchaseController: PurchaseController? = null,
             options: SuperwallOptions? = null,
             activityProvider: ActivityProvider? = null,
-            completion: (() -> Unit)? = null,
+            completion: ((Result<Unit>) -> Unit)? = null,
         ) {
             if (_hasInitialized.value && _instance == null) {
                 _hasInitialized.update { false }
@@ -299,7 +298,7 @@ class Superwall(
                     scope = LogScope.superwallCore,
                     message = "Superwall.configure called multiple times. Please make sure you only call this once on app launch.",
                 )
-                completion?.invoke()
+                completion?.invoke(Result.success(Unit))
                 return
             }
             val purchaseController =
@@ -315,19 +314,28 @@ class Superwall(
                     completion = completion,
                 )
 
-            instance.setup()
-
-            Logger.debug(
-                logLevel = LogLevel.debug,
-                scope = LogScope.superwallCore,
-                message = "SDK Version - ${instance.dependencyContainer.deviceHelper.sdkVersion}",
-            )
-
-            initialized = true
-            // Ping everyone about the initialization
-            _hasInitialized.update {
-                true
-            }
+            instance.setup().toResult().fold({
+                val sdkVersion = instance.dependencyContainer.deviceHelper.sdkVersion
+                Logger.debug(
+                    logLevel = LogLevel.debug,
+                    scope = LogScope.superwallCore,
+                    message = "SDK Version - $sdkVersion",
+                )
+                initialized = true
+                // Ping everyone about the initialization
+                _hasInitialized.update {
+                    true
+                }
+            }, {
+                val sdkVersion = instance.dependencyContainer.deviceHelper.sdkVersion
+                completion?.invoke(Result.failure(it))
+                Logger.debug(
+                    logLevel = LogLevel.error,
+                    scope = LogScope.superwallCore,
+                    message = "Superwall SDK $sdkVersion failed to initialize - ${it.message}",
+                    error = it,
+                )
+            })
         }
 
         @Deprecated(
@@ -339,7 +347,7 @@ class Superwall(
             purchaseController: PurchaseController? = null,
             options: SuperwallOptions? = null,
             activityProvider: ActivityProvider? = null,
-            completion: (() -> Unit)? = null,
+            completion: ((Result<Unit>) -> Unit)? = null,
         ) = configure(
             applicationContext.applicationContext as Application,
             apiKey,
@@ -363,8 +371,8 @@ class Superwall(
     internal val serialTaskManager = SerialTaskManager()
 
     internal fun setup(): Either<Unit, Throwable> =
-        synchronized(this) {
-            withErrorTracking {
+        synchronized(this@Superwall) {
+            withErrorTracking<Unit> {
                 try {
                     _dependencyContainer =
                         DependencyContainer(
@@ -386,7 +394,7 @@ class Superwall(
                 addListeners()
 
                 ioScope.launch {
-                    withErrorTrackingAsync {
+                    withErrorTracking {
                         dependencyContainer.storage.configure(apiKey = apiKey)
                         dependencyContainer.storage.recordAppInstall {
                             track(event = it)
@@ -394,11 +402,21 @@ class Superwall(
                         // Implicitly wait
                         dependencyContainer.configManager.fetchConfiguration()
                         dependencyContainer.identityManager.configure()
-
+                    }.toResult().fold({
                         CoroutineScope(Dispatchers.Main).launch {
-                            completion?.invoke()
+                            completion?.invoke(Result.success(Unit))
                         }
-                    }
+                    }, {
+                        CoroutineScope(Dispatchers.Main).launch {
+                            completion?.invoke(Result.failure(it))
+                        }
+                        Logger.debug(
+                            logLevel = LogLevel.error,
+                            scope = LogScope.superwallCore,
+                            message = "Superwall SDK failed to initialize - ${it.message}",
+                            error = it,
+                        )
+                    })
                 }
             }
         }
@@ -406,7 +424,7 @@ class Superwall(
     // / Listens to config and the subscription status
     private fun addListeners() {
         ioScope.launch {
-            withErrorTrackingAsync {
+            withErrorTracking {
                 subscriptionStatus // Removes duplicates by default
                     .drop(1) // Drops the first item
                     .collect { newValue ->
@@ -541,7 +559,7 @@ class Superwall(
      */
     fun preloadAllPaywalls() {
         ioScope.launch {
-            withErrorTrackingAsync {
+            withErrorTracking {
                 dependencyContainer.configManager.preloadAllPaywalls()
             }
         }
@@ -559,7 +577,7 @@ class Superwall(
      */
     fun preloadPaywalls(eventNames: Set<String>) {
         ioScope.launch {
-            withErrorTrackingAsync {
+            withErrorTracking {
                 dependencyContainer.configManager.preloadPaywallsByNames(
                     eventNames = eventNames,
                 )
@@ -573,10 +591,12 @@ class Superwall(
      * @return An array of `ConfirmedAssignments` objects.
      * */
 
-    fun getAssignments(): List<ConfirmedAssignment> =
-        dependencyContainer.storage
-            .getConfirmedAssignments()
-            .map { ConfirmedAssignment(it.key, it.value) }
+    fun getAssignments(): Result<List<ConfirmedAssignment>> =
+        withErrorTracking {
+            dependencyContainer.storage
+                .getConfirmedAssignments()
+                .map { ConfirmedAssignment(it.key, it.value) }
+        }.toResult()
 
     /**
      * Confirms all experiment assignments and returns them in an array.
@@ -589,12 +609,12 @@ class Superwall(
      */
 
     suspend fun confirmAllAssignments(): Result<List<ConfirmedAssignment>> {
-        return withErrorTrackingAsync {
+        return withErrorTracking {
             val event = InternalSuperwallEvent.ConfirmAllAssignments
             track(event)
             val triggers =
                 dependencyContainer.configManager.config?.triggers
-                    ?: return@withErrorTrackingAsync emptyList()
+                    ?: return@withErrorTracking emptyList()
             val storedAssignments = dependencyContainer.storage.getConfirmedAssignments()
             val assignments =
                 storedAssignments
@@ -652,7 +672,7 @@ class Superwall(
         paywallView: PaywallView,
     ) {
         withContext(Dispatchers.Main) {
-            withErrorTrackingAsync {
+            withErrorTracking {
                 Logger.debug(
                     logLevel = LogLevel.debug,
                     scope = LogScope.paywallView,
@@ -672,7 +692,7 @@ class Superwall(
                     is InitiatePurchase -> {
                         if (purchaseTask != null) {
                             // If a purchase is already in progress, do not start another
-                            return@withErrorTrackingAsync
+                            return@withErrorTracking
                         }
                         purchaseTask =
                             launch {

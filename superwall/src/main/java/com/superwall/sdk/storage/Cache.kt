@@ -6,7 +6,7 @@ import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.storage.memory.LRUCache
 import com.superwall.sdk.storage.memory.PerpetualCache
-import com.superwall.sdk.utilities.withErrorTrackingAsync
+import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExecutorCoroutineDispatcher
 import kotlinx.coroutines.launch
@@ -86,7 +86,7 @@ class Cache(
     fun <T : Any> delete(storable: Storable<T>) {
         memCache.remove(storable.key)
         launch {
-            withErrorTrackingAsync {
+            withErrorTracking {
                 try {
                     val file = storable.file(context = context)
                     if (file.exists()) {

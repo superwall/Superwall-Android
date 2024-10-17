@@ -17,7 +17,6 @@ import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.storage.Seed
 import com.superwall.sdk.storage.UserAttributes
 import com.superwall.sdk.utilities.withErrorTracking
-import com.superwall.sdk.utilities.withErrorTrackingAsync
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -112,7 +111,7 @@ class IdentityManager(
 
     fun configure() {
         ioScope.launch {
-            withErrorTrackingAsync {
+            withErrorTracking {
                 val neverCalledStaticConfig = storage.neverCalledStaticConfig
                 val isFirstAppOpen =
                     !(storage.read(DidTrackFirstSeen) ?: false)
@@ -135,7 +134,7 @@ class IdentityManager(
         options: IdentityOptions? = null,
     ) {
         scope.launch {
-            withErrorTrackingAsync {
+            withErrorTracking {
                 IdentityLogic.sanitize(userId)?.let { sanitizedUserId ->
                     if (_appUserId == sanitizedUserId || sanitizedUserId == "") {
                         if (sanitizedUserId == "") {
@@ -145,7 +144,7 @@ class IdentityManager(
                                 message = "The provided userId was empty.",
                             )
                         }
-                        return@withErrorTrackingAsync
+                        return@withErrorTracking
                     }
 
                     identityFlow.emit(false)

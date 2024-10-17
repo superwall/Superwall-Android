@@ -13,7 +13,7 @@ import com.superwall.sdk.paywall.presentation.rule_logic.javascript.JavascriptEv
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
 import com.superwall.sdk.paywall.vc.web_view.webViewExists
 import com.superwall.sdk.storage.LocalStorage
-import com.superwall.sdk.utilities.withErrorTrackingAsync
+import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -46,7 +46,7 @@ class PaywallPreload(
 
         currentPreloadingTask =
             scope.launch {
-                withErrorTrackingAsync {
+                withErrorTracking {
                     val js = factory.provideJavascriptEvaluator(context)
                     val expressionEvaluator =
                         ExpressionEvaluator(
@@ -94,7 +94,7 @@ class PaywallPreload(
 
         if (webviewExists) {
             scope.launch {
-                withErrorTrackingAsync {
+                withErrorTracking {
                     // List to hold all the Deferred objects
                     val tasks = mutableListOf<Deferred<Any>>()
 
