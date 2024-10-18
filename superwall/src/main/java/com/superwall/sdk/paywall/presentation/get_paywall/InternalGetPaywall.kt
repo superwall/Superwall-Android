@@ -2,6 +2,7 @@ package com.superwall.sdk.paywall.presentation.get_paywall
 
 import android.app.Activity
 import com.superwall.sdk.Superwall
+import com.superwall.sdk.misc.Either
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.getPaywallComponents
 import com.superwall.sdk.paywall.presentation.internal.operators.logErrors
@@ -24,19 +25,15 @@ data class PaywallComponents(
 internal suspend fun Superwall.getPaywall(
     request: PresentationRequest,
     publisher: MutableSharedFlow<PaywallState> = MutableSharedFlow(),
-): PaywallView =
-    try {
-        val paywallComponents = getPaywallComponents(request, publisher)
-
-        paywallComponents.view.set(
+): Either<PaywallView, Throwable> =
+    getPaywallComponents(request, publisher).fold(onSuccess = {
+        it.view.set(
             request = request,
             paywallStatePublisher = publisher,
-            unsavedOccurrence = paywallComponents.rulesOutcome.unsavedOccurrence,
+            unsavedOccurrence = it.rulesOutcome.unsavedOccurrence,
         )
-        paywallComponents.view
-    } catch (error: Throwable) {
-        logErrors(request, error = error)
-        // TODO: throw the proper error
-//        throw mapError(error, toObjc = toObjc)
-        throw error
-    }
+        Either.Success(it.view)
+    }, onFailure = {
+        logErrors(request, error = it)
+        Either.Failure(it)
+    })

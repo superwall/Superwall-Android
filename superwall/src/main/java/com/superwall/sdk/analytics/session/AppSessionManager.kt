@@ -9,7 +9,9 @@ import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.config.models.getConfig
 import com.superwall.sdk.dependencies.DeviceHelperFactory
 import com.superwall.sdk.dependencies.UserAttributesEventFactory
+import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.storage.LocalStorage
+import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.mapNotNull
@@ -25,7 +27,7 @@ class AppSessionManager(
     private val configManager: ConfigManager,
     private val storage: LocalStorage,
     private val delegate: Factory,
-    private val backgroundScope: CoroutineScope,
+    private val backgroundScope: IOScope,
 ) : DefaultLifecycleObserver {
     interface Factory :
         AppManagerDelegate,
@@ -87,47 +89,51 @@ class AppSessionManager(
     }
 
     private fun sessionCouldRefresh() {
-        detectNewSession()
-        trackAppLaunch()
-        backgroundScope.launch {
-            storage.recordFirstSeenTracked()
+        withErrorTracking {
+            detectNewSession()
+            trackAppLaunch()
+            backgroundScope.launch {
+                storage.recordFirstSeenTracked()
+            }
         }
     }
 
     private fun detectNewSession() {
-        val didStartNewSession =
-            AppSessionLogic.didStartNewSession(
-                lastAppClose,
-                appSessionTimeout,
-            )
+        withErrorTracking {
+            val didStartNewSession =
+                AppSessionLogic.didStartNewSession(
+                    lastAppClose,
+                    appSessionTimeout,
+                )
 
-        if (didStartNewSession) {
-            appSession = AppSession()
+            if (didStartNewSession) {
+                appSession = AppSession()
 
-            backgroundScope.launch {
-                val deviceAttributes = delegate.makeSessionDeviceAttributes()
-                val userAttributes = delegate.makeUserAttributesEvent()
+                backgroundScope.launch {
+                    val deviceAttributes = delegate.makeSessionDeviceAttributes()
+                    val userAttributes = delegate.makeUserAttributesEvent()
 
-                Superwall.instance.track(InternalSuperwallEvent.SessionStart())
+                    Superwall.instance.track(InternalSuperwallEvent.SessionStart())
 
-                // Only track device attributes if we've already tracked app launch before.
-                // This is because we track device attributes after the config is first fetched.
-                // Otherwise we'd track it twice and it won't contain geo info here on cold app start.
-                if (didTrackAppLaunch) {
-                    Superwall.instance.track(
-                        InternalSuperwallEvent.DeviceAttributes(
-                            deviceAttributes,
-                        ),
-                    )
+                    // Only track device attributes if we've already tracked app launch before.
+                    // This is because we track device attributes after the config is first fetched.
+                    // Otherwise we'd track it twice and it won't contain geo info here on cold app start.
+                    if (didTrackAppLaunch) {
+                        Superwall.instance.track(
+                            InternalSuperwallEvent.DeviceAttributes(
+                                deviceAttributes,
+                            ),
+                        )
+                    }
+                    Superwall.instance.track(userAttributes)
                 }
-                Superwall.instance.track(userAttributes)
+                // If we are returning to the app, we can refresh the config here.
+                backgroundScope.launch {
+                    configManager.refreshConfiguration()
+                }
+            } else {
+                appSession.endAt = null
             }
-            // If we are returning to the app, we can refresh the config here.
-            backgroundScope.launch {
-                configManager.refreshConfiguration()
-            }
-        } else {
-            appSession.endAt = null
         }
     }
 

@@ -6,6 +6,7 @@ import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.storage.memory.LRUCache
 import com.superwall.sdk.storage.memory.PerpetualCache
+import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExecutorCoroutineDispatcher
 import kotlinx.coroutines.launch
@@ -85,18 +86,20 @@ class Cache(
     fun <T : Any> delete(storable: Storable<T>) {
         memCache.remove(storable.key)
         launch {
-            try {
-                val file = storable.file(context = context)
-                if (file.exists()) {
-                    file.delete()
+            withErrorTracking {
+                try {
+                    val file = storable.file(context = context)
+                    if (file.exists()) {
+                        file.delete()
+                    }
+                } catch (e: Throwable) {
+                    Logger.debug(
+                        logLevel = LogLevel.error,
+                        LogScope.cache,
+                        message = "Unable to delete key: ${storable.key}",
+                        error = e,
+                    )
                 }
-            } catch (e: Throwable) {
-                Logger.debug(
-                    logLevel = LogLevel.error,
-                    LogScope.cache,
-                    message = "Unable to delete key: ${storable.key}",
-                    error = e,
-                )
             }
         }
     }

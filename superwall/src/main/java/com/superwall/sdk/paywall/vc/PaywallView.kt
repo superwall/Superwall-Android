@@ -26,12 +26,14 @@ import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.AlertControllerFactory
+import com.superwall.sdk.misc.IOScope
+import com.superwall.sdk.misc.MainScope
+import com.superwall.sdk.misc.toResult
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.PaywallPresentationStyle
 import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.paywall.manager.PaywallCacheLogic
-import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.paywall.manager.PaywallViewCache
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.PaywallInfo
@@ -52,8 +54,7 @@ import com.superwall.sdk.paywall.vc.web_view.SWWebViewDelegate
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallMessageHandlerDelegate
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent
 import com.superwall.sdk.storage.LocalStorage
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import java.lang.ref.WeakReference
@@ -69,9 +70,7 @@ class PaywallView(
     val deviceHelper: DeviceHelper,
     val factory: Factory,
     val storage: LocalStorage,
-    val paywallManager: PaywallManager,
     override val webView: SWWebView,
-    private val loadingView: LoadingView = LoadingView(context),
     private val cache: PaywallViewCache?,
     private val useMultipleUrls: Boolean,
 ) : FrameLayout(context),
@@ -162,7 +161,6 @@ class PaywallView(
     private var unsavedOccurrence: TriggerRuleOccurrence? = null
 
     private val cacheKey: String = PaywallCacheLogic.key(paywall.identifier, deviceHelper.locale)
-
     val backgroundColor: Int
         get() {
 
@@ -183,7 +181,8 @@ class PaywallView(
     //endregion
 
     //region Initialization
-    private val mainScope = CoroutineScope(Dispatchers.Main)
+    private val mainScope: MainScope = MainScope()
+    private val ioScope: IOScope = IOScope()
 
     init {
         // Add the webView
@@ -317,7 +316,7 @@ class PaywallView(
             return
         }
 
-        CoroutineScope(Dispatchers.IO).launch {
+        ioScope.launch {
             trackClose()
         }
 
@@ -386,17 +385,19 @@ class PaywallView(
                 val trackedEvent = InternalSuperwallEvent.PaywallDecline(paywallInfo = info)
 
                 val presentationResult =
-                    Superwall.instance.internallyGetPresentationResult(
-                        event = trackedEvent,
-                        isImplicit = true,
-                    )
+                    withErrorTracking {
+                        Superwall.instance.internallyGetPresentationResult(
+                            event = trackedEvent,
+                            isImplicit = true,
+                        )
+                    }.toResult()
                 val paywallPresenterEvent = info.presentedByEventWithName
                 val presentedByPaywallDecline =
                     paywallPresenterEvent == SuperwallEvents.PaywallDecline.rawName
 
                 Superwall.instance.track(trackedEvent)
-
-                if (presentationResult is PresentationResult.Paywall && !presentedByPaywallDecline) {
+                val capturedResult = presentationResult.getOrNull()
+                if (capturedResult != null && capturedResult is PresentationResult.Paywall && !presentedByPaywallDecline) {
                     // Logic here, similar to the Swift one
                     return
                 }
@@ -416,7 +417,7 @@ class PaywallView(
         }
 
         val dismiss = {
-            CoroutineScope(Dispatchers.IO).launch {
+            ioScope.launch {
                 dismissView()
             }
         }
@@ -470,7 +471,7 @@ class PaywallView(
         if (presentationDidFinishPrepare) {
             return
         }
-        CoroutineScope(Dispatchers.IO).launch {
+        ioScope.launch {
             paywallStatePublisher?.let {
                 Superwall.instance.storePresentationObjects(request, it)
             }
@@ -486,7 +487,7 @@ class PaywallView(
         Superwall.instance.dependencyContainer.delegateAdapter
             .didPresentPaywall(info)
 
-        CoroutineScope(Dispatchers.IO).launch {
+        ioScope.launch {
             trackOpen()
         }
 
@@ -521,7 +522,7 @@ class PaywallView(
     }
 
     override fun eventDidOccur(paywallWebEvent: PaywallWebEvent) {
-        CoroutineScope(Dispatchers.IO).launch {
+        ioScope.launch {
             eventCallback?.eventDidOccur(paywallWebEvent, this@PaywallView)
         }
     }
@@ -713,7 +714,7 @@ class PaywallView(
     }
 
     fun loadWebView() {
-        CoroutineScope(Dispatchers.IO).launch {
+        ioScope.launch {
             val url = paywall.url
             if (paywall.webviewLoadingInfo.startAt == null) {
                 paywall.webviewLoadingInfo.startAt = Date()

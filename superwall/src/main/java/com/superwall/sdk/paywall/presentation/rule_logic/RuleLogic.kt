@@ -2,6 +2,7 @@ package com.superwall.sdk.paywall.presentation.rule_logic
 
 import com.superwall.sdk.config.Assignments
 import com.superwall.sdk.dependencies.RuleAttributesFactory
+import com.superwall.sdk.misc.Either
 import com.superwall.sdk.models.assignment.ConfirmableAssignment
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.triggers.Experiment
@@ -14,7 +15,7 @@ import com.superwall.sdk.models.triggers.UnmatchedRule
 import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.ExpressionEvaluator
 import com.superwall.sdk.paywall.presentation.rule_logic.javascript.JavascriptEvaluator
 import com.superwall.sdk.storage.LocalStorage
-import com.superwall.sdk.utilities.withErrorTrackingAsync
+import com.superwall.sdk.utilities.withErrorTracking
 
 data class RuleEvaluationOutcome(
     val confirmableAssignment: ConfirmableAssignment? = null,
@@ -41,18 +42,18 @@ class RuleLogic(
     suspend fun evaluateRules(
         event: EventData,
         triggers: Map<String, Trigger>,
-    ): RuleEvaluationOutcome {
-        return withErrorTrackingAsync<RuleEvaluationOutcome> {
+    ): Either<RuleEvaluationOutcome, Throwable> {
+        return withErrorTracking {
             val trigger =
                 triggers[event.name]
-                    ?: return@withErrorTrackingAsync RuleEvaluationOutcome(triggerResult = InternalTriggerResult.EventNotFound)
+                    ?: return@withErrorTracking RuleEvaluationOutcome(triggerResult = InternalTriggerResult.EventNotFound)
 
             val ruleMatchOutcome = findMatchingRule(event, trigger)
 
             val matchedRuleItem: MatchedItem =
                 when (ruleMatchOutcome) {
                     is RuleMatchOutcome.Matched -> ruleMatchOutcome.item
-                    is RuleMatchOutcome.NoMatchingRules -> return@withErrorTrackingAsync RuleEvaluationOutcome(
+                    is RuleMatchOutcome.NoMatchingRules -> return@withErrorTracking RuleEvaluationOutcome(
                         triggerResult = InternalTriggerResult.NoRuleMatch(ruleMatchOutcome.unmatchedRules),
                     )
                 }
@@ -65,7 +66,7 @@ class RuleLogic(
             variant = confirmedAssignments[rule.experiment.id]
                 ?: assignments.unconfirmedAssignments[rule.experiment.id]
                 ?: run {
-                    return@withErrorTrackingAsync RuleEvaluationOutcome(
+                    return@withErrorTracking RuleEvaluationOutcome(
                         triggerResult =
                             InternalTriggerResult.Error(
                                 PaywallNotFoundException(),
@@ -77,7 +78,7 @@ class RuleLogic(
                 confirmableAssignment = ConfirmableAssignment(rule.experiment.id, variant)
             }
 
-            return@withErrorTrackingAsync when (variant.type) {
+            return@withErrorTracking when (variant.type) {
                 Experiment.Variant.VariantType.HOLDOUT ->
                     RuleEvaluationOutcome(
                         confirmableAssignment = confirmableAssignment,
