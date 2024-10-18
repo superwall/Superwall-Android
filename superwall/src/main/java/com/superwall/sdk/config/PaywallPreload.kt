@@ -3,6 +3,8 @@ package com.superwall.sdk.config
 import android.content.Context
 import com.superwall.sdk.dependencies.RequestFactory
 import com.superwall.sdk.dependencies.RuleAttributesFactory
+import com.superwall.sdk.misc.IOScope
+import com.superwall.sdk.misc.launchWithTracking
 import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.models.paywall.CacheKey
 import com.superwall.sdk.models.paywall.PaywallIdentifier
@@ -13,17 +15,14 @@ import com.superwall.sdk.paywall.presentation.rule_logic.javascript.JavascriptEv
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
 import com.superwall.sdk.paywall.vc.web_view.webViewExists
 import com.superwall.sdk.storage.LocalStorage
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.launch
 
 class PaywallPreload(
     val factory: Factory,
-    val scope: CoroutineScope = CoroutineScope(Dispatchers.IO),
+    val scope: IOScope,
     val storage: LocalStorage,
     val assignments: Assignments,
     val paywallManager: PaywallManager,
@@ -44,7 +43,7 @@ class PaywallPreload(
         }
 
         currentPreloadingTask =
-            scope.launch {
+            scope.launchWithTracking {
                 val js = factory.provideJavascriptEvaluator(context)
                 val expressionEvaluator =
                     ExpressionEvaluator(
@@ -90,7 +89,7 @@ class PaywallPreload(
         val webviewExists = webViewExists()
 
         if (webviewExists) {
-            scope.launch {
+            scope.launchWithTracking {
                 // List to hold all the Deferred objects
                 val tasks = mutableListOf<Deferred<Any>>()
 

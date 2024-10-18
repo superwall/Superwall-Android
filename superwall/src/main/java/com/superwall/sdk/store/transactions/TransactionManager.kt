@@ -13,12 +13,14 @@ import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.dependencies.DeviceHelperFactory
 import com.superwall.sdk.dependencies.OptionsFactory
 import com.superwall.sdk.dependencies.StoreTransactionFactory
+import com.superwall.sdk.dependencies.SuperwallScopeFactory
 import com.superwall.sdk.dependencies.TransactionVerifierFactory
 import com.superwall.sdk.dependencies.TriggerFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.ActivityProvider
+import com.superwall.sdk.misc.launchWithTracking
 import com.superwall.sdk.models.paywall.LocalNotificationType
 import com.superwall.sdk.paywall.presentation.internal.dismiss
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
@@ -29,7 +31,6 @@ import com.superwall.sdk.storage.EventsQueue
 import com.superwall.sdk.store.StoreKitManager
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -43,14 +44,13 @@ class TransactionManager(
     private val factory: Factory,
     private val context: Context,
 ) {
-    val scope = CoroutineScope(Dispatchers.IO)
-
     interface Factory :
         OptionsFactory,
         TriggerFactory,
         TransactionVerifierFactory,
         StoreTransactionFactory,
-        DeviceHelperFactory
+        DeviceHelperFactory,
+        SuperwallScopeFactory
 
     private var lastPaywallView: PaywallView? = null
 
@@ -194,7 +194,7 @@ class TransactionManager(
         )
 
         // Launch a coroutine to handle async tasks
-        scope.launch {
+        factory.ioScope().launchWithTracking {
             val paywallInfo = paywallView.info
             val trackedEvent =
                 InternalSuperwallEvent.Transaction(
@@ -219,7 +219,7 @@ class TransactionManager(
         product: StoreProduct,
         paywallView: PaywallView,
     ) {
-        scope.launch {
+        factory.ioScope().launch {
             Logger.debug(
                 LogLevel.debug,
                 LogScope.paywallTransactions,
@@ -251,7 +251,7 @@ class TransactionManager(
         product: StoreProduct,
         paywallView: PaywallView,
     ) {
-        scope.launch {
+        factory.ioScope().launch {
             Logger.debug(
                 LogLevel.debug,
                 LogScope.paywallTransactions,
@@ -290,7 +290,7 @@ class TransactionManager(
         product: StoreProduct,
         paywallView: PaywallView,
     ) {
-        scope.launch {
+        factory.ioScope().launch {
             Logger.debug(
                 LogLevel.debug,
                 LogScope.paywallTransactions,
@@ -319,7 +319,7 @@ class TransactionManager(
     }
 
     private suspend fun handlePendingTransaction(paywallView: PaywallView) {
-        scope.launch {
+        factory.ioScope().launch {
             Logger.debug(
                 LogLevel.debug,
                 LogScope.paywallTransactions,
@@ -420,7 +420,7 @@ class TransactionManager(
         product: StoreProduct,
         paywallView: PaywallView,
     ) {
-        scope.launch {
+        factory.ioScope().launch {
             Logger.debug(
                 LogLevel.debug,
                 LogScope.paywallTransactions,

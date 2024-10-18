@@ -13,6 +13,7 @@ import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.Either
+import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.awaitFirstValidConfig
 import com.superwall.sdk.misc.fold
 import com.superwall.sdk.misc.into
@@ -33,8 +34,6 @@ import com.superwall.sdk.storage.LatestConfig
 import com.superwall.sdk.storage.LatestGeoInfo
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.StoreKitManager
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.Flow
@@ -58,7 +57,7 @@ open class ConfigManager(
     private val factory: Factory,
     private val assignments: Assignments,
     private val paywallPreload: PaywallPreload,
-    private val ioScope: CoroutineScope = CoroutineScope(Dispatchers.IO),
+    private val ioScope: IOScope,
     private val track: suspend (InternalSuperwallEvent) -> Unit,
 ) {
     private val CACHE_LIMIT = 1000L

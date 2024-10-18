@@ -3,8 +3,15 @@ package com.superwall.sdk.utilities
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
+import com.superwall.sdk.logger.Logger
+import com.superwall.sdk.misc.Either
+import com.superwall.sdk.network.NetworkError
+import com.superwall.sdk.paywall.presentation.internal.PresentationPipelineError
+import com.superwall.sdk.paywall.presentation.internal.state.PaywallSkippedReason
 import com.superwall.sdk.storage.ErrorLog
 import com.superwall.sdk.storage.LocalStorage
+import com.superwall.sdk.store.transactions.TransactionError
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.serialization.SerialName
@@ -21,6 +28,8 @@ internal interface ErrorTracking {
         val stacktrace: String,
         @SerialName("timestamp")
         val timestamp: Long,
+        @SerialName("isFatal")
+        val isFatal: Boolean,
     )
 }
 
@@ -62,6 +71,12 @@ internal class ErrorTracker(
                 message = throwable.message ?: "",
                 stacktrace = throwable.stackTraceToString(),
                 timestamp = System.currentTimeMillis(),
+                isFatal =
+                    throwable is RuntimeException ||
+                        throwable is StackOverflowError ||
+                        throwable is OutOfMemoryError ||
+                        throwable is ClassNotFoundException ||
+                        throwable is NoClassDefFoundError,
             )
         cache.write(ErrorLog, errorOccurence)
     }
@@ -73,33 +88,29 @@ internal fun Superwall.trackError(e: Throwable) {
     try {
         dependencyContainer.errorTracker.trackError(e)
     } catch (e: Exception) {
-        throw e
+        e.printStackTrace()
+        Logger.debug(
+            com.superwall.sdk.logger.LogLevel.error,
+            com.superwall.sdk.logger.LogScope.all,
+            "Error tracking failed for ${e.message}",
+        )
     }
 }
 
-internal fun withErrorTracking(block: () -> Unit) {
+internal inline fun <T> withErrorTracking(block: () -> T): Either<T, Throwable> =
     try {
-        block()
+        Either.Success(block())
     } catch (e: Throwable) {
-        Superwall.instance.trackError(e)
-        throw e
+        if (e.shouldLog()) {
+            Superwall.instance.trackError(e)
+        }
+        Either.Failure(e)
     }
-}
 
-internal suspend fun <T> withErrorTrackingAsync(block: suspend () -> T): T {
-    try {
-        return block()
-    } catch (e: Throwable) {
-        Superwall.instance.trackError(e)
-        throw e
-    }
-}
-
-internal fun <T> withErrorTracking(block: () -> T): T {
-    try {
-        return block()
-    } catch (e: Throwable) {
-        Superwall.instance.trackError(e)
-        throw e
-    }
-}
+private fun Throwable.shouldLog() =
+    this !is CancellationException &&
+        this !is InterruptedException &&
+        this !is PresentationPipelineError &&
+        this !is TransactionError &&
+        this !is PaywallSkippedReason &&
+        (this is NetworkError.Decoding || this !is NetworkError)

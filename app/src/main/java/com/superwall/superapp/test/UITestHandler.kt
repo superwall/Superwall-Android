@@ -46,7 +46,6 @@ object UITestHandler {
             1,
             "Uses the identify function. Should see the name 'Kate' in the paywall.",
             test = { scope, events ->
-
                 // Set identity
                 Superwall.instance.identify(userId = "test1a")
                 Superwall.instance.setUserAttributes(mapOf("first_name" to "Jack"))
@@ -555,8 +554,9 @@ object UITestHandler {
                 scope.launch {
 
                     val result = Superwall.instance.getPresentationResult("present_data")
+                    val resOrNull = result.getOrNull()
                     fatalAssert(
-                        result is PresentationResult.Paywall && result.experiment.id == "12859",
+                        result.isSuccess && (resOrNull is PresentationResult.Paywall && resOrNull.experiment.id == "12859"),
                         "Expected Paywall(experiment...), got $result",
                     )
                     println("!!! TEST 28 !!! $result")
@@ -578,7 +578,7 @@ object UITestHandler {
                 val result = Superwall.instance.getPresentationResult("present_and_rule_user")
                 println("!!! TEST 29 !!! $result")
                 fatalAssert(
-                    result is PresentationResult.NoRuleMatch,
+                    result.getOrNull() is PresentationResult.NoRuleMatch,
                     "NoRuleMatch expected, received $result",
                 )
             },
@@ -593,7 +593,7 @@ object UITestHandler {
                     val result =
                         Superwall.instance.getPresentationResult("some_random_not_found_event")
                     fatalAssert(
-                        result is PresentationResult.EventNotFound,
+                        result.getOrNull() is PresentationResult.EventNotFound,
                         "NoRuleMatch expected, received $result",
                     )
                     println("!!! TEST 30 !!! $result")
@@ -609,7 +609,7 @@ object UITestHandler {
 
                     val result = Superwall.instance.getPresentationResult("holdout")
                     fatalAssert(
-                        result is PresentationResult.Holdout,
+                        result.getOrNull() is PresentationResult.Holdout,
                         "NoRuleMatch expected, received $result",
                     )
                     println("!!! TEST 31 !!! $result")
@@ -626,7 +626,7 @@ object UITestHandler {
                 scope.launch {
                     val result = Superwall.instance.getPresentationResult("present_data")
                     fatalAssert(
-                        result is PresentationResult.UserIsSubscribed,
+                        result.getOrNull() is PresentationResult.UserIsSubscribed,
                         "UserIsSubscribed expected, received $result",
                     )
                     println("!!! TEST 32 !!! $result")

@@ -14,6 +14,7 @@ import com.superwall.sdk.config.models.getConfig
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.dependencies.DependencyContainer
 import com.superwall.sdk.misc.Either
+import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.models.assignment.Assignment
 import com.superwall.sdk.models.assignment.ConfirmableAssignment
 import com.superwall.sdk.models.config.Config
@@ -81,7 +82,7 @@ class ConfigManagerUnderTest(
         options = SuperwallOptions(),
         assignments = assignments,
         paywallPreload = paywallPreload,
-        ioScope = ioScope,
+        ioScope = IOScope(ioScope.coroutineContext),
         track = {},
     ) {
     suspend fun setConfig(config: Config) {
@@ -123,7 +124,7 @@ class ConfigManagerTests {
                 val preload =
                     PaywallPreload(
                         dependencyContainer,
-                        this@runTest,
+                        IOScope(this@runTest.coroutineContext),
                         storage,
                         assignments,
                         dependencyContainer.paywallManager,
@@ -169,7 +170,7 @@ class ConfigManagerTests {
                 val preload =
                     PaywallPreload(
                         dependencyContainer,
-                        this@runTest,
+                        IOScope(this@runTest.coroutineContext),
                         storage,
                         assignments,
                         dependencyContainer.paywallManager,
@@ -222,7 +223,7 @@ class ConfigManagerTests {
                 val preload =
                     PaywallPreload(
                         dependencyContainer,
-                        this@runTest,
+                        IOScope(this@runTest.coroutineContext),
                         storage,
                         assignments,
                         dependencyContainer.paywallManager,
@@ -270,7 +271,7 @@ class ConfigManagerTests {
                 val preload =
                     PaywallPreload(
                         dependencyContainer,
-                        this@runTest,
+                        IOScope(this@runTest.coroutineContext),
                         storage,
                         assignmentStore,
                         dependencyContainer.paywallManager,
@@ -370,7 +371,7 @@ class ConfigManagerTests {
                 val preload =
                     PaywallPreload(
                         dependencyContainer,
-                        this@runTest,
+                        IOScope(this@runTest.coroutineContext),
                         storage,
                         assignments,
                         dependencyContainer.paywallManager,
@@ -451,7 +452,7 @@ class ConfigManagerTests {
                 val preload =
                     PaywallPreload(
                         dependencyContainer,
-                        this@runTest,
+                        IOScope(this@runTest.coroutineContext),
                         storage,
                         assignments,
                         dependencyContainer.paywallManager,
@@ -747,7 +748,7 @@ class ConfigManagerTests {
                 val preload =
                     PaywallPreload(
                         dependencyContainer,
-                        this@runTest,
+                        IOScope(this@runTest.coroutineContext),
                         localStorage,
                         assignmentStore,
                         manager,
@@ -821,7 +822,7 @@ class ConfigManagerTests {
                 val preload =
                     PaywallPreload(
                         mockContainer,
-                        this@runTest,
+                        IOScope(this@runTest.coroutineContext),
                         localStorage,
                         assignmentStore,
                         dependencyContainer.paywallManager,

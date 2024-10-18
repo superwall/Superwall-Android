@@ -43,6 +43,7 @@ import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.isDarkColor
 import com.superwall.sdk.misc.isLightColor
+import com.superwall.sdk.misc.onError
 import com.superwall.sdk.misc.readableOverlayColor
 import com.superwall.sdk.models.paywall.LocalNotification
 import com.superwall.sdk.models.paywall.PaywallPresentationStyle
@@ -50,6 +51,7 @@ import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.vc.web_view.SWWebView
 import com.superwall.sdk.store.transactions.notifications.NotificationScheduler
+import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -423,6 +425,8 @@ class SuperwallPaywallActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        super.onDestroy()
+
         val content = contentView as? ViewGroup?
         if (content != null && content is CoordinatorLayout) {
             val bottomSheetBehavior = BottomSheetBehavior.from(content.getChildAt(0))
@@ -431,20 +435,20 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             }
         }
         val pv = intent.getStringExtra(VIEW_KEY)
-        if (pv != null) {
-            try {
+        withErrorTracking {
+            if (pv != null) {
                 (
                     Superwall.instance.dependencyContainer
                         .makeViewStore()
                         .retrieveView(pv) as? PaywallView?
                 )?.cleanup()
-            } catch (e: Throwable) {
-                Logger.debug(
-                    LogLevel.debug,
-                    LogScope.paywallView,
-                    "Cache cleanup failed - application going to sleep.",
-                )
             }
+        }.onError {
+            Logger.debug(
+                LogLevel.error,
+                LogScope.paywallView,
+                "Error cleaning up PaywallView: $it",
+            )
         }
         paywallView()?.webView?.onScrollChangeListener = null
         paywallView()?.cleanup()
@@ -453,7 +457,6 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         (paywallView() as? ActivityEncapsulatable)?.encapsulatingActivity = null
         // Clear the reference to the contentView
         contentView = null
-        super.onDestroy()
     }
 
     //region Notifications
