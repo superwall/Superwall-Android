@@ -2,7 +2,7 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
-## 1.4.0-beta1
+## 1.4.0-beta.1
 
 - Updates methods to return `kotlin.Result` instead of relying on throwing exceptions
 - This introduces some minor breaking changes:
