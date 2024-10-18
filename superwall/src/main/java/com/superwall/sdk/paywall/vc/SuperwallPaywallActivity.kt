@@ -123,8 +123,6 @@ class SuperwallPaywallActivity : AppCompatActivity() {
     private fun paywallView(): PaywallView? = contentView?.findViewWithTag(ACTIVE_PAYWALL_TAG)
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-
         AppCompatDelegate.setCompatVectorFromResourcesEnabled(true)
         val presentationStyle =
             intent.getSerializableExtra(PRESENTATION_STYLE_KEY) as? PaywallPresentationStyle
@@ -149,6 +147,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         }
 
         requestWindowFeature(Window.FEATURE_NO_TITLE)
+        super.onCreate(savedInstanceState)
 
         val key = intent.getStringExtra(VIEW_KEY)
         if (key == null) {
