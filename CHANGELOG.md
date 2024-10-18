@@ -6,6 +6,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ### Fixes
 - Fixes issue when destroying activities during sleep would cause a background crash
+- Fixes issue when using Superwall with some SDK's would cause a crash (i.e. Smartlook SDK)
 
 ## 1.3.0
 
