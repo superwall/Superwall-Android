@@ -2,8 +2,10 @@ package com.superwall.sdk.paywall.manager
 
 import com.superwall.sdk.dependencies.CacheFactory
 import com.superwall.sdk.dependencies.DeviceHelperFactory
+import com.superwall.sdk.dependencies.SuperwallScopeFactory
 import com.superwall.sdk.dependencies.ViewFactory
 import com.superwall.sdk.misc.Either
+import com.superwall.sdk.misc.launchWithTracking
 import com.superwall.sdk.misc.mapAsync
 import com.superwall.sdk.misc.toResult
 import com.superwall.sdk.models.paywall.PaywallIdentifier
@@ -12,10 +14,6 @@ import com.superwall.sdk.paywall.request.PaywallRequestManager
 import com.superwall.sdk.paywall.vc.PaywallView
 import com.superwall.sdk.paywall.vc.delegate.PaywallLoadingState
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewDelegateAdapter
-import com.superwall.sdk.utilities.withErrorTracking
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 
 class PaywallManager(
     private val factory: PaywallManager.Factory,
@@ -24,7 +22,8 @@ class PaywallManager(
     interface Factory :
         ViewFactory,
         CacheFactory,
-        DeviceHelperFactory
+        DeviceHelperFactory,
+        SuperwallScopeFactory
 
     var currentView: PaywallView? = null
         get() = cache.activePaywallView
@@ -62,24 +61,22 @@ class PaywallManager(
     }
 
     fun resetCache() {
-        CoroutineScope(Dispatchers.Main).launch {
-            withErrorTracking {
-                for (view in cache.getAllPaywallViews()) {
-                    view.webView.destroy()
-                    val inactivePaywalls =
-                        cache.entries
-                            .filter {
-                                it.value is PaywallView &&
-                                    it.key != cache.activePaywallVcKey
-                            }.values
-                            .map { it as PaywallView }
-                    for (paywallView in inactivePaywalls) {
-                        if (paywallView.paywall.identifier != cache.activePaywallVcKey) {
-                            paywallView.webView.destroy()
-                        }
+        factory.mainScope().launchWithTracking {
+            for (view in cache.getAllPaywallViews()) {
+                view.webView.destroy()
+                val inactivePaywalls =
+                    cache.entries
+                        .filter {
+                            it.value is PaywallView &&
+                                it.key != cache.activePaywallVcKey
+                        }.values
+                        .map { it as PaywallView }
+                for (paywallView in inactivePaywalls) {
+                    if (paywallView.paywall.identifier != cache.activePaywallVcKey) {
+                        paywallView.webView.destroy()
                     }
-                    cache.removeAll()
                 }
+                cache.removeAll()
             }
         }
     }

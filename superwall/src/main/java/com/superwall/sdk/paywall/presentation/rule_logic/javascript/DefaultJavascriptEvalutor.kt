@@ -7,6 +7,8 @@ import androidx.javascriptengine.SandboxDeadException
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
+import com.superwall.sdk.misc.IOScope
+import com.superwall.sdk.misc.MainScope
 import com.superwall.sdk.misc.toResult
 import com.superwall.sdk.models.triggers.TriggerRule
 import com.superwall.sdk.models.triggers.TriggerRuleOutcome
@@ -14,7 +16,6 @@ import com.superwall.sdk.models.triggers.UnmatchedRule
 import com.superwall.sdk.paywall.vc.web_view.webViewExists
 import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.utilities.withErrorTracking
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.guava.await
@@ -22,8 +23,8 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 
 class DefaultJavascriptEvalutor(
-    private val ioScope: CoroutineScope,
-    private val uiScope: CoroutineScope,
+    private val ioScope: IOScope,
+    private val uiScope: MainScope,
     private val context: Context,
     private val storage: LocalStorage,
     private val createSandbox: suspend (ctx: Context) -> Result<JavaScriptSandbox> = {

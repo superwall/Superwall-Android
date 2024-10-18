@@ -14,7 +14,6 @@ import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationReques
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.paywall.vc.PaywallView
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
@@ -61,7 +60,7 @@ suspend fun Superwall.presentPaywallView(
         ) { isPresented ->
             if (isPresented) {
                 val state = PaywallState.Presented(paywallView.info)
-                CoroutineScope(Dispatchers.IO).launch {
+                ioScope.launch {
                     paywallStatePublisher.emit(state)
                 }
             } else {
@@ -78,7 +77,7 @@ suspend fun Superwall.presentPaywallView(
                         title = "Paywall Already Presented",
                         value = "Trying to present paywall while another paywall is presented.",
                     )
-                CoroutineScope(Dispatchers.IO).launch {
+                ioScope.launch {
                     paywallStatePublisher.emit(PaywallState.PresentationError(error))
                 }
                 throw PaywallPresentationRequestStatusReason.PaywallAlreadyPresented()

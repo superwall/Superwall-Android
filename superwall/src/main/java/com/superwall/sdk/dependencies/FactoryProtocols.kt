@@ -11,6 +11,8 @@ import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.identity.IdentityInfo
 import com.superwall.sdk.identity.IdentityManager
 import com.superwall.sdk.misc.AppLifecycleObserver
+import com.superwall.sdk.misc.IOScope
+import com.superwall.sdk.misc.MainScope
 import com.superwall.sdk.models.config.ComputedPropertyRequest
 import com.superwall.sdk.models.config.FeatureFlags
 import com.superwall.sdk.models.events.EventData
@@ -191,4 +193,10 @@ interface TriggerFactory {
 
 internal interface ViewStoreFactory {
     fun makeViewStore(): ViewStorage
+}
+
+interface SuperwallScopeFactory {
+    fun mainScope(): MainScope
+
+    fun ioScope(): IOScope
 }

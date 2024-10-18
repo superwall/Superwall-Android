@@ -30,6 +30,8 @@ import com.superwall.sdk.identity.IdentityManager
 import com.superwall.sdk.misc.ActivityProvider
 import com.superwall.sdk.misc.AppLifecycleObserver
 import com.superwall.sdk.misc.CurrentActivityTracker
+import com.superwall.sdk.misc.IOScope
+import com.superwall.sdk.misc.MainScope
 import com.superwall.sdk.models.config.ComputedPropertyRequest
 import com.superwall.sdk.models.config.FeatureFlags
 import com.superwall.sdk.models.events.EventData
@@ -77,8 +79,6 @@ import com.superwall.sdk.store.transactions.TransactionManager
 import com.superwall.sdk.utilities.DateUtils
 import com.superwall.sdk.utilities.ErrorTracker
 import com.superwall.sdk.utilities.dateFormat
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -116,7 +116,8 @@ class DependencyContainer(
     JsonFactory,
     ConfigAttributesFactory,
     PaywallPreload.Factory,
-    ViewStoreFactory {
+    ViewStoreFactory,
+    SuperwallScopeFactory {
     var network: Network
     override var api: Api
     override var deviceHelper: DeviceHelper
@@ -134,8 +135,10 @@ class DependencyContainer(
     var storeKitManager: StoreKitManager
     val transactionManager: TransactionManager
     val googleBillingWrapper: GoogleBillingWrapper
-    private val uiScope = CoroutineScope(Dispatchers.Main)
-    private val ioScope = CoroutineScope(Dispatchers.IO)
+    private val uiScope
+        get() = mainScope()
+    private val ioScope
+        get() = ioScope()
     private val evaluator by lazy {
         DefaultJavascriptEvalutor(
             ioScope = ioScope,
@@ -259,6 +262,7 @@ class DependencyContainer(
                 storage = storage,
                 assignments = assignments,
                 paywallManager = paywallManager,
+                scope = ioScope,
             )
 
         configManager =
@@ -287,6 +291,7 @@ class DependencyContainer(
                 storage = storage,
                 deviceHelper = deviceHelper,
                 configManager = configManager,
+                ioScope = ioScope,
             )
 
         sessionEventsManager =
@@ -622,4 +627,21 @@ class DependencyContainer(
     private val vmProvider = ViewModelProvider(storeOwner, vmFactory)
 
     override fun makeViewStore(): ViewStorageViewModel = vmProvider[ViewStorageViewModel::class.java]
+
+    private var _mainScope: MainScope? = null
+    private var _ioScope: IOScope? = null
+
+    override fun mainScope(): MainScope {
+        if (_mainScope == null) {
+            _mainScope = MainScope()
+        }
+        return _mainScope!!
+    }
+
+    override fun ioScope(): IOScope {
+        if (_ioScope == null) {
+            _ioScope = IOScope()
+        }
+        return _ioScope!!
+    }
 }

@@ -7,7 +7,9 @@ import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
+import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.awaitFirstValidConfig
+import com.superwall.sdk.misc.launchWithTracking
 import com.superwall.sdk.misc.sha256MappedToRange
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.storage.AliasId
@@ -18,7 +20,6 @@ import com.superwall.sdk.storage.Seed
 import com.superwall.sdk.storage.UserAttributes
 import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
@@ -34,6 +35,7 @@ class IdentityManager(
     private val deviceHelper: DeviceHelper,
     private val storage: LocalStorage,
     private val configManager: ConfigManager,
+    private val ioScope: IOScope,
 ) {
     private var _appUserId: String? = storage.read(AppUserId)
 
@@ -83,7 +85,6 @@ class IdentityManager(
 
     private val queue = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
     private val scope = CoroutineScope(queue)
-    private val ioScope = CoroutineScope(Dispatchers.IO)
     private val identityJobs = CopyOnWriteArrayList<Job>()
 
     init {
@@ -110,22 +111,20 @@ class IdentityManager(
     }
 
     fun configure() {
-        ioScope.launch {
-            withErrorTracking {
-                val neverCalledStaticConfig = storage.neverCalledStaticConfig
-                val isFirstAppOpen =
-                    !(storage.read(DidTrackFirstSeen) ?: false)
+        ioScope.launchWithTracking {
+            val neverCalledStaticConfig = storage.neverCalledStaticConfig
+            val isFirstAppOpen =
+                !(storage.read(DidTrackFirstSeen) ?: false)
 
-                if (IdentityLogic.shouldGetAssignments(
-                        isLoggedIn,
-                        neverCalledStaticConfig,
-                        isFirstAppOpen,
-                    )
-                ) {
-                    configManager.getAssignments()
-                }
-                didSetIdentity()
+            if (IdentityLogic.shouldGetAssignments(
+                    isLoggedIn,
+                    neverCalledStaticConfig,
+                    isFirstAppOpen,
+                )
+            ) {
+                configManager.getAssignments()
             }
+            didSetIdentity()
         }
     }
 

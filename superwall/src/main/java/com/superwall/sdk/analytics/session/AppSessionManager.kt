@@ -9,6 +9,7 @@ import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.config.models.getConfig
 import com.superwall.sdk.dependencies.DeviceHelperFactory
 import com.superwall.sdk.dependencies.UserAttributesEventFactory
+import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.CoroutineScope
@@ -26,7 +27,7 @@ class AppSessionManager(
     private val configManager: ConfigManager,
     private val storage: LocalStorage,
     private val delegate: Factory,
-    private val backgroundScope: CoroutineScope,
+    private val backgroundScope: IOScope,
 ) : DefaultLifecycleObserver {
     interface Factory :
         AppManagerDelegate,

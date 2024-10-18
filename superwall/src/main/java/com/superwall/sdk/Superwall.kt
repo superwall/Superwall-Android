@@ -19,8 +19,11 @@ import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.ActivityProvider
 import com.superwall.sdk.misc.Either
+import com.superwall.sdk.misc.IOScope
+import com.superwall.sdk.misc.MainScope
 import com.superwall.sdk.misc.SerialTaskManager
 import com.superwall.sdk.misc.fold
+import com.superwall.sdk.misc.launchWithTracking
 import com.superwall.sdk.misc.toResult
 import com.superwall.sdk.models.assignment.ConfirmedAssignment
 import com.superwall.sdk.models.events.EventData
@@ -58,7 +61,6 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.util.Date
 
 class Superwall(
@@ -70,7 +72,10 @@ class Superwall(
     private val completion: ((Result<Unit>) -> Unit)?,
 ) : PaywallViewEventCallback {
     private var _options: SuperwallOptions? = options
-    internal val ioScope = CoroutineScope(Dispatchers.IO)
+    internal val ioScope: IOScope
+        get() = dependencyContainer.ioScope()
+    internal val mainScope: MainScope
+        get() = dependencyContainer.mainScope()
     internal var context: Context = context.applicationContext
 
     // Add a private variable for the purchase task
@@ -423,18 +428,16 @@ class Superwall(
 
     // / Listens to config and the subscription status
     private fun addListeners() {
-        ioScope.launch {
-            withErrorTracking {
-                subscriptionStatus // Removes duplicates by default
-                    .drop(1) // Drops the first item
-                    .collect { newValue ->
-                        // Save and handle the new value
-                        dependencyContainer.storage.write(ActiveSubscriptionStatus, newValue)
-                        dependencyContainer.delegateAdapter.subscriptionStatusDidChange(newValue)
-                        val event = InternalSuperwallEvent.SubscriptionStatusDidChange(newValue)
-                        track(event)
-                    }
-            }
+        ioScope.launchWithTracking {
+            subscriptionStatus // Removes duplicates by default
+                .drop(1) // Drops the first item
+                .collect { newValue ->
+                    // Save and handle the new value
+                    dependencyContainer.storage.write(ActiveSubscriptionStatus, newValue)
+                    dependencyContainer.delegateAdapter.subscriptionStatusDidChange(newValue)
+                    val event = InternalSuperwallEvent.SubscriptionStatusDidChange(newValue)
+                    track(event)
+                }
         }
     }
 
@@ -447,12 +450,10 @@ class Superwall(
      * @param isHidden Toggles the paywall loading spinner on and off.
      */
     fun togglePaywallSpinner(isHidden: Boolean) {
-        ioScope.launch {
-            withErrorTracking {
-                val paywallView =
-                    dependencyContainer.paywallManager.currentView ?: return@withErrorTracking
-                paywallView.togglePaywallSpinner(isHidden)
-            }
+        ioScope.launchWithTracking {
+            val paywallView =
+                dependencyContainer.paywallManager.currentView ?: return@launchWithTracking
+            paywallView.togglePaywallSpinner(isHidden)
         }
     }
 
@@ -558,10 +559,8 @@ class Superwall(
      * Note: This will not reload any paywalls you've already preloaded via [preloadPaywalls].
      */
     fun preloadAllPaywalls() {
-        ioScope.launch {
-            withErrorTracking {
-                dependencyContainer.configManager.preloadAllPaywalls()
-            }
+        ioScope.launchWithTracking {
+            dependencyContainer.configManager.preloadAllPaywalls()
         }
     }
 
@@ -576,12 +575,10 @@ class Superwall(
      * @param eventNames A set of names of events whose paywalls you want to preload.
      */
     fun preloadPaywalls(eventNames: Set<String>) {
-        ioScope.launch {
-            withErrorTracking {
-                dependencyContainer.configManager.preloadPaywallsByNames(
-                    eventNames = eventNames,
-                )
-            }
+        ioScope.launchWithTracking {
+            dependencyContainer.configManager.preloadPaywallsByNames(
+                eventNames = eventNames,
+            )
         }
     }
     //endregion
@@ -671,79 +668,77 @@ class Superwall(
         paywallEvent: PaywallWebEvent,
         paywallView: PaywallView,
     ) {
-        withContext(Dispatchers.Main) {
-            withErrorTracking {
-                Logger.debug(
-                    logLevel = LogLevel.debug,
-                    scope = LogScope.paywallView,
-                    message = "Event Did Occur",
-                    info = mapOf("event" to paywallEvent),
-                )
+        mainScope.launchWithTracking {
+            Logger.debug(
+                logLevel = LogLevel.debug,
+                scope = LogScope.paywallView,
+                message = "Event Did Occur",
+                info = mapOf("event" to paywallEvent),
+            )
 
-                when (paywallEvent) {
-                    is Closed -> {
-                        dismiss(
-                            paywallView,
-                            result = PaywallResult.Declined(),
-                            closeReason = PaywallCloseReason.ManualClose,
-                        )
+            when (paywallEvent) {
+                is Closed -> {
+                    dismiss(
+                        paywallView,
+                        result = PaywallResult.Declined(),
+                        closeReason = PaywallCloseReason.ManualClose,
+                    )
+                }
+
+                is InitiatePurchase -> {
+                    if (purchaseTask != null) {
+                        // If a purchase is already in progress, do not start another
+                        return@launchWithTracking
                     }
-
-                    is InitiatePurchase -> {
-                        if (purchaseTask != null) {
-                            // If a purchase is already in progress, do not start another
-                            return@withErrorTracking
-                        }
-                        purchaseTask =
-                            launch {
-                                try {
-                                    dependencyContainer.transactionManager.purchase(
-                                        paywallEvent.productId,
-                                        paywallView,
-                                    )
-                                } finally {
-                                    // Ensure the task is cleared once the purchase is complete or if an error occurs
-                                    purchaseTask = null
-                                }
+                    purchaseTask =
+                        launch {
+                            try {
+                                dependencyContainer.transactionManager.purchase(
+                                    paywallEvent.productId,
+                                    paywallView,
+                                )
+                            } finally {
+                                // Ensure the task is cleared once the purchase is complete or if an error occurs
+                                purchaseTask = null
                             }
-                    }
+                        }
+                }
 
-                    is InitiateRestore -> {
-                        dependencyContainer.transactionManager.tryToRestore(paywallView)
-                    }
+                is InitiateRestore -> {
+                    dependencyContainer.transactionManager.tryToRestore(paywallView)
+                }
 
-                    is OpenedURL -> {
-                        dependencyContainer.delegateAdapter.paywallWillOpenURL(url = paywallEvent.url)
-                    }
+                is OpenedURL -> {
+                    dependencyContainer.delegateAdapter.paywallWillOpenURL(url = paywallEvent.url)
+                }
 
-                    is OpenedUrlInChrome -> {
-                        dependencyContainer.delegateAdapter.paywallWillOpenURL(url = paywallEvent.url)
-                    }
+                is OpenedUrlInChrome -> {
+                    dependencyContainer.delegateAdapter.paywallWillOpenURL(url = paywallEvent.url)
+                }
 
-                    is OpenedDeepLink -> {
-                        dependencyContainer.delegateAdapter.paywallWillOpenDeepLink(url = paywallEvent.url)
-                    }
+                is OpenedDeepLink -> {
+                    dependencyContainer.delegateAdapter.paywallWillOpenDeepLink(url = paywallEvent.url)
+                }
 
-                    is Custom -> {
-                        dependencyContainer.delegateAdapter.handleCustomPaywallAction(name = paywallEvent.string)
-                    }
+                is Custom -> {
+                    dependencyContainer.delegateAdapter.handleCustomPaywallAction(name = paywallEvent.string)
+                }
 
-                    is PaywallWebEvent.CustomPlacement -> {
-                        track(
-                            InternalSuperwallEvent.CustomPlacement(
-                                placementName = paywallEvent.name,
-                                params =
-                                    paywallEvent.params.let {
-                                        val map = mutableMapOf<String, Any>()
-                                        for (key in it.keys()) {
-                                            map[key] = it.get(key)
-                                        }
-                                        map
-                                    },
-                                paywallInfo = paywallView.info,
-                            ),
-                        )
-                    }
+                is PaywallWebEvent.CustomPlacement -> {
+                    track(
+                        InternalSuperwallEvent.CustomPlacement(
+                            placementName = paywallEvent.name,
+                            params =
+                                paywallEvent.params.let {
+                                    val map = mutableMapOf<String, Any>()
+                                    for (key in it.keys()) {
+                                        map[key] = it.get(key)
+                                    }
+                                    map
+                                },
+                            paywallInfo = paywallView.info,
+                        ),
+                    )
                 }
             }
         }

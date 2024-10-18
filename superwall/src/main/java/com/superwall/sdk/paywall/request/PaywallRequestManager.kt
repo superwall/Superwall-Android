@@ -9,6 +9,7 @@ import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.Either
+import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.map
 import com.superwall.sdk.misc.mapError
 import com.superwall.sdk.misc.onError
@@ -20,7 +21,6 @@ import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.store.StoreKitManager
 import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.withContext
 import java.util.Date
@@ -33,7 +33,7 @@ class PaywallRequestManager(
     private val storeKitManager: StoreKitManager,
     private val network: Network,
     private val factory: PaywallRequestManagerDepFactory,
-    private val ioScope: CoroutineScope,
+    private val ioScope: IOScope,
 ) {
     // Single thread context to make this class similar to an actor. All functions in this class
     // must execute with this context.
