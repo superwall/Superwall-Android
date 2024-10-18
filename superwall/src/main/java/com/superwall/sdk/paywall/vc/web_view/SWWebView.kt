@@ -20,6 +20,8 @@ import com.superwall.sdk.game.dispatchMotionEvent
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
+import com.superwall.sdk.misc.IOScope
+import com.superwall.sdk.misc.MainScope
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallMessageHandler
@@ -46,7 +48,8 @@ class SWWebView(
     private val onFinishedLoading: ((url: String) -> Unit)? = null,
 ) : WebView(context) {
     var delegate: SWWebViewDelegate? = null
-    private val mainScope = CoroutineScope(Dispatchers.Main)
+    private val mainScope = MainScope()
+    private val ioScope = IOScope()
 
     var onScrollChangeListener: OnScrollChangeListener? = null
 
@@ -97,7 +100,7 @@ class SWWebView(
                             return
                         },
                 mainScope = mainScope,
-                ioScope = CoroutineScope(Dispatchers.IO),
+                ioScope = ioScope,
                 loadUrl = {
                     loadUrl(it.url)
                 },
@@ -159,7 +162,7 @@ class SWWebView(
     }
 
     private fun listenToWebviewClientEvents(client: DefaultWebviewClient) {
-        CoroutineScope(Dispatchers.IO).launch {
+        ioScope.launch {
             client.webviewClientEvents
                 .takeWhile {
                     mainScope
