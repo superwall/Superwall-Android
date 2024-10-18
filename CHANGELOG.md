@@ -2,6 +2,16 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 1.4.0-beta1
+
+- Updates methods to return `kotlin.Result` instead of relying on throwing exceptions
+- This introduces some minor breaking changes:
+  - `configure` completion block now provides a `Result<Unit>` that can be used to check for success or failure
+  - `handleDeepLink` now returns a `Result<Boolean>`
+  - `getAssignments` now returns a `Result<List<ConfirmedAssignments>>`
+  - `confirmAllAssignments` now returns a `Result<List<ConfirmedAssignments>>`
+  - `getPresentationResult` now returns a `Result<PresentationResult>`
+  - `getPaywallComponents` now returns a Result<PaywallComponents>`
 ## 1.3.1
 
 ### Fixes
