@@ -4,13 +4,14 @@ import android.webkit.WebView
 import androidx.javascriptengine.JavaScriptSandbox
 import androidx.javascriptengine.SandboxDeadException
 import androidx.test.platform.app.InstrumentationRegistry
+import com.superwall.sdk.misc.IOScope
+import com.superwall.sdk.misc.MainScope
 import com.superwall.sdk.models.triggers.TriggerRule
 import com.superwall.sdk.storage.LocalStorage
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.mockk.spyk
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.guava.await
@@ -30,8 +31,8 @@ class DefaultJavascriptEvaluatorTest {
             }
             val evaulator =
                 DefaultJavascriptEvalutor(
-                    this,
-                    CoroutineScope(Dispatchers.Main),
+                    IOScope(this.coroutineContext),
+                    MainScope(),
                     ctx(),
                     storage = storage,
                 )
@@ -52,8 +53,8 @@ class DefaultJavascriptEvaluatorTest {
                 }
             val evaulator =
                 DefaultJavascriptEvalutor(
-                    this,
-                    CoroutineScope(Dispatchers.Main),
+                    IOScope(this.coroutineContext),
+                    MainScope(),
                     ctx(),
                     storage = storage,
                     createSandbox = {
