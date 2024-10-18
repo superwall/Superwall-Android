@@ -11,7 +11,8 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
   - `getAssignments` now returns a `Result<List<ConfirmedAssignments>>`
   - `confirmAllAssignments` now returns a `Result<List<ConfirmedAssignments>>`
   - `getPresentationResult` now returns a `Result<PresentationResult>`
-  - `getPaywallComponents` now returns a Result<PaywallComponents>`
+  - `getPaywallComponents` now returns a `Result<PaywallComponents>`
+  
 ## 1.3.1
 
 ### Fixes
