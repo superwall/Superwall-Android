@@ -1,6 +1,9 @@
 package com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator
 
+import androidx.javascriptengine.JavaScriptSandbox
 import androidx.test.platform.app.InstrumentationRegistry
+import com.superwall.sdk.dependencies.RuleAttributesFactory
+import com.superwall.sdk.models.config.ComputedPropertyRequest
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.MatchedItem
@@ -9,26 +12,57 @@ import com.superwall.sdk.models.triggers.TriggerRule
 import com.superwall.sdk.models.triggers.TriggerRuleOutcome
 import com.superwall.sdk.models.triggers.UnmatchedRule
 import com.superwall.sdk.models.triggers.VariantOption
-import com.superwall.sdk.paywall.presentation.rule_logic.cel.CELEvaluator
-import com.superwall.sdk.storage.Storage
+import com.superwall.sdk.paywall.presentation.rule_logic.javascript.SandboxJavascriptEvaluator
+import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.storage.StorageMock
 import junit.framework.TestCase.assertEquals
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
+import kotlinx.coroutines.guava.await
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
-import kotlinx.serialization.json.Json
+import org.junit.After
+import org.junit.Before
 import org.junit.Test
 import java.util.Date
 
-class CELExpressionEvaluatorInstrumentedTest {
-    private fun CoroutineScope.evaluatorFor(
-        storage: Storage,
-        factoryBuilder: RuleAttributeFactoryBuilder,
-    ) = CELEvaluator(
-        storage = storage,
-        json = Json { },
-        factory = factoryBuilder,
-    )
+class RuleAttributeFactoryBuilder : RuleAttributesFactory {
+    override suspend fun makeRuleAttributes(
+        event: EventData?,
+        computedPropertyRequests: List<ComputedPropertyRequest>,
+    ): Map<String, Any> =
+        mapOf(
+            "user" to
+                mapOf(
+                    "id" to "123",
+                    "email" to "test@gmail.com",
+                ),
+        )
+}
+
+class JavascriptCombinedExpressionEvaluatorInstrumentedTest {
+    var sandbox: JavaScriptSandbox? = null
+
+    @Before
+    fun setup() =
+        runBlocking {
+            sandbox = JavaScriptSandbox.createConnectedInstanceAsync(InstrumentationRegistry.getInstrumentation().targetContext).await()
+        }
+
+    @After
+    fun tearDown() =
+        runBlocking {
+            sandbox?.killImmediatelyOnThread()
+            sandbox?.close()
+            sandbox = null
+        }
+
+    private fun CoroutineScope.evaluatorFor(storage: LocalStorage) =
+        SandboxJavascriptEvaluator(
+            sandbox ?: error("Sandbox not initialized"),
+            storage = storage.coreDataManager,
+            ioScope = this,
+        )
 
     @Test
     fun test_happy_path_evaluator() =
@@ -39,9 +73,13 @@ class CELExpressionEvaluatorInstrumentedTest {
             val storage = StorageMock(context = context)
 
             val expressionEvaluator =
-                evaluatorFor(
+                CombinedExpressionEvaluator(
+                    evaluator =
+                        evaluatorFor(
+                            storage = storage,
+                        ),
                     storage = storage,
-                    factoryBuilder = ruleAttributes,
+                    factory = ruleAttributes,
                 )
 
             val rule =
@@ -57,7 +95,7 @@ class CELExpressionEvaluatorInstrumentedTest {
                                 paywallId = null,
                             ),
                         ),
-                    expression = "user.id == \"123\"",
+                    expression = "user.id == '123'",
                     expressionJs = null,
                     preload =
                         TriggerRule.TriggerPreload(
@@ -87,9 +125,13 @@ class CELExpressionEvaluatorInstrumentedTest {
             val storage = StorageMock(context = context)
 
             val expressionEvaluator =
-                evaluatorFor(
+                CombinedExpressionEvaluator(
+                    evaluator =
+                        evaluatorFor(
+                            storage = storage,
+                        ),
                     storage = storage,
-                    factoryBuilder = ruleAttributes,
+                    factory = ruleAttributes,
                 )
 
             val trueRule =
@@ -105,8 +147,8 @@ class CELExpressionEvaluatorInstrumentedTest {
                                 paywallId = null,
                             ),
                         ),
-                    expressionJs = null,
-                    expression = "true",
+                    expression = null,
+                    expressionJs = "function superwallEvaluator(){ return true }; superwallEvaluator",
                     preload =
                         TriggerRule.TriggerPreload(
                             behavior = TriggerPreloadBehavior.ALWAYS,
@@ -127,8 +169,8 @@ class CELExpressionEvaluatorInstrumentedTest {
                                 paywallId = null,
                             ),
                         ),
-                    expression = "false",
-                    expressionJs = null,
+                    expression = null,
+                    expressionJs = "function superwallEvaluator(){ return false }; superwallEvaluator",
                     preload =
                         TriggerRule.TriggerPreload(
                             behavior = TriggerPreloadBehavior.ALWAYS,
@@ -175,11 +217,16 @@ class CELExpressionEvaluatorInstrumentedTest {
             val ruleAttributes = RuleAttributeFactoryBuilder()
             val storage = StorageMock(context = context)
 
-            val expressionEvaluator =
-                evaluatorFor(
+            val expressionEvaluator: CombinedExpressionEvaluator =
+                CombinedExpressionEvaluator(
+                    evaluator =
+                        evaluatorFor(
+                            storage = storage,
+                        ),
                     storage = storage,
-                    factoryBuilder = ruleAttributes,
+                    factory = ruleAttributes,
                 )
+
             val trueRule =
                 TriggerRule(
                     experimentId = "1",
@@ -193,7 +240,7 @@ class CELExpressionEvaluatorInstrumentedTest {
                                 paywallId = null,
                             ),
                         ),
-                    expression = "user.id == \"123\"",
+                    expression = "user.id == '123'",
                     expressionJs = null,
                     preload =
                         TriggerRule.TriggerPreload(
@@ -215,8 +262,8 @@ class CELExpressionEvaluatorInstrumentedTest {
                                 paywallId = null,
                             ),
                         ),
-                    expression = "false",
-                    expressionJs = null,
+                    expression = null,
+                    expressionJs = "function() { return false; }",
                     preload =
                         TriggerRule.TriggerPreload(
                             behavior = TriggerPreloadBehavior.ALWAYS,
@@ -271,10 +318,14 @@ class CELExpressionEvaluatorInstrumentedTest {
             val ruleAttributes = RuleAttributeFactoryBuilder()
             val storage = StorageMock(context = context)
 
-            val expressionEvaluator =
-                evaluatorFor(
+            val expressionEvaluator: CombinedExpressionEvaluator =
+                CombinedExpressionEvaluator(
+                    evaluator =
+                        evaluatorFor(
+                            storage = storage,
+                        ),
                     storage = storage,
-                    factoryBuilder = ruleAttributes,
+                    factory = ruleAttributes,
                 )
 
             val rule =

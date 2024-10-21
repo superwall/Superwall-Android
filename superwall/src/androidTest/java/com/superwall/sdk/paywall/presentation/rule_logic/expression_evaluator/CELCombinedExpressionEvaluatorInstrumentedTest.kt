@@ -1,9 +1,6 @@
 package com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator
 
-import androidx.javascriptengine.JavaScriptSandbox
 import androidx.test.platform.app.InstrumentationRegistry
-import com.superwall.sdk.dependencies.RuleAttributesFactory
-import com.superwall.sdk.models.config.ComputedPropertyRequest
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.MatchedItem
@@ -12,57 +9,26 @@ import com.superwall.sdk.models.triggers.TriggerRule
 import com.superwall.sdk.models.triggers.TriggerRuleOutcome
 import com.superwall.sdk.models.triggers.UnmatchedRule
 import com.superwall.sdk.models.triggers.VariantOption
-import com.superwall.sdk.paywall.presentation.rule_logic.javascript.SandboxJavascriptEvaluator
-import com.superwall.sdk.storage.LocalStorage
-import com.superwall.sdk.storage.StorageMock
+import com.superwall.sdk.paywall.presentation.rule_logic.cel.CELEvaluator
+import com.superwall.sdk.storage.core_data.CoreDataManager
+import io.mockk.mockk
 import junit.framework.TestCase.assertEquals
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
-import kotlinx.coroutines.guava.await
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
-import org.junit.After
-import org.junit.Before
+import kotlinx.serialization.json.Json
 import org.junit.Test
 import java.util.Date
 
-class RuleAttributeFactoryBuilder : RuleAttributesFactory {
-    override suspend fun makeRuleAttributes(
-        event: EventData?,
-        computedPropertyRequests: List<ComputedPropertyRequest>,
-    ): Map<String, Any> =
-        mapOf(
-            "user" to
-                mapOf(
-                    "id" to "123",
-                    "email" to "test@gmail.com",
-                ),
-        )
-}
-
-class JavascriptExpressionEvaluatorInstrumentedTest {
-    var sandbox: JavaScriptSandbox? = null
-
-    @Before
-    fun setup() =
-        runBlocking {
-            sandbox = JavaScriptSandbox.createConnectedInstanceAsync(InstrumentationRegistry.getInstrumentation().targetContext).await()
-        }
-
-    @After
-    fun tearDown() =
-        runBlocking {
-            sandbox?.killImmediatelyOnThread()
-            sandbox?.close()
-            sandbox = null
-        }
-
-    private fun CoroutineScope.evaluatorFor(storage: LocalStorage) =
-        SandboxJavascriptEvaluator(
-            sandbox ?: error("Sandbox not initialized"),
-            storage = storage,
-            ioScope = this,
-        )
+class CELCombinedExpressionEvaluatorInstrumentedTest {
+    private fun CoroutineScope.evaluatorFor(
+        storage: CoreDataManager,
+        factoryBuilder: RuleAttributeFactoryBuilder,
+    ) = CELEvaluator(
+        storage = storage,
+        json = Json { },
+        factory = factoryBuilder,
+    )
 
     @Test
     fun test_happy_path_evaluator() =
@@ -70,16 +36,12 @@ class JavascriptExpressionEvaluatorInstrumentedTest {
             // get context
             val context = InstrumentationRegistry.getInstrumentation().targetContext
             val ruleAttributes = RuleAttributeFactoryBuilder()
-            val storage = StorageMock(context = context)
+            val storage = mockk<CoreDataManager>()
 
             val expressionEvaluator =
-                ExpressionEvaluator(
-                    evaluator =
-                        evaluatorFor(
-                            storage = storage,
-                        ),
+                evaluatorFor(
                     storage = storage,
-                    factory = ruleAttributes,
+                    factoryBuilder = ruleAttributes,
                 )
 
             val rule =
@@ -95,7 +57,7 @@ class JavascriptExpressionEvaluatorInstrumentedTest {
                                 paywallId = null,
                             ),
                         ),
-                    expression = "user.id == '123'",
+                    expression = "user.id == \"123\"",
                     expressionJs = null,
                     preload =
                         TriggerRule.TriggerPreload(
@@ -122,16 +84,12 @@ class JavascriptExpressionEvaluatorInstrumentedTest {
         runTest {
             val context = InstrumentationRegistry.getInstrumentation().targetContext
             val ruleAttributes = RuleAttributeFactoryBuilder()
-            val storage = StorageMock(context = context)
+            val storage = mockk<CoreDataManager>()
 
             val expressionEvaluator =
-                ExpressionEvaluator(
-                    evaluator =
-                        evaluatorFor(
-                            storage = storage,
-                        ),
+                evaluatorFor(
                     storage = storage,
-                    factory = ruleAttributes,
+                    factoryBuilder = ruleAttributes,
                 )
 
             val trueRule =
@@ -147,8 +105,8 @@ class JavascriptExpressionEvaluatorInstrumentedTest {
                                 paywallId = null,
                             ),
                         ),
-                    expression = null,
-                    expressionJs = "function superwallEvaluator(){ return true }; superwallEvaluator",
+                    expressionJs = null,
+                    expression = "true",
                     preload =
                         TriggerRule.TriggerPreload(
                             behavior = TriggerPreloadBehavior.ALWAYS,
@@ -169,8 +127,8 @@ class JavascriptExpressionEvaluatorInstrumentedTest {
                                 paywallId = null,
                             ),
                         ),
-                    expression = null,
-                    expressionJs = "function superwallEvaluator(){ return false }; superwallEvaluator",
+                    expression = "false",
+                    expressionJs = null,
                     preload =
                         TriggerRule.TriggerPreload(
                             behavior = TriggerPreloadBehavior.ALWAYS,
@@ -215,18 +173,13 @@ class JavascriptExpressionEvaluatorInstrumentedTest {
         runTest {
             val context = InstrumentationRegistry.getInstrumentation().targetContext
             val ruleAttributes = RuleAttributeFactoryBuilder()
-            val storage = StorageMock(context = context)
+            val storage = mockk<CoreDataManager>()
 
-            val expressionEvaluator: ExpressionEvaluator =
-                ExpressionEvaluator(
-                    evaluator =
-                        evaluatorFor(
-                            storage = storage,
-                        ),
+            val expressionEvaluator =
+                evaluatorFor(
                     storage = storage,
-                    factory = ruleAttributes,
+                    factoryBuilder = ruleAttributes,
                 )
-
             val trueRule =
                 TriggerRule(
                     experimentId = "1",
@@ -240,7 +193,7 @@ class JavascriptExpressionEvaluatorInstrumentedTest {
                                 paywallId = null,
                             ),
                         ),
-                    expression = "user.id == '123'",
+                    expression = "user.id == \"123\"",
                     expressionJs = null,
                     preload =
                         TriggerRule.TriggerPreload(
@@ -262,8 +215,8 @@ class JavascriptExpressionEvaluatorInstrumentedTest {
                                 paywallId = null,
                             ),
                         ),
-                    expression = null,
-                    expressionJs = "function() { return false; }",
+                    expression = "false",
+                    expressionJs = null,
                     preload =
                         TriggerRule.TriggerPreload(
                             behavior = TriggerPreloadBehavior.ALWAYS,
@@ -316,16 +269,12 @@ class JavascriptExpressionEvaluatorInstrumentedTest {
         runTest {
             val context = InstrumentationRegistry.getInstrumentation().targetContext
             val ruleAttributes = RuleAttributeFactoryBuilder()
-            val storage = StorageMock(context = context)
+            val storage = mockk<CoreDataManager>()
 
-            val expressionEvaluator: ExpressionEvaluator =
-                ExpressionEvaluator(
-                    evaluator =
-                        evaluatorFor(
-                            storage = storage,
-                        ),
+            val expressionEvaluator =
+                evaluatorFor(
                     storage = storage,
-                    factory = ruleAttributes,
+                    factoryBuilder = ruleAttributes,
                 )
 
             val rule =

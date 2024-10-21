@@ -1,6 +1,7 @@
 package com.superwall.sdk.paywall.presentation.rule_logic
 
 import android.util.Log
+import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.CELResult
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.ExecutionContext
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.PassableValue
 import com.superwall.supercel.HostContext
@@ -29,6 +30,8 @@ class CELTest {
                     }
                 }
             },
+            "computed": {},
+            "device": {},
             "expression": "numbers[0] + numbers[1] == 200"
         }
 """
@@ -64,7 +67,7 @@ class CELTest {
 
         val serializedJson = json.encodeToString(executionContext)
         println("Serialized JSON: $serializedJson")
-        val result =
+        val resultJSON =
             evaluateWithContext(
                 celState,
                 object : HostContext {
@@ -85,7 +88,8 @@ class CELTest {
                         )
                 },
             )
-        assert(result == "true")
+        val result = json.decodeFromString<CELResult>(resultJSON)
+        assert(result is CELResult.Ok && result.value == PassableValue.BoolValue(true))
     }
 
     @Test
@@ -116,11 +120,20 @@ class CELTest {
 """
         val executionContext = json.decodeFromString<ExecutionContext>(celState)
         val serializedJson = json.encodeToString(executionContext)
-        val result =
+        val resultJSON =
             evaluateWithContext(
                 celState,
                 object : HostContext {
-                    override fun computedProperty(
+                    override suspend fun computedProperty(
+                        name: String,
+                        args: String,
+                    ): String {
+                        val res = json.encodeToString(PassableValue.UIntValue(3uL) as PassableValue)
+                        Log.e("CELTest", "computedProperty: $name -> $res")
+                        return res
+                    }
+
+                    override suspend fun deviceProperty(
                         name: String,
                         args: String,
                     ): String {
@@ -130,7 +143,7 @@ class CELTest {
                     }
                 },
             )
-        Log.e("CELTest", "Result: $result")
-        assert(result == "true")
+        val result = json.decodeFromString<CELResult>(resultJSON)
+        assert(result is CELResult.Ok && result.value == PassableValue.BoolValue(true))
     }
 }

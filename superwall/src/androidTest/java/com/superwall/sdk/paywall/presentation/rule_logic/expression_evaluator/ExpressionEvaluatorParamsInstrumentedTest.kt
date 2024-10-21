@@ -4,7 +4,7 @@ import org.json.JSONObject
 import org.junit.Test
 import java.util.*
 
-class ExpressionEvaluatorParamsTest {
+class CombinedExpressionEvaluatorParamsTest {
     @Test
     fun expression_evaluator_params_test() {
         val expected = """
