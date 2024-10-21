@@ -1,11 +1,13 @@
 package com.superwall.sdk.paywall.presentation.rule_logic.cel
 
+import com.superwall.sdk.analytics.superwall.SuperwallEvent
 import com.superwall.sdk.dependencies.RuleAttributesFactory
 import com.superwall.sdk.models.config.ComputedPropertyRequest
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.triggers.TriggerRule
 import com.superwall.sdk.models.triggers.TriggerRuleOutcome
 import com.superwall.sdk.models.triggers.UnmatchedRule
+import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.CELResult
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.ExecutionContext
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.PassableMap
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.PassableValue
@@ -18,10 +20,11 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.ClassDiscriminatorMode
 import kotlinx.serialization.json.Json
 
-class CELEvaluator(
+internal class CELEvaluator(
     json: Json,
     private val storage: CoreDataManager,
     private val factory: RuleAttributesFactory,
+    private val trackResult: (SuperwallEvent.ExpressionResult) -> Unit,
 ) : ExpressionEvaluating {
     private val json =
         Json(json) {
@@ -64,9 +67,11 @@ class CELEvaluator(
                     },
             )
 
+        val ctx = json.encodeToString(executionContext)
+
         val result =
             evaluateWithContext(
-                json.encodeToString(executionContext),
+                ctx,
                 object : HostContext {
                     override suspend fun computedProperty(
                         name: String,
@@ -111,13 +116,26 @@ class CELEvaluator(
                     }
                 },
             )
-        return if (result == "true") {
-            rule.tryToMatchOccurrence(storage, true)
-        } else {
-            TriggerRuleOutcome.noMatch(
-                UnmatchedRule.Source.EXPRESSION,
-                rule.experiment.id,
-            )
+
+        val celResult = json.decodeFromString<CELResult>(result)
+        return when (celResult) {
+            is CELResult.Err ->
+                TriggerRuleOutcome.noMatch(
+                    UnmatchedRule.Source.EXPRESSION,
+                    rule.experiment.id,
+                )
+
+            is CELResult.Ok -> {
+                if (celResult.value is PassableValue.BoolValue && celResult.value.value
+                ) {
+                    rule.tryToMatchOccurrence(storage, true)
+                } else {
+                    TriggerRuleOutcome.noMatch(
+                        UnmatchedRule.Source.EXPRESSION,
+                        rule.experiment.id,
+                    )
+                }
+            }
         }
     }
 }

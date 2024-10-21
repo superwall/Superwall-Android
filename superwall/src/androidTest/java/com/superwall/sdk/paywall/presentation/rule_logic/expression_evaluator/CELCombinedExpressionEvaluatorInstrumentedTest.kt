@@ -10,8 +10,8 @@ import com.superwall.sdk.models.triggers.TriggerRuleOutcome
 import com.superwall.sdk.models.triggers.UnmatchedRule
 import com.superwall.sdk.models.triggers.VariantOption
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.CELEvaluator
-import com.superwall.sdk.storage.Storage
-import com.superwall.sdk.storage.StorageMock
+import com.superwall.sdk.storage.core_data.CoreDataManager
+import io.mockk.mockk
 import junit.framework.TestCase.assertEquals
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
@@ -20,9 +20,9 @@ import kotlinx.serialization.json.Json
 import org.junit.Test
 import java.util.Date
 
-class CELExpressionEvaluatorInstrumentedTest {
+class CELCombinedExpressionEvaluatorInstrumentedTest {
     private fun CoroutineScope.evaluatorFor(
-        storage: Storage,
+        storage: CoreDataManager,
         factoryBuilder: RuleAttributeFactoryBuilder,
     ) = CELEvaluator(
         storage = storage,
@@ -36,7 +36,7 @@ class CELExpressionEvaluatorInstrumentedTest {
             // get context
             val context = InstrumentationRegistry.getInstrumentation().targetContext
             val ruleAttributes = RuleAttributeFactoryBuilder()
-            val storage = StorageMock(context = context)
+            val storage = mockk<CoreDataManager>()
 
             val expressionEvaluator =
                 evaluatorFor(
@@ -84,7 +84,7 @@ class CELExpressionEvaluatorInstrumentedTest {
         runTest {
             val context = InstrumentationRegistry.getInstrumentation().targetContext
             val ruleAttributes = RuleAttributeFactoryBuilder()
-            val storage = StorageMock(context = context)
+            val storage = mockk<CoreDataManager>()
 
             val expressionEvaluator =
                 evaluatorFor(
@@ -173,7 +173,7 @@ class CELExpressionEvaluatorInstrumentedTest {
         runTest {
             val context = InstrumentationRegistry.getInstrumentation().targetContext
             val ruleAttributes = RuleAttributeFactoryBuilder()
-            val storage = StorageMock(context = context)
+            val storage = mockk<CoreDataManager>()
 
             val expressionEvaluator =
                 evaluatorFor(
@@ -269,7 +269,7 @@ class CELExpressionEvaluatorInstrumentedTest {
         runTest {
             val context = InstrumentationRegistry.getInstrumentation().targetContext
             val ruleAttributes = RuleAttributeFactoryBuilder()
-            val storage = StorageMock(context = context)
+            val storage = mockk<CoreDataManager>()
 
             val expressionEvaluator =
                 evaluatorFor(

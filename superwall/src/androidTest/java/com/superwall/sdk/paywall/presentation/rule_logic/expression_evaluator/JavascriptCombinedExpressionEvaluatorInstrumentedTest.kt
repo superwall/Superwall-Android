@@ -40,7 +40,7 @@ class RuleAttributeFactoryBuilder : RuleAttributesFactory {
         )
 }
 
-class JavascriptExpressionEvaluatorInstrumentedTest {
+class JavascriptCombinedExpressionEvaluatorInstrumentedTest {
     var sandbox: JavaScriptSandbox? = null
 
     @Before
@@ -60,7 +60,7 @@ class JavascriptExpressionEvaluatorInstrumentedTest {
     private fun CoroutineScope.evaluatorFor(storage: LocalStorage) =
         SandboxJavascriptEvaluator(
             sandbox ?: error("Sandbox not initialized"),
-            storage = storage,
+            storage = storage.coreDataManager,
             ioScope = this,
         )
 
@@ -73,7 +73,7 @@ class JavascriptExpressionEvaluatorInstrumentedTest {
             val storage = StorageMock(context = context, coroutineScope = this@runTest)
 
             val expressionEvaluator =
-                ExpressionEvaluator(
+                CombinedExpressionEvaluator(
                     evaluator =
                         evaluatorFor(
                             storage = storage,
@@ -125,7 +125,7 @@ class JavascriptExpressionEvaluatorInstrumentedTest {
             val storage = StorageMock(context = context, coroutineScope = this@runTest)
 
             val expressionEvaluator =
-                ExpressionEvaluator(
+                CombinedExpressionEvaluator(
                     evaluator =
                         evaluatorFor(
                             storage = storage,
@@ -217,8 +217,8 @@ class JavascriptExpressionEvaluatorInstrumentedTest {
             val ruleAttributes = RuleAttributeFactoryBuilder()
             val storage = StorageMock(context = context, coroutineScope = this@runTest)
 
-            val expressionEvaluator: ExpressionEvaluator =
-                ExpressionEvaluator(
+            val expressionEvaluator: CombinedExpressionEvaluator =
+                CombinedExpressionEvaluator(
                     evaluator =
                         evaluatorFor(
                             storage = storage,
@@ -318,8 +318,8 @@ class JavascriptExpressionEvaluatorInstrumentedTest {
             val ruleAttributes = RuleAttributeFactoryBuilder()
             val storage = StorageMock(context = context, coroutineScope = this@runTest)
 
-            val expressionEvaluator: ExpressionEvaluator =
-                ExpressionEvaluator(
+            val expressionEvaluator: CombinedExpressionEvaluator =
+                CombinedExpressionEvaluator(
                     evaluator =
                         evaluatorFor(
                             storage = storage,

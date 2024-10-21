@@ -867,4 +867,27 @@ sealed class InternalSuperwallEvent(
                 "is_fatal" to isFatal,
             )
     }
+
+    internal data class ExpressionResult(
+        val celExpression: String? = null,
+        val liquidExpression: String? = null,
+        val jsExpression: String? = null,
+        val celExpressionResult: Boolean? = null,
+        val liquidExpressionResult: Boolean? = null,
+        val jsExpressionResult: Boolean? = null,
+        val errorMessage: String? = null,
+    ) : InternalSuperwallEvent(SuperwallEvent.ExpressionResult) {
+        override val audienceFilterParams: Map<String, Any> = emptyMap()
+
+        override suspend fun getSuperwallParameters(): Map<String, Any> =
+            mapOf(
+                "cel_expression" to (celExpression ?: ""),
+                "liquid_expression" to (liquidExpression ?: ""),
+                "js_expression" to (jsExpression ?: ""),
+                "cel_expression_result" to (celExpressionResult ?: ""),
+                "liquid_expression_result" to (liquidExpressionResult ?: ""),
+                "js_expression_result" to (jsExpressionResult ?: ""),
+                "error_message" to (errorMessage ?: ""),
+            )
+    }
 }
