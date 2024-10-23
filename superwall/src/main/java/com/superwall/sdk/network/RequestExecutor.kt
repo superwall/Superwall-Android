@@ -112,7 +112,7 @@ class RequestExecutor(
                 "${components.scheme}://${components.host}${components.path}?${query ?: ""}"
             url = URL(urlString)
         } else if (this.url != null) {
-            url = this.url!!
+            url = this.url.toURL()
         } else {
             return null
         }

@@ -1,5 +1,6 @@
 package com.superwall.sdk.models.serialization
 
+import com.superwall.sdk.models.paywall.PaywallURL
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -8,19 +9,19 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.net.URL
 
-class URLSerializerTest {
+class PaywallURLSerializerTest {
     private val json =
         Json {
             serializersModule =
                 SerializersModule {
-                    contextual(URL::class, URLSerializer)
+                    contextual(PaywallURL::class, PaywallURLSerializer)
                 }
         }
 
     @Serializable
     data class TestData(
         val url:
-            @Serializable(with = URLSerializer::class)
+            @Serializable(with = PaywallURLSerializer::class)
             URL,
     )
 

@@ -7,6 +7,7 @@ import com.superwall.sdk.analytics.superwall.SuperwallEvents
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
+import com.superwall.sdk.models.paywall.PaywallURL
 import com.superwall.sdk.paywall.vc.PaywallView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -14,7 +15,7 @@ import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import java.net.URL
+import java.net.URI
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.util.*
@@ -144,7 +145,8 @@ sealed class TrackingLogic {
                         } catch (e: SerializationException) {
                             when (value) {
                                 is LocalDateTime -> value.atZone(ZoneOffset.UTC).toInstant().toEpochMilli()
-                                is URL -> value.toString()
+                                is URI -> value.toString()
+                                is PaywallURL -> value.toString()
                                 else -> null
                             }
                         }
