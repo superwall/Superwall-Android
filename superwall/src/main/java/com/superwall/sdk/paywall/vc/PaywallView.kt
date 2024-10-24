@@ -59,7 +59,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import java.lang.ref.WeakReference
 import java.net.MalformedURLException
-import java.net.URL
+import java.net.URI
 import java.util.Date
 
 class PaywallView(
@@ -658,56 +658,26 @@ class PaywallView(
 
     internal fun loadingStateDidChange(from: PaywallLoadingState) {
         if (isActive) {
-            when (loadingState) {
-                is PaywallLoadingState.Unknown -> {
-                }
+            mainScope.launch {
+                when (loadingState) {
+                    is PaywallLoadingState.Unknown -> {
+                    }
 
-                is PaywallLoadingState.LoadingPurchase, is PaywallLoadingState.ManualLoading -> {
-                    // Add Loading View
-                    showLoadingView()
-                }
+                    is PaywallLoadingState.LoadingPurchase, is PaywallLoadingState.ManualLoading -> {
+                        // Add Loading View
+                        showLoadingView()
+                    }
 
-                is PaywallLoadingState.LoadingURL -> {
-                    showShimmerView()
-                    showRefreshButtonAfterTimeout(isVisible = true)
-                    /* TODO: Animation
-                     UIView.springAnimate {
-                        self.webView.alpha = 0.0
-                        self.webView.transform = CGAffineTransform.identity.translatedBy(x: 0, y: -10)
-                      }
-                     */
-                }
+                    is PaywallLoadingState.LoadingURL -> {
+                        showShimmerView()
+                        showRefreshButtonAfterTimeout(isVisible = true)
+                    }
 
-                is PaywallLoadingState.Ready -> {
-                    /*
-              let translation = CGAffineTransform.identity.translatedBy(x: 0, y: 10)
-              let spinnerDidShow = oldValue == .loadingPurchase || oldValue == .manualLoading
-              webView.transform = spinnerDidShow ? .identity : translation
-                     */
-                    showRefreshButtonAfterTimeout(false)
-                    hideLoadingView()
-                    hideShimmerView()
-                    // webView.visibility = VISIBLE
-                    // webView.visibility = View.VISIBLE
-
-                    /*
-
-                      if !spinnerDidShow {
-                        UIView.animate(
-                          withDuration: 0.6,
-                          delay: 0.25,
-                          animations: {
-                            self.shimmerView?.alpha = 0.0
-                            self.webView.alpha = 1.0
-                            self.webView.transform = .identity
-                          },
-                          completion: { _ in
-                            self.shimmerView?.removeFromSuperview()
-                            self.shimmerView = nil
-                          }
-                        )
-                             }
-                     */
+                    is PaywallLoadingState.Ready -> {
+                        showRefreshButtonAfterTimeout(false)
+                        hideLoadingView()
+                        hideShimmerView()
+                    }
                 }
             }
         }
@@ -752,7 +722,7 @@ class PaywallView(
 
     override fun presentBrowserInApp(url: String) {
         try {
-            val parsedUrl = URL(url)
+            val parsedUrl = URI(url)
             val customTabsIntent = CustomTabsIntent.Builder().build()
             customTabsIntent.intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
             customTabsIntent.launchUrl(context, Uri.parse(parsedUrl.toString()))
@@ -774,7 +744,7 @@ class PaywallView(
 
     override fun presentBrowserExternal(url: String) {
         try {
-            val parsedUrl = URL(url)
+            val parsedUrl = URI(url)
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(parsedUrl.toString()))
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             context.startActivity(intent)

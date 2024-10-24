@@ -277,7 +277,10 @@ class RawStoreProduct(
         val offersForBasePlan = subscriptionOfferDetails.filter { it.basePlanId == basePlanId }
 
         // In offers that match base plan, if there's only 1 pricing phase then this offer represents the base plan.
-        val basePlan = offersForBasePlan.firstOrNull { it.pricingPhases.pricingPhaseList.size == 1 } ?: return null
+        val basePlan =
+            offersForBasePlan.firstOrNull {
+                it.pricingPhases.pricingPhaseList.size == 1
+            } ?: return null
 
         return when (offerType) {
             is OfferType.Auto -> {
@@ -485,7 +488,8 @@ class RawStoreProduct(
                 .billingPeriod
 
         try {
-            SubscriptionPeriod.from(baseBillingPeriod)
+            SubscriptionPeriod.from(baseBillingPeriod).also {
+            }
         } catch (e: Throwable) {
             null
         }
