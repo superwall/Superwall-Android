@@ -13,7 +13,6 @@ import com.superwall.sdk.models.paywall.PaywallPresentationInfo
 import com.superwall.sdk.models.paywall.PaywallURL
 import com.superwall.sdk.models.product.Product
 import com.superwall.sdk.models.product.ProductItem
-import com.superwall.sdk.models.serialization.PaywallURLSerializer
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import kotlinx.serialization.Serializable
@@ -25,7 +24,6 @@ data class PaywallInfo(
     val databaseId: String,
     val identifier: String,
     val name: String,
-    @Serializable(with = PaywallURLSerializer::class)
     val url: PaywallURL,
     val experiment: Experiment?,
     @Deprecated("This will always be an empty string and will be removed in the next major update of the SDK.")
