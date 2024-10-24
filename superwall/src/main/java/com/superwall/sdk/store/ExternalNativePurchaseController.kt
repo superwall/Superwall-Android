@@ -13,6 +13,7 @@ import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
+import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.store.abstractions.product.OfferType
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import kotlinx.coroutines.CompletableDeferred
@@ -26,6 +27,7 @@ import kotlin.math.min
 
 class ExternalNativePurchaseController(
     var context: Context,
+    val scope: IOScope,
 ) : PurchaseController,
     PurchasesUpdatedListener {
     private var billingClient: BillingClient =
@@ -34,6 +36,7 @@ class ExternalNativePurchaseController(
             .setListener(this)
             .enablePendingPurchases()
             .build()
+
     private val isConnected = MutableStateFlow(false)
     private val purchaseResults = MutableStateFlow<PurchaseResult?>(null)
 
@@ -43,7 +46,7 @@ class ExternalNativePurchaseController(
     //region Initialization
 
     init {
-        CoroutineScope(Dispatchers.IO).launch {
+        scope.launch {
             startConnection()
         }
     }
@@ -95,8 +98,8 @@ class ExternalNativePurchaseController(
 
     //region Public
 
-    fun syncSubscriptionStatus() {
-        CoroutineScope(Dispatchers.IO).launch {
+    private fun syncSubscriptionStatus() {
+        scope.launch {
             Superwall.hasInitialized.first { it }
             syncSubscriptionStatusAndWait()
         }
@@ -248,7 +251,7 @@ class ExternalNativePurchaseController(
                 }
             }
 
-        CoroutineScope(Dispatchers.IO).launch {
+        scope.launch {
             // Emit the purchase result to any observers
             purchaseResults.emit(result)
 

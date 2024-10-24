@@ -51,6 +51,7 @@ import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.OpenedURL
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.OpenedUrlInChrome
 import com.superwall.sdk.storage.ActiveSubscriptionStatus
 import com.superwall.sdk.store.ExternalNativePurchaseController
+import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.transactions.TransactionManager
 import com.superwall.sdk.utilities.withErrorTracking
@@ -331,7 +332,7 @@ class Superwall(
             }
             val purchaseController =
                 purchaseController
-                    ?: ExternalNativePurchaseController(context = applicationContext)
+                    ?: ExternalNativePurchaseController(context = applicationContext, scope = IOScope())
             _instance =
                 Superwall(
                     context = applicationContext,
@@ -700,10 +701,10 @@ class Superwall(
      * ``Superwall`` will handle this for you.
      */
 
-    suspend fun purchase(product: StoreProduct): PurchaseResult =
+    suspend fun purchase(product: RawStoreProduct): PurchaseResult =
         dependencyContainer.transactionManager.purchase(
             TransactionManager.PurchaseSource.External(
-                product,
+                StoreProduct(product),
             ),
         )
 
@@ -722,14 +723,14 @@ class Superwall(
      */
 
     fun purchase(
-        product: StoreProduct,
+        product: RawStoreProduct,
         onFinished: (PurchaseResult) -> Unit,
     ) {
         ioScope.launch {
             val res =
                 dependencyContainer.transactionManager.purchase(
                     TransactionManager.PurchaseSource.External(
-                        product,
+                        StoreProduct(product),
                     ),
                 )
             onFinished(res)
