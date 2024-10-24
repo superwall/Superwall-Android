@@ -1,8 +1,6 @@
 package com.superwall.sdk.billing
 
 import android.content.Context
-import android.os.Handler
-import android.os.Looper
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClient.ProductType
 import com.android.billingclient.api.BillingClientStateListener
@@ -16,10 +14,12 @@ import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.AppLifecycleObserver
 import com.superwall.sdk.misc.Either
+import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.filter
@@ -37,13 +37,16 @@ internal const val RECONNECT_TIMER_MAX_TIME_MILLISECONDS = 16L * 1000L
 
 class GoogleBillingWrapper(
     val context: Context,
-    val mainHandler: Handler = Handler(Looper.getMainLooper()),
+    val ioScope: IOScope,
     val appLifecycleObserver: AppLifecycleObserver,
 ) : PurchasesUpdatedListener,
-    BillingClientStateListener {
+    BillingClientStateListener,
+    Billing {
     companion object {
         private val productsCache = ConcurrentHashMap<String, Either<StoreProduct, Throwable>>()
     }
+
+    private val threadHandler = Handler(ioScope)
 
     @get:Synchronized
     @set:Synchronized
@@ -63,10 +66,31 @@ class GoogleBillingWrapper(
     // Setup mutable state flow for purchase results
     private val purchaseResults = MutableStateFlow<InternalPurchaseResult?>(null)
 
-    internal val IN_APP_BILLING_LESS_THAN_3_ERROR_MESSAGE = "Google Play In-app Billing API version is less than 3"
+    internal val IN_APP_BILLING_LESS_THAN_3_ERROR_MESSAGE =
+        "Google Play In-app Billing API version is less than 3"
 
     init {
         startConnectionOnMainThread()
+    }
+
+    internal class Handler(
+        val scope: CoroutineScope,
+    ) {
+        fun post(action: () -> Unit) {
+            scope.launch {
+                action()
+            }
+        }
+
+        fun postDelayed(
+            action: () -> Unit,
+            delayMilliseconds: Long,
+        ) {
+            scope.launch {
+                delay(delayMilliseconds)
+                action()
+            }
+        }
     }
 
     private fun executePendingRequests() {
@@ -74,12 +98,12 @@ class GoogleBillingWrapper(
             while (billingClient?.isReady == true) {
                 serviceRequests.poll()?.let { (request, delayMilliseconds) ->
                     if (delayMilliseconds != null) {
-                        mainHandler.postDelayed(
+                        threadHandler.postDelayed(
                             { request(null) },
                             delayMilliseconds,
                         )
                     } else {
-                        mainHandler.post { request(null) }
+                        threadHandler.post { request(null) }
                     }
                 } ?: break
             }
@@ -87,7 +111,7 @@ class GoogleBillingWrapper(
     }
 
     fun startConnectionOnMainThread(delayMilliseconds: Long = 0) {
-        mainHandler.postDelayed(
+        threadHandler.postDelayed(
             { startConnection() },
             delayMilliseconds,
         )
@@ -141,7 +165,7 @@ class GoogleBillingWrapper(
      */
     @JvmSynthetic
     @Throws(Throwable::class)
-    suspend fun awaitGetProducts(fullProductIds: Set<String>): Set<StoreProduct> {
+    override suspend fun awaitGetProducts(fullProductIds: Set<String>): Set<StoreProduct> {
         // Get the cached products. If any are a failure, we throw an error.
         val cachedProducts =
             fullProductIds
@@ -160,7 +184,8 @@ class GoogleBillingWrapper(
         }
 
         // Determine which product IDs are not in cache
-        val missingFullProductIds = fullProductIds - cachedProducts.map { it.fullIdentifier }.toSet()
+        val missingFullProductIds =
+            fullProductIds - cachedProducts.map { it.fullIdentifier }.toSet()
 
         return suspendCoroutine { continuation ->
             getProducts(
@@ -175,9 +200,12 @@ class GoogleBillingWrapper(
                             }
 
                         // Identify and handle missing products
-                        missingFullProductIds.filterNot { it in foundProductIds }.forEach { fullProductId ->
-                            productsCache[fullProductId] = Either.Failure(Exception("Failed to query product details for $fullProductId"))
-                        }
+                        missingFullProductIds
+                            .filterNot { it in foundProductIds }
+                            .forEach { fullProductId ->
+                                productsCache[fullProductId] =
+                                    Either.Failure(Exception("Failed to query product details for $fullProductId"))
+                            }
 
                         // Combine cached products (now including the newly fetched ones) with the fetched products
                         val allProducts = cachedProducts + storeProducts
@@ -274,12 +302,7 @@ class GoogleBillingWrapper(
     }
 
     private fun dispatch(action: () -> Unit) {
-        if (Thread.currentThread() != Looper.getMainLooper().thread) {
-            val handler = mainHandler ?: Handler(Looper.getMainLooper())
-            handler.post(action)
-        } else {
-            action()
-        }
+        threadHandler.post(action)
     }
 
     private fun queryProductDetailsAsync(
@@ -362,7 +385,7 @@ class GoogleBillingWrapper(
     }
 
     override fun onBillingSetupFinished(billingResult: BillingResult) {
-        mainHandler.post {
+        threadHandler.post {
             when (billingResult.responseCode) {
                 BillingClient.BillingResponseCode.OK -> {
                     Logger.debug(
@@ -411,7 +434,8 @@ class GoogleBillingWrapper(
                     Logger.debug(
                         LogLevel.error,
                         LogScope.productsManager,
-                        error.message ?: "Billing is not available in this device. ${billingResult.debugMessage}",
+                        error.message
+                            ?: "Billing is not available in this device. ${billingResult.debugMessage}",
                     )
                     // The calls will fail with an error that will be surfaced. We want to surface these errors
                     // Can't call executePendingRequests because it will not do anything since it checks for isReady()
@@ -509,16 +533,18 @@ class GoogleBillingWrapper(
         }
     }
 
-    suspend fun getLatestTransaction(factory: StoreTransactionFactory): StoreTransaction? {
+    override suspend fun getLatestTransaction(factory: StoreTransactionFactory): StoreTransaction? {
         // Get the latest from purchaseResults
         purchaseResults.asStateFlow().filter { it != null }.first().let { purchaseResult ->
             return when (purchaseResult) {
                 is InternalPurchaseResult.Purchased -> {
                     return factory.makeStoreTransaction(purchaseResult.purchase)
                 }
+
                 is InternalPurchaseResult.Cancelled -> {
                     null
                 }
+
                 else -> {
                     null
                 }
@@ -530,7 +556,7 @@ class GoogleBillingWrapper(
     private fun sendErrorsToAllPendingRequests(error: BillingError) {
         while (true) {
             serviceRequests.poll()?.let { (serviceRequest, _) ->
-                mainHandler.post {
+                threadHandler.post {
                     serviceRequest(error)
                 }
             } ?: break
@@ -538,7 +564,8 @@ class GoogleBillingWrapper(
     }
 
     private fun trackProductDetailsNotSupportedIfNeeded() {
-        val billingResult = billingClient?.isFeatureSupported(BillingClient.FeatureType.PRODUCT_DETAILS)
+        val billingResult =
+            billingClient?.isFeatureSupported(BillingClient.FeatureType.PRODUCT_DETAILS)
         if (
             billingResult != null &&
             billingResult.responseCode == BillingClient.BillingResponseCode.FEATURE_NOT_SUPPORTED
