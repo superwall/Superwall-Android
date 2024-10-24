@@ -658,56 +658,26 @@ class PaywallView(
 
     internal fun loadingStateDidChange(from: PaywallLoadingState) {
         if (isActive) {
-            when (loadingState) {
-                is PaywallLoadingState.Unknown -> {
-                }
+            mainScope.launch {
+                when (loadingState) {
+                    is PaywallLoadingState.Unknown -> {
+                    }
 
-                is PaywallLoadingState.LoadingPurchase, is PaywallLoadingState.ManualLoading -> {
-                    // Add Loading View
-                    showLoadingView()
-                }
+                    is PaywallLoadingState.LoadingPurchase, is PaywallLoadingState.ManualLoading -> {
+                        // Add Loading View
+                        showLoadingView()
+                    }
 
-                is PaywallLoadingState.LoadingURL -> {
-                    showShimmerView()
-                    showRefreshButtonAfterTimeout(isVisible = true)
-                    /* TODO: Animation
-                     UIView.springAnimate {
-                        self.webView.alpha = 0.0
-                        self.webView.transform = CGAffineTransform.identity.translatedBy(x: 0, y: -10)
-                      }
-                     */
-                }
+                    is PaywallLoadingState.LoadingURL -> {
+                        showShimmerView()
+                        showRefreshButtonAfterTimeout(isVisible = true)
+                    }
 
-                is PaywallLoadingState.Ready -> {
-                    /*
-              let translation = CGAffineTransform.identity.translatedBy(x: 0, y: 10)
-              let spinnerDidShow = oldValue == .loadingPurchase || oldValue == .manualLoading
-              webView.transform = spinnerDidShow ? .identity : translation
-                     */
-                    showRefreshButtonAfterTimeout(false)
-                    hideLoadingView()
-                    hideShimmerView()
-                    // webView.visibility = VISIBLE
-                    // webView.visibility = View.VISIBLE
-
-                    /*
-
-                      if !spinnerDidShow {
-                        UIView.animate(
-                          withDuration: 0.6,
-                          delay: 0.25,
-                          animations: {
-                            self.shimmerView?.alpha = 0.0
-                            self.webView.alpha = 1.0
-                            self.webView.transform = .identity
-                          },
-                          completion: { _ in
-                            self.shimmerView?.removeFromSuperview()
-                            self.shimmerView = nil
-                          }
-                        )
-                             }
-                     */
+                    is PaywallLoadingState.Ready -> {
+                        showRefreshButtonAfterTimeout(false)
+                        hideLoadingView()
+                        hideShimmerView()
+                    }
                 }
             }
         }
