@@ -332,7 +332,10 @@ class Superwall(
             }
             val purchaseController =
                 purchaseController
-                    ?: ExternalNativePurchaseController(context = applicationContext, scope = IOScope())
+                    ?: ExternalNativePurchaseController(
+                        context = applicationContext,
+                        scope = IOScope(),
+                    )
             _instance =
                 Superwall(
                     context = applicationContext,
@@ -701,12 +704,14 @@ class Superwall(
      * ``Superwall`` will handle this for you.
      */
 
-    suspend fun purchase(product: RawStoreProduct): PurchaseResult =
-        dependencyContainer.transactionManager.purchase(
-            TransactionManager.PurchaseSource.External(
-                StoreProduct(product),
-            ),
-        )
+    suspend fun purchase(product: RawStoreProduct): Result<PurchaseResult> =
+        withErrorTracking {
+            dependencyContainer.transactionManager.purchase(
+                TransactionManager.PurchaseSource.External(
+                    StoreProduct(product),
+                ),
+            )
+        }.toResult()
 
     /**
      * Initiates a purchase of a `StoreProduct` with a callback.
@@ -724,15 +729,17 @@ class Superwall(
 
     fun purchase(
         product: RawStoreProduct,
-        onFinished: (PurchaseResult) -> Unit,
+        onFinished: (Result<PurchaseResult>) -> Unit,
     ) {
         ioScope.launch {
             val res =
-                dependencyContainer.transactionManager.purchase(
-                    TransactionManager.PurchaseSource.External(
-                        StoreProduct(product),
-                    ),
-                )
+                withErrorTracking {
+                    dependencyContainer.transactionManager.purchase(
+                        TransactionManager.PurchaseSource.External(
+                            StoreProduct(product),
+                        ),
+                    )
+                }.toResult()
             onFinished(res)
         }
     }
@@ -742,7 +749,10 @@ class Superwall(
      *
      * Use this function to restore purchases made by the user.
      * */
-    suspend fun restorePurchases() = dependencyContainer.transactionManager.tryToRestorePurchases(null)
+    suspend fun restorePurchases() =
+        withErrorTracking {
+            dependencyContainer.transactionManager.tryToRestorePurchases(null)
+        }.toResult()
 
     override suspend fun eventDidOccur(
         paywallEvent: PaywallWebEvent,
