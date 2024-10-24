@@ -5,7 +5,7 @@ import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import org.json.JSONObject
-import java.net.URL
+import java.net.URI
 
 data class WrappedPaywallMessages(
     var version: Int = 1,
@@ -28,11 +28,11 @@ sealed class PaywallMessage {
     object Restore : PaywallMessage()
 
     data class OpenUrl(
-        val url: URL,
+        val url: URI,
     ) : PaywallMessage()
 
     data class OpenUrlInBrowser(
-        val url: URL,
+        val url: URI,
     ) : PaywallMessage()
 
     data class OpenDeepLink(
@@ -75,8 +75,8 @@ private fun parsePaywallMessage(json: JSONObject): PaywallMessage {
         "ping" -> PaywallMessage.OnReady(json.getString("version"))
         "close" -> PaywallMessage.Close
         "restore" -> PaywallMessage.Restore
-        "open_url" -> PaywallMessage.OpenUrl(URL(json.getString("url")))
-        "open_url_external" -> PaywallMessage.OpenUrlInBrowser(URL(json.getString("url")))
+        "open_url" -> PaywallMessage.OpenUrl(URI(json.getString("url")))
+        "open_url_external" -> PaywallMessage.OpenUrlInBrowser(URI(json.getString("url")))
         "open_deep_link" -> PaywallMessage.OpenDeepLink(Uri.parse(json.getString("link")))
         "purchase" -> PaywallMessage.Purchase(json.getString("product"))
         "custom" -> PaywallMessage.Custom(json.getString("data"))

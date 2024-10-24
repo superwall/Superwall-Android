@@ -1,7 +1,7 @@
 package com.superwall.sdk.network
 
 import kotlinx.serialization.Serializable
-import java.net.URL
+import java.net.URI
 import java.util.*
 
 data class URLQueryItem(
@@ -11,7 +11,7 @@ data class URLQueryItem(
 
 class NetworkRequestData<Response>(
     val components: Components? = null,
-    val url: URL? = null,
+    val url: URI? = null,
     var method: HttpMethod = HttpMethod.GET,
     var requestId: String = UUID.randomUUID().toString(),
     var isForDebugging: Boolean = false,

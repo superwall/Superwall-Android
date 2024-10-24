@@ -59,7 +59,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import java.lang.ref.WeakReference
 import java.net.MalformedURLException
-import java.net.URL
+import java.net.URI
 import java.util.Date
 
 class PaywallView(
@@ -752,7 +752,7 @@ class PaywallView(
 
     override fun presentBrowserInApp(url: String) {
         try {
-            val parsedUrl = URL(url)
+            val parsedUrl = URI(url)
             val customTabsIntent = CustomTabsIntent.Builder().build()
             customTabsIntent.intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
             customTabsIntent.launchUrl(context, Uri.parse(parsedUrl.toString()))
@@ -774,7 +774,7 @@ class PaywallView(
 
     override fun presentBrowserExternal(url: String) {
         try {
-            val parsedUrl = URL(url)
+            val parsedUrl = URI(url)
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(parsedUrl.toString()))
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             context.startActivity(intent)
