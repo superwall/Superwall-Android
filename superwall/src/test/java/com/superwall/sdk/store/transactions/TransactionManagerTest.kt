@@ -200,7 +200,7 @@ class TransactionManagerTest {
         runTest {
             val events = MutableStateFlow(emptyList<TrackableSuperwallEvent>())
             Given("We have loaded products and we can purchase successfully") {
-                // Pretend a paywall loaded a producy
+                // Pretend a paywall loaded a product
                 storeKitManager.getProducts(paywall = mockedPaywall)
                 val transactionManager: TransactionManager =
                     manager(track = { e ->
@@ -335,7 +335,7 @@ class TransactionManagerTest {
     @Test
     fun test_purchase_restored_external() =
         runTest {
-            Given("We have not loaded products and have products to restore") {
+            Given("We want to restore a product externally") {
                 val events = MutableStateFlow(emptyList<TrackableSuperwallEvent>())
                 val transactionManager: TransactionManager =
                     manager(track = { e ->
@@ -567,7 +567,7 @@ class TransactionManagerTest {
     @Test
     fun test_purchase_cancelled_external() =
         runTest {
-            Given("We have loaded products and a purchase is pending") {
+            Given("An external purchase was cancelled") {
                 val events = MutableStateFlow(emptyList<TrackableSuperwallEvent>())
                 val transactionManager: TransactionManager =
                     manager(track = { e ->
@@ -589,7 +589,7 @@ class TransactionManagerTest {
                                 StoreProduct(mockProduct),
                             ),
                         )
-                    Then("The purchase is pending") {
+                    Then("The purchase is cancelled") {
                         assert(result is PurchaseResult.Cancelled)
                         verify(exactly = 0) {
                             paywallView setProperty "loadingState" value
@@ -841,7 +841,7 @@ class TransactionManagerTest {
                     )
                 } returns PurchaseResult.Purchased()
 
-                When("We try to purchase a product with a free trial externally") {
+                When("We try to purchase the product") {
                     val result =
                         transactionManager.purchase(
                             TransactionManager.PurchaseSource.External(
@@ -928,7 +928,7 @@ class TransactionManagerTest {
                     )
                 } returns PurchaseResult.Purchased()
 
-                When("We try to purchase a non-recurring product externally") {
+                When("We try to purchase the product") {
                     val result =
                         transactionManager.purchase(
                             TransactionManager.PurchaseSource.External(nonRecurringStoreProduct),
