@@ -49,8 +49,10 @@ import com.superwall.sdk.network.device.DeviceInfo
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
 import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.paywall.manager.PaywallViewCache
+import com.superwall.sdk.paywall.presentation.dismiss
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
+import com.superwall.sdk.paywall.presentation.internal.dismiss
 import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.SuperscriptEvaluator
@@ -203,7 +205,7 @@ class DependencyContainer(
         }
 
         googleBillingWrapper =
-            GoogleBillingWrapper(context.applicationContext, appLifecycleObserver = appLifecycleObserver)
+            GoogleBillingWrapper(context.applicationContext, ioScope, appLifecycleObserver = appLifecycleObserver)
 
         var purchaseController =
             InternalPurchaseController(
@@ -211,7 +213,7 @@ class DependencyContainer(
                 javaPurchaseController = null,
                 context,
             )
-        storeKitManager = StoreKitManager(context, purchaseController, googleBillingWrapper)
+        storeKitManager = StoreKitManager(purchaseController, googleBillingWrapper)
 
         delegateAdapter = SuperwallDelegateAdapter()
         storage = LocalStorage(context = context, ioScope = ioScope(), factory = this, json = json())
@@ -358,11 +360,16 @@ class DependencyContainer(
             TransactionManager(
                 storeKitManager = storeKitManager,
                 purchaseController = purchaseController,
-                sessionEventsManager,
                 eventsQueue = eventsQueue,
                 activityProvider,
                 factory = this,
-                context = context,
+                track = {
+                    Superwall.instance.track(it)
+                },
+                dismiss = { it, et ->
+                    Superwall.instance.dismiss(it, et)
+                },
+                ioScope = ioScope(),
             )
 
         /**

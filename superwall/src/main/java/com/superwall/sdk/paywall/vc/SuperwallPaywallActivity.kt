@@ -491,7 +491,6 @@ class SuperwallPaywallActivity : AppCompatActivity() {
     suspend fun attemptToScheduleNotifications(
         notifications: List<LocalNotification>,
         factory: DeviceHelperFactory,
-        context: Context,
     ) = suspendCoroutine { continuation ->
         if (notifications.isEmpty()) {
             continuation.resume(Unit) // Resume immediately as there's nothing to schedule
@@ -508,7 +507,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                         NotificationScheduler.scheduleNotifications(
                             notifications = notifications,
                             factory = factory,
-                            context = context,
+                            context = this@SuperwallPaywallActivity,
                         )
                     }
                     continuation.resume(Unit) // Resume coroutine after processing
