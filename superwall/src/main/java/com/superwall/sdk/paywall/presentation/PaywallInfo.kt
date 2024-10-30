@@ -10,14 +10,13 @@ import com.superwall.sdk.models.config.FeatureGatingBehavior
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.LocalNotification
 import com.superwall.sdk.models.paywall.PaywallPresentationInfo
+import com.superwall.sdk.models.paywall.PaywallURL
 import com.superwall.sdk.models.product.Product
 import com.superwall.sdk.models.product.ProductItem
-import com.superwall.sdk.models.serialization.URLSerializer
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import java.net.URL
 import java.util.Date
 
 @Serializable
@@ -25,8 +24,7 @@ data class PaywallInfo(
     val databaseId: String,
     val identifier: String,
     val name: String,
-    @Serializable(with = URLSerializer::class)
-    val url: URL,
+    val url: PaywallURL,
     val experiment: Experiment?,
     @Deprecated("This will always be an empty string and will be removed in the next major update of the SDK.")
     val triggerSessionId: String = "",
@@ -69,7 +67,7 @@ data class PaywallInfo(
         databaseId: String,
         identifier: String,
         name: String,
-        url: URL,
+        url: PaywallURL,
         products: List<Product>,
         productItems: List<ProductItem>,
         productIds: List<String>,

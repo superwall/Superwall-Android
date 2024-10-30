@@ -4,7 +4,7 @@ import android.net.Uri
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.json.JSONObject
-import java.net.URL
+import java.net.URI
 
 @Serializable
 sealed class PaywallWebEvent {
@@ -24,12 +24,12 @@ sealed class PaywallWebEvent {
 
     @SerialName("opened_url")
     data class OpenedURL(
-        val url: URL,
+        val url: URI,
     ) : PaywallWebEvent()
 
     @SerialName("opened_url_in_safari")
     data class OpenedUrlInChrome(
-        val url: URL,
+        val url: URI,
     ) : PaywallWebEvent()
 
     @SerialName("opened_deep_link")

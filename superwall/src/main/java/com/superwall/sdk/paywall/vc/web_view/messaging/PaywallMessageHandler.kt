@@ -28,7 +28,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.json.JSONObject
-import java.net.URL
+import java.net.URI
 import java.nio.charset.StandardCharsets
 import java.util.Base64
 import java.util.Date
@@ -330,7 +330,7 @@ class PaywallMessageHandler(
         }
     }
 
-    private fun openUrl(url: URL) {
+    private fun openUrl(url: URI) {
         detectHiddenPaywallEvent(
             "openUrl",
             mapOf("url" to url.toString()),
@@ -341,9 +341,9 @@ class PaywallMessageHandler(
     }
 
     @Deprecated("Will be removed in the upcoming versions, use openUrlInChrome instead")
-    private fun openUrlInSafari(url: URL) = openUrlInBrowser(url)
+    private fun openUrlInSafari(url: URI) = openUrlInBrowser(url)
 
-    private fun openUrlInBrowser(url: URL) {
+    private fun openUrlInBrowser(url: URI) {
         detectHiddenPaywallEvent(
             "openUrlInSafari",
             mapOf("url" to url),
