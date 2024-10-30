@@ -2,6 +2,10 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 1.4.0-beta.2
+
+- Fixes issue with `trialPeriodDays` rounding to the higher value instead of lower, i.e. where `P4W2D` would return 28 days instead of 30, it now returns 30.
+
 ## 1.4.0-beta.1
 
 - Updates methods to return `kotlin.Result` instead of relying on throwing exceptions
