@@ -53,14 +53,14 @@ data class SubscriptionPeriod(
             val days = (totalDays % 7).toInt()
 
             return when {
-                period.years > 0 -> SubscriptionPeriod(period.years, Unit.year)
+                days > 0 -> SubscriptionPeriod(totalDays, Unit.day)
+                weeks > 0 -> SubscriptionPeriod(weeks, Unit.week)
                 period.toTotalMonths() > 0 ->
                     SubscriptionPeriod(
                         period.toTotalMonths().toInt(),
                         Unit.month,
                     )
-                weeks > 0 -> SubscriptionPeriod(weeks, Unit.week)
-                days > 0 -> SubscriptionPeriod(days, Unit.day)
+                period.years > 0 -> SubscriptionPeriod(period.years, Unit.year)
                 else -> null
             }?.normalized()
         }
