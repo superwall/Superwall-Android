@@ -85,7 +85,7 @@ data class SubscriptionPeriod(
     fun pricePerWeek(price: BigDecimal): BigDecimal {
         val periodsPerWeek: BigDecimal =
             when (this.unit) {
-                SubscriptionPeriod.Unit.day -> BigDecimal.ONE.divide(BigDecimal(7))
+                SubscriptionPeriod.Unit.day -> BigDecimal.ONE.divide(BigDecimal(7), 4, roundingMode)
                 SubscriptionPeriod.Unit.week -> BigDecimal.ONE
                 SubscriptionPeriod.Unit.month -> BigDecimal(4)
                 SubscriptionPeriod.Unit.year -> BigDecimal(52)

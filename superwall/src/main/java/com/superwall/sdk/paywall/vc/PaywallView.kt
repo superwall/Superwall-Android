@@ -729,6 +729,8 @@ class PaywallView(
                 Superwall.instance.track(trackedEvent)
             }
 
+            webView.scrollEnabled = paywall.isScrollEnabled ?: true
+
             mainScope.launch {
                 if (paywall.onDeviceCache is OnDeviceCaching.Enabled) {
                     webView.settings.cacheMode = WebSettings.LOAD_CACHE_ELSE_NETWORK

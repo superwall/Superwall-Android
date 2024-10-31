@@ -186,6 +186,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             setupBottomSheetLayout(view, presentationStyle == PaywallPresentationStyle.MODAL)
         } else {
             setContentView(view)
+            view.webView.setBackgroundColor(view.backgroundColor)
         }
 
         onBackPressedDispatcher.addCallback(
@@ -204,7 +205,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             supportActionBar?.hide()
         } catch (e: Throwable) {
         }
-
+        window.navigationBarColor = view.backgroundColor
         // TODO: handle animation and style from `presentationStyleOverride`
         when (intent.getSerializableExtra(PRESENTATION_STYLE_KEY) as? PaywallPresentationStyle) {
             PaywallPresentationStyle.PUSH -> {
@@ -256,7 +257,17 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                 } else {
                     overridePendingTransition(0, 0)
                 }
-                enableEdgeToEdge()
+                enableEdgeToEdge(
+                    navigationBarStyle =
+                        when (view.paywall.backgroundColor.isDarkColor()) {
+                            true -> SystemBarStyle.dark(view.paywall.backgroundColor)
+                            else ->
+                                SystemBarStyle.light(
+                                    scrim = view.paywall.backgroundColor,
+                                    darkScrim = view.paywall.backgroundColor.readableOverlayColor(),
+                                )
+                        },
+                )
             }
 
             PaywallPresentationStyle.MODAL,
