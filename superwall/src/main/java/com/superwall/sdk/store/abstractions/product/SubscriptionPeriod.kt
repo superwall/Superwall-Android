@@ -26,7 +26,21 @@ data class SubscriptionPeriod(
 
     fun normalized(): SubscriptionPeriod =
         when (unit) {
-            Unit.day -> if (value % 7 == 0) copy(value = value / 7, unit = Unit.week) else this
+            Unit.day ->
+                if (value % 30 == 0) {
+                    copy(value = value / 30, unit = Unit.month).normalized()
+                } else {
+                    if (value % 7 == 0) {
+                        copy(value = value / 7, unit = Unit.week).normalized()
+                    } else {
+                        if (value % 360 == 0) {
+                            copy(value = value / 360, unit = Unit.year)
+                        } else {
+                            this
+                        }
+                    }
+                }
+
             Unit.month -> if (value % 12 == 0) copy(value = value / 12, unit = Unit.year) else this
             else -> this
         }
