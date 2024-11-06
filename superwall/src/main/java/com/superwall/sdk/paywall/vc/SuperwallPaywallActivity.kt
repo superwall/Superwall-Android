@@ -414,6 +414,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             setBottomSheetTransparency()
         }
         paywallVc.onViewCreated()
+        paywallVc.webView.requestFocus()
     }
 
     override fun onPause() {

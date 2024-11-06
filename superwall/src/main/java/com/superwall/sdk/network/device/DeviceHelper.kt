@@ -37,6 +37,7 @@ import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeout
+import kotlinx.serialization.json.Json
 import java.text.SimpleDateFormat
 import java.time.Duration
 import java.util.Currency
@@ -62,6 +63,12 @@ class DeviceHelper(
         IdentityInfoFactory,
         LocaleIdentifierFactory,
         JsonFactory
+
+    private val json =
+        Json {
+            encodeDefaults = true
+            explicitNulls = true
+        }
 
     private val connectivityManager =
         context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
@@ -498,7 +505,7 @@ class DeviceHelper(
             )
         }.toResult().fold(
             onSuccess = { deviceTemplate ->
-                return@fold deviceTemplate.toDictionary()
+                return@fold deviceTemplate.toDictionary(json)
             },
             onFailure = {
                 Logger.debug(

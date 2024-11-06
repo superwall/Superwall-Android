@@ -3,20 +3,18 @@ package com.superwall.sdk.paywall.vc
 import android.animation.ValueAnimator
 import android.content.Context
 import android.content.res.Configuration
-import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.LinearGradient
 import android.graphics.Paint
-import android.graphics.PorterDuff
-import android.graphics.PorterDuffXfermode
-import android.graphics.Rect
 import android.graphics.Shader
 import android.graphics.drawable.VectorDrawable
 import android.util.AttributeSet
+import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.view.animation.LinearInterpolator
+import android.widget.FrameLayout.LayoutParams
 import androidx.appcompat.widget.AppCompatImageView
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.BlendModeColorFilterCompat
@@ -34,11 +32,20 @@ class ShimmerView(
     private var gradientWidth: Float = 0f
     private var animator: ValueAnimator? = null
     private var vectorDrawable: VectorDrawable? = null
-    private var maskBitmap: Bitmap? = null
 
     companion object {
         internal const val TAG = "ShimmerView"
     }
+
+    private var currentOrientation: Int = Configuration.ORIENTATION_UNDEFINED
+
+    private val portraitDrawable: VectorDrawable? by lazy {
+        ContextCompat.getDrawable(context, R.drawable.portrait_shimmer_skeleton) as? VectorDrawable
+    }
+    private val landscapeDrawable: VectorDrawable? by lazy {
+        ContextCompat.getDrawable(context, R.drawable.landscape_shimmer_skeleton) as? VectorDrawable
+    }
+    private var tintColorFilter: android.graphics.ColorFilter? = null
 
     init {
         setLayerType(LAYER_TYPE_SOFTWARE, null)
@@ -55,10 +62,18 @@ class ShimmerView(
         loadingState: PaywallLoadingState,
     ) {
         (this.parent as? ViewGroup)?.removeView(this)
-        background = paywallViewController.backgroundColor
-        setBackgroundColor(background)
-        isLightBackground = !background.isDarkColor()
-        tintColor = background.readableOverlayColor()
+        if (background != paywallViewController.backgroundColor) {
+            background = paywallViewController.backgroundColor
+            setBackgroundColor(background)
+            isLightBackground = !background.isDarkColor()
+            tintColor = background.readableOverlayColor()
+            tintColorFilter =
+                BlendModeColorFilterCompat.createBlendModeColorFilterCompat(
+                    Color.argb(64, Color.red(tintColor), Color.green(tintColor), Color.blue(tintColor)),
+                    BlendModeCompat.SRC_IN,
+                )
+        }
+
         visibility =
             when (loadingState) {
                 is PaywallLoadingState.LoadingURL ->
@@ -67,7 +82,19 @@ class ShimmerView(
                 else -> GONE
             }
         paywallViewController.addView(this)
+        layoutParams =
+            LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
         checkForOrientationChanges()
+    }
+
+    fun hideShimmer() {
+        visibility = View.GONE
+        stopShimmer()
+    }
+
+    fun showShimmer() {
+        visibility = View.VISIBLE
+        startShimmer()
     }
 
     fun checkForOrientationChanges() {
@@ -77,6 +104,11 @@ class ShimmerView(
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
+        if (currentOrientation == newConfig.orientation) {
+            return
+        }
+
+        currentOrientation = newConfig.orientation
 
         setDrawableBasedOnOrientation(newConfig)
 
@@ -85,29 +117,19 @@ class ShimmerView(
     }
 
     private fun setDrawableBasedOnOrientation(config: Configuration) {
-        // Check the orientation of the screen
-        val drawableResId =
+        vectorDrawable =
             if (config.orientation == Configuration.ORIENTATION_LANDSCAPE) {
-                R.drawable.landscape_shimmer_skeleton
+                landscapeDrawable
             } else {
-                R.drawable.portrait_shimmer_skeleton
+                portraitDrawable
             }
 
-        // 25% alpha and tint color
-        val tintWithAlpha =
-            Color.argb(64, Color.red(tintColor), Color.green(tintColor), Color.blue(tintColor))
-
-        // 100% alpha and tint color
-        vectorDrawable = ContextCompat.getDrawable(context, drawableResId) as? VectorDrawable
-
         // Update the mask bitmap with the new drawable
-        setImageDrawable(vectorDrawable)
-        setColorFilter(
-            BlendModeColorFilterCompat.createBlendModeColorFilterCompat(
-                tintWithAlpha,
-                BlendModeCompat.SRC_IN,
-            ),
-        )
+
+        if (vectorDrawable != drawable) {
+            setImageDrawable(vectorDrawable)
+        }
+        colorFilter = tintColorFilter
     }
 
     override fun onAttachedToWindow() {
@@ -140,19 +162,6 @@ class ShimmerView(
 
         // Draw the shimmer effect
         canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
-
-        // Prepare the paint for masking
-        paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN)
-
-        // Draw the masking bitmap
-        maskBitmap?.let {
-            val srcRect = Rect(0, 0, it.width, it.height)
-            val dstRect = Rect(0, 0, width, height)
-            canvas.drawBitmap(it, srcRect, dstRect, paint)
-        }
-
-        // Clear the Xfermode
-        paint.xfermode = null
 
         // Restore the canvas
         canvas.restoreToCount(saveLayer)

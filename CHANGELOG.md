@@ -4,7 +4,16 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## 1.4.0-beta.2
 
+## Enhancements
+
+- Removes Gson dependency
+- Adds `isScrollEnabled` flag to enable remote controll of Paywall scrollability
+
+## Fixes
 - Fixes issue with `trialPeriodDays` rounding to the higher value instead of lower, i.e. where `P4W2D` would return 28 days instead of 30, it now returns 30.
+- Fixes issue with system navigation bar not respecting paywall color
+- Reduces impact of preloading on render performance
+- 
 
 ## 1.4.0-beta.1
 

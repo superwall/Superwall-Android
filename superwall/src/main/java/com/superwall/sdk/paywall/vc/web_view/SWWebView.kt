@@ -250,7 +250,7 @@ class SWWebView(
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean =
-        if (scrollEnabled && event.action != MotionEvent.ACTION_MOVE) {
+        if (scrollEnabled || event.action != MotionEvent.ACTION_MOVE) {
             super.onTouchEvent(event)
         } else {
             val gesture = gestureDetector.onTouchEvent(event)

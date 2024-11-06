@@ -222,7 +222,7 @@ data class PaywallInfo(
     // Parameters that can be used in audience filters.
     fun audienceFilterParams(): MutableMap<String, Any> {
         val featureGatingSerialized =
-            Json {}.encodeToString(FeatureGatingBehavior.serializer(), featureGatingBehavior)
+            json.encodeToString(FeatureGatingBehavior.serializer(), featureGatingBehavior)
 
         val output: MutableMap<String, Any?> =
             mutableMapOf(
@@ -250,5 +250,9 @@ data class PaywallInfo(
         }
 
         return output.filter { (_, value) -> value != null } as MutableMap<String, Any>
+    }
+
+    private companion object {
+        private val json = Json { }
     }
 }

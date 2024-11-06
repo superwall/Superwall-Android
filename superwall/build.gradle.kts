@@ -216,7 +216,6 @@ dependencies {
 
     // Serialization
     implementation(libs.kotlinx.serialization.json)
-    implementation(libs.gson)
 
     // Test
     testImplementation(libs.junit)

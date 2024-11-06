@@ -22,7 +22,6 @@ import com.superwall.sdk.paywall.vc.web_view.WrappedPaywallMessages
 import com.superwall.sdk.paywall.vc.web_view.parseWrappedPaywallMessages
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
@@ -62,6 +61,8 @@ class PaywallMessageHandler(
     private val sessionEventsManager: SessionEventsManager,
     private val factory: VariablesFactory,
     private val ioScope: CoroutineScope,
+    private val encoder: Base64.Encoder = Base64.getEncoder(),
+    private val json: Json = Json { encodeDefaults = true },
 ) {
     public var delegate: PaywallMessageHandlerDelegate? = null
     private val queue: Queue<PaywallMessage> = LinkedList()
@@ -114,7 +115,7 @@ class PaywallMessageHandler(
         )
         when (message) {
             is PaywallMessage.TemplateParamsAndUserAttributes ->
-                CoroutineScope(Dispatchers.IO).launch { passTemplatesToWebView(paywall) }
+                ioScope.launch { passTemplatesToWebView(paywall) }
 
             is PaywallMessage.OnReady -> {
                 delegate?.paywall?.paywalljsVersion = message.paywallJsVersion
@@ -124,7 +125,7 @@ class PaywallMessageHandler(
                     LogScope.superwallCore,
                     "!! PaywallMessageHandler: Ready !!",
                 )
-                CoroutineScope(Dispatchers.IO).launch { didLoadWebView(paywall, loadedAt) }
+                ioScope.launch { didLoadWebView(paywall, loadedAt) }
             }
 
             is PaywallMessage.Close -> {
@@ -174,7 +175,6 @@ class PaywallMessageHandler(
         eventName: String,
         paywall: Paywall,
     ) {
-        val json = Json { encodeDefaults = true }
         val eventList =
             listOf(
                 mapOf(
@@ -187,7 +187,7 @@ class PaywallMessageHandler(
 
         // Encode the JSON string to Base64
         val base64Event =
-            Base64.getEncoder().encodeToString(jsonString.toByteArray(StandardCharsets.UTF_8))
+            encoder.encodeToString(jsonString.toByteArray(StandardCharsets.UTF_8))
 
         passMessageToWebView(base64String = base64Event)
     }
@@ -201,6 +201,8 @@ class PaywallMessageHandler(
                 paywall = paywall,
                 event = eventData,
                 factory = factory,
+                json = json,
+                base64 = encoder,
             )
         passMessageToWebView(base64String = templates)
     }
@@ -237,8 +239,7 @@ class PaywallMessageHandler(
         paywall: Paywall,
         loadedAt: Date,
     ) {
-        val coroutineScope = CoroutineScope(Dispatchers.IO)
-        coroutineScope.launch {
+        ioScope.launch {
             val delegate = this@PaywallMessageHandler.delegate
             if (delegate != null) {
                 delegate.paywall.webviewLoadingInfo.endAt = loadedAt
@@ -266,6 +267,8 @@ class PaywallMessageHandler(
                 paywall = paywall,
                 event = eventData,
                 factory = factory,
+                json = json,
+                base64 = encoder,
             )
         val scriptSrc = """
       window.paywall.accept64('$templates');
@@ -297,35 +300,30 @@ class PaywallMessageHandler(
                         error = java.lang.Exception(error),
                     )
                 }
-                mainScope.launch {
-                    launch(Dispatchers.Default) {
-                        delay(paywall.presentation.delay)
-                        mainScope.launch {
-                            delegate?.loadingState = PaywallLoadingState.Ready()
-                        }
-                    }
-                }
+
+                // block selection
+                val selectionString =
+                    "var css = '*{-webkit-touch-callout:none;-webkit-user-select:none} .w-webflow-badge { display: none !important; }'; " +
+                        "var head = document.head || document.getElementsByTagName('head')[0]; " +
+                        "var style = document.createElement('style'); style.type = 'text/css'; " +
+                        "style.appendChild(document.createTextNode(css)); head.appendChild(style); "
+
+                delegate?.webView?.evaluateJavascript(selectionString, null)
+
+                val preventZoom =
+                    "var meta = document.createElement('meta');" +
+                        "meta.name = 'viewport';" +
+                        "meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';" +
+                        "var head = document.getElementsByTagName('head')[0];" +
+                        "head.appendChild(meta);"
+                delegate?.webView?.evaluateJavascript(preventZoom, null)
+                delegate?.loadingState = PaywallLoadingState.Ready()
             }
-
-            // block selection
-            val selectionString =
-                "var css = '*{-webkit-touch-callout:none;-webkit-user-select:none} .w-webflow-badge { display: none !important; }'; " +
-                    "var head = document.head || document.getElementsByTagName('head')[0]; " +
-                    "var style = document.createElement('style'); style.type = 'text/css'; " +
-                    "style.appendChild(document.createTextNode(css)); head.appendChild(style); "
-
-            delegate?.webView?.evaluateJavascript(selectionString, null)
-
-            val preventZoom =
-                "var meta = document.createElement('meta');" +
-                    "meta.name = 'viewport';" +
-                    "meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';" +
-                    "var head = document.getElementsByTagName('head')[0];" +
-                    "head.appendChild(meta);"
-            delegate?.webView?.evaluateJavascript(preventZoom, null)
-            while (queue.isNotEmpty()) {
-                val item = queue.remove()
-                handle(item)
+            ioScope.launch {
+                while (queue.isNotEmpty()) {
+                    val item = queue.remove()
+                    handle(item)
+                }
             }
         }
     }
