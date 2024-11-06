@@ -2,7 +2,7 @@ package com.superwall.sdk.store.abstractions.transactions
 
 import com.superwall.sdk.models.serialization.DateSerializer
 import com.superwall.sdk.models.serialization.UUIDSerializer
-import com.superwall.sdk.models.serialization.jsonStringToType
+import com.superwall.sdk.storage.core_data.toNullableTypedMap
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
@@ -55,8 +55,8 @@ class StoreTransaction(
     //  overrides. Flattening manually for now. Also flattening payment.
     fun toDictionary(): Map<String, Any?> {
         val json = Json { encodeDefaults = true }
-        val jsonString = json.encodeToString(this)
-        val dictionary = jsonString.jsonStringToType<Map<String, Any>>().toMutableMap()
+        val jsonString = json.encodeToString(serializer(), this)
+        val dictionary = json.toNullableTypedMap(jsonString).toMutableMap()
 
         val transactionMap = dictionary["transaction"] as? Map<String, Any>
         transactionMap?.let {

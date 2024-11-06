@@ -5,6 +5,7 @@ import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.paywall.vc.web_view.templating.models.FreeTrialTemplate
+import com.superwall.sdk.paywall.vc.web_view.templating.models.JsonVariables
 import com.superwall.sdk.paywall.view_controller.web_view.templating.models.ProductTemplate
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -12,6 +13,8 @@ import java.util.*
 
 object TemplateLogic {
     suspend fun getBase64EncodedTemplates(
+        json: Json,
+        base64: Base64.Encoder,
         paywall: Paywall,
         event: EventData?,
         factory: VariablesFactory,
@@ -40,13 +43,11 @@ object TemplateLogic {
 //            swProductTemplateVariables = paywall.swProductVariablesTemplate ?: emptyList()
 //        )
 
-        val json = Json { encodeDefaults = true }
-
         val encodedTemplates =
             listOf(
-                json.encodeToString(productsTemplate),
-                json.encodeToString(variablesTemplate),
-                json.encodeToString(freeTrialTemplate),
+                json.encodeToString(ProductTemplate.serializer(), productsTemplate),
+                json.encodeToString(JsonVariables.serializer(), variablesTemplate),
+                json.encodeToString(FreeTrialTemplate.serializer(), freeTrialTemplate),
 //            json.encodeToString(swProductTemplate)
             )
         val templatesString = "[" + encodedTemplates.joinToString(",") + "]"
@@ -58,7 +59,7 @@ object TemplateLogic {
             "!!! Template Logic: $templatesString",
         )
 
-        return Base64.getEncoder().encodeToString(templatesData)
+        return base64.encodeToString(templatesData)
     }
 
 //    private fun swProductTemplate(

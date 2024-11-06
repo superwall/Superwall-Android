@@ -22,6 +22,8 @@ internal interface ErrorTracking {
 
     @Serializable
     data class ErrorOccurence(
+        @SerialName("type")
+        val type: String,
         @SerialName("message")
         val message: String,
         @SerialName("stacktrace")
@@ -58,6 +60,8 @@ internal class ErrorTracker(
                         exists.message,
                         exists.stacktrace,
                         exists.timestamp,
+                        exists.type,
+                        exists.isFatal,
                     ),
                 )
                 cache.delete(ErrorLog)
@@ -71,16 +75,19 @@ internal class ErrorTracker(
                 message = throwable.message ?: "",
                 stacktrace = throwable.stackTraceToString(),
                 timestamp = System.currentTimeMillis(),
-                isFatal =
-                    throwable is RuntimeException ||
-                        throwable is StackOverflowError ||
-                        throwable is OutOfMemoryError ||
-                        throwable is ClassNotFoundException ||
-                        throwable is NoClassDefFoundError,
+                isFatal = throwable.isFatal(),
+                type = throwable.javaClass.simpleName,
             )
         cache.write(ErrorLog, errorOccurence)
     }
 }
+
+internal fun Throwable.isFatal() =
+    this is RuntimeException ||
+        this is StackOverflowError ||
+        this is OutOfMemoryError ||
+        this is ClassNotFoundException ||
+        this is NoClassDefFoundError
 
 // Utility methods and closures for error tracking
 

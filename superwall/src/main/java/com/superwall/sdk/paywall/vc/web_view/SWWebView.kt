@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Color
 import android.net.Uri
 import android.os.Build
+import android.view.GestureDetector
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.inputmethod.BaseInputConnection
@@ -51,7 +52,14 @@ class SWWebView(
     private val mainScope = MainScope()
     private val ioScope = IOScope()
 
+    private val gestureDetector: GestureDetector by lazy {
+        GestureDetector(
+            context,
+            ScrollDisabledListener(),
+        )
+    }
     var onScrollChangeListener: OnScrollChangeListener? = null
+    var scrollEnabled = true
 
     init {
 
@@ -240,6 +248,18 @@ class SWWebView(
             Superwall.instance.track(trackedEvent)
         }
     }
+
+    override fun onTouchEvent(event: MotionEvent): Boolean =
+        if (scrollEnabled || event.action != MotionEvent.ACTION_MOVE) {
+            super.onTouchEvent(event)
+        } else {
+            val gesture = gestureDetector.onTouchEvent(event)
+            if (!gesture) {
+                super.onTouchEvent(event)
+            } else {
+                gesture
+            }
+        }
 
     override fun onScrollChanged(
         horizontalOrigin: Int,

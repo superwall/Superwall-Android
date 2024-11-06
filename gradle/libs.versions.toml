@@ -10,7 +10,6 @@ orchestratorVersion = "1.5.0"
 revenue_cat_version = "7.7.1"
 compose_version = "2024.05.00"
 kotlinx_serialization_json_version = "1.6.0"
-gson_version = "2.8.5"
 activity_compose_version = "1.9.0"
 core_version = "1.13.1"
 appcompat_version = "1.7.0"
@@ -79,7 +78,6 @@ kotlinx-coroutines-guava = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-
 
 # Serialization
 kotlinx_serialization_json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx_serialization_json_version" }
-gson = { module = "com.google.code.gson:gson", version.ref = "gson_version" }
 
 # Test
 junit = { module = "junit:junit", version.ref = "junit_version" }

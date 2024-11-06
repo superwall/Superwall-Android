@@ -62,6 +62,7 @@ data class PaywallInfo(
     val presentation: PaywallPresentationInfo,
     val buildId: String,
     val cacheKey: String,
+    val isScrollEnabled: Boolean,
 ) {
     constructor(
         databaseId: String,
@@ -93,6 +94,7 @@ data class PaywallInfo(
         presentation: PaywallPresentationInfo,
         buildId: String,
         cacheKey: String,
+        isScrollEnabled: Boolean,
     ) : this(
         databaseId = databaseId,
         identifier = identifier,
@@ -144,6 +146,7 @@ data class PaywallInfo(
         presentation = presentation,
         cacheKey = cacheKey,
         buildId = buildId,
+        isScrollEnabled = isScrollEnabled,
     )
 
     fun eventParams(
@@ -174,6 +177,7 @@ data class PaywallInfo(
                 "trigger_session_id" to "",
                 "experiment_id" to experiment?.id,
                 "variant_id" to experiment?.variant?.id,
+                "is_scroll_enabled" to isScrollEnabled,
             )
         params.values.removeAll { it == null }
         val filteredParams = params as MutableMap<String, Any>
@@ -218,7 +222,7 @@ data class PaywallInfo(
     // Parameters that can be used in audience filters.
     fun audienceFilterParams(): MutableMap<String, Any> {
         val featureGatingSerialized =
-            Json {}.encodeToString(FeatureGatingBehavior.serializer(), featureGatingBehavior)
+            json.encodeToString(FeatureGatingBehavior.serializer(), featureGatingBehavior)
 
         val output: MutableMap<String, Any?> =
             mutableMapOf(
@@ -246,5 +250,9 @@ data class PaywallInfo(
         }
 
         return output.filter { (_, value) -> value != null } as MutableMap<String, Any>
+    }
+
+    private companion object {
+        private val json = Json { }
     }
 }

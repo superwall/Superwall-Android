@@ -119,6 +119,8 @@ data class Paywall(
      */
     @SerialName("surveys")
     var surveys: List<Survey> = emptyList(),
+    @SerialName("is_scroll_enabled")
+    val isScrollEnabled: Boolean? = true,
 ) : SerializableEntity {
     // Public getter for productItems
     var productItems: List<ProductItem>
@@ -219,6 +221,7 @@ data class Paywall(
             presentation = presentation,
             cacheKey = cacheKey,
             buildId = buildId,
+            isScrollEnabled = isScrollEnabled ?: true,
         )
 
     companion object {
@@ -284,6 +287,7 @@ data class Paywall(
                     ),
                 cacheKey = "123",
                 buildId = "test",
+                isScrollEnabled = true,
             )
     }
 }

@@ -1,9 +1,8 @@
 package com.superwall.sdk.paywall.vc.web_view.templating.models
 
-import com.superwall.sdk.models.serialization.jsonStringToType
+import com.superwall.sdk.storage.core_data.toNullableTypedMap
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 
@@ -66,9 +65,8 @@ data class DeviceTemplate(
     @SerialName("platform_wrapper_version")
     val platformWrapperVersion: String,
 ) {
-    fun toDictionary(): Map<String, Any> {
-        val json = Json { encodeDefaults = true }
-        val jsonString = json.encodeToString(this)
-        return jsonString.jsonStringToType()
+    fun toDictionary(json: Json): Map<String, Any> {
+        val jsonString = json.encodeToString(serializer(), this)
+        return json.toNullableTypedMap(jsonString)
     }
 }

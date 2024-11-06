@@ -174,6 +174,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                 finish() // Close the activity if the view associated with the key is not found
                 return
             }
+        window.decorView.setBackgroundColor(view.backgroundColor)
 
         val isBottomSheetStyle =
             presentationStyle == PaywallPresentationStyle.DRAWER || presentationStyle == PaywallPresentationStyle.MODAL
@@ -204,7 +205,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             supportActionBar?.hide()
         } catch (e: Throwable) {
         }
-
+        window.navigationBarColor = view.backgroundColor
         // TODO: handle animation and style from `presentationStyleOverride`
         when (intent.getSerializableExtra(PRESENTATION_STYLE_KEY) as? PaywallPresentationStyle) {
             PaywallPresentationStyle.PUSH -> {
@@ -256,7 +257,17 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                 } else {
                     overridePendingTransition(0, 0)
                 }
-                enableEdgeToEdge()
+                enableEdgeToEdge(
+                    navigationBarStyle =
+                        when (view.paywall.backgroundColor.isDarkColor()) {
+                            true -> SystemBarStyle.dark(view.paywall.backgroundColor)
+                            else ->
+                                SystemBarStyle.light(
+                                    scrim = view.paywall.backgroundColor,
+                                    darkScrim = view.paywall.backgroundColor.readableOverlayColor(),
+                                )
+                        },
+                )
             }
 
             PaywallPresentationStyle.MODAL,
@@ -403,6 +414,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             setBottomSheetTransparency()
         }
         paywallVc.onViewCreated()
+        paywallVc.webView.requestFocus()
     }
 
     override fun onPause() {
