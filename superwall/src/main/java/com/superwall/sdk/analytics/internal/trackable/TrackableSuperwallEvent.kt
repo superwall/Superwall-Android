@@ -851,11 +851,10 @@ sealed class InternalSuperwallEvent(
         override suspend fun getSuperwallParameters() =
             mapOf(
                 "exception_type" to type,
-                "stacktrace_array" to stacktrace.lines(),
                 "error_message" to message,
                 "error_stack_trace" to stacktrace,
                 "occured_at" to occuredAt,
-                "is_fatal" to true,
+                "is_fatal" to isFatal,
             )
     }
 }

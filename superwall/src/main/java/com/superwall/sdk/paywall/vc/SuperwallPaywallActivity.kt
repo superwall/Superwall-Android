@@ -174,6 +174,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                 finish() // Close the activity if the view associated with the key is not found
                 return
             }
+        window.decorView.setBackgroundColor(view.backgroundColor)
 
         val isBottomSheetStyle =
             presentationStyle == PaywallPresentationStyle.DRAWER || presentationStyle == PaywallPresentationStyle.MODAL
