@@ -300,25 +300,25 @@ class PaywallMessageHandler(
                         error = java.lang.Exception(error),
                     )
                 }
-
-                // block selection
-                val selectionString =
-                    "var css = '*{-webkit-touch-callout:none;-webkit-user-select:none} .w-webflow-badge { display: none !important; }'; " +
-                        "var head = document.head || document.getElementsByTagName('head')[0]; " +
-                        "var style = document.createElement('style'); style.type = 'text/css'; " +
-                        "style.appendChild(document.createTextNode(css)); head.appendChild(style); "
-
-                delegate?.webView?.evaluateJavascript(selectionString, null)
-
-                val preventZoom =
-                    "var meta = document.createElement('meta');" +
-                        "meta.name = 'viewport';" +
-                        "meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';" +
-                        "var head = document.getElementsByTagName('head')[0];" +
-                        "head.appendChild(meta);"
-                delegate?.webView?.evaluateJavascript(preventZoom, null)
-                delegate?.loadingState = PaywallLoadingState.Ready()
             }
+
+            // block selection
+            val selectionString =
+                "var css = '*{-webkit-touch-callout:none;-webkit-user-select:none} .w-webflow-badge { display: none !important; }'; " +
+                    "var head = document.head || document.getElementsByTagName('head')[0]; " +
+                    "var style = document.createElement('style'); style.type = 'text/css'; " +
+                    "style.appendChild(document.createTextNode(css)); head.appendChild(style); "
+
+            delegate?.webView?.evaluateJavascript(selectionString, null)
+
+            val preventZoom =
+                "var meta = document.createElement('meta');" +
+                    "meta.name = 'viewport';" +
+                    "meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';" +
+                    "var head = document.getElementsByTagName('head')[0];" +
+                    "head.appendChild(meta);"
+            delegate?.webView?.evaluateJavascript(preventZoom, null)
+            delegate?.loadingState = PaywallLoadingState.Ready()
             ioScope.launch {
                 while (queue.isNotEmpty()) {
                     val item = queue.remove()
