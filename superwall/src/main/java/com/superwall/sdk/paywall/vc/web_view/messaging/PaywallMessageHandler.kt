@@ -22,7 +22,6 @@ import com.superwall.sdk.paywall.vc.web_view.WrappedPaywallMessages
 import com.superwall.sdk.paywall.vc.web_view.parseWrappedPaywallMessages
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
@@ -319,16 +318,16 @@ class PaywallMessageHandler(
                     "var head = document.getElementsByTagName('head')[0];" +
                     "head.appendChild(meta);"
 
-            delegate?.webView?.evaluateJavascript(preventZoom, null)
-            launch(Dispatchers.Default) {
-                delay(paywall.presentation.delay)
+            delegate?.webView?.evaluateJavascript(preventZoom, {
                 mainScope.launch {
                     delegate?.loadingState = PaywallLoadingState.Ready()
                 }
-            }
-            while (queue.isNotEmpty()) {
-                val item = queue.remove()
-                handle(item)
+            })
+            ioScope.launch {
+                while (queue.isNotEmpty()) {
+                    val item = queue.remove()
+                    handle(item)
+                }
             }
         }
     }
