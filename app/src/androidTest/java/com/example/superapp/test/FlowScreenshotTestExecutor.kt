@@ -114,6 +114,7 @@ class FlowScreenshotTestExecutor {
                     it.waitFor { it is SuperwallEvent.PaywallWebviewLoadComplete }
                     awaitUntilShimmerDisappears()
                     awaitUntilWebviewAppears()
+                    delayFor(300.milliseconds)
                 }
                 step {
                     it.waitFor { it is SuperwallEvent.Reset }

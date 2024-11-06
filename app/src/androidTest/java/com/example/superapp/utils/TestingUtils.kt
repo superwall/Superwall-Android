@@ -63,6 +63,7 @@ class ScreenshotTestFlow(
                 )
 
                 action(et, it)
+                et.delayFor(300.milliseconds)
                 Log.e("Testing Flow", "Taking screenshot of $step")
                 assertSnapshot(
                     "SW_$step",
@@ -178,6 +179,8 @@ suspend fun awaitUntilWebviewAppears(): Boolean {
     val selector = UiSelector()
     val device = UiDevice.getInstance(getInstrumentation())
     device.wait(Until.findObject(By.clazz(WebView::class.java.name)), 10000)
+    device.waitForIdle()
+    delay(300.milliseconds)
     return true
 }
 

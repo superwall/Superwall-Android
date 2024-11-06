@@ -55,7 +55,6 @@ import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallMessageHandlerDele
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent
 import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.utilities.withErrorTracking
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
@@ -661,7 +660,6 @@ class PaywallView(
 
                     is PaywallLoadingState.Ready -> {
                         ioScope.launch {
-                            delay(paywall.presentation.delay)
                             mainScope.launch {
                                 showRefreshButtonAfterTimeout(false)
                                 hideLoadingView()

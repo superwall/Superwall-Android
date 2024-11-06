@@ -36,7 +36,7 @@ class ErrorTrackingTest {
     @Test
     fun should_track_error_when_invoked() =
         runTest {
-            val error = ErrorTracking.ErrorOccurence("Test Error", "Test Stacktrace", System.currentTimeMillis(), false)
+            val error = ErrorTracking.ErrorOccurence("Type", "Test Error", "Test Stacktrace", System.currentTimeMillis(), false)
             val storage =
                 mockk<LocalStorage> {
                     every { write(any(), ErrorLog) } just Runs
