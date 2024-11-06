@@ -13,7 +13,8 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 - Fixes issue with `trialPeriodDays` rounding to the higher value instead of lower, i.e. where `P4W2D` would return 28 days instead of 30, it now returns 30.
 - Fixes issue with system navigation bar not respecting paywall color
 - Reduces impact of preloading on render performance
-- 
+- Fixes issues with cursor allocation in Room transaction
+
 
 ## 1.4.0-beta.1
 

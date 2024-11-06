@@ -186,7 +186,6 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             setupBottomSheetLayout(view, presentationStyle == PaywallPresentationStyle.MODAL)
         } else {
             setContentView(view)
-            view.webView.setBackgroundColor(view.backgroundColor)
         }
 
         onBackPressedDispatcher.addCallback(

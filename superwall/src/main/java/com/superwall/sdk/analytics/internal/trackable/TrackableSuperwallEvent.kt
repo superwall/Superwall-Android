@@ -843,20 +843,19 @@ sealed class InternalSuperwallEvent(
         val message: String,
         val stacktrace: String,
         val occuredAt: Long,
+        val type: String,
+        val isFatal: Boolean,
     ) : InternalSuperwallEvent(SuperwallEvent.ErrorThrown) {
-        constructor(error: Throwable) : this(
-            error.message ?: "",
-            error.stackTraceToString(),
-            System.currentTimeMillis(),
-        )
-
         override val audienceFilterParams: Map<String, Any> = emptyMap()
 
         override suspend fun getSuperwallParameters() =
             mapOf(
+                "exception_type" to type,
+                "stacktrace_array" to stacktrace.lines(),
                 "error_message" to message,
                 "error_stack_trace" to stacktrace,
                 "occured_at" to occuredAt,
+                "is_fatal" to true,
             )
     }
 }

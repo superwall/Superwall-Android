@@ -476,7 +476,6 @@ class PaywallView(
         if (presentationDidFinishPrepare) {
             return
         }
-
         ioScope.launch {
             paywallStatePublisher?.let {
                 Superwall.instance.storePresentationObjects(request, it)
