@@ -26,7 +26,21 @@ data class SubscriptionPeriod(
 
     fun normalized(): SubscriptionPeriod =
         when (unit) {
-            Unit.day -> if (value % 7 == 0) copy(value = value / 7, unit = Unit.week) else this
+            Unit.day ->
+                if (value % 30 == 0) {
+                    copy(value = value / 30, unit = Unit.month).normalized()
+                } else {
+                    if (value % 7 == 0) {
+                        copy(value = value / 7, unit = Unit.week).normalized()
+                    } else {
+                        if (value % 360 == 0) {
+                            copy(value = value / 360, unit = Unit.year)
+                        } else {
+                            this
+                        }
+                    }
+                }
+
             Unit.month -> if (value % 12 == 0) copy(value = value / 12, unit = Unit.year) else this
             else -> this
         }
@@ -53,14 +67,14 @@ data class SubscriptionPeriod(
             val days = (totalDays % 7).toInt()
 
             return when {
-                period.years > 0 -> SubscriptionPeriod(period.years, Unit.year)
+                days > 0 -> SubscriptionPeriod(totalDays, Unit.day)
+                weeks > 0 -> SubscriptionPeriod(weeks, Unit.week)
                 period.toTotalMonths() > 0 ->
                     SubscriptionPeriod(
                         period.toTotalMonths().toInt(),
                         Unit.month,
                     )
-                weeks > 0 -> SubscriptionPeriod(weeks, Unit.week)
-                days > 0 -> SubscriptionPeriod(days, Unit.day)
+                period.years > 0 -> SubscriptionPeriod(period.years, Unit.year)
                 else -> null
             }?.normalized()
         }
@@ -85,7 +99,7 @@ data class SubscriptionPeriod(
     fun pricePerWeek(price: BigDecimal): BigDecimal {
         val periodsPerWeek: BigDecimal =
             when (this.unit) {
-                SubscriptionPeriod.Unit.day -> BigDecimal.ONE.divide(BigDecimal(7))
+                SubscriptionPeriod.Unit.day -> BigDecimal.ONE.divide(BigDecimal(7), calculationScale, roundingMode)
                 SubscriptionPeriod.Unit.week -> BigDecimal.ONE
                 SubscriptionPeriod.Unit.month -> BigDecimal(4)
                 SubscriptionPeriod.Unit.year -> BigDecimal(52)

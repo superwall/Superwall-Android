@@ -10,14 +10,13 @@ import com.superwall.sdk.models.config.FeatureGatingBehavior
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.LocalNotification
 import com.superwall.sdk.models.paywall.PaywallPresentationInfo
+import com.superwall.sdk.models.paywall.PaywallURL
 import com.superwall.sdk.models.product.Product
 import com.superwall.sdk.models.product.ProductItem
-import com.superwall.sdk.models.serialization.URLSerializer
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import java.net.URL
 import java.util.Date
 
 @Serializable
@@ -25,8 +24,7 @@ data class PaywallInfo(
     val databaseId: String,
     val identifier: String,
     val name: String,
-    @Serializable(with = URLSerializer::class)
-    val url: URL,
+    val url: PaywallURL,
     val experiment: Experiment?,
     @Deprecated("This will always be an empty string and will be removed in the next major update of the SDK.")
     val triggerSessionId: String = "",
@@ -64,12 +62,13 @@ data class PaywallInfo(
     val presentation: PaywallPresentationInfo,
     val buildId: String,
     val cacheKey: String,
+    val isScrollEnabled: Boolean,
 ) {
     constructor(
         databaseId: String,
         identifier: String,
         name: String,
-        url: URL,
+        url: PaywallURL,
         products: List<Product>,
         productItems: List<ProductItem>,
         productIds: List<String>,
@@ -95,6 +94,7 @@ data class PaywallInfo(
         presentation: PaywallPresentationInfo,
         buildId: String,
         cacheKey: String,
+        isScrollEnabled: Boolean,
     ) : this(
         databaseId = databaseId,
         identifier = identifier,
@@ -146,6 +146,7 @@ data class PaywallInfo(
         presentation = presentation,
         cacheKey = cacheKey,
         buildId = buildId,
+        isScrollEnabled = isScrollEnabled,
     )
 
     fun eventParams(
@@ -176,6 +177,7 @@ data class PaywallInfo(
                 "trigger_session_id" to "",
                 "experiment_id" to experiment?.id,
                 "variant_id" to experiment?.variant?.id,
+                "is_scroll_enabled" to isScrollEnabled,
             )
         params.values.removeAll { it == null }
         val filteredParams = params as MutableMap<String, Any>
@@ -220,7 +222,7 @@ data class PaywallInfo(
     // Parameters that can be used in audience filters.
     fun audienceFilterParams(): MutableMap<String, Any> {
         val featureGatingSerialized =
-            Json {}.encodeToString(FeatureGatingBehavior.serializer(), featureGatingBehavior)
+            json.encodeToString(FeatureGatingBehavior.serializer(), featureGatingBehavior)
 
         val output: MutableMap<String, Any?> =
             mutableMapOf(
@@ -248,5 +250,9 @@ data class PaywallInfo(
         }
 
         return output.filter { (_, value) -> value != null } as MutableMap<String, Any>
+    }
+
+    private companion object {
+        private val json = Json { }
     }
 }

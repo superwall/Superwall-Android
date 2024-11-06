@@ -1,5 +1,6 @@
 package com.superwall.sdk.store.abstractions.product
 
+import org.junit.Test
 import java.math.BigDecimal
 
 /**
@@ -22,6 +23,13 @@ fun truncateDecimal(
 }
 
 class SubscriptionPeriodUnitTest {
+    @Test
+    fun double_period_test() {
+        val period = "P4W3D"
+        val res = SubscriptionPeriod.from(period)
+        println(res)
+        assert(res == SubscriptionPeriod(31, SubscriptionPeriod.Unit.day))
+    }
 /* TODO: Re-enable these in CI
     @Test
     fun singleDaily_isCorrect() {

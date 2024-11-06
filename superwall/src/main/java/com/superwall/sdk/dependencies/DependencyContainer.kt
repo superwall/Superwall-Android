@@ -82,7 +82,9 @@ import com.superwall.sdk.utilities.dateFormat
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
 import java.lang.ref.WeakReference
+import java.util.Base64
 import java.util.Date
 
 class DependencyContainer(
@@ -389,6 +391,9 @@ class DependencyContainer(
         return headers
     }
 
+    private val paywallJson = Json { encodeDefaults = true }
+    private val encoder = Base64.getEncoder()
+
     override suspend fun makePaywallView(
         paywall: Paywall,
         cache: PaywallViewCache?,
@@ -399,6 +404,8 @@ class DependencyContainer(
                 sessionEventsManager = sessionEventsManager,
                 factory = this@DependencyContainer,
                 ioScope = ioScope,
+                encoder = encoder,
+                json = paywallJson,
             )
 
         val paywallView =

@@ -16,14 +16,18 @@ import com.superwall.sdk.models.product.ProductItemsDeserializer
 import com.superwall.sdk.models.product.ProductType
 import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.models.serialization.DateSerializer
-import com.superwall.sdk.models.serialization.URLSerializer
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import java.net.URL
 import java.util.*
+
+@Serializable
+@JvmInline
+value class PaywallURL(
+    val value: String,
+)
 
 @Serializable
 data class Paywalls(
@@ -39,9 +43,7 @@ data class Paywall(
     @SerialName("name")
     val name: String,
     @SerialName("url")
-    val url:
-        @Serializable(with = URLSerializer::class)
-        URL,
+    val url: PaywallURL,
     @SerialName("paywalljs_event")
     val htmlSubstitutions: String,
     @SerialName("presentation_style_v2")
@@ -117,6 +119,8 @@ data class Paywall(
      */
     @SerialName("surveys")
     var surveys: List<Survey> = emptyList(),
+    @SerialName("is_scroll_enabled")
+    val isScrollEnabled: Boolean? = true,
 ) : SerializableEntity {
     // Public getter for productItems
     var productItems: List<ProductItem>
@@ -217,6 +221,7 @@ data class Paywall(
             presentation = presentation,
             cacheKey = cacheKey,
             buildId = buildId,
+            isScrollEnabled = isScrollEnabled ?: true,
         )
 
     companion object {
@@ -248,7 +253,7 @@ data class Paywall(
                 databaseId = "id",
                 identifier = "identifier",
                 name = "abac",
-                url = URL("https://google.com"),
+                url = PaywallURL("https://google.com"),
                 htmlSubstitutions = "",
                 presentation =
                     PaywallPresentationInfo(
@@ -282,6 +287,7 @@ data class Paywall(
                     ),
                 cacheKey = "123",
                 buildId = "test",
+                isScrollEnabled = true,
             )
     }
 }

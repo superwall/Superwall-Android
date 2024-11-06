@@ -55,11 +55,15 @@ import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallMessageHandlerDele
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent
 import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.utilities.withErrorTracking
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonNamingStrategy
 import java.lang.ref.WeakReference
 import java.net.MalformedURLException
-import java.net.URL
+import java.net.URI
 import java.util.Date
 
 class PaywallView(
@@ -183,15 +187,16 @@ class PaywallView(
     //region Initialization
     private val mainScope: MainScope = MainScope()
     private val ioScope: IOScope = IOScope()
+    private val gameControllerJson by lazy {
+        Json {
+            encodeDefaults = true
+            namingStrategy = JsonNamingStrategy.SnakeCase
+        }
+    }
 
     init {
-        // Add the webView
         id = View.generateViewId()
-
-        // Add the shimmer view and hide it
-
         setBackgroundColor(backgroundColor)
-
         presentationStyle = paywall.presentation.style
     }
 
@@ -225,10 +230,11 @@ class PaywallView(
     ) {
         if (webView.parent == null) {
             addView(webView)
+            webView.layoutParams =
+                LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
         }
         this.shimmerView = shimmerView
         this.loadingViewController = loadingView
-        layoutSubviews()
     }
 
     fun present(
@@ -247,7 +253,6 @@ class PaywallView(
         cache?.acquireShimmerView()?.let {
             setupShimmer(it)
         }
-        layoutSubviews()
         set(request, paywallStatePublisher, unsavedOccurrence)
         if (presentationStyleOverride != null && presentationStyleOverride != PaywallPresentationStyle.NONE) {
             presentationStyle = presentationStyleOverride
@@ -476,30 +481,21 @@ class PaywallView(
                 Superwall.instance.storePresentationObjects(request, it)
             }
         }
-
         unsavedOccurrence?.let {
             storage.coreDataManager.save(triggerRuleOccurrence = it)
             unsavedOccurrence = null
         }
 
         isPresented = true
-
         Superwall.instance.dependencyContainer.delegateAdapter
             .didPresentPaywall(info)
-
         ioScope.launch {
             trackOpen()
         }
+        GameControllerManager.shared.setDelegate(this@PaywallView)
 
-        GameControllerManager.shared.setDelegate(this)
-
-        // Focus the webView
-        webView.requestFocus()
-
-        // Grab the current orientation, to be able to set it back after the transaction abandon
         val currentOrientation = resources.configuration.orientation
         initialOrientation = currentOrientation
-
         presentationDidFinishPrepare = true
     }
 
@@ -525,16 +521,6 @@ class PaywallView(
         ioScope.launch {
             eventCallback?.eventDidOccur(paywallWebEvent, this@PaywallView)
         }
-    }
-
-    //endregion
-
-    //region Layout
-
-    fun layoutSubviews() {
-        webView.layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
-        shimmerView?.layoutParams =
-            LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
     }
 
     //endregion
@@ -574,7 +560,7 @@ class PaywallView(
     private fun showShimmerView() {
         shimmerView?.let {
             mainScope.launch {
-                it.visibility = View.VISIBLE
+                it.showShimmer()
             }
         }
     }
@@ -582,7 +568,7 @@ class PaywallView(
     private fun hideShimmerView() {
         shimmerView?.let {
             mainScope.launch {
-                it.visibility = View.GONE
+                it.hideShimmer()
             }
         }
     }
@@ -658,56 +644,31 @@ class PaywallView(
 
     internal fun loadingStateDidChange(from: PaywallLoadingState) {
         if (isActive) {
-            when (loadingState) {
-                is PaywallLoadingState.Unknown -> {
-                }
+            mainScope.launch {
+                when (loadingState) {
+                    is PaywallLoadingState.Unknown -> {
+                    }
 
-                is PaywallLoadingState.LoadingPurchase, is PaywallLoadingState.ManualLoading -> {
-                    // Add Loading View
-                    showLoadingView()
-                }
+                    is PaywallLoadingState.LoadingPurchase, is PaywallLoadingState.ManualLoading -> {
+                        // Add Loading View
+                        showLoadingView()
+                    }
 
-                is PaywallLoadingState.LoadingURL -> {
-                    showShimmerView()
-                    showRefreshButtonAfterTimeout(isVisible = true)
-                    /* TODO: Animation
-                     UIView.springAnimate {
-                        self.webView.alpha = 0.0
-                        self.webView.transform = CGAffineTransform.identity.translatedBy(x: 0, y: -10)
-                      }
-                     */
-                }
+                    is PaywallLoadingState.LoadingURL -> {
+                        showShimmerView()
+                        showRefreshButtonAfterTimeout(isVisible = true)
+                    }
 
-                is PaywallLoadingState.Ready -> {
-                    /*
-              let translation = CGAffineTransform.identity.translatedBy(x: 0, y: 10)
-              let spinnerDidShow = oldValue == .loadingPurchase || oldValue == .manualLoading
-              webView.transform = spinnerDidShow ? .identity : translation
-                     */
-                    showRefreshButtonAfterTimeout(false)
-                    hideLoadingView()
-                    hideShimmerView()
-                    // webView.visibility = VISIBLE
-                    // webView.visibility = View.VISIBLE
-
-                    /*
-
-                      if !spinnerDidShow {
-                        UIView.animate(
-                          withDuration: 0.6,
-                          delay: 0.25,
-                          animations: {
-                            self.shimmerView?.alpha = 0.0
-                            self.webView.alpha = 1.0
-                            self.webView.transform = .identity
-                          },
-                          completion: { _ in
-                            self.shimmerView?.removeFromSuperview()
-                            self.shimmerView = nil
-                          }
-                        )
-                             }
-                     */
+                    is PaywallLoadingState.Ready -> {
+                        ioScope.launch {
+                            delay(paywall.presentation.delay)
+                            mainScope.launch {
+                                showRefreshButtonAfterTimeout(false)
+                                hideLoadingView()
+                                hideShimmerView()
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -728,6 +689,8 @@ class PaywallView(
                     )
                 Superwall.instance.track(trackedEvent)
             }
+
+            webView.scrollEnabled = paywall.isScrollEnabled ?: true
 
             mainScope.launch {
                 if (paywall.onDeviceCache is OnDeviceCaching.Enabled) {
@@ -752,7 +715,7 @@ class PaywallView(
 
     override fun presentBrowserInApp(url: String) {
         try {
-            val parsedUrl = URL(url)
+            val parsedUrl = URI(url)
             val customTabsIntent = CustomTabsIntent.Builder().build()
             customTabsIntent.intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
             customTabsIntent.launchUrl(context, Uri.parse(parsedUrl.toString()))
@@ -774,7 +737,7 @@ class PaywallView(
 
     override fun presentBrowserExternal(url: String) {
         try {
-            val parsedUrl = URL(url)
+            val parsedUrl = URI(url)
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(parsedUrl.toString()))
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             context.startActivity(intent)
@@ -810,7 +773,12 @@ class PaywallView(
 
     //region GameController
     override fun gameControllerEventDidOccur(event: GameControllerEvent) {
-        val payload = event.jsonString
+        val payload =
+            try {
+                gameControllerJson.encodeToString(event)
+            } catch (e: Throwable) {
+                null
+            }
         webView.evaluateJavascript("window.paywall.accept([$payload])", null)
         Logger.debug(
             logLevel = LogLevel.debug,

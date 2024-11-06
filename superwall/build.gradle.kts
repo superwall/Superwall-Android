@@ -23,7 +23,7 @@ plugins {
     id("signing")
 }
 
-version = "1.4.0-beta.1"
+version = "1.4.0-beta.2"
 
 android {
     compileSdk = 34
@@ -216,7 +216,6 @@ dependencies {
 
     // Serialization
     implementation(libs.kotlinx.serialization.json)
-    implementation(libs.gson)
 
     // Test
     testImplementation(libs.junit)
