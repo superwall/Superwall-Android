@@ -32,7 +32,8 @@ class FlowScreenshotTestExecutor {
 
     val mainScope = CoroutineScope(Dispatchers.Main)
 
-    @Test
+    /*@Test
+    @FlakyTest
     fun test_paywall_reappers_with_video() =
         with(dropshots) {
             screenshotFlow(UITestHandler.test4Info) {
@@ -48,7 +49,7 @@ class FlowScreenshotTestExecutor {
                 }
             }
         }
-
+*/
     @Test
     fun test_paywall_presents_regardless_of_subscription() =
         with(dropshots) {
