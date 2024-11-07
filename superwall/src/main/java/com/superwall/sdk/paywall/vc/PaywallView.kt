@@ -701,7 +701,7 @@ class PaywallView(
                 if (useMultipleUrls) {
                     webView.loadPaywallWithFallbackUrl(paywall)
                 } else {
-                    webView.loadUrl(url.toString())
+                    webView.loadUrl(url.value)
                 }
             }
 
