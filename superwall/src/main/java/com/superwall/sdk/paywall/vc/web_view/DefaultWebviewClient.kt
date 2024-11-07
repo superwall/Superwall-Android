@@ -44,6 +44,10 @@ internal open class DefaultWebviewClient(
         request: WebResourceRequest?,
         errorResponse: WebResourceResponse?,
     ) {
+        val requestUrl = request?.url.toString()
+        if (requestUrl.contains("favicon.ico")) {
+            return
+        }
         ioScope.launch {
             webviewClientEvents.emit(
                 WebviewClientEvent.OnError(
