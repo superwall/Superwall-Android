@@ -6,10 +6,12 @@ import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.Transaction.TransactionSource
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEvents
+import com.superwall.sdk.delegate.InternalPurchaseResult
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
+import com.superwall.sdk.dependencies.CacheFactory
 import com.superwall.sdk.dependencies.DeviceHelperFactory
 import com.superwall.sdk.dependencies.HasExternalPurchaseControllerFactory
 import com.superwall.sdk.dependencies.OptionsFactory
@@ -29,7 +31,11 @@ import com.superwall.sdk.paywall.vc.PaywallView
 import com.superwall.sdk.paywall.vc.SuperwallPaywallActivity
 import com.superwall.sdk.paywall.vc.delegate.PaywallLoadingState
 import com.superwall.sdk.storage.EventsQueue
+import com.superwall.sdk.storage.PurchasingProductdIds
+import com.superwall.sdk.storage.Storage
+import com.superwall.sdk.store.PurchasingObserverState
 import com.superwall.sdk.store.StoreKitManager
+import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import kotlinx.coroutines.launch
@@ -38,6 +44,7 @@ class TransactionManager(
     private val storeKitManager: StoreKitManager,
     private val purchaseController: PurchaseController,
     private val eventsQueue: EventsQueue,
+    private val storage: Storage,
     private val activityProvider: ActivityProvider,
     private val factory: Factory,
     private val ioScope: IOScope,
@@ -55,7 +62,11 @@ class TransactionManager(
             val paywallView: PaywallView,
         ) : PurchaseSource()
 
-        data class External(
+        data class ExternalPurchase(
+            val product: StoreProduct,
+        ) : PurchaseSource()
+
+        data class ObserverMode(
             val product: StoreProduct,
         ) : PurchaseSource()
     }
@@ -66,9 +77,79 @@ class TransactionManager(
         TransactionVerifierFactory,
         StoreTransactionFactory,
         DeviceHelperFactory,
+        CacheFactory,
         HasExternalPurchaseControllerFactory
 
+    private val shouldFinishTransactions =
+        !factory.makeHasExternalPurchaseController() &&
+            !factory.makeSuperwallOptions().shouldObservePurchases
+
     private var lastPaywallView: PaywallView? = null
+
+    internal suspend fun handle(
+        result: InternalPurchaseResult,
+        state: PurchasingObserverState,
+    ) {
+        when (result) {
+            is InternalPurchaseResult.Purchased -> {
+                val state = state as PurchasingObserverState.PurchaseResult
+                state.purchases?.forEach { purchase ->
+                    purchase.products.map {
+                        storeKitManager.productsByFullId[it] ?.let { product ->
+                            didPurchase(product, PurchaseSource.ObserverMode(product), product.hasFreeTrial)
+                        }
+                    }
+                }
+            }
+
+            InternalPurchaseResult.Cancelled -> {
+                val state = state as PurchasingObserverState.PurchaseError
+                val product = StoreProduct(RawStoreProduct.from(state.product))
+                trackCancelled(
+                    product = product,
+                    purchaseSource = PurchaseSource.ObserverMode(product),
+                )
+            }
+            is InternalPurchaseResult.Failed -> {
+                val state = state as PurchasingObserverState.PurchaseError
+                val product = StoreProduct(RawStoreProduct.from(state.product))
+                trackFailure(
+                    state.error.localizedMessage ?: "Unknown error",
+                    product,
+                    PurchaseSource.ObserverMode(product),
+                )
+            }
+            InternalPurchaseResult.Pending -> {
+                val result = state as PurchasingObserverState.PurchaseResult
+                result.purchases?.forEach { purchase ->
+                    purchase.products.map {
+                        storeKitManager.productsByFullId[it] ?.let { product ->
+                            handlePendingTransaction(PurchaseSource.ObserverMode(product))
+                        }
+                    }
+                }
+            }
+            InternalPurchaseResult.Restored -> {
+                val state = state as PurchasingObserverState.PurchaseResult
+                state.purchases?.forEach { purchase ->
+                    purchase.products.map {
+                        storeKitManager.productsByFullId[it] ?.let { product ->
+                            didRestore(product, PurchaseSource.ObserverMode(product))
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fun updatePaymentQueue(removedTransactions: List<String>) {
+        var stored = storage.read(PurchasingProductdIds)
+        val remainingTransactions =
+            stored?.filter { transaction ->
+                !removedTransactions.any { it == transaction }
+            } ?: emptyList()
+        storage.write(PurchasingProductdIds, remainingTransactions.toSet())
+    }
 
     suspend fun purchase(purchaseSource: PurchaseSource): PurchaseResult {
         val product =
@@ -82,9 +163,10 @@ class TransactionManager(
                         return PurchaseResult.Failed("Product not found")
                     }
 
-                is PurchaseSource.External -> {
+                is PurchaseSource.ExternalPurchase -> {
                     purchaseSource.product
                 }
+                is PurchaseSource.ObserverMode -> purchaseSource.product
             }
 
         val rawStoreProduct = product.rawStoreProduct
@@ -107,7 +189,7 @@ class TransactionManager(
                 basePlanId = rawStoreProduct.basePlanId,
             )
 
-        if (purchaseSource is PurchaseSource.External && factory.makeHasExternalPurchaseController()) {
+        if (purchaseSource is PurchaseSource.ExternalPurchase && factory.makeHasExternalPurchaseController()) {
             return result
         }
 
@@ -193,10 +275,12 @@ class TransactionManager(
                 paywallInfo = if (purchaseSource is PurchaseSource.Internal) purchaseSource.paywallView.info else PaywallInfo.empty(),
                 product = product,
                 model = null,
+                isObserved = factory.makeSuperwallOptions().shouldObservePurchases,
                 source =
                     when (purchaseSource) {
-                        is PurchaseSource.External -> TransactionSource.EXTERNAL
+                        is PurchaseSource.ExternalPurchase -> TransactionSource.EXTERNAL
                         is PurchaseSource.Internal -> TransactionSource.INTERNAL
+                        is PurchaseSource.ObserverMode -> TransactionSource.OBSERVER
                     },
             )
         track(trackedEvent)
@@ -242,6 +326,7 @@ class TransactionManager(
                             paywallInfo = paywallInfo,
                             product = product,
                             model = null,
+                            isObserved = factory.makeSuperwallOptions().shouldObservePurchases,
                             source = TransactionSource.INTERNAL,
                         )
 
@@ -249,7 +334,7 @@ class TransactionManager(
                 }
             }
 
-            is PurchaseSource.External -> {
+            is PurchaseSource.ExternalPurchase, is PurchaseSource.ObserverMode -> {
                 log(
                     message = "Transaction Error: $errorMessage",
                     info = mapOf("product_id" to product.fullIdentifier),
@@ -268,6 +353,7 @@ class TransactionManager(
                             paywallInfo = PaywallInfo.empty(),
                             product = product,
                             model = null,
+                            isObserved = purchaseSource is PurchaseSource.ObserverMode,
                             source = TransactionSource.EXTERNAL,
                         )
                     track(trackedEvent)
@@ -276,10 +362,13 @@ class TransactionManager(
         }
     }
 
-    private suspend fun prepareToPurchase(
+    internal suspend fun prepareToPurchase(
         product: StoreProduct,
         source: PurchaseSource,
     ) {
+        val isObserved =
+            source is PurchaseSource.ObserverMode
+
         when (source) {
             is PurchaseSource.Internal -> {
                 ioScope.launch {
@@ -298,6 +387,7 @@ class TransactionManager(
                         paywallInfo,
                         product,
                         null,
+                        isObserved = isObserved,
                         source = TransactionSource.INTERNAL,
                     )
                 track(trackedEvent)
@@ -307,10 +397,17 @@ class TransactionManager(
                 lastPaywallView = source.paywallView
             }
 
-            is PurchaseSource.External -> {
+            is PurchaseSource.ExternalPurchase, is PurchaseSource.ObserverMode -> {
                 if (factory.makeHasExternalPurchaseController()) {
                     return
                 }
+                // If an external purchase controller is being used, skip because this will
+                // get called by the purchase function of the purchase controller.
+                val options = factory.makeSuperwallOptions()
+                if (!options.shouldObservePurchases && factory.makeHasExternalPurchaseController()) {
+                    return
+                }
+
                 ioScope.launch {
                     log(
                         message =
@@ -325,6 +422,7 @@ class TransactionManager(
                         PaywallInfo.empty(),
                         product,
                         null,
+                        isObserved = isObserved,
                         source = TransactionSource.EXTERNAL,
                     )
                 track(trackedEvent)
@@ -368,7 +466,7 @@ class TransactionManager(
                 }
             }
 
-            is PurchaseSource.External -> {
+            is PurchaseSource.ExternalPurchase, is PurchaseSource.ObserverMode -> {
                 log(
                     message = "Transaction Succeeded",
                     info = mapOf("product_id" to product.fullIdentifier),
@@ -390,6 +488,9 @@ class TransactionManager(
         product: StoreProduct,
         purchaseSource: PurchaseSource,
     ) {
+        val isObserved =
+            purchaseSource is PurchaseSource.ObserverMode
+
         when (purchaseSource) {
             is PurchaseSource.Internal -> {
                 ioScope.launch {
@@ -410,6 +511,7 @@ class TransactionManager(
                         paywallInfo,
                         product,
                         null,
+                        isObserved = isObserved,
                         source = TransactionSource.INTERNAL,
                     )
                 track(trackedEvent)
@@ -417,7 +519,7 @@ class TransactionManager(
                 purchaseSource.paywallView.loadingState = PaywallLoadingState.Ready()
             }
 
-            is PurchaseSource.External -> {
+            is PurchaseSource.ExternalPurchase, is PurchaseSource.ObserverMode -> {
                 ioScope.launch {
                     log(
                         message = "Transaction Abandoned",
@@ -431,6 +533,7 @@ class TransactionManager(
                         PaywallInfo.empty(),
                         product,
                         null,
+                        isObserved = isObserved,
                         source = TransactionSource.EXTERNAL,
                     )
                 track(trackedEvent)
@@ -439,6 +542,9 @@ class TransactionManager(
     }
 
     private suspend fun handlePendingTransaction(purchaseSource: PurchaseSource) {
+        val isObserved =
+            purchaseSource is PurchaseSource.ObserverMode
+
         when (purchaseSource) {
             is PurchaseSource.Internal -> {
                 ioScope.launch {
@@ -456,6 +562,7 @@ class TransactionManager(
                         paywallInfo,
                         null,
                         null,
+                        isObserved = factory.makeSuperwallOptions().shouldObservePurchases,
                         source = TransactionSource.INTERNAL,
                     )
                 track(trackedEvent)
@@ -466,7 +573,9 @@ class TransactionManager(
                 )
             }
 
-            is PurchaseSource.External -> {
+            is PurchaseSource.ExternalPurchase,
+            is PurchaseSource.ObserverMode,
+            -> {
                 ioScope.launch {
                     log(message = "Transaction Pending")
                 }
@@ -477,6 +586,7 @@ class TransactionManager(
                         PaywallInfo.empty(),
                         null,
                         null,
+                        isObserved = isObserved,
                         source = TransactionSource.EXTERNAL,
                     )
                 track(trackedEvent)
@@ -594,6 +704,7 @@ class TransactionManager(
                         product,
                         null,
                         source = TransactionSource.INTERNAL,
+                        isObserved = factory.makeSuperwallOptions().shouldObservePurchases,
                     )
                 track(trackedEvent)
 
@@ -603,7 +714,7 @@ class TransactionManager(
                 )
             }
 
-            is PurchaseSource.External -> {
+            is PurchaseSource.ExternalPurchase -> {
                 ioScope.launch {
                     log(
                         message = "Transaction Error",
@@ -623,8 +734,12 @@ class TransactionManager(
                         product,
                         null,
                         source = TransactionSource.EXTERNAL,
+                        isObserved = factory.makeSuperwallOptions().shouldObservePurchases,
                     )
                 track(trackedEvent)
+            }
+            is PurchaseSource.ObserverMode -> {
+                // No-op
             }
         }
     }
@@ -635,6 +750,9 @@ class TransactionManager(
         purchaseSource: PurchaseSource,
         didStartFreeTrial: Boolean,
     ) {
+        val isObserved =
+            purchaseSource is PurchaseSource.ObserverMode
+
         when (purchaseSource) {
             is PurchaseSource.Internal -> {
                 val paywallView = lastPaywallView ?: return
@@ -651,6 +769,7 @@ class TransactionManager(
                         product,
                         transaction,
                         source = TransactionSource.INTERNAL,
+                        isObserved = isObserved,
                     )
                 track(trackedEvent)
                 eventsQueue.flushInternal()
@@ -687,7 +806,7 @@ class TransactionManager(
                 lastPaywallView = null
             }
 
-            is PurchaseSource.External -> {
+            is PurchaseSource.ExternalPurchase, is PurchaseSource.ObserverMode -> {
                 val trackedEvent =
                     InternalSuperwallEvent.Transaction(
                         InternalSuperwallEvent.Transaction.State.Complete(product, transaction),
@@ -695,6 +814,7 @@ class TransactionManager(
                         product,
                         transaction,
                         source = TransactionSource.EXTERNAL,
+                        isObserved = isObserved,
                     )
                 track(trackedEvent)
                 eventsQueue.flushInternal()

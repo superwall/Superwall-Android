@@ -11,8 +11,8 @@ import android.view.inputmethod.BaseInputConnection
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import android.webkit.ConsoleMessage
-import android.webkit.RenderProcessGoneDetail
 import android.webkit.CookieManager
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -77,7 +77,8 @@ class SWWebView(
             return true
         }
     }
-    private var lastWebViewClient : WebViewClient? = null
+
+    private var lastWebViewClient: WebViewClient? = null
 
     internal fun prepareWebview() {
         addJavascriptInterface(messageHandler, "SWAndroid")
@@ -158,11 +159,12 @@ class SWWebView(
 
     override fun loadUrl(url: String) {
         prepareWebview()
-        val client = DefaultWebviewClient(
-            forUrl = url,
-            ioScope = CoroutineScope(Dispatchers.IO),
-            onWebViewCrash = onRenderProcessCrashed,
-        )
+        val client =
+            DefaultWebviewClient(
+                forUrl = url,
+                ioScope = CoroutineScope(Dispatchers.IO),
+                onWebViewCrash = onRenderProcessCrashed,
+            )
         this.webViewClient = client
 
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
@@ -352,7 +354,7 @@ class SWWebView(
 internal fun webViewExists(): Boolean =
     try {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            WebView.getCurrentWebViewPackage()!=null
+            WebView.getCurrentWebViewPackage() != null
         } else {
             runCatching { CookieManager.getInstance() }.isSuccess
         }

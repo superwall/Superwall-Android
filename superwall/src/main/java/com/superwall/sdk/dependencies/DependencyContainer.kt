@@ -124,7 +124,8 @@ class DependencyContainer(
     ConfigAttributesFactory,
     PaywallPreload.Factory,
     ViewStoreFactory,
-    SuperwallScopeFactory {
+    SuperwallScopeFactory,
+    GoogleBillingWrapper.Factory {
     var network: Network
     override var api: Api
     override var deviceHelper: DeviceHelper
@@ -204,7 +205,12 @@ class DependencyContainer(
         }
 
         googleBillingWrapper =
-            GoogleBillingWrapper(context, ioScope, appLifecycleObserver = appLifecycleObserver)
+            GoogleBillingWrapper(
+                context,
+                ioScope,
+                appLifecycleObserver = appLifecycleObserver,
+                this,
+            )
 
         var purchaseController =
             InternalPurchaseController(
@@ -360,6 +366,7 @@ class DependencyContainer(
                 storeKitManager = storeKitManager,
                 purchaseController = purchaseController,
                 eventsQueue = eventsQueue,
+                storage = storage,
                 activityProvider,
                 factory = this,
                 track = {
