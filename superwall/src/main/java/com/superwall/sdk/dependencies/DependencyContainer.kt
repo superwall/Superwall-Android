@@ -90,7 +90,6 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.ClassDiscriminatorMode
 import kotlinx.serialization.json.Json
 import java.lang.ref.WeakReference
-import java.util.Base64
 import java.util.Date
 
 class DependencyContainer(
@@ -439,7 +438,6 @@ class DependencyContainer(
     }
 
     private val paywallJson = Json { encodeDefaults = true }
-    private val encoder = Base64.getEncoder()
 
     override suspend fun makePaywallView(
         paywall: Paywall,
@@ -451,7 +449,6 @@ class DependencyContainer(
                 sessionEventsManager = sessionEventsManager,
                 factory = this@DependencyContainer,
                 ioScope = ioScope,
-                encoder = encoder,
                 json = paywallJson,
                 mainScope = mainScope(),
             )

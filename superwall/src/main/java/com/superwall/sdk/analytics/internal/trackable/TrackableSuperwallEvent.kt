@@ -434,7 +434,15 @@ sealed class InternalSuperwallEvent(
         val paywallInfo: PaywallInfo,
         val product: StoreProduct?,
         val model: StoreTransaction?,
+        val source: TransactionSource,
     ) : TrackableSuperwallEvent {
+        enum class TransactionSource(
+            val raw: String,
+        ) {
+            INTERNAL("SUPERWALL"),
+            EXTERNAL("APP"),
+        }
+
         sealed class State {
             class Start(
                 val product: StoreProduct,

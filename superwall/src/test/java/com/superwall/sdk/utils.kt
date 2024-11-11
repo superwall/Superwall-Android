@@ -1,4 +1,5 @@
 @file:Suppress("ktlint:standard:function-naming")
+
 package com.superwall.sdk
 
 fun assertTrue(value: Boolean) {
@@ -12,7 +13,6 @@ fun assertFalse(value: Boolean) {
         throw AssertionError("Expected false, got true")
     }
 }
-
 
 @DslMarker annotation class TestingDSL
 

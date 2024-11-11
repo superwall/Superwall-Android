@@ -6,9 +6,9 @@ import com.superwall.sdk.contrib.threeteen.AmountFormats
 import com.superwall.sdk.utilities.DateUtils
 import com.superwall.sdk.utilities.dateFormat
 import kotlinx.serialization.Transient
+import org.threeten.bp.Period
 import java.math.BigDecimal
 import java.math.RoundingMode
-import org.threeten.bp.Period
 import java.util.Calendar
 import java.util.Currency
 import java.util.Locale

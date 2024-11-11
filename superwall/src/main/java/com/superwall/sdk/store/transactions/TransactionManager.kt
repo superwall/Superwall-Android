@@ -3,6 +3,7 @@ package com.superwall.sdk.store.transactions
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
+import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.Transaction.TransactionSource
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEvents
 import com.superwall.sdk.delegate.PurchaseResult
@@ -10,6 +11,7 @@ import com.superwall.sdk.delegate.RestorationResult
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.dependencies.DeviceHelperFactory
+import com.superwall.sdk.dependencies.HasExternalPurchaseControllerFactory
 import com.superwall.sdk.dependencies.OptionsFactory
 import com.superwall.sdk.dependencies.StoreTransactionFactory
 import com.superwall.sdk.dependencies.TransactionVerifierFactory
@@ -63,7 +65,8 @@ class TransactionManager(
         TriggerFactory,
         TransactionVerifierFactory,
         StoreTransactionFactory,
-        DeviceHelperFactory
+        DeviceHelperFactory,
+        HasExternalPurchaseControllerFactory
 
     private var lastPaywallView: PaywallView? = null
 
@@ -103,6 +106,10 @@ class TransactionManager(
                 offerId = rawStoreProduct.offerId,
                 basePlanId = rawStoreProduct.basePlanId,
             )
+
+        if (purchaseSource is PurchaseSource.External && factory.makeHasExternalPurchaseController()) {
+            return result
+        }
 
         val isEligibleForTrial = rawStoreProduct.selectedOffer != null
 
@@ -186,6 +193,11 @@ class TransactionManager(
                 paywallInfo = if (purchaseSource is PurchaseSource.Internal) purchaseSource.paywallView.info else PaywallInfo.empty(),
                 product = product,
                 model = null,
+                source =
+                    when (purchaseSource) {
+                        is PurchaseSource.External -> TransactionSource.EXTERNAL
+                        is PurchaseSource.Internal -> TransactionSource.INTERNAL
+                    },
             )
         track(trackedEvent)
 
@@ -230,6 +242,7 @@ class TransactionManager(
                             paywallInfo = paywallInfo,
                             product = product,
                             model = null,
+                            source = TransactionSource.INTERNAL,
                         )
 
                     track(trackedEvent)
@@ -255,8 +268,8 @@ class TransactionManager(
                             paywallInfo = PaywallInfo.empty(),
                             product = product,
                             model = null,
+                            source = TransactionSource.EXTERNAL,
                         )
-
                     track(trackedEvent)
                 }
             }
@@ -285,6 +298,7 @@ class TransactionManager(
                         paywallInfo,
                         product,
                         null,
+                        source = TransactionSource.INTERNAL,
                     )
                 track(trackedEvent)
 
@@ -294,6 +308,9 @@ class TransactionManager(
             }
 
             is PurchaseSource.External -> {
+                if (factory.makeHasExternalPurchaseController()) {
+                    return
+                }
                 ioScope.launch {
                     log(
                         message =
@@ -308,6 +325,7 @@ class TransactionManager(
                         PaywallInfo.empty(),
                         product,
                         null,
+                        source = TransactionSource.EXTERNAL,
                     )
                 track(trackedEvent)
             }
@@ -392,6 +410,7 @@ class TransactionManager(
                         paywallInfo,
                         product,
                         null,
+                        source = TransactionSource.INTERNAL,
                     )
                 track(trackedEvent)
 
@@ -412,6 +431,7 @@ class TransactionManager(
                         PaywallInfo.empty(),
                         product,
                         null,
+                        source = TransactionSource.EXTERNAL,
                     )
                 track(trackedEvent)
             }
@@ -436,6 +456,7 @@ class TransactionManager(
                         paywallInfo,
                         null,
                         null,
+                        source = TransactionSource.INTERNAL,
                     )
                 track(trackedEvent)
 
@@ -456,6 +477,7 @@ class TransactionManager(
                         PaywallInfo.empty(),
                         null,
                         null,
+                        source = TransactionSource.EXTERNAL,
                     )
                 track(trackedEvent)
             }
@@ -571,6 +593,7 @@ class TransactionManager(
                         paywallInfo,
                         product,
                         null,
+                        source = TransactionSource.INTERNAL,
                     )
                 track(trackedEvent)
 
@@ -599,6 +622,7 @@ class TransactionManager(
                         PaywallInfo.empty(),
                         product,
                         null,
+                        source = TransactionSource.EXTERNAL,
                     )
                 track(trackedEvent)
             }
@@ -626,6 +650,7 @@ class TransactionManager(
                         paywallInfo,
                         product,
                         transaction,
+                        source = TransactionSource.INTERNAL,
                     )
                 track(trackedEvent)
                 eventsQueue.flushInternal()
@@ -669,6 +694,7 @@ class TransactionManager(
                         PaywallInfo.empty(),
                         product,
                         transaction,
+                        source = TransactionSource.EXTERNAL,
                     )
                 track(trackedEvent)
                 eventsQueue.flushInternal()
