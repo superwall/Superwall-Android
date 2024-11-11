@@ -335,7 +335,7 @@ data class PaywallInfo(
                 presentation = PaywallPresentationInfo(PaywallPresentationStyle.NONE, PresentationCondition.ALWAYS, 0),
                 buildId = "",
                 cacheKey = "",
-                isScrollEnabled = true
+                isScrollEnabled = true,
             )
     }
 }

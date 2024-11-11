@@ -3,8 +3,8 @@ package com.superwall.sdk.contrib.threeteen
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
-import org.threeten.bp.Period
 import org.threeten.bp.Duration
+import org.threeten.bp.Period
 import org.threeten.bp.format.DateTimeParseException
 import java.util.*
 import java.util.regex.Pattern
@@ -52,11 +52,10 @@ import java.util.regex.Pattern
  * This class is immutable and thread-safe.
  */
 object AmountFormats {
-
-
     fun interface IntPredicate {
         fun test(value: Int): Boolean
     }
+
     /**
      * The number of days per week.
      */
@@ -693,9 +692,11 @@ object AmountFormats {
 
         init {
             check(predicateStrs.size + 1 == text.size) { "Invalid word-based resource" }
-            predicates = predicateStrs.map { predicateStr ->
-                findPredicate(predicateStr!!)
-            }.toTypedArray()
+            predicates =
+                predicateStrs
+                    .map { predicateStr ->
+                        findPredicate(predicateStr!!)
+                    }.toTypedArray()
             this.text = text
         }
 
@@ -719,8 +720,8 @@ object AmountFormats {
             }
             buf.append(value).append(text[predicates.size])
         }
-
     }
+
     // -------------------------------------------------------------------------
     // data holder for a duration unit string and its associated Duration value.
     internal class DurationUnit constructor(
