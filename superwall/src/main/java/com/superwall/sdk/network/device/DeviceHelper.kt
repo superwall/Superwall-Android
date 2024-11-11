@@ -112,37 +112,63 @@ class DeviceHelper(
 
     private val daysSinceInstall: Int
         get() {
-            val fromDate = org.threeten.bp.Instant.ofEpochMilli(appInstallDate.time)
-            val toDate = org.threeten.bp.Instant.now()
-            val duration = org.threeten.bp.Duration.between(fromDate, toDate)
+            val fromDate =
+                org.threeten.bp.Instant
+                    .ofEpochMilli(appInstallDate.time)
+            val toDate =
+                org.threeten.bp.Instant
+                    .now()
+            val duration =
+                org.threeten.bp.Duration
+                    .between(fromDate, toDate)
             return duration.toDays().toInt()
         }
 
     private val minutesSinceInstall: Int
         get() {
-            val fromDate = org.threeten.bp.Instant.ofEpochMilli(appInstallDate.time)
-            val toDate = org.threeten.bp.Instant.now()
-            val duration = org.threeten.bp.Duration.between(fromDate, toDate)
+            val fromDate =
+                org.threeten.bp.Instant
+                    .ofEpochMilli(appInstallDate.time)
+            val toDate =
+                org.threeten.bp.Instant
+                    .now()
+            val duration =
+                org.threeten.bp.Duration
+                    .between(fromDate, toDate)
             return duration.toMinutes().toInt()
         }
 
     private val daysSinceLastPaywallView: Int?
         get() {
             val fromDate =
-                storage.read(LastPaywallView)?.let { org.threeten.bp.Instant.ofEpochMilli(it.time) }
+                storage.read(LastPaywallView)?.let {
+                    org.threeten.bp.Instant
+                        .ofEpochMilli(it.time)
+                }
                     ?: return null
-            val toDate = org.threeten.bp.Instant.now()
-            val duration = org.threeten.bp.Duration.between(fromDate, toDate)
+            val toDate =
+                org.threeten.bp.Instant
+                    .now()
+            val duration =
+                org.threeten.bp.Duration
+                    .between(fromDate, toDate)
             return duration.toDays().toInt()
         }
 
     private val minutesSinceLastPaywallView: Int?
         get() {
             val fromDate =
-                storage.read(LastPaywallView)?.let { org.threeten.bp.Instant.ofEpochMilli(it.time) }
+                storage.read(LastPaywallView)?.let {
+                    org.threeten.bp.Instant
+                        .ofEpochMilli(it.time)
+                }
                     ?: return null
-            val toDate = org.threeten.bp.Instant.now()
-            val duration = org.threeten.bp.Duration.between(fromDate, toDate)
+            val toDate =
+                org.threeten.bp.Instant
+                    .now()
+            val duration =
+                org.threeten.bp.Duration
+                    .between(fromDate, toDate)
             return duration.toMinutes().toInt()
         }
 
@@ -242,7 +268,7 @@ class DeviceHelper(
                     else -> ""
                 }
             } else {
-                when(connectivityManager.activeNetworkInfo?.type){
+                when (connectivityManager.activeNetworkInfo?.type) {
                     ConnectivityManager.TYPE_MOBILE -> return "Cellular"
                     ConnectivityManager.TYPE_WIFI -> return "Wifi"
                     else -> return ""
