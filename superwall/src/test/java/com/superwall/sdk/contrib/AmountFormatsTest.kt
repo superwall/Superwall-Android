@@ -13,7 +13,6 @@ import org.threeten.bp.format.DateTimeParseException
 import java.util.*
 
 class AmountFormatsTest {
-
     @Test
     fun testIso8601Format() {
         Given("a period and duration") {
@@ -86,7 +85,12 @@ class AmountFormatsTest {
     @Test
     fun testWordBasedDuration() {
         Given("a duration with multiple units") {
-            val duration = Duration.ofHours(25).plusMinutes(30).plusSeconds(45).plusMillis(500)
+            val duration =
+                Duration
+                    .ofHours(25)
+                    .plusMinutes(30)
+                    .plusSeconds(45)
+                    .plusMillis(500)
 
             When("formatting to word-based with English locale") {
                 val result = AmountFormats.wordBased(duration, Locale.ENGLISH)
