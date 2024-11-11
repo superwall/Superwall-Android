@@ -1,7 +1,6 @@
 package com.superwall.sdk.storage.core_data
 
 import android.content.Context
-import java.util.Calendar
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
@@ -13,6 +12,7 @@ import com.superwall.sdk.storage.core_data.entities.ManagedTriggerRuleOccurrence
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.util.Calendar
 import java.util.Date
 import kotlin.coroutines.CoroutineContext
 

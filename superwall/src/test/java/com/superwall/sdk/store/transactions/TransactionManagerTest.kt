@@ -268,7 +268,7 @@ class TransactionManagerTest {
                 When("We try to purchase a product externally") {
                     val result =
                         transactionManager.purchase(
-                            TransactionManager.PurchaseSource.External(
+                            TransactionManager.PurchaseSource.ExternalPurchase(
                                 StoreProduct(mockProduct),
                             ),
                         )
@@ -585,7 +585,7 @@ class TransactionManagerTest {
                 When("We try to purchase a product from the paywall") {
                     val result =
                         transactionManager.purchase(
-                            TransactionManager.PurchaseSource.External(
+                            TransactionManager.PurchaseSource.ExternalPurchase(
                                 StoreProduct(mockProduct),
                             ),
                         )
@@ -844,7 +844,7 @@ class TransactionManagerTest {
                 When("We try to purchase the product") {
                     val result =
                         transactionManager.purchase(
-                            TransactionManager.PurchaseSource.External(
+                            TransactionManager.PurchaseSource.ExternalPurchase(
                                 StoreProduct(mockProduct),
                             ),
                         )
@@ -931,7 +931,7 @@ class TransactionManagerTest {
                 When("We try to purchase the product") {
                     val result =
                         transactionManager.purchase(
-                            TransactionManager.PurchaseSource.External(nonRecurringStoreProduct),
+                            TransactionManager.PurchaseSource.ExternalPurchase(nonRecurringStoreProduct),
                         )
                     Then("The purchase is successful") {
                         assert(result is PurchaseResult.Purchased)
@@ -1025,7 +1025,7 @@ class TransactionManagerTest {
                 When("We try to purchase a subscription without trial externally") {
                     val result =
                         transactionManager.purchase(
-                            TransactionManager.PurchaseSource.External(
+                            TransactionManager.PurchaseSource.ExternalPurchase(
                                 StoreProduct(mockProduct),
                             ),
                         )

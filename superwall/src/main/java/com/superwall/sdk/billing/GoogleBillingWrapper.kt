@@ -8,6 +8,8 @@ import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.PurchasesUpdatedListener
 import com.superwall.sdk.delegate.InternalPurchaseResult
+import com.superwall.sdk.dependencies.HasExternalPurchaseControllerFactory
+import com.superwall.sdk.dependencies.OptionsFactory
 import com.superwall.sdk.dependencies.StoreTransactionFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
@@ -39,6 +41,7 @@ class GoogleBillingWrapper(
     val context: Context,
     val ioScope: IOScope,
     val appLifecycleObserver: AppLifecycleObserver,
+    val factory: Factory,
 ) : PurchasesUpdatedListener,
     BillingClientStateListener,
     Billing {
@@ -46,7 +49,14 @@ class GoogleBillingWrapper(
         private val productsCache = ConcurrentHashMap<String, Either<StoreProduct, Throwable>>()
     }
 
+    interface Factory :
+        HasExternalPurchaseControllerFactory,
+        OptionsFactory
+
     private val threadHandler = Handler(ioScope)
+    private val shouldFinishTransactions: Boolean
+        get() =
+            !factory.makeHasExternalPurchaseController() && !factory.makeSuperwallOptions().shouldObservePurchases
 
     @get:Synchronized
     @set:Synchronized
@@ -538,7 +548,11 @@ class GoogleBillingWrapper(
         purchaseResults.asStateFlow().filter { it != null }.first().let { purchaseResult ->
             return when (purchaseResult) {
                 is InternalPurchaseResult.Purchased -> {
-                    return factory.makeStoreTransaction(purchaseResult.purchase)
+                    if (shouldFinishTransactions) {
+                        return factory.makeStoreTransaction(purchaseResult.purchase)
+                    } else {
+                        null
+                    }
                 }
 
                 is InternalPurchaseResult.Cancelled -> {
@@ -576,5 +590,18 @@ class GoogleBillingWrapper(
                 "Product details not supported: ${billingResult.responseCode} ${billingResult.debugMessage}",
             )
         }
+    }
+}
+
+fun Pair<BillingResult, List<Purchase>?>.toInternalResult(): List<InternalPurchaseResult> {
+    val (result, purchases) = this
+    return if (result.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
+        purchases.map {
+            InternalPurchaseResult.Purchased(it)
+        }
+    } else if (result.responseCode == BillingClient.BillingResponseCode.USER_CANCELED) {
+        listOf(InternalPurchaseResult.Cancelled)
+    } else {
+        listOf(InternalPurchaseResult.Failed(Exception(result.responseCode.toString())))
     }
 }
