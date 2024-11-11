@@ -279,6 +279,15 @@ internal object SavedTransactions : Storable<Set<SavedTransaction>> {
     override val serializer: KSerializer<Set<SavedTransaction>>
         get() = SetSerializer(SavedTransaction.serializer())
 }
+
+internal object PurchasingProductdIds : Storable<Set<String>> {
+    override val key: String
+        get() = "store.purchasingProductIds"
+    override val directory: SearchPathDirectory
+        get() = SearchPathDirectory.APP_SPECIFIC_DOCUMENTS
+    override val serializer: KSerializer<Set<String>>
+        get() = SetSerializer(String.serializer())
+}
 //endregion
 
 // region Serializers
