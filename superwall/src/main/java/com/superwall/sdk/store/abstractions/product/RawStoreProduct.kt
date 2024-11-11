@@ -2,6 +2,7 @@ package com.superwall.sdk.store.abstractions.product
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.ProductDetails.PricingPhase
 import com.android.billingclient.api.ProductDetails.SubscriptionOfferDetails
+import com.superwall.sdk.billing.DecomposedProductIds
 import com.superwall.sdk.contrib.threeteen.AmountFormats
 import com.superwall.sdk.utilities.DateUtils
 import com.superwall.sdk.utilities.dateFormat
@@ -19,6 +20,18 @@ class RawStoreProduct(
     val basePlanId: String?,
     private val offerType: OfferType?,
 ) : StoreProductType {
+    companion object {
+        fun from(details: ProductDetails): RawStoreProduct {
+            val ids = DecomposedProductIds.from(details.productId)
+            return RawStoreProduct(
+                underlyingProductDetails = details,
+                fullIdentifier = details.productId,
+                basePlanId = ids.basePlanId,
+                offerType = ids.offerType,
+            )
+        }
+    }
+
     @Transient
     private val priceFormatterProvider = PriceFormatterProvider()
 
