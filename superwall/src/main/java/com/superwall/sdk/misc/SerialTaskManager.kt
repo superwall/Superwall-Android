@@ -6,7 +6,7 @@ import java.util.LinkedList
 import java.util.Queue
 
 class SerialTaskManager(
-    private val coroutineScope: CoroutineScope = CoroutineScope(newSingleThreadContext("SerialTaskManager")),
+    private val coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.IO.limitedParallelism(1)),
 ) {
     private val taskQueue: Queue<suspend () -> Unit> = LinkedList()
     private var currentTask: Deferred<Unit>? = null

@@ -38,7 +38,7 @@ sealed class TrackingLogic {
             trackableEvent: Trackable,
             appSessionId: String,
         ): TrackingParameters =
-            withContext(Dispatchers.Default) {
+            withContext(Dispatchers.IO) {
                 val superwallParameters = trackableEvent.getSuperwallParameters().toMutableMap()
                 superwallParameters["app_session_id"] = appSessionId
 

@@ -10,6 +10,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebSettings
+import android.webkit.WebView.RENDERER_PRIORITY_IMPORTANT
 import android.widget.FrameLayout
 import androidx.browser.customtabs.CustomTabsIntent
 import com.superwall.sdk.Superwall
@@ -82,6 +83,17 @@ class PaywallView(
     SWWebViewDelegate,
     ActivityEncapsulatable,
     GameControllerDelegate {
+    private companion object {
+        private val mainScope: MainScope = MainScope()
+        private val ioScope: IOScope = IOScope()
+        private val gameControllerJson by lazy {
+            Json {
+                encodeDefaults = true
+                namingStrategy = JsonNamingStrategy.SnakeCase
+            }
+        }
+    }
+
     interface Factory : TriggerFactory
     //region Public properties
 
@@ -185,14 +197,6 @@ class PaywallView(
     //endregion
 
     //region Initialization
-    private val mainScope: MainScope = MainScope()
-    private val ioScope: IOScope = IOScope()
-    private val gameControllerJson by lazy {
-        Json {
-            encodeDefaults = true
-            namingStrategy = JsonNamingStrategy.SnakeCase
-        }
-    }
 
     init {
         id = View.generateViewId()
@@ -299,6 +303,7 @@ class PaywallView(
 
         Superwall.instance.dependencyContainer.delegateAdapter
             .willPresentPaywall(info)
+        webView.setRendererPriorityPolicy(RENDERER_PRIORITY_IMPORTANT, true)
         webView.scrollTo(0, 0)
         if (loadingState is PaywallLoadingState.Ready) {
             webView.messageHandler.handle(PaywallMessage.TemplateParamsAndUserAttributes)

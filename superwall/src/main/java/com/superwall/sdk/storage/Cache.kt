@@ -8,15 +8,15 @@ import com.superwall.sdk.storage.memory.LRUCache
 import com.superwall.sdk.storage.memory.PerpetualCache
 import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.ExecutorCoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.newSingleThreadContext
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
+import kotlin.coroutines.CoroutineContext
 
 class Cache(
     val context: Context,
-    private val ioQueue: ExecutorCoroutineDispatcher = newSingleThreadContext(Cache.ioQueuePrefix),
+    private val ioQueue: CoroutineContext = Dispatchers.IO.limitedParallelism(1),
     private val json: Json,
 ) : CoroutineScope by CoroutineScope(ioQueue) {
     companion object {
