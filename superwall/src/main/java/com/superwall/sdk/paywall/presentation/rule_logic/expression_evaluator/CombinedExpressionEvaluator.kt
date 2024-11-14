@@ -24,7 +24,7 @@ internal class CombinedExpressionEvaluator(
     private val factory: RuleAttributesFactory,
     private val evaluator: JavascriptEvaluator,
     private val celEvaluator: CELEvaluator,
-    private val track: (InternalSuperwallEvent.ExpressionResult) -> Unit,
+    private val track: suspend (InternalSuperwallEvent.ExpressionResult) -> Unit,
 ) : ExpressionEvaluating {
     override suspend fun evaluateExpression(
         rule: TriggerRule,
@@ -42,12 +42,17 @@ internal class CombinedExpressionEvaluator(
             )
 
         val result = evaluator.evaluate(base64Params, rule)
-        val celEvaluation = celEvaluator.evaluateExpression(rule, eventData)
+        val celEvaluation =
+            try {
+                celEvaluator.evaluateExpression(rule, eventData)
+            } catch (e: Exception) {
+                TriggerRuleOutcome.noMatch(UnmatchedRule.Source.EXPRESSION, rule.experiment.id)
+            }
         track(
             InternalSuperwallEvent.ExpressionResult(
                 liquidExpression = rule.expression,
                 celExpression = rule.expressionCEL,
-                celExpressionResult = if (result is TriggerRuleOutcome.Match) true else false,
+                celExpressionResult = if (celEvaluation is TriggerRuleOutcome.Match) true else false,
                 jsExpression = rule.expressionJs,
                 jsExpressionResult = if (result is TriggerRuleOutcome.Match) true else false,
             ),

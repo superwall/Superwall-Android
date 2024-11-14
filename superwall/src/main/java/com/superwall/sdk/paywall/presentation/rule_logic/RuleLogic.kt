@@ -36,7 +36,7 @@ class RuleLogic(
     private val assignments: Assignments,
     private val storage: LocalStorage,
     private val factory: RuleAttributesFactory,
-    private val javascriptEvaluator: ExpressionEvaluating,
+    private val ruleEvaluator: ExpressionEvaluating,
 ) {
     suspend fun evaluateRules(
         event: EventData,
@@ -113,7 +113,7 @@ class RuleLogic(
         event: EventData,
         trigger: Trigger,
     ): RuleMatchOutcome {
-        val expressionEvaluator = javascriptEvaluator
+        val expressionEvaluator = ruleEvaluator
 
         val unmatchedRules = mutableListOf<UnmatchedRule>()
 

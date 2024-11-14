@@ -20,19 +20,19 @@ class SuperwallOptions {
         open val hostDomain: String,
     ) {
         open val baseHost: String
-            get() = "$hostDomain"
+            get() = "api.$hostDomain"
 
         open val collectorHost: String
-            get() = "$hostDomain"
+            get() = "collector.$hostDomain"
 
         open val scheme: String
             get() = "https"
 
         open val port: Int?
-            get() = 3000
+            get() = null
 
         // Default: Uses the standard latest environment.
-        class Release : NetworkEnvironment("192.168.178.23")
+        class Release : NetworkEnvironment("superwall.me")
 
         class ReleaseCandidate : NetworkEnvironment("superwallcanary.com")
 

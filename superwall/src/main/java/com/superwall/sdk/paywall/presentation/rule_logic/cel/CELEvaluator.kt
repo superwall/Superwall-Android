@@ -1,6 +1,5 @@
 package com.superwall.sdk.paywall.presentation.rule_logic.cel
 
-import com.superwall.sdk.analytics.superwall.SuperwallEvent
 import com.superwall.sdk.dependencies.RuleAttributesFactory
 import com.superwall.sdk.models.config.ComputedPropertyRequest
 import com.superwall.sdk.models.events.EventData
@@ -24,7 +23,6 @@ internal class CELEvaluator(
     json: Json,
     private val storage: CoreDataManager,
     private val factory: RuleAttributesFactory,
-    private val trackResult: (SuperwallEvent.ExpressionResult) -> Unit,
 ) : ExpressionEvaluating {
     private val json =
         Json(json) {

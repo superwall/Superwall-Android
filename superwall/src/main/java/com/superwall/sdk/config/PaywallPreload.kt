@@ -43,7 +43,7 @@ class PaywallPreload(
 
         currentPreloadingTask =
             scope.launchWithTracking {
-                val js = factory.provideJavascriptEvaluator(context)
+                val js = factory.provideRuleEvaluator(context)
                 val expressionEvaluator =
                     js
                 val triggers =

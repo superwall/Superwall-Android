@@ -423,7 +423,7 @@ sealed class SuperwallEvent {
 
     internal object ExpressionResult : SuperwallEvent(), IsInternalEvent {
         override val rawName: String
-            get() = "expression_result"
+            get() = "cel_expression_result"
     }
 
     open val rawName: String

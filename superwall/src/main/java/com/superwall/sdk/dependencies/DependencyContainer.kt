@@ -54,7 +54,9 @@ import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.CELEvaluator
+import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.CombinedExpressionEvaluator
 import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.ExpressionEvaluating
+import com.superwall.sdk.paywall.presentation.rule_logic.javascript.DefaultJavascriptEvalutor
 import com.superwall.sdk.paywall.presentation.rule_logic.javascript.JavascriptEvaluator
 import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.paywall.request.PaywallRequestManager
@@ -143,14 +145,24 @@ class DependencyContainer(
     private val ioScope
         get() = ioScope()
     private val evaluator by lazy {
-        CELEvaluator(
-            json(),
-            storage = storage.coreDataManager,
+        CombinedExpressionEvaluator(
+            storage = storage,
             factory = this,
-            { e ->
-                ioScope.launch {
-                    Superwall.instance.track(e)
-                }
+            evaluator =
+                DefaultJavascriptEvalutor(
+                    ioScope = ioScope,
+                    uiScope = uiScope,
+                    context = context,
+                    storage = storage,
+                ),
+            celEvaluator =
+                CELEvaluator(
+                    json = json(),
+                    storage = storage.coreDataManager,
+                    factory = this,
+                ),
+            track = {
+                Superwall.instance.track(it)
             },
         )
     }
@@ -629,7 +641,7 @@ class DependencyContainer(
 
     override suspend fun makeTriggers(): Set<String> = configManager.triggersByEventName.keys
 
-    override suspend fun provideJavascriptEvaluator(context: Context): ExpressionEvaluating = evaluator
+    override suspend fun provideRuleEvaluator(context: Context): ExpressionEvaluating = evaluator
 
     override fun makeConfigAttributes(): InternalSuperwallEvent.ConfigAttributes =
         InternalSuperwallEvent.ConfigAttributes(

@@ -14,6 +14,6 @@ interface JavascriptEvaluator {
     fun teardown()
 
     fun interface Factory {
-        suspend fun provideJavascriptEvaluator(context: Context): ExpressionEvaluating
+        suspend fun provideRuleEvaluator(context: Context): ExpressionEvaluating
     }
 }
