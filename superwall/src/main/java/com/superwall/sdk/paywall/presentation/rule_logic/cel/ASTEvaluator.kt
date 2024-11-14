@@ -5,7 +5,6 @@ import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.triggers.TriggerRule
 import com.superwall.sdk.models.triggers.TriggerRuleOutcome
 import com.superwall.sdk.models.triggers.UnmatchedRule
-import com.superwall.sdk.paywall.presentation.rule_logic.cel.ASTEvaluator.PlatformOperations
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.PassableValue
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.ast.CELAtom
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.ast.CELExpression
@@ -19,6 +18,10 @@ import com.superwall.supercel.evaluateAst
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
+/*
+* Currently not used.
+* Preparations for AST evaluation and AST evaluation testing.
+* */
 class ASTEvaluator(
     private val json: Json,
     private val storage: CoreDataManager,
@@ -55,16 +58,9 @@ class ASTEvaluator(
             )
         }
     }
-
-    internal interface PlatformOperations {
-        fun invoke(
-            name: String,
-            args: List<PassableValue>,
-        ): PassableValue
-    }
 }
 
-internal fun CELExpression.rewriteASTWith(ctx: PlatformOperations) =
+internal fun CELExpression.rewriteASTWith(ctx: (String, List<PassableValue>) -> PassableValue) =
     mapAll { it ->
         when (it) {
             is CELExpression.FunctionCall -> {

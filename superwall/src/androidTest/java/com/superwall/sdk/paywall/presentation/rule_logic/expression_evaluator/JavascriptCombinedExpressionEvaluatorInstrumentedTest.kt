@@ -3,6 +3,7 @@ package com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator
 import androidx.javascriptengine.JavaScriptSandbox
 import androidx.test.platform.app.InstrumentationRegistry
 import com.superwall.sdk.dependencies.RuleAttributesFactory
+import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.models.config.ComputedPropertyRequest
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.triggers.Experiment
@@ -12,15 +13,19 @@ import com.superwall.sdk.models.triggers.TriggerRule
 import com.superwall.sdk.models.triggers.TriggerRuleOutcome
 import com.superwall.sdk.models.triggers.UnmatchedRule
 import com.superwall.sdk.models.triggers.VariantOption
+import com.superwall.sdk.paywall.presentation.rule_logic.cel.SuperscriptEvaluator
 import com.superwall.sdk.paywall.presentation.rule_logic.javascript.SandboxJavascriptEvaluator
 import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.storage.StorageMock
+import com.superwall.sdk.storage.core_data.CoreDataManager
 import junit.framework.TestCase.assertEquals
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.ClassDiscriminatorMode
+import kotlinx.serialization.json.Json
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
@@ -64,6 +69,20 @@ class JavascriptCombinedExpressionEvaluatorInstrumentedTest {
             ioScope = this,
         )
 
+    private fun CoroutineScope.superscriptEval(
+        storage: CoreDataManager,
+        factoryBuilder: RuleAttributeFactoryBuilder,
+    ) = SuperscriptEvaluator(
+        storage = storage,
+        json =
+            Json {
+                classDiscriminatorMode = ClassDiscriminatorMode.ALL_JSON_OBJECTS
+                classDiscriminator = "type"
+            },
+        factory = factoryBuilder,
+        ioScope = IOScope(this.coroutineContext),
+    )
+
     @Test
     fun test_happy_path_evaluator() =
         runTest {
@@ -80,6 +99,14 @@ class JavascriptCombinedExpressionEvaluatorInstrumentedTest {
                         ),
                     storage = storage,
                     factory = ruleAttributes,
+                    track = {
+                        assert(it.jsExpressionResult == it.celExpressionResult)
+                    },
+                    superscriptEvaluator =
+                        superscriptEval(
+                            storage.coreDataManager,
+                            ruleAttributes,
+                        ),
                 )
 
             val rule =
@@ -132,6 +159,14 @@ class JavascriptCombinedExpressionEvaluatorInstrumentedTest {
                         ),
                     storage = storage,
                     factory = ruleAttributes,
+                    track = {
+                        // This is a JS only function
+                    },
+                    superscriptEvaluator =
+                        superscriptEval(
+                            storage.coreDataManager,
+                            ruleAttributes,
+                        ),
                 )
 
             val trueRule =
@@ -225,6 +260,14 @@ class JavascriptCombinedExpressionEvaluatorInstrumentedTest {
                         ),
                     storage = storage,
                     factory = ruleAttributes,
+                    track = {
+                        assert(it.jsExpressionResult == it.celExpressionResult)
+                    },
+                    superscriptEvaluator =
+                        superscriptEval(
+                            storage.coreDataManager,
+                            ruleAttributes,
+                        ),
                 )
 
             val trueRule =
@@ -326,6 +369,14 @@ class JavascriptCombinedExpressionEvaluatorInstrumentedTest {
                         ),
                     storage = storage,
                     factory = ruleAttributes,
+                    track = {
+                        assert(it.jsExpressionResult == it.celExpressionResult)
+                    },
+                    superscriptEvaluator =
+                        superscriptEval(
+                            storage.coreDataManager,
+                            ruleAttributes,
+                        ),
                 )
 
             val rule =

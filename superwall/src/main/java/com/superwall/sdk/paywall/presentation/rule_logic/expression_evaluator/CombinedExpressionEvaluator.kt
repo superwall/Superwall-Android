@@ -6,7 +6,7 @@ import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.triggers.TriggerRule
 import com.superwall.sdk.models.triggers.TriggerRuleOutcome
 import com.superwall.sdk.models.triggers.UnmatchedRule
-import com.superwall.sdk.paywall.presentation.rule_logic.cel.CELEvaluator
+import com.superwall.sdk.paywall.presentation.rule_logic.cel.SuperscriptEvaluator
 import com.superwall.sdk.paywall.presentation.rule_logic.javascript.JavascriptEvaluator
 import com.superwall.sdk.paywall.presentation.rule_logic.tryToMatchOccurrence
 import com.superwall.sdk.storage.LocalStorage
@@ -23,7 +23,7 @@ internal class CombinedExpressionEvaluator(
     private val storage: LocalStorage,
     private val factory: RuleAttributesFactory,
     private val evaluator: JavascriptEvaluator,
-    private val celEvaluator: CELEvaluator,
+    private val superscriptEvaluator: SuperscriptEvaluator,
     private val track: suspend (InternalSuperwallEvent.ExpressionResult) -> Unit,
 ) : ExpressionEvaluating {
     override suspend fun evaluateExpression(
@@ -44,7 +44,7 @@ internal class CombinedExpressionEvaluator(
         val result = evaluator.evaluate(base64Params, rule)
         val celEvaluation =
             try {
-                celEvaluator.evaluateExpression(rule, eventData)
+                superscriptEvaluator.evaluateExpression(rule, eventData)
             } catch (e: Exception) {
                 TriggerRuleOutcome.noMatch(UnmatchedRule.Source.EXPRESSION, rule.experiment.id)
             }

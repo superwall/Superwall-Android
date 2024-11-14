@@ -3,6 +3,7 @@ billing_version = "6.1.0"
 browser_version = "1.5.0"
 gradle_plugin_version = "8.4.1"
 javascriptengineVersion = "1.0.0-beta01"
+jna_version = "5.14.0"
 kotlinxCoroutinesGuavaVersion = "1.8.1"
 leakcanaryAndroidVersion = "2.14"
 lifecycleProcessVersion = "2.8.1"
@@ -20,6 +21,7 @@ lifecycle_runtime_ktx_version = "2.8.1"
 junit_version = "4.13.2"
 kotlinx_coroutines_test_version = "1.8.1"
 room_runtime_version = "2.6.1"
+supercel_version = "0.1.16"
 test_ext_junit_version = "1.2.1"
 espresso_core_version = "3.6.1"
 test_runner_version = "1.6.1"
@@ -32,13 +34,13 @@ uiautomator_version = "2.3.0"
 workRuntimeKtx_version = "2.9.0"
 serialization_version = "1.6.0"
 dropshot_version = "0.4.2"
-jetbrainsKotlinJvmVersion = "1.9.0"
 
 [libraries]
 
 # SQL
 
 javascriptengine = { module = "androidx.javascriptengine:javascriptengine", version.ref = "javascriptengineVersion" }
+jna = { module = "net.java.dev.jna:jna", version.ref = "jna_version" }
 leakcanary-android = { module = "com.squareup.leakcanary:leakcanary-android", version.ref = "leakcanaryAndroidVersion" }
 orchestrator = { module = "androidx.test:orchestrator", version.ref = "orchestratorVersion" }
 room-compiler = { module = "androidx.room:room-compiler", version.ref = "room_runtime_version" }
@@ -56,6 +58,7 @@ browser = { module = "androidx.browser:browser", version.ref = "browser_version"
 # Compose
 compose_bom = { module = "androidx.compose:compose-bom", version.ref = "compose_version" }
 activity_compose = { module = "androidx.activity:activity-compose", version.ref = "activity_compose_version" }
+supercel = { module = "com.superwall.supercel:supercel", version.ref = "supercel_version" }
 threetenbp = { module = "org.threeten:threetenbp", version.ref = "threetenbp_version" }
 ui = { module = "androidx.compose.ui:ui" }
 ui_graphics = { module = "androidx.compose.ui:ui-graphics" }
@@ -103,4 +106,3 @@ androidApplication = { id = "com.android.application", version.ref = "gradle_plu
 kotlinAndroid = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "serialization_version" }
 dropshot = { id = "com.dropbox.dropshots", version.ref = "dropshot_version" }
-jetbrainsKotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "jetbrainsKotlinJvmVersion" }

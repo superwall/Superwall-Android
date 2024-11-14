@@ -53,7 +53,7 @@ import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
-import com.superwall.sdk.paywall.presentation.rule_logic.cel.CELEvaluator
+import com.superwall.sdk.paywall.presentation.rule_logic.cel.SuperscriptEvaluator
 import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.CombinedExpressionEvaluator
 import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.ExpressionEvaluating
 import com.superwall.sdk.paywall.presentation.rule_logic.javascript.DefaultJavascriptEvalutor
@@ -85,6 +85,7 @@ import com.superwall.sdk.utilities.dateFormat
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.ClassDiscriminatorMode
 import kotlinx.serialization.json.Json
 import java.lang.ref.WeakReference
 import java.util.Base64
@@ -155,11 +156,16 @@ class DependencyContainer(
                     context = context,
                     storage = storage,
                 ),
-            celEvaluator =
-                CELEvaluator(
-                    json = json(),
+            superscriptEvaluator =
+                SuperscriptEvaluator(
+                    json =
+                        Json(json()) {
+                            classDiscriminatorMode = ClassDiscriminatorMode.ALL_JSON_OBJECTS
+                            classDiscriminator = "type"
+                        },
                     storage = storage.coreDataManager,
                     factory = this,
+                    ioScope = ioScope,
                 ),
             track = {
                 Superwall.instance.track(it)

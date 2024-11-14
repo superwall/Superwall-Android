@@ -58,15 +58,14 @@ class CELTest {
                     }
                 }
             },
+            "device": {},
+            "computed": {},
             "expression": "numbers[0] + numbers[1] == 200"
         }
 """
 
         val executionContext = json.decodeFromString<ExecutionContext>(celState)
-        println("Deserialized: $executionContext")
-
         val serializedJson = json.encodeToString(executionContext)
-        println("Serialized JSON: $serializedJson")
         val resultJSON =
             evaluateWithContext(
                 celState,
@@ -112,10 +111,15 @@ class CELTest {
                             }
                         }
                     },
-                    "platform" : {
-                        "daysSinceEvent": "9"
+                    "computed" : {
+                        "daysSinceEvent": [{
+                            "type": "uint",
+                            "value": 9
+                        }]
                     },
-                    "expression": "platform.daysSinceEvent"
+                    "device": {
+                    },
+                    "expression": "computed.daysSinceEvent(user.some_value) == 3" 
     }
 """
         val executionContext = json.decodeFromString<ExecutionContext>(celState)
@@ -128,8 +132,8 @@ class CELTest {
                         name: String,
                         args: String,
                     ): String {
+                        Log.e("CELTest", "Computed property: $name, $args")
                         val res = json.encodeToString(PassableValue.UIntValue(3uL) as PassableValue)
-                        Log.e("CELTest", "computedProperty: $name -> $res")
                         return res
                     }
 
@@ -138,7 +142,6 @@ class CELTest {
                         args: String,
                     ): String {
                         val res = json.encodeToString(PassableValue.UIntValue(3uL) as PassableValue)
-                        Log.e("CELTest", "computedProperty: $name -> $res")
                         return res
                     }
                 },

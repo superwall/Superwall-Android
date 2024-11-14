@@ -1,6 +1,7 @@
 package com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator
 
 import androidx.test.platform.app.InstrumentationRegistry
+import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.MatchedItem
@@ -9,32 +10,37 @@ import com.superwall.sdk.models.triggers.TriggerRule
 import com.superwall.sdk.models.triggers.TriggerRuleOutcome
 import com.superwall.sdk.models.triggers.UnmatchedRule
 import com.superwall.sdk.models.triggers.VariantOption
-import com.superwall.sdk.paywall.presentation.rule_logic.cel.CELEvaluator
+import com.superwall.sdk.paywall.presentation.rule_logic.cel.SuperscriptEvaluator
 import com.superwall.sdk.storage.core_data.CoreDataManager
 import io.mockk.mockk
 import junit.framework.TestCase.assertEquals
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.ClassDiscriminatorMode
 import kotlinx.serialization.json.Json
 import org.junit.Test
 import java.util.Date
 
-class CELCombinedExpressionEvaluatorInstrumentedTest {
+class SuperscriptExpressionEvaluatorInstrumentedTest {
     private fun CoroutineScope.evaluatorFor(
         storage: CoreDataManager,
         factoryBuilder: RuleAttributeFactoryBuilder,
-    ) = CELEvaluator(
+    ) = SuperscriptEvaluator(
         storage = storage,
-        json = Json { },
+        json =
+            Json {
+                classDiscriminatorMode = ClassDiscriminatorMode.ALL_JSON_OBJECTS
+                classDiscriminator = "type"
+            },
         factory = factoryBuilder,
+        ioScope = IOScope(this.coroutineContext),
     )
 
     @Test
     fun test_happy_path_evaluator() =
         runTest {
             // get context
-            val context = InstrumentationRegistry.getInstrumentation().targetContext
             val ruleAttributes = RuleAttributeFactoryBuilder()
             val storage = mockk<CoreDataManager>()
 
@@ -82,7 +88,6 @@ class CELCombinedExpressionEvaluatorInstrumentedTest {
     @Test
     fun test_expression_evaluator_expression_js() =
         runTest {
-            val context = InstrumentationRegistry.getInstrumentation().targetContext
             val ruleAttributes = RuleAttributeFactoryBuilder()
             val storage = mockk<CoreDataManager>()
 
@@ -136,7 +141,7 @@ class CELCombinedExpressionEvaluatorInstrumentedTest {
                         ),
                 )
 
-            var trueResult =
+            val trueResult =
                 expressionEvaluator.evaluateExpression(
                     rule = trueRule,
                     eventData =
@@ -148,7 +153,7 @@ class CELCombinedExpressionEvaluatorInstrumentedTest {
                 )
             assert(trueResult == TriggerRuleOutcome.match(trueRule))
 
-            var falseResult =
+            val falseResult =
                 expressionEvaluator.evaluateExpression(
                     rule = falseRule,
                     eventData =
@@ -310,6 +315,6 @@ class CELCombinedExpressionEvaluatorInstrumentedTest {
                         ),
                 )
 
-            assert(result == TriggerRuleOutcome.match(rule = rule))
+            assertEquals(TriggerRuleOutcome.match(rule = rule), result)
         }
 }

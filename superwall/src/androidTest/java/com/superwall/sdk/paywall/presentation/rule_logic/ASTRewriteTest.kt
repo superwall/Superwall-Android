@@ -1,6 +1,5 @@
 package com.superwall.sdk.paywall.presentation.rule_logic
 
-import com.superwall.sdk.paywall.presentation.rule_logic.cel.ASTEvaluator
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.PassableValue
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.ast.CELAtom
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.ast.CELExpression
@@ -47,14 +46,7 @@ class ASTRewriteTest {
             )
 
         val transformedExpression =
-            expression.rewriteASTWith(
-                object : ASTEvaluator.PlatformOperations {
-                    override fun invoke(
-                        name: String,
-                        args: List<PassableValue>,
-                    ): PassableValue = PassableValue.StringValue("mapped:$name")
-                },
-            )
+            expression.rewriteASTWith({ name, args -> PassableValue.StringValue("mapped:$name") })
 
         val expectedExpression =
             And(

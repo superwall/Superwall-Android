@@ -129,12 +129,10 @@ object CELResultDeserializer : KSerializer<CELResult> {
         encoder: Encoder,
         value: CELResult,
     ) {
-        // Implement serialization if needed
-        TODO("Serialization not implemented")
+        TODO("Serialization not needed")
     }
 }
 
-// Update your CELResult class to use this custom deserializer
 @Serializable(with = CELResultDeserializer::class)
 sealed class CELResult {
     @Serializable

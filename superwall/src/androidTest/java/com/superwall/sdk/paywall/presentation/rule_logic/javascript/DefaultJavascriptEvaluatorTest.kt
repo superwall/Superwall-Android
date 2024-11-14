@@ -7,9 +7,8 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.MainScope
 import com.superwall.sdk.models.triggers.TriggerRule
-import com.superwall.sdk.storage.LocalStorage
+import com.superwall.sdk.storage.StorageMock
 import io.mockk.every
-import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.mockk.spyk
 import kotlinx.coroutines.Dispatchers
@@ -25,14 +24,14 @@ class DefaultJavascriptEvaluatorTest {
     @Test
     fun evaulate_succesfully_with_sandbox() =
         runTest {
-            val storage = mockk<LocalStorage>(relaxUnitFun = true)
+            val storage = StorageMock(ctx())
             mockkStatic(WebView::class) {
                 every { WebView.getCurrentWebViewPackage() } returns null
             }
             val evaulator =
                 DefaultJavascriptEvalutor(
                     IOScope(this.coroutineContext),
-                    MainScope(),
+                    MainScope(this.coroutineContext),
                     ctx(),
                     storage = storage,
                 )
@@ -43,7 +42,11 @@ class DefaultJavascriptEvaluatorTest {
     @Test
     fun fail_evaluating_with_sandbox_and_fallback_is_used() =
         runTest {
-            val storage = mockk<LocalStorage>()
+            val storage =
+                StorageMock(
+                    ctx(),
+                    coroutineScope = this
+                )
 
             val sandbox = JavaScriptSandbox.createConnectedInstanceAsync(ctx()).await()
 
