@@ -157,7 +157,6 @@ internal class WebviewFallbackClient(
         errorResponse: WebResourceResponse?,
     ) {
         super.onReceivedHttpError(view, request, errorResponse)
-        loadWithFallback()
     }
 
     internal fun loadWithFallback() {
