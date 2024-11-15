@@ -11,6 +11,7 @@ import android.view.inputmethod.BaseInputConnection
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import android.webkit.ConsoleMessage
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import com.superwall.sdk.Superwall
@@ -60,6 +61,13 @@ class SWWebView(
     }
     var onScrollChangeListener: OnScrollChangeListener? = null
     var scrollEnabled = true
+    var onRenderProcessCrashed: ((RenderProcessGoneDetail) -> Unit) = {
+        Logger.debug(
+            LogLevel.error,
+            LogScope.paywallView,
+            "WebView crashed: $it",
+        )
+    }
 
     private companion object ChromeClient : WebChromeClient() {
         override fun onConsoleMessage(consoleMessage: ConsoleMessage): Boolean {
@@ -111,6 +119,7 @@ class SWWebView(
                 stopLoading = {
                     stopLoading()
                 },
+                onCrashed = onRenderProcessCrashed,
             )
         this.webViewClient = client
         listenToWebviewClientEvents(this.webViewClient as DefaultWebviewClient)
@@ -147,6 +156,7 @@ class SWWebView(
             DefaultWebviewClient(
                 forUrl = url,
                 ioScope = CoroutineScope(Dispatchers.IO),
+                onWebViewCrash = onRenderProcessCrashed,
             )
         listenToWebviewClientEvents(this.webViewClient as DefaultWebviewClient)
         // Parse the url and add the query parameter
@@ -199,6 +209,24 @@ class SWWebView(
                                 )
                             }
 
+                            is WebviewClientEvent.OnResourceError -> {
+                                trackPaywallResourceError(
+                                    it.webviewError,
+                                    when (val e = it.webviewError) {
+                                        is WebviewError.NetworkError ->
+                                            e.url
+
+                                        is WebviewError.NoUrls ->
+                                            ""
+
+                                        is WebviewError.MaxAttemptsReached ->
+                                            e.urls.first()
+
+                                        is WebviewError.AllUrlsFailed -> e.urls.first()
+                                    },
+                                )
+                            }
+
                             is WebviewClientEvent.OnPageFinished -> {
                                 onFinishedLoading?.invoke(it.url)
                             }
@@ -245,6 +273,20 @@ class SWWebView(
                             urls,
                         ),
                     paywallInfo = paywallInfo,
+                )
+            Superwall.instance.track(trackedEvent)
+        }
+    }
+
+    private fun trackPaywallResourceError(
+        error: WebviewError,
+        url: String,
+    ) {
+        mainScope.launch {
+            val trackedEvent =
+                InternalSuperwallEvent.PaywallResourceLoadFail(
+                    url = url,
+                    error = error.toString(),
                 )
             Superwall.instance.track(trackedEvent)
         }

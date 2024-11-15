@@ -80,6 +80,13 @@ suspend inline fun <T, E : Throwable> Either<T, E>.fold(
     }
 }
 
+suspend inline fun <T> asEither(block: suspend () -> T): Either<T, Throwable> =
+    try {
+        Either.Success(block())
+    } catch (e: Throwable) {
+        Either.Failure(e)
+    }
+
 inline fun <T, E : Throwable> Either<T, E>.toResult() =
     when (this) {
         is Either.Success -> Result.success(this.value)

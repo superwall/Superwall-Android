@@ -7,6 +7,7 @@ import com.superwall.sdk.misc.Either
 import com.superwall.sdk.network.NetworkRequestData.HttpMethod
 import kotlinx.serialization.Serializable
 import java.net.HttpURLConnection
+import java.net.URI
 import java.net.URL
 
 class RequestExecutor(
@@ -43,22 +44,31 @@ class RequestExecutor(
                 }
 
             var responseMessage: String? = null
-            if (responseCode == HttpURLConnection.HTTP_OK) {
-                responseMessage = request.inputStream.bufferedReader().use { it.readText() }
-                request.disconnect()
-            } else {
-                Logger.debug(
-                    LogLevel.error,
-                    LogScope.network,
-                    "Request failed : ${request.responseCode}",
-                    mapOf(
-                        "request" to request.toString(),
-                        "api_key" to auth,
-                        "url" to (request.url?.toString() ?: "unknown"),
-                    ),
-                )
-                request.disconnect()
-                return Either.Failure(NetworkError.Unknown(Exception("Failed, response code  $responseCode")))
+
+            when (responseCode) {
+                in 200..299 -> {
+                    responseMessage = request.inputStream.bufferedReader().use { it.readText() }
+                    request.disconnect()
+                }
+                HttpURLConnection.HTTP_MOVED_PERM, HttpURLConnection.HTTP_MOVED_TEMP, HttpURLConnection.HTTP_SEE_OTHER -> {
+                    val location = request.getHeaderField("Location")
+                    request.disconnect()
+                    return execute(requestData.copyWithUrl(URI(location)))
+                }
+                else -> {
+                    Logger.debug(
+                        LogLevel.error,
+                        LogScope.network,
+                        "Request failed : ${request.responseCode}",
+                        mapOf(
+                            "request" to request.toString(),
+                            "api_key" to auth,
+                            "url" to (request.url?.toString() ?: "unknown"),
+                        ),
+                    )
+                    request.disconnect()
+                    return Either.Failure(NetworkError.Unknown(Exception("Failed, response code  $responseCode")))
+                }
             }
 
             val requestDuration = (System.currentTimeMillis() - startTime) / 1000.0

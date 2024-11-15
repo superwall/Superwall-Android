@@ -22,13 +22,13 @@ class CustomHttpUrlConnection(
         crossinline buildRequestData: suspend () -> NetworkRequestData<Response>,
         retryCount: Int,
         noinline isRetryingCallback: (suspend () -> Unit)? = null,
-    ): Either<Response, NetworkError> {
-        return retrying(
+    ): Either<Response, NetworkError> =
+        retrying(
             maxRetryCount = retryCount,
             isRetryingCallback = isRetryingCallback,
         ) {
             val requestData = buildRequestData()
-            return@retrying requestExecutor.execute(requestData).flatMap {
+            requestExecutor.execute(requestData).flatMap {
                 try {
                     Either.Success(
                         this.json.decodeFromString<Response>(
@@ -53,5 +53,4 @@ class CustomHttpUrlConnection(
                 }
             }
         }
-    }
 }

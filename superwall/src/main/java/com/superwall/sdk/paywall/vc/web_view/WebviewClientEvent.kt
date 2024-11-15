@@ -9,6 +9,10 @@ sealed class WebviewClientEvent {
         val webviewError: WebviewError,
     ) : WebviewClientEvent()
 
+    data class OnResourceError(
+        val webviewError: WebviewError,
+    ) : WebviewClientEvent()
+
     object LoadingFallback : WebviewClientEvent()
 }
 
