@@ -9,6 +9,8 @@ import android.webkit.WebView
 import androidx.test.platform.app.InstrumentationRegistry
 import com.superwall.sdk.analytics.SessionEventsManager
 import com.superwall.sdk.dependencies.VariablesFactory
+import com.superwall.sdk.misc.IOScope
+import com.superwall.sdk.misc.MainScope
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.PaywallWebviewUrl
 import com.superwall.sdk.paywall.vc.web_view.DefaultWebviewClient
@@ -64,7 +66,8 @@ class WebviewFallbackClientTest {
                 PaywallMessageHandler(
                     mockk<SessionEventsManager>(),
                     mockk<VariablesFactory>(),
-                    this,
+                    mainScope = MainScope(this.coroutineContext),
+                    ioScope = IOScope(this.coroutineContext),
                 )
             val paywall =
                 createPaywallConfig(
@@ -104,7 +107,8 @@ class WebviewFallbackClientTest {
                 PaywallMessageHandler(
                     mockk<SessionEventsManager>(),
                     mockk<VariablesFactory>(),
-                    this,
+                    mainScope = MainScope(this.coroutineContext),
+                    ioScope = IOScope(this.coroutineContext),
                 )
             val paywall =
                 createPaywallConfig(
@@ -148,7 +152,8 @@ class WebviewFallbackClientTest {
                 PaywallMessageHandler(
                     mockk<SessionEventsManager>(),
                     mockk<VariablesFactory>(),
-                    this,
+                    mainScope = MainScope(this.coroutineContext),
+                    ioScope = IOScope(this.coroutineContext),
                 )
             val paywall =
                 createPaywallConfig(
@@ -195,7 +200,8 @@ class WebviewFallbackClientTest {
                 PaywallMessageHandler(
                     mockk<SessionEventsManager>(),
                     mockk<VariablesFactory>(),
-                    this,
+                    mainScope = MainScope(this.coroutineContext),
+                    ioScope = IOScope(this.coroutineContext),
                 )
             val paywall =
                 createPaywallConfig(
@@ -249,7 +255,8 @@ class WebviewFallbackClientTest {
                 PaywallMessageHandler(
                     mockk<SessionEventsManager>(),
                     mockk<VariablesFactory>(),
-                    this,
+                    mainScope = MainScope(this.coroutineContext),
+                    ioScope = IOScope(this.coroutineContext),
                 )
             val paywall =
                 createPaywallConfig(
@@ -311,7 +318,8 @@ class WebviewFallbackClientTest {
                 PaywallMessageHandler(
                     mockk<SessionEventsManager>(),
                     mockk<VariablesFactory>(),
-                    this,
+                    mainScope = MainScope(this.coroutineContext),
+                    ioScope = IOScope(this.coroutineContext),
                 )
             val paywall =
                 createPaywallConfig(
