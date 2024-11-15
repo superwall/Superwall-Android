@@ -3,9 +3,11 @@ package com.superwall.sdk.utilities
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
+import com.superwall.sdk.billing.BillingError
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.Either
 import com.superwall.sdk.network.NetworkError
+import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatusReason
 import com.superwall.sdk.paywall.presentation.internal.PresentationPipelineError
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallSkippedReason
 import com.superwall.sdk.storage.ErrorLog
@@ -120,4 +122,6 @@ private fun Throwable.shouldLog() =
         this !is PresentationPipelineError &&
         this !is TransactionError &&
         this !is PaywallSkippedReason &&
-        (this is NetworkError.Decoding || this !is NetworkError)
+        (this is NetworkError.Decoding || this !is NetworkError) &&
+        this !is BillingError ||
+        this !is PaywallPresentationRequestStatusReason

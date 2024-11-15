@@ -10,26 +10,32 @@ import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.analytics.internal.trackable.UserInitiatedEvent
 import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.config.options.SuperwallOptions
+import com.superwall.sdk.misc.IOScope
+import com.superwall.sdk.misc.MainScope
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.events.EventsRequest
 import com.superwall.sdk.network.Network
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
+import kotlin.coroutines.CoroutineContext
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class EventsQueue(
     private val context: Context,
     private val network: Network,
+    private val ioScope: IOScope,
+    private val mainScope: MainScope,
     private val configManager: ConfigManager,
-) : BroadcastReceiver() {
+) : BroadcastReceiver(),
+    CoroutineScope {
     private val maxEventCount = 50
     private var elements = mutableListOf<EventData>()
     private val timer = MutableSharedFlow<Long>()
     private var job: Job? = null
-    private val queue = newSingleThreadContext("com.superwall.eventsqueue")
+    override val coroutineContext: CoroutineContext = Dispatchers.IO.limitedParallelism(1)
 
     init {
-        CoroutineScope(Dispatchers.Main).launch {
+        mainScope.launch {
             setupTimer()
             addObserver()
         }
@@ -39,7 +45,7 @@ class EventsQueue(
         val timeInterval =
             if (configManager.options?.networkEnvironment is SuperwallOptions.NetworkEnvironment.Release) 20L else 1L
         job =
-            CoroutineScope(Dispatchers.IO).launch {
+            ioScope.launch {
                 while (isActive) {
                     delay(timeInterval * 1000) // delay works in milliseconds
                     timer.emit(System.currentTimeMillis())
@@ -64,7 +70,7 @@ class EventsQueue(
     ) {
         if (!externalDataCollectionAllowed(event)) return
 
-        CoroutineScope(queue).launch {
+        launch {
             elements.add(data)
         }
     }
@@ -83,7 +89,7 @@ class EventsQueue(
     }
 
     suspend fun flushInternal(depth: Int = 10) {
-        CoroutineScope(queue).launch {
+        launch {
             val eventsToSend = mutableListOf<EventData>()
             var i = 0
             while (i < maxEventCount && elements.isNotEmpty()) {
@@ -93,7 +99,7 @@ class EventsQueue(
             if (eventsToSend.isNotEmpty()) {
                 // Send to network
                 val events = EventsRequest(eventsToSend)
-                CoroutineScope(Dispatchers.IO).launch {
+                ioScope.launch {
                     network.sendEvents(events)
                 }
             }
@@ -111,7 +117,7 @@ class EventsQueue(
             Intent.ACTION_SCREEN_OFF -> {
                 // equivalent to "applicationWillResignActive"
                 // your code here
-                CoroutineScope(Dispatchers.IO).launch {
+                ioScope.launch {
                     flushInternal()
                 }
             }

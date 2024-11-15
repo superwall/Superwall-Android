@@ -15,6 +15,7 @@ import com.superwall.sdk.models.product.Product
 import com.superwall.sdk.models.product.ProductItem
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.store.abstractions.product.StoreProduct
+import com.superwall.sdk.utilities.DateFormatterUtil
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.util.Date
@@ -112,27 +113,54 @@ data class PaywallInfo(
         featureGatingBehavior = featureGatingBehavior,
         presentedBy = eventData?.let { "event" } ?: "programmatically",
         presentationSourceType = presentationSourceType,
-        responseLoadStartTime = responseLoadStartTime?.toString() ?: "",
-        responseLoadCompleteTime = responseLoadStartTime?.toString() ?: "",
-        responseLoadFailTime = responseLoadFailTime?.toString() ?: "",
+        responseLoadStartTime =
+            responseLoadStartTime?.let {
+                DateFormatterUtil.format(it)
+            } ?: "",
+        responseLoadCompleteTime =
+            responseLoadStartTime?.let {
+                DateFormatterUtil.format(it)
+            } ?: "",
+        responseLoadFailTime =
+            responseLoadFailTime?.let {
+                DateFormatterUtil.format(it)
+            } ?: "",
         responseLoadDuration =
             responseLoadStartTime?.let { startTime ->
                 responseLoadCompleteTime?.let { endTime ->
                     (endTime.time / 1000 - startTime.time / 1000).toDouble()
                 }
             },
-        webViewLoadStartTime = webViewLoadStartTime?.toString() ?: "",
-        webViewLoadCompleteTime = webViewLoadCompleteTime?.toString() ?: "",
-        webViewLoadFailTime = webViewLoadFailTime?.toString() ?: "",
+        webViewLoadStartTime =
+            webViewLoadStartTime?.let {
+                DateFormatterUtil.format(it)
+            } ?: "",
+        webViewLoadCompleteTime =
+            webViewLoadCompleteTime?.let {
+                DateFormatterUtil.format(it)
+            } ?: "",
+        webViewLoadFailTime =
+            webViewLoadFailTime?.let {
+                DateFormatterUtil.format(it)
+            } ?: "",
         webViewLoadDuration =
             webViewLoadStartTime?.let { startTime ->
                 webViewLoadCompleteTime?.let { endTime ->
                     (endTime.time / 1000 - startTime.time / 1000).toDouble()
                 }
             },
-        productsLoadStartTime = productsLoadStartTime?.toString() ?: "",
-        productsLoadCompleteTime = productsLoadCompleteTime?.toString() ?: "",
-        productsLoadFailTime = productsLoadFailTime?.toString() ?: "",
+        productsLoadStartTime =
+            productsLoadStartTime?.let {
+                DateFormatterUtil.format(it)
+            } ?: "",
+        productsLoadCompleteTime =
+            productsLoadCompleteTime?.let {
+                DateFormatterUtil.format(it)
+            } ?: "",
+        productsLoadFailTime =
+            productsLoadFailTime?.let {
+                DateFormatterUtil.format(it)
+            } ?: "",
         productsLoadDuration =
             productsLoadStartTime?.let { startTime ->
                 productsLoadCompleteTime?.let { endTime ->

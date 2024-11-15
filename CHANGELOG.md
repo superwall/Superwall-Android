@@ -2,6 +2,31 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+
+## 1.4.0
+
+## Enhancements
+
+- Improves paywall loading and preloading performance
+- Reduces impact of preloading on render performance
+- Updates methods to return `kotlin.Result` instead of relying on throwing exceptions
+- This introduces some minor breaking changes:
+  - `configure` completion block now provides a `Result<Unit>` that can be used to check for success or failure
+  - `handleDeepLink` now returns a `Result<Boolean>`
+  - `getAssignments` now returns a `Result<List<ConfirmedAssignments>>`
+  - `confirmAllAssignments` now returns a `Result<List<ConfirmedAssignments>>`
+  - `getPresentationResult` now returns a `Result<PresentationResult>`
+  - `getPaywallComponents` now returns a `Result<PaywallComponents>`
+- Removes Gson dependency
+- Adds `isScrollEnabled` flag to enable remote controll of Paywall scrollability
+
+## Fixes
+- Fixes issue where paywalls without fallback would fail to load and missing resource would cause a failure event
+- Fixes issue with `trialPeriodDays` rounding to the higher value instead of lower, i.e. where `P4W2D` would return 28 days instead of 30, it now returns 30.
+- Fixes issue with system navigation bar not respecting paywall color
+- Fixes issues with cursor allocation in Room transaction
+
+
 ## 1.4.0-beta.3
 
 - Fixes issue where paywalls without fallback would fail to load and missing resource would cause a failure event

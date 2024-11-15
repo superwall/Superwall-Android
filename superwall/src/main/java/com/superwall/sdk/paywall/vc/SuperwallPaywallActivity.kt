@@ -81,6 +81,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             // We force this in main scope in case the user started it from a non-main thread
             CoroutineScope(Dispatchers.Main).launch {
                 if (view.webView.parent == null) {
+                    view.webView.enableOffscreenRender()
                     view.addView(view.webView)
                 }
                 val viewStorageViewModel = Superwall.instance.dependencyContainer.makeViewStore()
