@@ -10,6 +10,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebSettings
+import android.webkit.WebView.RENDERER_PRIORITY_IMPORTANT
 import android.widget.FrameLayout
 import androidx.browser.customtabs.CustomTabsIntent
 import com.superwall.sdk.Superwall
@@ -74,7 +75,7 @@ class PaywallView(
     val deviceHelper: DeviceHelper,
     val factory: Factory,
     val storage: LocalStorage,
-    override val webView: SWWebView,
+    webView: SWWebView,
     private val cache: PaywallViewCache?,
     private val useMultipleUrls: Boolean,
 ) : FrameLayout(context),
@@ -82,11 +83,26 @@ class PaywallView(
     SWWebViewDelegate,
     ActivityEncapsulatable,
     GameControllerDelegate {
+    private companion object {
+        private val mainScope: MainScope = MainScope()
+        private val ioScope: IOScope = IOScope()
+        private val gameControllerJson by lazy {
+            Json {
+                encodeDefaults = true
+                namingStrategy = JsonNamingStrategy.SnakeCase
+            }
+        }
+    }
+
     interface Factory : TriggerFactory
     //region Public properties
 
     // MUST be set prior to presentation
     override var request: PresentationRequest? = null
+
+    // We use a local webview so we can handle cases where webview process crashes
+    private var _webView: SWWebView = webView
+    override val webView: SWWebView = _webView
 
     //endregion
 
@@ -185,14 +201,6 @@ class PaywallView(
     //endregion
 
     //region Initialization
-    private val mainScope: MainScope = MainScope()
-    private val ioScope: IOScope = IOScope()
-    private val gameControllerJson by lazy {
-        Json {
-            encodeDefaults = true
-            namingStrategy = JsonNamingStrategy.SnakeCase
-        }
-    }
 
     init {
         id = View.generateViewId()
@@ -299,6 +307,7 @@ class PaywallView(
 
         Superwall.instance.dependencyContainer.delegateAdapter
             .willPresentPaywall(info)
+        webView.setRendererPriorityPolicy(RENDERER_PRIORITY_IMPORTANT, true)
         webView.scrollTo(0, 0)
         if (loadingState is PaywallLoadingState.Ready) {
             webView.messageHandler.handle(PaywallMessage.TemplateParamsAndUserAttributes)
@@ -690,6 +699,17 @@ class PaywallView(
                 Superwall.instance.track(trackedEvent)
             }
 
+            webView.onRenderProcessCrashed = {
+                Logger.debug(
+                    logLevel = LogLevel.error,
+                    scope = LogScope.paywallView,
+                    message =
+                        "Webview Process has crashed for paywall with identifier: ${paywall.identifier}.\n" +
+                            "Crashed by the system: ${it.didCrash()} - priority ${it.rendererPriorityAtExit()}",
+                )
+                recreateWebview()
+            }
+
             webView.scrollEnabled = paywall.isScrollEnabled ?: true
 
             mainScope.launch {
@@ -707,6 +727,15 @@ class PaywallView(
 
             loadingState = PaywallLoadingState.LoadingURL()
         }
+    }
+
+    private fun recreateWebview() {
+        removeView(webView)
+        _webView = SWWebView(context, webView.messageHandler)
+        addView(webView)
+        webView.layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+        webView.messageHandler.handle(PaywallMessage.PaywallOpen)
+        loadWebView()
     }
 
 //endregion

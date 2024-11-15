@@ -1,6 +1,7 @@
 package com.superwall.sdk.paywall.vc.web_view
 
 import android.graphics.Bitmap
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
@@ -24,7 +25,8 @@ internal class WebviewFallbackClient(
     private val mainScope: CoroutineScope,
     private val loadUrl: (PaywallWebviewUrl) -> Unit,
     private val stopLoading: () -> Unit,
-) : DefaultWebviewClient("", ioScope) {
+    private val onCrashed: (RenderProcessGoneDetail) -> Unit,
+) : DefaultWebviewClient("", ioScope, onCrashed) {
     private class MaxAttemptsReachedException : Exception("Max attempts reached")
 
     private var failureCount = 0
@@ -155,7 +157,6 @@ internal class WebviewFallbackClient(
         errorResponse: WebResourceResponse?,
     ) {
         super.onReceivedHttpError(view, request, errorResponse)
-        loadWithFallback()
     }
 
     internal fun loadWithFallback() {

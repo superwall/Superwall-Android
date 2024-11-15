@@ -3,9 +3,9 @@ package com.superwall.sdk.network.device
 import com.superwall.sdk.analytics.superwall.SuperwallEvents
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.encodeToJsonElement
 
 @Serializable
 internal sealed class Capability(
@@ -41,6 +41,10 @@ internal sealed class Capability(
     object ConfigCaching : Capability("config_caching")
 }
 
-internal fun List<Capability>.toJson(json: Json): JsonElement = json.encodeToJsonElement(this)
+internal fun List<Capability>.toJson(json: Json): JsonElement =
+    json.encodeToJsonElement(
+        ListSerializer(Capability.serializer()),
+        this,
+    )
 
 internal fun List<Capability>.namesCommaSeparated(): String = this.joinToString(",") { it.name }

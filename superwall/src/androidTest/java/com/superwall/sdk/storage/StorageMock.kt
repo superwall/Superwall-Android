@@ -1,9 +1,11 @@
 package com.superwall.sdk.storage
 
 import android.content.Context
+import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.network.device.DeviceInfo
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNamingStrategy
 
@@ -23,10 +25,12 @@ class StorageMock(
 //    private var internalCachedTransactions: List<StoreTransaction> = listOf(),
 //    coreDataManager: CoreDataManagerFakeDataMock = CoreDataManagerFakeDataMock(),
     private var confirmedAssignments: Map<ExperimentID, Experiment.Variant> = mapOf(),
+    private var coroutineScope: CoroutineScope,
 //    cache: Cache = Cache(context)
 ) : LocalStorage(
         context = context,
         factory = StorageFactoryMock(),
+        ioScope = IOScope(),
         json =
             Json {
                 namingStrategy = JsonNamingStrategy.SnakeCase

@@ -25,7 +25,7 @@ class DefaultJavascriptEvaluatorTest {
     @Test
     fun evaulate_succesfully_with_sandbox() =
         runTest {
-            val storage = mockk<LocalStorage>()
+            val storage = mockk<LocalStorage>(relaxUnitFun = true)
             mockkStatic(WebView::class) {
                 every { WebView.getCurrentWebViewPackage() } returns null
             }

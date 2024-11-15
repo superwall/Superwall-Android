@@ -13,6 +13,7 @@ import com.superwall.sdk.dependencies.VariablesFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
+import com.superwall.sdk.misc.MainScope
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
@@ -60,11 +61,26 @@ interface PaywallMessageHandlerDelegate {
 class PaywallMessageHandler(
     private val sessionEventsManager: SessionEventsManager,
     private val factory: VariablesFactory,
+    private val mainScope: MainScope,
     private val ioScope: CoroutineScope,
     private val encoder: Base64.Encoder = Base64.getEncoder(),
     private val json: Json = Json { encodeDefaults = true },
 ) {
-    public var delegate: PaywallMessageHandlerDelegate? = null
+    private companion object {
+        val selectionString =
+            """var css = '*{-webkit-touch-callout:none;-webkit-user-select:none} .w-webflow-badge { display: none !important; }';
+                    var head = document.head || document.getElementsByTagName('head')[0];
+                    var style = document.createElement('style'); style.type = 'text/css';
+                    style.appendChild(document.createTextNode(css)); head.appendChild(style); """
+        val preventZoom =
+            """var meta = document.createElement('meta');
+                        meta.name = 'viewport';
+                        meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+                        var head = document.getElementsByTagName('head')[0];
+                        head.appendChild(meta);"""
+    }
+
+    var delegate: PaywallMessageHandlerDelegate? = null
     private val queue: Queue<PaywallMessage> = LinkedList()
 
     @JavascriptInterface
@@ -288,7 +304,6 @@ class PaywallMessageHandler(
             info = mapOf("message" to scriptSrc),
         )
 
-        val mainScope = CoroutineScope(Dispatchers.Main)
         mainScope.launch {
             delegate?.webView?.evaluateJavascript(scriptSrc) { error ->
                 if (error != null) {
@@ -303,30 +318,15 @@ class PaywallMessageHandler(
             }
 
             // block selection
-            val selectionString =
-                "var css = '*{-webkit-touch-callout:none;-webkit-user-select:none} .w-webflow-badge { display: none !important; }'; " +
-                    "var head = document.head || document.getElementsByTagName('head')[0]; " +
-                    "var style = document.createElement('style'); style.type = 'text/css'; " +
-                    "style.appendChild(document.createTextNode(css)); head.appendChild(style); "
-
             delegate?.webView?.evaluateJavascript(selectionString, null)
-
-            val preventZoom =
-                "var meta = document.createElement('meta');" +
-                    "meta.name = 'viewport';" +
-                    "meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';" +
-                    "var head = document.getElementsByTagName('head')[0];" +
-                    "head.appendChild(meta);"
-
-            delegate?.webView?.evaluateJavascript(preventZoom, {
-                mainScope.launch {
-                    delegate?.loadingState = PaywallLoadingState.Ready()
-                }
-            })
+            delegate?.webView?.evaluateJavascript(preventZoom, null)
             ioScope.launch {
-                while (queue.isNotEmpty()) {
-                    val item = queue.remove()
-                    handle(item)
+                mainScope.launch {
+                    while (queue.isNotEmpty()) {
+                        val item = queue.remove()
+                        handle(item)
+                    }
+                    delegate?.loadingState = PaywallLoadingState.Ready()
                 }
             }
         }

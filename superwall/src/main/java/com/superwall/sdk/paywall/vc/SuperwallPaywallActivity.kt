@@ -81,6 +81,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             // We force this in main scope in case the user started it from a non-main thread
             CoroutineScope(Dispatchers.Main).launch {
                 if (view.webView.parent == null) {
+                    view.webView.enableOffscreenRender()
                     view.addView(view.webView)
                 }
                 val viewStorageViewModel = Superwall.instance.dependencyContainer.makeViewStore()
@@ -207,7 +208,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         }
         window.navigationBarColor = view.backgroundColor
         // TODO: handle animation and style from `presentationStyleOverride`
-        when (intent.getSerializableExtra(PRESENTATION_STYLE_KEY) as? PaywallPresentationStyle) {
+        when (presentationStyle) {
             PaywallPresentationStyle.PUSH -> {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                     overrideActivityTransition(

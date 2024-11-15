@@ -190,7 +190,7 @@ class DependencyContainer(
         storeKitManager = StoreKitManager(context, purchaseController, googleBillingWrapper)
 
         delegateAdapter = SuperwallDelegateAdapter()
-        storage = LocalStorage(context = context, factory = this, json = json())
+        storage = LocalStorage(context = context, ioScope = ioScope(), factory = this, json = json())
         val httpConnection =
             CustomHttpUrlConnection(
                 json = json(),
@@ -286,7 +286,14 @@ class DependencyContainer(
                 },
             )
 
-        eventsQueue = EventsQueue(context, configManager = configManager, network = network)
+        eventsQueue =
+            EventsQueue(
+                context,
+                configManager = configManager,
+                network = network,
+                ioScope = ioScope(),
+                mainScope = mainScope(),
+            )
 
         identityManager =
             IdentityManager(
@@ -406,6 +413,7 @@ class DependencyContainer(
                 ioScope = ioScope,
                 encoder = encoder,
                 json = paywallJson,
+                mainScope = mainScope(),
             )
 
         val paywallView =

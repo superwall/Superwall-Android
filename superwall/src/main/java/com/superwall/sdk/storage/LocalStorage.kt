@@ -8,6 +8,7 @@ import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.dependencies.DeviceHelperFactory
 import com.superwall.sdk.dependencies.HasExternalPurchaseControllerFactory
+import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.sdkVersion
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.ExperimentID
@@ -15,20 +16,22 @@ import com.superwall.sdk.storage.core_data.CoreDataManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.newSingleThreadContext
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import java.util.Date
+import kotlin.coroutines.CoroutineContext
 
 open class LocalStorage(
     context: Context,
     private val json: Json,
     private val factory: LocalStorage.Factory,
+    private val ioScope: IOScope,
     // / The disk cache.
     private val cache: Cache = Cache(context = context, json = json),
     // / The interface that manages core data.
     val coreDataManager: CoreDataManager = CoreDataManager(context = context),
-) : Storage {
+) : Storage,
+    CoroutineScope {
     interface Factory :
         DeviceHelperFactory,
         HasExternalPurchaseControllerFactory
@@ -42,11 +45,11 @@ open class LocalStorage(
     // / Indicates whether first seen has been tracked.
     var didTrackFirstSeen: Boolean
         get() =
-            runBlocking(queue) {
+            runBlocking(coroutineContext) {
                 _didTrackFirstSeen
             }
         set(value) {
-            CoroutineScope(queue).launch {
+            launch {
                 _didTrackFirstSeen = value
             }
         }
@@ -55,11 +58,11 @@ open class LocalStorage(
     // / Indicates whether first seen has been tracked.
     var didTrackFirstSession: Boolean
         get() =
-            runBlocking(queue) {
+            runBlocking(coroutineContext) {
                 _didTrackFirstSession
             }
         set(value) {
-            CoroutineScope(queue).launch {
+            launch {
                 _didTrackFirstSession = value
             }
         }
@@ -74,17 +77,17 @@ open class LocalStorage(
     // / The confirmed assignments for the user loaded from the cache.
     private var p_confirmedAssignments: Map<ExperimentID, Experiment.Variant>?
         get() =
-            runBlocking(queue) {
+            runBlocking(coroutineContext) {
                 _confirmedAssignments
             }
         set(value) {
-            CoroutineScope(queue).launch {
+            launch {
                 _confirmedAssignments = value
             }
         }
     private var _confirmedAssignments: Map<ExperimentID, Experiment.Variant>? = null
 
-    private val queue = newSingleThreadContext("com.superwall.storage")
+    override val coroutineContext: CoroutineContext = Dispatchers.IO.limitedParallelism(1)
 
     init {
         _didTrackFirstSeen = cache.read(DidTrackFirstSeen) == true
@@ -122,7 +125,7 @@ open class LocalStorage(
         coreDataManager.deleteAllEntities()
         cache.clean()
 
-        CoroutineScope(queue).launch {
+        launch {
             _confirmedAssignments = null
             _didTrackFirstSeen = false
         }
@@ -133,7 +136,7 @@ open class LocalStorage(
 
     // / Tracks and stores first seen for the user.
     fun recordFirstSeenTracked() {
-        CoroutineScope(queue).launch {
+        launch {
             if (_didTrackFirstSeen) return@launch
 
             CoroutineScope(Dispatchers.IO).launch {
@@ -146,7 +149,7 @@ open class LocalStorage(
     }
 
     fun recordFirstSessionTracked() {
-        CoroutineScope(queue).launch {
+        launch {
             if (_didTrackFirstSession) return@launch
 
             write(DidTrackFirstSession, true)
@@ -164,7 +167,7 @@ open class LocalStorage(
         val hasExternalPurchaseController = factory.makeHasExternalPurchaseController()
         val deviceInfo = factory.makeDeviceInfo()
 
-        CoroutineScope(Dispatchers.IO).launch {
+        ioScope.launch {
             val event =
                 InternalSuperwallEvent.AppInstall(
                     appInstalledAtString = deviceInfo.appInstalledAtString,

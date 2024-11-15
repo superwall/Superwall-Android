@@ -11,22 +11,23 @@ import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
 import com.superwall.sdk.storage.core_data.entities.ManagedEventData
 import com.superwall.sdk.storage.core_data.entities.ManagedTriggerRuleOccurrence
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.newSingleThreadContext
 import java.util.Date
+import kotlin.coroutines.CoroutineContext
 
 // TODO: https://linear.app/superwall/issue/SW-2346/[android]-coredatamanager-implementation
 class CoreDataManager(
     context: Context,
-) {
-    private val queue = newSingleThreadContext("com.superwall.coredatamanager")
+) : CoroutineScope {
+    override val coroutineContext: CoroutineContext = Dispatchers.IO.limitedParallelism(1)
     private val superwallDatabase by lazy { SuperwallDatabase.getDatabase(context = context) }
 
     fun saveEventData(
         eventData: EventData,
         completion: ((ManagedEventData) -> Unit)? = null,
     ) {
-        CoroutineScope(queue).launch {
+        launch {
             try {
                 // Create a new EventData object
                 val managedEventData =
@@ -57,7 +58,7 @@ class CoreDataManager(
         triggerRuleOccurrence: TriggerRuleOccurrence,
         completion: ((ManagedTriggerRuleOccurrence) -> Unit)? = null,
     ) {
-        CoroutineScope(queue).launch {
+        launch {
             try {
                 val managedRuleOccurrence =
                     ManagedTriggerRuleOccurrence(
@@ -80,7 +81,7 @@ class CoreDataManager(
     }
 
     fun deleteAllEntities() {
-        CoroutineScope(queue).launch {
+        launch {
             try {
                 superwallDatabase.managedTriggerRuleOccurrenceDao().deleteAll()
                 superwallDatabase.managedEventDataDao().deleteAll()
