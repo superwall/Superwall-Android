@@ -683,6 +683,16 @@ sealed class InternalSuperwallEvent(
         }
     }
 
+    class PaywallResourceLoadFail(
+        val url: String,
+        val error: String,
+    ) : InternalSuperwallEvent(SuperwallEvent.PaywallResourceLoadFail(url, error)) {
+        override val audienceFilterParams: Map<String, Any>
+            get() = emptyMap()
+
+        override suspend fun getSuperwallParameters(): Map<String, Any> = mapOf("url" to url, "error" to error)
+    }
+
     class PaywallProductsLoad(
         val state: State,
         val paywallInfo: PaywallInfo,

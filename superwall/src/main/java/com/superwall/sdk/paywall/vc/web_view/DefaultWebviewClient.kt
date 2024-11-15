@@ -1,6 +1,7 @@
 package com.superwall.sdk.paywall.vc.web_view
 
 import android.graphics.Bitmap
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
@@ -13,6 +14,7 @@ import kotlinx.coroutines.launch
 internal open class DefaultWebviewClient(
     private val forUrl: String = "",
     private val ioScope: CoroutineScope,
+    private val onWebViewCrash: (RenderProcessGoneDetail) -> Unit = { },
 ) : WebViewClient() {
     val webviewClientEvents: MutableSharedFlow<WebviewClientEvent> =
         MutableSharedFlow(extraBufferCapacity = 4)
@@ -50,7 +52,7 @@ internal open class DefaultWebviewClient(
         }
         ioScope.launch {
             webviewClientEvents.emit(
-                WebviewClientEvent.OnError(
+                WebviewClientEvent.OnResourceError(
                     WebviewError.NetworkError(
                         errorResponse?.statusCode ?: -1,
                         errorResponse?.let {
@@ -62,6 +64,14 @@ internal open class DefaultWebviewClient(
                 ),
             )
         }
+    }
+
+    override fun onRenderProcessGone(
+        view: WebView,
+        detail: RenderProcessGoneDetail,
+    ): Boolean {
+        onWebViewCrash(detail)
+        return true
     }
 
     override fun onReceivedError(

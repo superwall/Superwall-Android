@@ -75,7 +75,7 @@ class PaywallView(
     val deviceHelper: DeviceHelper,
     val factory: Factory,
     val storage: LocalStorage,
-    override val webView: SWWebView,
+    webView: SWWebView,
     private val cache: PaywallViewCache?,
     private val useMultipleUrls: Boolean,
 ) : FrameLayout(context),
@@ -99,6 +99,10 @@ class PaywallView(
 
     // MUST be set prior to presentation
     override var request: PresentationRequest? = null
+
+    // We use a local webview so we can handle cases where webview process crashes
+    private var _webView: SWWebView = webView
+    override val webView: SWWebView = _webView
 
     //endregion
 
@@ -695,6 +699,17 @@ class PaywallView(
                 Superwall.instance.track(trackedEvent)
             }
 
+            webView.onRenderProcessCrashed = {
+                Logger.debug(
+                    logLevel = LogLevel.error,
+                    scope = LogScope.paywallView,
+                    message =
+                        "Webview Process has crashed for paywall with identifier: ${paywall.identifier}.\n" +
+                            "Crashed by the system: ${it.didCrash()} - priority ${it.rendererPriorityAtExit()}",
+                )
+                recreateWebview()
+            }
+
             webView.scrollEnabled = paywall.isScrollEnabled ?: true
 
             mainScope.launch {
@@ -712,6 +727,15 @@ class PaywallView(
 
             loadingState = PaywallLoadingState.LoadingURL()
         }
+    }
+
+    private fun recreateWebview() {
+        removeView(webView)
+        _webView = SWWebView(context, webView.messageHandler)
+        addView(webView)
+        webView.layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+        webView.messageHandler.handle(PaywallMessage.PaywallOpen)
+        loadWebView()
     }
 
 //endregion

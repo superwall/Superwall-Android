@@ -332,12 +332,11 @@ class Superwall(
                     true
                 }
             }, {
-                val sdkVersion = instance.dependencyContainer.deviceHelper.sdkVersion
                 completion?.invoke(Result.failure(it))
                 Logger.debug(
                     logLevel = LogLevel.error,
                     scope = LogScope.superwallCore,
-                    message = "Superwall SDK $sdkVersion failed to initialize - ${it.message}",
+                    message = "Superwall SDK failed to initialize - ${it.message}",
                     error = it,
                 )
             })
