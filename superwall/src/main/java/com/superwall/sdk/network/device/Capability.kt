@@ -1,16 +1,13 @@
 package com.superwall.sdk.network.device
 
 import com.superwall.sdk.analytics.superwall.SuperwallEvents
-import kotlinx.serialization.Polymorphic
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.encodeToJsonElement
 
 @Serializable
-@Polymorphic
 internal sealed class Capability(
     @SerialName("name")
     val name: String,
