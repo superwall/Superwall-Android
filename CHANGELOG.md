@@ -18,7 +18,8 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
   - `getPresentationResult` now returns a `Result<PresentationResult>`
   - `getPaywallComponents` now returns a `Result<PaywallComponents>`
 - Removes Gson dependency
-- Adds `isScrollEnabled` flag to enable remote controll of Paywall scrollability
+- Adds `isScrollEnabled` flag to enable remote control of Paywall scrollability
+- Adds a new shimmer animation
 
 ## Fixes
 - Fixes issue where paywalls without fallback would fail to load and missing resource would cause a failure event
