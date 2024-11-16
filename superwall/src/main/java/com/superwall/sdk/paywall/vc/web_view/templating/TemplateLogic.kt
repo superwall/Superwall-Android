@@ -56,7 +56,7 @@ object TemplateLogic {
             "!!! Template Logic: $templatesString",
         )
 
-        return android.util.Base64.encodeToString(templatesData, android.util.Base64.DEFAULT)
+        return android.util.Base64.encodeToString(templatesData, android.util.Base64.NO_WRAP)
     }
 
 //    private fun swProductTemplate(
