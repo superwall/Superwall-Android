@@ -202,7 +202,7 @@ class PaywallMessageHandler(
 
         // Encode the JSON string to Base64
         val base64Event =
-            Base64.encodeToString(jsonString.toByteArray(StandardCharsets.UTF_8), Base64.DEFAULT)
+            Base64.encodeToString(jsonString.toByteArray(StandardCharsets.UTF_8), Base64.NO_WRAP)
 
         passMessageToWebView(base64String = base64Event)
     }
