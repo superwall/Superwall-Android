@@ -2,6 +2,10 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 1.5.0-beta.1
+
+## Enhancements
+- Adds `Superwall.instance.events` - A SharedFlow instance emitting all Superwall events as `SuperwallEventInfo`. This can be used as an alternative to a delegate for listening to events.
 
 ## 1.4.1
 
