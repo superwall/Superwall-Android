@@ -466,7 +466,7 @@ class ConfigManagerTests {
     private val dependencyContainer =
         mockk<DependencyContainer> {
             coEvery { makeSessionDeviceAttributes() } returns hashMapOf()
-            coEvery { provideJavascriptEvaluator(any()) } returns mockk()
+            coEvery { provideRuleEvaluator(any()) } returns mockk()
         }
 
     private val manager =

@@ -6,15 +6,15 @@ import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.models.triggers.TriggerRule
 import com.superwall.sdk.models.triggers.TriggerRuleOutcome
 import com.superwall.sdk.models.triggers.UnmatchedRule
-import com.superwall.sdk.storage.LocalStorage
+import com.superwall.sdk.storage.core_data.CoreDataManager
 
 internal suspend fun TriggerRule.tryToMatchOccurrence(
-    storage: LocalStorage,
+    storage: CoreDataManager,
     expressionMatched: Boolean,
 ): TriggerRuleOutcome {
     if (expressionMatched) {
         occurrence?.let { occurrence ->
-            val count = storage.coreDataManager.countTriggerRuleOccurrences(occurrence) + 1
+            val count = storage.countTriggerRuleOccurrences(occurrence) + 1
             val shouldFire = count <= occurrence.maxCount
 
             if (shouldFire) {

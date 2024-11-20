@@ -27,7 +27,7 @@ suspend fun Superwall.evaluateRules(request: PresentationRequest): Result<RuleEv
                 assignments = dependencyContainer.assignments,
                 storage = dependencyContainer.storage,
                 factory = dependencyContainer,
-                javascriptEvaluator = dependencyContainer.provideJavascriptEvaluator(context),
+                ruleEvaluator = dependencyContainer.provideRuleEvaluator(context),
             )
         ruleLogic
             .evaluateRules(

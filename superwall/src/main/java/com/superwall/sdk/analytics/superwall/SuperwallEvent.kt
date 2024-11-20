@@ -13,6 +13,10 @@ import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
 import com.superwall.sdk.store.transactions.RestoreType
 import com.superwall.sdk.store.transactions.TransactionError
 
+internal interface IsInternalEvent {
+    val rawName: String
+}
+
 // / Analytical events that are automatically tracked by Superwall.
 // /
 // / These events are tracked internally by the SDK and sent to the delegate method ``SuperwallDelegate/handleSuperwallEvent(withInfo:)-pm3v``.
@@ -412,9 +416,14 @@ sealed class SuperwallEvent {
         override val rawName: String = SuperwallEvents.CustomPlacement.rawName
     }
 
-    object ErrorThrown : SuperwallEvent() {
+    internal object ErrorThrown : SuperwallEvent(), IsInternalEvent {
         override val rawName: String
             get() = "error_thrown"
+    }
+
+    internal object ExpressionResult : SuperwallEvent(), IsInternalEvent {
+        override val rawName: String
+            get() = "cel_expression_result"
     }
 
     open val rawName: String
