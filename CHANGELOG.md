@@ -7,6 +7,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 ## Enhancements
 - Adds `Superwall.instance.events` - A SharedFlow instance emitting all Superwall events as `SuperwallEventInfo`. This can be used as an alternative to a delegate for listening to events.
 - Adds a new shimmer animation
+- Adds support for SuperScript expression evaluator
 
 ## 1.4.1
 
