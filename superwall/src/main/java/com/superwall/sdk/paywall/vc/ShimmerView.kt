@@ -152,7 +152,7 @@ class ShimmerView(
         stopShimmer()
         animator =
             ValueAnimator.ofFloat(1f, 0.5f, 1f).apply {
-                duration = 2000
+                duration = 3000
                 repeatCount = ValueAnimator.INFINITE
                 interpolator = PathInterpolator(0.4f, 0f, 0.6f, 1f)
                 addUpdateListener { animation ->

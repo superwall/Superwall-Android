@@ -195,7 +195,6 @@ dependencies {
     // Billing
     implementation(libs.billing)
     implementation(libs.supercel)
-    implementation(libs.jna)
 
     // Browser
     implementation(libs.browser)
