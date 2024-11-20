@@ -3,6 +3,11 @@
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
 
+## 1.4.1
+
+### Fixes
+- Fixes issue where `PaywallPresentationHandler.onError` would be skipped in case of `BillingError`s
+
 ## 1.4.0
 
 ## Enhancements
