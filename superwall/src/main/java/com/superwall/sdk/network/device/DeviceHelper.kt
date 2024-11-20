@@ -143,6 +143,9 @@ class DeviceHelper(
                 ""
             }
 
+    private val appVersionPadded: String
+        get() = appVersion.asPadded()
+
     val osVersion: String
         get() = Build.VERSION.RELEASE ?: ""
 
@@ -324,52 +327,7 @@ class DeviceHelper(
         get() = utcDateTimeFormat.format(System.currentTimeMillis())
 
     private val sdkVersionPadded: String
-        get() {
-            // Separate out the "beta" part from the main version.
-            val components = sdkVersion.split("-")
-            if (components.isEmpty()) {
-                return ""
-            }
-            val versionNumber = components[0]
-
-            var appendix = ""
-
-            // If there is a "beta" part...
-            if (components.size > 1) {
-                // Separate out the number from the name, e.g. beta.1 -> [beta, 1]
-                val appendixComponents = components[1].split(".")
-                appendix = "-" + appendixComponents[0]
-
-                var appendixVersion = ""
-
-                // Pad beta number and add to appendix
-                if (appendixComponents.size > 1) {
-                    appendixVersion =
-                        String.format("%03d", appendixComponents[1].toIntOrNull() ?: 0)
-                    appendix += ".$appendixVersion"
-                }
-            }
-
-            // Separate out the version numbers.
-            val versionComponents = versionNumber.split(".")
-            var newVersion = ""
-            if (versionComponents.isNotEmpty()) {
-                val major = String.format("%03d", versionComponents[0].toIntOrNull() ?: 0)
-                newVersion += major
-            }
-            if (versionComponents.size > 1) {
-                val minor = String.format("%03d", versionComponents[1].toIntOrNull() ?: 0)
-                newVersion += ".$minor"
-            }
-            if (versionComponents.size > 2) {
-                val patch = String.format("%03d", versionComponents[2].toIntOrNull() ?: 0)
-                newVersion += ".$patch"
-            }
-
-            newVersion += appendix
-
-            return newVersion
-        }
+        get() = sdkVersion.asPadded()
 
     val appBuildString: String
         get() {
@@ -502,6 +460,7 @@ class DeviceHelper(
                     capabilities.toJson(factory.json()),
                 platformWrapper = platformWrapper,
                 platformWrapperVersion = platformWrapperVersion,
+                appVersionPadded = appVersionPadded,
             )
         }.toResult().fold(
             onSuccess = { deviceTemplate ->
@@ -525,4 +484,50 @@ class DeviceHelper(
             .then {
                 lastGeoInfo.value = it
             }
+}
+
+private fun String.asPadded(): String {
+    val components = split("-")
+    if (components.isEmpty()) {
+        return ""
+    }
+    val versionNumber = components[0]
+
+    var appendix = ""
+
+    // If there is a "beta" part...
+    if (components.size > 1) {
+        // Separate out the number from the name, e.g. beta.1 -> [beta, 1]
+        val appendixComponents = components[1].split(".")
+        appendix = "-" + appendixComponents[0]
+
+        var appendixVersion = ""
+
+        // Pad beta number and add to appendix
+        if (appendixComponents.size > 1) {
+            appendixVersion =
+                String.format("%03d", appendixComponents[1].toIntOrNull() ?: 0)
+            appendix += ".$appendixVersion"
+        }
+    }
+
+    // Separate out the version numbers.
+    val versionComponents = versionNumber.split(".")
+    var newVersion = ""
+    if (versionComponents.isNotEmpty()) {
+        val major = String.format("%03d", versionComponents[0].toIntOrNull() ?: 0)
+        newVersion += major
+    }
+    if (versionComponents.size > 1) {
+        val minor = String.format("%03d", versionComponents[1].toIntOrNull() ?: 0)
+        newVersion += ".$minor"
+    }
+    if (versionComponents.size > 2) {
+        val patch = String.format("%03d", versionComponents[2].toIntOrNull() ?: 0)
+        newVersion += ".$patch"
+    }
+
+    newVersion += appendix
+
+    return newVersion
 }
