@@ -5,7 +5,6 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## 1.4.1
 
-
 ### Enhancements
 - Adds `appVersionPadded` attribute
 
