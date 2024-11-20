@@ -5,6 +5,10 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## 1.4.1
 
+
+### Enhancements
+- Adds `appVersionPadded` attribute
+
 ### Fixes
 - Fixes issue where `PaywallPresentationHandler.onError` would be skipped in case of `BillingError`s
 
