@@ -86,7 +86,7 @@ class DefaultJavascriptEvalutor(
     private suspend fun createSandboxEvaluator(context: Context): JavascriptEvaluator =
         createSandbox(context)
             .fold(onSuccess = {
-                SandboxJavascriptEvaluator(it, ioScope, storage)
+                SandboxJavascriptEvaluator(it, ioScope, storage.coreDataManager)
             }, onFailure = {
                 Logger.debug(
                     logLevel = LogLevel.error,
@@ -99,7 +99,7 @@ class DefaultJavascriptEvalutor(
     private suspend fun createWebViewEvaluator(context: Context): JavascriptEvaluator =
         uiScope
             .async {
-                WebviewJavascriptEvaluator(WebView(context), uiScope, storage)
+                WebviewJavascriptEvaluator(WebView(context), uiScope, storage.coreDataManager)
             }.await()
 
     // Tries to create a JSSandbox and if it fails, it falls back to a WebView

@@ -23,7 +23,7 @@ plugins {
     id("signing")
 }
 
-version = "1.4.1"
+version = "1.5.0-beta.1"
 
 android {
     compileSdk = 34
@@ -194,6 +194,7 @@ dependencies {
     implementation(libs.threetenbp)
     // Billing
     implementation(libs.billing)
+    implementation(libs.supercel)
 
     // Browser
     implementation(libs.browser)

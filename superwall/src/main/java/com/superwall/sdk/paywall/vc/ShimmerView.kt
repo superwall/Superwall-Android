@@ -3,17 +3,13 @@ package com.superwall.sdk.paywall.vc
 import android.animation.ValueAnimator
 import android.content.Context
 import android.content.res.Configuration
-import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.LinearGradient
-import android.graphics.Paint
-import android.graphics.Shader
 import android.graphics.drawable.VectorDrawable
 import android.util.AttributeSet
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
-import android.view.animation.LinearInterpolator
+import android.view.animation.PathInterpolator
 import android.widget.FrameLayout.LayoutParams
 import androidx.appcompat.widget.AppCompatImageView
 import androidx.core.content.ContextCompat
@@ -28,8 +24,6 @@ class ShimmerView(
     context: Context,
     attrs: AttributeSet? = null,
 ) : AppCompatImageView(context, attrs) {
-    private val paint = Paint()
-    private var gradientWidth: Float = 0f
     private var animator: ValueAnimator? = null
     private var vectorDrawable: VectorDrawable? = null
 
@@ -154,63 +148,18 @@ class ShimmerView(
         stopShimmer()
     }
 
-    override fun onDraw(canvas: Canvas) {
-        super.onDraw(canvas)
-        canvas ?: return
-
-        val saveLayer = canvas.saveLayer(0f, 0f, width.toFloat(), height.toFloat(), null)
-
-        // Draw the shimmer effect
-        canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
-
-        // Restore the canvas
-        canvas.restoreToCount(saveLayer)
-    }
-
     fun startShimmer() {
-        if (width > 0) {
-            val shimmerColor1 = 0x00000000 // Fully transparent
-            val shimmerColor2: Int
-
-            if (isLightBackground) {
-                shimmerColor2 = Color.argb(128, 255, 255, 255) // White with 50% opacity
-            } else {
-                shimmerColor2 = 0x33FFFFFF // White with 20% opacity
+        stopShimmer()
+        animator =
+            ValueAnimator.ofFloat(1f, 0.5f, 1f).apply {
+                duration = 3000
+                repeatCount = ValueAnimator.INFINITE
+                interpolator = PathInterpolator(0.4f, 0f, 0.6f, 1f)
+                addUpdateListener { animation ->
+                    drawable.alpha = (animation.animatedValue as Float * 255).toInt()
+                }
+                start()
             }
-
-            val shimmerRatio = 0.2f
-            gradientWidth = width * shimmerRatio
-
-            val gradient =
-                LinearGradient(
-                    -gradientWidth,
-                    0f,
-                    0f,
-                    0f,
-                    intArrayOf(shimmerColor1, shimmerColor2, shimmerColor1),
-                    floatArrayOf(0f, 0.5f, 1f),
-                    Shader.TileMode.CLAMP,
-                )
-
-            paint.shader = gradient
-
-            animator =
-                ValueAnimator
-                    .ofFloat(-gradientWidth, width + gradientWidth)
-                    .apply {
-                        repeatCount = ValueAnimator.INFINITE
-                        duration = 1500
-                        interpolator = LinearInterpolator()
-                        addUpdateListener {
-                            val translateX = it.animatedValue as Float
-                            paint.shader.setLocalMatrix(
-                                android.graphics.Matrix().also { it.setTranslate(translateX, 0f) },
-                            )
-                            invalidate()
-                        }
-                        start()
-                    }
-        }
     }
 
     fun stopShimmer() {

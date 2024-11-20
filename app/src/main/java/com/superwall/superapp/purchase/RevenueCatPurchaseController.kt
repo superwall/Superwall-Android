@@ -3,7 +3,15 @@ package com.superwall.superapp
 import android.app.Activity
 import android.content.Context
 import com.android.billingclient.api.ProductDetails
-import com.revenuecat.purchases.*
+import com.revenuecat.purchases.CustomerInfo
+import com.revenuecat.purchases.LogLevel
+import com.revenuecat.purchases.ProductType
+import com.revenuecat.purchases.PurchaseParams
+import com.revenuecat.purchases.Purchases
+import com.revenuecat.purchases.PurchasesConfiguration
+import com.revenuecat.purchases.PurchasesError
+import com.revenuecat.purchases.PurchasesErrorCode
+import com.revenuecat.purchases.getCustomerInfoWith
 import com.revenuecat.purchases.interfaces.GetStoreProductsCallback
 import com.revenuecat.purchases.interfaces.PurchaseCallback
 import com.revenuecat.purchases.interfaces.ReceiveCustomerInfoCallback
@@ -12,6 +20,7 @@ import com.revenuecat.purchases.models.StoreProduct
 import com.revenuecat.purchases.models.StoreTransaction
 import com.revenuecat.purchases.models.SubscriptionOption
 import com.revenuecat.purchases.models.googleProduct
+import com.revenuecat.purchases.purchaseWith
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
@@ -101,7 +110,13 @@ class RevenueCatPurchaseController(
     UpdatedCustomerInfoListener {
     init {
         Purchases.logLevel = LogLevel.DEBUG
-        Purchases.configure(PurchasesConfiguration.Builder(context, "goog_DCSOujJzRNnPmxdgjOwdOOjwilC").build())
+        Purchases.configure(
+            PurchasesConfiguration
+                .Builder(
+                    context,
+                    "goog_DCSOujJzRNnPmxdgjOwdOOjwilC",
+                ).build(),
+        )
 
         // Make sure we get the updates
         Purchases.sharedInstance.updatedCustomerInfoListener = this
@@ -140,7 +155,6 @@ class RevenueCatPurchaseController(
     ): PurchaseResult {
         // Find products matching productId from RevenueCat
         val products = Purchases.sharedInstance.awaitProducts(listOf(productDetails.productId))
-
         // Choose the product which matches the given base plan.
         // If no base plan set, select first product or fail.
         val product =
@@ -149,7 +163,14 @@ class RevenueCatPurchaseController(
                 ?: return PurchaseResult.Failed("Product not found")
 
         return when (product.type) {
-            ProductType.SUBS, ProductType.UNKNOWN -> handleSubscription(activity, product, basePlanId, offerId)
+            ProductType.SUBS, ProductType.UNKNOWN ->
+                handleSubscription(
+                    activity,
+                    product,
+                    basePlanId,
+                    offerId,
+                )
+
             ProductType.INAPP -> handleInAppPurchase(activity, product)
         }
     }
@@ -195,7 +216,15 @@ class RevenueCatPurchaseController(
         Purchases.sharedInstance.purchaseWith(
             PurchaseParams.Builder(activity, subscriptionOption).build(),
             onError = { error, userCancelled ->
-                deferred.complete(if (userCancelled) PurchaseResult.Cancelled() else PurchaseResult.Failed(error.message))
+                deferred.complete(
+                    if (userCancelled) {
+                        PurchaseResult.Cancelled()
+                    } else {
+                        PurchaseResult.Failed(
+                            error.message,
+                        )
+                    },
+                )
             },
             onSuccess = { _, _ ->
                 deferred.complete(PurchaseResult.Purchased())
@@ -214,7 +243,10 @@ class RevenueCatPurchaseController(
         } catch (e: PurchasesException) {
             when (e.purchasesError.code) {
                 PurchasesErrorCode.PurchaseCancelledError -> PurchaseResult.Cancelled()
-                else -> PurchaseResult.Failed(e.message ?: "Purchase failed due to an unknown error")
+                else ->
+                    PurchaseResult.Failed(
+                        e.message ?: "Purchase failed due to an unknown error",
+                    )
             }
         }
 

@@ -2,6 +2,12 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 1.5.0-beta.1
+
+## Enhancements
+- Adds `Superwall.instance.events` - A SharedFlow instance emitting all Superwall events as `SuperwallEventInfo`. This can be used as an alternative to a delegate for listening to events.
+- Adds a new shimmer animation
+- Adds support for SuperScript expression evaluator
 
 ## 1.4.1
 
@@ -26,7 +32,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
   - `getPresentationResult` now returns a `Result<PresentationResult>`
   - `getPaywallComponents` now returns a `Result<PaywallComponents>`
 - Removes Gson dependency
-- Adds `isScrollEnabled` flag to enable remote controll of Paywall scrollability
+- Adds `isScrollEnabled` flag to enable remote control of Paywall scrollability
 - Adds `PaywallResourceLoadFail` event to enable tracking of failed resources in Paywall
 - Improves bottom navigation bar color handling
 

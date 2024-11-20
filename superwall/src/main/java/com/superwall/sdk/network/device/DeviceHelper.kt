@@ -75,6 +75,42 @@ class DeviceHelper(
     private val appInfo = context.packageManager.getPackageInfo(context.packageName, 0)
     private val appInstallDate = Date(appInfo.firstInstallTime)
 
+    fun daysSince(date: Date): Int {
+        val fromDate = date
+        val toDate = Date()
+        val fromInstant = fromDate.toInstant()
+        val toInstant = toDate.toInstant()
+        val duration = Duration.between(fromInstant, toInstant)
+        return duration.toDays().toInt()
+    }
+
+    fun minutesSince(date: Date): Int {
+        val fromDate = date
+        val toDate = Date()
+        val fromInstant = fromDate.toInstant()
+        val toInstant = toDate.toInstant()
+        val duration = Duration.between(fromInstant, toInstant)
+        return duration.toMinutes().toInt()
+    }
+
+    fun hoursSince(date: Date): Int {
+        val fromDate = date
+        val toDate = Date()
+        val fromInstant = fromDate.toInstant()
+        val toInstant = toDate.toInstant()
+        val duration = Duration.between(fromInstant, toInstant)
+        return duration.toHours().toInt()
+    }
+
+    fun monthsSince(date: Date): Int {
+        val fromDate = date
+        val toDate = Date()
+        val fromInstant = fromDate.toInstant()
+        val toInstant = toDate.toInstant()
+        val duration = Duration.between(fromInstant, toInstant)
+        return duration.toDays().toInt() / 30
+    }
+
     private val daysSinceInstall: Int
         get() {
             val fromDate = appInstallDate
