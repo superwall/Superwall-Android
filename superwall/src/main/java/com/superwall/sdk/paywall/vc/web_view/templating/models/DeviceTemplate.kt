@@ -14,6 +14,7 @@ data class DeviceTemplate(
     val aliases: List<String>,
     val vendorId: String,
     val appVersion: String,
+    val appVersionPadded: String,
     val osVersion: String,
     val deviceModel: String,
     val deviceLocale: String,

@@ -72,13 +72,19 @@ internal suspend fun Superwall.getPaywallView(
 
         val webviewExists = webViewExists()
         if (webviewExists) {
-            dependencyContainer.paywallManager
-                .getPaywallView(
-                    request = paywallRequest,
-                    isForPresentation = isForPresentation,
-                    isPreloading = false,
-                    delegate = delegate,
-                ).toResult()
+            val res =
+                dependencyContainer.paywallManager
+                    .getPaywallView(
+                        request = paywallRequest,
+                        isForPresentation = isForPresentation,
+                        isPreloading = false,
+                        delegate = delegate,
+                    ).toResult()
+            if (res.isSuccess) {
+                return res
+            } else {
+                throw res.exceptionOrNull()!!
+            }
         } else {
             Logger.debug(
                 logLevel = LogLevel.error,

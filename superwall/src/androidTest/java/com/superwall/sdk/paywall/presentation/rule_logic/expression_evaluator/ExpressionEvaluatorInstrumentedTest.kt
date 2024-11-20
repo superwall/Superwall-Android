@@ -70,7 +70,7 @@ class ExpressionEvaluatorInstrumentedTest {
             // get context
             val context = InstrumentationRegistry.getInstrumentation().targetContext
             val ruleAttributes = RuleAttributeFactoryBuilder()
-            val storage = StorageMock(context = context)
+            val storage = StorageMock(context = context, coroutineScope = this@runTest)
 
             val expressionEvaluator =
                 ExpressionEvaluator(
@@ -122,7 +122,7 @@ class ExpressionEvaluatorInstrumentedTest {
         runTest {
             val context = InstrumentationRegistry.getInstrumentation().targetContext
             val ruleAttributes = RuleAttributeFactoryBuilder()
-            val storage = StorageMock(context = context)
+            val storage = StorageMock(context = context, coroutineScope = this@runTest)
 
             val expressionEvaluator =
                 ExpressionEvaluator(
@@ -215,7 +215,7 @@ class ExpressionEvaluatorInstrumentedTest {
         runTest {
             val context = InstrumentationRegistry.getInstrumentation().targetContext
             val ruleAttributes = RuleAttributeFactoryBuilder()
-            val storage = StorageMock(context = context)
+            val storage = StorageMock(context = context, coroutineScope = this@runTest)
 
             val expressionEvaluator: ExpressionEvaluator =
                 ExpressionEvaluator(
@@ -316,7 +316,7 @@ class ExpressionEvaluatorInstrumentedTest {
         runTest {
             val context = InstrumentationRegistry.getInstrumentation().targetContext
             val ruleAttributes = RuleAttributeFactoryBuilder()
-            val storage = StorageMock(context = context)
+            val storage = StorageMock(context = context, coroutineScope = this@runTest)
 
             val expressionEvaluator: ExpressionEvaluator =
                 ExpressionEvaluator(

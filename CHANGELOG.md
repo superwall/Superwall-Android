@@ -2,6 +2,19 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 1.5.0-beta.1
+
+## Enhancements
+- Adds `Superwall.instance.events` - A SharedFlow instance emitting all Superwall events as `SuperwallEventInfo`. This can be used as an alternative to a delegate for listening to events.
+- Adds a new shimmer animation
+
+## 1.4.1
+
+### Enhancements
+- Adds `appVersionPadded` attribute
+
+### Fixes
+- Fixes issue where `PaywallPresentationHandler.onError` would be skipped in case of `BillingError`s
 
 ## 1.4.0
 
@@ -19,14 +32,15 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
   - `getPaywallComponents` now returns a `Result<PaywallComponents>`
 - Removes Gson dependency
 - Adds `isScrollEnabled` flag to enable remote control of Paywall scrollability
-- Adds a new shimmer animation
+- Adds `PaywallResourceLoadFail` event to enable tracking of failed resources in Paywall
+- Improves bottom navigation bar color handling
 
 ## Fixes
 - Fixes issue where paywalls without fallback would fail to load and missing resource would cause a failure event
 - Fixes issue with `trialPeriodDays` rounding to the higher value instead of lower, i.e. where `P4W2D` would return 28 days instead of 30, it now returns 30.
 - Fixes issue with system navigation bar not respecting paywall color
 - Fixes issues with cursor allocation in Room transaction
-
+- Improves handling of chromium render process crash
 
 ## 1.4.0-beta.3
 

@@ -31,4 +31,25 @@ class NetworkRequestData<Response>(
         var queryItems: List<URLQueryItem>? = null,
         var bodyData: ByteArray? = null,
     )
+
+    fun copyWithUrl(newUrl: URI) =
+        NetworkRequestData<Response>(
+            components =
+                if (components == null) {
+                    null
+                } else {
+                    components.copy(
+                        scheme = newUrl.scheme,
+                        host = newUrl.host,
+                        path = newUrl.path,
+                        queryItems = components.queryItems,
+                        bodyData = components.bodyData,
+                    )
+                },
+            url = if (url == null) null else newUrl,
+            method = method,
+            requestId = requestId,
+            isForDebugging = isForDebugging,
+            factory = factory,
+        )
 }

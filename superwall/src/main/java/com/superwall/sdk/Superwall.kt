@@ -6,6 +6,7 @@ import android.net.Uri
 import androidx.work.WorkManager
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
+import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
 import com.superwall.sdk.config.models.ConfigState
 import com.superwall.sdk.config.models.ConfigurationStatus
 import com.superwall.sdk.config.options.SuperwallOptions
@@ -53,8 +54,11 @@ import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
@@ -82,6 +86,16 @@ class Superwall(
     private var purchaseTask: Job? = null
 
     internal val presentationItems: PresentationItems = PresentationItems()
+
+    private val _events: MutableSharedFlow<SuperwallEventInfo> =
+        MutableSharedFlow(0, extraBufferCapacity = 64 * 4, onBufferOverflow = BufferOverflow.SUSPEND)
+
+    /**
+     * A flow emitting all Superwall events as an alternative to delegate.
+     * @see SuperwallEventInfo for more information and possible events
+     * */
+
+    val events: SharedFlow<SuperwallEventInfo> = _events
 
     var localeIdentifier: String?
         get() = dependencyContainer.configManager.options.localeIdentifier
@@ -145,6 +159,12 @@ class Superwall(
             ioScope.launch {
                 track(dependencyContainer.makeConfigAttributes())
             }
+        }
+    }
+
+    internal fun emitSuperwallEvent(info: SuperwallEventInfo) {
+        ioScope.launch {
+            _events.emit(info)
         }
     }
 
@@ -332,12 +352,11 @@ class Superwall(
                     true
                 }
             }, {
-                val sdkVersion = instance.dependencyContainer.deviceHelper.sdkVersion
                 completion?.invoke(Result.failure(it))
                 Logger.debug(
                     logLevel = LogLevel.error,
                     scope = LogScope.superwallCore,
-                    message = "Superwall SDK $sdkVersion failed to initialize - ${it.message}",
+                    message = "Superwall SDK failed to initialize - ${it.message}",
                     error = it,
                 )
             })

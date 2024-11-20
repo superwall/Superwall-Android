@@ -68,6 +68,7 @@ class DeviceTemplateTest {
             capabilitiesConfig = JsonObject(mapOf("key" to JsonPrimitive("value"))),
             platformWrapper = "native",
             platformWrapperVersion = "1.0.0",
+            appVersionPadded = "001.000.000",
         )
 
     @Test
@@ -144,6 +145,7 @@ class DeviceTemplateTest {
                 capabilitiesConfig = JsonObject(emptyMap()),
                 platformWrapper = "native",
                 platformWrapperVersion = "1.0.0",
+                appVersionPadded = "001.000.000",
             )
 
         val dictionary1 = template.toDictionary(json)

@@ -346,6 +346,14 @@ sealed class SuperwallEvent {
             get() = "paywallProductsLoad_complete"
     }
 
+    data class PaywallResourceLoadFail(
+        val url: String,
+        val error: String,
+    ) : SuperwallEvent() {
+        override val rawName: String
+            get() = "paywallResourceLoad_fail"
+    }
+
     // / Information about the paywall presentation request
     data class PaywallPresentationRequest(
         val status: PaywallPresentationRequestStatus,

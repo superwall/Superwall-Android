@@ -119,16 +119,15 @@ class ConfigManagerTests {
                 val dependencyContainer =
                     DependencyContainer(context, null, null, activityProvider = null)
                 val network = NetworkMock()
-                val storage = StorageMock(context = context)
+                val storage = StorageMock(context = context, coroutineScope = this@runTest)
                 val assignments = Assignments(storage, network, this@runTest)
                 val preload =
-                    PaywallPreload(
-                        dependencyContainer,
-                        IOScope(this@runTest.coroutineContext),
-                        storage,
-                        assignments,
-                        dependencyContainer.paywallManager,
-                    )
+                    mockk<PaywallPreload> {
+                        coEvery { preloadAllPaywalls(any(), any()) } just Runs
+                        coEvery { preloadPaywallsByNames(any(), any()) } just Runs
+                        coEvery { removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
+                    }
+
                 val configManager =
                     ConfigManagerUnderTest(
                         context = context,
@@ -165,16 +164,14 @@ class ConfigManagerTests {
                 val dependencyContainer =
                     DependencyContainer(context, null, null, activityProvider = null)
                 val network = NetworkMock()
-                val storage = StorageMock(context = context)
+                val storage = StorageMock(context = context, coroutineScope = this@runTest)
                 val assignments = Assignments(storage, network, this@runTest)
                 val preload =
-                    PaywallPreload(
-                        dependencyContainer,
-                        IOScope(this@runTest.coroutineContext),
-                        storage,
-                        assignments,
-                        dependencyContainer.paywallManager,
-                    )
+                    mockk<PaywallPreload> {
+                        coEvery { preloadAllPaywalls(any(), any()) } just Runs
+                        coEvery { preloadPaywallsByNames(any(), any()) } just Runs
+                        coEvery { removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
+                    }
 
                 val configManager =
                     ConfigManagerUnderTest(
@@ -218,16 +215,8 @@ class ConfigManagerTests {
                 val dependencyContainer =
                     DependencyContainer(context, null, null, activityProvider = null)
                 val network = NetworkMock()
-                val storage = StorageMock(context = context)
+                val storage = StorageMock(context = context, coroutineScope = this@runTest)
                 val assignments = Assignments(storage, network, this@runTest)
-                val preload =
-                    PaywallPreload(
-                        dependencyContainer,
-                        IOScope(this@runTest.coroutineContext),
-                        storage,
-                        assignments,
-                        dependencyContainer.paywallManager,
-                    )
                 val configManager =
                     ConfigManagerUnderTest(
                         context = context,
@@ -266,16 +255,14 @@ class ConfigManagerTests {
                 val dependencyContainer =
                     DependencyContainer(context, null, null, activityProvider = null)
                 val network = NetworkMock()
-                val storage = StorageMock(context = context)
+                val storage = StorageMock(context = context, coroutineScope = this@runTest)
                 val assignmentStore = Assignments(storage, network, this@runTest)
                 val preload =
-                    PaywallPreload(
-                        dependencyContainer,
-                        IOScope(this@runTest.coroutineContext),
-                        storage,
-                        assignmentStore,
-                        dependencyContainer.paywallManager,
-                    )
+                    mockk<PaywallPreload> {
+                        coEvery { preloadAllPaywalls(any(), any()) } just Runs
+                        coEvery { preloadPaywallsByNames(any(), any()) } just Runs
+                        coEvery { removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
+                    }
                 val configManager =
                     ConfigManagerUnderTest(
                         context = context,
@@ -347,7 +334,7 @@ class ConfigManagerTests {
                 val context = InstrumentationRegistry.getInstrumentation().targetContext
                 val dependencyContainer =
                     DependencyContainer(context, null, null, activityProvider = null)
-                val storage = StorageMock(context = context)
+                val storage = StorageMock(context = context, coroutineScope = this@runTest)
                 val oldConfig =
                     Config.stub().copy(
                         rawFeatureFlags =
@@ -368,14 +355,6 @@ class ConfigManagerTests {
                         every { paywallManager } returns mockPaywallManager
                     }
                 val assignments = Assignments(storage, mockNetwork, this@runTest)
-                val preload =
-                    PaywallPreload(
-                        dependencyContainer,
-                        IOScope(this@runTest.coroutineContext),
-                        storage,
-                        assignments,
-                        dependencyContainer.paywallManager,
-                    )
 
                 val testId = "123"
                 val configManager =
@@ -428,7 +407,7 @@ class ConfigManagerTests {
                     }
                 val dependencyContainer =
                     DependencyContainer(context, null, null, activityProvider = null)
-                val storage = StorageMock(context = context)
+                val storage = StorageMock(context = context, coroutineScope = this@runTest)
                 val oldConfig =
                     Config.stub().copy(
                         rawFeatureFlags =
@@ -449,14 +428,6 @@ class ConfigManagerTests {
                         every { paywallManager } returns mockPaywallManager
                     }
                 val assignments = Assignments(storage, mockNetwork, this@runTest)
-                val preload =
-                    PaywallPreload(
-                        dependencyContainer,
-                        IOScope(this@runTest.coroutineContext),
-                        storage,
-                        assignments,
-                        dependencyContainer.paywallManager,
-                    )
 
                 val testId = "123"
                 val configManager =
@@ -746,13 +717,12 @@ class ConfigManagerTests {
 
                 val assignmentStore = Assignments(localStorage, mockNetwork, this@runTest)
                 val preload =
-                    PaywallPreload(
-                        dependencyContainer,
-                        IOScope(this@runTest.coroutineContext),
-                        localStorage,
-                        assignmentStore,
-                        manager,
-                    )
+                    mockk<PaywallPreload> {
+                        coEvery { preloadAllPaywalls(any(), any()) } just Runs
+                        coEvery { preloadPaywallsByNames(any(), any()) } just Runs
+                        coEvery { removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
+                    }
+
                 val configManager =
                     ConfigManagerUnderTest(
                         context = context,
@@ -819,14 +789,6 @@ class ConfigManagerTests {
                         every { paywallManager } returns manager
                     }
                 val assignmentStore = Assignments(localStorage, mockNetwork, this@runTest)
-                val preload =
-                    PaywallPreload(
-                        mockContainer,
-                        IOScope(this@runTest.coroutineContext),
-                        localStorage,
-                        assignmentStore,
-                        dependencyContainer.paywallManager,
-                    )
                 val configManager =
                     ConfigManagerUnderTest(
                         context = context,
