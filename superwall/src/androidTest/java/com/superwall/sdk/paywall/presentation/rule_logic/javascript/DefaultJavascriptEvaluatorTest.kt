@@ -45,7 +45,7 @@ class DefaultJavascriptEvaluatorTest {
             val storage =
                 StorageMock(
                     ctx(),
-                    coroutineScope = this
+                    coroutineScope = this,
                 )
 
             val sandbox = JavaScriptSandbox.createConnectedInstanceAsync(ctx()).await()
