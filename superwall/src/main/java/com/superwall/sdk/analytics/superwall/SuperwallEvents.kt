@@ -48,6 +48,8 @@ enum class SuperwallEvents(
     RestoreFail("restore_fail"),
     RestoreComplete("restore_complete"),
     CustomPlacement("custom_placement"),
+    ShimmerViewStart("shimmerView_start"),
+    ShimmerViewComplete("shimmerView_complete"),
     ConfigAttributes("config_attributes"),
     ConfirmAllAssignments("confirm_all_assignments"),
     ConfigFail("config_fail"),

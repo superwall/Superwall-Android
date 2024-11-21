@@ -19,6 +19,7 @@ import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEvents
 import com.superwall.sdk.config.models.OnDeviceCaching
 import com.superwall.sdk.config.options.PaywallOptions
+import com.superwall.sdk.dependencies.OptionsFactory
 import com.superwall.sdk.dependencies.TriggerFactory
 import com.superwall.sdk.game.GameControllerDelegate
 import com.superwall.sdk.game.GameControllerEvent
@@ -66,6 +67,8 @@ import java.lang.ref.WeakReference
 import java.net.MalformedURLException
 import java.net.URI
 import java.util.Date
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.DurationUnit
 
 class PaywallView(
     context: Context,
@@ -94,7 +97,9 @@ class PaywallView(
         }
     }
 
-    interface Factory : TriggerFactory
+    interface Factory :
+        TriggerFactory,
+        OptionsFactory
     //region Public properties
 
     // MUST be set prior to presentation
@@ -312,7 +317,8 @@ class PaywallView(
         if (loadingState is PaywallLoadingState.Ready) {
             webView.messageHandler.handle(PaywallMessage.TemplateParamsAndUserAttributes)
         }
-
+        paywall.shimmerLoadingInfo.startAt = Date()
+        trackShimmerStart()
         presentationWillPrepare = false
     }
 
@@ -566,6 +572,20 @@ class PaywallView(
         }
     }
 
+    private fun trackShimmerStart() {
+        val trackedEvent =
+            InternalSuperwallEvent.ShimmerLoad(
+                state = InternalSuperwallEvent.ShimmerLoad.State.Started,
+                paywallId = paywall.identifier,
+                visibleDuration = null,
+                preloadingEnabled = factory.makeSuperwallOptions().paywalls.shouldPreload,
+                delay = paywall.presentation.delay.toDouble(),
+            )
+        ioScope.launch {
+            Superwall.instance.track(trackedEvent)
+        }
+    }
+
     private fun showShimmerView() {
         shimmerView?.let {
             mainScope.launch {
@@ -579,6 +599,27 @@ class PaywallView(
             mainScope.launch {
                 it.hideShimmer()
             }
+        }
+        val visible = paywall.shimmerLoadingInfo.startAt
+        val now = Date()
+        paywall.shimmerLoadingInfo.endAt = now
+        ioScope.launch {
+            val trackedEvent =
+                InternalSuperwallEvent.ShimmerLoad(
+                    state = InternalSuperwallEvent.ShimmerLoad.State.Complete,
+                    paywallId = paywall.identifier,
+                    visibleDuration =
+                        if (visible != null) {
+                            (now.time - visible.time).milliseconds.toDouble(
+                                DurationUnit.MILLISECONDS,
+                            )
+                        } else {
+                            0.0
+                        },
+                    delay = paywall.presentation.delay.toDouble(),
+                    preloadingEnabled = factory.makeSuperwallOptions().paywalls.shouldPreload,
+                )
+            Superwall.instance.track(trackedEvent)
         }
     }
 
@@ -711,7 +752,6 @@ class PaywallView(
             }
 
             webView.scrollEnabled = paywall.isScrollEnabled ?: true
-
             mainScope.launch {
                 if (paywall.onDeviceCache is OnDeviceCaching.Enabled) {
                     webView.settings.cacheMode = WebSettings.LOAD_CACHE_ELSE_NETWORK
@@ -724,7 +764,6 @@ class PaywallView(
                     webView.loadUrl(url.value)
                 }
             }
-
             loadingState = PaywallLoadingState.LoadingURL()
         }
     }

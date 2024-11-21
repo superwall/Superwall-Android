@@ -52,6 +52,8 @@ data class PaywallInfo(
     val productsLoadStartTime: String?,
     val productsLoadCompleteTime: String?,
     val productsLoadFailTime: String?,
+    val shimmerLoadStartTime: String?,
+    val shimmerLoadCompleteTime: String?,
     val productsLoadDuration: Double?,
     val paywalljsVersion: String?,
     val isFreeTrialAvailable: Boolean,
@@ -83,6 +85,8 @@ data class PaywallInfo(
         productsLoadStartTime: Date?,
         productsLoadFailTime: Date?,
         productsLoadCompleteTime: Date?,
+        shimmerLoadStartTime: Date?,
+        shimmerLoadCompleteTime: Date?,
         experiment: Experiment? = null,
         paywalljsVersion: String? = null,
         isFreeTrialAvailable: Boolean,
@@ -167,6 +171,14 @@ data class PaywallInfo(
                     (endTime.time / 1000 - startTime.time / 1000).toDouble()
                 }
             },
+        shimmerLoadStartTime =
+            webViewLoadStartTime?.let {
+                DateFormatterUtil.format(it)
+            } ?: "",
+        shimmerLoadCompleteTime =
+            webViewLoadStartTime?.let {
+                DateFormatterUtil.format(it)
+            } ?: "",
         localNotifications = localNotifications,
         computedPropertyRequests = computedPropertyRequests,
         closeReason = closeReason,

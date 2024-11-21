@@ -843,6 +843,41 @@ sealed class InternalSuperwallEvent(
         override val canImplicitlyTriggerPaywall: Boolean = true
     }
 
+    data class ShimmerLoad(
+        val state: State,
+        val paywallId: String,
+        val visibleDuration: Double?,
+        val delay: Double,
+        val preloadingEnabled: Boolean,
+    ) : InternalSuperwallEvent(
+            if (state ==
+                State.Started
+            ) {
+                SuperwallEvent.ShimmerViewStart
+            } else {
+                SuperwallEvent.ShimmerViewComplete(visibleDuration ?: 0.0)
+            },
+        ) {
+        enum class State {
+            Started,
+            Complete,
+        }
+
+        override val audienceFilterParams: Map<String, Any> = emptyMap()
+
+        override val rawName: String
+            get() = superwallEvent.rawName
+
+        override suspend fun getSuperwallParameters(): Map<String, Any> =
+            mapOf(
+                "paywall_id" to paywallId,
+                "preloading_enabled" to preloadingEnabled,
+                "visible_duration" to visibleDuration,
+            ).filter { it.value != null }.toMap() as Map<String, Any>
+
+        override val canImplicitlyTriggerPaywall: Boolean = false
+    }
+
     object ConfirmAllAssignments : InternalSuperwallEvent(SuperwallEvent.ConfirmAllAssignments) {
         override val audienceFilterParams: Map<String, Any> = emptyMap()
 
