@@ -643,7 +643,7 @@ class DependencyContainer(
 
     override fun makeTransactionVerifier(): GoogleBillingWrapper = googleBillingWrapper
 
-    override suspend fun makeSuperwallOptions(): SuperwallOptions = configManager.options
+    override fun makeSuperwallOptions(): SuperwallOptions = configManager.options
 
     override suspend fun makeTriggers(): Set<String> = configManager.triggersByEventName.keys
 

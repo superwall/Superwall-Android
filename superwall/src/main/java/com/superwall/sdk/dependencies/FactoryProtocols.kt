@@ -184,7 +184,7 @@ interface StoreTransactionFactory {
 }
 
 interface OptionsFactory {
-    suspend fun makeSuperwallOptions(): SuperwallOptions
+    fun makeSuperwallOptions(): SuperwallOptions
 }
 
 interface TriggerFactory {

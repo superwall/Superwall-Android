@@ -2,6 +2,11 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 1.5.0-beta.2
+
+## Enhancements
+- Adds `shimmerView_start` and `shimmerView_complete` events to track the loading of the shimmer animation.
+
 ## 1.5.0-beta.1
 
 ## Enhancements
