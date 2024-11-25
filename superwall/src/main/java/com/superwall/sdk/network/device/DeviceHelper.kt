@@ -18,7 +18,6 @@ import com.superwall.sdk.dependencies.LocaleIdentifierFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
-import com.superwall.sdk.misc.fold
 import com.superwall.sdk.misc.then
 import com.superwall.sdk.misc.toResult
 import com.superwall.sdk.models.config.ComputedPropertyRequest
@@ -505,9 +504,9 @@ class DeviceHelper(
                 utcDateTime = utcDateTimeString,
                 localDateTime = localDateTimeString,
                 isSandbox = isSandbox.toString(),
-                subscriptionStatus =
-                    Superwall.instance.subscriptionStatus.value
-                        .toString(),
+                activeEntitlements =
+                    Superwall.instance.entitlements.active
+                        .map { it.id },
                 isFirstAppOpen = isFirstAppOpen,
                 sdkVersion = sdkVersion,
                 sdkVersionPadded = sdkVersionPadded,

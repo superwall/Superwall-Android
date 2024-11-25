@@ -13,7 +13,6 @@ import com.superwall.sdk.config.models.ConfigurationStatus
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.delegate.InternalPurchaseResult
 import com.superwall.sdk.delegate.PurchaseResult
-import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.delegate.SuperwallDelegate
 import com.superwall.sdk.delegate.SuperwallDelegateJava
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
@@ -30,6 +29,7 @@ import com.superwall.sdk.misc.fold
 import com.superwall.sdk.misc.launchWithTracking
 import com.superwall.sdk.misc.toResult
 import com.superwall.sdk.models.assignment.ConfirmedAssignment
+import com.superwall.sdk.models.entitlements.EntitlementStatus
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.network.device.InterfaceStyle
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
@@ -51,8 +51,8 @@ import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.InitiateR
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.OpenedDeepLink
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.OpenedURL
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.OpenedUrlInChrome
-import com.superwall.sdk.storage.ActiveSubscriptionStatus
-import com.superwall.sdk.store.ExternalNativePurchaseController
+import com.superwall.sdk.storage.StoredEntitlementStatus
+import com.superwall.sdk.store.Entitlements
 import com.superwall.sdk.store.PurchasingObserverState
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import com.superwall.sdk.store.abstractions.product.StoreProduct
@@ -190,14 +190,14 @@ class Superwall(
      * be synced with the user's purchases on device.
      *
      * Paywalls will not show until the subscription status has been established.
-     * On first install, it's value will default to [SubscriptionStatus.UNKNOWN]. Afterwards, it'll
+     * On first install, it's value will default to [EntitlementStatus.UNKNOWN]. Afterwards, it'll
      * default to its cached value.
      *
      * You can observe [subscriptionStatus] to get notified whenever the user's subscription status
      * changes.
      *
      * Otherwise, you can check the delegate function
-     * [SuperwallDelegate.subscriptionStatusDidChange]
+     * [SuperwallDelegate.entitlementStatusDidChange]
      * to receive a callback with the new value every time it changes.
      *
      * To learn more, see
@@ -205,8 +205,8 @@ class Superwall(
      *
      * @param subscriptionStatus The subscription status of the user.
      */
-    fun setSubscriptionStatus(subscriptionStatus: SubscriptionStatus) {
-        _subscriptionStatus.value = subscriptionStatus
+    fun setEntitlementStatus(entitlementStatus: EntitlementStatus) {
+        entitlements.setEntitlementStatus(entitlementStatus)
     }
 
     /**
@@ -243,16 +243,18 @@ class Superwall(
             return presentedPaywallInfo ?: presentationItems.paywallInfo
         }
 
-    protected var _subscriptionStatus: MutableStateFlow<SubscriptionStatus> =
-        MutableStateFlow(
-            SubscriptionStatus.UNKNOWN,
-        )
+    val entitlements: Entitlements by lazy {
+        dependencyContainer.entitlements
+    }
 
     /**
-     * A `StateFlow` of the subscription status of the user. Set this using
-     * [setSubscriptionStatus].
+     * A `StateFlow` of the entitlement status of the user. Set this using
+     * [setEntitlementStatus].
      */
-    val subscriptionStatus: StateFlow<SubscriptionStatus> get() = _subscriptionStatus
+
+    val entitlementStatus: StateFlow<EntitlementStatus> by lazy {
+        entitlements.status
+    }
 
     /**
      * A property that indicates current configuration state of the SDK.
@@ -305,7 +307,7 @@ class Superwall(
          * [sign up for free](https://superwall.com/sign-up).
          * @param purchaseController An object that conforms to [PurchaseController]. You must
          * implement this to handle all subscription-related logic yourself. You'll need to also
-         * call [setSubscriptionStatus] every time the user's subscription status changes. You can
+         * call [setEntitlementStatus] every time the user's subscription status changes. You can
          * read more about that in
          * [Purchases and Subscription Status](https://docs.superwall.com/docs/advanced-configuration).
          * @param options An optional [SuperwallOptions] object which allows you to customise the
@@ -333,12 +335,6 @@ class Superwall(
                 completion?.invoke(Result.success(Unit))
                 return
             }
-            val purchaseController =
-                purchaseController
-                    ?: ExternalNativePurchaseController(
-                        context = applicationContext,
-                        scope = IOScope(),
-                    )
             _instance =
                 Superwall(
                     context = applicationContext,
@@ -420,10 +416,10 @@ class Superwall(
                     throw e
                 }
 
-                val cachedSubsStatus =
-                    dependencyContainer.storage.read(ActiveSubscriptionStatus)
-                        ?: SubscriptionStatus.UNKNOWN
-                setSubscriptionStatus(cachedSubsStatus)
+                val cachedEntitlementStatus =
+                    dependencyContainer.storage.read(StoredEntitlementStatus)
+                        ?: EntitlementStatus.Unkown
+                setEntitlementStatus(cachedEntitlementStatus)
 
                 addListeners()
 
@@ -458,13 +454,13 @@ class Superwall(
     // / Listens to config and the subscription status
     private fun addListeners() {
         ioScope.launchWithTracking {
-            subscriptionStatus // Removes duplicates by default
+            entitlementStatus // Removes duplicates by default
                 .drop(1) // Drops the first item
                 .collect { newValue ->
                     // Save and handle the new value
-                    dependencyContainer.storage.write(ActiveSubscriptionStatus, newValue)
-                    dependencyContainer.delegateAdapter.subscriptionStatusDidChange(newValue)
-                    val event = InternalSuperwallEvent.SubscriptionStatusDidChange(newValue)
+                    dependencyContainer.storage.write(StoredEntitlementStatus, newValue)
+                    dependencyContainer.delegateAdapter.entitlementStatusDidChange(newValue)
+                    val event = InternalSuperwallEvent.EntitlementStatusDidChange(newValue)
                     track(event)
                 }
         }

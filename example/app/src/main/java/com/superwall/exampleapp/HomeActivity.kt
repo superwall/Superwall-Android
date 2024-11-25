@@ -46,7 +46,7 @@ class HomeActivity : ComponentActivity() {
             val subscriptionStatus by Superwall.instance.subscriptionStatus.collectAsState()
             SuperwallExampleAppTheme {
                 HomeScreen(
-                    subscriptionStatus = subscriptionStatus,
+                    entitlementStatus = subscriptionStatus,
                     onLogOutClicked = {
                         finish()
                     },
@@ -58,12 +58,12 @@ class HomeActivity : ComponentActivity() {
 
 @Composable
 fun HomeScreen(
-    subscriptionStatus: SubscriptionStatus,
+    entitlementStatus: SubscriptionStatus,
     onLogOutClicked: () -> Unit,
 ) {
     val context = LocalContext.current
     val subscriptionText =
-        when (subscriptionStatus) {
+        when (entitlementStatus) {
             SubscriptionStatus.UNKNOWN -> "Loading subscription status."
             SubscriptionStatus.ACTIVE ->
                 "You currently have an active subscription. Therefore, the " +

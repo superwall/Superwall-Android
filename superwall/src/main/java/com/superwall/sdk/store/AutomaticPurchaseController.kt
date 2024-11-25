@@ -8,12 +8,12 @@ import com.superwall.sdk.billing.RECONNECT_TIMER_MAX_TIME_MILLISECONDS
 import com.superwall.sdk.billing.RECONNECT_TIMER_START_MILLISECONDS
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
-import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.IOScope
+import com.superwall.sdk.models.entitlements.EntitlementStatus
 import com.superwall.sdk.store.abstractions.product.OfferType
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import kotlinx.coroutines.CompletableDeferred
@@ -25,9 +25,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.math.min
 
-class ExternalNativePurchaseController(
+class AutomaticPurchaseController(
     var context: Context,
     val scope: IOScope,
+    val entitlementsInfo: Entitlements,
 ) : PurchaseController,
     PurchasesUpdatedListener {
     private var billingClient: BillingClient =
@@ -270,8 +271,23 @@ class ExternalNativePurchaseController(
 
         val hasActivePurchaseOrSubscription =
             allPurchases.any { it.purchaseState == Purchase.PurchaseState.PURCHASED }
-        val status: SubscriptionStatus =
-            if (hasActivePurchaseOrSubscription) SubscriptionStatus.ACTIVE else SubscriptionStatus.INACTIVE
+        val status: EntitlementStatus =
+            if (hasActivePurchaseOrSubscription) {
+                subscriptionPurchases
+                    .flatMap { it.products }
+                    .toSet()
+                    .flatMap { entitlementsInfo.byProductId(it) }
+                    .toSet()
+                    .let { entitlements ->
+                        if (entitlements.isNotEmpty()) {
+                            EntitlementStatus.Active(entitlements)
+                        } else {
+                            EntitlementStatus.NoActiveEntitlements
+                        }
+                    }
+            } else {
+                EntitlementStatus.NoActiveEntitlements
+            }
 
         if (!Superwall.initialized) {
             Logger.debug(
@@ -282,7 +298,7 @@ class ExternalNativePurchaseController(
             return
         }
 
-        Superwall.instance.setSubscriptionStatus(status)
+        Superwall.instance.setEntitlementStatus(status)
     }
 
     private suspend fun queryPurchasesOfType(productType: String): List<Purchase> {
