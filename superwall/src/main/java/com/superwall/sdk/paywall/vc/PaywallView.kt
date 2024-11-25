@@ -312,7 +312,9 @@ class PaywallView(
 
         Superwall.instance.dependencyContainer.delegateAdapter
             .willPresentPaywall(info)
-        webView.setRendererPriorityPolicy(RENDERER_PRIORITY_IMPORTANT, true)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            webView.setRendererPriorityPolicy(RENDERER_PRIORITY_IMPORTANT, true)
+        }
         webView.scrollTo(0, 0)
         if (loadingState is PaywallLoadingState.Ready) {
             webView.messageHandler.handle(PaywallMessage.TemplateParamsAndUserAttributes)
@@ -741,12 +743,15 @@ class PaywallView(
             }
 
             webView.onRenderProcessCrashed = {
+                val isOverO = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
                 Logger.debug(
                     logLevel = LogLevel.error,
                     scope = LogScope.paywallView,
                     message =
                         "Webview Process has crashed for paywall with identifier: ${paywall.identifier}.\n" +
-                            "Crashed by the system: ${it.didCrash()} - priority ${it.rendererPriorityAtExit()}",
+                            "Crashed by the system: ${
+                                if (isOverO)it.didCrash() else "Unknown"} - priority ${
+                                if (isOverO)it.rendererPriorityAtExit() else "Unknown"}",
                 )
                 recreateWebview()
             }

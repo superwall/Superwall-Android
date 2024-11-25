@@ -127,6 +127,7 @@ data class ProductItem(
     @SerialName("reference_name")
     val name: String,
     val type: StoreProductType,
+    val entitlements: Set<String>,
 ) {
     sealed class StoreProductType {
         data class PlayStore(
@@ -179,6 +180,7 @@ object ProductItemSerializer : KSerializer<ProductItem> {
         return ProductItem(
             name = name,
             type = ProductItem.StoreProductType.PlayStore(storeProduct),
+            entitlements = emptySet(),
         )
     }
 }

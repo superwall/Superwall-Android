@@ -1,19 +1,7 @@
 package com.superwall.sdk.models.product
 
-import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.SerializationException
-import kotlinx.serialization.Serializer
-import kotlinx.serialization.encoding.Decoder
-import kotlinx.serialization.encoding.Encoder
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonDecoder
-import kotlinx.serialization.json.JsonEncoder
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 
 @Serializable
 enum class ProductType {
@@ -30,13 +18,7 @@ enum class ProductType {
 
     override fun toString() = name.lowercase()
 }
-
-@Serializable(with = ProductSerializer::class)
-data class Product(
-    val type: ProductType,
-    val id: String,
-)
-
+/*
 @Serializer(forClass = Product::class)
 object ProductSerializer : KSerializer<Product> {
     override fun serialize(
@@ -70,3 +52,5 @@ object ProductSerializer : KSerializer<Product> {
         return Product(type, id)
     }
 }
+*
+ */

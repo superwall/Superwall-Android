@@ -9,7 +9,6 @@ import com.superwall.sdk.analytics.superwall.SuperwallEvents
 import com.superwall.sdk.delegate.InternalPurchaseResult
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
-import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.dependencies.CacheFactory
 import com.superwall.sdk.dependencies.DeviceHelperFactory
@@ -24,6 +23,7 @@ import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.ActivityProvider
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.launchWithTracking
+import com.superwall.sdk.models.entitlements.EntitlementStatus
 import com.superwall.sdk.models.paywall.LocalNotificationType
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
@@ -52,8 +52,8 @@ class TransactionManager(
         Superwall.instance.track(it)
     },
     private val dismiss: suspend (paywallView: PaywallView, result: PaywallResult) -> Unit,
-    private val subscriptionStatus: () -> SubscriptionStatus = {
-        Superwall.instance.subscriptionStatus.value
+    private val entitlementStatus: () -> EntitlementStatus = {
+        Superwall.instance.entitlementStatus.value
     },
 ) {
     sealed class PurchaseSource {
@@ -616,10 +616,10 @@ class TransactionManager(
         val restorationResult = purchaseController.restorePurchases()
 
         val hasRestored = restorationResult is RestorationResult.Restored
-        val isUserSubscribed =
-            subscriptionStatus() == SubscriptionStatus.ACTIVE
+        val hasEntitlements =
+            entitlementStatus() is EntitlementStatus.Active
 
-        if (hasRestored && isUserSubscribed) {
+        if (hasRestored && hasEntitlements) {
             log(message = "Transactions Restored")
             track(
                 InternalSuperwallEvent.Restore(
@@ -632,7 +632,7 @@ class TransactionManager(
             }
         } else {
             val msg = "Transactions Failed to Restore.${
-                if (hasRestored && !isUserSubscribed) {
+                if (hasRestored && !hasEntitlements) {
                     " The user's subscription status is \"inactive\", but the restoration result is \"restored\"." +
                         " Ensure the subscription status is active before confirming successful restoration."
                 } else {
