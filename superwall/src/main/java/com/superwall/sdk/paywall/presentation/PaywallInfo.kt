@@ -12,8 +12,6 @@ import com.superwall.sdk.models.paywall.LocalNotification
 import com.superwall.sdk.models.paywall.PaywallPresentationInfo
 import com.superwall.sdk.models.paywall.PaywallPresentationStyle
 import com.superwall.sdk.models.paywall.PaywallURL
-import com.superwall.sdk.models.paywall.PresentationCondition
-import com.superwall.sdk.models.product.Product
 import com.superwall.sdk.models.product.ProductItem
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.store.abstractions.product.StoreProduct
@@ -29,12 +27,7 @@ data class PaywallInfo(
     val name: String,
     val url: PaywallURL,
     val experiment: Experiment?,
-    @Deprecated(
-        message = "Use productItems because a paywall can support more than three products",
-        ReplaceWith("productsItems"),
-    )
-    val products: List<Product>,
-    val productItems: List<ProductItem>,
+    val products: List<ProductItem>,
     val productIds: List<String>,
     val presentedByEventWithName: String?,
     val presentedByEventWithId: String?,
@@ -72,8 +65,7 @@ data class PaywallInfo(
         identifier: String,
         name: String,
         url: PaywallURL,
-        products: List<Product>,
-        productItems: List<ProductItem>,
+        products: List<ProductItem>,
         productIds: List<String>,
         eventData: EventData?,
         responseLoadStartTime: Date?,
@@ -111,7 +103,6 @@ data class PaywallInfo(
         experiment = experiment,
         paywalljsVersion = paywalljsVersion,
         products = products,
-        productItems = productItems,
         productIds = productIds,
         isFreeTrialAvailable = isFreeTrialAvailable,
         featureGatingBehavior = featureGatingBehavior,
@@ -279,7 +270,7 @@ data class PaywallInfo(
         output["secondary_product_id"] = ""
         output["tertiary_product_id"] = ""
 
-        productItems.forEachIndexed { index, product ->
+        products.forEachIndexed { index, product ->
             when (index) {
                 0 -> output["primary_product_id"] = product.fullProductId
                 1 -> output["secondary_product_id"] = product.fullProductId
@@ -303,7 +294,6 @@ data class PaywallInfo(
                 url = PaywallURL(""),
                 experiment = null,
                 products = emptyList(),
-                productItems = emptyList(),
                 productIds = emptyList(),
                 presentedByEventWithName = null,
                 presentedByEventWithId = null,
@@ -331,7 +321,7 @@ data class PaywallInfo(
                 localNotifications = emptyList(),
                 computedPropertyRequests = emptyList(),
                 surveys = emptyList(),
-                presentation = PaywallPresentationInfo(PaywallPresentationStyle.NONE, PresentationCondition.ALWAYS, 0),
+                presentation = PaywallPresentationInfo(PaywallPresentationStyle.NONE, 0),
                 buildId = "",
                 cacheKey = "",
                 isScrollEnabled = true,

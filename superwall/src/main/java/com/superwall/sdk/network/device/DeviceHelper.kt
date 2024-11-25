@@ -486,9 +486,9 @@ class DeviceHelper(
                 utcDateTime = utcDateTimeString,
                 localDateTime = localDateTimeString,
                 isSandbox = isSandbox.toString(),
-                subscriptionStatus =
-                    Superwall.instance.subscriptionStatus.value
-                        .toString(),
+                activeEntitlements =
+                    Superwall.instance.entitlements.active
+                        .map { it.id },
                 isFirstAppOpen = isFirstAppOpen,
                 sdkVersion = sdkVersion,
                 sdkVersionPadded = sdkVersionPadded,

@@ -19,6 +19,7 @@ import com.superwall.sdk.models.assignment.Assignment
 import com.superwall.sdk.models.assignment.ConfirmableAssignment
 import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.models.config.RawFeatureFlag
+import com.superwall.sdk.models.entitlements.EntitlementStatus
 import com.superwall.sdk.models.geo.GeoInfo
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.Trigger
@@ -36,6 +37,9 @@ import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.StorageMock
 import com.superwall.sdk.store.StoreManager
+import com.superwall.sdk.storage.StoredEntitlementStatus
+import com.superwall.sdk.storage.StoredEntitlementsByProductId
+import com.superwall.sdk.store.Entitlements
 import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -84,6 +88,13 @@ class ConfigManagerUnderTest(
         paywallPreload = paywallPreload,
         ioScope = IOScope(ioScope.coroutineContext),
         track = {},
+        entitlements =
+            Entitlements(
+                mockk<Storage>(relaxUnitFun = true) {
+                    every { read(StoredEntitlementStatus) } returns EntitlementStatus.Unkown
+                    every { read(StoredEntitlementsByProductId) } returns emptyMap()
+                },
+            ),
     ) {
     suspend fun setConfig(config: Config) {
         configState.emit(ConfigState.Retrieved(config))
