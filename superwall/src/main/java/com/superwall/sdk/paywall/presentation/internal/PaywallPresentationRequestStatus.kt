@@ -48,10 +48,10 @@ sealed class PaywallPresentationRequestStatusReason(
     class NoConfig : PaywallPresentationRequestStatusReason("no_config")
 
     /**
-     * The subscription status timed out.
-     * This happens when the subscriptionStatus stays unknown for more than 5 seconds.
+     * The entitlement status timed out.
+     * This happens when the entitlementStatus stays unknown for more than 5 seconds.
      */
-    class SubscriptionStatusTimeout : PaywallPresentationRequestStatusReason("subscription_status_timeout")
+    class EntitlementStatusTimeout : PaywallPresentationRequestStatusReason("subscription_status_timeout")
 }
 
 typealias PresentationPipelineError = PaywallPresentationRequestStatusReason

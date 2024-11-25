@@ -5,7 +5,7 @@ import com.superwall.sdk.paywall.presentation.internal.state.PaywallSkippedReaso
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import kotlinx.coroutines.flow.MutableSharedFlow
 
-suspend fun Superwall.userIsSubscribed(paywallStatePublisher: MutableSharedFlow<PaywallState>?): PresentationPipelineError {
+suspend fun Superwall.userHasEntitlements(paywallStatePublisher: MutableSharedFlow<PaywallState>?): PresentationPipelineError {
     val state = PaywallState.Skipped(PaywallSkippedReason.UserIsSubscribed())
     paywallStatePublisher?.emit(state)
     return PaywallPresentationRequestStatusReason.UserIsSubscribed()

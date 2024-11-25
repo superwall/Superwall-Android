@@ -3,7 +3,6 @@ package com.superwall.sdk.store
 import com.superwall.sdk.delegate.RestorationResult
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.PaywallProducts
-import com.superwall.sdk.models.product.Product
 import com.superwall.sdk.models.product.ProductItem
 import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.paywall.view.PaywallView
@@ -23,7 +22,7 @@ interface StoreKitManagerInterface {
     suspend fun getProducts(
         responseProductIds: List<String>,
         paywallName: String? = null,
-        responseProducts: List<Product> = listOf(),
+        responseProducts: List<ProductItem> = listOf(),
         substituteProducts: PaywallProducts? = null,
     ): GetProductsResponse
 
