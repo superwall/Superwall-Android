@@ -15,7 +15,7 @@ import com.superwall.sdk.paywall.presentation.get_presentation_result.internally
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.internallyPresent
 import com.superwall.sdk.paywall.presentation.internal.operators.logErrors
-import com.superwall.sdk.paywall.presentation.internal.operators.waitForSubsStatusAndConfig
+import com.superwall.sdk.paywall.presentation.internal.operators.waitForEntitlementsAndConfig
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.paywall.presentation.result.PresentationResult
@@ -132,7 +132,7 @@ private suspend fun Superwall.internallyHandleImplicitTrigger(
             )
 
         try {
-            waitForSubsStatusAndConfig(request, null)
+            waitForEntitlementsAndConfig(request, null)
         } catch (e: Throwable) {
             logErrors(request, e)
             return@withErrorTracking

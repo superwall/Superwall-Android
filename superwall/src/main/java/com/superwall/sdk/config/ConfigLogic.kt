@@ -315,4 +315,11 @@ object ConfigLogic {
         val triggers = from
         return triggers.associateBy { it.eventName }
     }
+
+    // Returns entitlements mapped by product ID
+    fun extractEntitlementsByProductId(from: List<Paywall>) =
+        from
+            .flatMap { it.products }
+            .map { it.fullProductId to it.entitlements }
+            .toMap()
 }
