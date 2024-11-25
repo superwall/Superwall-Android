@@ -34,6 +34,7 @@ import com.superwall.sdk.storage.LatestConfig
 import com.superwall.sdk.storage.LatestGeoInfo
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.StoreManager
+import com.superwall.sdk.store.Entitlements
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.Flow
@@ -49,6 +50,7 @@ import java.util.concurrent.atomic.AtomicInteger
 open class ConfigManager(
     private val context: Context,
     private val storeManager: StoreManager,
+    private val entitlements: Entitlements,
     private val storage: Storage,
     private val network: SuperwallAPI,
     private val deviceHelper: DeviceHelper,
@@ -305,6 +307,9 @@ open class ConfigManager(
         }
         triggersByEventName = ConfigLogic.getTriggersByEventName(config.triggers)
         assignments.choosePaywallVariants(config.triggers)
+        ConfigLogic.extractEntitlementsByProductId(config.paywalls).let {
+            entitlements.addEntitlementsByProductId(it)
+        }
     }
 
 // Preloading Paywalls

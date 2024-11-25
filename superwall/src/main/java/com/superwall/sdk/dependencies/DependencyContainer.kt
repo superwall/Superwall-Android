@@ -22,7 +22,6 @@ import com.superwall.sdk.config.PaywallPreload
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.debug.DebugManager
 import com.superwall.sdk.debug.DebugView
-import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.delegate.SuperwallDelegateAdapter
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.identity.IdentityInfo
@@ -34,6 +33,7 @@ import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.MainScope
 import com.superwall.sdk.models.config.ComputedPropertyRequest
 import com.superwall.sdk.models.config.FeatureFlags
+import com.superwall.sdk.models.entitlements.EntitlementStatus
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.product.ProductVariable
@@ -75,6 +75,8 @@ import com.superwall.sdk.paywall.view.webview.templating.models.Variables
 import com.superwall.sdk.paywall.view.webview.webViewExists
 import com.superwall.sdk.storage.EventsQueue
 import com.superwall.sdk.storage.LocalStorage
+import com.superwall.sdk.store.AutomaticPurchaseController
+import com.superwall.sdk.store.Entitlements
 import com.superwall.sdk.store.InternalPurchaseController
 import com.superwall.sdk.store.StoreManager
 import com.superwall.sdk.store.abstractions.transactions.GoogleBillingPurchaseTransaction
@@ -142,6 +144,9 @@ class DependencyContainer(
     var storeManager: StoreManager
     val transactionManager: TransactionManager
     val googleBillingWrapper: GoogleBillingWrapper
+
+    var entitlements: Entitlements
+
     private val uiScope
         get() = mainScope()
     private val ioScope
@@ -181,8 +186,6 @@ class DependencyContainer(
     internal val errorTracker: ErrorTracker
 
     init {
-        // TODO: Add delegate adapter
-
         // For tracking when the app enters the background.
         uiScope.launch {
             ProcessLifecycleOwner.get().lifecycle.addObserver(appLifecycleObserver)
@@ -210,17 +213,18 @@ class DependencyContainer(
                 appLifecycleObserver = appLifecycleObserver,
                 this,
             )
+        storage = LocalStorage(context = context, ioScope = ioScope(), factory = this, json = json())
+        entitlements = Entitlements(storage)
 
         var purchaseController =
             InternalPurchaseController(
-                kotlinPurchaseController = purchaseController,
+                kotlinPurchaseController = purchaseController ?: AutomaticPurchaseController(context, ioScope, entitlements),
                 javaPurchaseController = null,
                 context,
             )
         storeManager = StoreManager(purchaseController, googleBillingWrapper)
 
         delegateAdapter = SuperwallDelegateAdapter()
-        storage = LocalStorage(context = context, ioScope = ioScope(), factory = this, json = json())
         val httpConnection =
             CustomHttpUrlConnection(
                 json = json(),
@@ -309,11 +313,11 @@ class DependencyContainer(
                 deviceHelper = deviceHelper,
                 assignments = assignments,
                 ioScope = ioScope,
-                paywallPreload =
-                paywallPreload,
+                paywallPreload = paywallPreload,
                 track = {
                     Superwall.instance.track(it)
                 },
+                entitlements = entitlements,
             )
 
         eventsQueue =
@@ -432,8 +436,8 @@ class DependencyContainer(
                 "X-Bundle-ID" to deviceHelper.bundleId,
                 "X-Low-Power-Mode" to deviceHelper.isLowPowerModeEnabled.toString(),
                 "X-Is-Sandbox" to deviceHelper.isSandbox.toString(),
-                "X-Subscription-Status" to
-                    Superwall.instance.subscriptionStatus.value
+                "X-Entitlement-Status" to
+                    Superwall.instance.entitlementStatus.value
                         .toString(),
                 "Content-Type" to "application/json",
                 "X-Current-Time" to dateFormat(DateUtils.ISO_MILLIS).format(Date()),
@@ -550,7 +554,6 @@ class DependencyContainer(
         overrides: PaywallRequest.Overrides?,
         isDebuggerLaunched: Boolean,
         presentationSourceType: String?,
-        retryCount: Int,
     ): PaywallRequest =
 
         PaywallRequest(
@@ -559,7 +562,7 @@ class DependencyContainer(
             overrides = overrides ?: PaywallRequest.Overrides(products = null, isFreeTrial = null),
             isDebuggerLaunched = isDebuggerLaunched,
             presentationSourceType = presentationSourceType,
-            retryCount = retryCount,
+            retryCount = 6,
         )
 
     override fun makePresentationRequest(
@@ -567,7 +570,7 @@ class DependencyContainer(
         paywallOverrides: PaywallOverrides?,
         presenter: Activity?,
         isDebuggerLaunched: Boolean?,
-        subscriptionStatus: StateFlow<SubscriptionStatus?>?,
+        entitlementStatus: StateFlow<EntitlementStatus?>?,
         isPaywallPresented: Boolean,
         type: PresentationRequestType,
     ): PresentationRequest =
@@ -579,7 +582,7 @@ class DependencyContainer(
                 PresentationRequest.Flags(
                     isDebuggerLaunched = isDebuggerLaunched ?: debugManager.isDebuggerLaunched,
                     // TODO: (PresentationCritical) Fix subscription status
-                    subscriptionStatus = subscriptionStatus ?: Superwall.instance.subscriptionStatus,
+                    entitlements = entitlementStatus ?: Superwall.instance.entitlementStatus,
 //                subscriptionStatus = subscriptionStatus!!,
                     isPaywallPresented = isPaywallPresented,
                     type = type,
