@@ -137,6 +137,7 @@ class StoreManager(
                     productItems[index] =
                         ProductItem(
                             name = productItems[index].name,
+                            entitlements = productItems[index].entitlements,
                             type =
                                 ProductItem.StoreProductType.PlayStore(
                                     PlayStoreProduct(
@@ -157,6 +158,7 @@ class StoreManager(
                     productItems.add(
                         ProductItem(
                             name = name,
+                            entitlements = emptySet(),
                             type =
                                 ProductItem.StoreProductType.PlayStore(
                                     PlayStoreProduct(

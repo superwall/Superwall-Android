@@ -23,7 +23,7 @@ enum class SuperwallEvents(
     SubscriptionStart("subscription_start"),
     SurveyResponse("survey_response"),
     SurveyClose("survey_close"),
-    SubscriptionStatusDidChange("subscriptionStatus_didChange"),
+    EntitlementStatusDidChange("entitlementStatus_didChange"),
     FreeTrialStart("freeTrial_start"),
     UserAttributes("user_attributes"),
     NonRecurringProductPurchase("nonRecurringProduct_purchase"),
