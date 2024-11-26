@@ -1,0 +1,41 @@
+name: Pull Request Workflow
+
+on:
+  pull_request:
+    branches: [ "develop" ]  # Trigger on PRs to main branch
+    types: [opened, synchronize, reopened]  # Trigger on PR events
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Set Up JDK
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu' # See 'Supported distributions' for available options
+          java-version: '17'
+          cache: 'gradle'
+
+      # Allow us to run the command
+      - name: Change wrapper permissions
+        run: chmod +x ./gradlew
+
+      # Run Build & Test the Project
+      - name: Build gradle project
+        run: ./gradlew build
+
+      - name: Build test project
+        run: ./gradlew :app:assembleAndroidTest -DtestBuildType=debug
+
+      - name: Run tests on Firebase Test Lab
+        uses: asadmansr/Firebase-Test-Lab-Action@v1.0
+        with:
+          arg-spec: '.github/firebase-tests.yml:android-pixel-7'
+        env:
+          SERVICE_ACCOUNT: ${{ secrets.SERVICE_ACCOUNT }}
+
