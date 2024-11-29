@@ -41,7 +41,7 @@ data class Config(
                     rawFeatureFlags.find { it.key == "enable_multiple_paywall_urls" }?.enabled
                         ?: false,
                 enableConfigRefresh =
-                    rawFeatureFlags.find { it.key == "enable_config_refresh" }?.enabled
+                    rawFeatureFlags.find { it.key == "enable_config_refresh_v2" }?.enabled
                         ?: false,
                 enableSessionEvents =
                     rawFeatureFlags.find { it.key == "enable_session_events" }?.enabled
@@ -54,6 +54,9 @@ data class Config(
                         ?: false,
                 disableVerboseEvents =
                     rawFeatureFlags.find { it.key == "disable_verbose_events" }?.enabled
+                        ?: false,
+                enableCELLogging =
+                    rawFeatureFlags.find { it.key == "enable_cel_logging" }?.enabled
                         ?: false,
             )
 

@@ -410,7 +410,7 @@ class ProductFetcherInstrumentedTest {
                         offerType = OfferType.Offer(id = "paid-offer"),
                     ),
             )
-        assert(!storeProduct.hasFreeTrial)
+        assert(storeProduct.hasFreeTrial)
         assert(storeProduct.productIdentifier == "com.ui_tests.quarterly2")
         assert(storeProduct.fullIdentifier == "com.ui_tests.quarterly2:test-4:paid-offer")
         assert(storeProduct.currencyCode == "USD")
@@ -513,7 +513,7 @@ class ProductFetcherInstrumentedTest {
                         offerType = OfferType.Auto,
                     ),
             )
-        assert(!storeProduct.hasFreeTrial)
+        assert(storeProduct.hasFreeTrial)
         assert(storeProduct.productIdentifier == "com.ui_tests.quarterly2")
         assert(storeProduct.fullIdentifier == "com.ui_tests.quarterly2:test-3:sw-auto")
         assert(storeProduct.currencyCode == "USD")
