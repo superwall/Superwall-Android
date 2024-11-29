@@ -62,7 +62,7 @@ class MainApplication :
                 .build(),
         )
 
-        configureWithAutomaticInitialization()
+        configureWithObserverMode()
 //        configureWithRevenueCatInitialization()
     }
 
@@ -74,6 +74,25 @@ class MainApplication :
             CONSTANT_API_KEY,
             options =
                 SuperwallOptions().apply {
+                    paywalls =
+                        PaywallOptions().apply {
+                            shouldPreload = false
+                        }
+                },
+        )
+        Superwall.instance.delegate = this
+
+        // Make sure we enable the game controller
+        // Superwall.instance.options.isGameControllerEnabled = true
+    }
+
+    fun configureWithObserverMode() {
+        Superwall.configure(
+            this,
+            CONSTANT_API_KEY,
+            options =
+                SuperwallOptions().apply {
+                    shouldObservePurchases = true
                     paywalls =
                         PaywallOptions().apply {
                             shouldPreload = false

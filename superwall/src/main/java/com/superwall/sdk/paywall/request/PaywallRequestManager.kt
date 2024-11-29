@@ -233,7 +233,9 @@ class PaywallRequestManager(
                     paywall = paywall,
                     request = request,
                 )
-            paywall = result.paywall
+            if (result.paywall != null) {
+                paywall = result.paywall
+            }
             paywall.productItems = result.productItems
 
             val outcome =
