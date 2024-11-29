@@ -1,5 +1,6 @@
 package com.superwall.sdk.store.transactions
 
+import com.android.billingclient.api.Purchase
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
@@ -13,6 +14,7 @@ import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.dependencies.CacheFactory
 import com.superwall.sdk.dependencies.DeviceHelperFactory
 import com.superwall.sdk.dependencies.HasExternalPurchaseControllerFactory
+import com.superwall.sdk.dependencies.HasInternalPurchaseControllerFactory
 import com.superwall.sdk.dependencies.OptionsFactory
 import com.superwall.sdk.dependencies.StoreTransactionFactory
 import com.superwall.sdk.dependencies.TransactionVerifierFactory
@@ -78,13 +80,12 @@ class TransactionManager(
         StoreTransactionFactory,
         DeviceHelperFactory,
         CacheFactory,
-        HasExternalPurchaseControllerFactory
-
-    private val shouldFinishTransactions =
-        !factory.makeHasExternalPurchaseController() &&
-            !factory.makeSuperwallOptions().shouldObservePurchases
+        HasExternalPurchaseControllerFactory,
+        HasInternalPurchaseControllerFactory
 
     private var lastPaywallView: PaywallView? = null
+
+    private var transactionsInProgress: MutableSet<String> = mutableSetOf()
 
     internal suspend fun handle(
         result: InternalPurchaseResult,
@@ -95,8 +96,13 @@ class TransactionManager(
                 val state = state as PurchasingObserverState.PurchaseResult
                 state.purchases?.forEach { purchase ->
                     purchase.products.map {
-                        storeKitManager.productsByFullId[it] ?.let { product ->
-                            didPurchase(product, PurchaseSource.ObserverMode(product), product.hasFreeTrial)
+                        storeKitManager.productsByFullId[it]?.let { product ->
+                            didPurchase(
+                                product,
+                                PurchaseSource.ObserverMode(product),
+                                product.hasFreeTrial,
+                                purchase,
+                            )
                         }
                     }
                 }
@@ -110,6 +116,7 @@ class TransactionManager(
                     purchaseSource = PurchaseSource.ObserverMode(product),
                 )
             }
+
             is InternalPurchaseResult.Failed -> {
                 val state = state as PurchasingObserverState.PurchaseError
                 val product = StoreProduct(RawStoreProduct.from(state.product))
@@ -119,21 +126,23 @@ class TransactionManager(
                     PurchaseSource.ObserverMode(product),
                 )
             }
+
             InternalPurchaseResult.Pending -> {
                 val result = state as PurchasingObserverState.PurchaseResult
                 result.purchases?.forEach { purchase ->
                     purchase.products.map {
-                        storeKitManager.productsByFullId[it] ?.let { product ->
+                        storeKitManager.productsByFullId[it]?.let { product ->
                             handlePendingTransaction(PurchaseSource.ObserverMode(product))
                         }
                     }
                 }
             }
+
             InternalPurchaseResult.Restored -> {
                 val state = state as PurchasingObserverState.PurchaseResult
                 state.purchases?.forEach { purchase ->
                     purchase.products.map {
-                        storeKitManager.productsByFullId[it] ?.let { product ->
+                        storeKitManager.productsByFullId[it]?.let { product ->
                             didRestore(product, PurchaseSource.ObserverMode(product))
                         }
                     }
@@ -166,9 +175,10 @@ class TransactionManager(
                 is PurchaseSource.ExternalPurchase -> {
                     purchaseSource.product
                 }
+
                 is PurchaseSource.ObserverMode -> purchaseSource.product
             }
-
+        transactionsInProgress.add(product.fullIdentifier)
         val rawStoreProduct = product.rawStoreProduct
         log(
             message =
@@ -189,7 +199,10 @@ class TransactionManager(
                 basePlanId = rawStoreProduct.basePlanId,
             )
 
-        if (purchaseSource is PurchaseSource.ExternalPurchase && factory.makeHasExternalPurchaseController()) {
+        if (purchaseSource is PurchaseSource.ExternalPurchase &&
+            factory.makeHasExternalPurchaseController() &&
+            !factory.makeHasInternalPurchaseController()
+        ) {
             return result
         }
 
@@ -198,6 +211,7 @@ class TransactionManager(
         when (result) {
             is PurchaseResult.Purchased -> {
                 didPurchase(product, purchaseSource, isEligibleForTrial && product.hasFreeTrial)
+                transactionsInProgress.remove(product.fullIdentifier)
             }
 
             is PurchaseResult.Restored -> {
@@ -205,6 +219,7 @@ class TransactionManager(
                     product = product,
                     purchaseSource = purchaseSource,
                 )
+                transactionsInProgress.remove(product.fullIdentifier)
             }
 
             is PurchaseResult.Failed -> {
@@ -236,14 +251,17 @@ class TransactionManager(
                         purchaseSource.paywallView.togglePaywallSpinner(isHidden = true)
                     }
                 }
+                transactionsInProgress.remove(product.fullIdentifier)
             }
 
             is PurchaseResult.Pending -> {
                 handlePendingTransaction(purchaseSource)
+                transactionsInProgress.remove(product.fullIdentifier)
             }
 
             is PurchaseResult.Cancelled -> {
                 trackCancelled(product, purchaseSource)
+                transactionsInProgress.remove(product.fullIdentifier)
             }
         }
         return result
@@ -379,6 +397,7 @@ class TransactionManager(
                         info = mapOf("paywall_vc" to source),
                     )
                 }
+                transactionsInProgress.add(product.fullIdentifier)
 
                 val paywallInfo = source.paywallView.info
                 val trackedEvent =
@@ -398,7 +417,12 @@ class TransactionManager(
             }
 
             is PurchaseSource.ExternalPurchase, is PurchaseSource.ObserverMode -> {
-                if (factory.makeHasExternalPurchaseController()) {
+                transactionsInProgress.add(product.fullIdentifier)
+                if (!storeKitManager.productsByFullId.contains(product.fullIdentifier)) {
+                    storeKitManager.productsByFullId[product.fullIdentifier] = product
+                }
+
+                if (factory.makeHasExternalPurchaseController() && !factory.makeHasInternalPurchaseController()) {
                     return
                 }
                 // If an external purchase controller is being used, skip because this will
@@ -434,6 +458,7 @@ class TransactionManager(
         product: StoreProduct,
         purchaseSource: PurchaseSource,
         didStartFreeTrial: Boolean,
+        purchase: Purchase? = null,
     ) {
         when (purchaseSource) {
             is PurchaseSource.Internal -> {
@@ -473,10 +498,13 @@ class TransactionManager(
                 )
                 val transactionVerifier = factory.makeTransactionVerifier()
                 val transaction =
-                    transactionVerifier.getLatestTransaction(
-                        factory = factory,
-                    )
-
+                    if (purchase != null) {
+                        factory.makeStoreTransaction(purchase)
+                    } else {
+                        transactionVerifier.getLatestTransaction(
+                            factory = factory,
+                        )
+                    }
                 storeKitManager.loadPurchasedProducts()
 
                 trackTransactionDidSucceed(transaction, product, purchaseSource, didStartFreeTrial)
@@ -738,6 +766,7 @@ class TransactionManager(
                     )
                 track(trackedEvent)
             }
+
             is PurchaseSource.ObserverMode -> {
                 // No-op
             }

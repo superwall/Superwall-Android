@@ -25,7 +25,9 @@ import java.util.*
 @JvmInline
 value class PaywallURL(
     val value: String,
-)
+) {
+    override fun toString(): String = value
+}
 
 @Serializable
 data class Paywalls(

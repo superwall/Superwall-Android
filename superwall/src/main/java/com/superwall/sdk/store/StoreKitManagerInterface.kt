@@ -11,7 +11,7 @@ import com.superwall.sdk.store.abstractions.product.StoreProduct
 data class GetProductsResponse(
     val productsByFullId: Map<String, StoreProduct>,
     val productItems: List<ProductItem>,
-    val paywall: Paywall,
+    val paywall: Paywall? = null,
 )
 
 interface StoreKitManagerInterface {
