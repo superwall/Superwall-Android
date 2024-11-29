@@ -542,6 +542,8 @@ class DependencyContainer(
 
     override fun makeHasExternalPurchaseController(): Boolean = storeManager.purchaseController.hasExternalPurchaseController
 
+    override fun makeHasInternalPurchaseController(): Boolean = storeKitManager.purchaseController.hasInternalPurchaseController
+
     override suspend fun didUpdateAppSession(appSession: AppSession) {
     }
 
