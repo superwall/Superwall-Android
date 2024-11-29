@@ -126,6 +126,10 @@ interface HasExternalPurchaseControllerFactory {
     fun makeHasExternalPurchaseController(): Boolean
 }
 
+interface HasInternalPurchaseControllerFactory {
+    fun makeHasInternalPurchaseController(): Boolean
+}
+
 interface ViewFactory {
     // NOTE: THIS MUST BE EXECUTED ON THE MAIN THREAD (no way to enforce in Kotlin)
     suspend fun makePaywallView(
