@@ -23,6 +23,7 @@ internal class CombinedExpressionEvaluator(
     private val storage: LocalStorage,
     private val factory: RuleAttributesFactory,
     private val evaluator: JavascriptEvaluator,
+    private val shouldTraceResults: Boolean,
     private val superscriptEvaluator: SuperscriptEvaluator,
     private val track: suspend (InternalSuperwallEvent.ExpressionResult) -> Unit,
 ) : ExpressionEvaluating {
@@ -48,15 +49,17 @@ internal class CombinedExpressionEvaluator(
             } catch (e: Exception) {
                 TriggerRuleOutcome.noMatch(UnmatchedRule.Source.EXPRESSION, rule.experiment.id)
             }
-        track(
-            InternalSuperwallEvent.ExpressionResult(
-                liquidExpression = rule.expression,
-                celExpression = rule.expressionCEL,
-                celExpressionResult = if (celEvaluation is TriggerRuleOutcome.Match) true else false,
-                jsExpression = rule.expressionJs,
-                jsExpressionResult = if (result is TriggerRuleOutcome.Match) true else false,
-            ),
-        )
+        if (shouldTraceResults) {
+            track(
+                InternalSuperwallEvent.ExpressionResult(
+                    liquidExpression = rule.expression,
+                    celExpression = rule.expressionCEL,
+                    celExpressionResult = if (celEvaluation is TriggerRuleOutcome.Match) true else false,
+                    jsExpression = rule.expressionJs,
+                    jsExpressionResult = if (result is TriggerRuleOutcome.Match) true else false,
+                ),
+            )
+        }
         return result
     }
 

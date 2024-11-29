@@ -170,6 +170,7 @@ class DependencyContainer(
             track = {
                 Superwall.instance.track(it)
             },
+            shouldTraceResults = makeFeatureFlags()?.enableCELLogging ?: false,
         )
     }
 

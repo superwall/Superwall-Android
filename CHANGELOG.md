@@ -6,6 +6,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## Enhancements
 - Adds `shimmerView_start` and `shimmerView_complete` events to track the loading of the shimmer animation.
+- Makes `hasFreeTrial` match iOS SDK behavior by returning `true` for both free trials and non-free introductory offers
 
 ## 1.5.0-beta.1
 
