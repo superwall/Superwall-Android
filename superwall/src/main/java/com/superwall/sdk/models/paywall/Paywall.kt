@@ -85,6 +85,8 @@ data class Paywall(
     var webviewLoadingInfo: LoadingInfo = LoadingInfo(),
     @kotlinx.serialization.Transient()
     var productsLoadingInfo: LoadingInfo = LoadingInfo(),
+    @kotlinx.serialization.Transient()
+    var shimmerLoadingInfo: LoadingInfo = LoadingInfo(),
     var productVariables: List<ProductVariable>? = null,
     var swProductVariablesTemplate: List<ProductVariable>? = null,
     var paywalljsVersion: String? = null,
@@ -209,6 +211,8 @@ data class Paywall(
             productsLoadStartTime = productsLoadingInfo.startAt,
             productsLoadFailTime = productsLoadingInfo.failAt,
             productsLoadCompleteTime = productsLoadingInfo.endAt,
+            shimmerLoadStartTime = shimmerLoadingInfo.startAt,
+            shimmerLoadCompleteTime = shimmerLoadingInfo.endAt,
             experiment = experiment,
             paywalljsVersion = paywalljsVersion,
             isFreeTrialAvailable = isFreeTrialAvailable,

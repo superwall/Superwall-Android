@@ -233,7 +233,7 @@ class RawStoreProduct(
         // Check for free trial phase in pricing phases, excluding the base pricing
         selectedOffer.pricingPhases.pricingPhaseList
             .dropLast(1)
-            .any { it.priceAmountMicros == 0L }
+            .isNotEmpty()
     }
 
     override val localizedTrialPeriodPrice by lazy {

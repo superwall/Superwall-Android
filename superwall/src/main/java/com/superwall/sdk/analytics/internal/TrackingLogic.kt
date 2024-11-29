@@ -107,6 +107,10 @@ sealed class TrackingLogic {
                 }
             }
 
+            if (event is InternalSuperwallEvent.ShimmerLoad) {
+                return !disableVerboseEvents
+            }
+
             (event as? InternalSuperwallEvent.PaywallProductsLoad)?.let {
                 return when (it.state) {
                     is InternalSuperwallEvent.PaywallProductsLoad.State.Start,

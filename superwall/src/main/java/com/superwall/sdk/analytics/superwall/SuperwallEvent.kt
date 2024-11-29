@@ -416,6 +416,18 @@ sealed class SuperwallEvent {
         override val rawName: String = SuperwallEvents.CustomPlacement.rawName
     }
 
+    data object ShimmerViewStart : SuperwallEvent() {
+        override val rawName: String
+            get() = SuperwallEvents.ShimmerViewStart.rawName
+    }
+
+    data class ShimmerViewComplete(
+        val duration: Double,
+    ) : SuperwallEvent() {
+        override val rawName: String
+            get() = SuperwallEvents.ShimmerViewComplete.rawName
+    }
+
     internal object ErrorThrown : SuperwallEvent(), IsInternalEvent {
         override val rawName: String
             get() = "error_thrown"
