@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import android.net.Uri
 import androidx.work.WorkManager
+import com.android.billingclient.api.ProductDetails
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
@@ -671,7 +672,30 @@ class Superwall(
     }
 
     /**
-     *Initiates a purchase of a `StoreProduct`.
+     *Initiates a purchase of `ProductDetails`.
+     *
+     * Use this function to purchase any `ProductDetails`, regardless of whether you
+     * have a paywall or not. Superwall will handle the purchase with `GooglePlayBilling`
+     * and return the `PurchaseResult`. You'll see the data associated with the
+     * purchase on the Superwall dashboard.
+     *
+     * @param product: The `ProductDetails` you wish to purchase.
+     * @return A ``PurchaseResult``.
+     * - Note: You do not need to finish the transaction yourself after this.
+     * ``Superwall`` will handle this for you.
+     */
+
+    suspend fun purchase(product: ProductDetails): Result<PurchaseResult> =
+        withErrorTracking {
+            dependencyContainer.transactionManager.purchase(
+                TransactionManager.PurchaseSource.ExternalPurchase(
+                    StoreProduct(RawStoreProduct.from(product)),
+                ),
+            )
+        }.toResult()
+
+    /**
+     *Initiates a purchase of `StoreProduct`.
      *
      * Use this function to purchase any `StoreProduct`, regardless of whether you
      * have a paywall or not. Superwall will handle the purchase with `GooglePlayBilling`
@@ -684,13 +708,50 @@ class Superwall(
      * ``Superwall`` will handle this for you.
      */
 
-    suspend fun purchase(product: RawStoreProduct): Result<PurchaseResult> =
+    suspend fun purchase(product: StoreProduct): Result<PurchaseResult> =
         withErrorTracking {
             dependencyContainer.transactionManager.purchase(
                 TransactionManager.PurchaseSource.ExternalPurchase(
-                    StoreProduct(product),
+                    product,
                 ),
             )
+        }.toResult()
+
+    /**
+     *Initiates a purchase of a product with the given `productId`.
+     *
+     * Use this function to purchase any product with a given product ID, regardless of whether you
+     * have a paywall or not. Superwall will handle the purchase with `GooglePlayBilling`
+     * and return the `PurchaseResult`. You'll see the data associated with the
+     * purchase on the Superwall dashboard.
+     *
+     * @param product: The `produdctId` you wish to purchase.
+     * @return A ``PurchaseResult``.
+     * - Note: You do not need to finish the transaction yourself after this.
+     * ``Superwall`` will handle this for you.
+     */
+
+    suspend fun purchase(productId: String): Result<PurchaseResult> =
+        withErrorTracking {
+            getProducts(productId).getOrThrow()[productId]?.let {
+                dependencyContainer.transactionManager.purchase(
+                    TransactionManager.PurchaseSource.ExternalPurchase(
+                        it,
+                    ),
+                )
+            } ?: throw IllegalArgumentException("Product with id $productId not found")
+        }.toResult()
+
+    /**
+     * Given a list of product identifiers, returns a map of identifiers to `StoreProduct` objects.
+     *
+     * @param productIds: A list of full product identifiers.
+     * @return A map of product identifiers to `StoreProduct` objects.
+     */
+
+    suspend fun getProducts(vararg productIds: String): Result<Map<String, StoreProduct>> =
+        withErrorTracking {
+            dependencyContainer.storeKitManager.getProductsWithoutPaywall(productIds.toList())
         }.toResult()
 
     /**
@@ -723,6 +784,11 @@ class Superwall(
             onFinished(res)
         }
     }
+
+    /**
+     * Observe purchases made without using Paywalls
+     *
+     * */
 
     fun observe(state: PurchasingObserverState) {
         ioScope.launchWithTracking {
