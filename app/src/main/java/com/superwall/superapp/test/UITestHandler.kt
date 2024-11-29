@@ -4,6 +4,9 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.util.Log
+import com.android.billingclient.api.BillingClient
+import com.android.billingclient.api.BillingResult
+import com.android.billingclient.api.Purchase
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.superwall.SuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEvent.DeepLink
@@ -19,6 +22,8 @@ import com.superwall.sdk.paywall.presentation.get_presentation_result.getPresent
 import com.superwall.sdk.paywall.presentation.register
 import com.superwall.sdk.paywall.presentation.result.PresentationResult
 import com.superwall.sdk.paywall.view.SuperwallPaywallActivity
+import com.superwall.sdk.store.PurchasingObserverState
+import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.view.fatalAssert
 import com.superwall.superapp.ComposeActivity
 import kotlinx.coroutines.CoroutineScope
@@ -700,7 +705,10 @@ object UITestHandler {
                     Superwall.instance.getPaywall(event = "present_data", delegate = delegate)
 
                 // Present using the convenience `SuperwallPaywallActivity` activity and verify test case.
-                SuperwallPaywallActivity.startWithView(context = this, view = view.getOrThrow())
+                SuperwallPaywallActivity.startWithView(
+                    context = this,
+                    view = view.getOrThrow(),
+                )
             },
         )
     var test37Info =
