@@ -1,5 +1,6 @@
 package com.superwall.sdk.models.product
 
+import com.superwall.sdk.models.entitlements.Entitlement
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -126,8 +127,10 @@ object PlayStoreProductSerializer : KSerializer<PlayStoreProduct> {
 data class ProductItem(
     @SerialName("reference_name")
     val name: String,
+    @SerialName("store_product")
     val type: StoreProductType,
-    val entitlements: Set<String>,
+    @SerialName("entitlements")
+    val entitlements: Set<Entitlement>,
 ) {
     sealed class StoreProductType {
         data class PlayStore(
@@ -173,6 +176,12 @@ object ProductItemSerializer : KSerializer<ProductItem> {
         val storeProductJsonObject =
             jsonObject["store_product"]?.jsonObject
                 ?: throw SerializationException("Missing store_product")
+        val entitlements =
+            jsonObject["entitlements"]
+                ?.jsonArray
+                ?.map {
+                    Json.decodeFromJsonElement<Entitlement>(it)
+                }?.toSet() ?: emptySet()
 
         // Deserialize 'storeProduct' JSON object into the expected Kotlin data class
         val storeProduct = Json.decodeFromJsonElement<PlayStoreProduct>(storeProductJsonObject)
@@ -180,7 +189,7 @@ object ProductItemSerializer : KSerializer<ProductItem> {
         return ProductItem(
             name = name,
             type = ProductItem.StoreProductType.PlayStore(storeProduct),
-            entitlements = emptySet(),
+            entitlements = entitlements,
         )
     }
 }
