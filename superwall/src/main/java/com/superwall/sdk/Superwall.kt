@@ -7,8 +7,8 @@ import androidx.work.WorkManager
 import com.android.billingclient.api.ProductDetails
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
-import com.superwall.sdk.billing.toInternalResult
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
+import com.superwall.sdk.billing.toInternalResult
 import com.superwall.sdk.config.models.ConfigState
 import com.superwall.sdk.config.models.ConfigurationStatus
 import com.superwall.sdk.config.options.SuperwallOptions

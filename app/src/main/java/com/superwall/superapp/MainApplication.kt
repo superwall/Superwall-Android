@@ -62,7 +62,7 @@ class MainApplication :
                 .build(),
         )
 
-        configureWithObserverMode()
+        configureWithAutomaticInitialization()
 //        configureWithRevenueCatInitialization()
     }
 
@@ -88,7 +88,7 @@ class MainApplication :
 
     fun configureWithObserverMode() {
         Superwall.configure(
-            this,
+            this@MainApplication,
             CONSTANT_API_KEY,
             options =
                 SuperwallOptions().apply {
@@ -99,7 +99,7 @@ class MainApplication :
                         }
                 },
         )
-        Superwall.instance.delegate = this
+        Superwall.instance.delegate = this@MainApplication
 
         // Make sure we enable the game controller
         // Superwall.instance.options.isGameControllerEnabled = true

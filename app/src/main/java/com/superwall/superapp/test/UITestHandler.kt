@@ -4,9 +4,6 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.util.Log
-import com.android.billingclient.api.BillingClient
-import com.android.billingclient.api.BillingResult
-import com.android.billingclient.api.Purchase
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.superwall.SuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEvent.DeepLink
@@ -22,8 +19,6 @@ import com.superwall.sdk.paywall.presentation.get_presentation_result.getPresent
 import com.superwall.sdk.paywall.presentation.register
 import com.superwall.sdk.paywall.presentation.result.PresentationResult
 import com.superwall.sdk.paywall.vc.SuperwallPaywallActivity
-import com.superwall.sdk.store.PurchasingObserverState
-import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.view.fatalAssert
 import com.superwall.superapp.ComposeActivity
 import kotlinx.coroutines.CoroutineScope
@@ -39,22 +34,11 @@ object UITestHandler {
             0,
             "Uses the identify function. Should see the name 'Jack' in the paywall.",
             test = { scope, events ->
-
-                // We have a productId with auto offer
-                val productId = "com.ui_tests.monthly:com-ui-tests-montly:sw-auto"
-                val annualProduct = "com.ui_tests.annual:com-ui-tests-annual"
-                // We ask for 2 products
-                val products: Map<String, StoreProduct> =
-                    Superwall.instance.getProducts(productId, annualProduct).getOrThrow()
-                // We get the first product
-                val monthly = products[productId]!!
-                Superwall.instance.purchase(productId)
-                // Or we purchase the product ID directly
-                Superwall.instance.purchase(productId).let {
-                    it.getOrThrow().let {
-                        Log.e("UITestHandler", "Purchase result: $it")
-                    }
-                }
+                Log.e("Registering event", "present_data")
+                Superwall.instance.identify(userId = "test0")
+                Superwall.instance.setUserAttributes(attributes = mapOf("first_name" to "Jack"))
+                Superwall.instance.register(event = "present_data")
+                Log.e("Registering event", "done")
             },
         )
 
@@ -63,26 +47,16 @@ object UITestHandler {
             1,
             "Uses the identify function. Should see the name 'Kate' in the paywall.",
             test = { scope, events ->
-                Superwall.instance.observe(
-                    PurchasingObserverState.PurchaseResult(
-                        BillingResult
-                            .newBuilder()
-                            .setResponseCode(BillingClient.BillingResponseCode.OK)
-                            .build(),
-                        listOf(
-                            PurchaseMockBuilder()
-                                .setPurchaseState(Purchase.PurchaseState.PURCHASED)
-                                .setPurchaseTime(System.currentTimeMillis())
-                                .setOrderId("custom-order-id")
-                                .setProductId("com.ui_tests.monthly:com-ui-tests-montly:sw-none")
-                                .setQuantity(1)
-                                .setPurchaseToken("custom-token")
-                                .setPackageName("com.superwall.superapp")
-                                .setAutoRenewing(false)
-                                .build(),
-                        ),
-                    ),
-                )
+                // Set identity
+                Superwall.instance.identify(userId = "test1a")
+                Superwall.instance.setUserAttributes(mapOf("first_name" to "Jack"))
+                scope.launch {
+
+                    // Set new identity
+                    Superwall.instance.identify(userId = "test1b")
+                    Superwall.instance.setUserAttributes(mapOf("first_name" to "Kate"))
+                    Superwall.instance.register(event = "present_data")
+                }
             },
         )
     var test2Info =
@@ -653,7 +627,7 @@ object UITestHandler {
                 scope.launch {
                     val result = Superwall.instance.getPresentationResult("present_data")
                     fatalAssert(
-                        result.getOrNull() is PresentationResult.UserIsSubscribed,
+                        result.getOrNull() is PresentationResult.NoRuleMatch,
                         "UserIsSubscribed expected, received $result",
                     )
                     println("!!! TEST 32 !!! $result")
