@@ -6,10 +6,12 @@ import android.net.Uri
 import androidx.work.WorkManager
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
+import com.superwall.sdk.billing.toInternalResult
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
 import com.superwall.sdk.config.models.ConfigState
 import com.superwall.sdk.config.models.ConfigurationStatus
 import com.superwall.sdk.config.options.SuperwallOptions
+import com.superwall.sdk.delegate.InternalPurchaseResult
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.delegate.SuperwallDelegate
@@ -51,6 +53,7 @@ import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.OpenedURL
 import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.OpenedUrlInChrome
 import com.superwall.sdk.storage.ActiveSubscriptionStatus
 import com.superwall.sdk.store.ExternalNativePurchaseController
+import com.superwall.sdk.store.PurchasingObserverState
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.transactions.TransactionManager
@@ -707,7 +710,7 @@ class Superwall(
     suspend fun purchase(product: RawStoreProduct): Result<PurchaseResult> =
         withErrorTracking {
             dependencyContainer.transactionManager.purchase(
-                TransactionManager.PurchaseSource.External(
+                TransactionManager.PurchaseSource.ExternalPurchase(
                     StoreProduct(product),
                 ),
             )
@@ -735,12 +738,53 @@ class Superwall(
             val res =
                 withErrorTracking {
                     dependencyContainer.transactionManager.purchase(
-                        TransactionManager.PurchaseSource.External(
+                        TransactionManager.PurchaseSource.ExternalPurchase(
                             StoreProduct(product),
                         ),
                     )
                 }.toResult()
             onFinished(res)
+        }
+    }
+
+    fun observe(state: PurchasingObserverState) {
+        ioScope.launchWithTracking {
+            if (!options.shouldObservePurchases) {
+                Logger.debug(
+                    logLevel = LogLevel.error,
+                    scope = LogScope.superwallCore,
+                    message =
+                        "You are trying to observe purchases but the SuperwallOption shouldObservePurchases is " +
+                            "false. Please set it to true to be able to observe purchases.",
+                )
+                return@launchWithTracking
+            }
+            when (state) {
+                is PurchasingObserverState.PurchaseWillBegin -> {
+                    val product = StoreProduct(RawStoreProduct.from(state.productId))
+                    dependencyContainer.transactionManager.prepareToPurchase(
+                        product,
+                        source = TransactionManager.PurchaseSource.ObserverMode(product),
+                    )
+                }
+
+                is PurchasingObserverState.PurchaseResult -> {
+                    val result = (state.result to state.purchases).toInternalResult()
+                    for (internalPurchaseResult in result) {
+                        dependencyContainer.transactionManager.handle(
+                            internalPurchaseResult,
+                            state,
+                        )
+                    }
+                }
+
+                is PurchasingObserverState.PurchaseError -> {
+                    dependencyContainer.transactionManager.handle(
+                        InternalPurchaseResult.Failed(state.error),
+                        state,
+                    )
+                }
+            }
         }
     }
 
