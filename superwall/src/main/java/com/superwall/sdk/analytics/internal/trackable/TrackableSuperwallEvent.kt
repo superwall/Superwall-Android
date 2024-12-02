@@ -434,7 +434,17 @@ sealed class InternalSuperwallEvent(
         val paywallInfo: PaywallInfo,
         val product: StoreProduct?,
         val model: StoreTransaction?,
+        val source: TransactionSource,
+        val isObserved: Boolean,
     ) : TrackableSuperwallEvent {
+        enum class TransactionSource(
+            val raw: String,
+        ) {
+            INTERNAL("SUPERWALL"),
+            OBSERVER("OBSERVER"),
+            EXTERNAL("APP"),
+        }
+
         sealed class State {
             class Start(
                 val product: StoreProduct,
@@ -511,7 +521,7 @@ sealed class InternalSuperwallEvent(
             get() = superwallEvent.rawName
 
         override val canImplicitlyTriggerPaywall: Boolean
-            get() = superwallEvent.canImplicitlyTriggerPaywall
+            get() = if (isObserved) false else superwallEvent.canImplicitlyTriggerPaywall
 
         override suspend fun getSuperwallParameters(): HashMap<String, Any> {
             return when (state) {

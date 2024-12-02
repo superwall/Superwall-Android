@@ -12,6 +12,8 @@ class SuperwallOptions {
     // Configures the appearance and behavior of paywalls.
     var paywalls: PaywallOptions = PaywallOptions()
 
+    var shouldObservePurchases = false
+
     // **WARNING**:  The different network environments that the SDK should use.
     // Only use this enum to set ``SuperwallOptions/networkEnvironment-swift.property``
     // if told so explicitly by the Superwall team.

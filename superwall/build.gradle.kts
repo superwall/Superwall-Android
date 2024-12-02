@@ -18,7 +18,7 @@ plugins {
     id("com.android.library")
     kotlin("android")
     kotlin("kapt")
-    alias(libs.plugins.serialization) // Maven publishing
+    alias(libs.plugins.serialization)
     id("maven-publish")
     id("signing")
 }
@@ -30,7 +30,7 @@ android {
     namespace = "com.superwall.sdk"
 
     defaultConfig {
-        minSdkVersion(26)
+        minSdkVersion(22)
         targetSdkVersion(33)
 
         aarMetadata {
@@ -39,8 +39,6 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
-
-        consumerProguardFile("proguard-rules.pro")
 
         val gitSha =
             project
@@ -58,9 +56,10 @@ android {
     }
 
     buildTypes {
-        getByName("release") {
+        release {
             isMinifyEnabled = false
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            consumerProguardFile("../proguard-rules.pro")
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "../proguard-rules.pro")
         }
     }
 
@@ -70,12 +69,7 @@ android {
     }
 
     buildFeatures {
-        compose = true
         buildConfig = true
-    }
-
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.0"
     }
 
     kotlinOptions {
@@ -207,13 +201,6 @@ dependencies {
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.core)
-
-    // Compose
-    implementation(platform(libs.compose.bom))
-    implementation(libs.ui)
-    implementation(libs.ui.graphics)
-    implementation(libs.ui.tooling.preview)
-    implementation(libs.material3)
 
     // Serialization
     implementation(libs.kotlinx.serialization.json)

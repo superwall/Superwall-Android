@@ -490,7 +490,6 @@ class SuperwallPaywallActivity : AppCompatActivity() {
     suspend fun attemptToScheduleNotifications(
         notifications: List<LocalNotification>,
         factory: DeviceHelperFactory,
-        context: Context,
     ) = suspendCoroutine { continuation ->
         if (notifications.isEmpty()) {
             continuation.resume(Unit) // Resume immediately as there's nothing to schedule
@@ -506,7 +505,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                         NotificationScheduler.scheduleNotifications(
                             notifications = notifications,
                             factory = factory,
-                            context = context,
+                            context = this@SuperwallPaywallActivity,
                         )
                     }
                     continuation.resume(Unit) // Resume coroutine after processing
@@ -517,20 +516,22 @@ class SuperwallPaywallActivity : AppCompatActivity() {
     }
 
     private fun createNotificationChannel() {
-        val importance = NotificationManager.IMPORTANCE_DEFAULT
-        val channel =
-            NotificationChannel(
-                NOTIFICATION_CHANNEL_ID,
-                NOTIFICATION_CHANNEL_NAME,
-                importance,
-            ).apply {
-                description = NOTIFICATION_CHANNEL_DESCRIPTION
-            }
-        channel.setShowBadge(false)
-        // Register the channel with the system
-        val notificationManager: NotificationManager =
-            getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.createNotificationChannel(channel)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val importance = NotificationManager.IMPORTANCE_DEFAULT
+            val channel =
+                NotificationChannel(
+                    NOTIFICATION_CHANNEL_ID,
+                    NOTIFICATION_CHANNEL_NAME,
+                    importance,
+                ).apply {
+                    description = NOTIFICATION_CHANNEL_DESCRIPTION
+                }
+            channel.setShowBadge(false)
+            // Register the channel with the system
+            val notificationManager: NotificationManager =
+                getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(channel)
+        }
     }
 
     private fun checkAndRequestNotificationPermissions(
@@ -569,9 +570,11 @@ class SuperwallPaywallActivity : AppCompatActivity() {
     private fun areNotificationsEnabled(context: Context): Boolean {
         val notificationManager =
             getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val channel = notificationManager.getNotificationChannel(NOTIFICATION_CHANNEL_ID)
-        if (channel?.importance == NotificationManager.IMPORTANCE_NONE) {
-            return false
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = notificationManager.getNotificationChannel(NOTIFICATION_CHANNEL_ID)
+            if (channel?.importance == NotificationManager.IMPORTANCE_NONE) {
+                return false
+            }
         }
         return NotificationManagerCompat.from(context).areNotificationsEnabled()
     }

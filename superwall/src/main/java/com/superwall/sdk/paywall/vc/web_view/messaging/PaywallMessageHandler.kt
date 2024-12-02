@@ -2,6 +2,7 @@ package com.superwall.sdk.paywall.vc.web_view.messaging
 
 import TemplateLogic
 import android.net.Uri
+import android.util.Base64
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import com.superwall.sdk.Superwall
@@ -30,7 +31,6 @@ import kotlinx.serialization.json.Json
 import org.json.JSONObject
 import java.net.URI
 import java.nio.charset.StandardCharsets
-import java.util.Base64
 import java.util.Date
 import java.util.LinkedList
 import java.util.Queue
@@ -63,7 +63,6 @@ class PaywallMessageHandler(
     private val factory: VariablesFactory,
     private val mainScope: MainScope,
     private val ioScope: CoroutineScope,
-    private val encoder: Base64.Encoder = Base64.getEncoder(),
     private val json: Json = Json { encodeDefaults = true },
 ) {
     private companion object {
@@ -203,7 +202,7 @@ class PaywallMessageHandler(
 
         // Encode the JSON string to Base64
         val base64Event =
-            encoder.encodeToString(jsonString.toByteArray(StandardCharsets.UTF_8))
+            Base64.encodeToString(jsonString.toByteArray(StandardCharsets.UTF_8), Base64.NO_WRAP)
 
         passMessageToWebView(base64String = base64Event)
     }
@@ -218,7 +217,6 @@ class PaywallMessageHandler(
                 event = eventData,
                 factory = factory,
                 json = json,
-                base64 = encoder,
             )
         passMessageToWebView(base64String = templates)
     }
@@ -284,7 +282,6 @@ class PaywallMessageHandler(
                 event = eventData,
                 factory = factory,
                 json = json,
-                base64 = encoder,
             )
         val scriptSrc = """
       window.paywall.accept64('$templates');
