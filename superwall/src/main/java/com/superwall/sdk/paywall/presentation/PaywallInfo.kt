@@ -10,7 +10,9 @@ import com.superwall.sdk.models.config.FeatureGatingBehavior
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.LocalNotification
 import com.superwall.sdk.models.paywall.PaywallPresentationInfo
+import com.superwall.sdk.models.paywall.PaywallPresentationStyle
 import com.superwall.sdk.models.paywall.PaywallURL
+import com.superwall.sdk.models.paywall.PresentationCondition
 import com.superwall.sdk.models.product.Product
 import com.superwall.sdk.models.product.ProductItem
 import com.superwall.sdk.models.triggers.Experiment
@@ -292,7 +294,48 @@ data class PaywallInfo(
         return output.filter { (_, value) -> value != null } as MutableMap<String, Any>
     }
 
-    private companion object {
+    companion object {
         private val json = Json { }
+
+        fun empty() =
+            PaywallInfo(
+                databaseId = "",
+                identifier = "",
+                name = "",
+                url = PaywallURL(""),
+                experiment = null,
+                triggerSessionId = "",
+                products = emptyList(),
+                productItems = emptyList(),
+                productIds = emptyList(),
+                presentedByEventWithName = null,
+                presentedByEventWithId = null,
+                presentedByEventAt = null,
+                presentedBy = "",
+                presentationSourceType = null,
+                responseLoadStartTime = null,
+                responseLoadCompleteTime = null,
+                responseLoadFailTime = null,
+                responseLoadDuration = null,
+                webViewLoadStartTime = null,
+                webViewLoadCompleteTime = null,
+                webViewLoadFailTime = null,
+                webViewLoadDuration = null,
+                productsLoadStartTime = null,
+                productsLoadCompleteTime = null,
+                productsLoadFailTime = null,
+                productsLoadDuration = null,
+                paywalljsVersion = null,
+                isFreeTrialAvailable = false,
+                featureGatingBehavior = FeatureGatingBehavior.NonGated,
+                closeReason = PaywallCloseReason.None,
+                localNotifications = emptyList(),
+                computedPropertyRequests = emptyList(),
+                surveys = emptyList(),
+                presentation = PaywallPresentationInfo(PaywallPresentationStyle.NONE, PresentationCondition.ALWAYS, 0),
+                buildId = "",
+                cacheKey = "",
+                isScrollEnabled = true,
+            )
     }
 }

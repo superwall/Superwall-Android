@@ -49,8 +49,10 @@ import com.superwall.sdk.network.device.DeviceInfo
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
 import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.paywall.manager.PaywallViewCache
+import com.superwall.sdk.paywall.presentation.dismiss
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
+import com.superwall.sdk.paywall.presentation.internal.dismiss
 import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.SuperscriptEvaluator
@@ -88,7 +90,6 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.ClassDiscriminatorMode
 import kotlinx.serialization.json.Json
 import java.lang.ref.WeakReference
-import java.util.Base64
 import java.util.Date
 
 class DependencyContainer(
@@ -203,7 +204,7 @@ class DependencyContainer(
         }
 
         googleBillingWrapper =
-            GoogleBillingWrapper(context, appLifecycleObserver = appLifecycleObserver)
+            GoogleBillingWrapper(context, ioScope, appLifecycleObserver = appLifecycleObserver)
 
         var purchaseController =
             InternalPurchaseController(
@@ -211,7 +212,7 @@ class DependencyContainer(
                 javaPurchaseController = null,
                 context,
             )
-        storeKitManager = StoreKitManager(context, purchaseController, googleBillingWrapper)
+        storeKitManager = StoreKitManager(purchaseController, googleBillingWrapper)
 
         delegateAdapter = SuperwallDelegateAdapter()
         storage = LocalStorage(context = context, ioScope = ioScope(), factory = this, json = json())
@@ -358,11 +359,16 @@ class DependencyContainer(
             TransactionManager(
                 storeKitManager = storeKitManager,
                 purchaseController = purchaseController,
-                sessionEventsManager,
                 eventsQueue = eventsQueue,
                 activityProvider,
                 factory = this,
-                context = context,
+                track = {
+                    Superwall.instance.track(it)
+                },
+                dismiss = { it, et ->
+                    Superwall.instance.dismiss(it, et)
+                },
+                ioScope = ioScope(),
             )
 
         /**
@@ -423,7 +429,6 @@ class DependencyContainer(
     }
 
     private val paywallJson = Json { encodeDefaults = true }
-    private val encoder = Base64.getEncoder()
 
     override suspend fun makePaywallView(
         paywall: Paywall,
@@ -435,7 +440,6 @@ class DependencyContainer(
                 sessionEventsManager = sessionEventsManager,
                 factory = this@DependencyContainer,
                 ioScope = ioScope,
-                encoder = encoder,
                 json = paywallJson,
                 mainScope = mainScope(),
             )

@@ -23,7 +23,6 @@ import android.widget.FrameLayout
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
-import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.coordinatorlayout.widget.CoordinatorLayout
@@ -491,13 +490,11 @@ class SuperwallPaywallActivity : AppCompatActivity() {
     suspend fun attemptToScheduleNotifications(
         notifications: List<LocalNotification>,
         factory: DeviceHelperFactory,
-        context: Context,
     ) = suspendCoroutine { continuation ->
         if (notifications.isEmpty()) {
             continuation.resume(Unit) // Resume immediately as there's nothing to schedule
             return@suspendCoroutine
         }
-
 
         createNotificationChannel()
 
@@ -508,7 +505,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                         NotificationScheduler.scheduleNotifications(
                             notifications = notifications,
                             factory = factory,
-                            context = context,
+                            context = this@SuperwallPaywallActivity,
                         )
                     }
                     continuation.resume(Unit) // Resume coroutine after processing
