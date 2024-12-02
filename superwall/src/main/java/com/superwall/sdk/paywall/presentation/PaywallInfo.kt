@@ -326,6 +326,8 @@ data class PaywallInfo(
                 buildId = "",
                 cacheKey = "",
                 isScrollEnabled = true,
+                shimmerLoadCompleteTime = null,
+                shimmerLoadStartTime = null,
             )
     }
 }

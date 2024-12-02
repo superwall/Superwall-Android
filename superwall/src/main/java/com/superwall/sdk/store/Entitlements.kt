@@ -83,10 +83,10 @@ class Entitlements(
 
     internal fun byProductId(id: String): Set<Entitlement> = _entitlementsByProduct[id] ?: emptySet()
 
-    internal fun addEntitlementsByProductId(idToEntitlements: Map<String, Set<String>>) {
+    internal fun addEntitlementsByProductId(idToEntitlements: Map<String, Set<Entitlement>>) {
         _entitlementsByProduct.putAll(
             idToEntitlements.mapValues { (_, entitlements) ->
-                entitlements.map { Entitlement(it) }.toSet()
+                entitlements.toSet()
             },
         )
         _all.clear()

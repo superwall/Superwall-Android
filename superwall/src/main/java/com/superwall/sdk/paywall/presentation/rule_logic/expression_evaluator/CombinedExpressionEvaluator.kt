@@ -32,35 +32,19 @@ internal class CombinedExpressionEvaluator(
         eventData: EventData?,
     ): TriggerRuleOutcome {
         // Expression matches all
-        if (rule.expressionJs == null && rule.expression == null) {
+        if (rule.expressionJs == null && rule.expression == null && rule.expressionCEL == null) {
             return rule.tryToMatchOccurrence(storage.coreDataManager, true)
         }
 
-        val base64Params =
-            getBase64Params(rule, eventData) ?: return TriggerRuleOutcome.noMatch(
-                UnmatchedRule.Source.EXPRESSION,
-                rule.experiment.id,
-            )
-
-        val result = evaluator.evaluate(base64Params, rule)
+        // If we are evaluating JS/Liquid, we encode rules, otherwise we return null
+        // and evaluate superscript only
         val celEvaluation =
             try {
                 superscriptEvaluator.evaluateExpression(rule, eventData)
             } catch (e: Exception) {
                 TriggerRuleOutcome.noMatch(UnmatchedRule.Source.EXPRESSION, rule.experiment.id)
             }
-        if (shouldTraceResults) {
-            track(
-                InternalSuperwallEvent.ExpressionResult(
-                    liquidExpression = rule.expression,
-                    celExpression = rule.expressionCEL,
-                    celExpressionResult = if (celEvaluation is TriggerRuleOutcome.Match) true else false,
-                    jsExpression = rule.expressionJs,
-                    jsExpressionResult = if (result is TriggerRuleOutcome.Match) true else false,
-                ),
-            )
-        }
-        return result
+        return celEvaluation
     }
 
     private suspend fun getBase64Params(

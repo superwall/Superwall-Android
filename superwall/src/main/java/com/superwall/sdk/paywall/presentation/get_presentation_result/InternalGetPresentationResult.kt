@@ -41,7 +41,6 @@ private fun handle(
     }
 
     return when (error) {
-        is PaywallPresentationRequestStatusReason.UserIsSubscribed -> PresentationResult.UserIsSubscribed()
         is PaywallPresentationRequestStatusReason.NoPaywallView -> PresentationResult.PaywallNotAvailable()
         is PaywallPresentationRequestStatusReason.NoRuleMatch -> PresentationResult.NoRuleMatch()
         is PaywallPresentationRequestStatusReason.Holdout -> PresentationResult.Holdout(error.experiment)

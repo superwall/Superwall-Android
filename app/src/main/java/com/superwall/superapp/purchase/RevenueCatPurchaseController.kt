@@ -131,7 +131,7 @@ class RevenueCatPurchaseController(
                     EntitlementStatus.Active(
                         it.entitlements.active
                             .map {
-                                Entitlement(it.key)
+                                Entitlement(it.key, Entitlement.Type.SERVICE_LEVEL)
                             }.toSet(),
                     ),
                 )
@@ -150,7 +150,7 @@ class RevenueCatPurchaseController(
                 EntitlementStatus.Active(
                     customerInfo.entitlements.active
                         .map {
-                            Entitlement(it.key)
+                            Entitlement(it.key, Entitlement.Type.SERVICE_LEVEL)
                         }.toSet(),
                 ),
             )

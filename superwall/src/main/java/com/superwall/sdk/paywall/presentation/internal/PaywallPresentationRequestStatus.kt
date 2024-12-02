@@ -24,9 +24,6 @@ sealed class PaywallPresentationRequestStatusReason(
     /** There's already a paywall presented. */
     class PaywallAlreadyPresented : PaywallPresentationRequestStatusReason("paywall_already_presented")
 
-    /** The user is subscribed. */
-    class UserIsSubscribed : PaywallPresentationRequestStatusReason("user_is_subscribed")
-
     /** The user is in a holdout group. */
     data class Holdout(
         val experiment: Experiment,
