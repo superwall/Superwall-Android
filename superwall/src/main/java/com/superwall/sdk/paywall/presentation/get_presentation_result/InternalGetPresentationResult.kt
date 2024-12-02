@@ -41,7 +41,6 @@ private fun handle(
     }
 
     return when (error) {
-        is PaywallPresentationRequestStatusReason.UserIsSubscribed -> PresentationResult.UserIsSubscribed()
         is PaywallPresentationRequestStatusReason.NoPaywallView -> PresentationResult.PaywallNotAvailable()
         is PaywallPresentationRequestStatusReason.NoRuleMatch -> PresentationResult.NoRuleMatch()
         is PaywallPresentationRequestStatusReason.Holdout -> PresentationResult.Holdout(error.experiment)
@@ -50,7 +49,7 @@ private fun handle(
         is PaywallPresentationRequestStatusReason.NoPresenter,
         is PaywallPresentationRequestStatusReason.PaywallAlreadyPresented,
         is PaywallPresentationRequestStatusReason.NoConfig,
-        is PaywallPresentationRequestStatusReason.SubscriptionStatusTimeout,
+        is PaywallPresentationRequestStatusReason.EntitlementStatusTimeout,
         -> PresentationResult.PaywallNotAvailable()
     }
 }

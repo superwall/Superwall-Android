@@ -14,7 +14,7 @@ import com.example.superapp.utils.screenshotFlow
 import com.example.superapp.utils.waitFor
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.superwall.SuperwallEvent
-import com.superwall.sdk.delegate.SubscriptionStatus
+import com.superwall.sdk.models.entitlements.EntitlementStatus
 import com.superwall.superapp.test.UITestHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -144,7 +144,7 @@ class SimpleScreenshotTestExecutor {
                     it.waitFor { it is SuperwallEvent.PaywallPresentationRequest }
                 }
             }
-            Superwall.instance.setSubscriptionStatus(SubscriptionStatus.INACTIVE)
+            Superwall.instance.setEntitlementStatus(EntitlementStatus.NoActiveEntitlements)
         }
 
     @Test
