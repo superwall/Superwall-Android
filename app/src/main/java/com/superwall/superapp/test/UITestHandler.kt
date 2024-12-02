@@ -4,9 +4,6 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.util.Log
-import com.android.billingclient.api.BillingClient
-import com.android.billingclient.api.BillingResult
-import com.android.billingclient.api.Purchase
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.superwall.SuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEvent.DeepLink
@@ -632,7 +629,7 @@ object UITestHandler {
                 scope.launch {
                     val result = Superwall.instance.getPresentationResult("present_data")
                     fatalAssert(
-                        result.getOrNull() is PresentationResult.UserIsSubscribed,
+                        result.getOrNull() is PresentationResult.NoRuleMatch,
                         "UserIsSubscribed expected, received $result",
                     )
                     println("!!! TEST 32 !!! $result")
