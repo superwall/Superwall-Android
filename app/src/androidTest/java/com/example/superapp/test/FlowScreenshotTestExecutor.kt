@@ -137,7 +137,7 @@ class FlowScreenshotTestExecutor {
                     it.waitFor { it is SuperwallEvent.PaywallWebviewLoadComplete }
                     awaitUntilShimmerDisappears()
                     awaitUntilWebviewAppears()
-                    delayFor(100.milliseconds)
+                    delayFor(300.milliseconds)
                     mainScope
                         .async {
                             // We scroll a bit to display the button
@@ -151,7 +151,7 @@ class FlowScreenshotTestExecutor {
                                 }
                         }.await()
                     // We delay a bit to ensure the button is visible
-                    delayFor(100.milliseconds)
+                    delayFor(300.milliseconds)
                     // We scroll back to the top
                     mainScope
                         .async {
