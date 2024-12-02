@@ -76,38 +76,30 @@ class DeviceHelper(
     private val appInstallDate = Date(appInfo.firstInstallTime)
 
     fun daysSince(date: Date): Int {
-        val fromDate = date
-        val toDate = Date()
-        val fromInstant = Instant.ofEpochMilli(fromDate.time)
-        val toInstant = Instant.ofEpochMilli(toDate.time)
-        val duration = Duration.between(fromInstant, toInstant)
+        val fromDate = Instant.ofEpochMilli(date.time)
+        val toDate = Instant.now()
+        val duration = Duration.between(fromDate, toDate)
         return duration.toDays().toInt()
     }
 
     fun minutesSince(date: Date): Int {
-        val fromDate = date
-        val toDate = Date()
-        val fromInstant = Instant.ofEpochMilli(fromDate.time)
-        val toInstant = Instant.ofEpochMilli(toDate.time)
-        val duration = Duration.between(fromInstant, toInstant)
+        val fromDate = Instant.ofEpochMilli(date.time)
+        val toDate = Instant.now()
+        val duration = Duration.between(fromDate, toDate)
         return duration.toMinutes().toInt()
     }
 
     fun hoursSince(date: Date): Int {
-        val fromDate = date
-        val toDate = Date()
-        val fromInstant = Instant.ofEpochMilli(fromDate.time)
-        val toInstant = Instant.ofEpochMilli(toDate.time)
-        val duration = Duration.between(fromInstant, toInstant)
+        val fromDate = Instant.ofEpochMilli(date.time)
+        val toDate = Instant.now()
+        val duration = Duration.between(fromDate, toDate)
         return duration.toHours().toInt()
     }
 
     fun monthsSince(date: Date): Int {
-        val fromDate = date
-        val toDate = Date()
-        val fromInstant = Instant.ofEpochMilli(fromDate.time)
-        val toInstant = Instant.ofEpochMilli(toDate.time)
-        val duration = Duration.between(fromInstant, toInstant)
+        val fromDate = Instant.ofEpochMilli(date.time)
+        val toDate = Instant.now()
+        val duration = Duration.between(fromDate, toDate)
         return duration.toDays().toInt() / 30
     }
 
@@ -488,7 +480,7 @@ class DeviceHelper(
                 isSandbox = isSandbox.toString(),
                 activeEntitlements =
                     Superwall.instance.entitlements.active
-                        .map { it.id },
+                        .map { mapOf("identifier" to it.id) },
                 isFirstAppOpen = isFirstAppOpen,
                 sdkVersion = sdkVersion,
                 sdkVersionPadded = sdkVersionPadded,
