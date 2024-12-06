@@ -97,6 +97,7 @@ class ExternalNativePurchaseController(
 
     fun syncSubscriptionStatus() {
         CoroutineScope(Dispatchers.IO).launch {
+            Superwall.hasInitialized.first { it }
             syncSubscriptionStatusAndWait()
         }
     }

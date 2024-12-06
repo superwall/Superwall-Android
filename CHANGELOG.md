@@ -2,6 +2,20 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 1.5.0
+
+### Enhancements
+
+- Adds `shimmerView_start` and `shimmerView_complete` events to track the loading of the shimmer animation.
+- Makes `hasFreeTrial` match iOS SDK behavior by returning `true` for both free trials and non-free introductory offers
+- Adds `Superwall.instance.events` - A SharedFlow instance emitting all Superwall events as `SuperwallEventInfo`. This can be used as an alternative to a delegate for listening to events.
+- Adds a new shimmer animation
+- Adds support for SuperScript expression evaluator
+
+### Fixes
+
+- Fixes concurrency issues with subscriptions triggered in Cordova apps 
+
 ## 1.5.0-beta.2
 
 ## Enhancements
