@@ -282,11 +282,11 @@ class AutomaticPurchaseController(
                         if (entitlements.isNotEmpty()) {
                             EntitlementStatus.Active(entitlements)
                         } else {
-                            EntitlementStatus.NoActiveEntitlements
+                            EntitlementStatus.Inactive
                         }
                     }
             } else {
-                EntitlementStatus.NoActiveEntitlements
+                EntitlementStatus.Inactive
             }
 
         if (!Superwall.initialized) {

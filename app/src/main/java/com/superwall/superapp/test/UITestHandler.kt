@@ -181,7 +181,7 @@ object UITestHandler {
             test = { scope, events ->
                 Superwall.instance.setEntitlementStatus(EntitlementStatus.Active(setOf(Entitlement("test"))))
                 Superwall.instance.register(event = "present_always")
-                Superwall.instance.setEntitlementStatus(EntitlementStatus.NoActiveEntitlements)
+                Superwall.instance.setEntitlementStatus(EntitlementStatus.Inactive)
             },
         )
     var test10Info =
@@ -481,7 +481,7 @@ object UITestHandler {
 
                     events.first { it is SuperwallEvent.EntitlementStatusDidChange }
                     delay(4000)
-                    Superwall.instance.setEntitlementStatus(EntitlementStatus.NoActiveEntitlements)
+                    Superwall.instance.setEntitlementStatus(EntitlementStatus.Inactive)
                 }
             },
         )
@@ -631,7 +631,7 @@ object UITestHandler {
                         "UserIsSubscribed expected, received $result",
                     )
                     println("!!! TEST 32 !!! $result")
-                    Superwall.instance.setEntitlementStatus(EntitlementStatus.NoActiveEntitlements)
+                    Superwall.instance.setEntitlementStatus(EntitlementStatus.Inactive)
                 }
             },
         )
@@ -1365,7 +1365,7 @@ object UITestHandler {
                 "show. Tap the close button. The paywall will close and the console will print " +
                 "\"!!! TEST 74 !!! SurveyClose\".",
             test = { scope, events ->
-                Superwall.instance.setEntitlementStatus(EntitlementStatus.NoActiveEntitlements)
+                Superwall.instance.setEntitlementStatus(EntitlementStatus.Inactive)
                 // Create a mock Superwall delegate
                 val delegate = MockSuperwallDelegate()
 
