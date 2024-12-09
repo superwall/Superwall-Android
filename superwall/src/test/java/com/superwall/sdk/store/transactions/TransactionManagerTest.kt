@@ -685,7 +685,7 @@ class TransactionManagerTest {
                         track = { e ->
                             events.update { it + e }
                         },
-                        entitlementStatus = { EntitlementStatus.NoActiveEntitlements },
+                        entitlementStatus = { EntitlementStatus.Inactive },
                     )
 
                 coEvery { purchaseController.restorePurchases() } returns
@@ -729,7 +729,7 @@ class TransactionManagerTest {
                         track = { e ->
                             events.update { it + e }
                         },
-                        entitlementStatus = { EntitlementStatus.NoActiveEntitlements },
+                        entitlementStatus = { EntitlementStatus.Inactive },
                     )
 
                 coEvery { purchaseController.restorePurchases() } returns RestorationResult.Restored()

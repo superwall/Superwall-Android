@@ -98,7 +98,7 @@ class EntitlementsTest {
                     entitlements.setEntitlementStatus(EntitlementStatus.Active(emptySet()))
 
                     Then("it should convert to NoActiveEntitlements status") {
-                        assertTrue(entitlements.status.value is EntitlementStatus.NoActiveEntitlements)
+                        assertTrue(entitlements.status.value is EntitlementStatus.Inactive)
                         assertTrue(entitlements.active.isEmpty())
                         assertTrue(entitlements.inactive.isEmpty())
                     }
@@ -114,12 +114,12 @@ class EntitlementsTest {
                 every { storage.read(StoredEntitlementsByProductId) } returns null
                 entitlements = Entitlements(storage)
                 When("setting NoActiveEntitlements status") {
-                    entitlements.setEntitlementStatus(EntitlementStatus.NoActiveEntitlements)
+                    entitlements.setEntitlementStatus(EntitlementStatus.Inactive)
 
                     Then("it should clear all collections") {
                         assertTrue(entitlements.active.isEmpty())
                         assertTrue(entitlements.inactive.isEmpty())
-                        assertTrue(entitlements.status.value is EntitlementStatus.NoActiveEntitlements)
+                        assertTrue(entitlements.status.value is EntitlementStatus.Inactive)
                     }
                 }
             }

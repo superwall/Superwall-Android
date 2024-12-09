@@ -835,7 +835,7 @@ class DebugView(
         // bottomButton.setImageDrawable(null)
         // bottomButton.showLoading = true
 
-        val inactiveSubscriptionPublisher = MutableStateFlow(EntitlementStatus.NoActiveEntitlements)
+        val inactiveSubscriptionPublisher = MutableStateFlow(EntitlementStatus.Inactive)
 
         val presentationRequest =
             factory.makePresentationRequest(

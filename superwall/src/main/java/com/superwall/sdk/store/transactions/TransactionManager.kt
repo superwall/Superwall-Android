@@ -1,5 +1,7 @@
 package com.superwall.sdk.store.transactions
 
+import com.android.billingclient.api.BillingClient
+import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.Purchase
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
@@ -40,7 +42,11 @@ import com.superwall.sdk.store.StoreKitManager
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
+import java.util.LinkedHashSet
 
 class TransactionManager(
     private val storeKitManager: StoreKitManager,
@@ -85,7 +91,42 @@ class TransactionManager(
 
     private var lastPaywallView: PaywallView? = null
 
-    private var transactionsInProgress: MutableSet<String> = mutableSetOf()
+    private var transactionsInProgress: LinkedHashSet<String> = LinkedHashSet()
+
+    private val shouldObserveTransactionFinishingAutomatically: Boolean
+        get() = factory.makeSuperwallOptions().shouldObservePurchases
+
+    init {
+        if (shouldObserveTransactionFinishingAutomatically
+        ) {
+            ioScope.launch {
+                storeKitManager.billing.purchaseResults
+                    .asSharedFlow()
+                    .filterNotNull()
+                    .collectLatest { it: InternalPurchaseResult ->
+                        val id = transactionsInProgress.last()
+                        val state =
+                            when (it) {
+                                is InternalPurchaseResult.Purchased -> {
+                                    PurchasingObserverState.PurchaseResult(
+                                        BillingResult
+                                            .newBuilder()
+                                            .setResponseCode(BillingClient.BillingResponseCode.OK)
+                                            .build(),
+                                        listOf(it.purchase),
+                                    )
+                                }
+                                else ->
+                                    PurchasingObserverState.PurchaseError(
+                                        error = (it as? InternalPurchaseResult.Failed)?.error ?: Throwable("Unknown error"),
+                                        product = storeKitManager.productsByFullId[id]?.rawStoreProduct!!.underlyingProductDetails,
+                                    )
+                            }
+                        handle(it, state)
+                    }
+            }
+        }
+    }
 
     internal suspend fun handle(
         result: InternalPurchaseResult,
