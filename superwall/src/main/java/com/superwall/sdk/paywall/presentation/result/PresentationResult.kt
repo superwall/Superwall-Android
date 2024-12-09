@@ -31,16 +31,6 @@ sealed class PresentationResult {
         val experiment: Experiment,
     ) : PresentationResult()
 
-    // The user is subscribed.
-    //
-    // This means ``Superwall/subscriptionStatus`` is set to `.active`. If you're
-    // letting Superwall handle subscription-related logic, it will be based on the on-device
-    // receipts. Otherwise it'll be based on the value you've set.
-    //
-    // By default, paywalls do not show to users who are already subscribed. You can override this
-    // behavior in the paywall editor.
-    class UserIsSubscribed : PresentationResult()
-
     // No view controller could be found to present on.
     class PaywallNotAvailable : PresentationResult()
 }

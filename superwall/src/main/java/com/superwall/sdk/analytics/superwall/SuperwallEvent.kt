@@ -77,9 +77,9 @@ sealed class SuperwallEvent {
     }
 
     // / When the user's subscription status changes.
-    class SubscriptionStatusDidChange : SuperwallEvent() {
+    class EntitlementStatusDidChange : SuperwallEvent() {
         override val rawName: String
-            get() = "subscriptionStatus_didChange"
+            get() = "entitlementStatus_didChange"
     }
 
     // / Anytime the app leaves the foreground.

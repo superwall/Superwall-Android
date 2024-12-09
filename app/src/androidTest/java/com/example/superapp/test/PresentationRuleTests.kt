@@ -73,7 +73,7 @@ class PresentationRuleTests {
         with(dropshots) {
             screenshotFlow(UITestHandler.test32Info) {
                 step("") {
-                    it.waitFor { it is SuperwallEvent.SubscriptionStatusDidChange }
+                    it.waitFor { it is SuperwallEvent.EntitlementStatusDidChange }
                     delayFor(1.seconds)
                 }
             }

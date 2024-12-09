@@ -17,6 +17,11 @@ interface StoreKit {
         request: PaywallRequest? = null,
     ): GetProductsResponse
 
+    suspend fun getProductsWithoutPaywall(
+        productIds: List<String>,
+        substituteProducts: Map<String, StoreProduct>? = null,
+    ): Map<String, StoreProduct>
+
     suspend fun refreshReceipt()
 
     suspend fun loadPurchasedProducts()

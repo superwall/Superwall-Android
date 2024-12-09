@@ -7,10 +7,11 @@ import android.util.Log
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.superwall.SuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEvent.DeepLink
-import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.identity.identify
 import com.superwall.sdk.identity.setUserAttributes
 import com.superwall.sdk.misc.AlertControllerFactory
+import com.superwall.sdk.models.entitlements.Entitlement
+import com.superwall.sdk.models.entitlements.EntitlementStatus
 import com.superwall.sdk.paywall.presentation.PaywallPresentationHandler
 import com.superwall.sdk.paywall.presentation.dismiss
 import com.superwall.sdk.paywall.presentation.get_paywall.getPaywall
@@ -178,9 +179,9 @@ object UITestHandler {
             "Sets subs status to active, paywall should present regardless of this," +
                 " then it sets the status back to inactive.",
             test = { scope, events ->
-                Superwall.instance.setSubscriptionStatus(SubscriptionStatus.ACTIVE)
+                Superwall.instance.setEntitlementStatus(EntitlementStatus.Active(setOf(Entitlement("test"))))
                 Superwall.instance.register(event = "present_always")
-                Superwall.instance.setSubscriptionStatus(SubscriptionStatus.INACTIVE)
+                Superwall.instance.setEntitlementStatus(EntitlementStatus.Inactive)
             },
         )
     var test10Info =
@@ -472,15 +473,15 @@ object UITestHandler {
                 "4s later.",
             test = { scope, events ->
                 // Set user as subscribed
-                Superwall.instance.setSubscriptionStatus(SubscriptionStatus.ACTIVE)
+                Superwall.instance.setEntitlementStatus(EntitlementStatus.Active(setOf(Entitlement("test"))))
 
                 // Register event - paywall shouldn't appear.
                 Superwall.instance.register(event = "register_nongated_paywall")
                 scope.launch {
 
-                    events.first { it is SuperwallEvent.SubscriptionStatusDidChange }
+                    events.first { it is SuperwallEvent.EntitlementStatusDidChange }
                     delay(4000)
-                    Superwall.instance.setSubscriptionStatus(SubscriptionStatus.INACTIVE)
+                    Superwall.instance.setEntitlementStatus(EntitlementStatus.Inactive)
                 }
             },
         )
@@ -490,16 +491,16 @@ object UITestHandler {
             "Tapping the button shouldn't present a paywall. These register calls don't " +
                 "have a feature gate. Differs from iOS in that there is no purchase taking place.",
             test = { scope, events ->
-                var currentSubscriptionStatus = Superwall.instance.subscriptionStatus.value
+                var currentSubscriptionStatus = Superwall.instance.entitlementStatus.value
 
-                Superwall.instance.setSubscriptionStatus(SubscriptionStatus.ACTIVE)
+                Superwall.instance.setEntitlementStatus(EntitlementStatus.Active(setOf(Entitlement("test"))))
 
                 // Try to present paywall again
                 Superwall.instance.register(event = "register_nongated_paywall")
                 scope.launch {
 
                     delay(4000)
-                    Superwall.instance.setSubscriptionStatus(currentSubscriptionStatus)
+                    Superwall.instance.setEntitlementStatus(currentSubscriptionStatus)
                 }
             },
         )
@@ -527,9 +528,9 @@ object UITestHandler {
             "Tapping the button shouldn't present the paywall but should launch the " +
                 "feature block - an alert should present.",
             test = { scope, events ->
-                var currentSubscriptionStatus = Superwall.instance.subscriptionStatus.value
+                var currentSubscriptionStatus = Superwall.instance.entitlementStatus.value
 
-                Superwall.instance.setSubscriptionStatus(SubscriptionStatus.ACTIVE)
+                Superwall.instance.setEntitlementStatus(EntitlementStatus.Active(setOf(Entitlement("test"))))
 
                 Superwall.instance.register(event = "register_gated_paywall") {
                     val alertController =
@@ -542,7 +543,7 @@ object UITestHandler {
                     alertController.show()
                 }
                 delay(8000)
-                Superwall.instance.setSubscriptionStatus(currentSubscriptionStatus)
+                Superwall.instance.setEntitlementStatus(currentSubscriptionStatus)
             },
         )
     var test28Info =
@@ -622,15 +623,15 @@ object UITestHandler {
             "This sets the subscription status active, prints out \"userIsSubscribed\" " +
                 "and then returns subscription status to inactive.",
             test = { scope, events ->
-                Superwall.instance.setSubscriptionStatus(SubscriptionStatus.ACTIVE)
+                Superwall.instance.setEntitlementStatus(EntitlementStatus.Active(setOf(Entitlement("test"))))
                 scope.launch {
                     val result = Superwall.instance.getPresentationResult("present_data")
                     fatalAssert(
-                        result.getOrNull() is PresentationResult.UserIsSubscribed,
+                        result.getOrNull() is PresentationResult.NoRuleMatch,
                         "UserIsSubscribed expected, received $result",
                     )
                     println("!!! TEST 32 !!! $result")
-                    Superwall.instance.setSubscriptionStatus(SubscriptionStatus.INACTIVE)
+                    Superwall.instance.setEntitlementStatus(EntitlementStatus.Inactive)
                 }
             },
         )
@@ -699,7 +700,10 @@ object UITestHandler {
                     Superwall.instance.getPaywall(event = "present_data", delegate = delegate)
 
                 // Present using the convenience `SuperwallPaywallActivity` activity and verify test case.
-                SuperwallPaywallActivity.startWithView(context = this, view = viewController.getOrThrow())
+                SuperwallPaywallActivity.startWithView(
+                    context = this,
+                    view = viewController.getOrThrow(),
+                )
             },
         )
     var test37Info =
@@ -720,7 +724,10 @@ object UITestHandler {
                     Superwall.instance.getPaywall(event = "restore", delegate = delegate)
 
                 // Present using the convenience `SuperwallPaywallActivity` activity and verify test case.
-                SuperwallPaywallActivity.startWithView(context = this, view = viewController.getOrThrow())
+                SuperwallPaywallActivity.startWithView(
+                    context = this,
+                    view = viewController.getOrThrow(),
+                )
             },
         )
 
@@ -731,11 +738,11 @@ object UITestHandler {
         subscribed: Boolean,
         gated: Boolean,
     ) {
-        val currentSubscriptionStatus = Superwall.instance.subscriptionStatus.value
+        val currentSubscriptionStatus = Superwall.instance.entitlementStatus.value
 
         if (subscribed) {
             // Set user subscribed
-            Superwall.instance.setSubscriptionStatus(SubscriptionStatus.ACTIVE)
+            Superwall.instance.setEntitlementStatus(EntitlementStatus.Active(setOf(Entitlement("test"))))
         }
 
         // Determine gating event
@@ -766,7 +773,7 @@ object UITestHandler {
 
         if (subscribed) {
             // Reset status
-            Superwall.instance.setSubscriptionStatus(currentSubscriptionStatus)
+            Superwall.instance.setEntitlementStatus(currentSubscriptionStatus)
         }
     }
 
@@ -1053,7 +1060,10 @@ object UITestHandler {
                     Superwall.instance.getPaywall(event = "restore", delegate = delegate)
 
                 // Present using the convenience `SuperwallPaywallActivity` activity and verify test case.
-                SuperwallPaywallActivity.startWithView(context = this, view = viewController.getOrThrow())
+                SuperwallPaywallActivity.startWithView(
+                    context = this,
+                    view = viewController.getOrThrow(),
+                )
             },
         )
     var test64Info =
@@ -1275,7 +1285,10 @@ object UITestHandler {
                     )
 
                 // Present using the convenience `SuperwallPaywallActivity` activity and verify test case.
-                SuperwallPaywallActivity.startWithView(context = this, view = viewController.getOrThrow())
+                SuperwallPaywallActivity.startWithView(
+                    context = this,
+                    view = viewController.getOrThrow(),
+                )
             },
         )
     var test71Info =
@@ -1352,7 +1365,7 @@ object UITestHandler {
                 "show. Tap the close button. The paywall will close and the console will print " +
                 "\"!!! TEST 74 !!! SurveyClose\".",
             test = { scope, events ->
-                Superwall.instance.setSubscriptionStatus(SubscriptionStatus.INACTIVE)
+                Superwall.instance.setEntitlementStatus(EntitlementStatus.Inactive)
                 // Create a mock Superwall delegate
                 val delegate = MockSuperwallDelegate()
 

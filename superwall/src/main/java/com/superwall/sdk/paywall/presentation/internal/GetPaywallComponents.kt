@@ -6,13 +6,12 @@ import com.superwall.sdk.misc.toResult
 import com.superwall.sdk.models.assignment.ConfirmedAssignment
 import com.superwall.sdk.paywall.presentation.get_paywall.PaywallComponents
 import com.superwall.sdk.paywall.presentation.internal.operators.checkDebuggerPresentation
-import com.superwall.sdk.paywall.presentation.internal.operators.checkUserSubscription
 import com.superwall.sdk.paywall.presentation.internal.operators.confirmHoldoutAssignment
 import com.superwall.sdk.paywall.presentation.internal.operators.confirmPaywallAssignment
 import com.superwall.sdk.paywall.presentation.internal.operators.evaluateRules
 import com.superwall.sdk.paywall.presentation.internal.operators.getPaywallView
 import com.superwall.sdk.paywall.presentation.internal.operators.getPresenterIfNecessary
-import com.superwall.sdk.paywall.presentation.internal.operators.waitForSubsStatusAndConfig
+import com.superwall.sdk.paywall.presentation.internal.operators.waitForEntitlementsAndConfig
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -32,7 +31,7 @@ suspend fun Superwall.getPaywallComponents(
     publisher: MutableSharedFlow<PaywallState>? = null,
 ): Result<PaywallComponents> =
     withErrorTracking {
-        waitForSubsStatusAndConfig(request, publisher)
+        waitForEntitlementsAndConfig(request, publisher)
         // TODO:
 //    val debugInfo = logPresentation(request)
         val debugInfo = emptyMap<String, Any>()
@@ -41,12 +40,6 @@ suspend fun Superwall.getPaywallComponents(
 
         val rulesOutcome = evaluateRules(request)
         val outcome = rulesOutcome.getOrThrow()
-
-        checkUserSubscription(
-            request = request,
-            triggerResult = outcome.triggerResult,
-            paywallStatePublisher = publisher,
-        )
 
         confirmHoldoutAssignment(request = request, rulesOutcome = outcome)
 
@@ -71,7 +64,7 @@ suspend fun Superwall.getPaywallComponents(
 
 internal suspend fun Superwall.confirmAssignment(request: PresentationRequest): Either<ConfirmedAssignment?, Throwable> {
     return withErrorTracking {
-        waitForSubsStatusAndConfig(request)
+        waitForEntitlementsAndConfig(request)
         val rules = evaluateRules(request)
         if (rules.isFailure) {
             throw rules.exceptionOrNull()!!
