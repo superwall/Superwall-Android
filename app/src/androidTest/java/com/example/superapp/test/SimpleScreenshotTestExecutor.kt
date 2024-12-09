@@ -144,7 +144,7 @@ class SimpleScreenshotTestExecutor {
                     it.waitFor { it is SuperwallEvent.PaywallPresentationRequest }
                 }
             }
-            Superwall.instance.setEntitlementStatus(EntitlementStatus.NoActiveEntitlements)
+            Superwall.instance.setEntitlementStatus(EntitlementStatus.Inactive)
         }
 
     @Test
