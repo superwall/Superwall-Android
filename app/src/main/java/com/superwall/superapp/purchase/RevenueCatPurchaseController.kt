@@ -136,7 +136,7 @@ class RevenueCatPurchaseController(
                     ),
                 )
             } else {
-                setEntitlementStatus(EntitlementStatus.NoActiveEntitlements)
+                setEntitlementStatus(EntitlementStatus.Inactive)
             }
         }
     }
@@ -155,7 +155,7 @@ class RevenueCatPurchaseController(
                 ),
             )
         } else {
-            setEntitlementStatus(EntitlementStatus.NoActiveEntitlements)
+            setEntitlementStatus(EntitlementStatus.Inactive)
         }
     }
 

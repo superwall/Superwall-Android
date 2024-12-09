@@ -4,7 +4,9 @@ import android.app.Application
 import android.content.Context
 import android.net.Uri
 import androidx.work.WorkManager
+import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.ProductDetails
+import com.android.billingclient.api.Purchase
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
@@ -769,7 +771,7 @@ class Superwall(
      */
 
     fun purchase(
-        product: RawStoreProduct,
+        product: StoreProduct,
         onFinished: (Result<PurchaseResult>) -> Unit,
     ) {
         ioScope.launch {
@@ -777,7 +779,7 @@ class Superwall(
                 withErrorTracking {
                     dependencyContainer.transactionManager.purchase(
                         TransactionManager.PurchaseSource.ExternalPurchase(
-                            StoreProduct(product),
+                            product,
                         ),
                     )
                 }.toResult()
@@ -829,6 +831,24 @@ class Superwall(
                 }
             }
         }
+    }
+
+    fun observePurchaseStart(product: ProductDetails) {
+        observe(PurchasingObserverState.PurchaseWillBegin(product))
+    }
+
+    fun observePurchaseError(
+        product: ProductDetails,
+        error: Throwable,
+    ) {
+        observe(PurchasingObserverState.PurchaseWillBegin(product))
+    }
+
+    fun observePurchaseResult(
+        billingResult: BillingResult,
+        purchases: List<Purchase>,
+    ) {
+        observe(PurchasingObserverState.PurchaseResult(billingResult, purchases))
     }
 
     /**

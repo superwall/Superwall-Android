@@ -9,7 +9,7 @@ sealed class EntitlementStatus {
     object Unkown : EntitlementStatus()
 
     @Serializable
-    object NoActiveEntitlements : EntitlementStatus()
+    object Inactive : EntitlementStatus()
 
     @Serializable
     data class Active(
