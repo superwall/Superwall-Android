@@ -32,6 +32,7 @@ import com.superwall.sdk.misc.fold
 import com.superwall.sdk.misc.launchWithTracking
 import com.superwall.sdk.misc.toResult
 import com.superwall.sdk.models.assignment.ConfirmedAssignment
+import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.EntitlementStatus
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.network.device.InterfaceStyle
@@ -70,8 +71,10 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -98,7 +101,11 @@ class Superwall(
     internal val presentationItems: PresentationItems = PresentationItems()
 
     private val _events: MutableSharedFlow<SuperwallEventInfo> =
-        MutableSharedFlow(0, extraBufferCapacity = 64 * 4, onBufferOverflow = BufferOverflow.SUSPEND)
+        MutableSharedFlow(
+            0,
+            extraBufferCapacity = 64 * 4,
+            onBufferOverflow = BufferOverflow.SUSPEND,
+        )
 
     /**
      * A flow emitting all Superwall events as an alternative to delegate.
@@ -213,6 +220,22 @@ class Superwall(
     }
 
     /**
+     * Simplified version of [Superwall.setEntitlementStatus] that allows
+     * you to set the entitlements by passing in an array of strings.
+     * An empty list is treated as [EntitlementStatus.Inactive].
+     * Example: `setEntitlementStatus("default", "pro")`
+     *
+     * @param entitlements A list of entitlements.
+     * */
+    fun setEntitlementStatus(vararg entitlements: String) {
+        if (entitlements.isEmpty()) {
+            this.entitlements.setEntitlementStatus(EntitlementStatus.Inactive)
+        } else {
+            this.setEntitlementStatus(EntitlementStatus.Active(entitlements.map { Entitlement(it) }.toSet()))
+        }
+    }
+
+    /**
      * Properties stored about the user, set using `setUserAttributes`.
      */
     val userAttributes: Map<String, Any>
@@ -269,6 +292,16 @@ class Superwall(
     val configurationState: ConfigurationStatus
         get() =
             dependencyContainer.configManager.configState.value.let {
+                when (it) {
+                    is ConfigState.Retrieved -> ConfigurationStatus.Configured
+                    is ConfigState.Failed -> ConfigurationStatus.Failed
+                    else -> ConfigurationStatus.Pending
+                }
+            }
+
+    val configurationStateListener: Flow<ConfigurationStatus>
+        get() =
+            dependencyContainer.configManager.configState.asSharedFlow().map {
                 when (it) {
                     is ConfigState.Retrieved -> ConfigurationStatus.Configured
                     is ConfigState.Failed -> ConfigurationStatus.Failed
@@ -806,7 +839,7 @@ class Superwall(
             }
             when (state) {
                 is PurchasingObserverState.PurchaseWillBegin -> {
-                    val product = StoreProduct(RawStoreProduct.from(state.productId))
+                    val product = StoreProduct(RawStoreProduct.from(state.product))
                     dependencyContainer.transactionManager.prepareToPurchase(
                         product,
                         source = TransactionManager.PurchaseSource.ObserverMode(product),
@@ -841,7 +874,7 @@ class Superwall(
         product: ProductDetails,
         error: Throwable,
     ) {
-        observe(PurchasingObserverState.PurchaseWillBegin(product))
+        observe(PurchasingObserverState.PurchaseError(product, error))
     }
 
     fun observePurchaseResult(
