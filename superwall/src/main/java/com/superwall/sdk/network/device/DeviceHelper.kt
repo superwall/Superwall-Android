@@ -18,7 +18,6 @@ import com.superwall.sdk.dependencies.LocaleIdentifierFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
-import com.superwall.sdk.misc.fold
 import com.superwall.sdk.misc.then
 import com.superwall.sdk.misc.toResult
 import com.superwall.sdk.models.config.ComputedPropertyRequest
@@ -26,7 +25,7 @@ import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.geo.GeoInfo
 import com.superwall.sdk.network.JsonFactory
 import com.superwall.sdk.network.SuperwallAPI
-import com.superwall.sdk.paywall.vc.web_view.templating.models.DeviceTemplate
+import com.superwall.sdk.paywall.view.webview.templating.models.DeviceTemplate
 import com.superwall.sdk.storage.LastPaywallView
 import com.superwall.sdk.storage.LatestGeoInfo
 import com.superwall.sdk.storage.LocalStorage

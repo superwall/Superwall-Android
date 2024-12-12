@@ -29,10 +29,10 @@ import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
-import com.superwall.sdk.paywall.vc.PaywallView
-import com.superwall.sdk.paywall.vc.ViewStorage
-import com.superwall.sdk.paywall.vc.delegate.PaywallViewDelegateAdapter
-import com.superwall.sdk.paywall.vc.web_view.templating.models.JsonVariables
+import com.superwall.sdk.paywall.view.PaywallView
+import com.superwall.sdk.paywall.view.ViewStorage
+import com.superwall.sdk.paywall.view.delegate.PaywallViewDelegateAdapter
+import com.superwall.sdk.paywall.view.webview.templating.models.JsonVariables
 import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import kotlinx.coroutines.flow.StateFlow
@@ -135,26 +135,8 @@ interface ViewFactory {
         delegate: PaywallViewDelegateAdapter?,
     ): PaywallView
 
-    fun makeDebugViewController(id: String?): DebugView
+    fun makeDebugView(id: String?): DebugView
 }
-
-// ViewControllerFactory & CacheFactory & DeviceInfoFactory,
-// interface ViewControllerCacheDevice {
-//    suspend fun makePaywallViewController(
-//        paywall: Paywall,
-//        cache: PaywallViewControllerCache?,
-//        delegate: PaywallViewControllerDelegate?
-//    ): PaywallViewController
-//
-//    // TODO: (Debug)
-// //    fun makeDebugViewController(id: String?): DebugViewController
-//
-//    // Mark - device
-//    fun makeDeviceInfo(): DeviceInfo
-//
-//    // Mark - cache
-//    fun makeCache(): PaywallViewControllerCache
-// }
 
 interface CacheFactory {
     fun makeCache(): PaywallViewCache

@@ -33,7 +33,7 @@ import com.superwall.sdk.storage.DisableVerboseEvents
 import com.superwall.sdk.storage.LatestConfig
 import com.superwall.sdk.storage.LatestGeoInfo
 import com.superwall.sdk.storage.Storage
-import com.superwall.sdk.store.StoreKitManager
+import com.superwall.sdk.store.StoreManager
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.Flow
@@ -48,7 +48,7 @@ import java.util.concurrent.atomic.AtomicInteger
 // TODO: Re-enable those params
 open class ConfigManager(
     private val context: Context,
-    private val storeKitManager: StoreKitManager,
+    private val storeManager: StoreManager,
     private val storage: Storage,
     private val network: SuperwallAPI,
     private val deviceHelper: DeviceHelper,
@@ -221,7 +221,7 @@ open class ConfigManager(
                 if (options.paywalls.shouldPreload) {
                     val productIds = it.paywalls.flatMap { it.productIds }.toSet()
                     try {
-                        storeKitManager.products(productIds)
+                        storeManager.products(productIds)
                     } catch (e: Throwable) {
                         Logger.debug(
                             logLevel = LogLevel.error,

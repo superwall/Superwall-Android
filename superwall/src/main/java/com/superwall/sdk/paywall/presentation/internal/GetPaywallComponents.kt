@@ -23,7 +23,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
  * @param request The presentation request.
  * @param publisher A `MutableStateFlow` that gets sent `PaywallState` objects.
  * @return A `PaywallComponents` object that contains objects associated with the
- * paywall view controller.
+ * paywall view.
  * @throws PresentationPipelineError object associated with stages of the pipeline.
  */
 @Throws(Throwable::class)
