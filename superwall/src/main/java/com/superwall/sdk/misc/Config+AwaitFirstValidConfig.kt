@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
 
-suspend fun Flow<ConfigState>.awaitFirstValidConfig(): Config =
+internal suspend fun Flow<ConfigState>.awaitFirstValidConfig(): Config =
     try {
         filterIsInstance<ConfigState.Retrieved>()
             .first()

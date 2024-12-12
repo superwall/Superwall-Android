@@ -78,11 +78,15 @@ class SuperwallBillingFlowParams private constructor(
                     builder.setProductDetails(productDetails)
                 }
 
-            fun build(): ProductDetailsParams =
-                ProductDetailsParams(
+            fun build(): ProductDetailsParams {
+                val details =
+                    details ?: throw IllegalArgumentException("ProductDetails are required")
+
+                return ProductDetailsParams(
                     builder.build(),
-                    details ?: throw IllegalArgumentException("ProductDetails are required"),
+                    details,
                 )
+            }
         }
     }
 
