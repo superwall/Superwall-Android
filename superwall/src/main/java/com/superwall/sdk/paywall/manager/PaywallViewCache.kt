@@ -4,10 +4,10 @@ import android.content.Context
 import com.superwall.sdk.misc.ActivityProvider
 import com.superwall.sdk.models.paywall.PaywallIdentifier
 import com.superwall.sdk.network.device.DeviceHelper
-import com.superwall.sdk.paywall.vc.LoadingView
-import com.superwall.sdk.paywall.vc.PaywallView
-import com.superwall.sdk.paywall.vc.ShimmerView
-import com.superwall.sdk.paywall.vc.ViewStorage
+import com.superwall.sdk.paywall.view.LoadingView
+import com.superwall.sdk.paywall.view.PaywallView
+import com.superwall.sdk.paywall.view.ShimmerView
+import com.superwall.sdk.paywall.view.ViewStorage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -36,9 +36,6 @@ class PaywallViewCache(
         store.views.entries
             .map { it.key to it.value }
             .toMap()
-
-    @Deprecated("Will be removed in the upcoming versions in favor of `getPaywallViews`")
-    fun getAllPaywallViewControllers(): List<PaywallView> = getAllPaywallViews()
 
     fun getAllPaywallViews(): List<PaywallView> =
         runBlocking(singleThreadContext) {

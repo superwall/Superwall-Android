@@ -17,8 +17,8 @@ import com.superwall.sdk.paywall.presentation.internal.userIsSubscribed
 import com.superwall.sdk.paywall.presentation.rule_logic.RuleEvaluationOutcome
 import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
-import com.superwall.sdk.paywall.vc.PaywallView
-import com.superwall.sdk.paywall.vc.web_view.webViewExists
+import com.superwall.sdk.paywall.view.PaywallView
+import com.superwall.sdk.paywall.view.webview.webViewExists
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
 
