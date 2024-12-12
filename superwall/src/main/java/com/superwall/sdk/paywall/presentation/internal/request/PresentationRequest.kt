@@ -4,7 +4,7 @@ import android.app.Activity
 import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
-import com.superwall.sdk.paywall.vc.delegate.PaywallViewDelegateAdapter
+import com.superwall.sdk.paywall.view.delegate.PaywallViewDelegateAdapter
 import kotlinx.coroutines.flow.StateFlow
 import java.lang.ref.WeakReference
 
@@ -31,9 +31,6 @@ sealed class PresentationRequestType {
                 is ConfirmAllAssignments -> "confirmAllAssignments"
                 else -> "Unknown"
             }
-
-    @Deprecated("Will be removed in the upcoming versions, use paywallViewDelegateAdapter instead")
-    val paywallVcDelegateAdapter: PaywallViewDelegateAdapter? = paywallViewDelegateAdapter
 
     val paywallViewDelegateAdapter: PaywallViewDelegateAdapter?
         get() = if (this is GetPaywall) this.adapter else null

@@ -3,20 +3,11 @@ package com.superwall.superapp.test
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
 import com.superwall.sdk.delegate.SuperwallDelegate
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
-import com.superwall.sdk.paywall.vc.PaywallView
-import com.superwall.sdk.paywall.vc.delegate.PaywallViewCallback
-
-@Deprecated("Will be removed in the upcoming versions, use MockPaywallViewDelegate instead")
-typealias MockPaywallViewControllerDelegate = MockPaywallViewDelegate
+import com.superwall.sdk.paywall.view.PaywallView
+import com.superwall.sdk.paywall.view.delegate.PaywallViewCallback
 
 class MockPaywallViewDelegate : PaywallViewCallback {
     private var paywallViewFinished: ((PaywallView, PaywallResult, Boolean) -> Unit)? = null
-
-    override fun didFinish(
-        paywall: PaywallView,
-        result: PaywallResult,
-        shouldDismiss: Boolean,
-    ) = onFinished(paywall, result, shouldDismiss)
 
     override fun onFinished(
         paywall: PaywallView,
@@ -27,11 +18,6 @@ class MockPaywallViewDelegate : PaywallViewCallback {
         if (shouldDismiss) {
             paywall.encapsulatingActivity?.get()?.finish()
         }
-    }
-
-    @Deprecated("Will be removed in the upcoming versions, use paywallViewFinished instead")
-    fun paywallViewControllerDidFinish(handler: (PaywallView, PaywallResult, Boolean) -> Unit) {
-        paywallViewFinished(handler)
     }
 
     fun paywallViewFinished(handler: (PaywallView, PaywallResult, Boolean) -> Unit) {

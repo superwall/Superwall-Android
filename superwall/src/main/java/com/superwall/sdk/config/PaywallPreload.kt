@@ -12,7 +12,7 @@ import com.superwall.sdk.models.triggers.Trigger
 import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.paywall.presentation.rule_logic.javascript.JavascriptEvaluator
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
-import com.superwall.sdk.paywall.vc.web_view.webViewExists
+import com.superwall.sdk.paywall.view.webview.webViewExists
 import com.superwall.sdk.storage.LocalStorage
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job

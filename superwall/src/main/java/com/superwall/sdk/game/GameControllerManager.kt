@@ -4,7 +4,7 @@ import android.view.KeyEvent
 import android.view.MotionEvent
 
 interface GameControllerDelegate {
-    fun gameControllerEventDidOccur(event: GameControllerEvent)
+    fun gameControllerEventOccured(event: GameControllerEvent)
 }
 
 class GameControllerManager {
@@ -39,7 +39,7 @@ class GameControllerManager {
                 y = y.toDouble(),
                 directional = directional,
             )
-        delegate?.gameControllerEventDidOccur(event)
+        delegate?.gameControllerEventOccured(event)
     }
 
     fun dispatchKeyEvent(event: KeyEvent): Boolean {

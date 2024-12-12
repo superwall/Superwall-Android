@@ -18,7 +18,7 @@ import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallSkippedReason
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.paywall.presentation.rule_logic.RuleEvaluationOutcome
-import com.superwall.sdk.paywall.vc.PaywallView
+import com.superwall.sdk.paywall.view.PaywallView
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
 

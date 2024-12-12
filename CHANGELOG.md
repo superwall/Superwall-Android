@@ -8,6 +8,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 - Adds `Superwall-Compose` module for Jetpack Compose support:
     - You can find it at `com.superwall.sdk:superwall-compose:2.0.0-alpha`
 - Adds consumer proguard rules to enable consumer minification
+- Removed methods previously marked as Deprecated
 
 ## 1.5.4
 - Fixes issue when a paywall would dismiss with `ForNextPaywall` but next paywall could not be shown due to triggers or limits. Now it resolves into the proper dismiss status.

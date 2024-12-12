@@ -19,10 +19,10 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.paywall.presentation.get_paywall.getPaywall
 import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
-import com.superwall.sdk.paywall.vc.LoadingView
-import com.superwall.sdk.paywall.vc.PaywallView
-import com.superwall.sdk.paywall.vc.ShimmerView
-import com.superwall.sdk.paywall.vc.delegate.PaywallViewCallback
+import com.superwall.sdk.paywall.view.LoadingView
+import com.superwall.sdk.paywall.view.PaywallView
+import com.superwall.sdk.paywall.view.ShimmerView
+import com.superwall.sdk.paywall.view.delegate.PaywallViewCallback
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch

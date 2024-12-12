@@ -39,7 +39,7 @@ sealed class TriggerResult {
 
     // An error occurred and the user will not be shown a paywall.
     //
-    // If the error code is `101`, it means that no view controller could be found to present on. Otherwise a network failure may have occurred.
+    // If the error code is `101`, it means that no view could be found to present on. Otherwise a network failure may have occurred.
     //
     // In these instances, consider falling back to a native paywall.
     @Serializable
@@ -92,7 +92,7 @@ sealed class InternalTriggerResult {
     /**
      * An error occurred and the user will not be shown a paywall.
      *
-     * If the error code is `101`, it means that no view controller could be found to present on. Otherwise a network failure may have occurred.
+     * If the error code is `101`, it means that no view could be found to present on. Otherwise a network failure may have occurred.
      *
      * In these instances, consider falling back to a native paywall.
      */
