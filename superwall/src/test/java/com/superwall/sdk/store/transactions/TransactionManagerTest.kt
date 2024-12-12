@@ -12,15 +12,14 @@ import com.superwall.sdk.billing.Billing
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
-import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.misc.ActivityProvider
 import com.superwall.sdk.misc.IOScope
+import com.superwall.sdk.models.entitlements.Entitlement
+import com.superwall.sdk.models.entitlements.EntitlementStatus
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.product.Offer
 import com.superwall.sdk.models.product.PlayStoreProduct
-import com.superwall.sdk.models.product.Product
 import com.superwall.sdk.models.product.ProductItem
-import com.superwall.sdk.models.product.ProductType
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.vc.PaywallView
@@ -28,6 +27,7 @@ import com.superwall.sdk.paywall.vc.delegate.PaywallLoadingState
 import com.superwall.sdk.products.mockPricingPhase
 import com.superwall.sdk.products.mockSubscriptionOfferDetails
 import com.superwall.sdk.storage.EventsQueue
+import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.InternalPurchaseController
 import com.superwall.sdk.store.StoreKitManager
 import com.superwall.sdk.store.abstractions.product.OfferType
@@ -58,20 +58,14 @@ class TransactionManagerTest {
                 }
         }
 
+    val entitlements = setOf("test-entitlement").map { Entitlement(it) }.toSet()
+
     private val mockProduct =
         RawStoreProduct(
             playProduct,
             "product1",
             "basePlan",
             OfferType.Auto,
-        )
-
-    private val pwInfo =
-        PaywallInfo.empty().copy(
-            products =
-                listOf(
-                    Product(ProductType.PRIMARY, "product1"),
-                ),
         )
 
     private val mockItems =
@@ -85,7 +79,14 @@ class TransactionManagerTest {
                         offer = Offer.Automatic(),
                     ),
                 ),
+                entitlements = entitlements.toSet(),
             ),
+        )
+
+    private val pwInfo =
+        PaywallInfo.empty().copy(
+            products =
+            mockItems,
         )
 
     private val mockedPaywall: Paywall =
@@ -124,25 +125,30 @@ class TransactionManagerTest {
                 mockk {
                     coEvery { getLatestTransaction(any()) } returns mockk()
                 }
+            every { makeHasExternalPurchaseController() } returns false
+            every { makeSuperwallOptions() } returns SuperwallOptions()
         }
+
+    private var storage = mockk<Storage>(relaxUnitFun = true)
 
     fun TestScope.manager(
         track: (TrackableSuperwallEvent) -> Unit = {},
         dismiss: (paywallView: PaywallView, result: PaywallResult) -> Unit = { _, _ -> },
-        subscriptionStatus: () -> SubscriptionStatus = {
-            SubscriptionStatus.ACTIVE
+        entitlementStatus: () -> EntitlementStatus = {
+            EntitlementStatus.Active(entitlements)
         },
         options: SuperwallOptions.() -> Unit = {},
     ) = TransactionManager(
         purchaseController = purchaseController,
         storeKitManager = storeKitManager,
         activityProvider = activityProvider,
-        subscriptionStatus = subscriptionStatus,
+        entitlementStatus = entitlementStatus,
         track = { track(it) },
         dismiss = { i, e -> dismiss(i, e) },
         eventsQueue = eventsQueue,
         factory = transactionManagerFactory,
         ioScope = IOScope(this.coroutineContext),
+        storage = storage,
     ).also {
         coEvery { transactionManagerFactory.makeSuperwallOptions() } returns
             SuperwallOptions().apply(
@@ -619,7 +625,7 @@ class TransactionManagerTest {
                         track = { e ->
                             events.update { it + e }
                         },
-                        subscriptionStatus = { SubscriptionStatus.ACTIVE },
+                        entitlementStatus = { EntitlementStatus.Active(entitlements) },
                     )
                 coEvery { purchaseController.restorePurchases() } returns RestorationResult.Restored()
 
@@ -649,7 +655,7 @@ class TransactionManagerTest {
                         track = { e ->
                             events.update { it + e }
                         },
-                        subscriptionStatus = { SubscriptionStatus.ACTIVE },
+                        entitlementStatus = { EntitlementStatus.Active(entitlements) },
                     )
                 coEvery { purchaseController.restorePurchases() } returns RestorationResult.Restored()
 
@@ -679,7 +685,7 @@ class TransactionManagerTest {
                         track = { e ->
                             events.update { it + e }
                         },
-                        subscriptionStatus = { SubscriptionStatus.ACTIVE },
+                        entitlementStatus = { EntitlementStatus.Inactive },
                     )
 
                 coEvery { purchaseController.restorePurchases() } returns
@@ -723,7 +729,7 @@ class TransactionManagerTest {
                         track = { e ->
                             events.update { it + e }
                         },
-                        subscriptionStatus = { SubscriptionStatus.INACTIVE },
+                        entitlementStatus = { EntitlementStatus.Inactive },
                     )
 
                 coEvery { purchaseController.restorePurchases() } returns RestorationResult.Restored()

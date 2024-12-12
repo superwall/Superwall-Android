@@ -1,7 +1,7 @@
 package com.superwall.sdk.paywall.presentation.internal
 
 import android.app.Activity
-import com.superwall.sdk.delegate.SubscriptionStatus
+import com.superwall.sdk.models.entitlements.EntitlementStatus
 import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.vc.delegate.PaywallViewDelegateAdapter
@@ -58,7 +58,7 @@ data class PresentationRequest(
 ) {
     data class Flags(
         var isDebuggerLaunched: Boolean,
-        var subscriptionStatus: StateFlow<SubscriptionStatus?>,
+        var entitlements: StateFlow<EntitlementStatus?>,
         var isPaywallPresented: Boolean,
         var type: PresentationRequestType,
     )

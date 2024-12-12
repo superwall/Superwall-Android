@@ -7,6 +7,7 @@ import com.superwall.sdk.When
 import com.superwall.sdk.assertTrue
 import com.superwall.sdk.billing.Billing
 import com.superwall.sdk.billing.BillingError
+import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.product.Offer
 import com.superwall.sdk.models.product.PlayStoreProduct
@@ -28,6 +29,7 @@ class StoreKitManagerTest {
     private lateinit var purchaseController: InternalPurchaseController
     private lateinit var billing: Billing
     private lateinit var storeKitManager: StoreKitManager
+    private val entitlementsBasic = setOf(Entitlement("entitlement1"))
 
     @Before
     fun setup() {
@@ -60,6 +62,7 @@ class StoreKitManagerTest {
                                             offer = Offer.Automatic(),
                                         ),
                                     ),
+                                    entitlements = entitlementsBasic.toSet(),
                                 ),
                                 ProductItem(
                                     "Item2",
@@ -72,6 +75,7 @@ class StoreKitManagerTest {
                                                 offer = Offer.Automatic(),
                                             ),
                                         ),
+                                    entitlements = entitlementsBasic.toSet(),
                                 ),
                             ),
                     )
@@ -123,6 +127,7 @@ class StoreKitManagerTest {
                                             offer = Offer.Automatic(),
                                         ),
                                     ),
+                                    entitlements = entitlementsBasic.toSet(),
                                 ),
                                 ProductItem(
                                     "Item2",
@@ -135,6 +140,7 @@ class StoreKitManagerTest {
                                                 offer = Offer.Automatic(),
                                             ),
                                         ),
+                                    entitlements = entitlementsBasic.toSet(),
                                 ),
                             ),
                     )
@@ -192,6 +198,7 @@ class StoreKitManagerTest {
                                             offer = Offer.Automatic(),
                                         ),
                                     ),
+                                    entitlements = entitlementsBasic.toSet(),
                                 ),
                                 ProductItem(
                                     "Item2",
@@ -204,11 +211,15 @@ class StoreKitManagerTest {
                                                 offer = Offer.Automatic(),
                                             ),
                                         ),
+                                    entitlements = entitlementsBasic.toSet(),
                                 ),
                             ),
                     )
 
-                coEvery { billing.awaitGetProducts(any()) } throws BillingError.BillingNotAvailable("Billing not available")
+                coEvery { billing.awaitGetProducts(any()) } throws
+                    BillingError.BillingNotAvailable(
+                        "Billing not available",
+                    )
 
                 When("getProducts is called") {
                     Then("it should throw a BillingNotAvailable error") {

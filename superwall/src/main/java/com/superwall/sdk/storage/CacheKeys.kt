@@ -1,8 +1,9 @@
 package com.superwall.sdk.storage
 
 import android.content.Context
-import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.models.config.Config
+import com.superwall.sdk.models.entitlements.Entitlement
+import com.superwall.sdk.models.entitlements.EntitlementStatus
 import com.superwall.sdk.models.geo.GeoInfo
 import com.superwall.sdk.models.serialization.AnySerializer
 import com.superwall.sdk.models.transactions.SavedTransaction
@@ -43,8 +44,17 @@ enum class SearchPathDirectory {
     fun fileDirectory(context: Context): File =
         when (this) {
             CACHE -> context.cacheDir
-            USER_SPECIFIC_DOCUMENTS -> context.getDir("user_specific_document_dir", Context.MODE_PRIVATE)
-            APP_SPECIFIC_DOCUMENTS -> context.getDir("app_specific_document_dir", Context.MODE_PRIVATE)
+            USER_SPECIFIC_DOCUMENTS ->
+                context.getDir(
+                    "user_specific_document_dir",
+                    Context.MODE_PRIVATE,
+                )
+
+            APP_SPECIFIC_DOCUMENTS ->
+                context.getDir(
+                    "app_specific_document_dir",
+                    Context.MODE_PRIVATE,
+                )
         }
 }
 
@@ -211,15 +221,26 @@ object SdkVersion : Storable<String> {
         get() = String.serializer()
 }
 
-object ActiveSubscriptionStatus : Storable<SubscriptionStatus> {
+object StoredEntitlementStatus : Storable<EntitlementStatus> {
     override val key: String
-        get() = "store.subscriptionStatus"
+        get() = "store.entitlementStatus"
 
     override val directory: SearchPathDirectory
         get() = SearchPathDirectory.APP_SPECIFIC_DOCUMENTS
 
-    override val serializer: KSerializer<SubscriptionStatus>
-        get() = SubscriptionStatus.serializer()
+    override val serializer: KSerializer<EntitlementStatus>
+        get() = EntitlementStatus.serializer()
+}
+
+object StoredEntitlementsByProductId : Storable<Map<String, Set<Entitlement>>> {
+    override val key: String
+        get() = "store.entitlementByProductId"
+
+    override val directory: SearchPathDirectory
+        get() = SearchPathDirectory.APP_SPECIFIC_DOCUMENTS
+
+    override val serializer: KSerializer<Map<String, Set<Entitlement>>>
+        get() = MapSerializer(String.serializer(), SetSerializer(Entitlement.serializer()))
 }
 
 object SurveyAssignmentKey : Storable<String> {
@@ -299,7 +320,8 @@ object DateSerializer : KSerializer<Date> {
             timeZone = TimeZone.getTimeZone("UTC")
         }
 
-    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("Date", PrimitiveKind.STRING)
+    override val descriptor: SerialDescriptor =
+        PrimitiveSerialDescriptor("Date", PrimitiveKind.STRING)
 
     override fun serialize(
         encoder: Encoder,
@@ -311,7 +333,8 @@ object DateSerializer : KSerializer<Date> {
 
     override fun deserialize(decoder: Decoder): Date {
         val dateString = decoder.decodeString()
-        return format.parse(dateString) ?: throw SerializationException("Invalid date format: $dateString")
+        return format.parse(dateString)
+            ?: throw SerializationException("Invalid date format: $dateString")
     }
 }
 
