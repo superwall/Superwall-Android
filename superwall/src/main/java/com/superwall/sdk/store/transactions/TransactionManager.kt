@@ -2,6 +2,7 @@ package com.superwall.sdk.store.transactions
 
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingResult
+import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
@@ -44,9 +45,10 @@ import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.dropWhile
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
-import java.util.LinkedHashSet
+import java.util.concurrent.ConcurrentHashMap
 
 class TransactionManager(
     private val storeKitManager: StoreKitManager,
@@ -91,7 +93,8 @@ class TransactionManager(
 
     private var lastPaywallView: PaywallView? = null
 
-    private var transactionsInProgress: LinkedHashSet<String> = LinkedHashSet()
+    private var transactionsInProgress: ConcurrentHashMap<String, ProductDetails> =
+        ConcurrentHashMap()
 
     private val shouldObserveTransactionFinishingAutomatically: Boolean
         get() = factory.makeSuperwallOptions().shouldObservePurchases
@@ -102,12 +105,16 @@ class TransactionManager(
             ioScope.launch {
                 storeKitManager.billing.purchaseResults
                     .asSharedFlow()
-                    .filterNotNull()
+                    .dropWhile {
+                        transactionsInProgress.isEmpty()
+                    }.filterNotNull()
                     .collectLatest { it: InternalPurchaseResult ->
-                        val id = transactionsInProgress.last()
                         val state =
                             when (it) {
                                 is InternalPurchaseResult.Purchased -> {
+                                    it.purchase.products.forEach {
+                                        transactionsInProgress.remove(it)
+                                    }
                                     PurchasingObserverState.PurchaseResult(
                                         BillingResult
                                             .newBuilder()
@@ -116,11 +123,29 @@ class TransactionManager(
                                         listOf(it.purchase),
                                     )
                                 }
-                                else ->
-                                    PurchasingObserverState.PurchaseError(
-                                        error = (it as? InternalPurchaseResult.Failed)?.error ?: Throwable("Unknown error"),
-                                        product = storeKitManager.productsByFullId[id]?.rawStoreProduct!!.underlyingProductDetails,
+
+                                is InternalPurchaseResult.Cancelled -> {
+                                    val last = transactionsInProgress.entries.last()
+                                    transactionsInProgress.remove(last.key)
+                                    PurchasingObserverState.PurchaseResult(
+                                        BillingResult
+                                            .newBuilder()
+                                            .setResponseCode(BillingClient.BillingResponseCode.USER_CANCELED)
+                                            .build(),
+                                        emptyList(),
                                     )
+                                }
+
+                                else -> {
+                                    val last = transactionsInProgress.entries.last()
+                                    transactionsInProgress.remove(last.key)
+                                    PurchasingObserverState.PurchaseError(
+                                        error =
+                                            (it as? InternalPurchaseResult.Failed)?.error
+                                                ?: Throwable("Unknown error"),
+                                        product = last.value,
+                                    )
+                                }
                             }
                         handle(it, state)
                     }
@@ -132,6 +157,12 @@ class TransactionManager(
         result: InternalPurchaseResult,
         state: PurchasingObserverState,
     ) {
+        if (transactionsInProgress.isEmpty()) {
+            return
+        } else {
+            transactionsInProgress.clear()
+        }
+
         when (result) {
             is InternalPurchaseResult.Purchased -> {
                 val state = state as PurchasingObserverState.PurchaseResult
@@ -150,8 +181,8 @@ class TransactionManager(
             }
 
             InternalPurchaseResult.Cancelled -> {
-                val state = state as PurchasingObserverState.PurchaseError
-                val product = StoreProduct(RawStoreProduct.from(state.product))
+                val lastProduct = transactionsInProgress.entries.last()
+                val product = StoreProduct(RawStoreProduct.from(lastProduct.value))
                 trackCancelled(
                     product = product,
                     purchaseSource = PurchaseSource.ObserverMode(product),
@@ -219,7 +250,6 @@ class TransactionManager(
 
                 is PurchaseSource.ObserverMode -> purchaseSource.product
             }
-        transactionsInProgress.add(product.fullIdentifier)
         val rawStoreProduct = product.rawStoreProduct
         log(
             message =
@@ -231,7 +261,6 @@ class TransactionManager(
                 ?: return PurchaseResult.Failed("Activity not found - required for starting the billing flow")
 
         prepareToPurchase(product, purchaseSource)
-
         val result =
             storeKitManager.purchaseController.purchase(
                 activity = activity,
@@ -252,7 +281,6 @@ class TransactionManager(
         when (result) {
             is PurchaseResult.Purchased -> {
                 didPurchase(product, purchaseSource, isEligibleForTrial && product.hasFreeTrial)
-                transactionsInProgress.remove(product.fullIdentifier)
             }
 
             is PurchaseResult.Restored -> {
@@ -260,7 +288,6 @@ class TransactionManager(
                     product = product,
                     purchaseSource = purchaseSource,
                 )
-                transactionsInProgress.remove(product.fullIdentifier)
             }
 
             is PurchaseResult.Failed -> {
@@ -270,18 +297,19 @@ class TransactionManager(
                 val triggers = factory.makeTriggers()
                 val transactionFailExists =
                     triggers.contains(SuperwallEvents.TransactionFail.rawName)
-
                 if (shouldShowPurchaseFailureAlert && !transactionFailExists) {
                     trackFailure(
                         result.errorMessage,
                         product,
                         purchaseSource,
                     )
-                    presentAlert(
-                        Error(result.errorMessage),
-                        product,
-                        purchaseSource,
-                    )
+                    if (purchaseSource is PurchaseSource.Internal) {
+                        presentAlert(
+                            Error(result.errorMessage),
+                            product,
+                            purchaseSource.paywallView,
+                        )
+                    }
                 } else {
                     trackFailure(
                         result.errorMessage,
@@ -292,17 +320,14 @@ class TransactionManager(
                         purchaseSource.paywallView.togglePaywallSpinner(isHidden = true)
                     }
                 }
-                transactionsInProgress.remove(product.fullIdentifier)
             }
 
             is PurchaseResult.Pending -> {
                 handlePendingTransaction(purchaseSource)
-                transactionsInProgress.remove(product.fullIdentifier)
             }
 
             is PurchaseResult.Cancelled -> {
                 trackCancelled(product, purchaseSource)
-                transactionsInProgress.remove(product.fullIdentifier)
             }
         }
         return result
@@ -438,7 +463,6 @@ class TransactionManager(
                         info = mapOf("paywall_vc" to source),
                     )
                 }
-                transactionsInProgress.add(product.fullIdentifier)
 
                 val paywallInfo = source.paywallView.info
                 val trackedEvent =
@@ -458,7 +482,12 @@ class TransactionManager(
             }
 
             is PurchaseSource.ExternalPurchase, is PurchaseSource.ObserverMode -> {
-                transactionsInProgress.add(product.fullIdentifier)
+                if (isObserved) {
+                    transactionsInProgress.put(
+                        product.fullIdentifier,
+                        product.rawStoreProduct.underlyingProductDetails,
+                    )
+                }
                 if (!storeKitManager.productsByFullId.contains(product.fullIdentifier)) {
                     storeKitManager.productsByFullId[product.fullIdentifier] = product
                 }
@@ -743,75 +772,42 @@ class TransactionManager(
     private suspend fun presentAlert(
         error: Error,
         product: StoreProduct,
-        source: PurchaseSource,
+        paywallView: PaywallView,
     ) {
-        when (source) {
-            is PurchaseSource.Internal -> {
-                ioScope.launch {
-                    log(
-                        message = "Transaction Error",
-                        info =
-                            mapOf(
-                                "product_id" to product.fullIdentifier,
-                                "paywall_vc" to source.paywallView,
-                            ),
-                        error = error,
-                    )
-                }
-
-                val paywallInfo = source.paywallView.info
-
-                val trackedEvent =
-                    InternalSuperwallEvent.Transaction(
-                        InternalSuperwallEvent.Transaction.State.Fail(
-                            TransactionError.Failure(
-                                error.message ?: "",
-                                product,
-                            ),
-                        ),
-                        paywallInfo,
-                        product,
-                        null,
-                        source = TransactionSource.INTERNAL,
-                        isObserved = factory.makeSuperwallOptions().shouldObservePurchases,
-                    )
-                track(trackedEvent)
-
-                source.paywallView.showAlert(
-                    "An error occurred",
-                    error.message ?: "Unknown error",
-                )
-            }
-
-            is PurchaseSource.ExternalPurchase -> {
-                ioScope.launch {
-                    log(
-                        message = "Transaction Error",
-                        error = error,
-                    )
-                }
-
-                val trackedEvent =
-                    InternalSuperwallEvent.Transaction(
-                        InternalSuperwallEvent.Transaction.State.Fail(
-                            TransactionError.Failure(
-                                error.message ?: "",
-                                product,
-                            ),
-                        ),
-                        PaywallInfo.empty(),
-                        product,
-                        null,
-                        source = TransactionSource.EXTERNAL,
-                        isObserved = factory.makeSuperwallOptions().shouldObservePurchases,
-                    )
-                track(trackedEvent)
-            }
-
-            is PurchaseSource.ObserverMode -> {
-                // No-op
-            }
+        ioScope.launch {
+            log(
+                message = "Transaction Error",
+                info =
+                    mapOf(
+                        "product_id" to product.fullIdentifier,
+                        "paywall_vc" to paywallView,
+                    ),
+                error = error,
+            )
         }
+
+        val paywallInfo = paywallView.info
+
+        val trackedEvent =
+            InternalSuperwallEvent.Transaction(
+                InternalSuperwallEvent.Transaction.State.Fail(
+                    TransactionError.Failure(
+                        error.message ?: "",
+                        product,
+                    ),
+                ),
+                paywallInfo,
+                product,
+                null,
+                source = TransactionSource.INTERNAL,
+                isObserved = factory.makeSuperwallOptions().shouldObservePurchases,
+            )
+        track(trackedEvent)
+
+        paywallView.showAlert(
+            "An error occurred",
+            error.message ?: "Unknown error",
+        )
     }
 
     private suspend fun trackTransactionDidSucceed(
@@ -839,7 +835,7 @@ class TransactionManager(
                         product,
                         transaction,
                         source = TransactionSource.INTERNAL,
-                        isObserved = isObserved,
+                        isObserved = false,
                     )
                 track(trackedEvent)
                 eventsQueue.flushInternal()

@@ -62,7 +62,7 @@ class StoreKitManagerTest {
                                             offer = Offer.Automatic(),
                                         ),
                                     ),
-                                    entitlements = entitlementsBasic.map { it.id }.toSet(),
+                                    entitlements = entitlementsBasic.toSet(),
                                 ),
                                 ProductItem(
                                     "Item2",
@@ -75,7 +75,7 @@ class StoreKitManagerTest {
                                                 offer = Offer.Automatic(),
                                             ),
                                         ),
-                                    entitlements = entitlementsBasic.map { it.id }.toSet(),
+                                    entitlements = entitlementsBasic.toSet(),
                                 ),
                             ),
                     )
@@ -127,7 +127,7 @@ class StoreKitManagerTest {
                                             offer = Offer.Automatic(),
                                         ),
                                     ),
-                                    entitlements = entitlementsBasic.map { it.id }.toSet(),
+                                    entitlements = entitlementsBasic.toSet(),
                                 ),
                                 ProductItem(
                                     "Item2",
@@ -140,7 +140,7 @@ class StoreKitManagerTest {
                                                 offer = Offer.Automatic(),
                                             ),
                                         ),
-                                    entitlements = entitlementsBasic.map { it.id }.toSet(),
+                                    entitlements = entitlementsBasic.toSet(),
                                 ),
                             ),
                     )
@@ -198,7 +198,7 @@ class StoreKitManagerTest {
                                             offer = Offer.Automatic(),
                                         ),
                                     ),
-                                    entitlements = entitlementsBasic.map { it.id }.toSet(),
+                                    entitlements = entitlementsBasic.toSet(),
                                 ),
                                 ProductItem(
                                     "Item2",
@@ -211,7 +211,7 @@ class StoreKitManagerTest {
                                                 offer = Offer.Automatic(),
                                             ),
                                         ),
-                                    entitlements = entitlementsBasic.map { it.id }.toSet(),
+                                    entitlements = entitlementsBasic.toSet(),
                                 ),
                             ),
                     )

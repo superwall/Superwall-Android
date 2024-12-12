@@ -51,7 +51,7 @@ class DeviceTemplateTest {
             utcDateTime = "2024-03-20T10:00:00",
             localDateTime = "2024-03-20T02:00:00",
             isSandbox = "true",
-            activeEntitlements = listOf("active"),
+            activeEntitlements = listOf(mapOf("identifier" to "active")),
             isFirstAppOpen = false,
             sdkVersion = "1.0.0",
             sdkVersionPadded = "001.000.000",

@@ -62,7 +62,7 @@ class MainApplication :
                 .build(),
         )
 
-        configureWithAutomaticInitialization()
+        configureWithObserverMode()
 //        configureWithRevenueCatInitialization()
     }
 

@@ -57,7 +57,6 @@ import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.SuperscriptEvaluator
 import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.CombinedExpressionEvaluator
 import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.ExpressionEvaluating
-import com.superwall.sdk.paywall.presentation.rule_logic.javascript.DefaultJavascriptEvalutor
 import com.superwall.sdk.paywall.presentation.rule_logic.javascript.JavascriptEvaluator
 import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.paywall.request.PaywallRequestManager
@@ -154,14 +153,6 @@ class DependencyContainer(
     private val evaluator by lazy {
         CombinedExpressionEvaluator(
             storage = storage,
-            factory = this,
-            evaluator =
-                DefaultJavascriptEvalutor(
-                    ioScope = ioScope,
-                    uiScope = uiScope,
-                    context = context,
-                    storage = storage,
-                ),
             superscriptEvaluator =
                 SuperscriptEvaluator(
                     json =
@@ -173,10 +164,6 @@ class DependencyContainer(
                     factory = this,
                     ioScope = ioScope,
                 ),
-            track = {
-                Superwall.instance.track(it)
-            },
-            shouldTraceResults = makeFeatureFlags()?.enableCELLogging ?: false,
         )
     }
 

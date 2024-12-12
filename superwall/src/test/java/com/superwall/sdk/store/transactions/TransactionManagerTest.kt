@@ -79,7 +79,7 @@ class TransactionManagerTest {
                         offer = Offer.Automatic(),
                     ),
                 ),
-                entitlements = entitlements.map { it.id }.toSet(),
+                entitlements = entitlements.toSet(),
             ),
         )
 

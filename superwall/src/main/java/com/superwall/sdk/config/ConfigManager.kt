@@ -72,7 +72,7 @@ open class ConfigManager(
         JavascriptEvaluator.Factory
 
     // The configuration of the Superwall dashboard
-    val configState = MutableStateFlow<ConfigState>(ConfigState.None)
+    internal val configState = MutableStateFlow<ConfigState>(ConfigState.None)
 
     // Convenience variable to access config
     val config: Config?
@@ -145,6 +145,7 @@ open class ConfigManager(
                                     }
                             }
                         } catch (e: Throwable) {
+                            e.printStackTrace()
                             // If fetching config fails, default to the cached version
                             // Note: Only a timeout exception is possible here
                             oldConfig?.let {
@@ -307,7 +308,7 @@ open class ConfigManager(
         }
         triggersByEventName = ConfigLogic.getTriggersByEventName(config.triggers)
         assignments.choosePaywallVariants(config.triggers)
-        ConfigLogic.extractEntitlementsByProductId(config.paywalls).let {
+        ConfigLogic.extractEntitlementsByProductId(config.products).let {
             entitlements.addEntitlementsByProductId(it)
         }
     }
@@ -378,7 +379,7 @@ open class ConfigManager(
             return
         }
 
-        var retryCount: AtomicInteger = AtomicInteger(0)
+        val retryCount: AtomicInteger = AtomicInteger(0)
         val startTime = System.currentTimeMillis()
         network
             .getConfig {
