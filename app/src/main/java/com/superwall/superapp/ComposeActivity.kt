@@ -28,8 +28,8 @@ import androidx.compose.ui.unit.dp
 import com.superwall.sdk.compose.PaywallComposable
 import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
-import com.superwall.sdk.paywall.vc.PaywallView
-import com.superwall.sdk.paywall.vc.delegate.PaywallViewCallback
+import com.superwall.sdk.paywall.view.PaywallView
+import com.superwall.sdk.paywall.view.delegate.PaywallViewCallback
 import com.superwall.superapp.ui.theme.MyApplicationTheme
 
 class ComposeActivity :

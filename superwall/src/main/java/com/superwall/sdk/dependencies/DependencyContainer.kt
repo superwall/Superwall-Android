@@ -49,7 +49,6 @@ import com.superwall.sdk.network.device.DeviceInfo
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
 import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.paywall.manager.PaywallViewCache
-import com.superwall.sdk.paywall.presentation.dismiss
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.dismiss
@@ -64,20 +63,20 @@ import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.paywall.request.PaywallRequestManager
 import com.superwall.sdk.paywall.request.PaywallRequestManagerDepFactory
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
-import com.superwall.sdk.paywall.vc.PaywallView
-import com.superwall.sdk.paywall.vc.SuperwallStoreOwner
-import com.superwall.sdk.paywall.vc.ViewModelFactory
-import com.superwall.sdk.paywall.vc.ViewStorageViewModel
-import com.superwall.sdk.paywall.vc.delegate.PaywallViewDelegateAdapter
-import com.superwall.sdk.paywall.vc.web_view.SWWebView
-import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallMessageHandler
-import com.superwall.sdk.paywall.vc.web_view.templating.models.JsonVariables
-import com.superwall.sdk.paywall.vc.web_view.templating.models.Variables
-import com.superwall.sdk.paywall.vc.web_view.webViewExists
+import com.superwall.sdk.paywall.view.PaywallView
+import com.superwall.sdk.paywall.view.SuperwallStoreOwner
+import com.superwall.sdk.paywall.view.ViewModelFactory
+import com.superwall.sdk.paywall.view.ViewStorageViewModel
+import com.superwall.sdk.paywall.view.delegate.PaywallViewDelegateAdapter
+import com.superwall.sdk.paywall.view.webview.SWWebView
+import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessageHandler
+import com.superwall.sdk.paywall.view.webview.templating.models.JsonVariables
+import com.superwall.sdk.paywall.view.webview.templating.models.Variables
+import com.superwall.sdk.paywall.view.webview.webViewExists
 import com.superwall.sdk.storage.EventsQueue
 import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.store.InternalPurchaseController
-import com.superwall.sdk.store.StoreKitManager
+import com.superwall.sdk.store.StoreManager
 import com.superwall.sdk.store.abstractions.transactions.GoogleBillingPurchaseTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import com.superwall.sdk.store.transactions.TransactionManager
@@ -140,7 +139,7 @@ class DependencyContainer(
     var debugManager: DebugManager
     var paywallManager: PaywallManager
     var paywallRequestManager: PaywallRequestManager
-    var storeKitManager: StoreKitManager
+    var storeManager: StoreManager
     val transactionManager: TransactionManager
     val googleBillingWrapper: GoogleBillingWrapper
     private val uiScope
@@ -218,7 +217,7 @@ class DependencyContainer(
                 javaPurchaseController = null,
                 context,
             )
-        storeKitManager = StoreKitManager(purchaseController, googleBillingWrapper)
+        storeManager = StoreManager(purchaseController, googleBillingWrapper)
 
         delegateAdapter = SuperwallDelegateAdapter()
         storage = LocalStorage(context = context, ioScope = ioScope(), factory = this, json = json())
@@ -263,7 +262,7 @@ class DependencyContainer(
         errorTracker = ErrorTracker(scope = ioScope, cache = storage)
         paywallRequestManager =
             PaywallRequestManager(
-                storeKitManager = storeKitManager,
+                storeManager = storeManager,
                 network = network,
                 factory = this,
                 ioScope = ioScope,
@@ -301,7 +300,7 @@ class DependencyContainer(
         configManager =
             ConfigManager(
                 context = context,
-                storeKitManager = storeKitManager,
+                storeManager = storeManager,
                 storage = storage,
                 network = network,
                 options = options,
@@ -363,7 +362,7 @@ class DependencyContainer(
 
         transactionManager =
             TransactionManager(
-                storeKitManager = storeKitManager,
+                storeManager = storeManager,
                 purchaseController = purchaseController,
                 eventsQueue = eventsQueue,
                 storage = storage,
@@ -492,11 +491,11 @@ class DependencyContainer(
         return paywallView
     }
 
-    override fun makeDebugViewController(id: String?): DebugView {
+    override fun makeDebugView(id: String?): DebugView {
         val view =
             DebugView(
                 context = context,
-                storeKitManager = storeKitManager,
+                storeManager = storeManager,
                 network = network,
                 paywallRequestManager = paywallRequestManager,
                 paywallManager = paywallManager,
@@ -537,7 +536,7 @@ class DependencyContainer(
             audienceFilterParams = HashMap(identityManager.userAttributes),
         )
 
-    override fun makeHasExternalPurchaseController(): Boolean = storeKitManager.purchaseController.hasExternalPurchaseController
+    override fun makeHasExternalPurchaseController(): Boolean = storeManager.purchaseController.hasExternalPurchaseController
 
     override suspend fun didUpdateAppSession(appSession: AppSession) {
     }

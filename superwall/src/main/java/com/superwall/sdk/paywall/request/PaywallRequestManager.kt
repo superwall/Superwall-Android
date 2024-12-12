@@ -18,7 +18,7 @@ import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.paywall.presentation.PaywallInfo
-import com.superwall.sdk.store.StoreKitManager
+import com.superwall.sdk.store.StoreManager
 import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Deferred
@@ -30,7 +30,7 @@ interface PaywallRequestManagerDepFactory :
     ConfigManagerFactory
 
 class PaywallRequestManager(
-    private val storeKitManager: StoreKitManager,
+    private val storeManager: StoreManager,
     private val network: Network,
     private val factory: PaywallRequestManagerDepFactory,
     private val ioScope: IOScope,
@@ -228,7 +228,7 @@ class PaywallRequestManager(
             var paywall = paywall
 
             val result =
-                storeKitManager.getProducts(
+                storeManager.getProducts(
                     substituteProducts = request.overrides.products,
                     paywall = paywall,
                     request = request,

@@ -49,8 +49,8 @@ import com.superwall.sdk.paywall.presentation.internal.state.PaywallSkippedReaso
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.paywall.request.PaywallRequestManager
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
-import com.superwall.sdk.paywall.vc.ActivityEncapsulatable
-import com.superwall.sdk.store.StoreKitManager
+import com.superwall.sdk.paywall.view.ActivityEncapsulatable
+import com.superwall.sdk.store.StoreManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -65,7 +65,7 @@ interface AppCompatActivityEncapsulatable {
 
 class DebugView(
     private val context: Context,
-    private val storeKitManager: StoreKitManager,
+    private val storeManager: StoreManager,
     private val network: Network,
     private val paywallRequestManager: PaywallRequestManager,
     private val paywallManager: PaywallManager,
@@ -83,7 +83,7 @@ class DebugView(
         val style: Int = AlertDialog.BUTTON_POSITIVE,
     )
 
-    // The full screen activity instance if this view controller has been presented in one.
+    // The full screen activity instance if this view has been presented in one.
     override var encapsulatingActivity: AppCompatActivity? = null
 
     internal var paywallDatabaseId: String? = null
@@ -566,7 +566,7 @@ class DebugView(
             var paywall = paywallRequestManager.getPaywall(request).toResult().getOrThrow()
 
             val productVariables =
-                storeKitManager.getProductVariables(
+                storeManager.getProductVariables(
                     paywall,
                     request = request,
                 )
@@ -737,7 +737,7 @@ class DebugView(
 
         try {
             val (productsById, _) =
-                storeKitManager.getProducts(
+                storeManager.getProducts(
                     paywall = paywall,
                 )
 
