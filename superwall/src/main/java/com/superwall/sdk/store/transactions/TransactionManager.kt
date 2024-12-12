@@ -27,21 +27,21 @@ import com.superwall.sdk.misc.launchWithTracking
 import com.superwall.sdk.models.paywall.LocalNotificationType
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
-import com.superwall.sdk.paywall.vc.PaywallView
-import com.superwall.sdk.paywall.vc.SuperwallPaywallActivity
-import com.superwall.sdk.paywall.vc.delegate.PaywallLoadingState
+import com.superwall.sdk.paywall.view.PaywallView
+import com.superwall.sdk.paywall.view.SuperwallPaywallActivity
+import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 import com.superwall.sdk.storage.EventsQueue
 import com.superwall.sdk.storage.PurchasingProductdIds
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.PurchasingObserverState
-import com.superwall.sdk.store.StoreKitManager
+import com.superwall.sdk.store.StoreManager
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import kotlinx.coroutines.launch
 
 class TransactionManager(
-    private val storeKitManager: StoreKitManager,
+    private val storeManager: StoreManager,
     private val purchaseController: PurchaseController,
     private val eventsQueue: EventsQueue,
     private val storage: Storage,
@@ -95,7 +95,7 @@ class TransactionManager(
                 val state = state as PurchasingObserverState.PurchaseResult
                 state.purchases?.forEach { purchase ->
                     purchase.products.map {
-                        storeKitManager.productsByFullId[it] ?.let { product ->
+                        storeManager.productsByFullId[it] ?.let { product ->
                             didPurchase(product, PurchaseSource.ObserverMode(product), product.hasFreeTrial)
                         }
                     }
@@ -123,7 +123,7 @@ class TransactionManager(
                 val result = state as PurchasingObserverState.PurchaseResult
                 result.purchases?.forEach { purchase ->
                     purchase.products.map {
-                        storeKitManager.productsByFullId[it] ?.let { product ->
+                        storeManager.productsByFullId[it] ?.let { product ->
                             handlePendingTransaction(PurchaseSource.ObserverMode(product))
                         }
                     }
@@ -133,7 +133,7 @@ class TransactionManager(
                 val state = state as PurchasingObserverState.PurchaseResult
                 state.purchases?.forEach { purchase ->
                     purchase.products.map {
-                        storeKitManager.productsByFullId[it] ?.let { product ->
+                        storeManager.productsByFullId[it] ?.let { product ->
                             didRestore(product, PurchaseSource.ObserverMode(product))
                         }
                     }
@@ -155,7 +155,7 @@ class TransactionManager(
         val product =
             when (purchaseSource) {
                 is PurchaseSource.Internal ->
-                    storeKitManager.productsByFullId[purchaseSource.productId] ?: run {
+                    storeManager.productsByFullId[purchaseSource.productId] ?: run {
                         log(
                             LogLevel.error,
                             "Trying to purchase (${purchaseSource.productId}) but the product has failed to load. Visit https://superwall.com/l/missing-products to diagnose.",
@@ -182,7 +182,7 @@ class TransactionManager(
         prepareToPurchase(product, purchaseSource)
 
         val result =
-            storeKitManager.purchaseController.purchase(
+            storeManager.purchaseController.purchase(
                 activity = activity,
                 productDetails = productDetails,
                 offerId = rawStoreProduct.offerId,
@@ -454,7 +454,7 @@ class TransactionManager(
                         factory = factory,
                     )
 
-                storeKitManager.loadPurchasedProducts()
+                storeManager.loadPurchasedProducts()
 
                 trackTransactionDidSucceed(transaction, product, purchaseSource, didStartFreeTrial)
 
@@ -477,7 +477,7 @@ class TransactionManager(
                         factory = factory,
                     )
 
-                storeKitManager.loadPurchasedProducts()
+                storeManager.loadPurchasedProducts()
 
                 trackTransactionDidSucceed(transaction, product, purchaseSource, didStartFreeTrial)
             }

@@ -67,7 +67,7 @@ suspend fun Superwall.getExperiment(
                 Logger.debug(
                     logLevel = LogLevel.error,
                     scope = LogScope.paywallPresentation,
-                    message = "Error Getting Paywall View Controller",
+                    message = "Error Getting Paywall view",
                     info = debugInfo,
                     error = rulesOutcome.triggerResult.error,
                 )

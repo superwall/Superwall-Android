@@ -7,13 +7,12 @@ import com.superwall.sdk.dependencies.ViewFactory
 import com.superwall.sdk.misc.Either
 import com.superwall.sdk.misc.launchWithTracking
 import com.superwall.sdk.misc.mapAsync
-import com.superwall.sdk.misc.toResult
 import com.superwall.sdk.models.paywall.PaywallIdentifier
 import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.paywall.request.PaywallRequestManager
-import com.superwall.sdk.paywall.vc.PaywallView
-import com.superwall.sdk.paywall.vc.delegate.PaywallLoadingState
-import com.superwall.sdk.paywall.vc.delegate.PaywallViewDelegateAdapter
+import com.superwall.sdk.paywall.view.PaywallView
+import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
+import com.superwall.sdk.paywall.view.delegate.PaywallViewDelegateAdapter
 
 class PaywallManager(
     private val factory: PaywallManager.Factory,
@@ -27,13 +26,6 @@ class PaywallManager(
 
     var currentView: PaywallView? = null
         get() = cache.activePaywallView
-
-    @Deprecated("Will be removed in the upcoming versions, use curentView instead")
-    var presentedViewController: PaywallView?
-        get() = currentView
-        set(value) {
-            currentView = value
-        }
 
     private var _cache: PaywallViewCache? = null
 
@@ -49,11 +41,6 @@ class PaywallManager(
         val cache: PaywallViewCache = factory.makeCache()
         _cache = cache
         return cache
-    }
-
-    @Deprecated("Will be removed in the upcoming versions, use removePaywallView instead")
-    fun removePaywallViewController(forKey: String) {
-        removePaywallView(forKey)
     }
 
     fun removePaywallView(identifier: PaywallIdentifier) {
@@ -80,14 +67,6 @@ class PaywallManager(
             }
         }
     }
-
-    @Deprecated("Will be removed in the upcoming versions, use getPaywallView instead")
-    suspend fun getPaywallViewController(
-        request: PaywallRequest,
-        isForPresentation: Boolean,
-        isPreloading: Boolean,
-        delegate: PaywallViewDelegateAdapter?,
-    ): Result<PaywallView> = getPaywallView(request, isForPresentation, isPreloading, delegate).toResult()
 
     suspend fun getPaywallView(
         request: PaywallRequest,

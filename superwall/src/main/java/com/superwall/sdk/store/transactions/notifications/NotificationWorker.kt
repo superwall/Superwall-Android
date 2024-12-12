@@ -8,7 +8,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.work.Worker
 import androidx.work.WorkerParameters
-import com.superwall.sdk.paywall.vc.SuperwallPaywallActivity
+import com.superwall.sdk.paywall.view.SuperwallPaywallActivity
 
 internal class NotificationWorker(
     val context: Context,

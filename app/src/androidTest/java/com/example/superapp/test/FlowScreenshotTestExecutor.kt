@@ -65,7 +65,7 @@ class FlowScreenshotTestExecutor {
                             Superwall.instance.paywallView
                                 ?.webView
                                 ?.scrollBy(0, 300) ?: kotlin.run {
-                                throw IllegalStateException("No viewcontroller found")
+                                throw IllegalStateException("No view found")
                             }
                         }.await()
                     // We delay a bit to ensure the button is visible
@@ -76,7 +76,7 @@ class FlowScreenshotTestExecutor {
                             Superwall.instance.paywallView
                                 ?.webView
                                 ?.scrollTo(0, 0) ?: kotlin.run {
-                                throw IllegalStateException("No viewcontroller found")
+                                throw IllegalStateException("No view found")
                             }
                         }.await()
                     // We delay a bit to ensure scroll has finished

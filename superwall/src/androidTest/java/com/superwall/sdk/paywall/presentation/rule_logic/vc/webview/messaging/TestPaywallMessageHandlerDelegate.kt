@@ -5,9 +5,9 @@ import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
-import com.superwall.sdk.paywall.vc.delegate.PaywallLoadingState
-import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallMessageHandlerDelegate
-import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent
+import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
+import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessageHandlerDelegate
+import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent
 
 class TestPaywallMessageHandlerDelegate(
     override val request: PresentationRequest? = null,
