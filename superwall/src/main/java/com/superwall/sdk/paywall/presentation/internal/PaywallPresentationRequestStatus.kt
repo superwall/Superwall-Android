@@ -54,6 +54,4 @@ sealed class PaywallPresentationRequestStatusReason(
     class SubscriptionStatusTimeout : PaywallPresentationRequestStatusReason("subscription_status_timeout")
 }
 
-@Deprecated("Will be removed in the upcoming versions, use NoPaywallView instead")
-typealias NoPaywallController = PaywallPresentationRequestStatusReason.NoPaywallView
 typealias PresentationPipelineError = PaywallPresentationRequestStatusReason

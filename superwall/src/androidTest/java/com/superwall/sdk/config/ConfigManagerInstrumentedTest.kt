@@ -35,7 +35,7 @@ import com.superwall.sdk.storage.LatestGeoInfo
 import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.StorageMock
-import com.superwall.sdk.store.StoreKitManager
+import com.superwall.sdk.store.StoreManager
 import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -65,7 +65,7 @@ class ConfigManagerUnderTest(
     private val storage: Storage,
     private val network: SuperwallAPI,
     private val paywallManager: PaywallManager,
-    private val storeKitManager: StoreKitManager,
+    private val storeManager: StoreManager,
     private val factory: Factory,
     private val deviceHelper: DeviceHelper,
     private val assignments: Assignments,
@@ -76,7 +76,7 @@ class ConfigManagerUnderTest(
         storage = storage,
         network = network,
         paywallManager = paywallManager,
-        storeKitManager = storeKitManager,
+        storeManager = storeManager,
         factory = factory,
         deviceHelper = deviceHelper,
         options = SuperwallOptions(),
@@ -134,7 +134,7 @@ class ConfigManagerTests {
                         storage = storage,
                         network = network,
                         paywallManager = dependencyContainer.paywallManager,
-                        storeKitManager = dependencyContainer.storeKitManager,
+                        storeManager = dependencyContainer.storeManager,
                         factory = dependencyContainer,
                         deviceHelper = mockDeviceHelper,
                         assignments = assignments,
@@ -179,7 +179,7 @@ class ConfigManagerTests {
                         storage = storage,
                         network = network,
                         paywallManager = dependencyContainer.paywallManager,
-                        storeKitManager = dependencyContainer.storeKitManager,
+                        storeManager = dependencyContainer.storeManager,
                         factory = dependencyContainer,
                         deviceHelper = mockDeviceHelper,
                         assignments = assignments,
@@ -223,7 +223,7 @@ class ConfigManagerTests {
                         storage = storage,
                         network = network,
                         paywallManager = dependencyContainer.paywallManager,
-                        storeKitManager = dependencyContainer.storeKitManager,
+                        storeManager = dependencyContainer.storeManager,
                         factory = dependencyContainer,
                         deviceHelper = mockDeviceHelper,
                         assignments = assignments,
@@ -269,7 +269,7 @@ class ConfigManagerTests {
                         storage = storage,
                         network = network,
                         paywallManager = dependencyContainer.paywallManager,
-                        storeKitManager = dependencyContainer.storeKitManager,
+                        storeManager = dependencyContainer.storeManager,
                         factory = dependencyContainer,
                         deviceHelper = mockDeviceHelper,
                         assignments = assignmentStore,
@@ -364,7 +364,7 @@ class ConfigManagerTests {
                             storage,
                             mockNetwork,
                             mockPaywallManager,
-                            dependencyContainer.storeKitManager,
+                            dependencyContainer.storeManager,
                             mockContainer,
                             mockDeviceHelper,
                             assignments = assignments,
@@ -437,7 +437,7 @@ class ConfigManagerTests {
                             storage,
                             mockNetwork,
                             mockPaywallManager,
-                            dependencyContainer.storeKitManager,
+                            dependencyContainer.storeManager,
                             mockContainer,
                             mockDeviceHelper,
                             assignments = assignments,
@@ -475,7 +475,7 @@ class ConfigManagerTests {
             every { resetCache() } just Runs
         }
     private val storeKit =
-        mockk<StoreKitManager> {
+        mockk<StoreManager> {
             coEvery { products(any()) } returns emptySet()
         }
     private val preload =
@@ -539,7 +539,7 @@ class ConfigManagerTests {
                         storage = storage,
                         network = mockNetwork,
                         paywallManager = mockContainer.paywallManager,
-                        storeKitManager = mockContainer.storeKitManager,
+                        storeManager = mockContainer.storeManager,
                         factory = mockContainer,
                         deviceHelper = mockDeviceHelper,
                         assignments = assignmentStore,
@@ -595,7 +595,7 @@ class ConfigManagerTests {
                         storage = storage,
                         network = mockNetwork,
                         paywallManager = manager,
-                        storeKitManager = storeKit,
+                        storeManager = storeKit,
                         factory = dependencyContainer,
                         deviceHelper = mockDeviceHelper,
                         assignments = assignmentStore,
@@ -654,7 +654,7 @@ class ConfigManagerTests {
                         storage = storage,
                         network = mockNetwork,
                         paywallManager = manager,
-                        storeKitManager = storeKit,
+                        storeManager = storeKit,
                         factory = dependencyContainer,
                         deviceHelper = mockDeviceHelper,
                         assignments = assignmentStore,
@@ -729,7 +729,7 @@ class ConfigManagerTests {
                         storage = storage,
                         network = mockNetwork,
                         paywallManager = manager,
-                        storeKitManager = storeKit,
+                        storeManager = storeKit,
                         factory = dependencyContainer,
                         deviceHelper = mockDeviceHelper,
                         assignments = assignmentStore,
@@ -795,7 +795,7 @@ class ConfigManagerTests {
                         storage = storage,
                         network = mockNetwork,
                         paywallManager = mockContainer.paywallManager,
-                        storeKitManager = mockContainer.storeKitManager,
+                        storeManager = mockContainer.storeManager,
                         factory = mockContainer,
                         deviceHelper = mockDeviceHelper,
                         assignments = assignmentStore,

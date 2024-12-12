@@ -6,7 +6,7 @@ import com.superwall.sdk.models.paywall.PaywallProducts
 import com.superwall.sdk.models.product.Product
 import com.superwall.sdk.models.product.ProductItem
 import com.superwall.sdk.models.product.ProductVariable
-import com.superwall.sdk.paywall.vc.PaywallView
+import com.superwall.sdk.paywall.view.PaywallView
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 
 data class GetProductsResponse(

@@ -6,8 +6,8 @@ import android.net.Uri
 import androidx.work.WorkManager
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
-import com.superwall.sdk.billing.toInternalResult
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
+import com.superwall.sdk.billing.toInternalResult
 import com.superwall.sdk.config.models.ConfigState
 import com.superwall.sdk.config.models.ConfigurationStatus
 import com.superwall.sdk.config.options.SuperwallOptions
@@ -40,17 +40,17 @@ import com.superwall.sdk.paywall.presentation.internal.confirmAssignment
 import com.superwall.sdk.paywall.presentation.internal.dismiss
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
-import com.superwall.sdk.paywall.vc.PaywallView
-import com.superwall.sdk.paywall.vc.SuperwallPaywallActivity
-import com.superwall.sdk.paywall.vc.delegate.PaywallViewEventCallback
-import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent
-import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.Closed
-import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.Custom
-import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.InitiatePurchase
-import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.InitiateRestore
-import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.OpenedDeepLink
-import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.OpenedURL
-import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallWebEvent.OpenedUrlInChrome
+import com.superwall.sdk.paywall.view.PaywallView
+import com.superwall.sdk.paywall.view.SuperwallPaywallActivity
+import com.superwall.sdk.paywall.view.delegate.PaywallViewEventCallback
+import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent
+import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.Closed
+import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.Custom
+import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.InitiatePurchase
+import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.InitiateRestore
+import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedDeepLink
+import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedURL
+import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedUrlInChrome
 import com.superwall.sdk.storage.ActiveSubscriptionStatus
 import com.superwall.sdk.store.ExternalNativePurchaseController
 import com.superwall.sdk.store.PurchasingObserverState
@@ -371,25 +371,6 @@ class Superwall(
                 )
             })
         }
-
-        @Deprecated(
-            "This constructor is too ambiguous and will be removed in upcoming versions. Use Superwall.configure(Application, ...) instead.",
-        )
-        fun configure(
-            applicationContext: Context,
-            apiKey: String,
-            purchaseController: PurchaseController? = null,
-            options: SuperwallOptions? = null,
-            activityProvider: ActivityProvider? = null,
-            completion: ((Result<Unit>) -> Unit)? = null,
-        ) = configure(
-            applicationContext.applicationContext as Application,
-            apiKey,
-            purchaseController,
-            options,
-            activityProvider,
-            completion,
-        )
     }
 
     private lateinit var _dependencyContainer: DependencyContainer

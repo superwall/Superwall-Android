@@ -29,8 +29,6 @@ data class PaywallInfo(
     val name: String,
     val url: PaywallURL,
     val experiment: Experiment?,
-    @Deprecated("This will always be an empty string and will be removed in the next major update of the SDK.")
-    val triggerSessionId: String = "",
     @Deprecated(
         message = "Use productItems because a paywall can support more than three products",
         ReplaceWith("productsItems"),

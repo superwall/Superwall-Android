@@ -14,7 +14,7 @@ import com.superwall.sdk.misc.toResult
 import com.superwall.sdk.models.triggers.TriggerRule
 import com.superwall.sdk.models.triggers.TriggerRuleOutcome
 import com.superwall.sdk.models.triggers.UnmatchedRule
-import com.superwall.sdk.paywall.vc.web_view.webViewExists
+import com.superwall.sdk.paywall.view.webview.webViewExists
 import com.superwall.sdk.storage.LocalStorage
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async

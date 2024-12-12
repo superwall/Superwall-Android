@@ -41,6 +41,6 @@ sealed class PresentationResult {
     // behavior in the paywall editor.
     class UserIsSubscribed : PresentationResult()
 
-    // No view controller could be found to present on.
+    // No view could be found to present on.
     class PaywallNotAvailable : PresentationResult()
 }

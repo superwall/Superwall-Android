@@ -23,13 +23,13 @@ import com.superwall.sdk.models.product.ProductItem
 import com.superwall.sdk.models.product.ProductType
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
-import com.superwall.sdk.paywall.vc.PaywallView
-import com.superwall.sdk.paywall.vc.delegate.PaywallLoadingState
+import com.superwall.sdk.paywall.view.PaywallView
+import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 import com.superwall.sdk.products.mockPricingPhase
 import com.superwall.sdk.products.mockSubscriptionOfferDetails
 import com.superwall.sdk.storage.EventsQueue
 import com.superwall.sdk.store.InternalPurchaseController
-import com.superwall.sdk.store.StoreKitManager
+import com.superwall.sdk.store.StoreManager
 import com.superwall.sdk.store.abstractions.product.OfferType
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import com.superwall.sdk.store.abstractions.product.StoreProduct
@@ -111,7 +111,7 @@ class TransactionManagerTest {
                     ),
                 )
         }
-    private var storeKitManager = spyk(StoreKitManager(purchaseController, billing))
+    private var storeManager = spyk(StoreManager(purchaseController, billing))
     private var activityProvider =
         mockk<ActivityProvider> {
             every { getCurrentActivity() } returns mockk()
@@ -135,7 +135,7 @@ class TransactionManagerTest {
         options: SuperwallOptions.() -> Unit = {},
     ) = TransactionManager(
         purchaseController = purchaseController,
-        storeKitManager = storeKitManager,
+        storeManager = storeManager,
         activityProvider = activityProvider,
         subscriptionStatus = subscriptionStatus,
         track = { track(it) },
@@ -174,7 +174,7 @@ class TransactionManagerTest {
     fun test_purchase_activity_not_found() =
         runTest {
             Given("We have loaded products but no activity") {
-                storeKitManager.getProducts(paywall = mockedPaywall)
+                storeManager.getProducts(paywall = mockedPaywall)
                 every { activityProvider.getCurrentActivity() } returns null
                 val transactionManager: TransactionManager = manager()
                 When("We try to purchase a product from the paywall") {
@@ -201,7 +201,7 @@ class TransactionManagerTest {
             val events = MutableStateFlow(emptyList<TrackableSuperwallEvent>())
             Given("We have loaded products and we can purchase successfully") {
                 // Pretend a paywall loaded a product
-                storeKitManager.getProducts(paywall = mockedPaywall)
+                storeManager.getProducts(paywall = mockedPaywall)
                 val transactionManager: TransactionManager =
                     manager(track = { e ->
                         events.update {
@@ -227,7 +227,7 @@ class TransactionManagerTest {
                         )
                     Then("The purchase is successful") {
                         assert(result is PurchaseResult.Purchased)
-                        coVerify { storeKitManager.loadPurchasedProducts() }
+                        coVerify { storeManager.loadPurchasedProducts() }
                         And("Verify event order") {
                             val transactionEvents =
                                 events.value.filterIsInstance<InternalSuperwallEvent.Transaction>()
@@ -274,7 +274,7 @@ class TransactionManagerTest {
                         )
                     Then("The purchase is successful") {
                         assert(result is PurchaseResult.Purchased)
-                        coVerify { storeKitManager.loadPurchasedProducts() }
+                        coVerify { storeManager.loadPurchasedProducts() }
                         And("Verify event order") {
                             val transactionEvents =
                                 events.value.filterIsInstance<InternalSuperwallEvent.Transaction>()
@@ -294,7 +294,7 @@ class TransactionManagerTest {
     fun test_purchase_restored_internal() =
         runTest {
             Given("We have loaded products and a purchase results in restoration") {
-                storeKitManager.getProducts(paywall = mockedPaywall)
+                storeManager.getProducts(paywall = mockedPaywall)
                 val events = MutableStateFlow(emptyList<TrackableSuperwallEvent>())
                 val transactionManager: TransactionManager =
                     manager(
@@ -366,7 +366,7 @@ class TransactionManagerTest {
     fun test_purchase_failed_with_alert() =
         runTest {
             Given("We have loaded products and a purchase fails") {
-                storeKitManager.getProducts(paywall = mockedPaywall)
+                storeManager.getProducts(paywall = mockedPaywall)
                 val events = MutableStateFlow(emptyList<TrackableSuperwallEvent>())
                 val transactionManager: TransactionManager =
                     manager(track = { e ->
@@ -423,7 +423,7 @@ class TransactionManagerTest {
     fun test_purchase_failed_without_alert() =
         runTest {
             Given("We have loaded products and a purchase fails") {
-                storeKitManager.getProducts(paywall = mockedPaywall)
+                storeManager.getProducts(paywall = mockedPaywall)
                 val events = MutableStateFlow(emptyList<TrackableSuperwallEvent>())
                 val transactionManager: TransactionManager =
                     manager(track = { e ->
@@ -481,7 +481,7 @@ class TransactionManagerTest {
     fun test_purchase_pending() =
         runTest {
             Given("We have loaded products and a purchase is pending") {
-                storeKitManager.getProducts(paywall = mockedPaywall)
+                storeManager.getProducts(paywall = mockedPaywall)
                 val events = MutableStateFlow(emptyList<TrackableSuperwallEvent>())
                 val transactionManager: TransactionManager =
                     manager(track = { e ->
@@ -526,7 +526,7 @@ class TransactionManagerTest {
     fun test_purchase_cancelled_internal() =
         runTest {
             Given("We have loaded products and a purchase is pending") {
-                storeKitManager.getProducts(paywall = mockedPaywall)
+                storeManager.getProducts(paywall = mockedPaywall)
                 val events = MutableStateFlow(emptyList<TrackableSuperwallEvent>())
                 val transactionManager: TransactionManager =
                     manager(track = { e ->
@@ -760,7 +760,7 @@ class TransactionManagerTest {
     fun test_purchase_with_free_trial_internal() =
         runTest {
             Given("We have loaded products with a free trial and we can purchase successfully") {
-                storeKitManager.getProducts(paywall = mockedPaywall)
+                storeManager.getProducts(paywall = mockedPaywall)
                 every { paywallView.encapsulatingActivity } returns WeakReference(mockk())
                 every { playProduct.oneTimePurchaseOfferDetails } returns null
                 every { playProduct.subscriptionOfferDetails } returns
@@ -798,7 +798,7 @@ class TransactionManagerTest {
                         )
                     Then("The purchase is successful") {
                         assert(result is PurchaseResult.Purchased)
-                        coVerify { storeKitManager.loadPurchasedProducts() }
+                        coVerify { storeManager.loadPurchasedProducts() }
                         And("Verify free trial start event") {
                             val freeTrialStartEvent =
                                 events.value.filterIsInstance<InternalSuperwallEvent.FreeTrialStart>()
@@ -850,7 +850,7 @@ class TransactionManagerTest {
                         )
                     Then("The purchase is successful") {
                         assert(result is PurchaseResult.Purchased)
-                        coVerify { storeKitManager.loadPurchasedProducts() }
+                        coVerify { storeManager.loadPurchasedProducts() }
                         And("Verify free trial start event") {
                             val freeTrialStartEvent =
                                 events.value.filterIsInstance<InternalSuperwallEvent.FreeTrialStart>()
@@ -866,7 +866,7 @@ class TransactionManagerTest {
     fun test_purchase_non_recurring_product_internal() =
         runTest {
             Given("We have loaded a non-recurring product and we can purchase successfully") {
-                storeKitManager.getProducts(paywall = mockedPaywall)
+                storeManager.getProducts(paywall = mockedPaywall)
                 val events = MutableStateFlow(emptyList<TrackableSuperwallEvent>())
                 val transactionManager: TransactionManager =
                     manager(track = { e ->
@@ -893,7 +893,7 @@ class TransactionManagerTest {
                         )
                     Then("The purchase is successful") {
                         assert(result is PurchaseResult.Purchased)
-                        coVerify { storeKitManager.loadPurchasedProducts() }
+                        coVerify { storeManager.loadPurchasedProducts() }
                         And("Verify non-recurring product purchase event") {
                             val nonRecurringPurchaseEvent =
                                 events.value.filterIsInstance<InternalSuperwallEvent.NonRecurringProductPurchase>()
@@ -935,7 +935,7 @@ class TransactionManagerTest {
                         )
                     Then("The purchase is successful") {
                         assert(result is PurchaseResult.Purchased)
-                        coVerify { storeKitManager.loadPurchasedProducts() }
+                        coVerify { storeManager.loadPurchasedProducts() }
                         And("Verify non-recurring product purchase event") {
                             val nonRecurringPurchaseEvent =
                                 events.value.filterIsInstance<InternalSuperwallEvent.NonRecurringProductPurchase>()
@@ -951,7 +951,7 @@ class TransactionManagerTest {
     fun test_purchase_subscription_without_trial_internal() =
         runTest {
             Given("We have loaded a subscription product without trial and we can purchase successfully") {
-                storeKitManager.getProducts(paywall = mockedPaywall)
+                storeManager.getProducts(paywall = mockedPaywall)
                 val events = MutableStateFlow(emptyList<TrackableSuperwallEvent>())
                 val transactionManager: TransactionManager =
                     manager(track = { e ->
@@ -984,7 +984,7 @@ class TransactionManagerTest {
                         )
                     Then("The purchase is successful") {
                         assert(result is PurchaseResult.Purchased)
-                        coVerify { storeKitManager.loadPurchasedProducts() }
+                        coVerify { storeManager.loadPurchasedProducts() }
                         And("Verify subscription start event") {
                             val subscriptionStartEvent =
                                 events.value.filterIsInstance<InternalSuperwallEvent.SubscriptionStart>()
@@ -1031,7 +1031,7 @@ class TransactionManagerTest {
                         )
                     Then("The purchase is successful") {
                         assert(result is PurchaseResult.Purchased)
-                        coVerify { storeKitManager.loadPurchasedProducts() }
+                        coVerify { storeManager.loadPurchasedProducts() }
                         And("Verify subscription start event") {
                             val subscriptionStartEvent =
                                 events.value.filterIsInstance<InternalSuperwallEvent.SubscriptionStart>()

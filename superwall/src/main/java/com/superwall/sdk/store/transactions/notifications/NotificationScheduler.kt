@@ -9,7 +9,7 @@ import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.models.paywall.LocalNotification
-import com.superwall.sdk.paywall.vc.SuperwallPaywallActivity
+import com.superwall.sdk.paywall.view.SuperwallPaywallActivity
 import java.util.concurrent.TimeUnit
 
 internal class NotificationScheduler {
