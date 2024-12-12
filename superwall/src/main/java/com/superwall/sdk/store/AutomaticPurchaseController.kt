@@ -2,10 +2,19 @@ package com.superwall.sdk.store
 
 import android.app.Activity
 import android.content.Context
-import com.android.billingclient.api.*
+import com.android.billingclient.api.AcknowledgePurchaseParams
+import com.android.billingclient.api.BillingClient
+import com.android.billingclient.api.BillingClientStateListener
+import com.android.billingclient.api.BillingFlowParams
+import com.android.billingclient.api.BillingResult
+import com.android.billingclient.api.ProductDetails
+import com.android.billingclient.api.Purchase
+import com.android.billingclient.api.PurchasesUpdatedListener
+import com.android.billingclient.api.QueryPurchasesParams
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.billing.RECONNECT_TIMER_MAX_TIME_MILLISECONDS
 import com.superwall.sdk.billing.RECONNECT_TIMER_START_MILLISECONDS
+import com.superwall.sdk.config.models.ConfigurationStatus
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
@@ -265,6 +274,8 @@ class AutomaticPurchaseController(
 //region Private
 
     private suspend fun syncSubscriptionStatusAndWait() {
+        // We await for configuration to be set so our entitlements are available
+        Superwall.instance.configurationStateListener.first { it is ConfigurationStatus.Configured }
         val subscriptionPurchases = queryPurchasesOfType(BillingClient.ProductType.SUBS)
         val inAppPurchases = queryPurchasesOfType(BillingClient.ProductType.INAPP)
         val allPurchases = subscriptionPurchases + inAppPurchases
@@ -274,10 +285,13 @@ class AutomaticPurchaseController(
         val status: EntitlementStatus =
             if (hasActivePurchaseOrSubscription) {
                 subscriptionPurchases
-                    .flatMap { it.products }
-                    .toSet()
-                    .flatMap { entitlementsInfo.byProductId(it) }
-                    .toSet()
+                    .flatMap {
+                        it.products
+                    }.toSet()
+                    .flatMap {
+                        val res = entitlementsInfo.byProductId(it)
+                        res
+                    }.toSet()
                     .let { entitlements ->
                         if (entitlements.isNotEmpty()) {
                             EntitlementStatus.Active(entitlements)

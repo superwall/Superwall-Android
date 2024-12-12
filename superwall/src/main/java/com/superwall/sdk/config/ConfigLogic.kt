@@ -8,6 +8,7 @@ import com.superwall.sdk.models.assignment.ConfirmableAssignment
 import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.models.config.PreloadingDisabled
 import com.superwall.sdk.models.paywall.Paywall
+import com.superwall.sdk.models.product.ProductItem
 import com.superwall.sdk.models.triggers.*
 import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.ExpressionEvaluating
 import java.util.*
@@ -260,6 +261,7 @@ object ConfigLogic {
                             skippedExperimentIds.add(rule.experiment.id)
                         }
                     }
+
                     TriggerPreloadBehavior.ALWAYS -> {}
                     TriggerPreloadBehavior.NEVER -> skippedExperimentIds.add(rule.experiment.id)
                 }
@@ -318,9 +320,5 @@ object ConfigLogic {
     }
 
     // Returns entitlements mapped by product ID
-    fun extractEntitlementsByProductId(from: List<Paywall>) =
-        from
-            .flatMap { it.products }
-            .map { it.fullProductId to it.entitlements }
-            .toMap()
+    fun extractEntitlementsByProductId(from: List<ProductItem>) = from.associate { it.fullProductId to it.entitlements }
 }

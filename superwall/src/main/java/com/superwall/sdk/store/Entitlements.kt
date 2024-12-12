@@ -1,5 +1,6 @@
 package com.superwall.sdk.store
 
+import com.superwall.sdk.billing.DecomposedProductIds
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.EntitlementStatus
 import com.superwall.sdk.storage.Storage
@@ -59,6 +60,7 @@ class Entitlements(
                 if (value.entitlements.isEmpty()) {
                     setEntitlementStatus(EntitlementStatus.Inactive)
                 } else {
+                    _active.clear()
                     _all.addAll(value.entitlements)
                     _active.addAll(value.entitlements)
                     _inactive.removeAll(value.entitlements)
@@ -81,7 +83,23 @@ class Entitlements(
         }
     }
 
-    internal fun byProductId(id: String): Set<Entitlement> = _entitlementsByProduct[id] ?: emptySet()
+    internal fun byProductId(id: String): Set<Entitlement> {
+        val decomposedProductIds = DecomposedProductIds.from(id)
+        listOf(
+            decomposedProductIds.fullId,
+            "${decomposedProductIds.subscriptionId}:${decomposedProductIds.basePlanId}",
+            decomposedProductIds.subscriptionId,
+        ).forEach { id ->
+            _entitlementsByProduct.entries
+                .firstOrNull { it.key.contains(id) && it.value.isNotEmpty() }
+                .let {
+                    if (it != null) {
+                        return it.value
+                    }
+                }
+        }
+        return emptySet()
+    }
 
     internal fun addEntitlementsByProductId(idToEntitlements: Map<String, Set<Entitlement>>) {
         _entitlementsByProduct.putAll(
