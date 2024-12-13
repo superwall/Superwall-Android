@@ -71,11 +71,36 @@ internal class ErrorTracker(
         }
     }
 
+    fun String.replaceNonSuperwallPackages() =
+        lines()
+            .map {
+                if (it.containsAny(
+                        "com.superwall.sdk",
+                        "com.superwall.supercel",
+                        "java.lang",
+                        "net.java.dev.jna",
+                        "kotlin.",
+                        "android.os",
+                        "androidx.os",
+                        "com.android.",
+                        "com.google.",
+                        "org.threeten.",
+                        "com.revenuecat.purchases",
+                    )
+                ) {
+                    it.map { if (it.isLetter()) "*" else it }
+                } else {
+                    it
+                }
+            }.joinToString("\n")
+
+    fun String.containsAny(vararg strings: String) = strings.any { this.contains(it) }
+
     override fun trackError(throwable: Throwable) {
         val errorOccurence =
             ErrorTracking.ErrorOccurence(
                 message = throwable.message ?: "",
-                stacktrace = throwable.stackTraceToString(),
+                stacktrace = throwable.stackTraceToString().replaceNonSuperwallPackages(),
                 timestamp = System.currentTimeMillis(),
                 isFatal = throwable.isFatal(),
                 type = throwable.javaClass.simpleName,
