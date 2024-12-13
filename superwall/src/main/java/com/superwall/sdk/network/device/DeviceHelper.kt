@@ -480,7 +480,7 @@ class DeviceHelper(
                 isSandbox = isSandbox.toString(),
                 activeEntitlements =
                     Superwall.instance.entitlements.active
-                        .map { mapOf("identifier" to it.id) },
+                        .map { it.id },
                 isFirstAppOpen = isFirstAppOpen,
                 sdkVersion = sdkVersion,
                 sdkVersionPadded = sdkVersionPadded,
