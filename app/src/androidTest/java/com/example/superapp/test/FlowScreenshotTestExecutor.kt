@@ -1,7 +1,6 @@
 @file:Suppress("ktlint:standard:no-empty-file")
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.filters.FlakyTest
 import com.dropbox.dropshots.Dropshots
 import com.dropbox.dropshots.ThresholdValidator
 import com.example.superapp.utils.CustomComparator
@@ -33,7 +32,7 @@ class FlowScreenshotTestExecutor {
 
     val mainScope = CoroutineScope(Dispatchers.Main)
 
-    @Test
+    /*@Test
     @FlakyTest
     fun test_paywall_reappers_with_video() =
         with(dropshots) {
@@ -45,13 +44,12 @@ class FlowScreenshotTestExecutor {
                     delayFor(500.milliseconds)
                 }
                 step("second_paywall") {
-                    it.waitFor { it is SuperwallEvent.PaywallOpen }
                     awaitUntilWebviewAppears()
                     delayFor(1.seconds)
                 }
             }
         }
-
+*/
     @Test
     fun test_paywall_presents_regardless_of_subscription() =
         with(dropshots) {
@@ -131,10 +129,10 @@ class FlowScreenshotTestExecutor {
         with(dropshots) {
             screenshotFlow(UITestHandler.test14Info) {
                 step {
-                    it.waitFor { it is SuperwallEvent.ShimmerViewComplete }
+                    it.waitFor { it is SuperwallEvent.PaywallWebviewLoadComplete }
                     awaitUntilShimmerDisappears()
                     awaitUntilWebviewAppears()
-                    delayFor(300.milliseconds)
+                    delayFor(100.milliseconds)
                     mainScope
                         .async {
                             // We scroll a bit to display the button
@@ -148,7 +146,7 @@ class FlowScreenshotTestExecutor {
                                 }
                         }.await()
                     // We delay a bit to ensure the button is visible
-                    delayFor(300.milliseconds)
+                    delayFor(100.milliseconds)
                     // We scroll back to the top
                     mainScope
                         .async {

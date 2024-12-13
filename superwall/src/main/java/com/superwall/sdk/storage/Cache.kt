@@ -34,6 +34,7 @@ class Cache(
 
     fun <T> read(storable: Storable<T>): T? {
         var data = memCache[storable.key] as? T
+
         if (data == null) {
             runBlocking(ioQueue) {
                 val file = storable.file(context = context)

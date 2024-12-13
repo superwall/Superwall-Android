@@ -107,7 +107,6 @@ class JavascriptCombinedExpressionEvaluatorInstrumentedTest {
                             storage.coreDataManager,
                             ruleAttributes,
                         ),
-                    shouldTraceResults = false,
                 )
 
             val rule =
@@ -168,7 +167,6 @@ class JavascriptCombinedExpressionEvaluatorInstrumentedTest {
                             storage.coreDataManager,
                             ruleAttributes,
                         ),
-                    shouldTraceResults = false,
                 )
 
             val trueRule =
@@ -270,7 +268,6 @@ class JavascriptCombinedExpressionEvaluatorInstrumentedTest {
                             storage.coreDataManager,
                             ruleAttributes,
                         ),
-                    shouldTraceResults = false,
                 )
 
             val trueRule =
@@ -380,7 +377,6 @@ class JavascriptCombinedExpressionEvaluatorInstrumentedTest {
                             storage.coreDataManager,
                             ruleAttributes,
                         ),
-                    shouldTraceResults = false,
                 )
 
             val rule =

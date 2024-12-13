@@ -74,7 +74,7 @@ class GoogleBillingWrapper(
     private var reconnectionAlreadyScheduled = false
 
     // Setup mutable state flow for purchase results
-    override val purchaseResults = MutableStateFlow<InternalPurchaseResult?>(null)
+    private val purchaseResults = MutableStateFlow<InternalPurchaseResult?>(null)
 
     internal val IN_APP_BILLING_LESS_THAN_3_ERROR_MESSAGE =
         "Google Play In-app Billing API version is less than 3"
@@ -543,12 +543,6 @@ class GoogleBillingWrapper(
         }
     }
 
-    /**
-     * Get the latest transaction from the purchaseResults flow.
-     *
-     * @param factory StoreTransactionFactory to create the StoreTransaction
-     * @return StoreTransaction if the purchase was finished by Superwall, null otherwise
-     */
     override suspend fun getLatestTransaction(factory: StoreTransactionFactory): StoreTransaction? {
         // Get the latest from purchaseResults
         purchaseResults.asStateFlow().filter { it != null }.first().let { purchaseResult ->

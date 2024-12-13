@@ -2,7 +2,6 @@ package com.superwall.sdk.delegate
 
 import android.net.Uri
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
-import com.superwall.sdk.models.entitlements.EntitlementStatus
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import java.net.URI
 
@@ -50,9 +49,9 @@ class SuperwallDelegateAdapter {
             ?: javaDelegate?.handleSuperwallEvent(eventInfo)
     }
 
-    fun entitlementStatusDidChange(newValue: EntitlementStatus) {
-        kotlinDelegate?.entitlementStatusDidChange(newValue)
-            ?: javaDelegate?.entitlementStatusDidChange(newValue)
+    fun subscriptionStatusDidChange(newValue: SubscriptionStatus) {
+        kotlinDelegate?.subscriptionStatusDidChange(newValue)
+            ?: javaDelegate?.subscriptionStatusDidChange(newValue)
     }
 
     fun handleLog(

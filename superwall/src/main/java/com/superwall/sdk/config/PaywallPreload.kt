@@ -101,6 +101,7 @@ class PaywallPreload(
                                     overrides = null,
                                     isDebuggerLaunched = false,
                                     presentationSourceType = null,
+                                    retryCount = 6,
                                 )
                             try {
                                 paywallManager.getPaywallView(

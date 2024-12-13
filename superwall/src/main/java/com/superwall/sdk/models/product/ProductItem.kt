@@ -1,6 +1,5 @@
 package com.superwall.sdk.models.product
 
-import com.superwall.sdk.models.entitlements.Entitlement
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -125,13 +124,9 @@ object PlayStoreProductSerializer : KSerializer<PlayStoreProduct> {
 
 @Serializable(with = ProductItemSerializer::class)
 data class ProductItem(
-    // Note: This is used only by paywall as a reference to the object. Otherwise, it is empty.
     @SerialName("reference_name")
     val name: String,
-    @SerialName("store_product")
     val type: StoreProductType,
-    @SerialName("entitlements")
-    val entitlements: Set<Entitlement>,
 ) {
     sealed class StoreProductType {
         data class PlayStore(
@@ -173,16 +168,10 @@ object ProductItemSerializer : KSerializer<ProductItem> {
         val jsonObject = jsonInput.decodeJsonElement().jsonObject
 
         // Extract fields using the expected names during deserialization
-        val name = jsonObject["reference_name"]?.jsonPrimitive?.content ?: ""
+        val name = jsonObject["reference_name"]?.jsonPrimitive?.content ?: throw SerializationException("Missing reference_name")
         val storeProductJsonObject =
             jsonObject["store_product"]?.jsonObject
                 ?: throw SerializationException("Missing store_product")
-        val entitlements =
-            jsonObject["entitlements"]
-                ?.jsonArray
-                ?.map {
-                    Json.decodeFromJsonElement<Entitlement>(it)
-                }?.toSet() ?: emptySet()
 
         // Deserialize 'storeProduct' JSON object into the expected Kotlin data class
         val storeProduct = Json.decodeFromJsonElement<PlayStoreProduct>(storeProductJsonObject)
@@ -190,7 +179,6 @@ object ProductItemSerializer : KSerializer<ProductItem> {
         return ProductItem(
             name = name,
             type = ProductItem.StoreProductType.PlayStore(storeProduct),
-            entitlements = entitlements,
         )
     }
 }

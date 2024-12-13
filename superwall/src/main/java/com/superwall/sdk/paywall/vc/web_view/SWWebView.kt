@@ -118,7 +118,7 @@ class SWWebView(
                 mainScope = mainScope,
                 ioScope = ioScope,
                 loadUrl = {
-                    super.loadUrl(transformUri(it.url))
+                    loadUrl(it.url)
                 },
                 stopLoading = {
                     stopLoading()
@@ -134,9 +134,7 @@ class SWWebView(
     }
 
     fun enableOffscreenRender() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            settings.offscreenPreRaster = true
-        }
+        settings.offscreenPreRaster = true
     }
 
     // ???
@@ -173,12 +171,7 @@ class SWWebView(
             lastWebViewClient = client
         }
 
-        listenToWebviewClientEvents(client)
-
-        super.loadUrl(transformUri(url))
-    }
-
-    private fun transformUri(url: String): String {
+        listenToWebviewClientEvents(this.webViewClient as DefaultWebviewClient)
         // Parse the url and add the query parameter
         val uri = Uri.parse(url)
 
@@ -197,7 +190,7 @@ class SWWebView(
             LogScope.paywallView,
             "SWWebView.loadUrl: $urlString",
         )
-        return urlString
+        super.loadUrl(urlString)
     }
 
     private fun listenToWebviewClientEvents(client: DefaultWebviewClient) {

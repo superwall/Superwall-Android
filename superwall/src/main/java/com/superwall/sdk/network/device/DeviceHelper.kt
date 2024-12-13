@@ -18,6 +18,7 @@ import com.superwall.sdk.dependencies.LocaleIdentifierFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
+import com.superwall.sdk.misc.fold
 import com.superwall.sdk.misc.then
 import com.superwall.sdk.misc.toResult
 import com.superwall.sdk.models.config.ComputedPropertyRequest
@@ -37,8 +38,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
-import org.threeten.bp.Duration
-import org.threeten.bp.Instant
 import java.text.SimpleDateFormat
 import java.util.Currency
 import java.util.Date
@@ -76,51 +75,65 @@ class DeviceHelper(
     private val appInstallDate = Date(appInfo.firstInstallTime)
 
     fun daysSince(date: Date): Int {
-        val fromDate = Instant.ofEpochMilli(date.time)
-        val toDate = Instant.now()
-        val duration = Duration.between(fromDate, toDate)
+        val fromDate = date
+        val toDate = Date()
+        val fromInstant = fromDate.toInstant()
+        val toInstant = toDate.toInstant()
+        val duration = Duration.between(fromInstant, toInstant)
         return duration.toDays().toInt()
     }
 
     fun minutesSince(date: Date): Int {
-        val fromDate = Instant.ofEpochMilli(date.time)
-        val toDate = Instant.now()
-        val duration = Duration.between(fromDate, toDate)
+        val fromDate = date
+        val toDate = Date()
+        val fromInstant = fromDate.toInstant()
+        val toInstant = toDate.toInstant()
+        val duration = Duration.between(fromInstant, toInstant)
         return duration.toMinutes().toInt()
     }
 
     fun hoursSince(date: Date): Int {
-        val fromDate = Instant.ofEpochMilli(date.time)
-        val toDate = Instant.now()
-        val duration = Duration.between(fromDate, toDate)
+        val fromDate = date
+        val toDate = Date()
+        val fromInstant = fromDate.toInstant()
+        val toInstant = toDate.toInstant()
+        val duration = Duration.between(fromInstant, toInstant)
         return duration.toHours().toInt()
     }
 
     fun monthsSince(date: Date): Int {
-        val fromDate = Instant.ofEpochMilli(date.time)
-        val toDate = Instant.now()
-        val duration = Duration.between(fromDate, toDate)
+        val fromDate = date
+        val toDate = Date()
+        val fromInstant = fromDate.toInstant()
+        val toInstant = toDate.toInstant()
+        val duration = Duration.between(fromInstant, toInstant)
         return duration.toDays().toInt() / 30
     }
 
     private val daysSinceInstall: Int
         get() {
-            val fromDate = Instant.ofEpochMilli(appInstallDate.time)
-            val toDate = Instant.now()
-            val duration = Duration.between(fromDate, toDate)
+            val fromDate =
+                org.threeten.bp.Instant
+                    .ofEpochMilli(appInstallDate.time)
+            val toDate =
+                org.threeten.bp.Instant
+                    .now()
+            val duration =
+                org.threeten.bp.Duration
+                    .between(fromDate, toDate)
             return duration.toDays().toInt()
         }
 
     private val minutesSinceInstall: Int
         get() {
             val fromDate =
-                Instant
+                org.threeten.bp.Instant
                     .ofEpochMilli(appInstallDate.time)
             val toDate =
                 org.threeten.bp.Instant
                     .now()
             val duration =
-                Duration
+                org.threeten.bp.Duration
                     .between(fromDate, toDate)
             return duration.toMinutes().toInt()
         }
@@ -137,7 +150,7 @@ class DeviceHelper(
                 org.threeten.bp.Instant
                     .now()
             val duration =
-                Duration
+                org.threeten.bp.Duration
                     .between(fromDate, toDate)
             return duration.toDays().toInt()
         }
@@ -154,7 +167,7 @@ class DeviceHelper(
                 org.threeten.bp.Instant
                     .now()
             val duration =
-                Duration
+                org.threeten.bp.Duration
                     .between(fromDate, toDate)
             return duration.toMinutes().toInt()
         }
@@ -492,9 +505,9 @@ class DeviceHelper(
                 utcDateTime = utcDateTimeString,
                 localDateTime = localDateTimeString,
                 isSandbox = isSandbox.toString(),
-                activeEntitlements =
-                    Superwall.instance.entitlements.active
-                        .map { mapOf("identifier" to it.id) },
+                subscriptionStatus =
+                    Superwall.instance.subscriptionStatus.value
+                        .toString(),
                 isFirstAppOpen = isFirstAppOpen,
                 sdkVersion = sdkVersion,
                 sdkVersionPadded = sdkVersionPadded,

@@ -47,7 +47,7 @@ internal class SuperscriptEvaluator(
         rule: TriggerRule,
         eventData: EventData?,
     ): TriggerRuleOutcome {
-        if (rule.expressionCEL == null) {
+        if (rule.expressionJs == null && rule.expression == null) {
             return rule.tryToMatchOccurrence(storage, true)
         }
 
@@ -56,7 +56,12 @@ internal class SuperscriptEvaluator(
                 val factory = factory.makeRuleAttributes(eventData, rule.computedPropertyRequests)
                 val userAttributes = factory.toPassableValue()
                 val expression =
-                    rule.expressionCEL
+                    (
+                        rule.expressionCEL
+                            ?: run {
+                                rule.expression ?: "".replace("and", "&&").replace("or", "||")
+                            }
+                    ).replace("device.", "computed.")
 
                 val executionContext =
                     ExecutionContext(

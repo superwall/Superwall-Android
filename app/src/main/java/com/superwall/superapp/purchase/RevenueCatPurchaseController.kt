@@ -24,9 +24,8 @@ import com.revenuecat.purchases.purchaseWith
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
+import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
-import com.superwall.sdk.models.entitlements.Entitlement
-import com.superwall.sdk.models.entitlements.EntitlementStatus
 import kotlinx.coroutines.CompletableDeferred
 
 // Extension function to convert callback to suspend function
@@ -127,16 +126,9 @@ class RevenueCatPurchaseController(
         // Refetch the customer info on load
         Purchases.sharedInstance.getCustomerInfoWith {
             if (hasAnyActiveEntitlements(it)) {
-                setEntitlementStatus(
-                    EntitlementStatus.Active(
-                        it.entitlements.active
-                            .map {
-                                Entitlement(it.key, Entitlement.Type.SERVICE_LEVEL)
-                            }.toSet(),
-                    ),
-                )
+                setSubscriptionStatus(SubscriptionStatus.ACTIVE)
             } else {
-                setEntitlementStatus(EntitlementStatus.Inactive)
+                setSubscriptionStatus(SubscriptionStatus.INACTIVE)
             }
         }
     }
@@ -146,16 +138,9 @@ class RevenueCatPurchaseController(
      */
     override fun onReceived(customerInfo: CustomerInfo) {
         if (hasAnyActiveEntitlements(customerInfo)) {
-            setEntitlementStatus(
-                EntitlementStatus.Active(
-                    customerInfo.entitlements.active
-                        .map {
-                            Entitlement(it.key, Entitlement.Type.SERVICE_LEVEL)
-                        }.toSet(),
-                ),
-            )
+            setSubscriptionStatus(SubscriptionStatus.ACTIVE)
         } else {
-            setEntitlementStatus(EntitlementStatus.Inactive)
+            setSubscriptionStatus(SubscriptionStatus.INACTIVE)
         }
     }
 
@@ -290,9 +275,9 @@ class RevenueCatPurchaseController(
         return entitlements.isNotEmpty()
     }
 
-    private fun setEntitlementStatus(entitlementStatus: EntitlementStatus) {
+    private fun setSubscriptionStatus(subscriptionStatus: SubscriptionStatus) {
         if (Superwall.initialized) {
-            Superwall.instance.setEntitlementStatus(entitlementStatus)
+            Superwall.instance.setSubscriptionStatus(subscriptionStatus)
         }
     }
 }

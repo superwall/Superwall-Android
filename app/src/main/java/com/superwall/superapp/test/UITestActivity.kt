@@ -35,7 +35,6 @@ import com.superwall.superapp.test.UITestHandler.tests
 import com.superwall.superapp.ui.theme.MyApplicationTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.filterNotNull
@@ -53,7 +52,6 @@ class UITestInfo(
 
     val test: suspend Context.() -> Unit = {
         val scope = CoroutineScope(Dispatchers.IO)
-        delay(100)
         Superwall.instance.delegate =
             object : SuperwallDelegate {
                 override fun handleSuperwallEvent(eventInfo: SuperwallEventInfo) {

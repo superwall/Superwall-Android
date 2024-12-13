@@ -91,7 +91,6 @@ class WebviewFallbackClientTest {
                     Then("the loading is successful") {
                         webview
                             .waitForEvent(mainScope) {
-                                println("Got event $it")
                                 it is OnPageFinished
                             }.let {
                                 assert(it is OnPageFinished)

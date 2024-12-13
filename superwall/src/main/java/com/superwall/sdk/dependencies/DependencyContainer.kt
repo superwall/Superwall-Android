@@ -22,6 +22,7 @@ import com.superwall.sdk.config.PaywallPreload
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.debug.DebugManager
 import com.superwall.sdk.debug.DebugView
+import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.delegate.SuperwallDelegateAdapter
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.identity.IdentityInfo
@@ -33,7 +34,6 @@ import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.MainScope
 import com.superwall.sdk.models.config.ComputedPropertyRequest
 import com.superwall.sdk.models.config.FeatureFlags
-import com.superwall.sdk.models.entitlements.EntitlementStatus
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.product.ProductVariable
@@ -49,6 +49,7 @@ import com.superwall.sdk.network.device.DeviceInfo
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
 import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.paywall.manager.PaywallViewCache
+import com.superwall.sdk.paywall.presentation.dismiss
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.dismiss
@@ -57,6 +58,7 @@ import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.SuperscriptEvaluator
 import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.CombinedExpressionEvaluator
 import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.ExpressionEvaluating
+import com.superwall.sdk.paywall.presentation.rule_logic.javascript.DefaultJavascriptEvalutor
 import com.superwall.sdk.paywall.presentation.rule_logic.javascript.JavascriptEvaluator
 import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.paywall.request.PaywallRequestManager
@@ -74,8 +76,6 @@ import com.superwall.sdk.paywall.vc.web_view.templating.models.Variables
 import com.superwall.sdk.paywall.vc.web_view.webViewExists
 import com.superwall.sdk.storage.EventsQueue
 import com.superwall.sdk.storage.LocalStorage
-import com.superwall.sdk.store.AutomaticPurchaseController
-import com.superwall.sdk.store.Entitlements
 import com.superwall.sdk.store.InternalPurchaseController
 import com.superwall.sdk.store.StoreKitManager
 import com.superwall.sdk.store.abstractions.transactions.GoogleBillingPurchaseTransaction
@@ -143,9 +143,6 @@ class DependencyContainer(
     var storeKitManager: StoreKitManager
     val transactionManager: TransactionManager
     val googleBillingWrapper: GoogleBillingWrapper
-
-    var entitlements: Entitlements
-
     private val uiScope
         get() = mainScope()
     private val ioScope
@@ -153,6 +150,14 @@ class DependencyContainer(
     private val evaluator by lazy {
         CombinedExpressionEvaluator(
             storage = storage,
+            factory = this,
+            evaluator =
+                DefaultJavascriptEvalutor(
+                    ioScope = ioScope,
+                    uiScope = uiScope,
+                    context = context,
+                    storage = storage,
+                ),
             superscriptEvaluator =
                 SuperscriptEvaluator(
                     json =
@@ -164,6 +169,10 @@ class DependencyContainer(
                     factory = this,
                     ioScope = ioScope,
                 ),
+            track = {
+                Superwall.instance.track(it)
+            },
+            shouldTraceResults = makeFeatureFlags()?.enableCELLogging ?: false,
         )
     }
 
@@ -173,6 +182,8 @@ class DependencyContainer(
     internal val errorTracker: ErrorTracker
 
     init {
+        // TODO: Add delegate adapter
+
         // For tracking when the app enters the background.
         uiScope.launch {
             ProcessLifecycleOwner.get().lifecycle.addObserver(appLifecycleObserver)
@@ -200,18 +211,17 @@ class DependencyContainer(
                 appLifecycleObserver = appLifecycleObserver,
                 this,
             )
-        storage = LocalStorage(context = context, ioScope = ioScope(), factory = this, json = json())
-        entitlements = Entitlements(storage)
 
         var purchaseController =
             InternalPurchaseController(
-                kotlinPurchaseController = purchaseController ?: AutomaticPurchaseController(context, ioScope, entitlements),
+                kotlinPurchaseController = purchaseController,
                 javaPurchaseController = null,
                 context,
             )
         storeKitManager = StoreKitManager(purchaseController, googleBillingWrapper)
 
         delegateAdapter = SuperwallDelegateAdapter()
+        storage = LocalStorage(context = context, ioScope = ioScope(), factory = this, json = json())
         val httpConnection =
             CustomHttpUrlConnection(
                 json = json(),
@@ -300,11 +310,11 @@ class DependencyContainer(
                 deviceHelper = deviceHelper,
                 assignments = assignments,
                 ioScope = ioScope,
-                paywallPreload = paywallPreload,
+                paywallPreload =
+                paywallPreload,
                 track = {
                     Superwall.instance.track(it)
                 },
-                entitlements = entitlements,
             )
 
         eventsQueue =
@@ -414,8 +424,8 @@ class DependencyContainer(
                 "X-Bundle-ID" to deviceHelper.bundleId,
                 "X-Low-Power-Mode" to deviceHelper.isLowPowerModeEnabled.toString(),
                 "X-Is-Sandbox" to deviceHelper.isSandbox.toString(),
-                "X-Entitlement-Status" to
-                    Superwall.instance.entitlementStatus.value
+                "X-Subscription-Status" to
+                    Superwall.instance.subscriptionStatus.value
                         .toString(),
                 "Content-Type" to "application/json",
                 "X-Current-Time" to dateFormat(DateUtils.ISO_MILLIS).format(Date()),
@@ -520,8 +530,6 @@ class DependencyContainer(
 
     override fun makeHasExternalPurchaseController(): Boolean = storeKitManager.purchaseController.hasExternalPurchaseController
 
-    override fun makeHasInternalPurchaseController(): Boolean = storeKitManager.purchaseController.hasInternalPurchaseController
-
     override suspend fun didUpdateAppSession(appSession: AppSession) {
     }
 
@@ -534,6 +542,7 @@ class DependencyContainer(
         overrides: PaywallRequest.Overrides?,
         isDebuggerLaunched: Boolean,
         presentationSourceType: String?,
+        retryCount: Int,
     ): PaywallRequest =
 
         PaywallRequest(
@@ -542,7 +551,7 @@ class DependencyContainer(
             overrides = overrides ?: PaywallRequest.Overrides(products = null, isFreeTrial = null),
             isDebuggerLaunched = isDebuggerLaunched,
             presentationSourceType = presentationSourceType,
-            retryCount = 6,
+            retryCount = retryCount,
         )
 
     override fun makePresentationRequest(
@@ -550,7 +559,7 @@ class DependencyContainer(
         paywallOverrides: PaywallOverrides?,
         presenter: Activity?,
         isDebuggerLaunched: Boolean?,
-        entitlementStatus: StateFlow<EntitlementStatus?>?,
+        subscriptionStatus: StateFlow<SubscriptionStatus?>?,
         isPaywallPresented: Boolean,
         type: PresentationRequestType,
     ): PresentationRequest =
@@ -562,7 +571,7 @@ class DependencyContainer(
                 PresentationRequest.Flags(
                     isDebuggerLaunched = isDebuggerLaunched ?: debugManager.isDebuggerLaunched,
                     // TODO: (PresentationCritical) Fix subscription status
-                    entitlements = entitlementStatus ?: Superwall.instance.entitlementStatus,
+                    subscriptionStatus = subscriptionStatus ?: Superwall.instance.subscriptionStatus,
 //                subscriptionStatus = subscriptionStatus!!,
                     isPaywallPresented = isPaywallPresented,
                     type = type,

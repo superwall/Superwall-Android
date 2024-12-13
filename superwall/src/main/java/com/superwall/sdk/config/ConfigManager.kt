@@ -33,7 +33,6 @@ import com.superwall.sdk.storage.DisableVerboseEvents
 import com.superwall.sdk.storage.LatestConfig
 import com.superwall.sdk.storage.LatestGeoInfo
 import com.superwall.sdk.storage.Storage
-import com.superwall.sdk.store.Entitlements
 import com.superwall.sdk.store.StoreKitManager
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -50,7 +49,6 @@ import java.util.concurrent.atomic.AtomicInteger
 open class ConfigManager(
     private val context: Context,
     private val storeKitManager: StoreKitManager,
-    private val entitlements: Entitlements,
     private val storage: Storage,
     private val network: SuperwallAPI,
     private val deviceHelper: DeviceHelper,
@@ -72,7 +70,7 @@ open class ConfigManager(
         JavascriptEvaluator.Factory
 
     // The configuration of the Superwall dashboard
-    internal val configState = MutableStateFlow<ConfigState>(ConfigState.None)
+    val configState = MutableStateFlow<ConfigState>(ConfigState.None)
 
     // Convenience variable to access config
     val config: Config?
@@ -145,7 +143,6 @@ open class ConfigManager(
                                     }
                             }
                         } catch (e: Throwable) {
-                            e.printStackTrace()
                             // If fetching config fails, default to the cached version
                             // Note: Only a timeout exception is possible here
                             oldConfig?.let {
@@ -308,9 +305,6 @@ open class ConfigManager(
         }
         triggersByEventName = ConfigLogic.getTriggersByEventName(config.triggers)
         assignments.choosePaywallVariants(config.triggers)
-        ConfigLogic.extractEntitlementsByProductId(config.products).let {
-            entitlements.addEntitlementsByProductId(it)
-        }
     }
 
 // Preloading Paywalls
@@ -379,7 +373,7 @@ open class ConfigManager(
             return
         }
 
-        val retryCount: AtomicInteger = AtomicInteger(0)
+        var retryCount: AtomicInteger = AtomicInteger(0)
         val startTime = System.currentTimeMillis()
         network
             .getConfig {

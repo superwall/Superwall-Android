@@ -14,6 +14,7 @@ import com.example.superapp.utils.screenshotFlow
 import com.example.superapp.utils.waitFor
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.superwall.SuperwallEvent
+import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.superapp.test.UITestHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -143,21 +144,19 @@ class SimpleScreenshotTestExecutor {
                     it.waitFor { it is SuperwallEvent.PaywallPresentationRequest }
                 }
             }
+            Superwall.instance.setSubscriptionStatus(SubscriptionStatus.INACTIVE)
         }
 
-    /*
-     * Commented out temporarily since Firebase remote lab connection is broken and recording tests is not possible
-     * @Test
-     * fun test_paywall_presents_without_showing_alert_after_dismiss() =
-     *    with(dropshots) {
-     *        screenshotFlow(UITestHandler.test26Info) {
-     *            step("") {
-     *                it.waitFor { it is SuperwallEvent.PaywallPresentationRequest }
-     *                awaitUntilDialogAppears()
-     *            }
-     *        }
-     *    }
-     * */
+    @Test
+    fun test_paywall_doesnt_present_without_showing_alert_after_dismiss() =
+        with(dropshots) {
+            screenshotFlow(UITestHandler.test26Info) {
+                step("") {
+                    it.waitFor { it is SuperwallEvent.PaywallPresentationRequest }
+                    awaitUntilDialogAppears()
+                }
+            }
+        }
 
     @Test
     fun test_paywall_doesnt_present_calls_feature_block() =

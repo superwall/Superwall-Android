@@ -4,19 +4,30 @@ import android.app.Activity
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
+import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
+import com.superwall.sdk.models.assignment.ConfirmableAssignment
 import com.superwall.sdk.models.triggers.InternalTriggerResult
 import com.superwall.sdk.paywall.presentation.internal.InternalPresentationLogic
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatusReason
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
+import com.superwall.sdk.paywall.presentation.internal.state.PaywallSkippedReason
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.paywall.presentation.rule_logic.RuleEvaluationOutcome
 import com.superwall.sdk.paywall.vc.PaywallView
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.first
+
+data class PresentablePipelineOutput(
+    val debugInfo: Map<String, Any>,
+    val paywallView: PaywallView,
+    val presenter: Activity,
+    val confirmableAssignment: ConfirmableAssignment?,
+)
 
 suspend fun Superwall.getPresenterIfNecessary(
     paywallView: PaywallView,
@@ -24,6 +35,21 @@ suspend fun Superwall.getPresenterIfNecessary(
     request: PresentationRequest,
     paywallStatePublisher: MutableSharedFlow<PaywallState>? = null,
 ): Activity? {
+    val subscriptionStatus = request.flags.subscriptionStatus.first()
+    if (InternalPresentationLogic.userSubscribedAndNotOverridden(
+            isUserSubscribed = subscriptionStatus == SubscriptionStatus.ACTIVE,
+            overrides =
+                InternalPresentationLogic.UserSubscriptionOverrides(
+                    isDebuggerLaunched = request.flags.isDebuggerLaunched,
+                    shouldIgnoreSubscriptionStatus = request.paywallOverrides?.ignoreSubscriptionStatus,
+                    presentationCondition = paywallView.paywall.presentation.condition,
+                ),
+        )
+    ) {
+        paywallStatePublisher?.emit(PaywallState.Skipped(PaywallSkippedReason.UserIsSubscribed()))
+        throw PaywallPresentationRequestStatusReason.UserIsSubscribed()
+    }
+
     when (request.flags.type) {
         is PresentationRequestType.GetPaywall -> {
             val sessionId =
@@ -38,7 +64,6 @@ suspend fun Superwall.getPresenterIfNecessary(
         is PresentationRequestType.GetPresentationResult,
         is PresentationRequestType.ConfirmAllAssignments,
         -> return null
-
         is PresentationRequestType.Presentation -> Unit
         else -> Unit
     }
@@ -83,11 +108,9 @@ suspend fun Superwall.attemptTriggerFire(
             when (triggerResult) {
                 is InternalTriggerResult.Error, is InternalTriggerResult.EventNotFound ->
                     return
-
                 else -> {} // No-op
             }
         }
-
         is PresentationInfo.FromIdentifier -> {} // No-op
     }
     val trackedEvent =

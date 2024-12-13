@@ -2,7 +2,7 @@ package com.superwall.sdk.config.models
 
 import com.superwall.sdk.models.config.Config
 
-internal sealed class ConfigState {
+sealed class ConfigState {
     object None : ConfigState()
 
     object Retrieving : ConfigState()
@@ -18,7 +18,7 @@ internal sealed class ConfigState {
     ) : ConfigState()
 }
 
-internal fun ConfigState.getConfig(): Config? =
+fun ConfigState.getConfig(): Config? =
     when (this) {
         is ConfigState.Retrieved -> config
         else -> null

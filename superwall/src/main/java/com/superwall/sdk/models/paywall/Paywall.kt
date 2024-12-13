@@ -10,8 +10,10 @@ import com.superwall.sdk.models.SerializableEntity
 import com.superwall.sdk.models.config.ComputedPropertyRequest
 import com.superwall.sdk.models.config.FeatureGatingBehavior
 import com.superwall.sdk.models.events.EventData
+import com.superwall.sdk.models.product.Product
 import com.superwall.sdk.models.product.ProductItem
 import com.superwall.sdk.models.product.ProductItemsDeserializer
+import com.superwall.sdk.models.product.ProductType
 import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.models.serialization.DateSerializer
 import com.superwall.sdk.models.triggers.Experiment
@@ -25,9 +27,7 @@ import java.util.*
 @JvmInline
 value class PaywallURL(
     val value: String,
-) {
-    override fun toString(): String = value
-}
+)
 
 @Serializable
 data class Paywalls(
@@ -64,6 +64,7 @@ data class Paywall(
                             "Unknown or unsupported presentation style: $presentationStyle",
                         )
                     },
+            condition = PresentationCondition.valueOf(presentationCondition.uppercase()),
             delay = presentationDelay,
         ),
     @SerialName("background_color_hex")
@@ -72,7 +73,7 @@ data class Paywall(
     val darkBackgroundColorHex: String? = null,
     // Declared as private to prevent direct access
     @kotlinx.serialization.Transient()
-    private var _products: List<ProductItem> = emptyList(),
+    private var _products: List<Product> = emptyList(),
     @Serializable(with = ProductItemsDeserializer::class)
     @SerialName("products_v2")
     private var _productItems: List<ProductItem>,
@@ -130,11 +131,11 @@ data class Paywall(
             _productItems = value
             // Automatically update related properties when productItems is set
             productIds = value.map { it.fullProductId }
-            _products = value // Assuming makeProducts is a function that generates products based on product items
+            _products = makeProducts(value) // Assuming makeProducts is a function that generates products based on product items
         }
 
     // Public getter for products to allow access but not direct modification
-    val products: List<ProductItem>
+    val products: List<Product>
         get() = _products
 
     val backgroundColor: Int by lazy {
@@ -199,6 +200,7 @@ data class Paywall(
             url = url,
             products = products,
             productIds = productIds,
+            productItems = productItems,
             eventData = fromEvent,
             responseLoadStartTime = responseLoadingInfo.startAt,
             responseLoadCompleteTime = responseLoadingInfo.endAt,
@@ -227,6 +229,29 @@ data class Paywall(
         )
 
     companion object {
+        private fun makeProducts(productItems: List<ProductItem>): List<Product> {
+            val output = mutableListOf<Product>()
+
+            for (productItem in productItems) {
+                when (productItem.name) {
+                    "primary" ->
+                        output.add(
+                            Product(type = ProductType.PRIMARY, id = productItem.fullProductId),
+                        )
+                    "secondary" ->
+                        output.add(
+                            Product(type = ProductType.SECONDARY, id = productItem.fullProductId),
+                        )
+                    "tertiary" ->
+                        output.add(
+                            Product(type = ProductType.TERTIARY, id = productItem.fullProductId),
+                        )
+                }
+            }
+
+            return output
+        }
+
         fun stub(): Paywall =
             Paywall(
                 databaseId = "id",
@@ -237,6 +262,7 @@ data class Paywall(
                 presentation =
                     PaywallPresentationInfo(
                         PaywallPresentationStyle.MODAL,
+                        PresentationCondition.CHECK_USER_SUBSCRIPTION,
                         300,
                     ),
                 presentationStyle = "MODAL",
