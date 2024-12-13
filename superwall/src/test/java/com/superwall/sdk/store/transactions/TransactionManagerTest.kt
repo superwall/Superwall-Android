@@ -28,6 +28,7 @@ import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 import com.superwall.sdk.products.mockPricingPhase
 import com.superwall.sdk.products.mockSubscriptionOfferDetails
 import com.superwall.sdk.storage.EventsQueue
+import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.InternalPurchaseController
 import com.superwall.sdk.store.StoreManager
 import com.superwall.sdk.store.abstractions.product.OfferType
@@ -118,12 +119,15 @@ class TransactionManagerTest {
         }
 
     private var eventsQueue = mockk<EventsQueue>(relaxUnitFun = true)
+    private var storage = mockk<Storage>()
     private var transactionManagerFactory =
         mockk<TransactionManager.Factory> {
+            every { makeHasExternalPurchaseController() } returns false
             every { makeTransactionVerifier() } returns
                 mockk {
                     coEvery { getLatestTransaction(any()) } returns mockk()
                 }
+            every { makeSuperwallOptions() }
         }
 
     fun TestScope.manager(
@@ -133,21 +137,23 @@ class TransactionManagerTest {
             SubscriptionStatus.ACTIVE
         },
         options: SuperwallOptions.() -> Unit = {},
-    ) = TransactionManager(
-        purchaseController = purchaseController,
-        storeManager = storeManager,
-        activityProvider = activityProvider,
-        subscriptionStatus = subscriptionStatus,
-        track = { track(it) },
-        dismiss = { i, e -> dismiss(i, e) },
-        eventsQueue = eventsQueue,
-        factory = transactionManagerFactory,
-        ioScope = IOScope(this.coroutineContext),
-    ).also {
+    ): TransactionManager {
         coEvery { transactionManagerFactory.makeSuperwallOptions() } returns
             SuperwallOptions().apply(
                 options,
             )
+        return TransactionManager(
+            purchaseController = purchaseController,
+            storeManager = storeManager,
+            activityProvider = activityProvider,
+            subscriptionStatus = subscriptionStatus,
+            track = { track(it) },
+            dismiss = { i, e -> dismiss(i, e) },
+            eventsQueue = eventsQueue,
+            factory = transactionManagerFactory,
+            ioScope = IOScope(this.coroutineContext),
+            storage = storage,
+        )
     }
 
     @Test
@@ -551,7 +557,12 @@ class TransactionManagerTest {
                         )
                     Then("The purchase is pending") {
                         assert(result is PurchaseResult.Cancelled)
-                        verify { paywallView setProperty "loadingState" value any(PaywallLoadingState.Ready::class) }
+                        verify {
+                            paywallView setProperty "loadingState" value
+                                any(
+                                    PaywallLoadingState.Ready::class,
+                                )
+                        }
                         And("Verify pending event") {
                             val pendingEvent =
                                 events.value
@@ -931,7 +942,9 @@ class TransactionManagerTest {
                 When("We try to purchase the product") {
                     val result =
                         transactionManager.purchase(
-                            TransactionManager.PurchaseSource.ExternalPurchase(nonRecurringStoreProduct),
+                            TransactionManager.PurchaseSource.ExternalPurchase(
+                                nonRecurringStoreProduct,
+                            ),
                         )
                     Then("The purchase is successful") {
                         assert(result is PurchaseResult.Purchased)

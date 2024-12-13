@@ -26,14 +26,6 @@ class TestPaywallMessageHandlerDelegate(
         TODO("Not yet implemented")
     }
 
-    override fun presentSafariInApp(url: String) {
-        super.presentSafariInApp(url)
-    }
-
-    override fun presentSafariExternal(url: String) {
-        super.presentSafariExternal(url)
-    }
-
     override fun presentBrowserInApp(url: String) {
         TODO("Not yet implemented")
     }
