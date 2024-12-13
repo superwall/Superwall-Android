@@ -339,7 +339,7 @@ class ConfigManagerTests {
                     Config.stub().copy(
                         rawFeatureFlags =
                             listOf(
-                                RawFeatureFlag("enable_config_refresh", true),
+                                RawFeatureFlag("enable_config_refresh_v2", true),
                             ),
                     )
 
@@ -412,7 +412,7 @@ class ConfigManagerTests {
                     Config.stub().copy(
                         rawFeatureFlags =
                             listOf(
-                                RawFeatureFlag("enable_config_refresh", true),
+                                RawFeatureFlag("enable_config_refresh_v2", true),
                             ),
                     )
 
@@ -499,7 +499,7 @@ class ConfigManagerTests {
                 val cachedConfig =
                     Config.stub().copy(
                         buildId = "cached",
-                        rawFeatureFlags = listOf(RawFeatureFlag("enable_config_refresh", true)),
+                        rawFeatureFlags = listOf(RawFeatureFlag("enable_config_refresh_v2", true)),
                     )
                 val newConfig = Config.stub().copy(buildId = "not")
 
@@ -627,7 +627,7 @@ class ConfigManagerTests {
                         buildId = "cached",
                         rawFeatureFlags =
                             listOf(
-                                RawFeatureFlag("enable_config_refresh", true),
+                                RawFeatureFlag("enable_config_refresh_v2", true),
                             ),
                     )
 
@@ -754,7 +754,7 @@ class ConfigManagerTests {
                 val cachedConfig =
                     Config.stub().copy(
                         buildId = "cached",
-                        rawFeatureFlags = listOf(RawFeatureFlag("enable_config_refresh", true)),
+                        rawFeatureFlags = listOf(RawFeatureFlag("enable_config_refresh_v2", true)),
                     )
                 val newConfig = Config.stub().copy(buildId = "not")
                 val cachedGeo = GeoInfo.stub().copy(country = "cachedCountry")

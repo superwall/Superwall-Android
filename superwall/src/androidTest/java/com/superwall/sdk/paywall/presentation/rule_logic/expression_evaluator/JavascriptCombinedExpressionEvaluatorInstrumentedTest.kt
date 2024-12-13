@@ -51,7 +51,10 @@ class JavascriptCombinedExpressionEvaluatorInstrumentedTest {
     @Before
     fun setup() =
         runBlocking {
-            sandbox = JavaScriptSandbox.createConnectedInstanceAsync(InstrumentationRegistry.getInstrumentation().targetContext).await()
+            sandbox =
+                JavaScriptSandbox
+                    .createConnectedInstanceAsync(InstrumentationRegistry.getInstrumentation().targetContext)
+                    .await()
         }
 
     @After
@@ -107,6 +110,7 @@ class JavascriptCombinedExpressionEvaluatorInstrumentedTest {
                             storage.coreDataManager,
                             ruleAttributes,
                         ),
+                    shouldTraceResults = false,
                 )
 
             val rule =
@@ -167,6 +171,7 @@ class JavascriptCombinedExpressionEvaluatorInstrumentedTest {
                             storage.coreDataManager,
                             ruleAttributes,
                         ),
+                    shouldTraceResults = false,
                 )
 
             val trueRule =
@@ -268,6 +273,7 @@ class JavascriptCombinedExpressionEvaluatorInstrumentedTest {
                             storage.coreDataManager,
                             ruleAttributes,
                         ),
+                    shouldTraceResults = false,
                 )
 
             val trueRule =
@@ -377,6 +383,7 @@ class JavascriptCombinedExpressionEvaluatorInstrumentedTest {
                             storage.coreDataManager,
                             ruleAttributes,
                         ),
+                    shouldTraceResults = false,
                 )
 
             val rule =
