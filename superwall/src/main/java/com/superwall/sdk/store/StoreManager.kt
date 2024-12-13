@@ -23,7 +23,7 @@ import java.util.Date
 
 class StoreManager(
     val purchaseController: InternalPurchaseController,
-    private val billing: Billing,
+    val billing: Billing,
     private val track: suspend (InternalSuperwallEvent) -> Unit = {
         Superwall.instance.track(it)
     },
@@ -60,6 +60,35 @@ class StoreManager(
             }
 
         return productAttributes
+    }
+
+    override suspend fun getProductsWithoutPaywall(
+        productIds: List<String>,
+        substituteProducts: Map<String, StoreProduct>?,
+    ): Map<String, StoreProduct> {
+        val processingResult =
+            removeAndStore(
+                substituteProductsByName = substituteProducts,
+                fullProductIds = productIds,
+                productItems = emptyList(),
+            )
+
+        val products: Set<StoreProduct>
+        try {
+            products = billing.awaitGetProducts(processingResult.fullProductIdsToLoad)
+        } catch (error: Throwable) {
+            throw error
+        }
+
+        val productsById = processingResult.substituteProductsById.toMutableMap()
+
+        for (product in products) {
+            val fullProductIdentifier = product.fullIdentifier
+            productsById[fullProductIdentifier] = product
+            this.productsByFullId[fullProductIdentifier] = product
+        }
+
+        return products.map { it.fullIdentifier to it }.toMap()
     }
 
     override suspend fun getProducts(
@@ -137,6 +166,7 @@ class StoreManager(
                     productItems[index] =
                         ProductItem(
                             name = productItems[index].name,
+                            entitlements = productItems[index].entitlements,
                             type =
                                 ProductItem.StoreProductType.PlayStore(
                                     PlayStoreProduct(
@@ -157,6 +187,7 @@ class StoreManager(
                     productItems.add(
                         ProductItem(
                             name = name,
+                            entitlements = emptySet(),
                             type =
                                 ProductItem.StoreProductType.PlayStore(
                                     PlayStoreProduct(

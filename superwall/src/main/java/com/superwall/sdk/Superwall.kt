@@ -4,6 +4,9 @@ import android.app.Application
 import android.content.Context
 import android.net.Uri
 import androidx.work.WorkManager
+import com.android.billingclient.api.BillingResult
+import com.android.billingclient.api.ProductDetails
+import com.android.billingclient.api.Purchase
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
@@ -13,7 +16,6 @@ import com.superwall.sdk.config.models.ConfigurationStatus
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.delegate.InternalPurchaseResult
 import com.superwall.sdk.delegate.PurchaseResult
-import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.delegate.SuperwallDelegate
 import com.superwall.sdk.delegate.SuperwallDelegateJava
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
@@ -30,6 +32,8 @@ import com.superwall.sdk.misc.fold
 import com.superwall.sdk.misc.launchWithTracking
 import com.superwall.sdk.misc.toResult
 import com.superwall.sdk.models.assignment.ConfirmedAssignment
+import com.superwall.sdk.models.entitlements.Entitlement
+import com.superwall.sdk.models.entitlements.EntitlementStatus
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.network.device.InterfaceStyle
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
@@ -40,6 +44,8 @@ import com.superwall.sdk.paywall.presentation.internal.confirmAssignment
 import com.superwall.sdk.paywall.presentation.internal.dismiss
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
+import com.superwall.sdk.storage.StoredEntitlementStatus
+import com.superwall.sdk.store.Entitlements
 import com.superwall.sdk.paywall.view.PaywallView
 import com.superwall.sdk.paywall.view.SuperwallPaywallActivity
 import com.superwall.sdk.paywall.view.delegate.PaywallViewEventCallback
@@ -51,8 +57,6 @@ import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.Initiate
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedDeepLink
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedURL
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedUrlInChrome
-import com.superwall.sdk.storage.ActiveSubscriptionStatus
-import com.superwall.sdk.store.ExternalNativePurchaseController
 import com.superwall.sdk.store.PurchasingObserverState
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import com.superwall.sdk.store.abstractions.product.StoreProduct
@@ -67,8 +71,10 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -95,7 +101,11 @@ class Superwall(
     internal val presentationItems: PresentationItems = PresentationItems()
 
     private val _events: MutableSharedFlow<SuperwallEventInfo> =
-        MutableSharedFlow(0, extraBufferCapacity = 64 * 4, onBufferOverflow = BufferOverflow.SUSPEND)
+        MutableSharedFlow(
+            0,
+            extraBufferCapacity = 64 * 4,
+            onBufferOverflow = BufferOverflow.SUSPEND,
+        )
 
     /**
      * A flow emitting all Superwall events as an alternative to delegate.
@@ -190,14 +200,14 @@ class Superwall(
      * be synced with the user's purchases on device.
      *
      * Paywalls will not show until the subscription status has been established.
-     * On first install, it's value will default to [SubscriptionStatus.UNKNOWN]. Afterwards, it'll
+     * On first install, it's value will default to [EntitlementStatus.UNKNOWN]. Afterwards, it'll
      * default to its cached value.
      *
      * You can observe [subscriptionStatus] to get notified whenever the user's subscription status
      * changes.
      *
      * Otherwise, you can check the delegate function
-     * [SuperwallDelegate.subscriptionStatusDidChange]
+     * [SuperwallDelegate.entitlementStatusDidChange]
      * to receive a callback with the new value every time it changes.
      *
      * To learn more, see
@@ -205,8 +215,24 @@ class Superwall(
      *
      * @param subscriptionStatus The subscription status of the user.
      */
-    fun setSubscriptionStatus(subscriptionStatus: SubscriptionStatus) {
-        _subscriptionStatus.value = subscriptionStatus
+    fun setEntitlementStatus(entitlementStatus: EntitlementStatus) {
+        entitlements.setEntitlementStatus(entitlementStatus)
+    }
+
+    /**
+     * Simplified version of [Superwall.setEntitlementStatus] that allows
+     * you to set the entitlements by passing in an array of strings.
+     * An empty list is treated as [EntitlementStatus.Inactive].
+     * Example: `setEntitlementStatus("default", "pro")`
+     *
+     * @param entitlements A list of entitlements.
+     * */
+    fun setEntitlementStatus(vararg entitlements: String) {
+        if (entitlements.isEmpty()) {
+            this.entitlements.setEntitlementStatus(EntitlementStatus.Inactive)
+        } else {
+            this.setEntitlementStatus(EntitlementStatus.Active(entitlements.map { Entitlement(it) }.toSet()))
+        }
     }
 
     /**
@@ -243,16 +269,18 @@ class Superwall(
             return presentedPaywallInfo ?: presentationItems.paywallInfo
         }
 
-    protected var _subscriptionStatus: MutableStateFlow<SubscriptionStatus> =
-        MutableStateFlow(
-            SubscriptionStatus.UNKNOWN,
-        )
+    val entitlements: Entitlements by lazy {
+        dependencyContainer.entitlements
+    }
 
     /**
-     * A `StateFlow` of the subscription status of the user. Set this using
-     * [setSubscriptionStatus].
+     * A `StateFlow` of the entitlement status of the user. Set this using
+     * [setEntitlementStatus].
      */
-    val subscriptionStatus: StateFlow<SubscriptionStatus> get() = _subscriptionStatus
+
+    val entitlementStatus: StateFlow<EntitlementStatus> by lazy {
+        entitlements.status
+    }
 
     /**
      * A property that indicates current configuration state of the SDK.
@@ -264,6 +292,16 @@ class Superwall(
     val configurationState: ConfigurationStatus
         get() =
             dependencyContainer.configManager.configState.value.let {
+                when (it) {
+                    is ConfigState.Retrieved -> ConfigurationStatus.Configured
+                    is ConfigState.Failed -> ConfigurationStatus.Failed
+                    else -> ConfigurationStatus.Pending
+                }
+            }
+
+    val configurationStateListener: Flow<ConfigurationStatus>
+        get() =
+            dependencyContainer.configManager.configState.asSharedFlow().map {
                 when (it) {
                     is ConfigState.Retrieved -> ConfigurationStatus.Configured
                     is ConfigState.Failed -> ConfigurationStatus.Failed
@@ -305,7 +343,7 @@ class Superwall(
          * [sign up for free](https://superwall.com/sign-up).
          * @param purchaseController An object that conforms to [PurchaseController]. You must
          * implement this to handle all subscription-related logic yourself. You'll need to also
-         * call [setSubscriptionStatus] every time the user's subscription status changes. You can
+         * call [setEntitlementStatus] every time the user's subscription status changes. You can
          * read more about that in
          * [Purchases and Subscription Status](https://docs.superwall.com/docs/advanced-configuration).
          * @param options An optional [SuperwallOptions] object which allows you to customise the
@@ -333,12 +371,6 @@ class Superwall(
                 completion?.invoke(Result.success(Unit))
                 return
             }
-            val purchaseController =
-                purchaseController
-                    ?: ExternalNativePurchaseController(
-                        context = applicationContext,
-                        scope = IOScope(),
-                    )
             _instance =
                 Superwall(
                     context = applicationContext,
@@ -401,10 +433,10 @@ class Superwall(
                     throw e
                 }
 
-                val cachedSubsStatus =
-                    dependencyContainer.storage.read(ActiveSubscriptionStatus)
-                        ?: SubscriptionStatus.UNKNOWN
-                setSubscriptionStatus(cachedSubsStatus)
+                val cachedEntitlementStatus =
+                    dependencyContainer.storage.read(StoredEntitlementStatus)
+                        ?: EntitlementStatus.Unkown
+                setEntitlementStatus(cachedEntitlementStatus)
 
                 addListeners()
 
@@ -439,13 +471,13 @@ class Superwall(
     // / Listens to config and the subscription status
     private fun addListeners() {
         ioScope.launchWithTracking {
-            subscriptionStatus // Removes duplicates by default
+            entitlementStatus // Removes duplicates by default
                 .drop(1) // Drops the first item
                 .collect { newValue ->
                     // Save and handle the new value
-                    dependencyContainer.storage.write(ActiveSubscriptionStatus, newValue)
-                    dependencyContainer.delegateAdapter.subscriptionStatusDidChange(newValue)
-                    val event = InternalSuperwallEvent.SubscriptionStatusDidChange(newValue)
+                    dependencyContainer.storage.write(StoredEntitlementStatus, newValue)
+                    dependencyContainer.delegateAdapter.entitlementStatusDidChange(newValue)
+                    val event = InternalSuperwallEvent.EntitlementStatusDidChange(newValue)
                     track(event)
                 }
         }
@@ -675,7 +707,30 @@ class Superwall(
     }
 
     /**
-     *Initiates a purchase of a `StoreProduct`.
+     *Initiates a purchase of `ProductDetails`.
+     *
+     * Use this function to purchase any `ProductDetails`, regardless of whether you
+     * have a paywall or not. Superwall will handle the purchase with `GooglePlayBilling`
+     * and return the `PurchaseResult`. You'll see the data associated with the
+     * purchase on the Superwall dashboard.
+     *
+     * @param product: The `ProductDetails` you wish to purchase.
+     * @return A ``PurchaseResult``.
+     * - Note: You do not need to finish the transaction yourself after this.
+     * ``Superwall`` will handle this for you.
+     */
+
+    suspend fun purchase(product: ProductDetails): Result<PurchaseResult> =
+        withErrorTracking {
+            dependencyContainer.transactionManager.purchase(
+                TransactionManager.PurchaseSource.ExternalPurchase(
+                    StoreProduct(RawStoreProduct.from(product)),
+                ),
+            )
+        }.toResult()
+
+    /**
+     *Initiates a purchase of `StoreProduct`.
      *
      * Use this function to purchase any `StoreProduct`, regardless of whether you
      * have a paywall or not. Superwall will handle the purchase with `GooglePlayBilling`
@@ -688,13 +743,50 @@ class Superwall(
      * ``Superwall`` will handle this for you.
      */
 
-    suspend fun purchase(product: RawStoreProduct): Result<PurchaseResult> =
+    suspend fun purchase(product: StoreProduct): Result<PurchaseResult> =
         withErrorTracking {
             dependencyContainer.transactionManager.purchase(
                 TransactionManager.PurchaseSource.ExternalPurchase(
-                    StoreProduct(product),
+                    product,
                 ),
             )
+        }.toResult()
+
+    /**
+     *Initiates a purchase of a product with the given `productId`.
+     *
+     * Use this function to purchase any product with a given product ID, regardless of whether you
+     * have a paywall or not. Superwall will handle the purchase with `GooglePlayBilling`
+     * and return the `PurchaseResult`. You'll see the data associated with the
+     * purchase on the Superwall dashboard.
+     *
+     * @param product: The `produdctId` you wish to purchase.
+     * @return A ``PurchaseResult``.
+     * - Note: You do not need to finish the transaction yourself after this.
+     * ``Superwall`` will handle this for you.
+     */
+
+    suspend fun purchase(productId: String): Result<PurchaseResult> =
+        withErrorTracking {
+            getProducts(productId).getOrThrow()[productId]?.let {
+                dependencyContainer.transactionManager.purchase(
+                    TransactionManager.PurchaseSource.ExternalPurchase(
+                        it,
+                    ),
+                )
+            } ?: throw IllegalArgumentException("Product with id $productId not found")
+        }.toResult()
+
+    /**
+     * Given a list of product identifiers, returns a map of identifiers to `StoreProduct` objects.
+     *
+     * @param productIds: A list of full product identifiers.
+     * @return A map of product identifiers to `StoreProduct` objects.
+     */
+
+    suspend fun getProducts(vararg productIds: String): Result<Map<String, StoreProduct>> =
+        withErrorTracking {
+            dependencyContainer.storeKitManager.getProductsWithoutPaywall(productIds.toList())
         }.toResult()
 
     /**
@@ -712,7 +804,7 @@ class Superwall(
      */
 
     fun purchase(
-        product: RawStoreProduct,
+        product: StoreProduct,
         onFinished: (Result<PurchaseResult>) -> Unit,
     ) {
         ioScope.launch {
@@ -720,13 +812,18 @@ class Superwall(
                 withErrorTracking {
                     dependencyContainer.transactionManager.purchase(
                         TransactionManager.PurchaseSource.ExternalPurchase(
-                            StoreProduct(product),
+                            product,
                         ),
                     )
                 }.toResult()
             onFinished(res)
         }
     }
+
+    /**
+     * Observe purchases made without using Paywalls
+     *
+     * */
 
     fun observe(state: PurchasingObserverState) {
         ioScope.launchWithTracking {
@@ -742,7 +839,7 @@ class Superwall(
             }
             when (state) {
                 is PurchasingObserverState.PurchaseWillBegin -> {
-                    val product = StoreProduct(RawStoreProduct.from(state.productId))
+                    val product = StoreProduct(RawStoreProduct.from(state.product))
                     dependencyContainer.transactionManager.prepareToPurchase(
                         product,
                         source = TransactionManager.PurchaseSource.ObserverMode(product),
@@ -767,6 +864,24 @@ class Superwall(
                 }
             }
         }
+    }
+
+    fun observePurchaseStart(product: ProductDetails) {
+        observe(PurchasingObserverState.PurchaseWillBegin(product))
+    }
+
+    fun observePurchaseError(
+        product: ProductDetails,
+        error: Throwable,
+    ) {
+        observe(PurchasingObserverState.PurchaseError(product, error))
+    }
+
+    fun observePurchaseResult(
+        billingResult: BillingResult,
+        purchases: List<Purchase>,
+    ) {
+        observe(PurchasingObserverState.PurchaseResult(billingResult, purchases))
     }
 
     /**

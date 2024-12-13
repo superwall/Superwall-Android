@@ -7,7 +7,6 @@ import com.superwall.sdk.billing.GoogleBillingWrapper
 import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.debug.DebugView
-import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.identity.IdentityInfo
 import com.superwall.sdk.identity.IdentityManager
 import com.superwall.sdk.misc.AppLifecycleObserver
@@ -15,6 +14,7 @@ import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.MainScope
 import com.superwall.sdk.models.config.ComputedPropertyRequest
 import com.superwall.sdk.models.config.FeatureFlags
+import com.superwall.sdk.models.entitlements.EntitlementStatus
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.product.ProductVariable
@@ -74,7 +74,6 @@ interface RequestFactory {
         overrides: PaywallRequest.Overrides?,
         isDebuggerLaunched: Boolean,
         presentationSourceType: String?,
-        retryCount: Int,
     ): PaywallRequest
 
     fun makePresentationRequest(
@@ -82,7 +81,7 @@ interface RequestFactory {
         paywallOverrides: PaywallOverrides? = null,
         presenter: Activity? = null,
         isDebuggerLaunched: Boolean? = null,
-        subscriptionStatus: StateFlow<SubscriptionStatus?>? = null,
+        entitlementStatus: StateFlow<EntitlementStatus?>? = null,
         isPaywallPresented: Boolean,
         type: PresentationRequestType,
     ): PresentationRequest
@@ -125,6 +124,10 @@ interface UserAttributesEventFactory {
 
 interface HasExternalPurchaseControllerFactory {
     fun makeHasExternalPurchaseController(): Boolean
+}
+
+interface HasInternalPurchaseControllerFactory {
+    fun makeHasInternalPurchaseController(): Boolean
 }
 
 interface ViewFactory {
