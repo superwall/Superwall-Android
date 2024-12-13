@@ -24,7 +24,7 @@ class DefaultJavascriptEvaluatorTest {
     @Test
     fun evaulate_succesfully_with_sandbox() =
         runTest {
-            val storage = StorageMock(ctx())
+            val storage = StorageMock(ctx(), coroutineScope = this)
             mockkStatic(WebView::class) {
                 every { WebView.getCurrentWebViewPackage() } returns null
             }

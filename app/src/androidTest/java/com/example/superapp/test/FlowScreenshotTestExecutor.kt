@@ -123,6 +123,11 @@ class FlowScreenshotTestExecutor {
                 }
             }
         }
+}
+
+    /*
+
+    Commented out due to inability to re-record tests until Firebase Android Studio plugin is fixed
 
     @Test
     fun test_paywall_presents_then_dismisses_without_reappearing() =
@@ -159,10 +164,7 @@ class FlowScreenshotTestExecutor {
                     // We delay a bit to ensure scroll has finished
                     delayFor(500.milliseconds)
                 }
-
-                step {
-                    delayFor(10.seconds)
-                }
             }
         }
 }
+     */
