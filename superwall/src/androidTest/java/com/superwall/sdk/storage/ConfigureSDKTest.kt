@@ -1,5 +1,6 @@
 package com.superwall.sdk.storage
 
+import android.app.Application
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.superwall.sdk.Superwall
@@ -18,7 +19,7 @@ class ConfigureSDKTest {
         runTest {
             // Context of the app under test.
             val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-            val superwall = Superwall.configure(appContext, CONSTANT_API_KEY)
+            val superwall = Superwall.configure(appContext.applicationContext as Application, CONSTANT_API_KEY)
             val res = Superwall.hasInitialized.first()
             assertEquals(true, res)
         }
