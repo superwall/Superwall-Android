@@ -103,7 +103,7 @@ class TransactionManager(
         if (shouldObserveTransactionFinishingAutomatically
         ) {
             ioScope.launch {
-                storeKitManager.billing.purchaseResults
+                storeManager.billing.purchaseResults
                     .asSharedFlow()
                     .dropWhile {
                         transactionsInProgress.isEmpty()
@@ -572,13 +572,13 @@ class TransactionManager(
                         factory = factory,
                     )
 
-                    if (purchase != null) {
-                        factory.makeStoreTransaction(purchase)
-                    } else {
-                        transactionVerifier.getLatestTransaction(
-                            factory = factory,
-                        )
-                    }
+                if (purchase != null) {
+                    factory.makeStoreTransaction(purchase)
+                } else {
+                    transactionVerifier.getLatestTransaction(
+                        factory = factory,
+                    )
+                }
                 storeManager.loadPurchasedProducts()
 
                 trackTransactionDidSucceed(transaction, product, purchaseSource, didStartFreeTrial)
