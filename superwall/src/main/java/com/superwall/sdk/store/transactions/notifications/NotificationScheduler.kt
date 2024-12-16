@@ -27,6 +27,7 @@ internal class NotificationScheduler {
                         "id" to notification.id,
                         "title" to notification.title,
                         "body" to notification.body,
+                        "subtitle" to notification.subtitle,
                     )
 
                 var delay = notification.delay // delay in milliseconds

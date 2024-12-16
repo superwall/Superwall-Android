@@ -36,10 +36,10 @@ import com.superwall.sdk.storage.LatestGeoInfo
 import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.StorageMock
-import com.superwall.sdk.store.StoreManager
 import com.superwall.sdk.storage.StoredEntitlementStatus
 import com.superwall.sdk.storage.StoredEntitlementsByProductId
 import com.superwall.sdk.store.Entitlements
+import com.superwall.sdk.store.StoreManager
 import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.coVerify

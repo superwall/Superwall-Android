@@ -16,6 +16,8 @@ class LocalNotification(
     val type: LocalNotificationType,
     @SerialName("title")
     val title: String,
+    @SerialName("subtitle")
+    val subtitle: String? = null,
     @SerialName("body")
     val body: String,
     @SerialName("delay")

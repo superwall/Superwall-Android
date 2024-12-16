@@ -19,8 +19,6 @@ import com.superwall.sdk.paywall.presentation.get_presentation_result.getPresent
 import com.superwall.sdk.paywall.presentation.register
 import com.superwall.sdk.paywall.presentation.result.PresentationResult
 import com.superwall.sdk.paywall.view.SuperwallPaywallActivity
-import com.superwall.sdk.store.PurchasingObserverState
-import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.view.fatalAssert
 import com.superwall.superapp.ComposeActivity
 import kotlinx.coroutines.CoroutineScope

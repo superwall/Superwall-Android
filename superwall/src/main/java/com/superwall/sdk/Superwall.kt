@@ -44,8 +44,6 @@ import com.superwall.sdk.paywall.presentation.internal.confirmAssignment
 import com.superwall.sdk.paywall.presentation.internal.dismiss
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
-import com.superwall.sdk.storage.StoredEntitlementStatus
-import com.superwall.sdk.store.Entitlements
 import com.superwall.sdk.paywall.view.PaywallView
 import com.superwall.sdk.paywall.view.SuperwallPaywallActivity
 import com.superwall.sdk.paywall.view.delegate.PaywallViewEventCallback
@@ -57,6 +55,8 @@ import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.Initiate
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedDeepLink
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedURL
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedUrlInChrome
+import com.superwall.sdk.storage.StoredEntitlementStatus
+import com.superwall.sdk.store.Entitlements
 import com.superwall.sdk.store.PurchasingObserverState
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import com.superwall.sdk.store.abstractions.product.StoreProduct
@@ -786,7 +786,7 @@ class Superwall(
 
     suspend fun getProducts(vararg productIds: String): Result<Map<String, StoreProduct>> =
         withErrorTracking {
-            dependencyContainer.storeKitManager.getProductsWithoutPaywall(productIds.toList())
+            dependencyContainer.storeManager.getProductsWithoutPaywall(productIds.toList())
         }.toResult()
 
     /**
