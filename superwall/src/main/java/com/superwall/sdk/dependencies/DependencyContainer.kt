@@ -57,7 +57,7 @@ import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.SuperscriptEvaluator
 import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.CombinedExpressionEvaluator
 import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.ExpressionEvaluating
-import com.superwall.sdk.paywall.presentation.rule_logic.javascript.JavascriptEvaluator
+import com.superwall.sdk.paywall.presentation.rule_logic.javascript.RuleEvaluator
 import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.paywall.request.PaywallRequestManager
 import com.superwall.sdk.paywall.request.PaywallRequestManagerDepFactory
@@ -119,7 +119,7 @@ class DependencyContainer(
     ConfigManager.Factory,
     AppSessionManager.Factory,
     DebugView.Factory,
-    JavascriptEvaluator.Factory,
+    RuleEvaluator.Factory,
     JsonFactory,
     ConfigAttributesFactory,
     PaywallPreload.Factory,

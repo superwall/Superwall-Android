@@ -28,7 +28,6 @@ import com.superwall.sdk.network.SuperwallAPI
 import com.superwall.sdk.network.awaitUntilNetworkExists
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.paywall.manager.PaywallManager
-import com.superwall.sdk.paywall.presentation.rule_logic.javascript.JavascriptEvaluator
 import com.superwall.sdk.storage.DisableVerboseEvents
 import com.superwall.sdk.storage.LatestConfig
 import com.superwall.sdk.storage.LatestGeoInfo
@@ -68,8 +67,7 @@ open class ConfigManager(
         RequestFactory,
         DeviceInfoFactory,
         RuleAttributesFactory,
-        DeviceHelperFactory,
-        JavascriptEvaluator.Factory
+        DeviceHelperFactory
 
     // The configuration of the Superwall dashboard
     internal val configState = MutableStateFlow<ConfigState>(ConfigState.None)
