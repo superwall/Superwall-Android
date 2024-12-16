@@ -10,7 +10,6 @@ import com.superwall.sdk.models.paywall.CacheKey
 import com.superwall.sdk.models.paywall.PaywallIdentifier
 import com.superwall.sdk.models.triggers.Trigger
 import com.superwall.sdk.paywall.manager.PaywallManager
-import com.superwall.sdk.paywall.presentation.rule_logic.javascript.JavascriptEvaluator
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
 import com.superwall.sdk.paywall.view.webview.webViewExists
 import com.superwall.sdk.storage.LocalStorage
@@ -28,8 +27,7 @@ class PaywallPreload(
 ) {
     interface Factory :
         RequestFactory,
-        RuleAttributesFactory,
-        JavascriptEvaluator.Factory
+        RuleAttributesFactory
 
     private var currentPreloadingTask: Job? = null
 
