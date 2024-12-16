@@ -80,6 +80,7 @@ internal class ErrorTracker(
                         "java.lang",
                         "net.java.dev.jna",
                         "kotlin.",
+                        "kotlinx.",
                         "android.os",
                         "androidx.os",
                         "com.android.",

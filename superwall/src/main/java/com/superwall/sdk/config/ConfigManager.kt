@@ -33,8 +33,8 @@ import com.superwall.sdk.storage.DisableVerboseEvents
 import com.superwall.sdk.storage.LatestConfig
 import com.superwall.sdk.storage.LatestGeoInfo
 import com.superwall.sdk.storage.Storage
-import com.superwall.sdk.store.StoreManager
 import com.superwall.sdk.store.Entitlements
+import com.superwall.sdk.store.StoreManager
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.Flow

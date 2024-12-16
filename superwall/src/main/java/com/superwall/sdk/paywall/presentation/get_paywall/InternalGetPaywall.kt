@@ -53,13 +53,11 @@ internal suspend fun Superwall.getPaywall(
  * @param request A presentation request of type [PresentationRequest] to feed into a presentation pipeline.
  * @param onStateChanged A callback function that receives [PaywallState] updates.
  * @return A [PaywallView] to present.
- * @throws Throwable if an error occurs during the process.
  */
-@Throws(Throwable::class)
 fun Superwall.getPaywallSync(
     request: PresentationRequest,
     onStateChanged: (PaywallState) -> Unit = {},
-): PaywallView {
+): Either<PaywallView, Throwable> {
     val scope = Superwall.instance.ioScope
     val publisher = MutableSharedFlow<PaywallState>()
     scope.launch {

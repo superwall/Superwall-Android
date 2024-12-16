@@ -96,7 +96,7 @@ internal suspend fun Superwall.confirmAssignment(request: PresentationRequest): 
 fun Superwall.getPaywallComponentsSync(
     request: PresentationRequest,
     publisher: MutableSharedFlow<PaywallState>? = null,
-): PaywallComponents =
+): Result<PaywallComponents> =
     runBlocking {
         getPaywallComponents(request, publisher)
     }

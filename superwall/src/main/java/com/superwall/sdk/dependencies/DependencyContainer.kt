@@ -200,12 +200,15 @@ class DependencyContainer(
                 appLifecycleObserver = appLifecycleObserver,
                 this,
             )
-        storage = LocalStorage(context = context, ioScope = ioScope(), factory = this, json = json())
+        storage =
+            LocalStorage(context = context, ioScope = ioScope(), factory = this, json = json())
         entitlements = Entitlements(storage)
 
         var purchaseController =
             InternalPurchaseController(
-                kotlinPurchaseController = purchaseController ?: AutomaticPurchaseController(context, ioScope, entitlements),
+                kotlinPurchaseController =
+                    purchaseController
+                        ?: AutomaticPurchaseController(context, ioScope, entitlements),
                 javaPurchaseController = null,
                 context,
             )
@@ -520,7 +523,7 @@ class DependencyContainer(
 
     override fun makeHasExternalPurchaseController(): Boolean = storeManager.purchaseController.hasExternalPurchaseController
 
-    override fun makeHasInternalPurchaseController(): Boolean = storeKitManager.purchaseController.hasInternalPurchaseController
+    override fun makeHasInternalPurchaseController(): Boolean = storeManager.purchaseController.hasInternalPurchaseController
 
     override suspend fun didUpdateAppSession(appSession: AppSession) {
     }

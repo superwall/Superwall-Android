@@ -24,7 +24,11 @@ internal class NotificationWorker(
                 .Builder(applicationContext, SuperwallPaywallActivity.NOTIFICATION_CHANNEL_ID)
                 .setSmallIcon(context.applicationInfo.icon)
                 .setContentTitle(title)
-                .setContentText(text)
+                .let {
+                    inputData.getString("subtitle")?.let { subtitle ->
+                        it.setSubText(subtitle)
+                    } ?: it
+                }.setContentText(text)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
 
         with(NotificationManagerCompat.from(applicationContext)) {
