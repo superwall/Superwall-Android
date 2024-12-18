@@ -14,28 +14,51 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
 
+/**
+ * A class that handles the Set of Entitlement objects retrieved from
+ * the Superwall dashboard.
+ */
 class Entitlements(
     private val storage: Storage,
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Default),
 ) {
+    // MARK: - Private Properties
     private val _entitlementsByProduct = ConcurrentHashMap<String, Set<Entitlement>>()
 
     private val _status: MutableStateFlow<EntitlementStatus> =
-        MutableStateFlow(EntitlementStatus.Unkown)
+        MutableStateFlow(EntitlementStatus.Unknown)
 
+    /**
+     * A StateFlow of the entitlement status of the user. Set this using
+     * [Superwall.instance.setEntitlementStatus].
+     *
+     * You can collect this flow to get notified whenever it changes.
+     */
     val status: StateFlow<EntitlementStatus>
         get() = _status.asStateFlow()
 
-    // Mutable backing fields for entitlements
+    // MARK: - Backing Fields
     private val _all = mutableSetOf<Entitlement>()
     private val _active = mutableSetOf<Entitlement>()
     private val _inactive = mutableSetOf<Entitlement>()
 
-    // Exposed properties for entitlements
+    // MARK: - Public Properties
+
+    /**
+     * All entitlements, regardless of whether they're active or not.
+     */
     val all: Set<Entitlement>
         get() = _all.toSet()
+
+    /**
+     * The active entitlements.
+     */
     val active: Set<Entitlement>
         get() = _active.toSet()
+
+    /**
+     * The inactive entitlements.
+     */
     val inactive: Set<Entitlement>
         get() = _inactive.toSet()
 
@@ -54,6 +77,9 @@ class Entitlements(
         }
     }
 
+    /**
+     * Sets the entitlement status and updates the corresponding entitlement collections.
+     */
     fun setEntitlementStatus(value: EntitlementStatus) {
         when (value) {
             is EntitlementStatus.Active -> {
@@ -74,8 +100,7 @@ class Entitlements(
                 _status.value = value
             }
 
-            is EntitlementStatus.Unkown -> {
-                _all.clear()
+            is EntitlementStatus.Unknown -> {
                 _active.clear()
                 _inactive.clear()
                 _status.value = value
@@ -83,6 +108,12 @@ class Entitlements(
         }
     }
 
+    /**
+     * Returns a Set of Entitlements belonging to a given productId.
+     *
+     * @param id A String representing a productId
+     * @return A Set of Entitlements
+     */
     internal fun byProductId(id: String): Set<Entitlement> {
         val decomposedProductIds = DecomposedProductIds.from(id)
         listOf(
@@ -101,6 +132,9 @@ class Entitlements(
         return emptySet()
     }
 
+    /**
+     * Updates the entitlements associated with product IDs and persists them to storage.
+     */
     internal fun addEntitlementsByProductId(idToEntitlements: Map<String, Set<Entitlement>>) {
         _entitlementsByProduct.putAll(
             idToEntitlements.mapValues { (_, entitlements) ->

@@ -7,8 +7,10 @@ import com.android.billingclient.api.BillingClientStateListener
 import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.PurchasesUpdatedListener
+import com.android.billingclient.api.QueryPurchasesParams
 import com.superwall.sdk.delegate.InternalPurchaseResult
 import com.superwall.sdk.dependencies.HasExternalPurchaseControllerFactory
+import com.superwall.sdk.dependencies.HasInternalPurchaseControllerFactory
 import com.superwall.sdk.dependencies.OptionsFactory
 import com.superwall.sdk.dependencies.StoreTransactionFactory
 import com.superwall.sdk.logger.LogLevel
@@ -19,6 +21,7 @@ import com.superwall.sdk.misc.Either
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -51,12 +54,13 @@ class GoogleBillingWrapper(
 
     interface Factory :
         HasExternalPurchaseControllerFactory,
+        HasInternalPurchaseControllerFactory,
         OptionsFactory
 
     private val threadHandler = Handler(ioScope)
     private val shouldFinishTransactions: Boolean
         get() =
-            !factory.makeHasExternalPurchaseController() && !factory.makeSuperwallOptions().shouldObservePurchases
+            factory.makeHasInternalPurchaseController()
 
     @get:Synchronized
     @set:Synchronized
@@ -118,6 +122,12 @@ class GoogleBillingWrapper(
                 } ?: break
             }
         }
+    }
+
+    override suspend fun queryAllPurchases(): List<Purchase> {
+        val apps = billingClient?.queryType(ProductType.INAPP) ?: emptyList()
+        val subs = billingClient?.queryType(ProductType.SUBS) ?: emptyList()
+        return apps + subs
     }
 
     fun startConnectionOnMainThread(delayMilliseconds: Long = 0) {
@@ -551,25 +561,29 @@ class GoogleBillingWrapper(
      */
     override suspend fun getLatestTransaction(factory: StoreTransactionFactory): StoreTransaction? {
         // Get the latest from purchaseResults
-        purchaseResults.asStateFlow().filter { it != null }.first().let { purchaseResult ->
-            return when (purchaseResult) {
-                is InternalPurchaseResult.Purchased -> {
-                    if (shouldFinishTransactions) {
-                        return factory.makeStoreTransaction(purchaseResult.purchase)
-                    } else {
+        purchaseResults
+            .asStateFlow()
+            .filter { it != null }
+            .first()
+            .let { purchaseResult ->
+                return when (purchaseResult) {
+                    is InternalPurchaseResult.Purchased -> {
+                        if (shouldFinishTransactions) {
+                            return factory.makeStoreTransaction(purchaseResult.purchase)
+                        } else {
+                            null
+                        }
+                    }
+
+                    is InternalPurchaseResult.Cancelled -> {
+                        null
+                    }
+
+                    else -> {
                         null
                     }
                 }
-
-                is InternalPurchaseResult.Cancelled -> {
-                    null
-                }
-
-                else -> {
-                    null
-                }
             }
-        }
     }
 
     @Synchronized
@@ -610,4 +624,29 @@ fun Pair<BillingResult, List<Purchase>?>.toInternalResult(): List<InternalPurcha
     } else {
         listOf(InternalPurchaseResult.Failed(Exception(result.responseCode.toString())))
     }
+}
+
+suspend fun BillingClient.queryType(type: String): List<Purchase> {
+    val deferred = CompletableDeferred<List<Purchase>>()
+
+    val params =
+        QueryPurchasesParams
+            .newBuilder()
+            .setProductType(type)
+            .build()
+
+    queryPurchasesAsync(params) { billingResult, purchasesList ->
+        if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
+            Logger.debug(
+                logLevel = LogLevel.error,
+                scope = LogScope.nativePurchaseController,
+                message = "Unable to query for purchases.",
+            )
+            return@queryPurchasesAsync
+        }
+
+        deferred.complete(purchasesList)
+    }
+
+    return deferred.await()
 }

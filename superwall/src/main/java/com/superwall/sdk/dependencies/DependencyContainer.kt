@@ -418,7 +418,7 @@ class DependencyContainer(
                 "X-Low-Power-Mode" to deviceHelper.isLowPowerModeEnabled.toString(),
                 "X-Is-Sandbox" to deviceHelper.isSandbox.toString(),
                 "X-Entitlement-Status" to
-                    Superwall.instance.entitlementStatus.value
+                    Superwall.instance.entitlements.status.value
                         .toString(),
                 "Content-Type" to "application/json",
                 "X-Current-Time" to dateFormat(DateUtils.ISO_MILLIS).format(Date()),
@@ -565,7 +565,7 @@ class DependencyContainer(
                 PresentationRequest.Flags(
                     isDebuggerLaunched = isDebuggerLaunched ?: debugManager.isDebuggerLaunched,
                     // TODO: (PresentationCritical) Fix subscription status
-                    entitlements = entitlementStatus ?: Superwall.instance.entitlementStatus,
+                    entitlements = entitlementStatus ?: Superwall.instance.entitlements.status,
 //                subscriptionStatus = subscriptionStatus!!,
                     isPaywallPresented = isPaywallPresented,
                     type = type,
@@ -646,6 +646,8 @@ class DependencyContainer(
             configRequestId = configManager.config?.requestId ?: "",
             appSessionId = appSessionManager.appSession.id,
         )
+
+    override suspend fun activeProductIds(): List<String> = storeManager.receiptManager.purchases.toList()
 
     override fun makeTransactionVerifier(): GoogleBillingWrapper = googleBillingWrapper
 

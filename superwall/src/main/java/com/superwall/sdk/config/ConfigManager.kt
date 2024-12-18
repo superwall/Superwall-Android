@@ -9,6 +9,7 @@ import com.superwall.sdk.dependencies.DeviceHelperFactory
 import com.superwall.sdk.dependencies.DeviceInfoFactory
 import com.superwall.sdk.dependencies.RequestFactory
 import com.superwall.sdk.dependencies.RuleAttributesFactory
+import com.superwall.sdk.dependencies.StoreTransactionFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
@@ -67,7 +68,8 @@ open class ConfigManager(
         RequestFactory,
         DeviceInfoFactory,
         RuleAttributesFactory,
-        DeviceHelperFactory
+        DeviceHelperFactory,
+        StoreTransactionFactory
 
     // The configuration of the Superwall dashboard
     internal val configState = MutableStateFlow<ConfigState>(ConfigState.None)
@@ -308,6 +310,9 @@ open class ConfigManager(
         assignments.choosePaywallVariants(config.triggers)
         ConfigLogic.extractEntitlementsByProductId(config.products).let {
             entitlements.addEntitlementsByProductId(it)
+        }
+        ioScope.launch {
+            storeManager.loadPurchasedProducts()
         }
     }
 

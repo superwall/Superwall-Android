@@ -1,5 +1,6 @@
 package com.superwall.sdk.billing
 
+import com.android.billingclient.api.Purchase
 import com.superwall.sdk.delegate.InternalPurchaseResult
 import com.superwall.sdk.dependencies.StoreTransactionFactory
 import com.superwall.sdk.store.abstractions.product.StoreProduct
@@ -12,4 +13,6 @@ interface Billing {
     suspend fun awaitGetProducts(identifiers: Set<String>): Set<StoreProduct>
 
     suspend fun getLatestTransaction(factory: StoreTransactionFactory): StoreTransaction?
+
+    suspend fun queryAllPurchases(): List<Purchase>
 }

@@ -63,7 +63,7 @@ class TransactionManager(
     },
     private val dismiss: suspend (paywallView: PaywallView, result: PaywallResult) -> Unit,
     private val entitlementStatus: () -> EntitlementStatus = {
-        Superwall.instance.entitlementStatus.value
+        Superwall.instance.entitlements.status.value
     },
 ) {
     sealed class PurchaseSource {
@@ -203,7 +203,7 @@ class TransactionManager(
                 val result = state as PurchasingObserverState.PurchaseResult
                 result.purchases?.forEach { purchase ->
                     purchase.products.map {
-                        storeManager.productsByFullId[it] ?.let { product ->
+                        storeManager.productsByFullId[it]?.let { product ->
                             handlePendingTransaction(PurchaseSource.ObserverMode(product))
                         }
                     }
@@ -214,7 +214,7 @@ class TransactionManager(
                 val state = state as PurchasingObserverState.PurchaseResult
                 state.purchases?.forEach { purchase ->
                     purchase.products.map {
-                        storeManager.productsByFullId[it] ?.let { product ->
+                        storeManager.productsByFullId[it]?.let { product ->
                             didRestore(product, PurchaseSource.ObserverMode(product))
                         }
                     }
@@ -720,7 +720,7 @@ class TransactionManager(
         val hasRestored = restorationResult is RestorationResult.Restored
         val hasEntitlements =
             entitlementStatus() is EntitlementStatus.Active
-
+        storeManager.loadPurchasedProducts()
         if (hasRestored && hasEntitlements) {
             log(message = "Transactions Restored")
             track(

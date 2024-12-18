@@ -166,6 +166,8 @@ interface ConfigManagerFactory {
 
 interface StoreTransactionFactory {
     suspend fun makeStoreTransaction(transaction: Purchase): StoreTransaction
+
+    suspend fun activeProductIds(): List<String>
 }
 
 interface OptionsFactory {

@@ -45,6 +45,8 @@ data class DeviceTemplate(
     val localDateTime: String,
     val isSandbox: String,
     val activeEntitlements: List<String>,
+    val activeEntitlementsObject: List<Map<String, String>>,
+    val activeProducts: List<String>,
     val isFirstAppOpen: Boolean,
     val sdkVersion: String,
     val sdkVersionPadded: String,
