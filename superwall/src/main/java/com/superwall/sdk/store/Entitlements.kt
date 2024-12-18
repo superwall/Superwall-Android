@@ -21,7 +21,7 @@ class Entitlements(
     private val _entitlementsByProduct = ConcurrentHashMap<String, Set<Entitlement>>()
 
     private val _status: MutableStateFlow<EntitlementStatus> =
-        MutableStateFlow(EntitlementStatus.Unkown)
+        MutableStateFlow(EntitlementStatus.Unknown)
 
     val status: StateFlow<EntitlementStatus>
         get() = _status.asStateFlow()
@@ -74,7 +74,7 @@ class Entitlements(
                 _status.value = value
             }
 
-            is EntitlementStatus.Unkown -> {
+            is EntitlementStatus.Unknown -> {
                 _all.clear()
                 _active.clear()
                 _inactive.clear()
