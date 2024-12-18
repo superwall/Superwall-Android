@@ -54,7 +54,7 @@ internal suspend fun Superwall.waitForEntitlementsAndConfig(
             logLevel = LogLevel.info,
             scope = LogScope.paywallPresentation,
             message =
-                "Timeout: Superwall.instance.entitlementStatus has been \"unknown\" for " +
+                "Timeout: Superwall.instance.entitlement.status has been \"unknown\" for " +
                     "over 5 seconds resulting in a failure.",
         )
         val error =
