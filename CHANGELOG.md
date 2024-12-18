@@ -4,11 +4,34 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## 2.0.0-Alpha
 
-- Removes `PaywallComposable` and Jetpack Compose support from main SDK
-- Adds `Superwall-Compose` module for Jetpack Compose support:
-    - You can find it at `com.superwall.sdk:superwall-compose:2.0.0-alpha`
-- Adds consumer proguard rules to enable consumer minification
+
+### Breaking Changes
+
+- `SuperwallPaywallActivity` and `PaywallView` have been moved into `com.superwall.sdk.paywall.view` package from `com.superwall.sdk.paywall.vc` package.
+- Removes `PaywallComposable` and Jetpack Compose support from the main SDK artifact in favor of `Superwall-Compose` module for Jetpack Compose support:
+  - You can find it at `com.superwall.sdk:superwall-compose:2.0.0-alpha`
+  - Usage remains the same as before, but now you need to include the `superwall-compose` module in your project.
 - Removed methods previously marked as Deprecated
+- Removes `SubscriptionStatus`, together with belonging update methods and `subscriptionStatusDidChange` callback.
+- These are replaced with `EntitlementStatus` and `entitlementStatusDidChange` callback. You can find more details on this migration in our docs.
+
+### Enhancements
+- Adds `purchase` method to `Superwall` you can use to purchase products without having to resort on paywalls. To purchase a product you can pass it in one of the following objects:
+  - Google Play's `ProductDetails`
+  - Superwall's `StoreProduct` object
+  - Or a string containing the product identifier, i.e. `Superwall.instance.purchase("product_id:base_plan:offer")`
+
+- Adds `restorePurchases` method to `Superwall` you can use to handle restoring purchases
+- Adds `getProducts` method to `Superwall` you can use to retrieve a list of `ProductDetails` given the product ID, i.e.  i.e. `Superwall.instance.purchase("product_id:base_plan:offer")`
+
+- Adds support for observing purchases done outside of Superwall paywalls. You can now observe purchases done outside of Superwall paywalls by setting the `shouldObservePurchases` option to true and either:
+  - Manually by calling `Superwall.instance.observe(PurchasingObserverState)` or utility methods `Superwall.instance.observePurchaseStart/observePurchaseError/observePurchaseResult`
+  - Automatically by replacing `launchBillingFlow` with `launchBillingFlowWithSuperwall`. This will automatically observe purchases done outside of Superwall paywalls.
+- Adds consumer proguard rules to enable consumer minification
+- Reduces minSDK to 22
+- Adds `purchaseToken` to purchase events
+- `Superwall.instance` now provides blocking or callback based version of multiple calls, suffixed with `*Sync`
+- Improves preloading performance and reduces impact on the main thread
 
 ## 1.5.5
 
