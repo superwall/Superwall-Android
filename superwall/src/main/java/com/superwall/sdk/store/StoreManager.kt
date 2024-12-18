@@ -29,7 +29,7 @@ class StoreManager(
     },
 ) : ProductsFetcher,
     StoreKit {
-    private val receiptManager by lazy { ReceiptManager(delegate = this) }
+    val receiptManager by lazy { ReceiptManager(delegate = this, billing) }
 
     var productsByFullId: MutableMap<String, StoreProduct> = mutableMapOf()
 

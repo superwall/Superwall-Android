@@ -124,7 +124,7 @@ class GoogleBillingWrapper(
         }
     }
 
-    internal suspend fun queryAllPurchases(): List<Purchase> {
+    override suspend fun queryAllPurchases(): List<Purchase> {
         val apps = billingClient?.queryType(ProductType.INAPP) ?: emptyList()
         val subs = billingClient?.queryType(ProductType.SUBS) ?: emptyList()
         return apps + subs
