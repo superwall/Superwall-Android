@@ -133,13 +133,13 @@ class EntitlementsTest {
                 every { storage.read(StoredEntitlementsByProductId) } returns null
                 entitlements = Entitlements(storage)
                 When("setting Unknown status") {
-                    entitlements.setEntitlementStatus(EntitlementStatus.Unkown)
+                    entitlements.setEntitlementStatus(EntitlementStatus.Unknown)
 
                     Then("it should clear all collections") {
                         assertTrue(entitlements.active.isEmpty())
                         assertTrue(entitlements.inactive.isEmpty())
                         assertTrue(entitlements.all.isEmpty())
-                        assertTrue(entitlements.status.value is EntitlementStatus.Unkown)
+                        assertTrue(entitlements.status.value is EntitlementStatus.Unknown)
                     }
                 }
             }

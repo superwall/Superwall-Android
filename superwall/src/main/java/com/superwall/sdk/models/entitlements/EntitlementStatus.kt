@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 sealed class EntitlementStatus {
     @Serializable
-    object Unkown : EntitlementStatus()
+    object Unknown : EntitlementStatus()
 
     @Serializable
     object Inactive : EntitlementStatus()

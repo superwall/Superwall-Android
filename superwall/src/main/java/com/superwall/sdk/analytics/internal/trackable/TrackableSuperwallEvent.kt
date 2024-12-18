@@ -261,7 +261,13 @@ sealed class InternalSuperwallEvent(
     ) : InternalSuperwallEvent(SuperwallEvent.EntitlementStatusDidChange()) {
         override suspend fun getSuperwallParameters(): HashMap<String, Any> =
             hashMapOf(
-                "entitlement_status" to entitlementStatus.toString(),
+                "entitlement_status" to {
+                    when (entitlementStatus) {
+                        is EntitlementStatus.Active -> "active"
+                        is EntitlementStatus.Inactive -> "inactive"
+                        is EntitlementStatus.Unknown -> "unknown"
+                    }
+                },
             )
     }
 

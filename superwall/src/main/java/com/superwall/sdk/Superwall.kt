@@ -435,7 +435,7 @@ class Superwall(
 
                 val cachedEntitlementStatus =
                     dependencyContainer.storage.read(StoredEntitlementStatus)
-                        ?: EntitlementStatus.Unkown
+                        ?: EntitlementStatus.Unknown
                 setEntitlementStatus(cachedEntitlementStatus)
 
                 addListeners()

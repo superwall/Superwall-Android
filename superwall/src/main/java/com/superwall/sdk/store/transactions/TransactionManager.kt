@@ -203,7 +203,7 @@ class TransactionManager(
                 val result = state as PurchasingObserverState.PurchaseResult
                 result.purchases?.forEach { purchase ->
                     purchase.products.map {
-                        storeManager.productsByFullId[it] ?.let { product ->
+                        storeManager.productsByFullId[it]?.let { product ->
                             handlePendingTransaction(PurchaseSource.ObserverMode(product))
                         }
                     }
@@ -214,7 +214,7 @@ class TransactionManager(
                 val state = state as PurchasingObserverState.PurchaseResult
                 state.purchases?.forEach { purchase ->
                     purchase.products.map {
-                        storeManager.productsByFullId[it] ?.let { product ->
+                        storeManager.productsByFullId[it]?.let { product ->
                             didRestore(product, PurchaseSource.ObserverMode(product))
                         }
                     }
