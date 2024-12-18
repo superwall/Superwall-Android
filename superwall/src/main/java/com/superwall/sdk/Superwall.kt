@@ -190,7 +190,8 @@ class Superwall(
     @JvmName("getDelegate")
     fun getJavaDelegate(): SuperwallDelegateJava? = dependencyContainer.delegateAdapter.javaDelegate
 
-    /** A published property that indicates the subscription status of the user.
+    /**
+     * Sets the entitlement status and updates the corresponding entitlement collections.
      *
      * If you're handling subscription-related logic yourself, you must set this
      * property whenever the subscription status of a user changes.
@@ -199,10 +200,10 @@ class Superwall(
      * be synced with the user's purchases on device.
      *
      * Paywalls will not show until the subscription status has been established.
-     * On first install, it's value will default to [EntitlementStatus.UNKNOWN]. Afterwards, it'll
+     * On first install, it's value will default to [EntitlementStatus.Unknown]. Afterwards, it'll
      * default to its cached value.
      *
-     * You can observe [subscriptionStatus] to get notified whenever the user's subscription status
+     * You can observe [entitlements.status] to get notified whenever the user's subscription status
      * changes.
      *
      * Otherwise, you can check the delegate function
@@ -212,7 +213,7 @@ class Superwall(
      * To learn more, see
      * [Purchases and Subscription Status](https://docs.superwall.com/docs/advanced-configuration).
      *
-     * @param subscriptionStatus The subscription status of the user.
+     * @param entitlementStatus The entitlement status of the user.
      */
     fun setEntitlementStatus(entitlementStatus: EntitlementStatus) {
         entitlements.setEntitlementStatus(entitlementStatus)
@@ -222,7 +223,9 @@ class Superwall(
      * Simplified version of [Superwall.setEntitlementStatus] that allows
      * you to set the entitlements by passing in an array of strings.
      * An empty list is treated as [EntitlementStatus.Inactive].
-     * Example: `setEntitlementStatus("default", "pro")`
+     * Example:
+     * `setEntitlementStatus("default", "pro")` equals `EntitlementStatus.Active(setOf(Entitlement("default"), Entitlement("pro")))`
+     * `setEntitlementStatus()` equals `EntitlementStatus.Inactive`
      *
      * @param entitlements A list of entitlements.
      * */
@@ -697,7 +700,7 @@ class Superwall(
     }
 
     /**
-     *Initiates a purchase of `ProductDetails`.
+     * Initiates a purchase of `ProductDetails`.
      *
      * Use this function to purchase any `ProductDetails`, regardless of whether you
      * have a paywall or not. Superwall will handle the purchase with `GooglePlayBilling`
@@ -709,7 +712,6 @@ class Superwall(
      * - Note: You do not need to finish the transaction yourself after this.
      * ``Superwall`` will handle this for you.
      */
-
     suspend fun purchase(product: ProductDetails): Result<PurchaseResult> =
         withErrorTracking {
             dependencyContainer.transactionManager.purchase(
@@ -720,7 +722,7 @@ class Superwall(
         }.toResult()
 
     /**
-     *Initiates a purchase of `StoreProduct`.
+     * Initiates a purchase of `StoreProduct`.
      *
      * Use this function to purchase any `StoreProduct`, regardless of whether you
      * have a paywall or not. Superwall will handle the purchase with `GooglePlayBilling`
@@ -732,7 +734,6 @@ class Superwall(
      * - Note: You do not need to finish the transaction yourself after this.
      * ``Superwall`` will handle this for you.
      */
-
     suspend fun purchase(product: StoreProduct): Result<PurchaseResult> =
         withErrorTracking {
             dependencyContainer.transactionManager.purchase(
@@ -743,7 +744,7 @@ class Superwall(
         }.toResult()
 
     /**
-     *Initiates a purchase of a product with the given `productId`.
+     * Initiates a purchase of a product with the given `productId`.
      *
      * Use this function to purchase any product with a given product ID, regardless of whether you
      * have a paywall or not. Superwall will handle the purchase with `GooglePlayBilling`
@@ -755,7 +756,6 @@ class Superwall(
      * - Note: You do not need to finish the transaction yourself after this.
      * ``Superwall`` will handle this for you.
      */
-
     suspend fun purchase(productId: String): Result<PurchaseResult> =
         withErrorTracking {
             getProducts(productId).getOrThrow()[productId]?.let {
@@ -773,7 +773,6 @@ class Superwall(
      * @param productIds: A list of full product identifiers.
      * @return A map of product identifiers to `StoreProduct` objects.
      */
-
     suspend fun getProducts(vararg productIds: String): Result<Map<String, StoreProduct>> =
         withErrorTracking {
             dependencyContainer.storeManager.getProductsWithoutPaywall(productIds.toList())
@@ -811,10 +810,18 @@ class Superwall(
     }
 
     /**
-     * Observe purchases made without using Paywalls
+     * Observe purchases made without using Paywalls.
      *
-     * */
-
+     * This method allows you to track purchases that happen outside of Superwall's paywall flow.
+     * It handles different states of the purchase process including start, completion, and errors.
+     *
+     * Note: The `shouldObservePurchases` option must be enabled in SuperwallOptions for this to work.
+     *
+     * @param state The current state of the purchase to observe, can be:
+     * - PurchaseWillBegin: When a purchase flow is about to start
+     * - PurchaseResult: When a purchase completes successfully
+     * - PurchaseError: When a purchase fails with an error
+     */
     fun observe(state: PurchasingObserverState) {
         ioScope.launchWithTracking {
             if (!options.shouldObservePurchases) {
@@ -856,10 +863,27 @@ class Superwall(
         }
     }
 
+    /**
+     * Convenience method to observe when a purchase flow begins.
+     *
+     * Call this method when a purchase is about to start to track the beginning of the transaction.
+     * This will trigger tracking of the Transaction Start event in Superwall's analytics.
+     *
+     * @param product The Google Play Billing ProductDetails for the product being purchased
+     */
     fun observePurchaseStart(product: ProductDetails) {
         observe(PurchasingObserverState.PurchaseWillBegin(product))
     }
 
+    /**
+     * Convenience method to observe purchase errors.
+     *
+     * Call this method when a purchase fails to track the failure in Superwall's analytics.
+     * This will trigger tracking of the Transaction Fail event.
+     *
+     * @param product The Google Play Billing ProductDetails for the product that failed to purchase
+     * @param error The error that caused the purchase to fail
+     */
     fun observePurchaseError(
         product: ProductDetails,
         error: Throwable,
@@ -867,6 +891,15 @@ class Superwall(
         observe(PurchasingObserverState.PurchaseError(product, error))
     }
 
+    /**
+     * Convenience method to observe successful purchases.
+     *
+     * Call this method when a purchase completes successfully to track the completion in Superwall's analytics.
+     * This will trigger tracking of the Transaction Success event.
+     *
+     * @param billingResult The BillingResult from Google Play Billing containing the purchase response
+     * @param purchases List of completed Purchase objects from the transaction
+     */
     fun observePurchaseResult(
         billingResult: BillingResult,
         purchases: List<Purchase>,
