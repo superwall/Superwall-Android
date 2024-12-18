@@ -29,6 +29,27 @@ android {
             )
         }
     }
+    flavorDimensions += "version"
+    productFlavors {
+        create("default") {
+            dimension = "version"
+        }
+        create("entitlements") {
+            dimension = "version"
+        }
+        create("observer") {
+            dimension = "version"
+        }
+        create("purchase") {
+            dimension = "version"
+        }
+        create("revenuecat") {
+            dimension = "version"
+        }
+        create("controller") {
+            dimension = "version"
+        }
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
@@ -49,6 +70,7 @@ android {
 
 dependencies {
     implementation(project(":superwall"))
+    implementation(project(":superwall-compose"))
 
     // Billing
     implementation(libs.billing)

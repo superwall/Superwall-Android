@@ -58,11 +58,6 @@ class MainActivity :
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        Superwall.configure(
-            applicationContext = application,
-            apiKey = "pk_3b18882b1683318b710c741f371f40f54e357c6f0baff1f4",
-        )
-
         WindowCompat.setDecorFitsSystemWindows(window, false)
         setContent {
             SuperwallExampleAppTheme {
