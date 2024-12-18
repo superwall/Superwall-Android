@@ -63,7 +63,7 @@ class TransactionManager(
     },
     private val dismiss: suspend (paywallView: PaywallView, result: PaywallResult) -> Unit,
     private val entitlementStatus: () -> EntitlementStatus = {
-        Superwall.instance.entitlementStatus.value
+        Superwall.instance.entitlements.status.value
     },
 ) {
     sealed class PurchaseSource {
