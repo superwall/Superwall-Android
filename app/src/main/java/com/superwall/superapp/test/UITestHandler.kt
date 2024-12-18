@@ -545,9 +545,8 @@ object UITestHandler {
             28,
             "Should print out \"Paywall(experiment...)\".",
             test = { scope, events ->
-
+                Superwall.instance.setEntitlementStatus(EntitlementStatus.Inactive)
                 scope.launch {
-
                     val result = Superwall.instance.getPresentationResult("present_data")
                     val resOrNull = result.getOrNull()
                     fatalAssert(
@@ -729,7 +728,7 @@ object UITestHandler {
         subscribed: Boolean,
         gated: Boolean,
     ) {
-        val currentSubscriptionStatus = Superwall.instance.entitlementStatus.value
+        val currentSubscriptionStatus = Superwall.instance.entitlements.status.value
 
         if (subscribed) {
             // Set user subscribed
