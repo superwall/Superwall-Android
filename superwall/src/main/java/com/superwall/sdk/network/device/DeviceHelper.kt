@@ -15,6 +15,7 @@ import com.superwall.sdk.BuildConfig
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.dependencies.IdentityInfoFactory
 import com.superwall.sdk.dependencies.LocaleIdentifierFactory
+import com.superwall.sdk.dependencies.StoreTransactionFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
@@ -62,7 +63,8 @@ class DeviceHelper(
     interface Factory :
         IdentityInfoFactory,
         LocaleIdentifierFactory,
-        JsonFactory
+        JsonFactory,
+        StoreTransactionFactory
 
     private val json =
         Json {
@@ -481,6 +483,7 @@ class DeviceHelper(
                 activeEntitlements =
                     Superwall.instance.entitlements.active
                         .map { it.id },
+                activeProducts = factory.queryAllPurchases().flatMap { it.products.map { it } },
                 isFirstAppOpen = isFirstAppOpen,
                 sdkVersion = sdkVersion,
                 sdkVersionPadded = sdkVersionPadded,

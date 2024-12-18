@@ -70,7 +70,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
@@ -274,15 +273,6 @@ class Superwall(
     }
 
     /**
-     * A `StateFlow` of the entitlement status of the user. Set this using
-     * [setEntitlementStatus].
-     */
-
-    val entitlementStatus: StateFlow<EntitlementStatus> by lazy {
-        entitlements.status
-    }
-
-    /**
      * A property that indicates current configuration state of the SDK.
      *
      * This is `ConfigurationStatus.Pending` when the SDK is yet to finish
@@ -471,7 +461,7 @@ class Superwall(
     // / Listens to config and the subscription status
     private fun addListeners() {
         ioScope.launchWithTracking {
-            entitlementStatus // Removes duplicates by default
+            entitlements.status // Removes duplicates by default
                 .drop(1) // Drops the first item
                 .collect { newValue ->
                     // Save and handle the new value

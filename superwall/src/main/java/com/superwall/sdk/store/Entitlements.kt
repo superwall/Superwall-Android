@@ -23,6 +23,11 @@ class Entitlements(
     private val _status: MutableStateFlow<EntitlementStatus> =
         MutableStateFlow(EntitlementStatus.Unknown)
 
+    /**
+     * A `StateFlow` of the entitlement status of the user. Set this using
+     * [Superwall.instance.setEntitlementStatus].
+     */
+
     val status: StateFlow<EntitlementStatus>
         get() = _status.asStateFlow()
 
