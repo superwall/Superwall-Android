@@ -483,6 +483,9 @@ class DeviceHelper(
                 activeEntitlements =
                     Superwall.instance.entitlements.active
                         .map { it.id },
+                activeEntitlementsObject =
+                    Superwall.instance.entitlements.active
+                        .map { mapOf("identifier" to it.id, "type" to it.type.raw) },
                 activeProducts = factory.activeProductIds(),
                 isFirstAppOpen = isFirstAppOpen,
                 sdkVersion = sdkVersion,
