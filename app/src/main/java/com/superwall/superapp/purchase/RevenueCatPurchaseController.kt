@@ -1,4 +1,4 @@
-package com.superwall.superapp
+package com.superwall.superapp.purchase
 
 import android.app.Activity
 import android.content.Context

@@ -91,7 +91,7 @@ class ConfigManagerUnderTest(
         entitlements =
             Entitlements(
                 mockk<Storage>(relaxUnitFun = true) {
-                    every { read(StoredEntitlementStatus) } returns EntitlementStatus.Unkown
+                    every { read(StoredEntitlementStatus) } returns EntitlementStatus.Unknown
                     every { read(StoredEntitlementsByProductId) } returns emptyMap()
                 },
             ),
