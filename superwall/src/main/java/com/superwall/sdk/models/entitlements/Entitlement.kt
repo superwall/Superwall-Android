@@ -11,8 +11,10 @@ data class Entitlement(
     val type: Type = Type.SERVICE_LEVEL,
 ) {
     @Serializable
-    enum class Type {
+    enum class Type(
+        val raw: String,
+    ) {
         @SerialName("SERVICE_LEVEL")
-        SERVICE_LEVEL,
+        SERVICE_LEVEL("SERVICE_LEVEL"),
     }
 }
