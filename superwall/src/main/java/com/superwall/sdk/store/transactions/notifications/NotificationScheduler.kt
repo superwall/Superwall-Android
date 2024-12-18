@@ -9,7 +9,7 @@ import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.models.paywall.LocalNotification
-import com.superwall.sdk.paywall.vc.SuperwallPaywallActivity
+import com.superwall.sdk.paywall.view.SuperwallPaywallActivity
 import java.util.concurrent.TimeUnit
 
 internal class NotificationScheduler {
@@ -27,6 +27,7 @@ internal class NotificationScheduler {
                         "id" to notification.id,
                         "title" to notification.title,
                         "body" to notification.body,
+                        "subtitle" to notification.subtitle,
                     )
 
                 var delay = notification.delay // delay in milliseconds

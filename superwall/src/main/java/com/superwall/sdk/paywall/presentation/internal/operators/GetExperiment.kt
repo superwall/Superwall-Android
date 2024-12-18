@@ -30,7 +30,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
  * @return A data class that contains info for the next operation.
  */
 @Throws(Throwable::class)
-suspend fun Superwall.getExperiment(
+internal suspend fun Superwall.getExperiment(
     request: PresentationRequest,
     rulesOutcome: RuleEvaluationOutcome,
     debugInfo: Map<String, Any>,
@@ -67,7 +67,7 @@ suspend fun Superwall.getExperiment(
                 Logger.debug(
                     logLevel = LogLevel.error,
                     scope = LogScope.paywallPresentation,
-                    message = "Error Getting Paywall View Controller",
+                    message = "Error Getting Paywall view",
                     info = debugInfo,
                     error = rulesOutcome.triggerResult.error,
                 )

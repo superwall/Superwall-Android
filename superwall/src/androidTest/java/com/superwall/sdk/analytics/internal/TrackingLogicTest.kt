@@ -1,5 +1,6 @@
 package com.superwall.sdk.analytics.internal
 
+import android.app.Application
 import androidx.test.platform.app.InstrumentationRegistry
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
@@ -33,7 +34,7 @@ class TrackingLogicTest {
     fun should_clean_up_attributes() =
         runTest {
             val ctx = InstrumentationRegistry.getInstrumentation().context
-            Superwall.configure(ctx, "pk_test_1234", null, null, null, null)
+            Superwall.configure(ctx.applicationContext as Application, "pk_test_1234", null, null, null, null)
             val deviceHelper =
                 spyk(
                     DeviceHelper(

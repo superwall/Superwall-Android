@@ -18,6 +18,9 @@ class InternalPurchaseController(
     val hasExternalPurchaseController: Boolean
         get() = kotlinPurchaseController != null || javaPurchaseController != null
 
+    val hasInternalPurchaseController: Boolean
+        get() = hasExternalPurchaseController && kotlinPurchaseController is AutomaticPurchaseController
+
     override suspend fun purchase(
         activity: Activity,
         productDetails: ProductDetails,

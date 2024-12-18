@@ -24,9 +24,6 @@ sealed class PaywallPresentationRequestStatusReason(
     /** There's already a paywall presented. */
     class PaywallAlreadyPresented : PaywallPresentationRequestStatusReason("paywall_already_presented")
 
-    /** The user is subscribed. */
-    class UserIsSubscribed : PaywallPresentationRequestStatusReason("user_is_subscribed")
-
     /** The user is in a holdout group. */
     data class Holdout(
         val experiment: Experiment,
@@ -48,12 +45,10 @@ sealed class PaywallPresentationRequestStatusReason(
     class NoConfig : PaywallPresentationRequestStatusReason("no_config")
 
     /**
-     * The subscription status timed out.
-     * This happens when the subscriptionStatus stays unknown for more than 5 seconds.
+     * The entitlement status timed out.
+     * This happens when the entitlementStatus stays unknown for more than 5 seconds.
      */
-    class SubscriptionStatusTimeout : PaywallPresentationRequestStatusReason("subscription_status_timeout")
+    class EntitlementStatusTimeout : PaywallPresentationRequestStatusReason("subscription_status_timeout")
 }
 
-@Deprecated("Will be removed in the upcoming versions, use NoPaywallView instead")
-typealias NoPaywallController = PaywallPresentationRequestStatusReason.NoPaywallView
 typealias PresentationPipelineError = PaywallPresentationRequestStatusReason

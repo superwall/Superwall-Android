@@ -7,18 +7,18 @@ import com.superwall.sdk.config.models.Survey
 import com.superwall.sdk.config.models.SurveyOption
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.config.options.toMap
-import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.dependencies.ComputedPropertyRequestsFactory
 import com.superwall.sdk.dependencies.FeatureFlagsFactory
 import com.superwall.sdk.dependencies.RuleAttributesFactory
+import com.superwall.sdk.models.entitlements.EntitlementStatus
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.triggers.InternalTriggerResult
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatus
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatusReason
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
-import com.superwall.sdk.paywall.vc.Survey.SurveyPresentationResult
-import com.superwall.sdk.paywall.vc.web_view.WebviewError
+import com.superwall.sdk.paywall.view.Survey.SurveyPresentationResult
+import com.superwall.sdk.paywall.view.webview.WebviewError
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
@@ -255,13 +255,19 @@ sealed class InternalSuperwallEvent(
         }
     }
 
-    class SubscriptionStatusDidChange(
-        val subscriptionStatus: SubscriptionStatus,
+    class EntitlementStatusDidChange(
+        val entitlementStatus: EntitlementStatus,
         override var audienceFilterParams: HashMap<String, Any> = HashMap(),
-    ) : InternalSuperwallEvent(SuperwallEvent.SubscriptionStatusDidChange()) {
+    ) : InternalSuperwallEvent(SuperwallEvent.EntitlementStatusDidChange()) {
         override suspend fun getSuperwallParameters(): HashMap<String, Any> =
             hashMapOf(
-                "subscription_status" to subscriptionStatus.toString(),
+                "entitlement_status" to {
+                    when (entitlementStatus) {
+                        is EntitlementStatus.Active -> "active"
+                        is EntitlementStatus.Inactive -> "inactive"
+                        is EntitlementStatus.Unknown -> "unknown"
+                    }
+                },
             )
     }
 
@@ -434,7 +440,17 @@ sealed class InternalSuperwallEvent(
         val paywallInfo: PaywallInfo,
         val product: StoreProduct?,
         val model: StoreTransaction?,
+        val source: TransactionSource,
+        val isObserved: Boolean,
     ) : TrackableSuperwallEvent {
+        enum class TransactionSource(
+            val raw: String,
+        ) {
+            INTERNAL("SUPERWALL"),
+            OBSERVER("OBSERVER"),
+            EXTERNAL("APP"),
+        }
+
         sealed class State {
             class Start(
                 val product: StoreProduct,
@@ -511,7 +527,7 @@ sealed class InternalSuperwallEvent(
             get() = superwallEvent.rawName
 
         override val canImplicitlyTriggerPaywall: Boolean
-            get() = superwallEvent.canImplicitlyTriggerPaywall
+            get() = if (isObserved) false else superwallEvent.canImplicitlyTriggerPaywall
 
         override suspend fun getSuperwallParameters(): HashMap<String, Any> {
             return when (state) {

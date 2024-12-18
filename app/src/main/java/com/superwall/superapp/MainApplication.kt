@@ -13,6 +13,7 @@ import com.superwall.sdk.delegate.SuperwallDelegate
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.paywall.presentation.register
+import com.superwall.superapp.purchase.RevenueCatPurchaseController
 import kotlinx.coroutines.flow.MutableSharedFlow
 import java.lang.ref.WeakReference
 
@@ -62,7 +63,7 @@ class MainApplication :
                 .build(),
         )
 
-        configureWithAutomaticInitialization()
+        configureWithObserverMode()
 //        configureWithRevenueCatInitialization()
     }
 
@@ -81,6 +82,25 @@ class MainApplication :
                 },
         )
         Superwall.instance.delegate = this
+
+        // Make sure we enable the game controller
+        // Superwall.instance.options.isGameControllerEnabled = true
+    }
+
+    fun configureWithObserverMode() {
+        Superwall.configure(
+            this@MainApplication,
+            CONSTANT_API_KEY,
+            options =
+                SuperwallOptions().apply {
+                    shouldObservePurchases = true
+                    paywalls =
+                        PaywallOptions().apply {
+                            shouldPreload = false
+                        }
+                },
+        )
+        Superwall.instance.delegate = this@MainApplication
 
         // Make sure we enable the game controller
         // Superwall.instance.options.isGameControllerEnabled = true
