@@ -720,7 +720,7 @@ class TransactionManager(
         val hasRestored = restorationResult is RestorationResult.Restored
         val hasEntitlements =
             entitlementStatus() is EntitlementStatus.Active
-
+        storeManager.loadPurchasedProducts()
         if (hasRestored && hasEntitlements) {
             log(message = "Transactions Restored")
             track(

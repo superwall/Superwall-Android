@@ -483,7 +483,7 @@ class DeviceHelper(
                 activeEntitlements =
                     Superwall.instance.entitlements.active
                         .map { it.id },
-                activeProducts = factory.queryAllPurchases().flatMap { it.products.map { it } },
+                activeProducts = factory.activeProductIds(),
                 isFirstAppOpen = isFirstAppOpen,
                 sdkVersion = sdkVersion,
                 sdkVersionPadded = sdkVersionPadded,

@@ -647,7 +647,7 @@ class DependencyContainer(
             appSessionId = appSessionManager.appSession.id,
         )
 
-    override suspend fun queryAllPurchases(): List<Purchase> = googleBillingWrapper.queryAllPurchases()
+    override suspend fun activeProductIds(): List<String> = storeManager.receiptManager.purchases.toList()
 
     override fun makeTransactionVerifier(): GoogleBillingWrapper = googleBillingWrapper
 
