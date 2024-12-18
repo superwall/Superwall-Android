@@ -31,7 +31,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import com.superwall.exampleapp.ui.theme.SuperwallExampleAppTheme
 import com.superwall.sdk.Superwall
-import com.superwall.sdk.delegate.SubscriptionStatus
+import com.superwall.sdk.models.entitlements.EntitlementStatus
 import com.superwall.sdk.paywall.presentation.PaywallPresentationHandler
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallSkippedReason
 import com.superwall.sdk.paywall.presentation.register
@@ -43,10 +43,10 @@ class HomeActivity : ComponentActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
         setContent {
-            val subscriptionStatus by Superwall.instance.subscriptionStatus.collectAsState()
+            val entitlementStatus by Superwall.instance.entitlementStatus.collectAsState()
             SuperwallExampleAppTheme {
                 HomeScreen(
-                    entitlementStatus = subscriptionStatus,
+                    entitlementStatus = entitlementStatus,
                     onLogOutClicked = {
                         finish()
                     },
@@ -58,19 +58,19 @@ class HomeActivity : ComponentActivity() {
 
 @Composable
 fun HomeScreen(
-    entitlementStatus: SubscriptionStatus,
+    entitlementStatus: EntitlementStatus,
     onLogOutClicked: () -> Unit,
 ) {
     val context = LocalContext.current
     val subscriptionText =
         when (entitlementStatus) {
-            SubscriptionStatus.UNKNOWN -> "Loading subscription status."
-            SubscriptionStatus.ACTIVE ->
+            is EntitlementStatus.Unknown -> "Loading subscription status."
+            is EntitlementStatus.Active ->
                 "You currently have an active subscription. Therefore, the " +
                     "paywall will never show. For the purposes of this app, delete and reinstall the " +
                     "app to clear subscriptions."
 
-            SubscriptionStatus.INACTIVE ->
+            is EntitlementStatus.Inactive ->
                 "You do not have an active subscription so the paywall will " +
                     "show when clicking the button."
         }
