@@ -34,7 +34,7 @@ internal suspend fun Superwall.waitForEntitlementsAndConfig(
     try {
         withTimeout(5.seconds) {
             request.flags.entitlements
-                .filter { it !is EntitlementStatus.Unkown }
+                .filter { it !is EntitlementStatus.Unknown }
                 .first()
         }
     } catch (e: TimeoutCancellationException) {

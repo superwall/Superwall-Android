@@ -9,6 +9,7 @@ import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.PurchasesUpdatedListener
 import com.superwall.sdk.delegate.InternalPurchaseResult
 import com.superwall.sdk.dependencies.HasExternalPurchaseControllerFactory
+import com.superwall.sdk.dependencies.HasInternalPurchaseControllerFactory
 import com.superwall.sdk.dependencies.OptionsFactory
 import com.superwall.sdk.dependencies.StoreTransactionFactory
 import com.superwall.sdk.logger.LogLevel
@@ -51,12 +52,13 @@ class GoogleBillingWrapper(
 
     interface Factory :
         HasExternalPurchaseControllerFactory,
+        HasInternalPurchaseControllerFactory,
         OptionsFactory
 
     private val threadHandler = Handler(ioScope)
     private val shouldFinishTransactions: Boolean
         get() =
-            !factory.makeHasExternalPurchaseController() && !factory.makeSuperwallOptions().shouldObservePurchases
+            factory.makeHasInternalPurchaseController()
 
     @get:Synchronized
     @set:Synchronized
@@ -551,25 +553,29 @@ class GoogleBillingWrapper(
      */
     override suspend fun getLatestTransaction(factory: StoreTransactionFactory): StoreTransaction? {
         // Get the latest from purchaseResults
-        purchaseResults.asStateFlow().filter { it != null }.first().let { purchaseResult ->
-            return when (purchaseResult) {
-                is InternalPurchaseResult.Purchased -> {
-                    if (shouldFinishTransactions) {
-                        return factory.makeStoreTransaction(purchaseResult.purchase)
-                    } else {
+        purchaseResults
+            .asStateFlow()
+            .filter { it != null }
+            .first()
+            .let { purchaseResult ->
+                return when (purchaseResult) {
+                    is InternalPurchaseResult.Purchased -> {
+                        if (shouldFinishTransactions) {
+                            return factory.makeStoreTransaction(purchaseResult.purchase)
+                        } else {
+                            null
+                        }
+                    }
+
+                    is InternalPurchaseResult.Cancelled -> {
+                        null
+                    }
+
+                    else -> {
                         null
                     }
                 }
-
-                is InternalPurchaseResult.Cancelled -> {
-                    null
-                }
-
-                else -> {
-                    null
-                }
             }
-        }
     }
 
     @Synchronized

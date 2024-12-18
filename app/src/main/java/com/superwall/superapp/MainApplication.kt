@@ -13,6 +13,7 @@ import com.superwall.sdk.delegate.SuperwallDelegate
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.paywall.presentation.register
+import com.superwall.superapp.purchase.RevenueCatPurchaseController
 import kotlinx.coroutines.flow.MutableSharedFlow
 import java.lang.ref.WeakReference
 
