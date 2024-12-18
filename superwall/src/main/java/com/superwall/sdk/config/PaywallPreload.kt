@@ -10,9 +10,9 @@ import com.superwall.sdk.models.paywall.CacheKey
 import com.superwall.sdk.models.paywall.PaywallIdentifier
 import com.superwall.sdk.models.triggers.Trigger
 import com.superwall.sdk.paywall.manager.PaywallManager
-import com.superwall.sdk.paywall.presentation.rule_logic.javascript.JavascriptEvaluator
+import com.superwall.sdk.paywall.presentation.rule_logic.javascript.RuleEvaluator
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
-import com.superwall.sdk.paywall.vc.web_view.webViewExists
+import com.superwall.sdk.paywall.view.webview.webViewExists
 import com.superwall.sdk.storage.LocalStorage
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
@@ -29,7 +29,7 @@ class PaywallPreload(
     interface Factory :
         RequestFactory,
         RuleAttributesFactory,
-        JavascriptEvaluator.Factory
+        RuleEvaluator.Factory
 
     private var currentPreloadingTask: Job? = null
 
@@ -101,7 +101,6 @@ class PaywallPreload(
                                     overrides = null,
                                     isDebuggerLaunched = false,
                                     presentationSourceType = null,
-                                    retryCount = 6,
                                 )
                             try {
                                 paywallManager.getPaywallView(

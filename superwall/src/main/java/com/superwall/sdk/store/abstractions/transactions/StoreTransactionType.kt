@@ -26,6 +26,7 @@ interface StoreTransactionType {
     val offerId: String?
     val revocationDate: Date?
     val appAccountToken: UUID?
+    val purchaseToken: String
 }
 
 // Custom serializer

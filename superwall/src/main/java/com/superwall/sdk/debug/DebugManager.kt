@@ -80,28 +80,20 @@ class DebugManager(
                 currentView,
             )
         } else {
-            val newViewController = factory.makeDebugViewController(paywallDatabaseId)
+            val newView = factory.makeDebugView(paywallDatabaseId)
             DebugViewActivity.startWithView(
                 context,
-                newViewController,
+                newView,
             )
-            view = newViewController
+            view = newView
         }
     }
 
     @MainThread
     suspend fun closeDebugger(animated: Boolean) {
-        // suspend fun dismissViewController() {
         view?.encapsulatingActivity?.finish()
 
         view = null
         isDebuggerLaunched = false
-//        }
-//
-//
-//        viewController?.presentedViewController?.let {
-//            it.dismiss(animated)
-//            dismissViewController()
-//        } ?: dismissViewController()
     }
 }

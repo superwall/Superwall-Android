@@ -28,15 +28,18 @@ internal class QueryProductDetailsUseCase(
     val withConnectedClient: (BillingClient.() -> Unit) -> Unit,
     executeRequestOnUIThread: ExecuteRequestOnUIThreadFunction,
 ) : BillingClientUseCase<List<ProductDetails>>(useCaseParams, onError, executeRequestOnUIThread) {
+    private fun log(msg: String) =
+        Logger.debug(
+            logLevel = LogLevel.debug,
+            scope = LogScope.productsManager,
+            message = msg,
+        )
+
     override fun executeAsync() {
         val nonEmptyProductIds = useCaseParams.subscriptionIds.filter { it.isNotEmpty() }.toSet()
 
         if (nonEmptyProductIds.isEmpty()) {
-            Logger.debug(
-                logLevel = LogLevel.debug,
-                scope = LogScope.productsManager,
-                message = "productId list is empty, skipping queryProductDetailsAsync call",
-            )
+            log("productId list is empty, skipping queryProductDetailsAsync call")
             onReceive(emptyList())
             return
         }
@@ -57,22 +60,10 @@ internal class QueryProductDetailsUseCase(
      * `StoreProduct`.
      */
     override fun onOk(received: List<ProductDetails>) {
-        Logger.debug(
-            logLevel = LogLevel.debug,
-            scope = LogScope.productsManager,
-            message = "Products request finished for ${useCaseParams.subscriptionIds.joinToString()}",
-        )
-        Logger.debug(
-            logLevel = LogLevel.debug,
-            scope = LogScope.productsManager,
-            message = "Retrieved productDetailsList: ${received.joinToString { it.toString() }}",
-        )
+        log("Products request finished for ${useCaseParams.subscriptionIds.joinToString()}")
+        log("Retrieved productDetailsList: ${received.joinToString { it.toString() }}")
         received.takeUnless { it.isEmpty() }?.forEach {
-            Logger.debug(
-                logLevel = LogLevel.debug,
-                scope = LogScope.productsManager,
-                message = "${it.productId} - $it",
-            )
+            log("${it.productId} - $it")
         }
 
         val storeProducts =
@@ -102,12 +93,9 @@ internal class QueryProductDetailsUseCase(
         val hasResponded = AtomicBoolean(false)
         billingClient.queryProductDetailsAsync(params) { billingResult, productDetailsList ->
             if (hasResponded.getAndSet(true)) {
-                Logger.debug(
-                    logLevel = LogLevel.debug,
-                    scope = LogScope.productsManager,
-                    message =
-                        "BillingClient queryProductDetails has returned more than once, " +
-                            "with result ${billingResult.responseCode}",
+                log(
+                    "BillingClient queryProductDetails has returned more than once, " +
+                        "with result ${billingResult.responseCode}",
                 )
                 return@queryProductDetailsAsync
             }

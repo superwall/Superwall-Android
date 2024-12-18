@@ -1,0 +1,148 @@
+package com.superwall.sdk.store
+
+import com.superwall.sdk.billing.DecomposedProductIds
+import com.superwall.sdk.models.entitlements.Entitlement
+import com.superwall.sdk.models.entitlements.EntitlementStatus
+import com.superwall.sdk.storage.Storage
+import com.superwall.sdk.storage.StoredEntitlementStatus
+import com.superwall.sdk.storage.StoredEntitlementsByProductId
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import java.util.concurrent.ConcurrentHashMap
+
+/**
+ * A class that handles the Set of Entitlement objects retrieved from
+ * the Superwall dashboard.
+ */
+class Entitlements(
+    private val storage: Storage,
+    private val scope: CoroutineScope = CoroutineScope(Dispatchers.Default),
+) {
+    // MARK: - Private Properties
+    private val _entitlementsByProduct = ConcurrentHashMap<String, Set<Entitlement>>()
+
+    private val _status: MutableStateFlow<EntitlementStatus> =
+        MutableStateFlow(EntitlementStatus.Unknown)
+
+    /**
+     * A StateFlow of the entitlement status of the user. Set this using
+     * [Superwall.instance.setEntitlementStatus].
+     *
+     * You can collect this flow to get notified whenever it changes.
+     */
+    val status: StateFlow<EntitlementStatus>
+        get() = _status.asStateFlow()
+
+    // MARK: - Backing Fields
+    private val _all = mutableSetOf<Entitlement>()
+    private val _active = mutableSetOf<Entitlement>()
+    private val _inactive = mutableSetOf<Entitlement>()
+
+    // MARK: - Public Properties
+
+    /**
+     * All entitlements, regardless of whether they're active or not.
+     */
+    val all: Set<Entitlement>
+        get() = _all.toSet()
+
+    /**
+     * The active entitlements.
+     */
+    val active: Set<Entitlement>
+        get() = _active.toSet()
+
+    /**
+     * The inactive entitlements.
+     */
+    val inactive: Set<Entitlement>
+        get() = _inactive.toSet()
+
+    init {
+        storage.read(StoredEntitlementStatus)?.let {
+            setEntitlementStatus(it)
+        }
+        storage.read(StoredEntitlementsByProductId)?.let {
+            _entitlementsByProduct.putAll(it)
+        }
+
+        scope.launch {
+            status.collect {
+                storage.write(StoredEntitlementStatus, it)
+            }
+        }
+    }
+
+    /**
+     * Sets the entitlement status and updates the corresponding entitlement collections.
+     */
+    fun setEntitlementStatus(value: EntitlementStatus) {
+        when (value) {
+            is EntitlementStatus.Active -> {
+                if (value.entitlements.isEmpty()) {
+                    setEntitlementStatus(EntitlementStatus.Inactive)
+                } else {
+                    _active.clear()
+                    _all.addAll(value.entitlements)
+                    _active.addAll(value.entitlements)
+                    _inactive.removeAll(value.entitlements)
+                    _status.value = value
+                }
+            }
+
+            is EntitlementStatus.Inactive -> {
+                _active.clear()
+                _inactive.clear()
+                _status.value = value
+            }
+
+            is EntitlementStatus.Unknown -> {
+                _active.clear()
+                _inactive.clear()
+                _status.value = value
+            }
+        }
+    }
+
+    /**
+     * Returns a Set of Entitlements belonging to a given productId.
+     *
+     * @param id A String representing a productId
+     * @return A Set of Entitlements
+     */
+    internal fun byProductId(id: String): Set<Entitlement> {
+        val decomposedProductIds = DecomposedProductIds.from(id)
+        listOf(
+            decomposedProductIds.fullId,
+            "${decomposedProductIds.subscriptionId}:${decomposedProductIds.basePlanId}",
+            decomposedProductIds.subscriptionId,
+        ).forEach { id ->
+            _entitlementsByProduct.entries
+                .firstOrNull { it.key.contains(id) && it.value.isNotEmpty() }
+                .let {
+                    if (it != null) {
+                        return it.value
+                    }
+                }
+        }
+        return emptySet()
+    }
+
+    /**
+     * Updates the entitlements associated with product IDs and persists them to storage.
+     */
+    internal fun addEntitlementsByProductId(idToEntitlements: Map<String, Set<Entitlement>>) {
+        _entitlementsByProduct.putAll(
+            idToEntitlements.mapValues { (_, entitlements) ->
+                entitlements.toSet()
+            },
+        )
+        _all.clear()
+        _all.addAll(_entitlementsByProduct.values.flatten())
+        storage.write(StoredEntitlementsByProductId, _entitlementsByProduct)
+    }
+}

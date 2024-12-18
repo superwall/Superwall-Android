@@ -15,10 +15,10 @@ import com.superwall.sdk.BuildConfig
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.dependencies.IdentityInfoFactory
 import com.superwall.sdk.dependencies.LocaleIdentifierFactory
+import com.superwall.sdk.dependencies.StoreTransactionFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
-import com.superwall.sdk.misc.fold
 import com.superwall.sdk.misc.then
 import com.superwall.sdk.misc.toResult
 import com.superwall.sdk.models.config.ComputedPropertyRequest
@@ -26,7 +26,7 @@ import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.geo.GeoInfo
 import com.superwall.sdk.network.JsonFactory
 import com.superwall.sdk.network.SuperwallAPI
-import com.superwall.sdk.paywall.vc.web_view.templating.models.DeviceTemplate
+import com.superwall.sdk.paywall.view.webview.templating.models.DeviceTemplate
 import com.superwall.sdk.storage.LastPaywallView
 import com.superwall.sdk.storage.LatestGeoInfo
 import com.superwall.sdk.storage.LocalStorage
@@ -38,8 +38,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
+import org.threeten.bp.Duration
+import org.threeten.bp.Instant
 import java.text.SimpleDateFormat
-import java.time.Duration
 import java.util.Currency
 import java.util.Date
 import java.util.Locale
@@ -62,7 +63,8 @@ class DeviceHelper(
     interface Factory :
         IdentityInfoFactory,
         LocaleIdentifierFactory,
-        JsonFactory
+        JsonFactory,
+        StoreTransactionFactory
 
     private val json =
         Json {
@@ -76,78 +78,72 @@ class DeviceHelper(
     private val appInstallDate = Date(appInfo.firstInstallTime)
 
     fun daysSince(date: Date): Int {
-        val fromDate = date
-        val toDate = Date()
-        val fromInstant = fromDate.toInstant()
-        val toInstant = toDate.toInstant()
-        val duration = Duration.between(fromInstant, toInstant)
+        val fromDate = Instant.ofEpochMilli(date.time)
+        val toDate = Instant.now()
+        val duration = Duration.between(fromDate, toDate)
         return duration.toDays().toInt()
     }
 
     fun minutesSince(date: Date): Int {
-        val fromDate = date
-        val toDate = Date()
-        val fromInstant = fromDate.toInstant()
-        val toInstant = toDate.toInstant()
-        val duration = Duration.between(fromInstant, toInstant)
+        val fromDate = Instant.ofEpochMilli(date.time)
+        val toDate = Instant.now()
+        val duration = Duration.between(fromDate, toDate)
         return duration.toMinutes().toInt()
     }
 
     fun hoursSince(date: Date): Int {
-        val fromDate = date
-        val toDate = Date()
-        val fromInstant = fromDate.toInstant()
-        val toInstant = toDate.toInstant()
-        val duration = Duration.between(fromInstant, toInstant)
+        val fromDate = Instant.ofEpochMilli(date.time)
+        val toDate = Instant.now()
+        val duration = Duration.between(fromDate, toDate)
         return duration.toHours().toInt()
     }
 
     fun monthsSince(date: Date): Int {
-        val fromDate = date
-        val toDate = Date()
-        val fromInstant = fromDate.toInstant()
-        val toInstant = toDate.toInstant()
-        val duration = Duration.between(fromInstant, toInstant)
+        val fromDate = Instant.ofEpochMilli(date.time)
+        val toDate = Instant.now()
+        val duration = Duration.between(fromDate, toDate)
         return duration.toDays().toInt() / 30
     }
 
     private val daysSinceInstall: Int
         get() {
-            val fromDate = appInstallDate
-            val toDate = Date()
-            val fromInstant = fromDate.toInstant()
-            val toInstant = toDate.toInstant()
-            val duration = Duration.between(fromInstant, toInstant)
+            val fromDate = Instant.ofEpochMilli(appInstallDate.time)
+            val toDate = Instant.now()
+            val duration = Duration.between(fromDate, toDate)
             return duration.toDays().toInt()
         }
 
     private val minutesSinceInstall: Int
         get() {
-            val fromDate = appInstallDate
-            val toDate = Date()
-            val fromInstant = fromDate.toInstant()
-            val toInstant = toDate.toInstant()
-            val duration = Duration.between(fromInstant, toInstant)
+            val fromDate = Instant.ofEpochMilli(appInstallDate.time)
+            val toDate = Instant.now()
+            val duration = Duration.between(fromDate, toDate)
             return duration.toMinutes().toInt()
         }
 
     private val daysSinceLastPaywallView: Int?
         get() {
-            val fromDate = storage.read(LastPaywallView) ?: return null
-            val toDate = Date()
-            val fromInstant = fromDate.toInstant()
-            val toInstant = toDate.toInstant()
-            val duration = Duration.between(fromInstant, toInstant)
+            val fromDate =
+                storage.read(LastPaywallView)?.let {
+                    Instant
+                        .ofEpochMilli(it.time)
+                }
+                    ?: return null
+            val toDate = Instant.now()
+            val duration = Duration.between(fromDate, toDate)
             return duration.toDays().toInt()
         }
 
     private val minutesSinceLastPaywallView: Int?
         get() {
-            val fromDate = storage.read(LastPaywallView) ?: return null
-            val toDate = Date()
-            val fromInstant = fromDate.toInstant()
-            val toInstant = toDate.toInstant()
-            val duration = Duration.between(fromInstant, toInstant)
+            val fromDate =
+                storage.read(LastPaywallView)?.let {
+                    Instant
+                        .ofEpochMilli(it.time)
+                }
+                    ?: return null
+            val toDate = Instant.now()
+            val duration = Duration.between(fromDate, toDate)
             return duration.toMinutes().toInt()
         }
 
@@ -238,12 +234,20 @@ class DeviceHelper(
                 return ""
             }
 
-            val networkCapabilities =
-                connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork)
-            return when {
-                networkCapabilities?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) == true -> "Cellular"
-                networkCapabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true -> "Wifi"
-                else -> ""
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val networkCapabilities =
+                    connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork)
+                return when {
+                    networkCapabilities?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) == true -> "Cellular"
+                    networkCapabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true -> "Wifi"
+                    else -> ""
+                }
+            } else {
+                when (connectivityManager.activeNetworkInfo?.type) {
+                    ConnectivityManager.TYPE_MOBILE -> return "Cellular"
+                    ConnectivityManager.TYPE_WIFI -> return "Wifi"
+                    else -> return ""
+                }
             }
         }
 
@@ -374,10 +378,10 @@ class DeviceHelper(
     val sdkVersion: String
         get() = BuildConfig.SDK_VERSION
 
-    val buildTime: String?
+    val buildTime: String
         get() = BuildConfig.BUILD_TIME
 
-    val gitSha: String?
+    val gitSha: String
         get() = BuildConfig.GIT_SHA
 
     suspend fun getDeviceAttributes(
@@ -476,9 +480,13 @@ class DeviceHelper(
                 utcDateTime = utcDateTimeString,
                 localDateTime = localDateTimeString,
                 isSandbox = isSandbox.toString(),
-                subscriptionStatus =
-                    Superwall.instance.subscriptionStatus.value
-                        .toString(),
+                activeEntitlements =
+                    Superwall.instance.entitlements.active
+                        .map { it.id },
+                activeEntitlementsObject =
+                    Superwall.instance.entitlements.active
+                        .map { mapOf("identifier" to it.id, "type" to it.type.raw) },
+                activeProducts = factory.activeProductIds(),
                 isFirstAppOpen = isFirstAppOpen,
                 sdkVersion = sdkVersion,
                 sdkVersionPadded = sdkVersionPadded,

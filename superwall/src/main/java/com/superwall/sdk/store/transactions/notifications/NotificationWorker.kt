@@ -8,7 +8,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.work.Worker
 import androidx.work.WorkerParameters
-import com.superwall.sdk.paywall.vc.SuperwallPaywallActivity
+import com.superwall.sdk.paywall.view.SuperwallPaywallActivity
 
 internal class NotificationWorker(
     val context: Context,
@@ -24,7 +24,11 @@ internal class NotificationWorker(
                 .Builder(applicationContext, SuperwallPaywallActivity.NOTIFICATION_CHANNEL_ID)
                 .setSmallIcon(context.applicationInfo.icon)
                 .setContentTitle(title)
-                .setContentText(text)
+                .let {
+                    inputData.getString("subtitle")?.let { subtitle ->
+                        it.setSubText(subtitle)
+                    } ?: it
+                }.setContentText(text)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
 
         with(NotificationManagerCompat.from(applicationContext)) {

@@ -10,9 +10,23 @@ import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.presentation.result.PresentationResult
 import com.superwall.sdk.utilities.withErrorTracking
+import kotlinx.coroutines.runBlocking
 import java.util.Date
 import java.util.HashMap
 
+/**
+ * Preemptively gets the result of registering an event.
+ *
+ * This helps you determine whether a particular event will present a paywall
+ * in the future.
+ *
+ * Note that this method does not present a paywall. To do that, use
+ * `register(event:params:handler:feature:)`.
+ *
+ * @param event The name of the event you want to register.
+ * @param params Optional parameters you'd like to pass with your event.
+ * @return A [PresentationResult] that indicates the result of registering an event.
+ */
 suspend fun Superwall.getPresentationResult(
     event: String,
     params: Map<String, Any>? = null,
@@ -31,6 +45,32 @@ suspend fun Superwall.getPresentationResult(
             isImplicit = false,
         )
     }.toResult()
+
+/**
+ * Synchronously preemptively gets the result of registering an event.
+ *
+ * This helps you determine whether a particular event will present a paywall
+ * in the future.
+ *
+ * Note that this method does not present a paywall. To do that, use
+ * `register(event:params:handler:feature:)`.
+ *
+ * Warning: This blocks the calling thread.
+ *
+ * @param event The name of the event you want to register.
+ * @param params Optional parameters you'd like to pass with your event.
+ * @return A [PresentationResult] that indicates the result of registering an event.
+ */
+fun Superwall.getPresentationResultSync(
+    event: String,
+    params: Map<String, Any>? = null,
+): Result<PresentationResult> =
+    runBlocking {
+        getPresentationResult(
+            event,
+            params,
+        )
+    }
 
 internal suspend fun Superwall.internallyGetPresentationResult(
     event: Trackable,

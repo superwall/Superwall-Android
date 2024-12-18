@@ -18,6 +18,13 @@ data class AssignmentPipelineOutput(
     val debugInfo: Map<String, Any>,
 )
 
+/**
+ * Evaluates the rules from the campaign that the event belongs to.
+ *
+ * @param request The presentation request
+ * @return A [RuleEvaluationOutcome] object containing the trigger result,
+ * confirmable assignment, and unsaved occurrence.
+ */
 suspend fun Superwall.evaluateRules(request: PresentationRequest): Result<RuleEvaluationOutcome> {
     val eventData = request.presentationInfo.eventData
 

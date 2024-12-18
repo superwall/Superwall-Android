@@ -8,16 +8,16 @@ import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.models.paywall.PaywallURL
-import com.superwall.sdk.paywall.vc.PaywallView
+import com.superwall.sdk.paywall.view.PaywallView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import org.threeten.bp.LocalDateTime
+import org.threeten.bp.ZoneOffset
 import java.net.URI
-import java.time.LocalDateTime
-import java.time.ZoneOffset
 import java.util.*
 
 sealed class TrackingLogic {

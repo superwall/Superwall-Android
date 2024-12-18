@@ -8,9 +8,9 @@ import com.superwall.sdk.misc.toResult
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
-import com.superwall.sdk.paywall.vc.PaywallView
-import com.superwall.sdk.paywall.vc.delegate.PaywallViewCallback
-import com.superwall.sdk.paywall.vc.delegate.PaywallViewDelegateAdapter
+import com.superwall.sdk.paywall.view.PaywallView
+import com.superwall.sdk.paywall.view.delegate.PaywallViewCallback
+import com.superwall.sdk.paywall.view.delegate.PaywallViewDelegateAdapter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 

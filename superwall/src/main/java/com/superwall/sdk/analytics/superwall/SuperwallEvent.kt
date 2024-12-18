@@ -7,7 +7,7 @@ import com.superwall.sdk.models.triggers.TriggerResult
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatus
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatusReason
-import com.superwall.sdk.paywall.vc.web_view.WebviewError
+import com.superwall.sdk.paywall.view.webview.WebviewError
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
 import com.superwall.sdk.store.transactions.RestoreType
@@ -77,9 +77,9 @@ sealed class SuperwallEvent {
     }
 
     // / When the user's subscription status changes.
-    class SubscriptionStatusDidChange : SuperwallEvent() {
+    class EntitlementStatusDidChange : SuperwallEvent() {
         override val rawName: String
-            get() = "subscriptionStatus_didChange"
+            get() = "entitlementStatus_didChange"
     }
 
     // / Anytime the app leaves the foreground.

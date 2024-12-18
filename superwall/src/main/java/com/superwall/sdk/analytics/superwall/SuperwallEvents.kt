@@ -1,8 +1,5 @@
 package com.superwall.sdk.analytics.superwall
 
-@Deprecated("Will be removed in the upcoming versions, use SuperwallEvents instead")
-typealias SuperwallEventObjc = SuperwallEvents
-
 enum class SuperwallEvents(
     val rawName: String,
 ) {
@@ -26,7 +23,7 @@ enum class SuperwallEvents(
     SubscriptionStart("subscription_start"),
     SurveyResponse("survey_response"),
     SurveyClose("survey_close"),
-    SubscriptionStatusDidChange("subscriptionStatus_didChange"),
+    EntitlementStatusDidChange("entitlementStatus_didChange"),
     FreeTrialStart("freeTrial_start"),
     UserAttributes("user_attributes"),
     NonRecurringProductPurchase("nonRecurringProduct_purchase"),

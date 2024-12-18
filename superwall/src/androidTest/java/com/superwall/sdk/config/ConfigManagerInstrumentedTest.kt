@@ -19,6 +19,7 @@ import com.superwall.sdk.models.assignment.Assignment
 import com.superwall.sdk.models.assignment.ConfirmableAssignment
 import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.models.config.RawFeatureFlag
+import com.superwall.sdk.models.entitlements.EntitlementStatus
 import com.superwall.sdk.models.geo.GeoInfo
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.Trigger
@@ -35,7 +36,10 @@ import com.superwall.sdk.storage.LatestGeoInfo
 import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.StorageMock
-import com.superwall.sdk.store.StoreKitManager
+import com.superwall.sdk.storage.StoredEntitlementStatus
+import com.superwall.sdk.storage.StoredEntitlementsByProductId
+import com.superwall.sdk.store.Entitlements
+import com.superwall.sdk.store.StoreManager
 import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -65,7 +69,7 @@ class ConfigManagerUnderTest(
     private val storage: Storage,
     private val network: SuperwallAPI,
     private val paywallManager: PaywallManager,
-    private val storeKitManager: StoreKitManager,
+    private val storeManager: StoreManager,
     private val factory: Factory,
     private val deviceHelper: DeviceHelper,
     private val assignments: Assignments,
@@ -76,7 +80,7 @@ class ConfigManagerUnderTest(
         storage = storage,
         network = network,
         paywallManager = paywallManager,
-        storeKitManager = storeKitManager,
+        storeManager = storeManager,
         factory = factory,
         deviceHelper = deviceHelper,
         options = SuperwallOptions(),
@@ -84,6 +88,13 @@ class ConfigManagerUnderTest(
         paywallPreload = paywallPreload,
         ioScope = IOScope(ioScope.coroutineContext),
         track = {},
+        entitlements =
+            Entitlements(
+                mockk<Storage>(relaxUnitFun = true) {
+                    every { read(StoredEntitlementStatus) } returns EntitlementStatus.Unknown
+                    every { read(StoredEntitlementsByProductId) } returns emptyMap()
+                },
+            ),
     ) {
     suspend fun setConfig(config: Config) {
         configState.emit(ConfigState.Retrieved(config))
@@ -134,7 +145,7 @@ class ConfigManagerTests {
                         storage = storage,
                         network = network,
                         paywallManager = dependencyContainer.paywallManager,
-                        storeKitManager = dependencyContainer.storeKitManager,
+                        storeManager = dependencyContainer.storeManager,
                         factory = dependencyContainer,
                         deviceHelper = mockDeviceHelper,
                         assignments = assignments,
@@ -179,7 +190,7 @@ class ConfigManagerTests {
                         storage = storage,
                         network = network,
                         paywallManager = dependencyContainer.paywallManager,
-                        storeKitManager = dependencyContainer.storeKitManager,
+                        storeManager = dependencyContainer.storeManager,
                         factory = dependencyContainer,
                         deviceHelper = mockDeviceHelper,
                         assignments = assignments,
@@ -223,7 +234,7 @@ class ConfigManagerTests {
                         storage = storage,
                         network = network,
                         paywallManager = dependencyContainer.paywallManager,
-                        storeKitManager = dependencyContainer.storeKitManager,
+                        storeManager = dependencyContainer.storeManager,
                         factory = dependencyContainer,
                         deviceHelper = mockDeviceHelper,
                         assignments = assignments,
@@ -269,7 +280,7 @@ class ConfigManagerTests {
                         storage = storage,
                         network = network,
                         paywallManager = dependencyContainer.paywallManager,
-                        storeKitManager = dependencyContainer.storeKitManager,
+                        storeManager = dependencyContainer.storeManager,
                         factory = dependencyContainer,
                         deviceHelper = mockDeviceHelper,
                         assignments = assignmentStore,
@@ -339,7 +350,7 @@ class ConfigManagerTests {
                     Config.stub().copy(
                         rawFeatureFlags =
                             listOf(
-                                RawFeatureFlag("enable_config_refresh", true),
+                                RawFeatureFlag("enable_config_refresh_v2", true),
                             ),
                     )
 
@@ -364,7 +375,7 @@ class ConfigManagerTests {
                             storage,
                             mockNetwork,
                             mockPaywallManager,
-                            dependencyContainer.storeKitManager,
+                            dependencyContainer.storeManager,
                             mockContainer,
                             mockDeviceHelper,
                             assignments = assignments,
@@ -412,7 +423,7 @@ class ConfigManagerTests {
                     Config.stub().copy(
                         rawFeatureFlags =
                             listOf(
-                                RawFeatureFlag("enable_config_refresh", true),
+                                RawFeatureFlag("enable_config_refresh_v2", true),
                             ),
                     )
 
@@ -437,7 +448,7 @@ class ConfigManagerTests {
                             storage,
                             mockNetwork,
                             mockPaywallManager,
-                            dependencyContainer.storeKitManager,
+                            dependencyContainer.storeManager,
                             mockContainer,
                             mockDeviceHelper,
                             assignments = assignments,
@@ -475,7 +486,7 @@ class ConfigManagerTests {
             every { resetCache() } just Runs
         }
     private val storeKit =
-        mockk<StoreKitManager> {
+        mockk<StoreManager> {
             coEvery { products(any()) } returns emptySet()
         }
     private val preload =
@@ -499,7 +510,7 @@ class ConfigManagerTests {
                 val cachedConfig =
                     Config.stub().copy(
                         buildId = "cached",
-                        rawFeatureFlags = listOf(RawFeatureFlag("enable_config_refresh", true)),
+                        rawFeatureFlags = listOf(RawFeatureFlag("enable_config_refresh_v2", true)),
                     )
                 val newConfig = Config.stub().copy(buildId = "not")
 
@@ -539,7 +550,7 @@ class ConfigManagerTests {
                         storage = storage,
                         network = mockNetwork,
                         paywallManager = mockContainer.paywallManager,
-                        storeKitManager = mockContainer.storeKitManager,
+                        storeManager = mockContainer.storeManager,
                         factory = mockContainer,
                         deviceHelper = mockDeviceHelper,
                         assignments = assignmentStore,
@@ -595,7 +606,7 @@ class ConfigManagerTests {
                         storage = storage,
                         network = mockNetwork,
                         paywallManager = manager,
-                        storeKitManager = storeKit,
+                        storeManager = storeKit,
                         factory = dependencyContainer,
                         deviceHelper = mockDeviceHelper,
                         assignments = assignmentStore,
@@ -627,7 +638,7 @@ class ConfigManagerTests {
                         buildId = "cached",
                         rawFeatureFlags =
                             listOf(
-                                RawFeatureFlag("enable_config_refresh", true),
+                                RawFeatureFlag("enable_config_refresh_v2", true),
                             ),
                     )
 
@@ -654,7 +665,7 @@ class ConfigManagerTests {
                         storage = storage,
                         network = mockNetwork,
                         paywallManager = manager,
-                        storeKitManager = storeKit,
+                        storeManager = storeKit,
                         factory = dependencyContainer,
                         deviceHelper = mockDeviceHelper,
                         assignments = assignmentStore,
@@ -729,7 +740,7 @@ class ConfigManagerTests {
                         storage = storage,
                         network = mockNetwork,
                         paywallManager = manager,
-                        storeKitManager = storeKit,
+                        storeManager = storeKit,
                         factory = dependencyContainer,
                         deviceHelper = mockDeviceHelper,
                         assignments = assignmentStore,
@@ -754,7 +765,7 @@ class ConfigManagerTests {
                 val cachedConfig =
                     Config.stub().copy(
                         buildId = "cached",
-                        rawFeatureFlags = listOf(RawFeatureFlag("enable_config_refresh", true)),
+                        rawFeatureFlags = listOf(RawFeatureFlag("enable_config_refresh_v2", true)),
                     )
                 val newConfig = Config.stub().copy(buildId = "not")
                 val cachedGeo = GeoInfo.stub().copy(country = "cachedCountry")
@@ -795,7 +806,7 @@ class ConfigManagerTests {
                         storage = storage,
                         network = mockNetwork,
                         paywallManager = mockContainer.paywallManager,
-                        storeKitManager = mockContainer.storeKitManager,
+                        storeManager = mockContainer.storeManager,
                         factory = mockContainer,
                         deviceHelper = mockDeviceHelper,
                         assignments = assignmentStore,

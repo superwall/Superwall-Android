@@ -3,14 +3,11 @@ package com.superwall.sdk.contrib.threeteen
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
+import org.threeten.bp.Duration
 import org.threeten.bp.Period
-import java.time.Duration
-import java.time.format.DateTimeParseException
+import org.threeten.bp.format.DateTimeParseException
 import java.util.*
-import java.util.function.Function
-import java.util.function.IntPredicate
 import java.util.regex.Pattern
-import java.util.stream.Stream
 
 /*
  * Copyright (c) 2007-present, Stephen Colebourne & Michael Nascimento Santos
@@ -55,6 +52,10 @@ import java.util.stream.Stream
  * This class is immutable and thread-safe.
  */
 object AmountFormats {
+    fun interface IntPredicate {
+        fun test(value: Int): Boolean
+    }
+
     /**
      * The number of days per week.
      */
@@ -172,7 +173,7 @@ object AmountFormats {
      * List of DurationUnit values ordered by longest suffix first.
      */
     private val DURATION_UNITS =
-        Arrays.asList(
+        listOf(
             DurationUnit("ns", Duration.ofNanos(1)),
             DurationUnit("µs", Duration.ofNanos(1000)), // U+00B5 = micro symbol
             DurationUnit("μs", Duration.ofNanos(1000)), // U+03BC = Greek letter mu
@@ -431,23 +432,23 @@ object AmountFormats {
         // consume the leading sign - or + if one is present.
         var sign = 1
         var updatedText = consumePrefix(durationText, '-')
-        if (updatedText.isPresent) {
+        if (updatedText.isSuccess) {
             sign = -1
             offset += 1
-            durationText = updatedText.get()
+            durationText = updatedText.getOrNull()!!
         } else {
             updatedText = consumePrefix(durationText, '+')
-            if (updatedText.isPresent) {
+            if (updatedText.isSuccess) {
                 offset += 1
             }
-            durationText = updatedText.orElse(durationText)
+            durationText = updatedText.getOrNull() ?: durationText
         }
         // special case for a string of "0"
         if (durationText == "0") {
             return Duration.ZERO
         }
         // special case, empty string as an invalid duration.
-        if (durationText.length == 0) {
+        if (durationText.isEmpty()) {
             throw DateTimeParseException("Not a numeric value", original, 0)
         }
         var value = Duration.ZERO
@@ -459,9 +460,9 @@ object AmountFormats {
             val leadingInt: DurationScalar = integerPart
             var fraction: DurationScalar = EMPTY_FRACTION
             val dot = consumePrefix(durationText, '.')
-            if (dot.isPresent) {
+            if (dot.isSuccess) {
                 offset += 1
-                durationText = dot.get()
+                durationText = dot.getOrNull()!!
                 val fractionPart = consumeDurationFraction(durationText, original, offset)
                 // update the remaining string and fraction.
                 offset += durationText.length - fractionPart.remainingText().length
@@ -469,14 +470,14 @@ object AmountFormats {
                 fraction = fractionPart
             }
             val optUnit = findUnit(durationText)
-            if (!optUnit.isPresent) {
+            if (optUnit.isFailure) {
                 throw DateTimeParseException(
                     "Invalid duration unit",
                     original,
                     offset,
                 )
             }
-            val unit = optUnit.get()
+            val unit = optUnit.getOrNull()!!
             try {
                 var unitValue = leadingInt.applyTo(unit)
                 val fractionValue = fraction.applyTo(unit)
@@ -591,27 +592,24 @@ object AmountFormats {
     }
 
     // find the duration unit at the beginning of the input text, if present.
-    private fun findUnit(text: CharSequence): Optional<DurationUnit> =
+    private fun findUnit(text: CharSequence): Result<DurationUnit> =
         DURATION_UNITS
-            .stream()
-            .sequential()
-            .filter { du: DurationUnit ->
+            .firstOrNull { du: DurationUnit ->
                 du.prefixMatchesUnit(
                     text,
                 )
-            }.findFirst()
+            }?.let { Result.success(it) } ?: Result.failure(Exception("No matching duration unit found"))
 
     // consume the indicated {@code prefix} if it exists at the beginning of the
-    // text, returning the
-    // remaining string if the prefix was consumed.
+    // text, returning the remaining string if the prefix was consumed.
     private fun consumePrefix(
         text: CharSequence,
         prefix: Char,
-    ): Optional<CharSequence> =
-        if (text.length > 0 && text[0] == prefix) {
-            Optional.of(text.subSequence(1, text.length))
+    ): Result<CharSequence> =
+        if (text.isNotEmpty() && text[0] == prefix) {
+            Result.success(text.subSequence(1, text.length))
         } else {
-            Optional.empty()
+            Result.failure(Exception("Prefix not found"))
         }
 
     // -------------------------------------------------------------------------
@@ -695,11 +693,10 @@ object AmountFormats {
         init {
             check(predicateStrs.size + 1 == text.size) { "Invalid word-based resource" }
             predicates =
-                Stream
-                    .of<String>(*predicateStrs)
+                predicateStrs
                     .map { predicateStr ->
-                        findPredicate(predicateStr)
-                    }.toArray { size -> arrayOfNulls<IntPredicate>(size) }
+                        findPredicate(predicateStr!!)
+                    }.toTypedArray()
             this.text = text
         }
 
@@ -740,7 +737,7 @@ object AmountFormats {
         // scale the unit by the input scalingFunction, returning a value if
         // one is produced, or an empty result when the operation results in an
         // arithmetic overflow.
-        fun scaleBy(scaleFunc: Function<Duration, Duration?>): Duration? = scaleFunc.apply(value)
+        fun scaleBy(scaleFunc: (Duration) -> Duration?): Duration? = scaleFunc(value)
     }
 
     // interface for computing a duration from a duration unit and a scalar.
@@ -774,7 +771,7 @@ object AmountFormats {
 
     // data holder for the fractional floating point value of a duration
     // scalar.
-    internal class FractionScalarPart constructor(
+    internal class FractionScalarPart(
         private val value: Long,
         private val scale: Long,
     ) : DurationScalar {

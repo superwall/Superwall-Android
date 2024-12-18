@@ -14,7 +14,7 @@ sealed class InternalPurchaseResult {
     object Pending : InternalPurchaseResult()
 
     data class Failed(
-        val error: Exception,
+        val error: Throwable,
     ) : InternalPurchaseResult()
 }
 

@@ -13,12 +13,12 @@ import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.MainScope
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.PaywallWebviewUrl
-import com.superwall.sdk.paywall.vc.web_view.DefaultWebviewClient
-import com.superwall.sdk.paywall.vc.web_view.SWWebView
-import com.superwall.sdk.paywall.vc.web_view.WebviewClientEvent
-import com.superwall.sdk.paywall.vc.web_view.WebviewClientEvent.OnPageFinished
-import com.superwall.sdk.paywall.vc.web_view.WebviewError
-import com.superwall.sdk.paywall.vc.web_view.messaging.PaywallMessageHandler
+import com.superwall.sdk.paywall.view.webview.DefaultWebviewClient
+import com.superwall.sdk.paywall.view.webview.SWWebView
+import com.superwall.sdk.paywall.view.webview.WebviewClientEvent
+import com.superwall.sdk.paywall.view.webview.WebviewClientEvent.OnPageFinished
+import com.superwall.sdk.paywall.view.webview.WebviewError
+import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessageHandler
 import io.mockk.mockk
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -91,6 +91,7 @@ class WebviewFallbackClientTest {
                     Then("the loading is successful") {
                         webview
                             .waitForEvent(mainScope) {
+                                println("Got event $it")
                                 it is OnPageFinished
                             }.let {
                                 assert(it is OnPageFinished)

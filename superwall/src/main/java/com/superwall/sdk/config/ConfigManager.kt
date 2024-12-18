@@ -9,6 +9,7 @@ import com.superwall.sdk.dependencies.DeviceHelperFactory
 import com.superwall.sdk.dependencies.DeviceInfoFactory
 import com.superwall.sdk.dependencies.RequestFactory
 import com.superwall.sdk.dependencies.RuleAttributesFactory
+import com.superwall.sdk.dependencies.StoreTransactionFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
@@ -28,12 +29,12 @@ import com.superwall.sdk.network.SuperwallAPI
 import com.superwall.sdk.network.awaitUntilNetworkExists
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.paywall.manager.PaywallManager
-import com.superwall.sdk.paywall.presentation.rule_logic.javascript.JavascriptEvaluator
 import com.superwall.sdk.storage.DisableVerboseEvents
 import com.superwall.sdk.storage.LatestConfig
 import com.superwall.sdk.storage.LatestGeoInfo
 import com.superwall.sdk.storage.Storage
-import com.superwall.sdk.store.StoreKitManager
+import com.superwall.sdk.store.Entitlements
+import com.superwall.sdk.store.StoreManager
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.Flow
@@ -48,7 +49,8 @@ import java.util.concurrent.atomic.AtomicInteger
 // TODO: Re-enable those params
 open class ConfigManager(
     private val context: Context,
-    private val storeKitManager: StoreKitManager,
+    private val storeManager: StoreManager,
+    private val entitlements: Entitlements,
     private val storage: Storage,
     private val network: SuperwallAPI,
     private val deviceHelper: DeviceHelper,
@@ -67,10 +69,10 @@ open class ConfigManager(
         DeviceInfoFactory,
         RuleAttributesFactory,
         DeviceHelperFactory,
-        JavascriptEvaluator.Factory
+        StoreTransactionFactory
 
     // The configuration of the Superwall dashboard
-    val configState = MutableStateFlow<ConfigState>(ConfigState.None)
+    internal val configState = MutableStateFlow<ConfigState>(ConfigState.None)
 
     // Convenience variable to access config
     val config: Config?
@@ -143,6 +145,7 @@ open class ConfigManager(
                                     }
                             }
                         } catch (e: Throwable) {
+                            e.printStackTrace()
                             // If fetching config fails, default to the cached version
                             // Note: Only a timeout exception is possible here
                             oldConfig?.let {
@@ -221,7 +224,7 @@ open class ConfigManager(
                 if (options.paywalls.shouldPreload) {
                     val productIds = it.paywalls.flatMap { it.productIds }.toSet()
                     try {
-                        storeKitManager.products(productIds)
+                        storeManager.products(productIds)
                     } catch (e: Throwable) {
                         Logger.debug(
                             logLevel = LogLevel.error,
@@ -305,6 +308,12 @@ open class ConfigManager(
         }
         triggersByEventName = ConfigLogic.getTriggersByEventName(config.triggers)
         assignments.choosePaywallVariants(config.triggers)
+        ConfigLogic.extractEntitlementsByProductId(config.products).let {
+            entitlements.addEntitlementsByProductId(it)
+        }
+        ioScope.launch {
+            storeManager.loadPurchasedProducts()
+        }
     }
 
 // Preloading Paywalls
@@ -373,7 +382,7 @@ open class ConfigManager(
             return
         }
 
-        var retryCount: AtomicInteger = AtomicInteger(0)
+        val retryCount: AtomicInteger = AtomicInteger(0)
         val startTime = System.currentTimeMillis()
         network
             .getConfig {

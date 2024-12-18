@@ -17,7 +17,8 @@ import androidx.test.uiautomator.Until
 import com.dropbox.dropshots.Dropshots
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.superwall.SuperwallEvent
-import com.superwall.sdk.paywall.vc.ShimmerView
+import com.superwall.sdk.config.models.ConfigurationStatus
+import com.superwall.sdk.paywall.view.ShimmerView
 import com.superwall.superapp.MainActivity
 import com.superwall.superapp.test.UITestInfo
 import kotlinx.coroutines.CoroutineScope
@@ -112,6 +113,7 @@ fun Dropshots.screenshotFlow(
     }
 
     runTest(timeout = 5.minutes) {
+        Superwall.instance.configurationStateListener.first { it is ConfigurationStatus.Configured }
         try {
             flow.steps.forEach {
                 if (!testReady.value) {

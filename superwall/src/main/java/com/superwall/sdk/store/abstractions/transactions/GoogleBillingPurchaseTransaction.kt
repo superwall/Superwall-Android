@@ -44,6 +44,8 @@ data class GoogleBillingPurchaseTransaction(
     @Serializable(with = UUIDSerializer::class)
     @SerialName("app_account_token")
     override val appAccountToken: UUID?,
+    @SerialName("purchase_token")
+    override val purchaseToken: String,
     override var payment: StorePayment,
 ) : StoreTransactionType {
     constructor(transaction: Purchase) : this(
@@ -62,5 +64,6 @@ data class GoogleBillingPurchaseTransaction(
         revocationDate = null, // Replace with correct mapping
         appAccountToken = null, // Replace with correct mapping
         payment = StorePayment(transaction), // Replace with correct mapping
+        purchaseToken = transaction.purchaseToken,
     )
 }
