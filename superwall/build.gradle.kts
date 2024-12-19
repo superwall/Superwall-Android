@@ -23,7 +23,7 @@ plugins {
     id("signing")
 }
 
-version = "1.5.0"
+version = "1.5.1"
 
 android {
     compileSdk = 34
@@ -61,6 +61,7 @@ android {
         getByName("release") {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            consumerProguardFile("../consumer-rules.pro")
         }
     }
 

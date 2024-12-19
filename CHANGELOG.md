@@ -2,6 +2,14 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 1.5.1
+
+### Enhancements
+- Updates superscript dependencies to reduce minSDK version
+
+### Fixes
+- Adds consumer proguard rules to avoid minifying JNA classes during minification
+
 ## 1.5.0
 
 ### Enhancements
