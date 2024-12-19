@@ -458,7 +458,26 @@ class ConfigTest {
     "all": false,
     "triggers": []
   },
-  "build_id": "test"
+  "build_id": "test",
+  "products": [
+    {
+      "reference_name": "primary",
+      "store_product": {
+        "product_identifier": "my-android-product",
+        "store": "PLAY_STORE",
+        "base_plan_identifier": "base-plan",
+        "offer": {
+          "type": "AUTOMATIC"
+        },
+        "entitlements": [
+          {
+            "identifier": "active",
+            "type": "SERVICE_LEVEL"
+          }
+        ]
+      }
+    }
+  ]
 }
             """.trimIndent()
 

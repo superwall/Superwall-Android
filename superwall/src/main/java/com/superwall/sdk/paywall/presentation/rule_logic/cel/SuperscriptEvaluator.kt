@@ -73,7 +73,6 @@ internal class SuperscriptEvaluator(
                     )
 
                 val ctx = json.encodeToString(executionContext)
-
                 val result =
                     evaluateWithContext(ctx, hostContext)
 

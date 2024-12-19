@@ -2,6 +2,7 @@ package com.superwall.sdk.analytics.internal
 
 import android.app.Application
 import androidx.test.platform.app.InstrumentationRegistry
+import com.android.billingclient.api.Purchase
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.identity.IdentityInfo
@@ -12,6 +13,7 @@ import com.superwall.sdk.storage.LastPaywallView
 import com.superwall.sdk.storage.LatestGeoInfo
 import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.storage.TotalPaywallViews
+import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.spyk
@@ -46,6 +48,10 @@ class TrackingLogicTest {
                                 override suspend fun makeIdentityInfo(): IdentityInfo = IdentityInfo("aliasId", "appUserId")
 
                                 override fun makeLocaleIdentifier(): String? = "en-US"
+
+                                override suspend fun makeStoreTransaction(transaction: Purchase): StoreTransaction = mockk()
+
+                                override suspend fun activeProductIds(): List<String> = emptyList()
                             },
                     ),
                 ) {
