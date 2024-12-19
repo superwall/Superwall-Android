@@ -158,6 +158,12 @@ class TransactionManager(
         state: PurchasingObserverState,
     ) {
         if (transactionsInProgress.isEmpty()) {
+            Logger.debug(
+                LogLevel.error,
+                LogScope.paywallTransactions,
+                "Transactions in progress is empty but a transaction was attempted to be handled." +
+                    " This is likely a bug. Have you tracked the purchase start?",
+            )
             return
         } else {
             transactionsInProgress.clear()
