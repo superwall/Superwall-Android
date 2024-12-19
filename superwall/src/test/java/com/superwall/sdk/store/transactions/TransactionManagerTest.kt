@@ -111,6 +111,7 @@ class TransactionManagerTest {
                         mockProduct,
                     ),
                 )
+            coEvery { queryAllPurchases() } returns emptyList()
         }
     private var storeManager = spyk(StoreManager(purchaseController, billing))
     private var activityProvider =

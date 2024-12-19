@@ -166,7 +166,7 @@ class DeviceHelper(
             try {
                 val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
                 packageInfo.versionName
-            } catch (e: PackageManager.NameNotFoundException) {
+            } catch (e: Throwable) {
                 Logger.debug(
                     LogLevel.error,
                     LogScope.device,
