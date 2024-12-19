@@ -488,6 +488,7 @@ class ConfigManagerTests {
     private val storeKit =
         mockk<StoreManager> {
             coEvery { products(any()) } returns emptySet()
+            coEvery { loadPurchasedProducts() } just Runs
         }
     private val preload =
         mockk<PaywallPreload> {
