@@ -3,6 +3,7 @@ package com.superwall.sdk
 import Given
 import Then
 import When
+import android.app.Application
 import android.util.Log
 import androidx.test.platform.app.InstrumentationRegistry
 import com.android.billingclient.api.BillingClient
@@ -16,7 +17,7 @@ import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.delegate.SuperwallDelegate
 import com.superwall.sdk.dependencies.DependencyContainer
 import com.superwall.sdk.store.PurchasingObserverState
-import com.superwall.sdk.store.StoreKitManager
+import com.superwall.sdk.store.StoreManager
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import com.superwall.sdk.store.abstractions.product.SubscriptionPeriod
 import com.superwall.sdk.store.transactions.TransactionManager
@@ -31,7 +32,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -39,11 +39,12 @@ import org.junit.Before
 import org.junit.Test
 import java.math.BigDecimal
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 class ObserverModeTest {
     private lateinit var transactionManager: TransactionManager
-    private lateinit var storeKitManager: StoreKitManager
+    private lateinit var storeKitManager: StoreManager
     private lateinit var dependencyContainer: DependencyContainer
     val mockPricingPhases =
         mockk<ProductDetails.PricingPhases> {
@@ -105,7 +106,7 @@ class ObserverModeTest {
         every { RawStoreProduct.from(any()) } returns mockProduct
         if (!configured) {
             Superwall.configure(
-                InstrumentationRegistry.getInstrumentation().context.applicationContext,
+                InstrumentationRegistry.getInstrumentation().context.applicationContext as Application,
                 CONSTANT_API_KEY,
                 options =
                     SuperwallOptions().apply {
@@ -122,7 +123,7 @@ class ObserverModeTest {
         }
         dependencyContainer = Superwall.instance.dependencyContainer
         transactionManager = dependencyContainer.transactionManager
-        storeKitManager = dependencyContainer.storeKitManager
+        storeKitManager = dependencyContainer.storeManager
     }
 
     @After
@@ -155,7 +156,7 @@ class ObserverModeTest {
 
     @Test
     fun test_observe_purchase_complete_with_controller() =
-        runTest {
+        runTest(timeout = 3.minutes) {
             setup()
             Given("a configured Superwall instance and completed purchase") {
                 mockDelegate = MockDelegate(this@runTest)
@@ -183,12 +184,9 @@ class ObserverModeTest {
                     )
 
                     Then("it should handle successful purchase and emit transaction complete event") {
-                        mockDelegate.events
-                            .onEach {
-                                Log.e("test", "event is $it")
-                            }.first {
-                                it is SuperwallEvent.TransactionComplete
-                            }
+                        mockDelegate.events.first {
+                            it is SuperwallEvent.TransactionComplete
+                        }
                     }
                 }
             }
@@ -196,7 +194,7 @@ class ObserverModeTest {
 
     @Test
     fun test_observe_purchase_failed_with_controller() =
-        runTest {
+        runTest(timeout = 3.minutes) {
             setup()
             Given("a configured Superwall instance and failed purchase") {
                 mockDelegate = MockDelegate(this@runTest)
@@ -205,6 +203,9 @@ class ObserverModeTest {
                 val error = BillingError.BillingNotAvailable("Test error")
 
                 When("observing purchase failure") {
+                    Superwall.instance.observe(
+                        PurchasingObserverState.PurchaseWillBegin(mockProductDetails),
+                    )
                     Superwall.instance.observe(
                         PurchasingObserverState.PurchaseError(
                             error = error,
