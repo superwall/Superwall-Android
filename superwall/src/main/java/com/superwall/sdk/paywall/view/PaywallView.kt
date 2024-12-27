@@ -45,11 +45,11 @@ import com.superwall.sdk.paywall.presentation.internal.operators.storePresentati
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.paywall.presentation.result.PresentationResult
-import com.superwall.sdk.paywall.view.Survey.SurveyManager
-import com.superwall.sdk.paywall.view.Survey.SurveyPresentationResult
 import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 import com.superwall.sdk.paywall.view.delegate.PaywallViewDelegateAdapter
 import com.superwall.sdk.paywall.view.delegate.PaywallViewEventCallback
+import com.superwall.sdk.paywall.view.survey.SurveyManager
+import com.superwall.sdk.paywall.view.survey.SurveyPresentationResult
 import com.superwall.sdk.paywall.view.webview.PaywallMessage
 import com.superwall.sdk.paywall.view.webview.SWWebView
 import com.superwall.sdk.paywall.view.webview.SWWebViewDelegate
@@ -116,9 +116,9 @@ class PaywallView(
     // / The presentation style for the paywall.
     private var presentationStyle: PaywallPresentationStyle
 
-    private var shimmerView: ShimmerView? = null
+    private var shimmerView: PaywallShimmer? = null
 
-    private var loadingView: LoadingView? = null
+    private var loadingView: PaywallPurchaseLoadingView? = null
 
     var paywallStatePublisher: MutableSharedFlow<PaywallState>? = null
 
@@ -215,8 +215,6 @@ class PaywallView(
 
     //endregion
 
-    //region Public functions
-
     internal fun set(
         request: PresentationRequest,
         paywallStatePublisher: MutableSharedFlow<PaywallState>,
@@ -227,19 +225,23 @@ class PaywallView(
         this.unsavedOccurrence = unsavedOccurrence
     }
 
-    internal fun setupShimmer(shimmerView: ShimmerView) {
+    internal fun setupShimmer(shimmerView: PaywallShimmer) {
         this.shimmerView = shimmerView
-        shimmerView.setupFor(this, loadingState)
+        if (shimmerView is View) {
+            // Note: This always _is_ true, but the compiler doesn't know that
+            shimmerView.setupFor(this, loadingState)
+        }
     }
 
-    internal fun setupLoading(loadingView: LoadingView) {
+    internal fun setupLoading(loadingView: PaywallPurchaseLoadingView) {
         this.loadingView = loadingView
         loadingView.setupFor(this, loadingState)
     }
+    //region Public functions
 
     fun setupWith(
-        shimmerView: ShimmerView,
-        loadingView: LoadingView,
+        shimmerView: PaywallShimmer,
+        loadingView: PaywallPurchaseLoadingView,
     ) {
         if (webView.parent == null) {
             addView(webView)
@@ -554,7 +556,7 @@ class PaywallView(
         }
         loadingView?.let {
             mainScope.launch {
-                it.visibility = View.VISIBLE
+                (it as View).visibility = View.VISIBLE
             }
         }
     }
@@ -562,7 +564,7 @@ class PaywallView(
     private fun hideLoadingView() {
         loadingView?.let {
             mainScope.launch {
-                it.visibility = View.GONE
+                (it as View).visibility = View.GONE
             }
         }
     }
@@ -730,8 +732,10 @@ class PaywallView(
                     message =
                         "Webview Process has crashed for paywall with identifier: ${paywall.identifier}.\n" +
                             "Crashed by the system: ${
-                                if (isOverO)it.didCrash() else "Unknown"} - priority ${
-                                if (isOverO)it.rendererPriorityAtExit() else "Unknown"}",
+                                if (isOverO) it.didCrash() else "Unknown"
+                            } - priority ${
+                                if (isOverO) it.rendererPriorityAtExit() else "Unknown"
+                            }",
                 )
                 recreateWebview()
             }
