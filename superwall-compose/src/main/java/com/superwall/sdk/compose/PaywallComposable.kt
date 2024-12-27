@@ -16,17 +16,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
-import com.superwall.sdk.Superwall
-import com.superwall.sdk.paywall.presentation.get_paywall.getPaywall
+import com.superwall.sdk.paywall.presentation.get_paywall.builder.PaywallBuilder
 import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
-import com.superwall.sdk.paywall.view.LoadingView
 import com.superwall.sdk.paywall.view.PaywallView
-import com.superwall.sdk.paywall.view.ShimmerView
 import com.superwall.sdk.paywall.view.delegate.PaywallViewCallback
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import java.lang.ref.WeakReference
 
 @Composable
 fun PaywallComposable(
@@ -57,16 +53,17 @@ fun PaywallComposable(
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
-        Superwall.instance
-            .getPaywall(event, params, paywallOverrides, delegate)
-            .onSuccess { newView ->
-                newView.encapsulatingActivity = WeakReference(context as? Activity)
-                newView.setupWith(ShimmerView(context), LoadingView(context))
-                newView.beforeViewCreated()
-                viewState.value = newView
-            }.onFailure {
+        PaywallBuilder(event)
+            .params(params)
+            .overrides(paywallOverrides)
+            .delegate(delegate)
+            .activity(context as Activity)
+            .build()
+            .fold(onSuccess = {
+                viewState.value = it
+            }, onFailure = {
                 errorState.value = it
-            }
+            })
     }
 
     when {
