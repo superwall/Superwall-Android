@@ -16,6 +16,7 @@ import com.superwall.sdk.config.models.ConfigurationStatus
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.delegate.InternalPurchaseResult
 import com.superwall.sdk.delegate.PurchaseResult
+import com.superwall.sdk.delegate.RestorationResult
 import com.superwall.sdk.delegate.SuperwallDelegate
 import com.superwall.sdk.delegate.SuperwallDelegateJava
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
@@ -797,15 +798,25 @@ class Superwall(
         onFinished: (Result<PurchaseResult>) -> Unit,
     ) {
         ioScope.launch {
-            val res =
-                withErrorTracking {
-                    dependencyContainer.transactionManager.purchase(
-                        TransactionManager.PurchaseSource.ExternalPurchase(
-                            product,
-                        ),
-                    )
-                }.toResult()
-            onFinished(res)
+            onFinished(purchase(product))
+        }
+    }
+
+    fun purchase(
+        product: ProductDetails,
+        onFinished: (Result<PurchaseResult>) -> Unit,
+    ) {
+        ioScope.launch {
+            onFinished(purchase(product))
+        }
+    }
+
+    fun purchase(
+        productId: String,
+        onFinished: (Result<PurchaseResult>) -> Unit,
+    ) {
+        ioScope.launch {
+            onFinished(purchase(productId))
         }
     }
 
@@ -916,6 +927,16 @@ class Superwall(
         withErrorTracking {
             dependencyContainer.transactionManager.tryToRestorePurchases(null)
         }.toResult()
+
+    /**
+     * Restores purchases and returns the result in a callback.
+     *
+     * Use this function to restore purchases made by the user.
+     * */
+    fun restorePurchases(onFinished: (Result<RestorationResult>) -> Unit) =
+        ioScope.launch {
+            onFinished(restorePurchases())
+        }
 
     override suspend fun eventDidOccur(
         paywallEvent: PaywallWebEvent,
