@@ -3,27 +3,20 @@ package com.superwall.sdk.paywall.view
 import android.animation.ValueAnimator
 import android.content.Context
 import android.content.res.Configuration
-import android.graphics.Color
 import android.graphics.drawable.VectorDrawable
 import android.util.AttributeSet
 import android.view.View
-import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.view.animation.PathInterpolator
-import android.widget.FrameLayout.LayoutParams
 import androidx.appcompat.widget.AppCompatImageView
 import androidx.core.content.ContextCompat
-import androidx.core.graphics.BlendModeColorFilterCompat
-import androidx.core.graphics.BlendModeCompat
 import com.superwall.sdk.R
-import com.superwall.sdk.misc.isDarkColor
-import com.superwall.sdk.misc.readableOverlayColor
-import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 
 class ShimmerView(
     context: Context,
     attrs: AttributeSet? = null,
-) : AppCompatImageView(context.applicationContext, attrs) {
+) : AppCompatImageView(context, attrs),
+    PaywallShimmer {
     private var animator: ValueAnimator? = null
     private var vectorDrawable: VectorDrawable? = null
 
@@ -39,7 +32,7 @@ class ShimmerView(
     private val landscapeDrawable: VectorDrawable? by lazy {
         ContextCompat.getDrawable(context.applicationContext, R.drawable.landscape_shimmer_skeleton) as? VectorDrawable
     }
-    private var tintColorFilter: android.graphics.ColorFilter? = null
+    var tintColorFilter: android.graphics.ColorFilter? = null
 
     init {
         setLayerType(LAYER_TYPE_SOFTWARE, null)
@@ -47,51 +40,21 @@ class ShimmerView(
         checkForOrientationChanges()
     }
 
-    private var background: Int = 0
-    private var isLightBackground: Boolean = false
-    private var tintColor: Int = 0
+    var background: Int = 0
+    var isLightBackground: Boolean = false
+    var tintColor: Int = 0
 
-    fun setupFor(
-        paywallView: PaywallView,
-        loadingState: PaywallLoadingState,
-    ) {
-        (this.parent as? ViewGroup)?.removeView(this)
-        if (background != paywallView.backgroundColor) {
-            background = paywallView.backgroundColor
-            setBackgroundColor(background)
-            isLightBackground = !background.isDarkColor()
-            tintColor = background.readableOverlayColor()
-            tintColorFilter =
-                BlendModeColorFilterCompat.createBlendModeColorFilterCompat(
-                    Color.argb(64, Color.red(tintColor), Color.green(tintColor), Color.blue(tintColor)),
-                    BlendModeCompat.SRC_IN,
-                )
-        }
-
-        visibility =
-            when (loadingState) {
-                is PaywallLoadingState.LoadingURL ->
-                    VISIBLE
-
-                else -> GONE
-            }
-        paywallView.addView(this)
-        layoutParams =
-            LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
-        checkForOrientationChanges()
-    }
-
-    fun hideShimmer() {
+    override fun hideShimmer() {
         visibility = View.GONE
         stopShimmer()
     }
 
-    fun showShimmer() {
+    override fun showShimmer() {
         visibility = View.VISIBLE
         startShimmer()
     }
 
-    fun checkForOrientationChanges() {
+    override fun checkForOrientationChanges() {
         val config = resources.configuration
         setDrawableBasedOnOrientation(config)
     }

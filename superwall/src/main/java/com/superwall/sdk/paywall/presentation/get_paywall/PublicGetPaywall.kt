@@ -42,6 +42,7 @@ suspend fun Superwall.getPaywallOrThrow(
     }
 
 @Throws(Throwable::class)
+@Deprecated("Will be removed in the upcoming versions, use `PaywallBuilder` instead")
 suspend fun Superwall.getPaywall(
     event: String,
     params: Map<String, Any>? = null,
