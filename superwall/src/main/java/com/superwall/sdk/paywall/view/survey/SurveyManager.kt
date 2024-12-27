@@ -1,4 +1,4 @@
-package com.superwall.sdk.paywall.view.Survey
+package com.superwall.sdk.paywall.view.survey
 
 import android.app.Activity
 import android.text.Editable

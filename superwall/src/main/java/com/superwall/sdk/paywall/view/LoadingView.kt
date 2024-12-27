@@ -10,7 +10,8 @@ import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 
 class LoadingView(
     context: Context,
-) : FrameLayout(context) {
+) : FrameLayout(context),
+    PaywallPurchaseLoadingView {
     companion object {
         internal const val TAG = "LoadingView"
     }
@@ -40,7 +41,7 @@ class LoadingView(
         setOnTouchListener { _, _ -> true }
     }
 
-    fun setupFor(
+    override fun setupFor(
         paywallView: PaywallView,
         loadingState: PaywallLoadingState,
     ) {
