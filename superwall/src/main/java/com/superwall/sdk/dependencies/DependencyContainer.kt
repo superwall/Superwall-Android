@@ -378,7 +378,16 @@ class DependencyContainer(
          */
         ioScope.launch {
             if (webViewExists()) {
-                WebSettings.getDefaultUserAgent(context)
+                // Due to issues with webview's internals approach to loading,
+                // We need to catch this and in case of failure, retry
+                // as failure is random and time-based
+                runCatching {
+                    WebSettings.getDefaultUserAgent(context)
+                }.onFailure {
+                    runCatching {
+                        WebSettings.getDefaultUserAgent(context)
+                    }
+                }
             }
         }
     }
