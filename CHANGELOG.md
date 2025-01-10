@@ -2,8 +2,14 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
-## 2.0.0-Alpha.1
+## 2.0.0-beta.1
 
+- Add `PaywallBuilder` class as an alternative to existing `getPaywallView` method. This provides a cleaner API and an ability to change purchase loading bar and shimmer view.
+- Add callback versions of new 2.0 methods
+- Ensure safety of static webview calls that are known to fail randomly due to Webview's internal issues
+
+
+## 2.0.0-Alpha.1
 
 ### Breaking Changes
 
