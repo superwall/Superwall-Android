@@ -8,10 +8,10 @@ Usually, to integrate Superwall into your app, you first need to have configured
 
 Feature | Sample Project Location 
 --- | ---
-🕹 Configuring Superwall | [MainActivity.kt](app/src/main/java/com/superwall/exampleapp/MainActivity.kt#L54)
-👉 Presenting a paywall | [HomeActivity.kt](app/src/main/java/com/superwall/exampleapp/HomeActivity.kt#L150)
-👥 Identifying account | [MainActivity.kt](app/src/main/java/com/superwall/exampleapp/MainActivity.kt#L164)
-👥 Resetting account | [HomeActivity.kt](app/src/main/java/com/superwall/exampleapp/HomeActivity.kt#L182)
+🕹 Configuring Superwall | [MainActivity.kt](app/src/main/java/com/superwall/superapp/MainActivity.kt#L54)
+👉 Presenting a paywall | [HomeActivity.kt](app/src/main/java/com/superwall/superapp/HomeActivity.kt#L150)
+👥 Identifying account | [MainActivity.kt](app/src/main/java/com/superwall/superapp/MainActivity.kt#L164)
+👥 Resetting account | [HomeActivity.kt](app/src/main/java/com/superwall/superapp/HomeActivity.kt#L182)
 
 ## Requirements
 
@@ -23,11 +23,11 @@ This example app uses:
 
 ## Getting Started
 
-Clone or download Superwall from the [project home page](https://github.com/superwall/Superwall-Android). Then, open the folder in Android Studio and take a look at the code inside [example/app/kotlin+java/com.superwall.exampleapp](app/src/main/java/com/superwall/exampleapp)`.
+Clone or download Superwall from the [project home page](https://github.com/superwall/Superwall-Android). Then, open the folder in Android Studio and take a look at the code inside [example/app/kotlin+java/com.superwall.exampleapp](app/src/main/java/com/superwall/superapp)`.
 
-You'll see a [ui.theme](app/src/main/java/com/superwall/exampleapp/ui/theme) folder relating to the design and components used in the app, which you don't need to worry about.
+You'll see a [ui.theme](app/src/main/java/com/superwall/superapp/ui/theme) folder relating to the design and components used in the app, which you don't need to worry about.
 
-The [MainActivity.kt](app/src/main/java/com/superwall/exampleapp/MainActivity.kt) handles the configuration of the SDK and login, and [HomeActivity.kt](app/src/main/java/com/superwall/exampleapp/HomeActivity.kt) handles the presentation of paywalls.
+The [MainActivity.kt](app/src/main/java/com/superwall/superapp/MainActivity.kt) handles the configuration of the SDK and login, and [HomeActivity.kt](app/src/main/java/com/superwall/superapp/HomeActivity.kt) handles the presentation of paywalls.
 
 Build and run the app and you'll see the welcome screen:
 
@@ -35,11 +35,11 @@ Build and run the app and you'll see the welcome screen:
   <img src="https://github.com/superwall/Superwall-Android/assets/3296904/326eb90a-1d7d-4a8c-9f27-055cdf57afd2" alt="The welcome screen" width="220px" />
 </p>
 
-Superwall is [configured](app/src/main/java/com/superwall/exampleapp/MainActivity.kt#L54) on app launch, setting an `apiKey`.
+Superwall is [configured](app/src/main/java/com/superwall/superapp/MainActivity.kt#L54) on app launch, setting an `apiKey`.
 
 ## Logging In
 
-On the welcome screen, enter your name in the **text field**This saves to the Superwall user attributes using [Superwall.instance.setUserAttributes(_:)](app/src/main/java/com/superwall/exampleapp/MainActivity.kt#L159). You don't need to set user attributes, but it can be useful if you want to create a rule to present a paywall based on a specific attribute you've set. You can also recall user attributes on your paywall to personalise the messaging.
+On the welcome screen, enter your name in the **text field**This saves to the Superwall user attributes using [Superwall.instance.setUserAttributes(_:)](app/src/main/java/com/superwall/superapp/MainActivity.kt#L159). You don't need to set user attributes, but it can be useful if you want to create a rule to present a paywall based on a specific attribute you've set. You can also recall user attributes on your paywall to personalise the messaging.
 
 Tap **Log In**. This identifies the user (with a hardcoded userId that we've set), retrieving any paywalls that have already been assigned to them.
 
@@ -51,7 +51,7 @@ You'll see the home screen:
 
 ## Presenting a Paywall
 
-At the heart of Superwall's SDK lies [Superwall.shared.register(event:params:handler:feature:)](app/src/main/java/com/superwall/exampleapp/HomeActivity.kt#L150).
+At the heart of Superwall's SDK lies [Superwall.shared.register(event:params:handler:feature:)](app/src/main/java/com/superwall/superapp/HomeActivity.kt#L150).
 
 This allows you to register an event to access a feature that may or may not be paywalled later in time. It also allows you to choose whether the user can access the feature even if they don't make a purchase. You can read more about this [in our docs](https://docs.superwall.com/docs).
 
@@ -59,7 +59,7 @@ On the [Superwall Dashboard](https://superwall.com/dashboard) you add this event
 
 When an event is registered, Superwall evaluates the rules associated with it to determine whether or not to show a paywall.
 
-By calling [Superwall.shared.register(event:params:handler:feature:)](app/src/main/java/com/superwall/exampleapp/HomeActivity.kt#L150), you present a paywall in response to the event `campaign_trigger`.
+By calling [Superwall.shared.register(event:params:handler:feature:)](app/src/main/java/com/superwall/superapp/HomeActivity.kt#L150), you present a paywall in response to the event `campaign_trigger`.
 
 On screen you'll see some explanatory text and a button to launch a feature that is behind a paywall. Tap the **Launch Feature** button and you'll see the paywall. If the event is disabled on the dashboard, the paywall wouldn't show and the feature would fire immediately. In this case, the feature is just an alert.
 

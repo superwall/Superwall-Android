@@ -1,7 +1,8 @@
-package com.superwall.exampleapp
+package com.superwall.superapp
 
 import android.app.Application
 import com.superwall.sdk.Superwall
+import com.superwall.sdk.config.options.SuperwallOptions
 
 class MainApplication : Application() {
     override fun onCreate() {
@@ -9,7 +10,10 @@ class MainApplication : Application() {
         Superwall.configure(
             this,
             Keys.EXAMPLE_KEY,
-            purchaseController = ExamplePurchaseController(),
+            options =
+                SuperwallOptions().apply {
+                    shouldObservePurchases = true
+                },
         )
     }
 }
