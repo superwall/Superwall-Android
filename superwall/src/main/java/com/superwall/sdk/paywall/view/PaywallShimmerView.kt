@@ -12,7 +12,7 @@ import com.superwall.sdk.misc.isDarkColor
 import com.superwall.sdk.misc.readableOverlayColor
 import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 
-interface PaywallShimmer {
+interface PaywallShimmerView {
     fun hideShimmer()
 
     fun showShimmer()
@@ -23,7 +23,7 @@ interface PaywallShimmer {
 fun <T> T.setupFor(
     paywallView: PaywallView,
     loadingState: PaywallLoadingState,
-) where T : PaywallShimmer, T : View {
+) where T : PaywallShimmerView, T : View {
     (this.parent as? ViewGroup)?.removeView(this)
     if (this is ShimmerView && this.background != paywallView.backgroundColor) {
         background = paywallView.backgroundColor

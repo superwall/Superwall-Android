@@ -16,7 +16,7 @@ class ShimmerView(
     context: Context,
     attrs: AttributeSet? = null,
 ) : AppCompatImageView(context, attrs),
-    PaywallShimmer {
+    PaywallShimmerView {
     private var animator: ValueAnimator? = null
     private var vectorDrawable: VectorDrawable? = null
 
