@@ -18,6 +18,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import com.superwall.sdk.paywall.presentation.get_paywall.builder.PaywallBuilder
 import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
+import com.superwall.sdk.paywall.view.PaywallPurchaseLoadingView
 import com.superwall.sdk.paywall.view.PaywallView
 import com.superwall.sdk.paywall.view.delegate.PaywallViewCallback
 import kotlinx.coroutines.CoroutineScope
@@ -56,6 +57,8 @@ fun PaywallComposable(
         PaywallBuilder(event)
             .params(params)
             .overrides(paywallOverrides)
+            .shimmerView()
+            .purchaseLoadingView()
             .delegate(delegate)
             .activity(context as Activity)
             .build()

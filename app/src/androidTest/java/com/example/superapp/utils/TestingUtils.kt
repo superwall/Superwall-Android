@@ -36,7 +36,6 @@ import kotlinx.coroutines.test.runTest
 import java.util.LinkedList
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 class ScreenshotTestFlow(
@@ -89,6 +88,7 @@ annotation class UiTestDSL
 @ScreenshotTestDSL
 fun Dropshots.screenshotFlow(
     testInfo: UITestInfo,
+    config: FlowTestConfiguration = FlowTestConfiguration(),
     flow: ScreenshotTestFlow.() -> Unit,
 ) {
     val flow = ScreenshotTestFlow(testInfo).apply(flow)
@@ -112,8 +112,10 @@ fun Dropshots.screenshotFlow(
         }
     }
 
-    runTest(timeout = 5.minutes) {
-        Superwall.instance.configurationStateListener.first { it is ConfigurationStatus.Configured }
+    runTest(timeout = config.timeout) {
+        if (config.waitForConfig) {
+            Superwall.instance.configurationStateListener.first { it is ConfigurationStatus.Configured }
+        }
         try {
             flow.steps.forEach {
                 if (!testReady.value) {
@@ -134,8 +136,11 @@ fun Dropshots.screenshotFlow(
 }
 
 @ScreenshotTestDSL
-fun Dropshots.paywallPresentsFor(testInfo: UITestInfo) {
-    screenshotFlow(testInfo) {
+fun Dropshots.paywallPresentsFor(
+    testInfo: UITestInfo,
+    config: FlowTestConfiguration = FlowTestConfiguration(),
+) {
+    screenshotFlow(testInfo, config) {
         step("") {
             it.waitFor { it is SuperwallEvent.PaywallWebviewLoadComplete }
             // Since there is a delay between webview finishing loading and the actual render
@@ -148,8 +153,25 @@ fun Dropshots.paywallPresentsFor(testInfo: UITestInfo) {
 }
 
 @ScreenshotTestDSL
-fun Dropshots.paywallDoesntPresentFor(testInfo: UITestInfo) {
-    screenshotFlow(testInfo) {
+fun Dropshots.paywallDoesntPresentFor(
+    testInfo: UITestInfo,
+    config: FlowTestConfiguration = FlowTestConfiguration(),
+) {
+    screenshotFlow(testInfo, config) {
+        step("") {
+            it.waitFor { it is SuperwallEvent.PaywallPresentationRequest }
+            // We delay a bit to ensure the paywall doesn't render after presentation request
+            delayFor(1.seconds)
+        }
+    }
+}
+
+@ScreenshotTestDSL
+fun Dropshots.paywallDoesntPresentForNoConfig(
+    testInfo: UITestInfo,
+    config: FlowTestConfiguration = FlowTestConfiguration(false),
+) {
+    screenshotFlow(testInfo, config) {
         step("") {
             it.waitFor { it is SuperwallEvent.PaywallPresentationRequest }
             // We delay a bit to ensure the paywall doesn't render after presentation request
