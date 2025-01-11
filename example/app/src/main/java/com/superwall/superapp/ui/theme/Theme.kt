@@ -1,4 +1,4 @@
-package com.superwall.exampleapp.ui.theme
+package com.superwall.superapp.ui.theme
 
 import android.app.Activity
 import android.os.Build

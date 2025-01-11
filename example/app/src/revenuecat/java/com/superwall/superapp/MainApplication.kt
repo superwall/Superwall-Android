@@ -1,4 +1,4 @@
-package com.superwall.exampleapp
+package com.superwall.superapp
 
 import android.app.Application
 import com.superwall.sdk.Superwall
@@ -9,10 +9,7 @@ class MainApplication : Application() {
         Superwall.configure(
             this,
             Keys.EXAMPLE_KEY,
-            options =
-                SuperwallOptions().apply {
-                    shouldObservePurchases = true
-                },
+            purchaseController = RevenueCatPurchaseController(this),
         )
     }
 }

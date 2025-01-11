@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.superwall.exampleapp"
+    namespace = "com.superwall.superapp"
     compileSdk = 34
 
     defaultConfig {
@@ -44,9 +44,6 @@ android {
             dimension = "version"
         }
         create("revenuecat") {
-            dimension = "version"
-        }
-        create("controller") {
             dimension = "version"
         }
     }

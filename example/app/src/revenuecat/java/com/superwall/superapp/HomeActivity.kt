@@ -1,4 +1,4 @@
-package com.superwall.exampleapp
+package com.superwall.superapp
 
 import android.app.AlertDialog
 import android.os.Bundle
@@ -29,12 +29,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
-import com.superwall.exampleapp.ui.theme.SuperwallExampleAppTheme
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.models.entitlements.EntitlementStatus
 import com.superwall.sdk.paywall.presentation.PaywallPresentationHandler
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallSkippedReason
 import com.superwall.sdk.paywall.presentation.register
+import com.superwall.superapp.ui.theme.SuperwallExampleAppTheme
 
 class HomeActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -43,7 +43,8 @@ class HomeActivity : ComponentActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
         setContent {
-            val entitlementStatus by Superwall.instance.entitlementStatus.collectAsState()
+            val entitlementStatus by Superwall.instance.entitlements.status
+                .collectAsState()
             SuperwallExampleAppTheme {
                 HomeScreen(
                     entitlementStatus = entitlementStatus,
