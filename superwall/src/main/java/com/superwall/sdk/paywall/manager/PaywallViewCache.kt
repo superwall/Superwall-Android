@@ -6,7 +6,7 @@ import com.superwall.sdk.models.paywall.PaywallIdentifier
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.paywall.view.LoadingView
 import com.superwall.sdk.paywall.view.PaywallPurchaseLoadingView
-import com.superwall.sdk.paywall.view.PaywallShimmer
+import com.superwall.sdk.paywall.view.PaywallShimmerView
 import com.superwall.sdk.paywall.view.PaywallView
 import com.superwall.sdk.paywall.view.ShimmerView
 import com.superwall.sdk.paywall.view.ViewStorage
@@ -78,9 +78,9 @@ class PaywallViewCache(
         }
     }
 
-    fun acquireShimmerView(): PaywallShimmer {
+    fun acquireShimmerView(): PaywallShimmerView {
         return store.retrieveView(ShimmerView.TAG)?.let {
-            it as PaywallShimmer
+            it as PaywallShimmerView
         } ?: run {
             val view = ShimmerView(ctx)
             store.storeView(ShimmerView.TAG, view)
