@@ -1,4 +1,4 @@
-package com.superwall.superapp.purchase
+package com.superwall.superapp
 
 import android.app.Activity
 import android.content.Context
@@ -29,7 +29,6 @@ import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.EntitlementStatus
 import kotlinx.coroutines.CompletableDeferred
 
-// Extension function to convert callback to suspend function
 suspend fun Purchases.awaitProducts(productIds: List<String>): List<StoreProduct> {
     val deferred = CompletableDeferred<List<StoreProduct>>()
     getProducts(
@@ -40,7 +39,6 @@ suspend fun Purchases.awaitProducts(productIds: List<String>): List<StoreProduct
             }
 
             override fun onError(error: PurchasesError) {
-                // Not sure about this cast...
                 deferred.completeExceptionally(Exception(error.message))
             }
         },

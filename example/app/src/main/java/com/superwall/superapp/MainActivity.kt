@@ -1,4 +1,4 @@
-package com.superwall.exampleapp
+package com.superwall.superapp
 
 import android.content.Context
 import android.content.Intent
@@ -44,13 +44,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
-import com.superwall.exampleapp.ui.theme.SuperwallExampleAppTheme
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.delegate.SuperwallDelegate
 import com.superwall.sdk.identity.identify
 import com.superwall.sdk.identity.setUserAttributes
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
+import com.superwall.superapp.ui.theme.SuperwallExampleAppTheme
 
 class MainActivity :
     ComponentActivity(),

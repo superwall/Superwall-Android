@@ -1,4 +1,4 @@
-package com.superwall.exampleapp
+package com.superwall.superapp
 
 import android.app.Application
 import com.superwall.sdk.Superwall
