@@ -116,7 +116,7 @@ class PaywallView(
     // / The presentation style for the paywall.
     private var presentationStyle: PaywallPresentationStyle
 
-    private var shimmerView: PaywallShimmer? = null
+    private var shimmerView: PaywallShimmerView? = null
 
     private var loadingView: PaywallPurchaseLoadingView? = null
 
@@ -225,7 +225,7 @@ class PaywallView(
         this.unsavedOccurrence = unsavedOccurrence
     }
 
-    internal fun setupShimmer(shimmerView: PaywallShimmer) {
+    internal fun setupShimmer(shimmerView: PaywallShimmerView) {
         this.shimmerView = shimmerView
         if (shimmerView is View) {
             // Note: This always _is_ true, but the compiler doesn't know that
@@ -235,12 +235,14 @@ class PaywallView(
 
     internal fun setupLoading(loadingView: PaywallPurchaseLoadingView) {
         this.loadingView = loadingView
-        loadingView.setupFor(this, loadingState)
+        if (loadingView is View) {
+            loadingView.setupFor(this, loadingState)
+        }
     }
     //region Public functions
 
     fun setupWith(
-        shimmerView: PaywallShimmer,
+        shimmerView: PaywallShimmerView,
         loadingView: PaywallPurchaseLoadingView,
     ) {
         if (webView.parent == null) {
@@ -556,7 +558,7 @@ class PaywallView(
         }
         loadingView?.let {
             mainScope.launch {
-                (it as View).visibility = View.VISIBLE
+                it.showLoading()
             }
         }
     }
@@ -564,7 +566,7 @@ class PaywallView(
     private fun hideLoadingView() {
         loadingView?.let {
             mainScope.launch {
-                (it as View).visibility = View.GONE
+                it.hideLoading()
             }
         }
     }
