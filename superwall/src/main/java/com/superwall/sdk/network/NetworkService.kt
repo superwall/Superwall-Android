@@ -22,7 +22,7 @@ abstract class NetworkService {
         queryItems: List<URLQueryItem>? = null,
         isForDebugging: Boolean = false,
         requestId: String = UUID.randomUUID().toString(),
-        retryCount: Int = 6,
+        retryCount: Int = NetworkConsts.retryCount(),
     ): Either<T, NetworkError> where T : @Serializable Any =
         customHttpUrlConnection.request(
             buildRequestData = {
