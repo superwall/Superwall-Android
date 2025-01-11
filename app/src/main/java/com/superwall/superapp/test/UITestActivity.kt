@@ -45,11 +45,14 @@ class UITestInfo(
     val number: Int,
     val description: String,
     val testCaseType: TestCaseType = TestCaseType.iOS,
-    test: suspend Context.(testDispatcher: CoroutineScope, events: Flow<SuperwallEvent>) -> Unit,
+    test: suspend Context.(testDispatcher: CoroutineScope, events: Flow<SuperwallEvent>, message: MutableSharedFlow<Any?>) -> Unit,
 ) {
     private val events = MutableSharedFlow<SuperwallEvent?>(extraBufferCapacity = 50)
+    private val message = MutableSharedFlow<Any?>()
 
     fun events() = events
+
+    fun messages() = message
 
     val test: suspend Context.() -> Unit = {
         val scope = CoroutineScope(Dispatchers.IO)
@@ -67,7 +70,7 @@ class UITestInfo(
                     }
                 }
             }
-        test.invoke(this, scope, events().filterNotNull())
+        test.invoke(this, scope, events().filterNotNull(), message)
     }
 }
 
