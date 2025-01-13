@@ -4,6 +4,7 @@ import com.superwall.sdk.misc.Either
 import com.superwall.sdk.models.assignment.Assignment
 import com.superwall.sdk.models.assignment.AssignmentPostback
 import com.superwall.sdk.models.config.Config
+import com.superwall.sdk.models.entitlements.WebEntitlements
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.events.EventsRequest
 import com.superwall.sdk.models.geo.GeoInfo
@@ -26,4 +27,13 @@ interface SuperwallAPI {
     suspend fun getGeoInfo(): Either<GeoInfo, NetworkError>
 
     suspend fun getAssignments(): Either<List<Assignment>, NetworkError>
+
+    suspend fun webEntitlements(userId: String): Either<WebEntitlements, NetworkError>
+
+    suspend fun redeemToken(
+        token: String,
+        userId: String,
+    ): Either<WebEntitlements, NetworkError>
+
+    suspend fun redeemEmail(email: String): Either<WebEntitlements, NetworkError>
 }

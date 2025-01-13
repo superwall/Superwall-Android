@@ -5,6 +5,9 @@ import com.superwall.sdk.misc.Either
 import com.superwall.sdk.models.assignment.AssignmentPostback
 import com.superwall.sdk.models.assignment.ConfirmedAssignmentResponse
 import com.superwall.sdk.models.config.Config
+import com.superwall.sdk.models.entitlements.RedemptionEmail
+import com.superwall.sdk.models.entitlements.RedemptionToken
+import com.superwall.sdk.models.entitlements.WebEntitlements
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.Paywalls
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
@@ -75,4 +78,20 @@ class BaseHostService(
 
         return get<Paywall>("paywall/$identifier", queryItems = queryItems, isForDebugging = true)
     }
+
+    suspend fun redeemToken(
+        token: String,
+        userId: String,
+    ) = post<WebEntitlements>(
+        "redeem",
+        body = json.encodeToString(RedemptionToken(token, userId)).toByteArray(),
+    )
+
+    suspend fun redeemByEmail(email: String) =
+        post<WebEntitlements>(
+            "redeem",
+            body = json.encodeToString(RedemptionEmail(email)).toByteArray(),
+        )
+
+    suspend fun webEntitlements(userId: String) = get<WebEntitlements>("users/$userId/entitlements")
 }

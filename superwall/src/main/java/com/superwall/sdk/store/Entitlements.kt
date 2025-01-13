@@ -48,7 +48,7 @@ class Entitlements(
      * All entitlements, regardless of whether they're active or not.
      */
     val all: Set<Entitlement>
-        get() = _all.toSet()
+        get() = _all.toSet() + _entitlementsByProduct.values.flatten()
 
     /**
      * The active entitlements.
