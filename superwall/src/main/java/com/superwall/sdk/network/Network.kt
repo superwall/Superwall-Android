@@ -102,6 +102,23 @@ open class Network(
                 it.assignments
             }.logError("/assignments")
 
+    override suspend fun redeemToken(
+        token: String,
+        userId: String,
+    ) = baseHostService
+        .redeemToken(token, userId)
+        .logError("/redeem")
+
+    override suspend fun redeemEmail(email: String) =
+        baseHostService
+            .redeemByEmail(email)
+            .logError("/redeem")
+
+    override suspend fun webEntitlements(userId: String) =
+        baseHostService
+            .webEntitlements(userId)
+            .logError("/redeem")
+
     private suspend fun awaitUntilAppInForeground() {
         // Wait until the app is not in the background.
         factory.appLifecycleObserver
