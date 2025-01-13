@@ -445,6 +445,7 @@ class Superwall(
                         dependencyContainer.storage.recordAppInstall {
                             track(event = it)
                         }
+                        dependencyContainer.reedemer.checkForRefferal()
                         // Implicitly wait
                         dependencyContainer.configManager.fetchConfiguration()
                         dependencyContainer.identityManager.configure()
