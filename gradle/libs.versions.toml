@@ -33,7 +33,7 @@ uiautomator_version = "2.3.0"
 workRuntimeKtx_version = "2.9.0"
 serialization_version = "1.6.0"
 dropshot_version = "0.4.2"
-
+install_referrer = "2.2"
 [libraries]
 
 # SQL
@@ -72,7 +72,7 @@ lifecycle_runtime_ktx = { module = "androidx.lifecycle:lifecycle-runtime-ktx", v
 uiautomator = { module = "androidx.test.uiautomator:uiautomator", version.ref = "uiautomator_version" }
 work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "workRuntimeKtx_version" }
 lifecycle-process = { module = "androidx.lifecycle:lifecycle-process", version.ref = "lifecycleProcessVersion" }
-
+install_referrer = { module = "com.android.installreferrer:installreferrer", version.ref = "install_referrer"}
 # Coroutines
 kotlinx_coroutines_core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx_coroutines_core_version" }
 kotlinx-coroutines-guava = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-guava", version.ref = "kotlinxCoroutinesGuavaVersion" }
