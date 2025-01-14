@@ -200,12 +200,48 @@ private fun getWebviewFromPaywall() =
 
 @UiTestDSL
 suspend fun awaitUntilWebviewAppears(): Boolean {
-    val selector = UiSelector()
     val device = UiDevice.getInstance(getInstrumentation())
-    device.wait(Until.findObject(By.clazz(WebView::class.java.name)), 10000)
+    device.wait(Until.findObject(By.clazz(WebView::class.java.name)), 1000)
     device.waitForIdle()
     delay(300.milliseconds)
     return true
+}
+
+@UiTestDSL
+suspend fun enableWebviewDebugging() {
+    UiDevice
+        .getInstance(getInstrumentation())
+        .findObject(By.clazz(WebView::class.java))
+        .apply {
+        }
+}
+
+@UiTestDSL
+suspend fun clickButtonWith(text: String) {
+    val selector = UiSelector()
+    val device = UiDevice.getInstance(getInstrumentation())
+    device
+        .findObject(
+            UiSelector().textContains(text),
+        ).click()
+}
+
+@UiTestDSL
+suspend fun setInput(text: String) {
+    val device = UiDevice.getInstance(getInstrumentation())
+    with(
+        device.findObject(
+            UiSelector().focusable(true),
+        ),
+    ) {
+        this.setText(text)
+    }
+}
+
+@UiTestDSL
+suspend fun goBack() {
+    val device = UiDevice.getInstance(getInstrumentation())
+    device.pressBack()
 }
 
 @UiTestDSL

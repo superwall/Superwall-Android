@@ -17,28 +17,23 @@ import com.superwall.superapp.purchase.RevenueCatPurchaseController
 import kotlinx.coroutines.flow.MutableSharedFlow
 import java.lang.ref.WeakReference
 
+object Keys {
+    const val CONSTANT_API_KEY = "pk_0ff90006c5c2078e1ce832bd2343ba2f806ca510a0a1696a"
+    const val ANDROID_MAIN_SCREEN_API_KEY = "pk_d1f0959f70c761b1d55bb774a03e22b2b6ed290ce6561f85"
+    const val UI_TEST_API_KEY = "pk_0ff90006c5c2078e1ce832bd2343ba2f806ca510a0a1696a"
+    const val DEEP_LINK_OPEN_API_KEY = "pk_3faea4c721179218a245475ea9d378d1ecb9bf059411a0c0"
+    const val APP_LAUNCH_API_KEY = "pk_fb295f846b075fae6619eebb43d126ecddd1e3b18e7028b8"
+    const val APP_INSTALL_API_KEY = "pk_8db958db59cc8460969659822351d5e177d8d65cb295cff2"
+    const val SESSION_START_API_KEY = "pk_6c881299e2f8db59f697646e399397be76432fa0968ca254"
+    const val PAYWALL_DECLINE_API_KEY = "pk_6892bf95fdf329f01b7da4d4b77fcc6c1033d1ec3ef31da2"
+    const val TRANSACTION_ABANDON_API_KEY = "pk_f406422339b71cf568ffe8cba02f849ab27e9791bb9b2ed4"
+    const val TRANSACTION_FAIL_API_KEY = "pk_b6cd945401435766da627080a3fbe349adb2dcd69ab767f3"
+    const val SURVEY_RESPONSE_API_KEY = "pk_3698d9fe123f1e4aa8014ceca111096ca06fd68d31d9e662"
+}
+
 class MainApplication :
     android.app.Application(),
     SuperwallDelegate {
-    companion object {
-        const val CONSTANT_API_KEY = "pk_0ff90006c5c2078e1ce832bd2343ba2f806ca510a0a1696a"
-
-        /*
-        Copy and paste the following API keys to switch between apps.
-        App API Keys:
-            Android Main screen: pk_d1f0959f70c761b1d55bb774a03e22b2b6ed290ce6561f85
-            UITest (Android): pk_0ff90006c5c2078e1ce832bd2343ba2f806ca510a0a1696a
-            DeepLink Open: pk_3faea4c721179218a245475ea9d378d1ecb9bf059411a0c0
-            AppLaunch: pk_fb295f846b075fae6619eebb43d126ecddd1e3b18e7028b8
-            AppInstall: pk_8db958db59cc8460969659822351d5e177d8d65cb295cff2
-            SessionStart: pk_6c881299e2f8db59f697646e399397be76432fa0968ca254
-            PaywallDecline: pk_a1071d541642719e2dc854da9ec717ec967b8908854ede74
-            TransactionAbandon: pk_9c99186b023ae795e0189cf9cdcd3e2d2d174289e0800d66
-            TransactionFail: pk_b6cd945401435766da627080a3fbe349adb2dcd69ab767f3
-            SurveyResponse: pk_3698d9fe123f1e4aa8014ceca111096ca06fd68d31d9e662
-         */
-    }
-
     var activity: WeakReference<Activity>? = null
 
     override fun onCreate() {
@@ -63,7 +58,9 @@ class MainApplication :
                 .build(),
         )
 
-        configureWithObserverMode()
+        if (!isRunningTest()) {
+            configureWithObserverMode()
+        }
 //        configureWithRevenueCatInitialization()
     }
 
@@ -72,7 +69,7 @@ class MainApplication :
     fun configureWithAutomaticInitialization() {
         Superwall.configure(
             this,
-            CONSTANT_API_KEY,
+            Keys.CONSTANT_API_KEY,
             options =
                 SuperwallOptions().apply {
                     paywalls =
@@ -90,7 +87,7 @@ class MainApplication :
     fun configureWithObserverMode() {
         Superwall.configure(
             this@MainApplication,
-            CONSTANT_API_KEY,
+            Keys.CONSTANT_API_KEY,
             options =
                 SuperwallOptions().apply {
                     shouldObservePurchases = true
@@ -111,7 +108,7 @@ class MainApplication :
 
         Superwall.configure(
             this,
-            CONSTANT_API_KEY,
+            Keys.CONSTANT_API_KEY,
             purchaseController,
         )
         Superwall.instance.delegate = this
@@ -159,3 +156,13 @@ class MainApplication :
         )
     }
 }
+
+@Synchronized
+fun isRunningTest(): Boolean =
+    try {
+        // "android.support.test.espresso.Espresso" if you haven't migrated to androidx yet
+        Class.forName("androidx.test.espresso.Espresso")
+        true
+    } catch (e: ClassNotFoundException) {
+        false
+    }

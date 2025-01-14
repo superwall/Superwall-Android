@@ -1,7 +1,9 @@
 package com.example.superapp.test
 
+import android.app.Application
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.platform.app.InstrumentationRegistry.getInstrumentation
 import com.dropbox.dropshots.Dropshots
 import com.dropbox.dropshots.ThresholdValidator
 import com.example.superapp.utils.CustomComparator
@@ -9,8 +11,11 @@ import com.example.superapp.utils.FlowTestConfiguration
 import com.example.superapp.utils.awaitUntilDialogAppears
 import com.example.superapp.utils.paywallDoesntPresentForNoConfig
 import com.example.superapp.utils.screenshotFlow
+import com.superwall.sdk.Superwall
+import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.network.NetworkConsts
 import com.superwall.sdk.network.NetworkConsts.retryCount
+import com.superwall.superapp.Keys
 import com.superwall.superapp.test.UITestHandler
 import io.mockk.every
 import io.mockk.mockkObject
@@ -33,8 +38,17 @@ class NoConnectionTestExecutor {
 
     @Before
     fun setup() {
-        InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand("svc wifi disable")
-        InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand("svc data disable")
+        Superwall.configure(
+            getInstrumentation().targetContext.applicationContext as Application,
+            Keys.CONSTANT_API_KEY,
+            options =
+                SuperwallOptions().apply {
+                    paywalls.shouldPreload = false
+                },
+        )
+
+        getInstrumentation().uiAutomation.executeShellCommand("svc wifi disable")
+        getInstrumentation().uiAutomation.executeShellCommand("svc data disable")
     }
 
     @Test
