@@ -779,7 +779,11 @@ object UITestHandler {
                 "internet on device. You should not be subscribed. You SHOULD " +
                 "see !!! ERROR HANDLER !!! in the console and the alert should NOT show.",
             test = { scope, events, message ->
-                executeRegisterFeatureClosureTest(subscribed = false, gated = false, messagePipe = message)
+                executeRegisterFeatureClosureTest(
+                    subscribed = false,
+                    gated = false,
+                    messagePipe = message,
+                )
             },
         )
     var test42Info =
@@ -789,7 +793,11 @@ object UITestHandler {
                 "on device. You should not be subscribed.  You SHOULD " +
                 "see !!! ERROR HANDLER !!! in the console and the alert should NOT show.",
             test = { scope, events, message ->
-                executeRegisterFeatureClosureTest(subscribed = false, gated = true, messagePipe = message)
+                executeRegisterFeatureClosureTest(
+                    subscribed = false,
+                    gated = true,
+                    messagePipe = message,
+                )
             },
         )
     var test43Info =
@@ -799,7 +807,11 @@ object UITestHandler {
                 "device. You should NOT see !!! ERROR HANDLER !!! in the console and the alert " +
                 "SHOULD show.",
             test = { scope, events, message ->
-                executeRegisterFeatureClosureTest(subscribed = true, gated = false, messagePipe = message)
+                executeRegisterFeatureClosureTest(
+                    subscribed = true,
+                    gated = false,
+                    messagePipe = message,
+                )
             },
         )
     var test44Info =
@@ -809,7 +821,11 @@ object UITestHandler {
                 "device. You should NOT see !!! ERROR HANDLER !!! in the console and the alert " +
                 "SHOULD show.",
             test = { scope, events, message ->
-                executeRegisterFeatureClosureTest(subscribed = true, gated = true, messagePipe = message)
+                executeRegisterFeatureClosureTest(
+                    subscribed = true,
+                    gated = true,
+                    messagePipe = message,
+                )
             },
         )
     var test45Info =
@@ -819,7 +835,11 @@ object UITestHandler {
                 "paywall dismiss you should NOT see !!! ERROR HANDLER !!! in the console and the " +
                 "alert should show when you dismiss the paywall.",
             test = { scope, events, message ->
-                executeRegisterFeatureClosureTest(subscribed = false, gated = false, messagePipe = message)
+                executeRegisterFeatureClosureTest(
+                    subscribed = false,
+                    gated = false,
+                    messagePipe = message,
+                )
                 delay(4000)
             },
         )
@@ -830,7 +850,11 @@ object UITestHandler {
                 "NOT see !!! ERROR HANDLER !!! in the console and the alert should NOT show on " +
                 "paywall dismiss.",
             test = { scope, events, message ->
-                executeRegisterFeatureClosureTest(subscribed = false, gated = true, messagePipe = message)
+                executeRegisterFeatureClosureTest(
+                    subscribed = false,
+                    gated = true,
+                    messagePipe = message,
+                )
                 delay(4000)
             },
         )
@@ -840,7 +864,11 @@ object UITestHandler {
             "Fetched config, subscribed, and not gated. The paywall should NOT show. You " +
                 "should NOT see !!! ERROR HANDLER !!! in the console and the alert SHOULD show.",
             test = { scope, events, message ->
-                executeRegisterFeatureClosureTest(subscribed = true, gated = false, messagePipe = message)
+                executeRegisterFeatureClosureTest(
+                    subscribed = true,
+                    gated = false,
+                    messagePipe = message,
+                )
             },
         )
     var test48Info =
@@ -849,7 +877,11 @@ object UITestHandler {
             "Fetched config, subscribed, and gated. The paywall should NOT show. You should" +
                 " NOT see !!! ERROR HANDLER !!! in the console and the alert SHOULD show.",
             test = { scope, events, message ->
-                executeRegisterFeatureClosureTest(subscribed = true, gated = true, messagePipe = message)
+                executeRegisterFeatureClosureTest(
+                    subscribed = true,
+                    gated = true,
+                    messagePipe = message,
+                )
                 delay(4000)
             },
         )
@@ -946,23 +978,6 @@ object UITestHandler {
                 "then abandon the transaction. Another paywall will present. In the console " +
                 "you'll see !!! TEST 58 !!!",
             test = { scope, events, _ ->
-                // Create a mock Superwall delegate
-                val delegate = MockSuperwallDelegate()
-
-                // Set delegate
-                Superwall.instance.delegate = delegate
-
-                // Respond to Superwall events
-                delegate.handleSuperwallEvent { eventInfo ->
-                    when (eventInfo.event) {
-                        is SuperwallEvent.TransactionAbandon -> {
-                            println("!!! TEST 58 !!! TransactionAbandon.")
-                        }
-
-                        else -> return@handleSuperwallEvent
-                    }
-                }
-
                 Superwall.instance.register("campaign_trigger")
             },
         )
@@ -1038,6 +1053,7 @@ object UITestHandler {
                 Superwall.instance.register(event = "present_urls")
             },
         )
+
     var test63Info =
         UITestInfo(
             63,
@@ -1108,7 +1124,7 @@ object UITestHandler {
                 "show. Choose the other option and type \"Test\" and tap Submit. The console " +
                 "will print out !!! TEST 65!!! with PaywallClose and again with SurveyResponse. " +
                 "The feature block will fire.",
-            test = { scope, events, _ ->
+            test = { scope, events, message ->
                 // Create a mock Superwall delegate
                 val delegate = MockSuperwallDelegate()
 
@@ -1119,11 +1135,16 @@ object UITestHandler {
                 delegate.handleSuperwallEvent { eventInfo ->
                     when (eventInfo.event) {
                         is SuperwallEvent.PaywallClose -> {
-                            println("!!! TEST 65 !!! PaywallClose")
+                            scope.launch {
+                                message.emit(eventInfo.event)
+                            }
                         }
 
                         is SuperwallEvent.SurveyResponse -> {
-                            println("!!! TEST 65 !!! SurveyResponse")
+                            scope.launch {
+                                message.emit(eventInfo.event)
+                                println("!!! TEST 65 !!! SurveyResponse")
+                            }
                         }
 
                         else -> return@handleSuperwallEvent
@@ -1196,7 +1217,7 @@ object UITestHandler {
                 { scope, events, _ ->
                     // Create a mock Superwall delegate
                     val delegate = MockSuperwallDelegate()
-
+                    Superwall.instance.setEntitlementStatus(EntitlementStatus.Inactive)
                     // Set delegate
                     Superwall.instance.delegate = delegate
 
@@ -1429,7 +1450,7 @@ object UITestHandler {
         )
     var testAndroid4Info =
         UITestInfo(
-            4,
+            40,
             "NOTE: Must use `Android Main screen` API key. Launch compose debug screen: " +
                 "Verify that paywall loads in Tab 0. Go to Tab 2 and press `Another Paywall` button. " +
                 "Verify that paywall does not load (only 1 paywall can be displayed at once).",
@@ -1441,7 +1462,7 @@ object UITestHandler {
         )
     var testAndroid9Info =
         UITestInfo(
-            9,
+            90,
             "Tap launch button. It should display the paywall. Tap again and it should NOT " +
                 "display again. You will need to delete and reinstall the app to test this again. " +
                 "This tests the occurrence limit.",
@@ -1453,7 +1474,7 @@ object UITestHandler {
 
     var testAndroid18Info =
         UITestInfo(
-            18,
+            180,
             "Tap launch button. It should display the paywall. Tap again and it should NOT " +
                 "display again within a minute, printing a NoRuleMatch in the console. After a " +
                 "minute, tap again, and it should show. You will need to delete and reinstall " +
@@ -1465,7 +1486,7 @@ object UITestHandler {
         )
     var testAndroid19Info =
         UITestInfo(
-            19,
+            190,
             "Tap launch button. The paywall should not display until one day or longer has " +
                 "passed since the last once_a_minute event. You'll get a NoRuleMatch in the " +
                 "console.",
@@ -1476,7 +1497,7 @@ object UITestHandler {
         )
     var testAndroid20Info =
         UITestInfo(
-            20,
+            200,
             "Non-recurring product purchase. Purchase the product and",
             testCaseType = TestCaseType.Android,
             test = { scope, events, _ ->
@@ -1502,7 +1523,7 @@ object UITestHandler {
         )
     var testAndroid21Info =
         UITestInfo(
-            21,
+            210,
             "Tap launch button. Paywall should display. Tests that paywalls with products " +
                 "that have base plans and offerIds works.",
             testCaseType = TestCaseType.Android,
@@ -1512,7 +1533,7 @@ object UITestHandler {
         )
     var testAndroid22Info =
         UITestInfo(
-            22,
+            220,
             "Tap launch button. Paywall should display. Purchase then quit app. Notification" +
                 " should appear after a minute.",
             testCaseType = TestCaseType.Android,
@@ -1522,15 +1543,23 @@ object UITestHandler {
         )
     var testAndroid23Info =
         UITestInfo(
-            23,
+            230,
             "Tap button. You should see first_name: Jack printed out in user attributes " +
                 "then the user attributes shouldn't contain first_name",
             testCaseType = TestCaseType.Android,
-            test = { scope, events, _ ->
+            test = { scope, events, msg ->
                 Superwall.instance.setUserAttributes(attributes = mapOf("first_name" to "Jack"))
-                println(Superwall.instance.userAttributes)
+                val attributes = Superwall.instance.userAttributes
+                println(attributes)
+                scope.launch {
+                    msg.emit(attributes)
+                }
                 Superwall.instance.setUserAttributes(attributes = mapOf("first_name" to null))
-                println(Superwall.instance.userAttributes)
+                val next = Superwall.instance.userAttributes
+                println(next)
+                scope.launch {
+                    msg.emit(next)
+                }
             },
         )
 
