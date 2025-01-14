@@ -2,13 +2,18 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
-## 2.0.0-Alpha
+## 1.5.2
 
-- Removes `PaywallComposable` and Jetpack Compose support from main SDK
-- Adds `Superwall-Compose` module for Jetpack Compose support:
-    - You can find it at `com.superwall.sdk:superwall-compose:2.0.0-alpha`
-- Adds consumer proguard rules to enable consumer minification
-- Removed methods previously marked as Deprecated
+### Fixes
+- Fix chromium crashes caused by race conditions in webview's implementation
+
+## 1.5.1
+
+### Enhancements
+- Updates superscript dependencies to reduce minSDK version
+
+### Fixes
+- Adds consumer proguard rules to avoid minifying JNA classes during minification
 
 ## 1.5.5
 
