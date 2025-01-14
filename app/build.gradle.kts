@@ -18,10 +18,7 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
-        testInstrumentationRunnerArguments +=
-            mapOf(
-                "clearPackageData" to "true",
-            )
+        testInstrumentationRunnerArguments["clearPackageData"] = "true"
         testInstrumentationRunnerArguments["no-isolated-storage"] = "1"
     }
 
@@ -56,6 +53,7 @@ android {
         kotlinCompilerExtensionVersion = "1.5.0"
     }
     packaging {
+        resources.excludes += "META-INF/{AL2.0,LGPL2.1}"
         resources.excludes += "META-INF/LICENSE.md"
         resources.excludes += "META-INF/LICENSE-notice.md"
     }
