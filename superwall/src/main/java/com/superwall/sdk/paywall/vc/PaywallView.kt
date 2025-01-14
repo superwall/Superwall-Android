@@ -312,7 +312,12 @@ class PaywallView(
 
         Superwall.instance.dependencyContainer.delegateAdapter
             .willPresentPaywall(info)
-        webView.setRendererPriorityPolicy(RENDERER_PRIORITY_IMPORTANT, true)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            runCatching {
+                // This call might fail sometimes due to webview inter
+                webView.setRendererPriorityPolicy(RENDERER_PRIORITY_IMPORTANT, true)
+            }
+        }
         webView.scrollTo(0, 0)
         if (loadingState is PaywallLoadingState.Ready) {
             webView.messageHandler.handle(PaywallMessage.TemplateParamsAndUserAttributes)
