@@ -2,6 +2,11 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 1.5.2
+
+### Fixes
+- Fix chromium crashes caused by race conditions in webview's implementation
+
 ## 1.5.1
 
 ### Enhancements
