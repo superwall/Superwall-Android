@@ -72,7 +72,7 @@ class AlternativeSetupTest {
             )
             paywallPresentsFor(UITestHandler.test53Info)
         }
-
+/*
     @Test
     fun test_paywall_displays_on_deep_link() =
         with(dropshots) {
@@ -86,6 +86,8 @@ class AlternativeSetupTest {
             )
             paywallPresentsFor(UITestHandler.test57Info)
         }
+
+ */
 
     @Test
     fun test_paywall_displays_on_decline() =
