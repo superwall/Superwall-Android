@@ -89,9 +89,9 @@ internal class ErrorTracker(
                         "com.revenuecat.purchases",
                     )
                 ) {
-                    it.map { if (it.isLetter()) "*" else it }
-                } else {
                     it
+                } else {
+                    it.map { if (it.isLetter()) "*" else it }
                 }
             }.joinToString("\n")
 
@@ -123,7 +123,6 @@ internal fun Superwall.trackError(e: Throwable) {
     try {
         dependencyContainer.errorTracker.trackError(e)
     } catch (e: Exception) {
-        e.printStackTrace()
         Logger.debug(
             com.superwall.sdk.logger.LogLevel.error,
             com.superwall.sdk.logger.LogScope.all,
