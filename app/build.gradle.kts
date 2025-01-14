@@ -52,8 +52,10 @@ android {
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.0"
     }
-    packagingOptions {
-        resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
+    packaging {
+        resources.excludes += "META-INF/{AL2.0,LGPL2.1}"
+        resources.excludes += "META-INF/LICENSE.md"
+        resources.excludes += "META-INF/LICENSE-notice.md"
     }
 }
 
@@ -97,10 +99,12 @@ dependencies {
     androidTestImplementation(libs.ui.test.junit4)
     androidTestImplementation(libs.uiautomator)
     androidTestImplementation(libs.test.runner)
+    androidTestImplementation(libs.mockk.android)
+    androidTestImplementation(libs.mockk.core)
     androidTestUtil(libs.orchestrator)
 
     // Debug
-    debugImplementation(libs.leakcanary.android)
+    // debugImplementation(libs.leakcanary.android)
     debugImplementation(libs.ui.tooling)
     debugImplementation(libs.ui.test.manifest)
 }

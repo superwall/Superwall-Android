@@ -1,9 +1,12 @@
 package com.example.superapp.test
 
+import android.app.Application
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry.getInstrumentation
 import com.dropbox.dropshots.Dropshots
 import com.dropbox.dropshots.ThresholdValidator
 import com.example.superapp.utils.CustomComparator
+import com.example.superapp.utils.FlowTestConfiguration
 import com.example.superapp.utils.awaitUntilDialogAppears
 import com.example.superapp.utils.awaitUntilShimmerDisappears
 import com.example.superapp.utils.awaitUntilWebviewAppears
@@ -14,10 +17,14 @@ import com.example.superapp.utils.screenshotFlow
 import com.example.superapp.utils.waitFor
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.superwall.SuperwallEvent
+import com.superwall.sdk.config.options.SuperwallOptions
+import com.superwall.superapp.Keys
 import com.superwall.superapp.test.UITestHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.test.runTest
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -32,6 +39,18 @@ class SimpleScreenshotTestExecutor {
             resultValidator = ThresholdValidator(0.01f),
             imageComparator = CustomComparator(),
         )
+
+    @Before
+    fun setup() {
+        Superwall.configure(
+            getInstrumentation().targetContext.applicationContext as Application,
+            Keys.CONSTANT_API_KEY,
+            options =
+                SuperwallOptions().apply {
+                    paywalls.shouldPreload = false
+                },
+        )
+    }
 
     @Test
     fun test_paywall_displays_with_attribute_first() =
@@ -173,5 +192,60 @@ class SimpleScreenshotTestExecutor {
     fun test_paywall_presents_double_identify_with_same_id() =
         with(dropshots) {
             paywallPresentsFor(UITestHandler.test33Info)
+        }
+
+    @Test
+    fun test_feature_closure_with_config_not_subscribed_not_gated() =
+        runTest {
+            with(dropshots) {
+                screenshotFlow(UITestHandler.test45Info) {
+                    step("") {
+                        it.waitFor { it is SuperwallEvent.PaywallWebviewLoadComplete }
+                        awaitUntilShimmerDisappears() || awaitUntilWebviewAppears()
+                        delayFor(2.seconds)
+                    }
+                    step("") {
+                        awaitUntilDialogAppears()
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun test_feature_closure_with_config_not_subscribed_gated() =
+        runTest {
+            with(dropshots) {
+                screenshotFlow(UITestHandler.test46Info, FlowTestConfiguration(true)) {
+                    step("") {
+                        it.waitFor { it is SuperwallEvent.PaywallWebviewLoadComplete }
+                        awaitUntilShimmerDisappears() || awaitUntilWebviewAppears()
+                        delayFor(2.seconds)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun test_feature_closure_with_config_subscribed_not_gated() =
+        runTest {
+            with(dropshots) {
+                screenshotFlow(UITestHandler.test47Info, FlowTestConfiguration(false)) {
+                    step("") {
+                        awaitUntilDialogAppears()
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun test_feature_closure_with_config_subscribed_gated() =
+        runTest {
+            with(dropshots) {
+                screenshotFlow(UITestHandler.test48Info, FlowTestConfiguration(false)) {
+                    step("") {
+                        awaitUntilDialogAppears()
+                    }
+                }
+            }
         }
 }
