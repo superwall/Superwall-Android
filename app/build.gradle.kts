@@ -18,7 +18,10 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
-        testInstrumentationRunnerArguments["clearPackageData"] = "true"
+        testInstrumentationRunnerArguments +=
+            mapOf(
+                "clearPackageData" to "true",
+            )
         testInstrumentationRunnerArguments["no-isolated-storage"] = "1"
     }
 
@@ -98,8 +101,8 @@ dependencies {
     androidTestImplementation(libs.ui.test.junit4)
     androidTestImplementation(libs.uiautomator)
     androidTestImplementation(libs.test.runner)
-    androidTestImplementation(libs.mockk.core)
     androidTestImplementation(libs.mockk.android)
+    androidTestImplementation(libs.mockk.core)
     androidTestUtil(libs.orchestrator)
 
     // Debug
