@@ -2,6 +2,11 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 1.5.3
+
+### Enhancements
+- Add `purchaseToken` to TransactionComplete
+
 ## 1.5.2
 
 ### Fixes
