@@ -11,12 +11,14 @@ import com.superwall.sdk.misc.toResult
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.paywall.presentation.dismiss
 import com.superwall.sdk.paywall.presentation.dismissForNextPaywall
+import com.superwall.sdk.paywall.presentation.get_presentation_result.internallyGetPresentationResult
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.internallyPresent
 import com.superwall.sdk.paywall.presentation.internal.operators.logErrors
 import com.superwall.sdk.paywall.presentation.internal.operators.waitForSubsStatusAndConfig
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
+import com.superwall.sdk.paywall.presentation.result.PresentationResult
 import com.superwall.sdk.storage.DisableVerboseEvents
 import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.CoroutineScope
@@ -153,8 +155,13 @@ private suspend fun Superwall.internallyHandleImplicitTrigger(
 
             TrackingLogic.ImplicitTriggerOutcome.ClosePaywallThenTriggerPaywall -> {
                 val lastPresentationItems = presentationItems.last ?: return@withErrorTracking
-                dismissForNextPaywall()
-                statePublisher = lastPresentationItems.statePublisher
+                val presentationResult = internallyGetPresentationResult(event, true)
+                if (presentationResult is PresentationResult.Paywall) {
+                    dismissForNextPaywall()
+                    statePublisher = lastPresentationItems.statePublisher
+                } else {
+                    return@withErrorTracking
+                }
             }
 
             TrackingLogic.ImplicitTriggerOutcome.TriggerPaywall -> {}
