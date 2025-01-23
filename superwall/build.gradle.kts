@@ -17,13 +17,13 @@ buildscript {
 plugins {
     id("com.android.library")
     kotlin("android")
-    kotlin("kapt")
-    alias(libs.plugins.serialization)
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.serialization) // Maven publishing
     id("maven-publish")
     id("signing")
 }
 
-version = "2.0.0-alpha.1"
+version = "1.5.3"
 
 android {
     compileSdk = 34
@@ -181,7 +181,7 @@ dependencies {
     implementation(libs.lifecycle.process)
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
-    kapt(libs.room.compiler)
+    ksp(libs.room.compiler)
     implementation(libs.kotlinx.coroutines.guava)
 
     implementation(libs.threetenbp)

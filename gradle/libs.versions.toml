@@ -33,11 +33,12 @@ uiautomator_version = "2.3.0"
 workRuntimeKtx_version = "2.9.0"
 serialization_version = "1.6.0"
 dropshot_version = "0.4.2"
-
+ksp = "1.9.0-1.0.13"
 [libraries]
 
 # SQL
 
+jna = { module = "net.java.dev.jna:jna", version.ref = "jna_version" }
 leakcanary-android = { module = "com.squareup.leakcanary:leakcanary-android", version.ref = "leakcanaryAndroidVersion" }
 orchestrator = { module = "androidx.test:orchestrator", version.ref = "orchestratorVersion" }
 room-compiler = { module = "androidx.room:room-compiler", version.ref = "room_runtime_version" }
@@ -103,4 +104,5 @@ androidApplication = { id = "com.android.application", version.ref = "gradle_plu
 kotlinAndroid = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "serialization_version" }
 dropshot = { id = "com.dropbox.dropshots", version.ref = "dropshot_version" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp"}
 androidLibrary = { id = "com.android.library", version.ref = "gradle_plugin_version" }
