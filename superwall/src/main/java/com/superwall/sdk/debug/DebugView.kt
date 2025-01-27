@@ -38,7 +38,7 @@ import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.fold
 import com.superwall.sdk.misc.toResult
-import com.superwall.sdk.models.entitlements.EntitlementStatus
+import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.paywall.manager.PaywallManager
@@ -835,7 +835,7 @@ class DebugView(
         // bottomButton.setImageDrawable(null)
         // bottomButton.showLoading = true
 
-        val inactiveSubscriptionPublisher = MutableStateFlow(EntitlementStatus.Inactive)
+        val inactiveSubscriptionPublisher = MutableStateFlow(SubscriptionStatus.Inactive)
 
         val presentationRequest =
             factory.makePresentationRequest(
@@ -846,7 +846,7 @@ class DebugView(
                 paywallOverrides = null,
                 presenter = encapsulatingActivity,
                 isDebuggerLaunched = true,
-                entitlementStatus = inactiveSubscriptionPublisher,
+                subscriptionStatus = inactiveSubscriptionPublisher,
                 isPaywallPresented = Superwall.instance.isPaywallPresented,
                 type = PresentationRequestType.Presentation,
             )

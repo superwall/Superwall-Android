@@ -22,7 +22,7 @@ import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.IOScope
-import com.superwall.sdk.models.entitlements.EntitlementStatus
+import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.store.abstractions.product.OfferType
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import kotlinx.coroutines.CompletableDeferred
@@ -283,7 +283,7 @@ class AutomaticPurchaseController(
 
         val hasActivePurchaseOrSubscription =
             allPurchases.any { it.purchaseState == Purchase.PurchaseState.PURCHASED }
-        val status: EntitlementStatus =
+        val status: SubscriptionStatus =
             if (hasActivePurchaseOrSubscription) {
                 subscriptionPurchases
                     .flatMap {
@@ -295,13 +295,13 @@ class AutomaticPurchaseController(
                     }.toSet()
                     .let { entitlements ->
                         if (entitlements.isNotEmpty()) {
-                            EntitlementStatus.Active(entitlements)
+                            SubscriptionStatus.Active(entitlements)
                         } else {
-                            EntitlementStatus.Inactive
+                            SubscriptionStatus.Inactive
                         }
                     }
             } else {
-                EntitlementStatus.Inactive
+                SubscriptionStatus.Inactive
             }
 
         if (!Superwall.initialized) {
@@ -313,7 +313,7 @@ class AutomaticPurchaseController(
             return
         }
 
-        Superwall.instance.setEntitlementStatus(status)
+        Superwall.instance.setSubscriptionStatus(status)
     }
 
     private suspend fun queryPurchasesOfType(productType: String): List<Purchase> {

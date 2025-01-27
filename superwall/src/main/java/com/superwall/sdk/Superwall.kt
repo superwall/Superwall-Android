@@ -34,7 +34,7 @@ import com.superwall.sdk.misc.launchWithTracking
 import com.superwall.sdk.misc.toResult
 import com.superwall.sdk.models.assignment.ConfirmedAssignment
 import com.superwall.sdk.models.entitlements.Entitlement
-import com.superwall.sdk.models.entitlements.EntitlementStatus
+import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.network.device.InterfaceStyle
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
@@ -71,6 +71,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
@@ -201,40 +202,40 @@ class Superwall(
      * be synced with the user's purchases on device.
      *
      * Paywalls will not show until the subscription status has been established.
-     * On first install, it's value will default to [EntitlementStatus.Unknown]. Afterwards, it'll
+     * On first install, it's value will default to [SubscriptionStatus.Unknown]. Afterwards, it'll
      * default to its cached value.
      *
-     * You can observe [entitlements.status] to get notified whenever the user's subscription status
+     * You can observe [subscriptionStatus] to get notified whenever the user's subscription status
      * changes.
      *
      * Otherwise, you can check the delegate function
-     * [SuperwallDelegate.entitlementStatusDidChange]
+     * [SuperwallDelegate.subscriptionStatusDidChange]
      * to receive a callback with the new value every time it changes.
      *
      * To learn more, see
      * [Purchases and Subscription Status](https://docs.superwall.com/docs/advanced-configuration).
      *
-     * @param entitlementStatus The entitlement status of the user.
+     * @param subscriptionStatus The entitlement status of the user.
      */
-    fun setEntitlementStatus(entitlementStatus: EntitlementStatus) {
-        entitlements.setEntitlementStatus(entitlementStatus)
+    fun setSubscriptionStatus(subscriptionStatus: SubscriptionStatus) {
+        entitlements.setEntitlementStatus(subscriptionStatus)
     }
 
     /**
-     * Simplified version of [Superwall.setEntitlementStatus] that allows
+     * Simplified version of [Superwall.setSubscriptionStatus] that allows
      * you to set the entitlements by passing in an array of strings.
-     * An empty list is treated as [EntitlementStatus.Inactive].
+     * An empty list is treated as [SubscriptionStatus.Inactive].
      * Example:
-     * `setEntitlementStatus("default", "pro")` equals `EntitlementStatus.Active(setOf(Entitlement("default"), Entitlement("pro")))`
-     * `setEntitlementStatus()` equals `EntitlementStatus.Inactive`
+     * `setSubscriptionStatus("default", "pro")` equals `SubscriptionStatus.Active(setOf(Entitlement("default"), Entitlement("pro")))`
+     * `setSubscriptionStatus()` equals `SubscriptionStatus.Inactive`
      *
      * @param entitlements A list of entitlements.
      * */
-    fun setEntitlementStatus(vararg entitlements: String) {
+    fun setSubscriptionStatus(vararg entitlements: String) {
         if (entitlements.isEmpty()) {
-            this.entitlements.setEntitlementStatus(EntitlementStatus.Inactive)
+            this.entitlements.setEntitlementStatus(SubscriptionStatus.Inactive)
         } else {
-            this.setEntitlementStatus(EntitlementStatus.Active(entitlements.map { Entitlement(it) }.toSet()))
+            this.setSubscriptionStatus(SubscriptionStatus.Active(entitlements.map { Entitlement(it) }.toSet()))
         }
     }
 
@@ -274,6 +275,10 @@ class Superwall(
 
     val entitlements: Entitlements by lazy {
         dependencyContainer.entitlements
+    }
+
+    val subscriptionStatus: StateFlow<SubscriptionStatus> by lazy {
+        dependencyContainer.entitlements.status
     }
 
     /**
@@ -337,7 +342,7 @@ class Superwall(
          * [sign up for free](https://superwall.com/sign-up).
          * @param purchaseController An object that conforms to [PurchaseController]. You must
          * implement this to handle all subscription-related logic yourself. You'll need to also
-         * call [setEntitlementStatus] every time the user's subscription status changes. You can
+         * call [setSubscriptionStatus] every time the user's subscription status changes. You can
          * read more about that in
          * [Purchases and Subscription Status](https://docs.superwall.com/docs/advanced-configuration).
          * @param options An optional [SuperwallOptions] object which allows you to customise the
@@ -427,10 +432,10 @@ class Superwall(
                     throw e
                 }
 
-                val cachedEntitlementStatus =
+                val cachedSubscriptionStatus =
                     dependencyContainer.storage.read(StoredEntitlementStatus)
-                        ?: EntitlementStatus.Unknown
-                setEntitlementStatus(cachedEntitlementStatus)
+                        ?: SubscriptionStatus.Unknown
+                setSubscriptionStatus(cachedSubscriptionStatus)
 
                 addListeners()
 

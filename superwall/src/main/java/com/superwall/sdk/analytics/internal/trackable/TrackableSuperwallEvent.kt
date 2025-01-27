@@ -10,7 +10,7 @@ import com.superwall.sdk.config.options.toMap
 import com.superwall.sdk.dependencies.ComputedPropertyRequestsFactory
 import com.superwall.sdk.dependencies.FeatureFlagsFactory
 import com.superwall.sdk.dependencies.RuleAttributesFactory
-import com.superwall.sdk.models.entitlements.EntitlementStatus
+import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.triggers.InternalTriggerResult
 import com.superwall.sdk.paywall.presentation.PaywallInfo
@@ -256,16 +256,16 @@ sealed class InternalSuperwallEvent(
     }
 
     class EntitlementStatusDidChange(
-        val entitlementStatus: EntitlementStatus,
+        val subscriptionStatus: SubscriptionStatus,
         override var audienceFilterParams: HashMap<String, Any> = HashMap(),
     ) : InternalSuperwallEvent(SuperwallEvent.EntitlementStatusDidChange()) {
         override suspend fun getSuperwallParameters(): HashMap<String, Any> =
             hashMapOf(
                 "entitlement_status" to {
-                    when (entitlementStatus) {
-                        is EntitlementStatus.Active -> "active"
-                        is EntitlementStatus.Inactive -> "inactive"
-                        is EntitlementStatus.Unknown -> "unknown"
+                    when (subscriptionStatus) {
+                        is SubscriptionStatus.Active -> "active"
+                        is SubscriptionStatus.Inactive -> "inactive"
+                        is SubscriptionStatus.Unknown -> "unknown"
                     }
                 },
             )

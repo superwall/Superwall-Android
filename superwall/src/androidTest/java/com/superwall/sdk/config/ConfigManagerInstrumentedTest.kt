@@ -19,7 +19,7 @@ import com.superwall.sdk.models.assignment.Assignment
 import com.superwall.sdk.models.assignment.ConfirmableAssignment
 import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.models.config.RawFeatureFlag
-import com.superwall.sdk.models.entitlements.EntitlementStatus
+import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.geo.GeoInfo
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.Trigger
@@ -91,7 +91,7 @@ class ConfigManagerUnderTest(
         entitlements =
             Entitlements(
                 mockk<Storage>(relaxUnitFun = true) {
-                    every { read(StoredEntitlementStatus) } returns EntitlementStatus.Unknown
+                    every { read(StoredEntitlementStatus) } returns SubscriptionStatus.Unknown
                     every { read(StoredEntitlementsByProductId) } returns emptyMap()
                 },
             ),

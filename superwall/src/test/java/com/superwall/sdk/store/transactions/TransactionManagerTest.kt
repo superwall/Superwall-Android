@@ -15,7 +15,7 @@ import com.superwall.sdk.delegate.RestorationResult
 import com.superwall.sdk.misc.ActivityProvider
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.models.entitlements.Entitlement
-import com.superwall.sdk.models.entitlements.EntitlementStatus
+import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.product.Offer
 import com.superwall.sdk.models.product.PlayStoreProduct
@@ -136,8 +136,8 @@ class TransactionManagerTest {
     fun TestScope.manager(
         track: (TrackableSuperwallEvent) -> Unit = {},
         dismiss: (paywallView: PaywallView, result: PaywallResult) -> Unit = { _, _ -> },
-        entitlementStatus: () -> EntitlementStatus = {
-            EntitlementStatus.Active(entitlements)
+        subscriptionStatus: () -> SubscriptionStatus = {
+            SubscriptionStatus.Active(entitlements)
         },
         options: SuperwallOptions.() -> Unit = {},
     ): TransactionManager {
@@ -149,7 +149,7 @@ class TransactionManagerTest {
             purchaseController = purchaseController,
             storeManager = storeManager,
             activityProvider = activityProvider,
-            entitlementStatus = entitlementStatus,
+            subscriptionStatus = subscriptionStatus,
             track = { track(it) },
             dismiss = { i, e -> dismiss(i, e) },
             eventsQueue = eventsQueue,
@@ -633,7 +633,7 @@ class TransactionManagerTest {
                         track = { e ->
                             events.update { it + e }
                         },
-                        entitlementStatus = { EntitlementStatus.Active(entitlements) },
+                        subscriptionStatus = { SubscriptionStatus.Active(entitlements) },
                     )
                 coEvery { purchaseController.restorePurchases() } returns RestorationResult.Restored()
 
@@ -663,7 +663,7 @@ class TransactionManagerTest {
                         track = { e ->
                             events.update { it + e }
                         },
-                        entitlementStatus = { EntitlementStatus.Active(entitlements) },
+                        subscriptionStatus = { SubscriptionStatus.Active(entitlements) },
                     )
                 coEvery { purchaseController.restorePurchases() } returns RestorationResult.Restored()
 
@@ -693,7 +693,7 @@ class TransactionManagerTest {
                         track = { e ->
                             events.update { it + e }
                         },
-                        entitlementStatus = { EntitlementStatus.Inactive },
+                        subscriptionStatus = { SubscriptionStatus.Inactive },
                     )
 
                 coEvery { purchaseController.restorePurchases() } returns
@@ -737,7 +737,7 @@ class TransactionManagerTest {
                         track = { e ->
                             events.update { it + e }
                         },
-                        entitlementStatus = { EntitlementStatus.Inactive },
+                        subscriptionStatus = { SubscriptionStatus.Inactive },
                     )
 
                 coEvery { purchaseController.restorePurchases() } returns RestorationResult.Restored()

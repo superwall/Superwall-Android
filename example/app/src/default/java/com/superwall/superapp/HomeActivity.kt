@@ -31,7 +31,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import com.superwall.exampleapp.ui.theme.SuperwallExampleAppTheme
 import com.superwall.sdk.Superwall
-import com.superwall.sdk.models.entitlements.EntitlementStatus
+import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.paywall.presentation.PaywallPresentationHandler
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallSkippedReason
 import com.superwall.sdk.paywall.presentation.register
@@ -47,7 +47,7 @@ class HomeActivity : ComponentActivity() {
                 .collectAsState()
             SuperwallExampleAppTheme {
                 HomeScreen(
-                    entitlementStatus = entitlementStatus,
+                    subscriptionStatus = entitlementStatus,
                     onLogOutClicked = {
                         finish()
                     },
@@ -59,19 +59,19 @@ class HomeActivity : ComponentActivity() {
 
 @Composable
 fun HomeScreen(
-    entitlementStatus: EntitlementStatus,
+    subscriptionStatus: SubscriptionStatus,
     onLogOutClicked: () -> Unit,
 ) {
     val context = LocalContext.current
     val subscriptionText =
-        when (entitlementStatus) {
-            is EntitlementStatus.Unknown -> "Loading subscription status."
-            is EntitlementStatus.Active ->
+        when (subscriptionStatus) {
+            is SubscriptionStatus.Unknown -> "Loading subscription status."
+            is SubscriptionStatus.Active ->
                 "You currently have an active subscription. Therefore, the " +
                     "paywall will never show. For the purposes of this app, delete and reinstall the " +
                     "app to clear subscriptions."
 
-            is EntitlementStatus.Inactive ->
+            is SubscriptionStatus.Inactive ->
                 "You do not have an active subscription so the paywall will " +
                     "show when clicking the button."
         }
