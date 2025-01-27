@@ -33,7 +33,7 @@ import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.MainScope
 import com.superwall.sdk.models.config.ComputedPropertyRequest
 import com.superwall.sdk.models.config.FeatureFlags
-import com.superwall.sdk.models.entitlements.EntitlementStatus
+import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.product.ProductVariable
@@ -562,7 +562,7 @@ class DependencyContainer(
         paywallOverrides: PaywallOverrides?,
         presenter: Activity?,
         isDebuggerLaunched: Boolean?,
-        entitlementStatus: StateFlow<EntitlementStatus?>?,
+        subscriptionStatus: StateFlow<SubscriptionStatus?>?,
         isPaywallPresented: Boolean,
         type: PresentationRequestType,
     ): PresentationRequest =
@@ -574,7 +574,7 @@ class DependencyContainer(
                 PresentationRequest.Flags(
                     isDebuggerLaunched = isDebuggerLaunched ?: debugManager.isDebuggerLaunched,
                     // TODO: (PresentationCritical) Fix subscription status
-                    entitlements = entitlementStatus ?: Superwall.instance.entitlements.status,
+                    entitlements = subscriptionStatus ?: Superwall.instance.entitlements.status,
 //                subscriptionStatus = subscriptionStatus!!,
                     isPaywallPresented = isPaywallPresented,
                     type = type,
