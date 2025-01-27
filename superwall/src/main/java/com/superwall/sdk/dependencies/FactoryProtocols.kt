@@ -14,7 +14,7 @@ import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.MainScope
 import com.superwall.sdk.models.config.ComputedPropertyRequest
 import com.superwall.sdk.models.config.FeatureFlags
-import com.superwall.sdk.models.entitlements.EntitlementStatus
+import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.product.ProductVariable
@@ -81,7 +81,7 @@ interface RequestFactory {
         paywallOverrides: PaywallOverrides? = null,
         presenter: Activity? = null,
         isDebuggerLaunched: Boolean? = null,
-        entitlementStatus: StateFlow<EntitlementStatus?>? = null,
+        subscriptionStatus: StateFlow<SubscriptionStatus?>? = null,
         isPaywallPresented: Boolean,
         type: PresentationRequestType,
     ): PresentationRequest

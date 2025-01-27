@@ -2,12 +2,12 @@ package com.superwall.sdk.delegate
 
 import android.net.Uri
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
-import com.superwall.sdk.models.entitlements.EntitlementStatus
+import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import java.net.URI
 
 interface SuperwallDelegate {
-    fun entitlementStatusDidChange(to: EntitlementStatus) {}
+    fun entitlementStatusDidChange(to: SubscriptionStatus) {}
 
     fun handleSuperwallEvent(eventInfo: SuperwallEventInfo) {}
 
