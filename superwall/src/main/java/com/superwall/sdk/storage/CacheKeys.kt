@@ -3,7 +3,7 @@ package com.superwall.sdk.storage
 import android.content.Context
 import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.models.entitlements.Entitlement
-import com.superwall.sdk.models.entitlements.EntitlementStatus
+import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.geo.GeoInfo
 import com.superwall.sdk.models.serialization.AnySerializer
 import com.superwall.sdk.models.transactions.SavedTransaction
@@ -221,15 +221,15 @@ object SdkVersion : Storable<String> {
         get() = String.serializer()
 }
 
-object StoredEntitlementStatus : Storable<EntitlementStatus> {
+object StoredEntitlementStatus : Storable<SubscriptionStatus> {
     override val key: String
         get() = "store.entitlementStatus"
 
     override val directory: SearchPathDirectory
         get() = SearchPathDirectory.APP_SPECIFIC_DOCUMENTS
 
-    override val serializer: KSerializer<EntitlementStatus>
-        get() = EntitlementStatus.serializer()
+    override val serializer: KSerializer<SubscriptionStatus>
+        get() = SubscriptionStatus.serializer()
 }
 
 object StoredEntitlementsByProductId : Storable<Map<String, Set<Entitlement>>> {

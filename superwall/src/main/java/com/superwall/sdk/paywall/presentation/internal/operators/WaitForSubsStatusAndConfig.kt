@@ -8,7 +8,7 @@ import com.superwall.sdk.dependencies.DependencyContainer
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
-import com.superwall.sdk.models.entitlements.EntitlementStatus
+import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.paywall.presentation.internal.InternalPresentationLogic
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatus
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatusReason
@@ -34,7 +34,7 @@ internal suspend fun Superwall.waitForEntitlementsAndConfig(
     try {
         withTimeout(5.seconds) {
             request.flags.entitlements
-                .filter { it !is EntitlementStatus.Unknown }
+                .filter { it !is SubscriptionStatus.Unknown }
                 .first()
         }
     } catch (e: TimeoutCancellationException) {

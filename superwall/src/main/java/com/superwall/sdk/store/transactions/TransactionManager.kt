@@ -28,7 +28,7 @@ import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.ActivityProvider
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.launchWithTracking
-import com.superwall.sdk.models.entitlements.EntitlementStatus
+import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.paywall.LocalNotificationType
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
@@ -62,7 +62,7 @@ class TransactionManager(
         Superwall.instance.track(it)
     },
     private val dismiss: suspend (paywallView: PaywallView, result: PaywallResult) -> Unit,
-    private val entitlementStatus: () -> EntitlementStatus = {
+    private val subscriptionStatus: () -> SubscriptionStatus = {
         Superwall.instance.entitlements.status.value
     },
 ) {
@@ -725,7 +725,7 @@ class TransactionManager(
 
         val hasRestored = restorationResult is RestorationResult.Restored
         val hasEntitlements =
-            entitlementStatus() is EntitlementStatus.Active
+            subscriptionStatus() is SubscriptionStatus.Active
         storeManager.loadPurchasedProducts()
         if (hasRestored && hasEntitlements) {
             log(message = "Transactions Restored")

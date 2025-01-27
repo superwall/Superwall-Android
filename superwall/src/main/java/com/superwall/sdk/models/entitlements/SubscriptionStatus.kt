@@ -4,28 +4,31 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * Represents the status of a user's entitlements.
+ * Represents the status of user's subscriptions and entitlements.
  *
  * This sealed class has three possible states:
- * - [Unknown]: The initial state before any entitlement status is determined
+ * - [Unknown]: The initial state before any subuscription status is determined
  * - [Inactive]: When the user has no active entitlements
  * - [Active]: When the user has one or more active entitlements
  */
 @Serializable
-sealed class EntitlementStatus {
+sealed class SubscriptionStatus {
+    val isActive: Boolean
+        get() = this is Active
+
     /**
      * Represents an unknown entitlement status.
      * This is the initial state before any entitlement status is determined.
      */
     @Serializable
-    object Unknown : EntitlementStatus()
+    object Unknown : SubscriptionStatus()
 
     /**
      * Represents an inactive entitlement status.
      * This state indicates the user has no active entitlements.
      */
     @Serializable
-    object Inactive : EntitlementStatus()
+    object Inactive : SubscriptionStatus()
 
     /**
      * Represents an active entitlement status.
@@ -37,5 +40,5 @@ sealed class EntitlementStatus {
     data class Active(
         @SerialName("entitlements")
         val entitlements: Set<Entitlement>,
-    ) : EntitlementStatus()
+    ) : SubscriptionStatus()
 }

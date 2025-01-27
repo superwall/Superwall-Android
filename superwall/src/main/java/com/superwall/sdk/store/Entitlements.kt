@@ -2,7 +2,7 @@ package com.superwall.sdk.store
 
 import com.superwall.sdk.billing.DecomposedProductIds
 import com.superwall.sdk.models.entitlements.Entitlement
-import com.superwall.sdk.models.entitlements.EntitlementStatus
+import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.StoredEntitlementStatus
 import com.superwall.sdk.storage.StoredEntitlementsByProductId
@@ -25,8 +25,8 @@ class Entitlements(
     // MARK: - Private Properties
     private val _entitlementsByProduct = ConcurrentHashMap<String, Set<Entitlement>>()
 
-    private val _status: MutableStateFlow<EntitlementStatus> =
-        MutableStateFlow(EntitlementStatus.Unknown)
+    private val _status: MutableStateFlow<SubscriptionStatus> =
+        MutableStateFlow(SubscriptionStatus.Unknown)
 
     /**
      * A StateFlow of the entitlement status of the user. Set this using
@@ -34,7 +34,7 @@ class Entitlements(
      *
      * You can collect this flow to get notified whenever it changes.
      */
-    val status: StateFlow<EntitlementStatus>
+    val status: StateFlow<SubscriptionStatus>
         get() = _status.asStateFlow()
 
     // MARK: - Backing Fields
@@ -80,11 +80,11 @@ class Entitlements(
     /**
      * Sets the entitlement status and updates the corresponding entitlement collections.
      */
-    fun setEntitlementStatus(value: EntitlementStatus) {
+    fun setEntitlementStatus(value: SubscriptionStatus) {
         when (value) {
-            is EntitlementStatus.Active -> {
+            is SubscriptionStatus.Active -> {
                 if (value.entitlements.isEmpty()) {
-                    setEntitlementStatus(EntitlementStatus.Inactive)
+                    setEntitlementStatus(SubscriptionStatus.Inactive)
                 } else {
                     _active.clear()
                     _all.addAll(value.entitlements)
@@ -94,13 +94,13 @@ class Entitlements(
                 }
             }
 
-            is EntitlementStatus.Inactive -> {
+            is SubscriptionStatus.Inactive -> {
                 _active.clear()
                 _inactive.clear()
                 _status.value = value
             }
 
-            is EntitlementStatus.Unknown -> {
+            is SubscriptionStatus.Unknown -> {
                 _active.clear()
                 _inactive.clear()
                 _status.value = value
