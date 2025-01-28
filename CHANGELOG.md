@@ -2,6 +2,13 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.0.0-beta.2
+
+- API Changes:
+  - Migration of `setEntitlementStatus` to `setSubscriptionStatus`
+  - Exposing `Superwall.instance.entitlementsStatus`
+  - Migration of `SuperwallDelegate.entitlementStatusDidChange` to `SuperwallDelegate.subscriptionStatusDidChange`
+
 ## 2.0.0-beta.1
 
 - Add `PaywallBuilder` class as an alternative to existing `getPaywallView` method. This provides a cleaner API and an ability to change purchase loading bar and shimmer view.
