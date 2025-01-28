@@ -51,7 +51,7 @@ class SuperwallDelegateAdapter {
     }
 
     fun entitlementStatusDidChange(newValue: SubscriptionStatus) {
-        kotlinDelegate?.entitlementStatusDidChange(newValue)
+        kotlinDelegate?.subscriptionStatusDidChange(newValue)
             ?: javaDelegate?.entitlementStatusDidChange(newValue)
     }
 
