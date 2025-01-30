@@ -53,12 +53,12 @@ internal suspend fun Superwall.getExperiment(
         }
         is InternalTriggerResult.NoRuleMatch -> {
             activateSession(request, rulesOutcome)
-            errorType = PaywallPresentationRequestStatusReason.NoRuleMatch()
-            paywallStatePublisher?.emit(PaywallState.Skipped(PaywallSkippedReason.NoRuleMatch()))
+            errorType = PaywallPresentationRequestStatusReason.NoAudienceMatch()
+            paywallStatePublisher?.emit(PaywallState.Skipped(PaywallSkippedReason.NoAudienceMatch()))
         }
         is InternalTriggerResult.EventNotFound -> {
-            errorType = PaywallPresentationRequestStatusReason.EventNotFound()
-            paywallStatePublisher?.emit(PaywallState.Skipped(PaywallSkippedReason.EventNotFound()))
+            errorType = PaywallPresentationRequestStatusReason.PlacementNotFound()
+            paywallStatePublisher?.emit(PaywallState.Skipped(PaywallSkippedReason.PlacementNotFound()))
         }
         is InternalTriggerResult.Error -> {
             if (request.flags.type == PresentationRequestType.GetImplicitPresentationResult ||

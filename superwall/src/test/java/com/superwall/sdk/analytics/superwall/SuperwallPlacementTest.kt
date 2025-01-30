@@ -2,10 +2,10 @@ package com.superwall.sdk.analytics.superwall
 
 import org.junit.Test
 
-class SuperwallEventTest {
+class SuperwallPlacementTest {
     @Test
     fun test_app_install() {
-        val event = SuperwallEvent.AppInstall()
+        val event = SuperwallPlacement.AppInstall()
         assert(event.backingEvent == SuperwallEvents.AppInstall)
     }
 }

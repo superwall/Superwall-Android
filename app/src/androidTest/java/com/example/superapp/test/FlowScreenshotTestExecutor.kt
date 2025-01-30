@@ -15,7 +15,7 @@ import com.example.superapp.utils.goBack
 import com.example.superapp.utils.screenshotFlow
 import com.example.superapp.utils.waitFor
 import com.superwall.sdk.Superwall
-import com.superwall.sdk.analytics.superwall.SuperwallEvent
+import com.superwall.sdk.analytics.superwall.SuperwallPlacement
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.paywall.presentation.register
 import com.superwall.superapp.Keys
@@ -62,13 +62,13 @@ class FlowScreenshotTestExecutor {
         with(dropshots) {
             screenshotFlow(UITestHandler.test4Info) {
                 step("first_paywall") {
-                    it.waitFor { it is SuperwallEvent.PaywallWebviewLoadComplete }
+                    it.waitFor { it is SuperwallPlacement.PaywallWebviewLoadComplete }
                     awaitUntilShimmerDisappears()
                     awaitUntilWebviewAppears()
                     delayFor(500.milliseconds)
                 }
                 step("second_paywall") {
-                    it.waitFor { it is SuperwallEvent.PaywallOpen }
+                    it.waitFor { it is SuperwallPlacement.PaywallOpen }
                     awaitUntilWebviewAppears()
                     delayFor(2.seconds)
                 }
@@ -80,7 +80,7 @@ class FlowScreenshotTestExecutor {
         with(dropshots) {
             screenshotFlow(UITestHandler.test9Info) {
                 step("") {
-                    it.waitFor { it is SuperwallEvent.PaywallOpen }
+                    it.waitFor { it is SuperwallPlacement.PaywallOpen }
                     awaitUntilShimmerDisappears()
                     awaitUntilWebviewAppears()
                     delayFor(500.milliseconds)
@@ -115,17 +115,17 @@ class FlowScreenshotTestExecutor {
         with(dropshots) {
             screenshotFlow(UITestHandler.test11Info) {
                 step {
-                    it.waitFor { it is SuperwallEvent.PaywallWebviewLoadComplete }
+                    it.waitFor { it is SuperwallPlacement.PaywallWebviewLoadComplete }
                     awaitUntilShimmerDisappears() || awaitUntilWebviewAppears()
                     delayFor(1.seconds)
                 }
                 step {
-                    it.waitFor { it is SuperwallEvent.PaywallOpen }
+                    it.waitFor { it is SuperwallPlacement.PaywallOpen }
                     awaitUntilWebviewAppears()
                     delayFor(1.seconds)
                 }
                 step {
-                    it.waitFor { it is SuperwallEvent.PaywallOpen }
+                    it.waitFor { it is SuperwallPlacement.PaywallOpen }
                     awaitUntilWebviewAppears()
                     delayFor(1.seconds)
                 }
@@ -137,13 +137,13 @@ class FlowScreenshotTestExecutor {
         with(dropshots) {
             screenshotFlow(UITestHandler.test34Info) {
                 step("") {
-                    it.waitFor { it is SuperwallEvent.PaywallWebviewLoadComplete }
+                    it.waitFor { it is SuperwallPlacement.PaywallWebviewLoadComplete }
                     awaitUntilShimmerDisappears()
                     awaitUntilWebviewAppears()
                     delayFor(300.milliseconds)
                 }
                 step {
-                    it.waitFor { it is SuperwallEvent.Reset }
+                    it.waitFor { it is SuperwallPlacement.Reset }
                     delayFor(100.milliseconds)
                 }
             }
@@ -154,7 +154,7 @@ class FlowScreenshotTestExecutor {
         with(dropshots) {
             screenshotFlow(UITestHandler.test62Info) {
                 step {
-                    it.waitFor { it is SuperwallEvent.PaywallWebviewLoadComplete }
+                    it.waitFor { it is SuperwallPlacement.PaywallWebviewLoadComplete }
                     awaitUntilShimmerDisappears()
                     awaitUntilWebviewAppears()
                     delayFor(300.milliseconds)
@@ -189,7 +189,7 @@ class FlowScreenshotTestExecutor {
                 }
                 step {
                     Superwall.instance.register(event = "holdout_one_time_occurrence")
-                    it.waitFor { it is SuperwallEvent.PaywallWebviewLoadComplete }
+                    it.waitFor { it is SuperwallPlacement.PaywallWebviewLoadComplete }
                     awaitUntilShimmerDisappears()
                     awaitUntilWebviewAppears()
                     delayFor(600.milliseconds)
@@ -246,7 +246,7 @@ class FlowScreenshotTestExecutor {
             screenshotFlow(UITestHandler.testAndroid21Info) {
                 step {
                     it.waitFor {
-                        it is SuperwallEvent.PaywallWebviewLoadComplete
+                        it is SuperwallPlacement.PaywallWebviewLoadComplete
                     }
                     awaitUntilShimmerDisappears()
                     awaitUntilWebviewAppears()

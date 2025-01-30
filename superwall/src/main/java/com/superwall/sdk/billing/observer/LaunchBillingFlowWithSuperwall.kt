@@ -23,7 +23,7 @@ import com.superwall.sdk.store.abstractions.product.RawStoreProduct
  * 3. Notify Superwall before each product purchase begins
  * 4. Launch the actual billing flow
  *
- * Purchase events can then be observed through [Superwall.delegate] or [Superwall.events], which will emit events like:
+ * Purchase events can then be observed through [Superwall.delegate] or [Superwall.placements], which will emit events like:
  * - [SuperwallEvent.TransactionStart] when purchase begins
  * - [SuperwallEvent.TransactionComplete] on successful purchase
  * - [SuperwallEvent.TransactionFail] on purchase failure
