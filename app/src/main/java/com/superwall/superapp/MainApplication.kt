@@ -6,7 +6,7 @@ import android.os.StrictMode.ThreadPolicy
 import android.os.StrictMode.VmPolicy
 import androidx.appcompat.app.AlertDialog
 import com.superwall.sdk.Superwall
-import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
+import com.superwall.sdk.analytics.superwall.SuperwallPlacementInfo
 import com.superwall.sdk.config.options.PaywallOptions
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.delegate.SuperwallDelegate
@@ -64,7 +64,7 @@ class MainApplication :
 //        configureWithRevenueCatInitialization()
     }
 
-    val events = MutableSharedFlow<SuperwallEventInfo>()
+    val events = MutableSharedFlow<SuperwallPlacementInfo>()
 
     fun configureWithAutomaticInitialization() {
         Superwall.configure(
@@ -78,6 +78,7 @@ class MainApplication :
                         }
                 },
         )
+        Superwall.instance.placements
         Superwall.instance.delegate = this
 
         // Make sure we enable the game controller
@@ -98,7 +99,6 @@ class MainApplication :
                 },
         )
         Superwall.instance.delegate = this@MainApplication
-
         // Make sure we enable the game controller
         // Superwall.instance.options.isGameControllerEnabled = true
     }
@@ -148,10 +148,10 @@ class MainApplication :
         super.handleLog(level, scope, message, info, error)
     }
 
-    override fun handleSuperwallEvent(withInfo: SuperwallEventInfo) {
+    override fun handleSuperwallPlacement(withInfo: SuperwallPlacementInfo) {
         println(
             "\n!! SuperwallDelegate !! \n" +
-                "\tEvent name:" + withInfo.event.rawName + "" +
+                "\tEvent name:" + withInfo.placement.rawName + "" +
                 ",\n\tParams:" + withInfo.params + "\n",
         )
     }
