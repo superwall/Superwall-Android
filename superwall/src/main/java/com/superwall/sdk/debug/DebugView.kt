@@ -867,8 +867,8 @@ class DebugView(
                         val errorMessage =
                             when (state.paywallSkippedReason) {
                                 is PaywallSkippedReason.Holdout -> "The user was assigned to a holdout."
-                                is PaywallSkippedReason.NoRuleMatch -> "The user didn't match a rule."
-                                is PaywallSkippedReason.EventNotFound -> "Couldn't find event."
+                                is PaywallSkippedReason.NoAudienceMatch -> "The user didn't match a rule."
+                                is PaywallSkippedReason.PlacementNotFound -> "Couldn't find event."
                                 is PaywallSkippedReason.UserIsSubscribed -> "The user is subscribed."
                             }
                         presentAlert(

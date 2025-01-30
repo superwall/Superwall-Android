@@ -7,17 +7,17 @@ sealed class PaywallSkippedReason : Throwable() {
         val experiment: Experiment,
     ) : PaywallSkippedReason()
 
-    class NoRuleMatch : PaywallSkippedReason()
+    class NoAudienceMatch : PaywallSkippedReason()
 
-    class EventNotFound : PaywallSkippedReason()
+    class PlacementNotFound : PaywallSkippedReason()
 
     class UserIsSubscribed : PaywallSkippedReason()
 
     override fun equals(other: Any?): Boolean =
         when {
             this is Holdout && other is Holdout -> this.experiment == other.experiment
-            this is NoRuleMatch && other is NoRuleMatch -> true
-            this is EventNotFound && other is EventNotFound -> true
+            this is NoAudienceMatch && other is NoAudienceMatch -> true
+            this is PlacementNotFound && other is PlacementNotFound -> true
             this is UserIsSubscribed && other is UserIsSubscribed -> true
             else -> false
         }

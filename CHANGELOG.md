@@ -2,7 +2,22 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.0.0-beta.3
+
+### Breaking changes
+
+- `SuperwallEvent` has been renamed to `SuperwallPlacement`, belonging properties with `eventName` have been renamed to `placementName`
+- `SuperwallEventInfo` has been renamed to `SuperwallPlacementInfo`
+- `ComputedPropertyRequest.eventName` has been renamed to `ComputedPropertyRequest.placementName`
+- `Superwall.instance.events` has been renamed to `Superwall.instance.placements`
+- `LogScope.events` has been renamed to `LogScope.placements`
+- `PaywallPresentationRequestStatusReason.EventNotFound` has been renamed to `PaywallPresentationRequestStatusReason.PlacementNotFound`
+- `PaywallSkippedReason.EventNotFound` has been renamed to `PaywallSkippedReason.PlacementNotFound`
+- `SuperwallDelegate.handleSuperwallEvent` method has been renamed to `SuperwallDelegate.handleSuperwallPlacement`
+
 ## 2.0.0-beta.2
+
+### Breaking Changes
 
 - API Changes:
   - Migration of `setEntitlementStatus` to `setSubscriptionStatus`
@@ -10,6 +25,8 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
   - Migration of `SuperwallDelegate.entitlementStatusDidChange` to `SuperwallDelegate.subscriptionStatusDidChange`
 
 ## 2.0.0-beta.1
+
+## Enhancements
 
 - Add `PaywallBuilder` class as an alternative to existing `getPaywallView` method. This provides a cleaner API and an ability to change purchase loading bar and shimmer view.
 - Add callback versions of new 2.0 methods
