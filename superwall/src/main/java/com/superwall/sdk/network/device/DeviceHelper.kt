@@ -411,7 +411,7 @@ class DeviceHelper(
                     request = computedPropertyRequest,
                 )
             value?.let {
-                output[computedPropertyRequest.type.prefix + computedPropertyRequest.eventName] = it
+                output[computedPropertyRequest.type.prefix + computedPropertyRequest.placementName] = it
             }
         }
 

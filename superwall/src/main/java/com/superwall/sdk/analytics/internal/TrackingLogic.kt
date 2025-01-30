@@ -176,7 +176,7 @@ sealed class TrackingLogic {
             triggers: Set<String>,
             paywallView: PaywallView?,
         ): ImplicitTriggerOutcome {
-            if (event is TrackableSuperwallEvent && event.superwallEvent.rawName == SuperwallEvents.DeepLink.rawName) {
+            if (event is TrackableSuperwallEvent && event.superwallPlacement.rawName == SuperwallEvents.DeepLink.rawName) {
                 return ImplicitTriggerOutcome.DeepLinkTrigger
             }
 
@@ -210,7 +210,7 @@ sealed class TrackingLogic {
             }
 
             if (event is TrackableSuperwallEvent) {
-                return when (event.superwallEvent.backingEvent) {
+                return when (event.superwallPlacement.backingEvent) {
                     SuperwallEvents.TransactionAbandon,
                     SuperwallEvents.TransactionFail,
                     SuperwallEvents.SurveyResponse,

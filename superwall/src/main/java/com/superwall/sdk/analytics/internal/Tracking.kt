@@ -3,7 +3,7 @@ package com.superwall.sdk.analytics.internal
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
-import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
+import com.superwall.sdk.analytics.superwall.SuperwallPlacementInfo
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
@@ -53,8 +53,8 @@ suspend fun Superwall.track(event: Trackable): Result<TrackingResult> {
         // For a trackable superwall event, send params to delegate
         if (event is TrackableSuperwallEvent) {
             val info =
-                SuperwallEventInfo(
-                    event = event.superwallEvent,
+                SuperwallPlacementInfo(
+                    placement = event.superwallPlacement,
                     params = parameters.delegateParams,
                 )
 
@@ -63,7 +63,7 @@ suspend fun Superwall.track(event: Trackable): Result<TrackingResult> {
 
             Logger.debug(
                 logLevel = LogLevel.debug,
-                scope = LogScope.events,
+                scope = LogScope.placements,
                 message = "Logged Event",
                 info = parameters.audienceFilterParams,
             )

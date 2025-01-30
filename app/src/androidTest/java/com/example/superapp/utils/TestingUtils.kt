@@ -16,7 +16,7 @@ import androidx.test.uiautomator.UiSelector
 import androidx.test.uiautomator.Until
 import com.dropbox.dropshots.Dropshots
 import com.superwall.sdk.Superwall
-import com.superwall.sdk.analytics.superwall.SuperwallEvent
+import com.superwall.sdk.analytics.superwall.SuperwallPlacement
 import com.superwall.sdk.config.models.ConfigurationStatus
 import com.superwall.sdk.paywall.view.ShimmerView
 import com.superwall.superapp.MainActivity
@@ -142,7 +142,7 @@ fun Dropshots.paywallPresentsFor(
 ) {
     screenshotFlow(testInfo, config) {
         step("") {
-            it.waitFor { it is SuperwallEvent.PaywallWebviewLoadComplete }
+            it.waitFor { it is SuperwallPlacement.PaywallWebviewLoadComplete }
             // Since there is a delay between webview finishing loading and the actual render
             // We need to wait for the webview to finish loading before taking the snapshot
             awaitUntilShimmerDisappears()
@@ -159,7 +159,7 @@ fun Dropshots.paywallDoesntPresentFor(
 ) {
     screenshotFlow(testInfo, config) {
         step("") {
-            it.waitFor { it is SuperwallEvent.PaywallPresentationRequest }
+            it.waitFor { it is SuperwallPlacement.PaywallPresentationRequest }
             // We delay a bit to ensure the paywall doesn't render after presentation request
             delayFor(1.seconds)
         }
@@ -173,7 +173,7 @@ fun Dropshots.paywallDoesntPresentForNoConfig(
 ) {
     screenshotFlow(testInfo, config) {
         step("") {
-            it.waitFor { it is SuperwallEvent.PaywallPresentationRequest }
+            it.waitFor { it is SuperwallPlacement.PaywallPresentationRequest }
             // We delay a bit to ensure the paywall doesn't render after presentation request
             delayFor(1.seconds)
         }
@@ -261,7 +261,7 @@ suspend fun awaitUntilWebviewDisappears() {
 }
 
 @UiTestDSL
-suspend fun UITestInfo.waitFor(event: (SuperwallEvent) -> Boolean) {
+suspend fun UITestInfo.waitFor(event: (SuperwallPlacement) -> Boolean) {
     events()
         .filterNotNull()
         .first(event)
