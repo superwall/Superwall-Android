@@ -55,16 +55,15 @@ object ConfigLogic {
             )
         }
 
-        val randomPercentage = randomiser(0 until variantSum)
-        val normRandomPercentage = randomPercentage.toDouble() / variantSum.toDouble()
+        // Choose a random threshold within the total sum.
+        val randomTreshold = randomiser(0 until variantSum)
+        var cumulativeSum = 0
 
-        var totalNormVariantPercentage = 0.0
-
+        // Iterate through variants and return the first that crosses the threshold.
         for (variant in variants) {
-            val normVariantPercentage = variant.percentage.toDouble() / variantSum.toDouble()
-            totalNormVariantPercentage += normVariantPercentage
+            cumulativeSum += variant.percentage
 
-            if (normRandomPercentage < totalNormVariantPercentage) {
+            if (randomTreshold < cumulativeSum) {
                 return Experiment.Variant(
                     id = variant.id,
                     type = variant.type,

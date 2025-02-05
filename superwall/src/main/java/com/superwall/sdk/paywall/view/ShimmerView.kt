@@ -23,7 +23,7 @@ import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 class ShimmerView(
     context: Context,
     attrs: AttributeSet? = null,
-) : AppCompatImageView(context, attrs) {
+) : AppCompatImageView(context.applicationContext, attrs) {
     private var animator: ValueAnimator? = null
     private var vectorDrawable: VectorDrawable? = null
 
@@ -34,10 +34,10 @@ class ShimmerView(
     private var currentOrientation: Int = Configuration.ORIENTATION_UNDEFINED
 
     private val portraitDrawable: VectorDrawable? by lazy {
-        ContextCompat.getDrawable(context, R.drawable.portrait_shimmer_skeleton) as? VectorDrawable
+        ContextCompat.getDrawable(context.applicationContext, R.drawable.portrait_shimmer_skeleton) as? VectorDrawable
     }
     private val landscapeDrawable: VectorDrawable? by lazy {
-        ContextCompat.getDrawable(context, R.drawable.landscape_shimmer_skeleton) as? VectorDrawable
+        ContextCompat.getDrawable(context.applicationContext, R.drawable.landscape_shimmer_skeleton) as? VectorDrawable
     }
     private var tintColorFilter: android.graphics.ColorFilter? = null
 

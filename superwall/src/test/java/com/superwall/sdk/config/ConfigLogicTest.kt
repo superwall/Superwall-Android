@@ -75,6 +75,89 @@ internal class ConfigLogicTest {
     }
 
     @Test
+    fun test_chooseVariant_manyVariants_one_percent_sum() {
+        val variants =
+            listOf(
+                VariantOption.stub().apply { percentage = 1 },
+                VariantOption.stub().apply { percentage = 0 },
+                VariantOption.stub().apply { percentage = 0 },
+            )
+
+        try {
+            val variant = ConfigLogic.chooseVariant(variants)
+            assertEquals(variants.first().toVariant(), variant)
+        } catch (error: Throwable) {
+            fail("Should have worked")
+        }
+    }
+
+    @Test
+    fun testChooseVariantDistribution() {
+        // Given: Create variants with the desired distribution.
+        val variants =
+            listOf(
+                VariantOption.stub().apply {
+                    id = "A"
+                    percentage = 85
+                },
+                VariantOption.stub().apply {
+                    id = "B"
+                    percentage = 5
+                },
+                VariantOption.stub().apply {
+                    id = "C"
+                    percentage = 5
+                },
+                VariantOption.stub().apply {
+                    id = "D"
+                    percentage = 5
+                },
+            )
+
+        // Initialize counters for each variant.
+        val selectionCounts = mutableMapOf("A" to 0, "B" to 0, "C" to 0, "D" to 0)
+
+        // Number of iterations.
+        val iterations = 100_000
+
+        // When: Run chooseVariant multiple times and count selections.
+        repeat(iterations) {
+            // Call the function under test.
+            val selectedVariant = ConfigLogic.chooseVariant(variants)
+            // Increment the counter for the selected variant.
+            selectionCounts[selectedVariant.id] = selectionCounts.getOrDefault(selectedVariant.id, 0) + 1
+        }
+
+        // Then: Calculate observed percentages.
+        val observedPercentages = selectionCounts.mapValues { (it.value.toDouble() / iterations) * 100.0 }
+        // Define expected percentages.
+        val expectedPercentages = mapOf("A" to 85.0, "B" to 5.0, "C" to 5.0, "D" to 5.0)
+        // Define acceptable margin of error (±1%).
+        val marginOfError = 1.0
+
+        // Assert that each observed percentage is within the acceptable range.
+        expectedPercentages.forEach { (variantID, expectedPercentage) ->
+            val observedPercentage = observedPercentages[variantID]
+            assertNotNull("Variant $variantID was not selected at all.", observedPercentage)
+            observedPercentage?.let {
+                assertEquals(
+                    "Variant $variantID selection percentage $it% is not within $marginOfError% of expected $expectedPercentage%.",
+                    expectedPercentage,
+                    it,
+                    marginOfError,
+                )
+            }
+        }
+
+        // Optional: Print the results for debugging purposes.
+        println("Variant Selection Distribution after $iterations iterations:")
+        selectionCounts.forEach { (variantID, count) ->
+            val percentage = observedPercentages[variantID] ?: 0.0
+            println("Variant $variantID: $count selections (${String.format("%.2f", percentage)}%)")
+        }
+    }
+
+    @Test
     fun test_chooseVariant_oneActiveVariant_chooseFirst() {
         try {
             val options: List<VariantOption> =
@@ -118,7 +201,7 @@ internal class ConfigLogicTest {
 
             assertEquals(options.last().toVariant(), variant)
         } catch (e: Throwable) {
-            fail("Should have produced a no variant error")
+            fail("Should not fail")
         }
     }
 
@@ -143,7 +226,7 @@ internal class ConfigLogicTest {
 
             assertEquals(options[1].toVariant(), variant)
         } catch (e: Throwable) {
-            fail("Should have produced a no variant error")
+            fail("Should not fail")
         }
     }
 
@@ -168,7 +251,7 @@ internal class ConfigLogicTest {
 
             assertEquals(options[0].toVariant(), variant)
         } catch (e: Throwable) {
-            fail("Should have produced a no variant error")
+            fail("Should not fail")
         }
     }
 
