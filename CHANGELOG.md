@@ -2,7 +2,16 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 1.5.5
+
+## Fixes
+- Fixes potential distribution issues for variant selection in edge cases
+- Fixes potential memory leaks of paywall calling activity
+
+
 ## 1.5.4
+
+## Fixes
 - Fixes issue when a paywall would dismiss with `ForNextPaywall` but next paywall could not be shown due to triggers or limits. Now it resolves into the proper dismiss status.
 
 ## 1.5.3

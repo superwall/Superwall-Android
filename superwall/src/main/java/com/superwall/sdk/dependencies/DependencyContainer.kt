@@ -203,7 +203,7 @@ class DependencyContainer(
         }
 
         googleBillingWrapper =
-            GoogleBillingWrapper(context, appLifecycleObserver = appLifecycleObserver)
+            GoogleBillingWrapper(context.applicationContext, appLifecycleObserver = appLifecycleObserver)
 
         var purchaseController =
             InternalPurchaseController(

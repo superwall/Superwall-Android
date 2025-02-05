@@ -10,7 +10,7 @@ import com.superwall.sdk.paywall.vc.delegate.PaywallLoadingState
 
 class LoadingView(
     context: Context,
-) : FrameLayout(context) {
+) : FrameLayout(context.applicationContext) {
     companion object {
         internal const val TAG = "LoadingViewController"
     }
@@ -21,7 +21,7 @@ class LoadingView(
 
         // Create a ProgressBar with the default spinner style
         val progressBar =
-            ProgressBar(context).apply {
+            ProgressBar(context.applicationContext).apply {
                 // Ensure it's centered in the LoadingViewController
                 val params =
                     LayoutParams(
