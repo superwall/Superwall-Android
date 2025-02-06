@@ -92,7 +92,7 @@ internal suspend fun Superwall.attemptTriggerFire(
     when (val req = request.presentationInfo) {
         is PresentationInfo.ExplicitTrigger, is PresentationInfo.ImplicitTrigger -> {
             when (triggerResult) {
-                is InternalTriggerResult.Error, is InternalTriggerResult.EventNotFound ->
+                is InternalTriggerResult.Error, is InternalTriggerResult.PlacementNotFound ->
                     return
 
                 else -> {} // No-op

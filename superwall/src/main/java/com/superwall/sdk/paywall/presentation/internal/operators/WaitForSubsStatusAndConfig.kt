@@ -45,7 +45,7 @@ internal suspend fun Superwall.waitForEntitlementsAndConfig(
                     eventData = request.presentationInfo.eventData,
                     type = request.flags.type,
                     status = PaywallPresentationRequestStatus.Timeout,
-                    statusReason = PaywallPresentationRequestStatusReason.EntitlementStatusTimeout(),
+                    statusReason = PaywallPresentationRequestStatusReason.SubscriptionStatusTimeout(),
                     factory = dependencyContainer,
                 )
             track(trackedEvent)
@@ -65,7 +65,7 @@ internal suspend fun Superwall.waitForEntitlementsAndConfig(
                 value = "The entitlement status failed to change from \"unknown\".",
             )
         paywallStatePublisher?.emit(PaywallState.PresentationError(error))
-        throw PaywallPresentationRequestStatusReason.EntitlementStatusTimeout()
+        throw PaywallPresentationRequestStatusReason.SubscriptionStatusTimeout()
     }
 
     val configState = dependencyContainer.configManager.configState

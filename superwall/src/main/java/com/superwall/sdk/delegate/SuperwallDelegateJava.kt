@@ -23,7 +23,10 @@ interface SuperwallDelegateJava {
 
     fun handleSuperwallEvent(eventInfo: SuperwallPlacementInfo) {}
 
-    fun entitlementStatusDidChange(newValue: SubscriptionStatus) {}
+    fun subscriptionStatusDidChange(
+        from: SubscriptionStatus,
+        to: SubscriptionStatus,
+    ) {}
 
     fun handleLog(
         level: String,

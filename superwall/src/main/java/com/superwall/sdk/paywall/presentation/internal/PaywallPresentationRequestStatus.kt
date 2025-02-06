@@ -30,10 +30,10 @@ sealed class PaywallPresentationRequestStatusReason(
     ) : PaywallPresentationRequestStatusReason("holdout")
 
     /** No rules defined in the campaign for the event matched. */
-    class NoAudienceMatch : PaywallPresentationRequestStatusReason("no_rule_match")
+    class NoAudienceMatch : PaywallPresentationRequestStatusReason("no_audience_match")
 
     /** The event provided was not found in any campaign on the dashboard. */
-    class PlacementNotFound : PaywallPresentationRequestStatusReason("event_not_found")
+    class PlacementNotFound : PaywallPresentationRequestStatusReason("placement_not_found")
 
     /** There was an error getting the paywall view. */
     class NoPaywallView : PaywallPresentationRequestStatusReason("no_paywall_view_controller")
@@ -48,7 +48,7 @@ sealed class PaywallPresentationRequestStatusReason(
      * The entitlement status timed out.
      * This happens when the entitlementStatus stays unknown for more than 5 seconds.
      */
-    class EntitlementStatusTimeout : PaywallPresentationRequestStatusReason("subscription_status_timeout")
+    class SubscriptionStatusTimeout : PaywallPresentationRequestStatusReason("subscription_status_timeout")
 }
 
 typealias PresentationPipelineError = PaywallPresentationRequestStatusReason

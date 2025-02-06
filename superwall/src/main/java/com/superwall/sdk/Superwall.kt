@@ -56,7 +56,7 @@ import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.Initiate
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedDeepLink
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedURL
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedUrlInChrome
-import com.superwall.sdk.storage.StoredEntitlementStatus
+import com.superwall.sdk.storage.StoredSubscriptionStatus
 import com.superwall.sdk.store.Entitlements
 import com.superwall.sdk.store.PurchasingObserverState
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
@@ -218,7 +218,7 @@ class Superwall(
      * @param subscriptionStatus The entitlement status of the user.
      */
     fun setSubscriptionStatus(subscriptionStatus: SubscriptionStatus) {
-        entitlements.setEntitlementStatus(subscriptionStatus)
+        entitlements.setSubscriptionStatus(subscriptionStatus)
     }
 
     /**
@@ -233,7 +233,7 @@ class Superwall(
      * */
     fun setSubscriptionStatus(vararg entitlements: String) {
         if (entitlements.isEmpty()) {
-            this.entitlements.setEntitlementStatus(SubscriptionStatus.Inactive)
+            this.entitlements.setSubscriptionStatus(SubscriptionStatus.Inactive)
         } else {
             this.setSubscriptionStatus(SubscriptionStatus.Active(entitlements.map { Entitlement(it) }.toSet()))
         }
@@ -433,7 +433,7 @@ class Superwall(
                 }
 
                 val cachedSubscriptionStatus =
-                    dependencyContainer.storage.read(StoredEntitlementStatus)
+                    dependencyContainer.storage.read(StoredSubscriptionStatus)
                         ?: SubscriptionStatus.Unknown
                 setSubscriptionStatus(cachedSubscriptionStatus)
 
@@ -474,9 +474,12 @@ class Superwall(
                 .drop(1) // Drops the first item
                 .collect { newValue ->
                     // Save and handle the new value
-                    dependencyContainer.storage.write(StoredEntitlementStatus, newValue)
-                    dependencyContainer.delegateAdapter.entitlementStatusDidChange(newValue)
-                    val event = InternalSuperwallEvent.EntitlementStatusDidChange(newValue)
+                    val oldValue =
+                        dependencyContainer.storage.read(StoredSubscriptionStatus)
+                            ?: SubscriptionStatus.Unknown
+                    dependencyContainer.storage.write(StoredSubscriptionStatus, newValue)
+                    dependencyContainer.delegateAdapter.subscriptionStatusDidChange(oldValue, newValue)
+                    val event = InternalSuperwallEvent.SubscriptionStatusDidChange(newValue)
                     track(event)
                 }
         }

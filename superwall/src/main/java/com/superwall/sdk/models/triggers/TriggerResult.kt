@@ -13,11 +13,11 @@ sealed class TriggerResult {
     // Please make sure you have added the event to a campaign on the dashboard and
     // double check its spelling.
     @Serializable
-    object EventNotFound : TriggerResult()
+    object PlacementNotFound : TriggerResult()
 
     // No matching rule was found for this trigger so no paywall will be shown.
     @Serializable
-    object NoRuleMatch : TriggerResult()
+    object NoAudienceMatch : TriggerResult()
 
     // A matching rule was found and this user will be shown a paywall.
     //
@@ -57,22 +57,22 @@ sealed class TriggerResult {
  */
 sealed class InternalTriggerResult {
     /**
-     * This event was not found on the dashboard.
+     * This placement was not found on the dashboard.
      *
-     * Please make sure you have added the event to a campaign on the dashboard and
+     * Please make sure you have added the eveplacementnt to a campaign on the dashboard and
      * double check its spelling.
      */
-    object EventNotFound : InternalTriggerResult()
+    object PlacementNotFound : InternalTriggerResult()
 
     /**
-     * No matching rule was found for this trigger so no paywall will be shown.
+     * No matching audience was found for this trigger so no paywall will be shown.
      */
-    data class NoRuleMatch(
+    data class NoAudienceMatch(
         val unmatchedRules: List<UnmatchedRule>,
     ) : InternalTriggerResult()
 
     /**
-     * A matching rule was found and this user will be shown a paywall.
+     * A matching audience was found and this user will be shown a paywall.
      *
      * @property experiment The experiment associated with the trigger.
      */
@@ -102,8 +102,8 @@ sealed class InternalTriggerResult {
 
     fun toPublicType(): TriggerResult =
         when (this) {
-            is EventNotFound -> TriggerResult.EventNotFound
-            is NoRuleMatch -> TriggerResult.NoRuleMatch
+            is PlacementNotFound -> TriggerResult.PlacementNotFound
+            is NoAudienceMatch -> TriggerResult.NoAudienceMatch
             is Paywall -> TriggerResult.Paywall(experiment)
             is Holdout -> TriggerResult.Holdout(experiment)
             is Error -> TriggerResult.Error(error)
