@@ -221,7 +221,7 @@ object SdkVersion : Storable<String> {
         get() = String.serializer()
 }
 
-object StoredEntitlementStatus : Storable<SubscriptionStatus> {
+object StoredSubscriptionStatus : Storable<SubscriptionStatus> {
     override val key: String
         get() = "store.entitlementStatus"
 

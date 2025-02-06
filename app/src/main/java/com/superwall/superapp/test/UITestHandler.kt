@@ -480,7 +480,7 @@ object UITestHandler {
                 // Register event - paywall shouldn't appear.
                 Superwall.instance.register(event = "register_nongated_paywall")
                 scope.launch {
-                    events.first { it is SuperwallPlacement.EntitlementStatusDidChange }
+                    events.first { it is SuperwallPlacement.SubscriptionStatusDidChange }
                     delay(4000)
                     Superwall.instance.setSubscriptionStatus(SubscriptionStatus.Inactive)
                 }
@@ -573,7 +573,7 @@ object UITestHandler {
                 val result = Superwall.instance.getPresentationResult("present_and_rule_user")
                 println("!!! TEST 29 !!! $result")
                 fatalAssert(
-                    result.getOrNull() is PresentationResult.NoRuleMatch,
+                    result.getOrNull() is PresentationResult.NoAudienceMatch,
                     "NoRuleMatch expected, received $result",
                 )
             },
@@ -588,7 +588,7 @@ object UITestHandler {
                     val result =
                         Superwall.instance.getPresentationResult("some_random_not_found_event")
                     fatalAssert(
-                        result.getOrNull() is PresentationResult.EventNotFound,
+                        result.getOrNull() is PresentationResult.PlacementNotFound,
                         "NoRuleMatch expected, received $result",
                     )
                     println("!!! TEST 30 !!! $result")
@@ -621,7 +621,7 @@ object UITestHandler {
                 scope.launch {
                     val result = Superwall.instance.getPresentationResult("present_data")
                     fatalAssert(
-                        result.getOrNull() is PresentationResult.NoRuleMatch,
+                        result.getOrNull() is PresentationResult.NoAudienceMatch,
                         "UserIsSubscribed expected, received $result",
                     )
                     println("!!! TEST 32 !!! $result")

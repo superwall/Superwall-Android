@@ -7,8 +7,8 @@ import com.superwall.sdk.When
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.storage.Storage
-import com.superwall.sdk.storage.StoredEntitlementStatus
 import com.superwall.sdk.storage.StoredEntitlementsByProductId
+import com.superwall.sdk.storage.StoredSubscriptionStatus
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -28,7 +28,7 @@ class EntitlementsTest {
             Given("storage contains entitlement status") {
                 val storedEntitlements = setOf(Entitlement("test_entitlement"))
                 val storedStatus = SubscriptionStatus.Active(storedEntitlements)
-                every { storage.read(StoredEntitlementStatus) } returns storedStatus
+                every { storage.read(StoredSubscriptionStatus) } returns storedStatus
                 every { storage.read(StoredEntitlementsByProductId) } returns
                     mapOf(
                         "test" to
@@ -60,12 +60,12 @@ class EntitlementsTest {
                         Entitlement("entitlement1"),
                         Entitlement("entitlement2"),
                     )
-                every { storage.read(StoredEntitlementStatus) } returns null
+                every { storage.read(StoredSubscriptionStatus) } returns null
                 every { storage.read(StoredEntitlementsByProductId) } returns null
                 entitlements = Entitlements(storage)
 
                 When("setting active entitlement status") {
-                    entitlements.setEntitlementStatus(SubscriptionStatus.Active(activeEntitlements))
+                    entitlements.setSubscriptionStatus(SubscriptionStatus.Active(activeEntitlements))
 
                     Then("it should update all collections correctly") {
                         assertEquals(activeEntitlements, entitlements.active)
@@ -77,7 +77,7 @@ class EntitlementsTest {
                     And("it should store the status") {
                         verify {
                             storage.write(
-                                StoredEntitlementStatus,
+                                StoredSubscriptionStatus,
                                 SubscriptionStatus.Active(activeEntitlements),
                             )
                         }
@@ -90,12 +90,12 @@ class EntitlementsTest {
     fun `test setEntitlementStatus with empty active entitlements`() =
         runTest {
             Given("an Entitlements instance") {
-                every { storage.read(StoredEntitlementStatus) } returns null
+                every { storage.read(StoredSubscriptionStatus) } returns null
                 every { storage.read(StoredEntitlementsByProductId) } returns null
                 entitlements = Entitlements(storage)
 
                 When("setting active entitlement status with empty set") {
-                    entitlements.setEntitlementStatus(SubscriptionStatus.Active(emptySet()))
+                    entitlements.setSubscriptionStatus(SubscriptionStatus.Active(emptySet()))
 
                     Then("it should convert to NoActiveEntitlements status") {
                         assertTrue(entitlements.status.value is SubscriptionStatus.Inactive)
@@ -110,11 +110,11 @@ class EntitlementsTest {
     fun `test setEntitlementStatus with no active entitlements`() =
         runTest {
             Given("an Entitlements instance") {
-                every { storage.read(StoredEntitlementStatus) } returns null
+                every { storage.read(StoredSubscriptionStatus) } returns null
                 every { storage.read(StoredEntitlementsByProductId) } returns null
                 entitlements = Entitlements(storage)
                 When("setting NoActiveEntitlements status") {
-                    entitlements.setEntitlementStatus(SubscriptionStatus.Inactive)
+                    entitlements.setSubscriptionStatus(SubscriptionStatus.Inactive)
 
                     Then("it should clear all collections") {
                         assertTrue(entitlements.active.isEmpty())
@@ -129,11 +129,11 @@ class EntitlementsTest {
     fun `test setEntitlementStatus with unknown status`() =
         runTest {
             Given("an Entitlements instance") {
-                every { storage.read(StoredEntitlementStatus) } returns null
+                every { storage.read(StoredSubscriptionStatus) } returns null
                 every { storage.read(StoredEntitlementsByProductId) } returns null
                 entitlements = Entitlements(storage)
                 When("setting Unknown status") {
-                    entitlements.setEntitlementStatus(SubscriptionStatus.Unknown)
+                    entitlements.setSubscriptionStatus(SubscriptionStatus.Unknown)
 
                     Then("it should clear all collections") {
                         assertTrue(entitlements.active.isEmpty())
@@ -154,7 +154,7 @@ class EntitlementsTest {
                         "product1" to setOf(Entitlement("entitlement1")),
                         "product2" to setOf(Entitlement("entitlement2")),
                     )
-                every { storage.read(StoredEntitlementStatus) } returns
+                every { storage.read(StoredSubscriptionStatus) } returns
                     SubscriptionStatus.Active(
                         setOf(
                             Entitlement("entitlement1"),

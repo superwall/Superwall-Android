@@ -77,9 +77,9 @@ sealed class SuperwallPlacement {
     }
 
     // / When the user's subscription status changes.
-    class EntitlementStatusDidChange : SuperwallPlacement() {
+    class SubscriptionStatusDidChange : SuperwallPlacement() {
         override val rawName: String
-            get() = "entitlementStatus_didChange"
+            get() = "subscriptionStatus_didChange"
     }
 
     // / Anytime the app leaves the foreground.

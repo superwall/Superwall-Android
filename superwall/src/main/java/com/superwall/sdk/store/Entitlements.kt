@@ -4,8 +4,8 @@ import com.superwall.sdk.billing.DecomposedProductIds
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.storage.Storage
-import com.superwall.sdk.storage.StoredEntitlementStatus
 import com.superwall.sdk.storage.StoredEntitlementsByProductId
+import com.superwall.sdk.storage.StoredSubscriptionStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -63,8 +63,8 @@ class Entitlements(
         get() = _inactive.toSet()
 
     init {
-        storage.read(StoredEntitlementStatus)?.let {
-            setEntitlementStatus(it)
+        storage.read(StoredSubscriptionStatus)?.let {
+            setSubscriptionStatus(it)
         }
         storage.read(StoredEntitlementsByProductId)?.let {
             _entitlementsByProduct.putAll(it)
@@ -72,7 +72,7 @@ class Entitlements(
 
         scope.launch {
             status.collect {
-                storage.write(StoredEntitlementStatus, it)
+                storage.write(StoredSubscriptionStatus, it)
             }
         }
     }
@@ -80,11 +80,11 @@ class Entitlements(
     /**
      * Sets the entitlement status and updates the corresponding entitlement collections.
      */
-    fun setEntitlementStatus(value: SubscriptionStatus) {
+    fun setSubscriptionStatus(value: SubscriptionStatus) {
         when (value) {
             is SubscriptionStatus.Active -> {
                 if (value.entitlements.isEmpty()) {
-                    setEntitlementStatus(SubscriptionStatus.Inactive)
+                    setSubscriptionStatus(SubscriptionStatus.Inactive)
                 } else {
                     _active.clear()
                     _all.addAll(value.entitlements)

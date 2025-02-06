@@ -7,7 +7,10 @@ import com.superwall.sdk.paywall.presentation.PaywallInfo
 import java.net.URI
 
 interface SuperwallDelegate {
-    fun subscriptionStatusDidChange(to: SubscriptionStatus) {}
+    fun subscriptionStatusDidChange(
+        from: SubscriptionStatus,
+        to: SubscriptionStatus,
+    ) {}
 
     fun handleSuperwallPlacement(eventInfo: SuperwallPlacementInfo) {}
 

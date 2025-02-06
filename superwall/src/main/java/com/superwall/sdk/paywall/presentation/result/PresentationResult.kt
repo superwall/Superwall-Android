@@ -10,10 +10,10 @@ sealed class PresentationResult {
     //
     // Please make sure you have added the event to a campaign on the dashboard and
     // double check its spelling.
-    class EventNotFound : PresentationResult()
+    class PlacementNotFound : PresentationResult()
 
     // No matching rule was found for this trigger so no paywall will be shown.
-    class NoRuleMatch : PresentationResult()
+    class NoAudienceMatch : PresentationResult()
 
     // A matching rule was found and this user will be shown a paywall.
     //
