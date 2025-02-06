@@ -36,8 +36,8 @@ import com.superwall.sdk.storage.LatestGeoInfo
 import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.StorageMock
-import com.superwall.sdk.storage.StoredEntitlementStatus
 import com.superwall.sdk.storage.StoredEntitlementsByProductId
+import com.superwall.sdk.storage.StoredSubscriptionStatus
 import com.superwall.sdk.store.Entitlements
 import com.superwall.sdk.store.StoreManager
 import io.mockk.Runs
@@ -91,7 +91,7 @@ class ConfigManagerUnderTest(
         entitlements =
             Entitlements(
                 mockk<Storage>(relaxUnitFun = true) {
-                    every { read(StoredEntitlementStatus) } returns SubscriptionStatus.Unknown
+                    every { read(StoredSubscriptionStatus) } returns SubscriptionStatus.Unknown
                     every { read(StoredEntitlementsByProductId) } returns emptyMap()
                 },
             ),

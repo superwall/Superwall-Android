@@ -2,6 +2,14 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+# 2.0.0-beta.4
+
+## Breaking changes
+- `SuperwallEvents.entitlementStatusDidChange` has been renamed to `SuperwallEvents.subscriptionStatusDidChange`
+- `SuperwallDelegate.entitlementStatusDidChange` has been renamed to `SuperwallEvents.entitlementStatusDidChange`
+- `TriggerResult.NoRuleMatch` and `TriggerResult.EventNotFound` have been renamed to `TriggerResult.NoAudienceMatch` and `TriggerResult.PlacementNotFound`
+- `PresentationResult.NoRuleMatch` and `PresentationResult.EventNotFound` have been renamed to `PresentationResult.NoAudienceMatch` and `PresentationResult.PlacementNotFound`
+
 ## 2.0.0-beta.3
 
 ### Breaking changes

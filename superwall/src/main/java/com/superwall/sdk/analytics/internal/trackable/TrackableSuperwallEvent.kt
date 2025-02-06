@@ -255,13 +255,13 @@ sealed class InternalSuperwallEvent(
         }
     }
 
-    class EntitlementStatusDidChange(
+    class SubscriptionStatusDidChange(
         val subscriptionStatus: SubscriptionStatus,
         override var audienceFilterParams: HashMap<String, Any> = HashMap(),
-    ) : InternalSuperwallEvent(SuperwallPlacement.EntitlementStatusDidChange()) {
+    ) : InternalSuperwallEvent(SuperwallPlacement.SubscriptionStatusDidChange()) {
         override suspend fun getSuperwallParameters(): HashMap<String, Any> =
             hashMapOf(
-                "entitlement_status" to {
+                "subscription_status" to {
                     when (subscriptionStatus) {
                         is SubscriptionStatus.Active -> "active"
                         is SubscriptionStatus.Inactive -> "inactive"
@@ -322,9 +322,9 @@ sealed class InternalSuperwallEvent(
                 )
 
             return when (triggerResult) {
-                is InternalTriggerResult.NoRuleMatch -> {
+                is InternalTriggerResult.NoAudienceMatch -> {
                     params.apply {
-                        this["result"] = "no_rule_match"
+                        this["result"] = "no_audience_match"
                     }
                 }
 
@@ -346,9 +346,9 @@ sealed class InternalSuperwallEvent(
                     }
                 }
 
-                is InternalTriggerResult.EventNotFound -> {
+                is InternalTriggerResult.PlacementNotFound -> {
                     params.apply {
-                        this["result"] = "eventNotFound"
+                        this["result"] = "placementNotFound"
                     }
                 }
 

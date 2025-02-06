@@ -50,9 +50,12 @@ class SuperwallDelegateAdapter {
             ?: javaDelegate?.handleSuperwallEvent(eventInfo)
     }
 
-    fun entitlementStatusDidChange(newValue: SubscriptionStatus) {
-        kotlinDelegate?.subscriptionStatusDidChange(newValue)
-            ?: javaDelegate?.entitlementStatusDidChange(newValue)
+    fun subscriptionStatusDidChange(
+        from: SubscriptionStatus,
+        to: SubscriptionStatus,
+    ) {
+        kotlinDelegate?.subscriptionStatusDidChange(from, to)
+            ?: javaDelegate?.subscriptionStatusDidChange(from, to)
     }
 
     fun handleLog(

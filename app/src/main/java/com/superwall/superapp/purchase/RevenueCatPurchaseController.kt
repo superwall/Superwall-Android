@@ -127,7 +127,7 @@ class RevenueCatPurchaseController(
         // Refetch the customer info on load
         Purchases.sharedInstance.getCustomerInfoWith {
             if (hasAnyActiveEntitlements(it)) {
-                setEntitlementStatus(
+                setSubscriptionStatus(
                     SubscriptionStatus.Active(
                         it.entitlements.active
                             .map {
@@ -136,7 +136,7 @@ class RevenueCatPurchaseController(
                     ),
                 )
             } else {
-                setEntitlementStatus(SubscriptionStatus.Inactive)
+                setSubscriptionStatus(SubscriptionStatus.Inactive)
             }
         }
     }
@@ -146,7 +146,7 @@ class RevenueCatPurchaseController(
      */
     override fun onReceived(customerInfo: CustomerInfo) {
         if (hasAnyActiveEntitlements(customerInfo)) {
-            setEntitlementStatus(
+            setSubscriptionStatus(
                 SubscriptionStatus.Active(
                     customerInfo.entitlements.active
                         .map {
@@ -155,7 +155,7 @@ class RevenueCatPurchaseController(
                 ),
             )
         } else {
-            setEntitlementStatus(SubscriptionStatus.Inactive)
+            setSubscriptionStatus(SubscriptionStatus.Inactive)
         }
     }
 
@@ -290,7 +290,7 @@ class RevenueCatPurchaseController(
         return entitlements.isNotEmpty()
     }
 
-    private fun setEntitlementStatus(subscriptionStatus: SubscriptionStatus) {
+    private fun setSubscriptionStatus(subscriptionStatus: SubscriptionStatus) {
         if (Superwall.initialized) {
             Superwall.instance.setSubscriptionStatus(subscriptionStatus)
         }
