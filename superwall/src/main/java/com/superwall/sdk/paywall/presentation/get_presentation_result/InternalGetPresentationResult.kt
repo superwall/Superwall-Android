@@ -49,7 +49,7 @@ private fun handle(
         is PaywallPresentationRequestStatusReason.NoPresenter,
         is PaywallPresentationRequestStatusReason.PaywallAlreadyPresented,
         is PaywallPresentationRequestStatusReason.NoConfig,
-        is PaywallPresentationRequestStatusReason.SubscriptionStatusTimeout,
+        is PaywallPresentationRequestStatusReason.EntitlementStatusTimeout,
         -> PresentationResult.PaywallNotAvailable()
     }
 }

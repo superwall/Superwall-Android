@@ -84,6 +84,8 @@ import com.superwall.sdk.store.transactions.TransactionManager
 import com.superwall.sdk.utilities.DateUtils
 import com.superwall.sdk.utilities.ErrorTracker
 import com.superwall.sdk.utilities.dateFormat
+import com.superwall.sdk.web.DeepLinkReferrer
+import com.superwall.sdk.web.WebPaywallRedeemer
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -145,7 +147,7 @@ class DependencyContainer(
     val googleBillingWrapper: GoogleBillingWrapper
 
     var entitlements: Entitlements
-
+    var reedemer: WebPaywallRedeemer
     private val uiScope
         get() = mainScope()
     private val ioScope
@@ -291,6 +293,20 @@ class DependencyContainer(
                 scope = ioScope,
             )
 
+        reedemer =
+            WebPaywallRedeemer(
+                context = context,
+                ioScope = ioScope,
+                deepLinkReferrer = DeepLinkReferrer({ context }, ioScope),
+                network = network,
+                setEntitlementStatus = {
+                    Superwall.instance.setEntitlementStatus(
+                        EntitlementStatus.Active(
+                            it.toSet(),
+                        ),
+                    )
+                },
+            )
         configManager =
             ConfigManager(
                 context = context,
@@ -308,6 +324,7 @@ class DependencyContainer(
                     Superwall.instance.track(it)
                 },
                 entitlements = entitlements,
+                webPaywallRedeemer = reedemer,
             )
 
         eventsQueue =

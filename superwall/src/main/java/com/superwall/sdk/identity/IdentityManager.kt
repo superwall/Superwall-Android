@@ -176,6 +176,7 @@ class IdentityManager(
                         Superwall.instance.track(trackableEvent)
                     }
 
+                    configManager.checkForWebEntitlements()
                     if (options?.restorePaywallAssignments == true) {
                         identityJobs +=
                             ioScope.launch {

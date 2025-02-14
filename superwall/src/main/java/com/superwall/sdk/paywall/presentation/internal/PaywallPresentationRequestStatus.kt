@@ -48,7 +48,7 @@ sealed class PaywallPresentationRequestStatusReason(
      * The entitlement status timed out.
      * This happens when the entitlementStatus stays unknown for more than 5 seconds.
      */
-    class SubscriptionStatusTimeout : PaywallPresentationRequestStatusReason("subscription_status_timeout")
+    class EntitlementStatusTimeout : PaywallPresentationRequestStatusReason("subscription_status_timeout")
 }
 
 typealias PresentationPipelineError = PaywallPresentationRequestStatusReason
