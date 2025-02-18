@@ -616,12 +616,12 @@ class Superwall(
      *
      * Note: This will not reload any paywalls you've already preloaded.
      *
-     * @param eventNames A set of names of events whose paywalls you want to preload.
+     * @param placementNames A set of names of events whose paywalls you want to preload.
      */
-    fun preloadPaywalls(eventNames: Set<String>) {
+    fun preloadPaywalls(placementNames: Set<String>) {
         ioScope.launchWithTracking {
             dependencyContainer.configManager.preloadPaywallsByNames(
-                eventNames = eventNames,
+                eventNames = placementNames,
             )
         }
     }

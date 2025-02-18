@@ -102,13 +102,13 @@ class CoreDataManager(
     ): Int? {
         val lastEventDate: Date? =
             event?.let {
-                if (it.name == request.placementName) it.createdAt else null
+                if (it.name == request.eventName) it.createdAt else null
             }
 
         try {
             val event =
                 superwallDatabase.managedEventDataDao().getLastSavedEvent(
-                    name = request.placementName,
+                    name = request.eventName,
                     date = lastEventDate,
                 ) ?: return null
 

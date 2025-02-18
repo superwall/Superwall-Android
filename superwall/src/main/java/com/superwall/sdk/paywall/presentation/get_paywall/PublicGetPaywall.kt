@@ -17,7 +17,7 @@ import kotlinx.coroutines.withContext
 @Throws(Throwable::class)
 @Deprecated("Will be removed in the upcoming versions, use Superwall.getPaywall instead")
 suspend fun Superwall.getPaywallOrThrow(
-    event: String,
+    placement: String,
     params: Map<String, Any>? = null,
     paywallOverrides: PaywallOverrides? = null,
     delegate: PaywallViewCallback,
@@ -25,7 +25,7 @@ suspend fun Superwall.getPaywallOrThrow(
     withContext(Dispatchers.Main) {
         val view =
             internallyGetPaywall(
-                event = event,
+                placement = placement,
                 params = params,
                 paywallOverrides = paywallOverrides,
                 delegate = PaywallViewDelegateAdapter(kotlinDelegate = delegate),
@@ -44,7 +44,7 @@ suspend fun Superwall.getPaywallOrThrow(
 @Throws(Throwable::class)
 @Deprecated("Will be removed in the upcoming versions, use `PaywallBuilder` instead")
 suspend fun Superwall.getPaywall(
-    event: String,
+    placement: String,
     params: Map<String, Any>? = null,
     paywallOverrides: PaywallOverrides? = null,
     delegate: PaywallViewCallback,
@@ -52,7 +52,7 @@ suspend fun Superwall.getPaywall(
     withContext(Dispatchers.Main) {
         val result =
             internallyGetPaywall(
-                event = event,
+                placement = placement,
                 params = params,
                 paywallOverrides = paywallOverrides,
                 delegate = PaywallViewDelegateAdapter(kotlinDelegate = delegate),
@@ -78,7 +78,7 @@ suspend fun Superwall.getPaywall(
 
 @Throws(Throwable::class)
 private suspend fun Superwall.internallyGetPaywall(
-    event: String,
+    placement: String,
     params: Map<String, Any>? = null,
     paywallOverrides: PaywallOverrides? = null,
     delegate: PaywallViewDelegateAdapter,
@@ -86,7 +86,7 @@ private suspend fun Superwall.internallyGetPaywall(
     withContext(Dispatchers.Main) {
         val trackableEvent =
             UserInitiatedEvent.Track(
-                rawName = event,
+                rawName = placement,
                 canImplicitlyTriggerPaywall = false,
                 customParameters = params ?: emptyMap(),
                 isFeatureGatable = false,

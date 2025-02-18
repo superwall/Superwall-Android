@@ -134,7 +134,7 @@ fun HomeScreen(
                         }
                         handler.onSkip { reason ->
                             when (reason) {
-                                is PaywallSkippedReason.EventNotFound -> {
+                                is PaywallSkippedReason.PlacementNotFound -> {
                                     print("Paywall not shown because this event isn't part of a campaign.")
                                 }
                                 is PaywallSkippedReason.Holdout -> {
@@ -143,7 +143,7 @@ fun HomeScreen(
                                             "Experiment: ${reason.experiment.id}",
                                     )
                                 }
-                                is PaywallSkippedReason.NoRuleMatch -> {
+                                is PaywallSkippedReason.NoAudienceMatch -> {
                                     print("Paywall not shown because user doesn't match any rules.")
                                 }
                                 is PaywallSkippedReason.UserIsSubscribed -> {
