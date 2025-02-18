@@ -23,18 +23,18 @@ import java.util.HashMap
  * Note that this method does not present a paywall. To do that, use
  * `register(event:params:handler:feature:)`.
  *
- * @param event The name of the event you want to register.
+ * @param placement The name of the event you want to register.
  * @param params Optional parameters you'd like to pass with your event.
  * @return A [PresentationResult] that indicates the result of registering an event.
  */
 suspend fun Superwall.getPresentationResult(
-    event: String,
+    placement: String,
     params: Map<String, Any>? = null,
 ): Result<PresentationResult> =
     withErrorTracking {
         val event =
             UserInitiatedEvent.Track(
-                rawName = event,
+                rawName = placement,
                 canImplicitlyTriggerPaywall = false,
                 customParameters = HashMap(params ?: emptyMap()),
                 isFeatureGatable = false,
@@ -57,17 +57,17 @@ suspend fun Superwall.getPresentationResult(
  *
  * Warning: This blocks the calling thread.
  *
- * @param event The name of the event you want to register.
+ * @param placement The name of the event you want to register.
  * @param params Optional parameters you'd like to pass with your event.
  * @return A [PresentationResult] that indicates the result of registering an event.
  */
 fun Superwall.getPresentationResultSync(
-    event: String,
+    placement: String,
     params: Map<String, Any>? = null,
 ): Result<PresentationResult> =
     runBlocking {
         getPresentationResult(
-            event,
+            placement,
             params,
         )
     }

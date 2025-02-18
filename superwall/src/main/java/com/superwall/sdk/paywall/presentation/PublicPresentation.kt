@@ -95,7 +95,7 @@ fun Superwall.dismissSyncForNextPaywall() =
  * The paywall shown to the user is determined by the rules defined in the campaign. When a user is assigned a paywall within a rule,
  * they will continue to see that paywall unless you remove the paywall from the rule or reset assignments to the paywall.
  *
- * @param event The name of the event you wish to register.
+ * @param placement The name of the event you wish to register.
  * @param params Optional parameters you'd like to pass with your event. These can be referenced within the rules of your campaign.
  *               Keys beginning with `$` are reserved for Superwall and will be dropped. Values can be any JSON encodable value, URLs or Dates.
  *               Arrays and dictionaries as values are not supported at this time, and will be dropped. Defaults to `null`.
@@ -107,16 +107,16 @@ fun Superwall.dismissSyncForNextPaywall() =
  *                in the event of an error, which you can detect via the `handler`.
  */
 fun Superwall.register(
-    event: String,
+    placement: String,
     params: Map<String, Any>? = null,
     handler: PaywallPresentationHandler? = null,
     feature: (() -> Unit)? = null,
 ) {
-    internallyRegister(event, params, handler, feature)
+    internallyRegister(placement, params, handler, feature)
 }
 
 private fun Superwall.internallyRegister(
-    event: String,
+    placement: String,
     params: Map<String, Any>? = null,
     handler: PaywallPresentationHandler? = null,
     completion: (() -> Unit)? = null,
@@ -136,7 +136,7 @@ private fun Superwall.internallyRegister(
 
                     is PaywallState.Dismissed -> {
                         val (paywallInfo, paywallResult) = state
-                        handler?.onDismissHandler?.invoke(paywallInfo)
+                        handler?.onDismissHandler?.invoke(paywallInfo, paywallResult)
                         when (paywallResult) {
                             is Purchased, is Restored -> {
                                 completion?.invoke()
@@ -181,7 +181,7 @@ private fun Superwall.internallyRegister(
         withErrorTracking {
             collectionWillStart.await()
             trackAndPresentPaywall(
-                event = event,
+                placement = placement,
                 params = params,
                 paywallOverrides = null,
                 isFeatureGatable = completion != null,
@@ -192,21 +192,21 @@ private fun Superwall.internallyRegister(
 }
 
 private suspend fun Superwall.trackAndPresentPaywall(
-    event: String,
+    placement: String,
     params: Map<String, Any>? = null,
     paywallOverrides: PaywallOverrides? = null,
     isFeatureGatable: Boolean,
     publisher: MutableSharedFlow<PaywallState>,
 ) {
     try {
-        TrackingLogic.checkNotSuperwallEvent(event)
+        TrackingLogic.checkNotSuperwallEvent(placement)
     } catch (e: Throwable) {
         return
     }
 
     val trackableEvent =
         UserInitiatedEvent.Track(
-            rawName = event,
+            rawName = placement,
             canImplicitlyTriggerPaywall = false,
             customParameters = params ?: emptyMap(),
             isFeatureGatable = isFeatureGatable,

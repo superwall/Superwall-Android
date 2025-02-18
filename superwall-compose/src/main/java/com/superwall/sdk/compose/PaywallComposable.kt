@@ -27,7 +27,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun PaywallComposable(
     modifier: Modifier = Modifier.fillMaxSize(),
-    event: String,
+    placement: String,
     params: Map<String, Any>? = null,
     paywallOverrides: PaywallOverrides? = null,
     delegate: PaywallViewCallback,
@@ -53,7 +53,7 @@ fun PaywallComposable(
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
-        PaywallBuilder(event)
+        PaywallBuilder(placement)
             .params(params)
             .overrides(paywallOverrides)
             .delegate(delegate)

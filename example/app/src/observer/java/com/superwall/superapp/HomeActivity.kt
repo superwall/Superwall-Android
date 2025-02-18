@@ -251,7 +251,7 @@ fun HomeScreen(
 
 fun showPaywall(
     context: Context,
-    event: String,
+    placement: String,
 ) {
     val handler = PaywallPresentationHandler()
     handler.onDismiss { paywallInfo ->
@@ -265,8 +265,8 @@ fun showPaywall(
     }
     handler.onSkip { reason ->
         when (reason) {
-            is PaywallSkippedReason.EventNotFound -> {
-                print("Paywall not shown because this event isn't part of a campaign.")
+            is PaywallSkippedReason.PlacementNotFound -> {
+                print("Paywall not shown because this placement isn't part of a campaign.")
             }
 
             is PaywallSkippedReason.Holdout -> {
@@ -276,7 +276,7 @@ fun showPaywall(
                 )
             }
 
-            is PaywallSkippedReason.NoRuleMatch -> {
+            is PaywallSkippedReason.NoAudienceMatch -> {
                 print("Paywall not shown because user doesn't match any rules.")
             }
 
@@ -286,7 +286,7 @@ fun showPaywall(
         }
     }
 
-    Superwall.instance.register(event = "campaign_trigger", handler = handler) {
+    Superwall.instance.register(placement = "campaign_trigger", handler = handler) {
         // code in here can be remotely configured to execute. Either
         // (1) always after presentation or
         // (2) only if the user pays

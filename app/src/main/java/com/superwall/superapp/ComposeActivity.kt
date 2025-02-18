@@ -104,7 +104,7 @@ fun TabContent0(
     delegate: PaywallViewCallback,
 ) {
     PaywallComposable(
-        event = "no_products",
+        placement = "no_products",
         params = mapOf("key" to "value"),
         paywallOverrides = paywallOverrides,
         delegate = delegate,
@@ -117,7 +117,7 @@ fun TabContent1(
     delegate: PaywallViewCallback,
 ) {
     PaywallComposable(
-        event = "no-existing-event",
+        placement = "no-existing-event",
         params = mapOf("key" to "value"),
         paywallOverrides = paywallOverrides,
         delegate = delegate,
