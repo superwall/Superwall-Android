@@ -38,7 +38,6 @@ class MainApplication :
 
     override fun onCreate() {
         super.onCreate()
-        Superwall.instance.subscriptionStatus.value
         StrictMode.setThreadPolicy(
             ThreadPolicy
                 .Builder()
@@ -60,7 +59,7 @@ class MainApplication :
         )
 
         if (!isRunningTest()) {
-            configureWithObserverMode()
+            configureWithAutomaticInitialization()
         }
 //        configureWithRevenueCatInitialization()
     }

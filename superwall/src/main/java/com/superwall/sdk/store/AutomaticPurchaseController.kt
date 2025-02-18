@@ -303,6 +303,7 @@ class AutomaticPurchaseController(
             } else {
                 SubscriptionStatus.Inactive
             }
+        Superwall.instance.setSubscriptionStatus(status)
 
         if (!Superwall.initialized) {
             Logger.debug(

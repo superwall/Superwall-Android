@@ -51,7 +51,7 @@ sealed class TriggerResult {
 }
 
 /**
- * The result of a paywall trigger. `NoRuleMatch` is an associated sealed class.
+ * The result of a paywall trigger. `NoAudienceMatch` is an associated sealed class.
  *
  * Triggers can conditionally show paywalls. Contains the possible cases resulting from the trigger.
  */

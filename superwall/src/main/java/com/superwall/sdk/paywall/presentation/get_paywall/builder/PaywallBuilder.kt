@@ -18,7 +18,7 @@ import java.lang.ref.WeakReference
  * as an Android View, allowing you to customize the paywall's appearance and behavior,
  * for example by passing in a custom Shimmer or Loading view.
  *
- * @param event The placement name for the paywall you want to display.
+ * @param placement The placement name for the paywall you want to display.
  * @property params the parameters to pass into the event
  * @property paywallOverrides the paywall overrides to apply to the paywall, i.e. substitutions or presentation styles
  * @property delegate the [SuperwallDelegate] to handle the paywall's callbacks
@@ -28,7 +28,7 @@ import java.lang.ref.WeakReference
  * @see PaywallView
  * Example:
  * ```
- * val paywallView = PaywallBuilder("event_name")
+ * val paywallView = PaywallBuilder("placement_name")
  *    .params(mapOf("key" to "value"))
  *    .overrides(PaywallOverrides())
  *    .delegate(mySuperwallDelegate)
@@ -39,7 +39,7 @@ import java.lang.ref.WeakReference
  */
 
 class PaywallBuilder(
-    val event: String,
+    val placement: String,
 ) {
     private var params: Map<String, Any>? = null
     private var paywallOverrides: PaywallOverrides? = null
@@ -82,7 +82,7 @@ class PaywallBuilder(
 
     suspend fun build(): Result<PaywallView> =
         Superwall.instance
-            .getPaywall(event, params, paywallOverrides, delegate!!)
+            .getPaywall(placement, params, paywallOverrides, delegate!!)
             .onSuccess { newView ->
                 newView.encapsulatingActivity = WeakReference(activity)
                 val shimmer = shimmmerView ?: ShimmerView(activity!!)

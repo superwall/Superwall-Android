@@ -2,6 +2,14 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+# 2.0.0-beta.5
+
+## Breaking changes
+- `Superwall.instance.register` now uses `placement` instead of `event` as the argument name
+- `preloadPaywalls` now uses `placementNames` instead of `eventNames` as the argument name
+- Superwall's `PaywallPresentationHandler.onDismiss` now has two arguments, `PaywallInfo` and `PaywallResult`
+- `PaywallComposable` now uses `placement` argument instead of `event`
+
 # 2.0.0-beta.4
 
 ## Breaking changes

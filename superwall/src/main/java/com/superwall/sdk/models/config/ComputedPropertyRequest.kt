@@ -12,7 +12,7 @@ import java.util.Calendar
 @Serializable
 data class ComputedPropertyRequest(
     val type: ComputedPropertyRequestType,
-    val placementName: String,
+    val eventName: String,
 ) {
     /**
      * The type of device property to compute.

@@ -28,7 +28,7 @@ class MockPaywallViewDelegate : PaywallViewCallback {
 class MockSuperwallDelegate : SuperwallDelegate {
     private var handleSuperwallEvent: ((SuperwallPlacementInfo) -> Unit)? = null
 
-    fun handleSuperwallEvent(handler: (SuperwallPlacementInfo) -> Unit) {
+    fun handleSuperwallPlacement(handler: (SuperwallPlacementInfo) -> Unit) {
         handleSuperwallEvent = handler
     }
 

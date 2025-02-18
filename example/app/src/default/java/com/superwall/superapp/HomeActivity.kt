@@ -1,4 +1,4 @@
-package com.superwall.exampleapp
+package com.superwall.superapp
 
 import android.app.AlertDialog
 import android.os.Bundle
@@ -29,12 +29,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
-import com.superwall.exampleapp.ui.theme.SuperwallExampleAppTheme
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.paywall.presentation.PaywallPresentationHandler
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallSkippedReason
 import com.superwall.sdk.paywall.presentation.register
+import com.superwall.superapp.ui.theme.SuperwallExampleAppTheme
 
 class HomeActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -103,9 +103,9 @@ fun HomeScreen(
             ) {
                 Text(
                     text =
-                        "The Launch Feature button below registers an event \"campaign_trigger\".\n\n" +
-                            "This event has been added to a campaign on the Superwall dashboard.\n\n" +
-                            "When this event is registered, the rules in the campaign are evaluated.\n\n" +
+                        "The Launch Feature button below registers a placement \"campaign_trigger\".\n\n" +
+                            "This placement has been added to a campaign on the Superwall dashboard.\n\n" +
+                            "When this placement is registered, the rules in the campaign are evaluated.\n\n" +
                             "The rules match and cause a paywall to show.",
                     textAlign = TextAlign.Center,
                 )
@@ -123,8 +123,8 @@ fun HomeScreen(
                 Button(
                     onClick = {
                         val handler = PaywallPresentationHandler()
-                        handler.onDismiss { paywallInfo ->
-                            println("The paywall dismissed. PaywallInfo: $paywallInfo")
+                        handler.onDismiss { paywallInfo, paywallResult ->
+                            println("The paywall dismissed. PaywallInfo: $paywallInfo - $paywallResult")
                         }
                         handler.onPresent { paywallInfo ->
                             println("The paywall presented. PaywallInfo: $paywallInfo")
@@ -134,8 +134,8 @@ fun HomeScreen(
                         }
                         handler.onSkip { reason ->
                             when (reason) {
-                                is PaywallSkippedReason.EventNotFound -> {
-                                    print("Paywall not shown because this event isn't part of a campaign.")
+                                is PaywallSkippedReason.PlacementNotFound -> {
+                                    print("Paywall not shown because this placement isn't part of a campaign.")
                                 }
                                 is PaywallSkippedReason.Holdout -> {
                                     print(
@@ -143,7 +143,7 @@ fun HomeScreen(
                                             "Experiment: ${reason.experiment.id}",
                                     )
                                 }
-                                is PaywallSkippedReason.NoRuleMatch -> {
+                                is PaywallSkippedReason.NoAudienceMatch -> {
                                     print("Paywall not shown because user doesn't match any rules.")
                                 }
                                 is PaywallSkippedReason.UserIsSubscribed -> {
@@ -152,7 +152,7 @@ fun HomeScreen(
                             }
                         }
 
-                        Superwall.instance.register(event = "campaign_trigger", handler = handler) {
+                        Superwall.instance.register(placement = "campaign_trigger", handler = handler) {
                             // code in here can be remotely configured to execute. Either
                             // (1) always after presentation or
                             // (2) only if the user pays
