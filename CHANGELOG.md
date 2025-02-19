@@ -4,7 +4,50 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 # 2.0.0
 
-- Our 2.0.0 release brings some major and minor changes to both our API's and core features. For more information, please look at our [migration docs](https://superwall.com/docs/migrating-to-v2-android)
+Our 2.0.0 release brings some major and minor changes to both our API's and core features. For more information, please look at our [migration docs](https://superwall.com/docs/migrating-to-v2-android)
+
+## Enhancements
+
+- Adds `PaywallBuilder` class as an alternative to existing `getPaywallView` method. This provides a cleaner API and an ability to change purchase loading bar and shimmer view.
+- Ensure safety of static webview calls that are known to fail randomly due to Webview's internal issues
+- Adds `purchase` method to `Superwall` you can use to purchase products without having to resort on paywalls. To purchase a product you can pass it in one of the following objects:
+  - Google Play's `ProductDetails`
+  - Superwall's `StoreProduct` object
+  - Or a string containing the product identifier, i.e. `Superwall.instance.purchase("product_id:base_plan:offer")`
+- Adds `restorePurchases` method to `Superwall` you can use to handle restoring purchases
+- Adds `getProducts` method to `Superwall` you can use to retrieve a list of `ProductDetails` given the product ID, i.e.  i.e. `Superwall.instance.purchase("product_id:base_plan:offer")`
+- Adds support for observing purchases done outside of Superwall paywalls. You can now observe purchases done outside of Superwall paywalls by setting the `shouldObservePurchases` option to true and either:
+  - Manually by calling `Superwall.instance.observe(PurchasingObserverState)` or utility methods `Superwall.instance.observePurchaseStart/observePurchaseError/observePurchaseResult`
+  - Automatically by replacing `launchBillingFlow` with `launchBillingFlowWithSuperwall`. This will automatically observe purchases done outside of Superwall paywalls.
+- Adds consumer proguard rules to enable consumer minification
+- `Superwall.instance` now provides blocking or callback based version of multiple calls, suffixed with `*Sync`
+- Improves preloading performance and reduces impact on the main thread
+- Reduces minSDK to 22
+
+
+## Breaking Changes
+
+- `SuperwallPaywallActivity` and `PaywallView` have been moved into `com.superwall.sdk.paywall.view` package from `com.superwall.sdk.paywall.vc` package.
+- Removes `PaywallComposable` and Jetpack Compose support from the main SDK artifact in favor of `Superwall-Compose` module for Jetpack Compose support:
+  - You can find it at `com.superwall.sdk:superwall-compose:2.0.0-alpha`
+  - Usage remains the same as before, but now you need to include the `superwall-compose` module in your project.
+- Removed methods previously marked as Deprecated
+- `SubscriptionStatus.Active` now takes in a set of `Entitlements`, while `Inactive` and `Active` have been turned into objects.
+- `Superwall.instance.register` now uses `placement` instead of `event` as the argument name
+- `preloadPaywalls` now uses `placementNames` instead of `eventNames` as the argument name
+- `PaywallPresentationHandler.onDismiss` now has two arguments, `PaywallInfo` and `PaywallResult`
+- `PaywallComposable` now uses `placement` argument instead of `event`
+- `TriggerResult.NoRuleMatch` and `TriggerResult.EventNotFound` have been renamed to `TriggerResult.NoAudienceMatch` and `TriggerResult.PlacementNotFound`
+- `PresentationResult.NoRuleMatch` and `PresentationResult.EventNotFound` have been renamed to `PresentationResult.NoAudienceMatch` and `PresentationResult.PlacementNotFound`
+- `SuperwallEvent` has been renamed to `SuperwallPlacement`, belonging properties with `eventName` have been renamed to `placementName`
+- `SuperwallEventInfo` has been renamed to `SuperwallPlacementInfo`
+- `ComputedPropertyRequest.eventName` has been renamed to `ComputedPropertyRequest.placementName`
+- `Superwall.instance.events` has been renamed to `Superwall.instance.placements`
+- `LogScope.events` has been renamed to `LogScope.placements`
+- `PaywallPresentationRequestStatusReason.EventNotFound` has been renamed to `PaywallPresentationRequestStatusReason.PlacementNotFound`
+- `PaywallSkippedReason.EventNotFound` has been renamed to `PaywallSkippedReason.PlacementNotFound`
+- `SuperwallDelegate.handleSuperwallEvent` method has been renamed to `SuperwallDelegate.handleSuperwallPlacement`
+- Removed `PurchaseResult.Restored`
 
 # 2.0.0-beta.5
 
