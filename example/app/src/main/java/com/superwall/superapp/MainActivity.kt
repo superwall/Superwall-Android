@@ -217,6 +217,6 @@ fun startHomeActivity(
 
     Superwall.instance.identify(userId = "abc")
 
-    val intent = Intent(context, HomeActivity::class.java)
+    val intent = Intent(context, MainActivity::class.java)
     context.startActivity(intent)
 }

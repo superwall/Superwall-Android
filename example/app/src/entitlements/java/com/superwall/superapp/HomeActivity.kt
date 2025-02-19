@@ -40,12 +40,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
-import com.superwall.exampleapp.ui.theme.SuperwallExampleAppTheme
 import com.superwall.sdk.Superwall
-import com.superwall.sdk.models.entitlements.EntitlementStatus
+import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.paywall.presentation.PaywallPresentationHandler
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallSkippedReason
 import com.superwall.sdk.paywall.presentation.register
+import com.superwall.superapp.ui.theme.SuperwallExampleAppTheme
 
 class HomeActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -54,11 +54,11 @@ class HomeActivity : ComponentActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
         setContent {
-            val entitlementStatus by Superwall.instance.entitlements.status
+            val subscriptionStatus by Superwall.instance.subscriptionStatus
                 .collectAsState()
             SuperwallExampleAppTheme {
                 HomeScreen(
-                    entitlementStatus = entitlementStatus,
+                    subscriptionStatus = subscriptionStatus,
                     onLogOutClicked = {
                         finish()
                     },
@@ -70,19 +70,19 @@ class HomeActivity : ComponentActivity() {
 
 @Composable
 fun HomeScreen(
-    entitlementStatus: EntitlementStatus,
+    subscriptionStatus: SubscriptionStatus,
     onLogOutClicked: () -> Unit,
 ) {
     val context = LocalContext.current
     val subscriptionText =
-        when (entitlementStatus) {
-            is EntitlementStatus.Unknown -> "Loading entitlement status."
-            is EntitlementStatus.Active ->
+        when (subscriptionStatus) {
+            is SubscriptionStatus.Unknown -> "Loading entitlement status."
+            is SubscriptionStatus.Active ->
                 "You currently have active entitlemements: ${
-                    entitlementStatus.entitlements.map { it.id }.joinToString()
+                    subscriptionStatus.entitlements.map { it.id }.joinToString()
                 }."
 
-            is EntitlementStatus.Inactive ->
+            is SubscriptionStatus.Inactive ->
                 "You do not have any active entitlements so the paywall will " +
                     "show when clicking the button."
         }
@@ -114,7 +114,7 @@ fun HomeScreen(
                         .padding(top = 50.dp),
             )
             Text(
-                text = "Entitlement Status: $subscriptionText",
+                text = "Subscription Status: $subscriptionText",
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
             )
@@ -136,15 +136,15 @@ fun HomeScreen(
                     onDismissRequest = { dropdownState.value = false },
                 ) {
                     DropdownMenuItem({ Text("Inactive") }, onClick = {
-                        Superwall.instance.setEntitlementStatus(EntitlementStatus.Inactive)
+                        Superwall.instance.setSubscriptionStatus(SubscriptionStatus.Inactive)
                         dropdownState.value = false
                     })
                     DropdownMenuItem({ Text("Pro") }, onClick = {
-                        Superwall.instance.setEntitlementStatus("pro")
+                        Superwall.instance.setSubscriptionStatus("pro")
                         dropdownState.value = false
                     })
                     DropdownMenuItem({ Text("diamond") }, onClick = {
-                        Superwall.instance.setEntitlementStatus("diamond")
+                        Superwall.instance.setSubscriptionStatus("diamond")
                         dropdownState.value = false
                     })
                 }
@@ -217,7 +217,7 @@ fun showPaywall(
     placement: String,
 ) {
     val handler = PaywallPresentationHandler()
-    handler.onDismiss { paywallInfo ->
+    handler.onDismiss { paywallInfo, paywallResult ->
         println("The paywall dismissed. PaywallInfo: $paywallInfo")
     }
     handler.onPresent { paywallInfo ->
