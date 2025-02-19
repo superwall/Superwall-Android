@@ -2,6 +2,10 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+# 2.0.0
+
+- Our 2.0.0 release brings some major and minor changes to both our API's and core features. For more information, please look at our [migration docs](https://superwall.com/docs/migrating-to-v2-android)
+
 # 2.0.0-beta.5
 
 ## Breaking changes
@@ -9,6 +13,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 - `preloadPaywalls` now uses `placementNames` instead of `eventNames` as the argument name
 - Superwall's `PaywallPresentationHandler.onDismiss` now has two arguments, `PaywallInfo` and `PaywallResult`
 - `PaywallComposable` now uses `placement` argument instead of `event`
+- Remove `PurchaseResult.Restored`
 
 # 2.0.0-beta.4
 
