@@ -37,7 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import com.superwall.sdk.Superwall
-import com.superwall.sdk.models.entitlements.EntitlementStatus
+import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.paywall.presentation.PaywallPresentationHandler
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallSkippedReason
 import com.superwall.sdk.paywall.presentation.register
@@ -53,11 +53,11 @@ class HomeActivity : ComponentActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
         setContent {
-            val entitlementStatus by Superwall.instance.entitlements.status
+            val subscriptionStatus by Superwall.instance.entitlements.status
                 .collectAsState()
             SuperwallExampleAppTheme {
                 HomeScreen(
-                    entitlementStatus = entitlementStatus,
+                    subscriptionStatus = subscriptionStatus,
                     onLogOutClicked = {
                         finish()
                     },
@@ -69,7 +69,7 @@ class HomeActivity : ComponentActivity() {
 
 @Composable
 fun HomeScreen(
-    entitlementStatus: EntitlementStatus,
+    subscriptionStatus: SubscriptionStatus,
     onLogOutClicked: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -204,7 +204,7 @@ fun showPaywall(
     placement: String,
 ) {
     val handler = PaywallPresentationHandler()
-    handler.onDismiss { paywallInfo ->
+    handler.onDismiss { paywallInfo, paywallResult ->
         println("The paywall dismissed. PaywallInfo: $paywallInfo")
     }
     handler.onPresent { paywallInfo ->
