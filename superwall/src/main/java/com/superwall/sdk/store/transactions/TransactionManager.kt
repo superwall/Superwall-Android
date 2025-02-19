@@ -289,13 +289,6 @@ class TransactionManager(
                 didPurchase(product, purchaseSource, isEligibleForTrial && product.hasFreeTrial)
             }
 
-            is PurchaseResult.Restored -> {
-                didRestore(
-                    product = product,
-                    purchaseSource = purchaseSource,
-                )
-            }
-
             is PurchaseResult.Failed -> {
                 val superwallOptions = factory.makeSuperwallOptions()
                 val shouldShowPurchaseFailureAlert =
