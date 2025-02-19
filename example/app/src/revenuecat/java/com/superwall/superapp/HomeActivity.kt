@@ -152,7 +152,7 @@ fun HomeScreen(
                             }
                         }
 
-                        Superwall.instance.register(event = "campaign_trigger", handler = handler) {
+                        Superwall.instance.register(placement = "campaign_trigger", handler = handler) {
                             // code in here can be remotely configured to execute. Either
                             // (1) always after presentation or
                             // (2) only if the user pays

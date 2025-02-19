@@ -51,7 +51,7 @@ You'll see the home screen:
 
 ## Presenting a Paywall
 
-At the heart of Superwall's SDK lies [Superwall.shared.register(event:params:handler:feature:)](app/src/main/java/com/superwall/superapp/HomeActivity.kt#L150).
+At the heart of Superwall's SDK lies [Superwall.shared.register(placement:params:handler:feature:)](app/src/main/java/com/superwall/superapp/HomeActivity.kt#L150).
 
 This allows you to register an event to access a feature that may or may not be paywalled later in time. It also allows you to choose whether the user can access the feature even if they don't make a purchase. You can read more about this [in our docs](https://docs.superwall.com/docs).
 
@@ -59,7 +59,7 @@ On the [Superwall Dashboard](https://superwall.com/dashboard) you add this event
 
 When an event is registered, Superwall evaluates the rules associated with it to determine whether or not to show a paywall.
 
-By calling [Superwall.shared.register(event:params:handler:feature:)](app/src/main/java/com/superwall/superapp/HomeActivity.kt#L150), you present a paywall in response to the event `campaign_trigger`.
+By calling [Superwall.shared.register(placement:params:handler:feature:)](app/src/main/java/com/superwall/superapp/HomeActivity.kt#L150), you present a paywall in response to the event `campaign_trigger`.
 
 On screen you'll see some explanatory text and a button to launch a feature that is behind a paywall. Tap the **Launch Feature** button and you'll see the paywall. If the event is disabled on the dashboard, the paywall wouldn't show and the feature would fire immediately. In this case, the feature is just an alert.
 

@@ -21,7 +21,7 @@ import java.util.HashMap
  * in the future.
  *
  * Note that this method does not present a paywall. To do that, use
- * `register(event:params:handler:feature:)`.
+ * `register(placement:params:handler:feature:)`.
  *
  * @param placement The name of the event you want to register.
  * @param params Optional parameters you'd like to pass with your event.
@@ -53,7 +53,7 @@ suspend fun Superwall.getPresentationResult(
  * in the future.
  *
  * Note that this method does not present a paywall. To do that, use
- * `register(event:params:handler:feature:)`.
+ * `register(placement:params:handler:feature:)`.
  *
  * Warning: This blocks the calling thread.
  *

@@ -188,7 +188,7 @@ class FlowScreenshotTestExecutor {
                     delayFor(100.milliseconds)
                 }
                 step {
-                    Superwall.instance.register(event = "holdout_one_time_occurrence")
+                    Superwall.instance.register(placement = "holdout_one_time_occurrence")
                     it.waitFor { it is SuperwallPlacement.PaywallWebviewLoadComplete }
                     awaitUntilShimmerDisappears()
                     awaitUntilWebviewAppears()
@@ -209,7 +209,7 @@ class FlowScreenshotTestExecutor {
                 }
                 step {
                     goBack()
-                    Superwall.instance.register(event = "one_time_occurrence")
+                    Superwall.instance.register(placement = "one_time_occurrence")
                     delayFor(300.milliseconds)
                 }
             }
@@ -227,11 +227,11 @@ class FlowScreenshotTestExecutor {
                 }
                 step {
                     goBack()
-                    Superwall.instance.register(event = "once_a_minute")
+                    Superwall.instance.register(placement = "once_a_minute")
                     delayFor(300.milliseconds)
                 }
                 step {
-                    Superwall.instance.register(event = "once_a_minute")
+                    Superwall.instance.register(placement = "once_a_minute")
                     awaitUntilShimmerDisappears()
                     awaitUntilWebviewAppears()
                     delayFor(300.milliseconds)
