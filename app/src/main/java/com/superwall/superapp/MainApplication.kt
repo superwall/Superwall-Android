@@ -1,5 +1,6 @@
 package com.superwall.superapp
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.os.StrictMode
 import android.os.StrictMode.ThreadPolicy
@@ -36,6 +37,7 @@ class MainApplication :
     SuperwallDelegate {
     var activity: WeakReference<Activity>? = null
 
+    @SuppressLint("NewApi")
     override fun onCreate() {
         super.onCreate()
         StrictMode.setThreadPolicy(
