@@ -1,6 +1,7 @@
 package com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator
 
-import androidx.test.platform.app.InstrumentationRegistry
+import com.superwall.sdk.RuleAttributeFactoryBuilder
+import com.superwall.sdk.dependencies.RuleAttributesFactory
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.triggers.Experiment
@@ -23,9 +24,11 @@ import org.junit.Test
 import java.util.Date
 
 class SuperscriptExpressionEvaluatorInstrumentedTest {
+    private val attributesFactory = RuleAttributeFactoryBuilder()
+
     private fun CoroutineScope.evaluatorFor(
         storage: CoreDataManager,
-        factoryBuilder: RuleAttributeFactoryBuilder,
+        factoryBuilder: RuleAttributesFactory,
     ) = SuperscriptEvaluator(
         storage = storage,
         json =
@@ -41,13 +44,12 @@ class SuperscriptExpressionEvaluatorInstrumentedTest {
     fun test_happy_path_evaluator() =
         runTest {
             // get context
-            val ruleAttributes = RuleAttributeFactoryBuilder()
             val storage = mockk<CoreDataManager>()
 
             val expressionEvaluator =
                 evaluatorFor(
                     storage = storage,
-                    factoryBuilder = ruleAttributes,
+                    factoryBuilder = attributesFactory,
                 )
 
             val rule =
@@ -63,7 +65,7 @@ class SuperscriptExpressionEvaluatorInstrumentedTest {
                                 paywallId = null,
                             ),
                         ),
-                    expression = "user.id == \"123\"",
+                    expressionCEL = "user.id == \"123\"",
                     expressionJs = null,
                     preload =
                         TriggerRule.TriggerPreload(
@@ -88,13 +90,12 @@ class SuperscriptExpressionEvaluatorInstrumentedTest {
     @Test
     fun test_expression_evaluator_expression_js() =
         runTest {
-            val ruleAttributes = RuleAttributeFactoryBuilder()
             val storage = mockk<CoreDataManager>()
 
             val expressionEvaluator =
                 evaluatorFor(
                     storage = storage,
-                    factoryBuilder = ruleAttributes,
+                    factoryBuilder = attributesFactory,
                 )
 
             val trueRule =
@@ -111,7 +112,7 @@ class SuperscriptExpressionEvaluatorInstrumentedTest {
                             ),
                         ),
                     expressionJs = null,
-                    expression = "true",
+                    expressionCEL = "true",
                     preload =
                         TriggerRule.TriggerPreload(
                             behavior = TriggerPreloadBehavior.ALWAYS,
@@ -132,7 +133,7 @@ class SuperscriptExpressionEvaluatorInstrumentedTest {
                                 paywallId = null,
                             ),
                         ),
-                    expression = "false",
+                    expressionCEL = "false",
                     expressionJs = null,
                     preload =
                         TriggerRule.TriggerPreload(
@@ -176,14 +177,12 @@ class SuperscriptExpressionEvaluatorInstrumentedTest {
     @Test
     fun multi_threaded() =
         runTest {
-            val context = InstrumentationRegistry.getInstrumentation().targetContext
-            val ruleAttributes = RuleAttributeFactoryBuilder()
             val storage = mockk<CoreDataManager>()
 
             val expressionEvaluator =
                 evaluatorFor(
                     storage = storage,
-                    factoryBuilder = ruleAttributes,
+                    factoryBuilder = attributesFactory,
                 )
             val trueRule =
                 TriggerRule(
@@ -198,7 +197,7 @@ class SuperscriptExpressionEvaluatorInstrumentedTest {
                                 paywallId = null,
                             ),
                         ),
-                    expression = "user.id == \"123\"",
+                    expressionCEL = "user.id == \"123\"",
                     expressionJs = null,
                     preload =
                         TriggerRule.TriggerPreload(
@@ -220,7 +219,7 @@ class SuperscriptExpressionEvaluatorInstrumentedTest {
                                 paywallId = null,
                             ),
                         ),
-                    expression = "false",
+                    expressionCEL = "false",
                     expressionJs = null,
                     preload =
                         TriggerRule.TriggerPreload(
@@ -272,14 +271,12 @@ class SuperscriptExpressionEvaluatorInstrumentedTest {
     @Test
     fun test_no_expression() =
         runTest {
-            val context = InstrumentationRegistry.getInstrumentation().targetContext
-            val ruleAttributes = RuleAttributeFactoryBuilder()
             val storage = mockk<CoreDataManager>()
 
             val expressionEvaluator =
                 evaluatorFor(
                     storage = storage,
-                    factoryBuilder = ruleAttributes,
+                    factoryBuilder = attributesFactory,
                 )
 
             val rule =

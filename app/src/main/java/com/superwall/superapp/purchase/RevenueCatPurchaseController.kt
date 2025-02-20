@@ -1,4 +1,4 @@
-package com.superwall.superapp
+package com.superwall.superapp.purchase
 
 import android.app.Activity
 import android.content.Context
@@ -24,8 +24,9 @@ import com.revenuecat.purchases.purchaseWith
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
-import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
+import com.superwall.sdk.models.entitlements.Entitlement
+import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import kotlinx.coroutines.CompletableDeferred
 
 // Extension function to convert callback to suspend function
@@ -126,9 +127,16 @@ class RevenueCatPurchaseController(
         // Refetch the customer info on load
         Purchases.sharedInstance.getCustomerInfoWith {
             if (hasAnyActiveEntitlements(it)) {
-                setSubscriptionStatus(SubscriptionStatus.ACTIVE)
+                setSubscriptionStatus(
+                    SubscriptionStatus.Active(
+                        it.entitlements.active
+                            .map {
+                                Entitlement(it.key, Entitlement.Type.SERVICE_LEVEL)
+                            }.toSet(),
+                    ),
+                )
             } else {
-                setSubscriptionStatus(SubscriptionStatus.INACTIVE)
+                setSubscriptionStatus(SubscriptionStatus.Inactive)
             }
         }
     }
@@ -138,9 +146,16 @@ class RevenueCatPurchaseController(
      */
     override fun onReceived(customerInfo: CustomerInfo) {
         if (hasAnyActiveEntitlements(customerInfo)) {
-            setSubscriptionStatus(SubscriptionStatus.ACTIVE)
+            setSubscriptionStatus(
+                SubscriptionStatus.Active(
+                    customerInfo.entitlements.active
+                        .map {
+                            Entitlement(it.key, Entitlement.Type.SERVICE_LEVEL)
+                        }.toSet(),
+                ),
+            )
         } else {
-            setSubscriptionStatus(SubscriptionStatus.INACTIVE)
+            setSubscriptionStatus(SubscriptionStatus.Inactive)
         }
     }
 

@@ -1,7 +1,8 @@
 package com.superwall.sdk.delegate
 
 import android.net.Uri
-import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
+import com.superwall.sdk.analytics.superwall.SuperwallPlacementInfo
+import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import java.net.URI
 
@@ -44,14 +45,17 @@ class SuperwallDelegateAdapter {
             ?: javaDelegate?.paywallWillOpenDeepLink(url)
     }
 
-    fun handleSuperwallEvent(eventInfo: SuperwallEventInfo) {
-        kotlinDelegate?.handleSuperwallEvent(eventInfo)
+    fun handleSuperwallEvent(eventInfo: SuperwallPlacementInfo) {
+        kotlinDelegate?.handleSuperwallPlacement(eventInfo)
             ?: javaDelegate?.handleSuperwallEvent(eventInfo)
     }
 
-    fun subscriptionStatusDidChange(newValue: SubscriptionStatus) {
-        kotlinDelegate?.subscriptionStatusDidChange(newValue)
-            ?: javaDelegate?.subscriptionStatusDidChange(newValue)
+    fun subscriptionStatusDidChange(
+        from: SubscriptionStatus,
+        to: SubscriptionStatus,
+    ) {
+        kotlinDelegate?.subscriptionStatusDidChange(from, to)
+            ?: javaDelegate?.subscriptionStatusDidChange(from, to)
     }
 
     fun handleLog(

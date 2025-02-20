@@ -42,7 +42,6 @@ class StoreTransaction(
 
     @Serializable(with = UUIDSerializer::class)
     override val appAccountToken: UUID? get() = transaction.appAccountToken
-
     override val purchaseToken: String
         get() = transaction.purchaseToken
 

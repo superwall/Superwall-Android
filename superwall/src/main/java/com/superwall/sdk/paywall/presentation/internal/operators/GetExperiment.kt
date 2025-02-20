@@ -30,7 +30,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
  * @return A data class that contains info for the next operation.
  */
 @Throws(Throwable::class)
-suspend fun Superwall.getExperiment(
+internal suspend fun Superwall.getExperiment(
     request: PresentationRequest,
     rulesOutcome: RuleEvaluationOutcome,
     debugInfo: Map<String, Any>,
@@ -51,14 +51,14 @@ suspend fun Superwall.getExperiment(
             errorType = PaywallPresentationRequestStatusReason.Holdout(rulesOutcome.triggerResult.experiment)
             paywallStatePublisher?.emit(PaywallState.Skipped(PaywallSkippedReason.Holdout(rulesOutcome.triggerResult.experiment)))
         }
-        is InternalTriggerResult.NoRuleMatch -> {
+        is InternalTriggerResult.NoAudienceMatch -> {
             activateSession(request, rulesOutcome)
-            errorType = PaywallPresentationRequestStatusReason.NoRuleMatch()
-            paywallStatePublisher?.emit(PaywallState.Skipped(PaywallSkippedReason.NoRuleMatch()))
+            errorType = PaywallPresentationRequestStatusReason.NoAudienceMatch()
+            paywallStatePublisher?.emit(PaywallState.Skipped(PaywallSkippedReason.NoAudienceMatch()))
         }
-        is InternalTriggerResult.EventNotFound -> {
-            errorType = PaywallPresentationRequestStatusReason.EventNotFound()
-            paywallStatePublisher?.emit(PaywallState.Skipped(PaywallSkippedReason.EventNotFound()))
+        is InternalTriggerResult.PlacementNotFound -> {
+            errorType = PaywallPresentationRequestStatusReason.PlacementNotFound()
+            paywallStatePublisher?.emit(PaywallState.Skipped(PaywallSkippedReason.PlacementNotFound()))
         }
         is InternalTriggerResult.Error -> {
             if (request.flags.type == PresentationRequestType.GetImplicitPresentationResult ||
@@ -67,7 +67,7 @@ suspend fun Superwall.getExperiment(
                 Logger.debug(
                     logLevel = LogLevel.error,
                     scope = LogScope.paywallPresentation,
-                    message = "Error Getting Paywall View Controller",
+                    message = "Error Getting Paywall view",
                     info = debugInfo,
                     error = rulesOutcome.triggerResult.error,
                 )

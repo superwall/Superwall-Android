@@ -4,12 +4,12 @@ plugins {
 }
 
 android {
-    namespace = "com.superwall.exampleapp"
+    namespace = "com.superwall.superapp"
     compileSdk = 34
 
     defaultConfig {
         applicationId = "com.superwall.superapp"
-        minSdk = 26
+        minSdk = 22
         targetSdk = 34
         versionCode = 1
         versionName = "1.0.0"
@@ -27,6 +27,24 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+        }
+    }
+    flavorDimensions += "version"
+    productFlavors {
+        create("default") {
+            dimension = "version"
+        }
+        create("entitlements") {
+            dimension = "version"
+        }
+        create("observer") {
+            dimension = "version"
+        }
+        create("purchase") {
+            dimension = "version"
+        }
+        create("revenuecat") {
+            dimension = "version"
         }
     }
     compileOptions {
@@ -49,6 +67,7 @@ android {
 
 dependencies {
     implementation(project(":superwall"))
+    implementation(project(":superwall-compose"))
 
     // Billing
     implementation(libs.billing)

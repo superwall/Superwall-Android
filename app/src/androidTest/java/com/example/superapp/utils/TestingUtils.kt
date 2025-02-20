@@ -16,8 +16,9 @@ import androidx.test.uiautomator.UiSelector
 import androidx.test.uiautomator.Until
 import com.dropbox.dropshots.Dropshots
 import com.superwall.sdk.Superwall
-import com.superwall.sdk.analytics.superwall.SuperwallEvent
-import com.superwall.sdk.paywall.vc.ShimmerView
+import com.superwall.sdk.analytics.superwall.SuperwallPlacement
+import com.superwall.sdk.config.models.ConfigurationStatus
+import com.superwall.sdk.paywall.view.ShimmerView
 import com.superwall.superapp.MainActivity
 import com.superwall.superapp.test.UITestInfo
 import kotlinx.coroutines.CoroutineScope
@@ -35,7 +36,6 @@ import kotlinx.coroutines.test.runTest
 import java.util.LinkedList
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 class ScreenshotTestFlow(
@@ -88,6 +88,7 @@ annotation class UiTestDSL
 @ScreenshotTestDSL
 fun Dropshots.screenshotFlow(
     testInfo: UITestInfo,
+    config: FlowTestConfiguration = FlowTestConfiguration(),
     flow: ScreenshotTestFlow.() -> Unit,
 ) {
     val flow = ScreenshotTestFlow(testInfo).apply(flow)
@@ -111,7 +112,10 @@ fun Dropshots.screenshotFlow(
         }
     }
 
-    runTest(timeout = 5.minutes) {
+    runTest(timeout = config.timeout) {
+        if (config.waitForConfig) {
+            Superwall.instance.configurationStateListener.first { it is ConfigurationStatus.Configured }
+        }
         try {
             flow.steps.forEach {
                 if (!testReady.value) {
@@ -132,10 +136,13 @@ fun Dropshots.screenshotFlow(
 }
 
 @ScreenshotTestDSL
-fun Dropshots.paywallPresentsFor(testInfo: UITestInfo) {
-    screenshotFlow(testInfo) {
+fun Dropshots.paywallPresentsFor(
+    testInfo: UITestInfo,
+    config: FlowTestConfiguration = FlowTestConfiguration(),
+) {
+    screenshotFlow(testInfo, config) {
         step("") {
-            it.waitFor { it is SuperwallEvent.PaywallWebviewLoadComplete }
+            it.waitFor { it is SuperwallPlacement.PaywallWebviewLoadComplete }
             // Since there is a delay between webview finishing loading and the actual render
             // We need to wait for the webview to finish loading before taking the snapshot
             awaitUntilShimmerDisappears()
@@ -146,10 +153,27 @@ fun Dropshots.paywallPresentsFor(testInfo: UITestInfo) {
 }
 
 @ScreenshotTestDSL
-fun Dropshots.paywallDoesntPresentFor(testInfo: UITestInfo) {
-    screenshotFlow(testInfo) {
+fun Dropshots.paywallDoesntPresentFor(
+    testInfo: UITestInfo,
+    config: FlowTestConfiguration = FlowTestConfiguration(),
+) {
+    screenshotFlow(testInfo, config) {
         step("") {
-            it.waitFor { it is SuperwallEvent.PaywallPresentationRequest }
+            it.waitFor { it is SuperwallPlacement.PaywallPresentationRequest }
+            // We delay a bit to ensure the paywall doesn't render after presentation request
+            delayFor(1.seconds)
+        }
+    }
+}
+
+@ScreenshotTestDSL
+fun Dropshots.paywallDoesntPresentForNoConfig(
+    testInfo: UITestInfo,
+    config: FlowTestConfiguration = FlowTestConfiguration(false),
+) {
+    screenshotFlow(testInfo, config) {
+        step("") {
+            it.waitFor { it is SuperwallPlacement.PaywallPresentationRequest }
             // We delay a bit to ensure the paywall doesn't render after presentation request
             delayFor(1.seconds)
         }
@@ -176,12 +200,48 @@ private fun getWebviewFromPaywall() =
 
 @UiTestDSL
 suspend fun awaitUntilWebviewAppears(): Boolean {
-    val selector = UiSelector()
     val device = UiDevice.getInstance(getInstrumentation())
-    device.wait(Until.findObject(By.clazz(WebView::class.java.name)), 10000)
+    device.wait(Until.findObject(By.clazz(WebView::class.java.name)), 1000)
     device.waitForIdle()
     delay(300.milliseconds)
     return true
+}
+
+@UiTestDSL
+suspend fun enableWebviewDebugging() {
+    UiDevice
+        .getInstance(getInstrumentation())
+        .findObject(By.clazz(WebView::class.java))
+        .apply {
+        }
+}
+
+@UiTestDSL
+suspend fun clickButtonWith(text: String) {
+    val selector = UiSelector()
+    val device = UiDevice.getInstance(getInstrumentation())
+    device
+        .findObject(
+            UiSelector().textContains(text),
+        ).click()
+}
+
+@UiTestDSL
+suspend fun setInput(text: String) {
+    val device = UiDevice.getInstance(getInstrumentation())
+    with(
+        device.findObject(
+            UiSelector().focusable(true),
+        ),
+    ) {
+        this.setText(text)
+    }
+}
+
+@UiTestDSL
+suspend fun goBack() {
+    val device = UiDevice.getInstance(getInstrumentation())
+    device.pressBack()
 }
 
 @UiTestDSL
@@ -201,7 +261,7 @@ suspend fun awaitUntilWebviewDisappears() {
 }
 
 @UiTestDSL
-suspend fun UITestInfo.waitFor(event: (SuperwallEvent) -> Boolean) {
+suspend fun UITestInfo.waitFor(event: (SuperwallPlacement) -> Boolean) {
     events()
         .filterNotNull()
         .first(event)

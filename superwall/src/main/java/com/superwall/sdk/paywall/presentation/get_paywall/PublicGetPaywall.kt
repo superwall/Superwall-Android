@@ -8,16 +8,16 @@ import com.superwall.sdk.misc.toResult
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
-import com.superwall.sdk.paywall.vc.PaywallView
-import com.superwall.sdk.paywall.vc.delegate.PaywallViewCallback
-import com.superwall.sdk.paywall.vc.delegate.PaywallViewDelegateAdapter
+import com.superwall.sdk.paywall.view.PaywallView
+import com.superwall.sdk.paywall.view.delegate.PaywallViewCallback
+import com.superwall.sdk.paywall.view.delegate.PaywallViewDelegateAdapter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 @Throws(Throwable::class)
 @Deprecated("Will be removed in the upcoming versions, use Superwall.getPaywall instead")
 suspend fun Superwall.getPaywallOrThrow(
-    event: String,
+    placement: String,
     params: Map<String, Any>? = null,
     paywallOverrides: PaywallOverrides? = null,
     delegate: PaywallViewCallback,
@@ -25,7 +25,7 @@ suspend fun Superwall.getPaywallOrThrow(
     withContext(Dispatchers.Main) {
         val view =
             internallyGetPaywall(
-                event = event,
+                placement = placement,
                 params = params,
                 paywallOverrides = paywallOverrides,
                 delegate = PaywallViewDelegateAdapter(kotlinDelegate = delegate),
@@ -42,8 +42,9 @@ suspend fun Superwall.getPaywallOrThrow(
     }
 
 @Throws(Throwable::class)
+@Deprecated("Will be removed in the upcoming versions, use `PaywallBuilder` instead")
 suspend fun Superwall.getPaywall(
-    event: String,
+    placement: String,
     params: Map<String, Any>? = null,
     paywallOverrides: PaywallOverrides? = null,
     delegate: PaywallViewCallback,
@@ -51,7 +52,7 @@ suspend fun Superwall.getPaywall(
     withContext(Dispatchers.Main) {
         val result =
             internallyGetPaywall(
-                event = event,
+                placement = placement,
                 params = params,
                 paywallOverrides = paywallOverrides,
                 delegate = PaywallViewDelegateAdapter(kotlinDelegate = delegate),
@@ -77,7 +78,7 @@ suspend fun Superwall.getPaywall(
 
 @Throws(Throwable::class)
 private suspend fun Superwall.internallyGetPaywall(
-    event: String,
+    placement: String,
     params: Map<String, Any>? = null,
     paywallOverrides: PaywallOverrides? = null,
     delegate: PaywallViewDelegateAdapter,
@@ -85,7 +86,7 @@ private suspend fun Superwall.internallyGetPaywall(
     withContext(Dispatchers.Main) {
         val trackableEvent =
             UserInitiatedEvent.Track(
-                rawName = event,
+                rawName = placement,
                 canImplicitlyTriggerPaywall = false,
                 customParameters = params ?: emptyMap(),
                 isFeatureGatable = false,

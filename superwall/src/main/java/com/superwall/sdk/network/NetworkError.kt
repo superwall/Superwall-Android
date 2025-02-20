@@ -12,7 +12,7 @@ sealed class NetworkError(
 
     class Decoding(
         cause: Throwable? = null,
-    ) : NetworkError("Decoding error.", cause)
+    ) : NetworkError("Decoding error ${cause?.message}", cause)
 
     class NotFound : NetworkError("Not found.")
 

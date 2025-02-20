@@ -68,7 +68,7 @@ The preferred installation method is with [Gradle](https://superwall.com/docs/in
 
   <!-- (2) Add these lines -->
   <activity
-    android:name="com.superwall.sdk.paywall.vc.SuperwallPaywallActivity"
+    android:name="com.superwall.sdk.paywall.view.SuperwallPaywallActivity"
     android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar"
     android:configChanges="orientation|screenSize|keyboardHidden">
   </activity>

@@ -21,7 +21,7 @@ class ErrorTrackingTest {
         runTest {
             val storage =
                 mockk<LocalStorage> {
-                    every { write(any(), ErrorLog) } just Runs
+                    every { write(ErrorLog, any()) } just Runs
                     every { read(ErrorLog) } returns null
                 }
             val errorTracker: ErrorTracking =
@@ -30,7 +30,7 @@ class ErrorTrackingTest {
                 })
 
             errorTracker.trackError(Exception("Test Error"))
-            coVerify { storage.write(any(), ErrorLog) }
+            coVerify { storage.write(ErrorLog, any()) }
         }
 
     @Test
@@ -39,7 +39,7 @@ class ErrorTrackingTest {
             val error = ErrorTracking.ErrorOccurence("Type", "Test Error", "Test Stacktrace", System.currentTimeMillis(), false)
             val storage =
                 mockk<LocalStorage> {
-                    every { write(any(), ErrorLog) } just Runs
+                    every { write(ErrorLog, any()) } just Runs
                     every { read(ErrorLog) } returns error
                     every { delete(ErrorLog) } just Runs
                 }

@@ -25,11 +25,11 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import androidx.compose.ui.unit.dp
-import com.superwall.sdk.composable.PaywallComposable
+import com.superwall.sdk.compose.PaywallComposable
 import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
-import com.superwall.sdk.paywall.vc.PaywallView
-import com.superwall.sdk.paywall.vc.delegate.PaywallViewCallback
+import com.superwall.sdk.paywall.view.PaywallView
+import com.superwall.sdk.paywall.view.delegate.PaywallViewCallback
 import com.superwall.superapp.ui.theme.MyApplicationTheme
 
 class ComposeActivity :
@@ -104,7 +104,7 @@ fun TabContent0(
     delegate: PaywallViewCallback,
 ) {
     PaywallComposable(
-        event = "no_products",
+        placement = "no_products",
         params = mapOf("key" to "value"),
         paywallOverrides = paywallOverrides,
         delegate = delegate,
@@ -117,7 +117,7 @@ fun TabContent1(
     delegate: PaywallViewCallback,
 ) {
     PaywallComposable(
-        event = "no-existing-event",
+        placement = "no-existing-event",
         params = mapOf("key" to "value"),
         paywallOverrides = paywallOverrides,
         delegate = delegate,

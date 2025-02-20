@@ -10,10 +10,10 @@ sealed class PresentationResult {
     //
     // Please make sure you have added the event to a campaign on the dashboard and
     // double check its spelling.
-    class EventNotFound : PresentationResult()
+    class PlacementNotFound : PresentationResult()
 
     // No matching rule was found for this trigger so no paywall will be shown.
-    class NoRuleMatch : PresentationResult()
+    class NoAudienceMatch : PresentationResult()
 
     // A matching rule was found and this user will be shown a paywall.
     //
@@ -30,16 +30,6 @@ sealed class PresentationResult {
     data class Holdout(
         val experiment: Experiment,
     ) : PresentationResult()
-
-    // The user is subscribed.
-    //
-    // This means ``Superwall/subscriptionStatus`` is set to `.active`. If you're
-    // letting Superwall handle subscription-related logic, it will be based on the on-device
-    // receipts. Otherwise it'll be based on the value you've set.
-    //
-    // By default, paywalls do not show to users who are already subscribed. You can override this
-    // behavior in the paywall editor.
-    class UserIsSubscribed : PresentationResult()
 
     // No view controller could be found to present on.
     class PaywallNotAvailable : PresentationResult()

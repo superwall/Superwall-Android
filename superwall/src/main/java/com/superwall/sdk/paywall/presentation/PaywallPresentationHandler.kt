@@ -1,5 +1,6 @@
 package com.superwall.sdk.paywall.presentation
 
+import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallSkippedReason
 
 class PaywallPresentationHandler {
@@ -7,7 +8,7 @@ class PaywallPresentationHandler {
     internal var onPresentHandler: ((PaywallInfo) -> Unit)? = null
 
     // A block called when the paywall did dismiss
-    internal var onDismissHandler: ((PaywallInfo) -> Unit)? = null
+    internal var onDismissHandler: ((PaywallInfo, PaywallResult) -> Unit)? = null
 
     // A block called when an error occurred while trying to present a paywall
     internal var onErrorHandler: ((Throwable) -> Unit)? = null
@@ -21,7 +22,7 @@ class PaywallPresentationHandler {
     }
 
     // Sets the handler that will be called when the paywall did dismiss
-    fun onDismiss(handler: (PaywallInfo) -> Unit) {
+    fun onDismiss(handler: (PaywallInfo, PaywallResult) -> Unit) {
         onDismissHandler = handler
     }
 

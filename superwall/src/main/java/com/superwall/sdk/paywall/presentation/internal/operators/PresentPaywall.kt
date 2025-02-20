@@ -13,18 +13,19 @@ import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationReques
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatusReason
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
-import com.superwall.sdk.paywall.vc.PaywallView
+import com.superwall.sdk.paywall.view.PaywallView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * Presents the paywall view controller, stores the presentation request for future use,
+ * Presents the paywall view, stores the presentation request for future use,
  * and sends back a `presented` state to the paywall state publisher.
  *
- * @param paywallView The paywall view controller to present.
- * @param presenter The view controller to present the paywall on.
+ * @param paywallView The paywall view to present.
+ * @param presenter The view to present the paywall on.
  * @param unsavedOccurrence The trigger rule occurrence to save, if available.
  * @param debugInfo Information to help with debugging.
  * @param request The request to present the paywall.
@@ -89,19 +90,33 @@ suspend fun Superwall.presentPaywallView(
     }
 }
 
-@Deprecated("Will be removed in the upcoming versions, use `presentPaywallView` instead.")
-suspend fun Superwall.presentPaywallViewController(
+/**
+ * A synchronous version of `presentPaywallView` which will invoke a callback with the paywall state.
+ * Warning: This blocks the calling thread.
+ **/
+
+fun Superwall.presentPaywallViewSync(
     paywallView: PaywallView,
     presenter: Activity,
     unsavedOccurrence: TriggerRuleOccurrence?,
     debugInfo: Map<String, Any>,
     request: PresentationRequest,
-    paywallStatePublisher: MutableSharedFlow<PaywallState>,
-) = presentPaywallView(
-    paywallView = paywallView,
-    presenter = presenter,
-    unsavedOccurrence = unsavedOccurrence,
-    debugInfo = debugInfo,
-    request = request,
-    paywallStatePublisher = paywallStatePublisher,
-)
+    onStateChanged: (PaywallState) -> Unit,
+) {
+    mainScope.launch {
+        val publisher = MutableSharedFlow<PaywallState>()
+        ioScope.launch {
+            publisher.collectLatest {
+                onStateChanged(it)
+            }
+        }
+        presentPaywallView(
+            paywallView = paywallView,
+            presenter = presenter,
+            unsavedOccurrence = unsavedOccurrence,
+            debugInfo = debugInfo,
+            request = request,
+            paywallStatePublisher = publisher,
+        )
+    }
+}
