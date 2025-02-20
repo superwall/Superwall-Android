@@ -61,7 +61,7 @@ class MainApplication :
         )
 
         if (!isRunningTest()) {
-            configureWithAutomaticInitialization()
+            configureWithObserverMode()
         }
 //        configureWithRevenueCatInitialization()
     }
