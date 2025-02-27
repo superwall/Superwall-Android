@@ -300,8 +300,8 @@ class DependencyContainer(
                 deepLinkReferrer = DeepLinkReferrer({ context }, ioScope),
                 network = network,
                 setEntitlementStatus = {
-                    Superwall.instance.setEntitlementStatus(
-                        EntitlementStatus.Active(
+                    Superwall.instance.setSubscriptionStatus(
+                        SubscriptionStatus.Active(
                             it.toSet(),
                         ),
                     )

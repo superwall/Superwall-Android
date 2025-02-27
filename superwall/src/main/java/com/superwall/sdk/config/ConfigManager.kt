@@ -22,7 +22,7 @@ import com.superwall.sdk.misc.into
 import com.superwall.sdk.misc.onError
 import com.superwall.sdk.misc.then
 import com.superwall.sdk.models.config.Config
-import com.superwall.sdk.models.entitlements.EntitlementStatus
+import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.models.triggers.Trigger
@@ -408,8 +408,8 @@ open class ConfigManager(
                 ).fold(onSuccess = {
                     if (it.entitlements.isNotEmpty()) {
                         val localWithWeb = entitlements.active + it.entitlements.toSet()
-                        entitlements.setEntitlementStatus(
-                            EntitlementStatus.Active(localWithWeb),
+                        entitlements.setSubscriptionStatus(
+                            SubscriptionStatus.Active(localWithWeb),
                         )
                     }
                 }, onFailure = {
