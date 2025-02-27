@@ -281,6 +281,9 @@ class Superwall(
         dependencyContainer.entitlements.status
     }
 
+    internal val vendorId: String
+        get() = dependencyContainer.deviceHelper.vendorId
+
     /**
      * A property that indicates current configuration state of the SDK.
      *
