@@ -762,7 +762,7 @@ class DebugView(
         // Set the completion callback
         SWLocalizationActivity.completion = { locale ->
             // Handle the locale identifier
-            Superwall.instance.options.localeIdentifier = locale
+            Superwall.instance.localeIdentifier = locale
             // Continue with any other operations after locale selection
             CoroutineScope(Dispatchers.IO).launch {
                 loadPreview()

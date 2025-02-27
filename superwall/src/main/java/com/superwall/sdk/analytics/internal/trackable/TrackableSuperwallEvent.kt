@@ -261,13 +261,12 @@ sealed class InternalSuperwallEvent(
     ) : InternalSuperwallEvent(SuperwallPlacement.SubscriptionStatusDidChange()) {
         override suspend fun getSuperwallParameters(): HashMap<String, Any> =
             hashMapOf(
-                "subscription_status" to {
+                "subscription_status" to
                     when (subscriptionStatus) {
                         is SubscriptionStatus.Active -> "active"
                         is SubscriptionStatus.Inactive -> "inactive"
                         is SubscriptionStatus.Unknown -> "unknown"
-                    }
-                },
+                    },
             )
     }
 
@@ -846,7 +845,13 @@ sealed class InternalSuperwallEvent(
         val placementName: String,
         val paywallInfo: PaywallInfo,
         val params: Map<String, Any>,
-    ) : InternalSuperwallEvent(SuperwallPlacement.CustomPlacement(placementName, paywallInfo, params)) {
+    ) : InternalSuperwallEvent(
+            SuperwallPlacement.CustomPlacement(
+                placementName,
+                paywallInfo,
+                params,
+            ),
+        ) {
         override val audienceFilterParams: Map<String, Any>
             get() = paywallInfo.audienceFilterParams() + params
 
@@ -894,7 +899,8 @@ sealed class InternalSuperwallEvent(
         override val canImplicitlyTriggerPaywall: Boolean = false
     }
 
-    object ConfirmAllAssignments : InternalSuperwallEvent(SuperwallPlacement.ConfirmAllAssignments) {
+    object ConfirmAllAssignments :
+        InternalSuperwallEvent(SuperwallPlacement.ConfirmAllAssignments) {
         override val audienceFilterParams: Map<String, Any> = emptyMap()
 
         override suspend fun getSuperwallParameters(): Map<String, Any> = emptyMap()

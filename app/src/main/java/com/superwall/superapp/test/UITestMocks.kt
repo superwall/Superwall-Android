@@ -1,6 +1,6 @@
 package com.superwall.superapp.test
 
-import com.superwall.sdk.analytics.superwall.SuperwallPlacementInfo
+import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
 import com.superwall.sdk.delegate.SuperwallDelegate
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.view.PaywallView
@@ -26,13 +26,13 @@ class MockPaywallViewDelegate : PaywallViewCallback {
 }
 
 class MockSuperwallDelegate : SuperwallDelegate {
-    private var handleSuperwallEvent: ((SuperwallPlacementInfo) -> Unit)? = null
+    private var handleSuperwallEvent: ((SuperwallEventInfo) -> Unit)? = null
 
-    fun handleSuperwallPlacement(handler: (SuperwallPlacementInfo) -> Unit) {
+    fun handleSuperwallPlacement(handler: (SuperwallEventInfo) -> Unit) {
         handleSuperwallEvent = handler
     }
 
-    override fun handleSuperwallPlacement(withInfo: SuperwallPlacementInfo) {
+    override fun handleSuperwallPlacement(withInfo: SuperwallEventInfo) {
         handleSuperwallEvent?.invoke(withInfo)
     }
 }
