@@ -14,6 +14,8 @@ import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.events.EventsRequest
 import com.superwall.sdk.models.events.EventsResponse
 import com.superwall.sdk.models.geo.GeoInfo
+import com.superwall.sdk.models.internal.UserId
+import com.superwall.sdk.models.internal.VendorId
 import com.superwall.sdk.models.paywall.Paywall
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
@@ -103,10 +105,11 @@ open class Network(
             }.logError("/assignments")
 
     override suspend fun redeemToken(
-        token: String,
-        userId: String,
+        codes: List<String>,
+        userId: UserId,
+        vendorId: VendorId,
     ) = baseHostService
-        .redeemToken(token, userId)
+        .redeemToken(codes, userId, vendorId)
         .logError("/redeem")
 
     override suspend fun redeemEmail(email: String) =

@@ -8,6 +8,8 @@ import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.fold
 import com.superwall.sdk.models.entitlements.Entitlement
+import com.superwall.sdk.models.internal.UserId
+import com.superwall.sdk.models.internal.VendorId
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.launch
@@ -31,15 +33,15 @@ class WebPaywallRedeemer(
                 .checkForReferral()
                 .fold(
                     onSuccess = {
-                        redeem(token = it)
+                        redeem(it)
                     },
                     onFailure = { throw it },
                 )
         }
 
-    suspend fun redeem(token: String) =
+    suspend fun redeem(codes: List<String>) =
         network
-            .redeemToken(token, Superwall.instance.userId)
+            .redeemToken(codes, UserId(Superwall.instance.userId), VendorId(Superwall.instance.vendorId))
             .fold({
                 setEntitlementStatus(it.entitlements)
             }, {

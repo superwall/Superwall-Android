@@ -12,7 +12,7 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 interface CheckForReferral {
-    suspend fun checkForReferral(): Result<String>
+    suspend fun checkForReferral(): Result<List<String>>
 }
 
 class DeepLinkReferrer(
@@ -63,7 +63,7 @@ class DeepLinkReferrer(
         }
     }
 
-    override suspend fun checkForReferral(): Result<String> =
+    override suspend fun checkForReferral(): Result<List<String>> =
         withTimeoutOrNull(30.seconds) {
             while (!referrerClient.isReady) {
                 // no-op
@@ -73,7 +73,7 @@ class DeepLinkReferrer(
             if (it == null) {
                 Result.failure(IllegalStateException("Play store cannot connect"))
             } else {
-                Result.success(it)
+                Result.success(it.split(","))
             }
         }
 }
