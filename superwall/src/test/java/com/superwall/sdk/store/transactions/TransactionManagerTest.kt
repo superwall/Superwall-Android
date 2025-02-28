@@ -416,6 +416,7 @@ class TransactionManagerTest {
                                 isNull(),
                             )
                         }
+                        advanceUntilIdle()
                         And("Verify failure event") {
                             val failureEvent =
                                 events.value

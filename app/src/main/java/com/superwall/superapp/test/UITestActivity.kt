@@ -28,8 +28,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.superwall.sdk.Superwall
+import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
 import com.superwall.sdk.analytics.superwall.SuperwallPlacement
-import com.superwall.sdk.analytics.superwall.SuperwallPlacementInfo
 import com.superwall.sdk.delegate.SuperwallDelegate
 import com.superwall.superapp.test.UITestHandler.tests
 import com.superwall.superapp.ui.theme.MyApplicationTheme
@@ -59,7 +59,7 @@ class UITestInfo(
         delay(100)
         Superwall.instance.delegate =
             object : SuperwallDelegate {
-                override fun handleSuperwallPlacement(eventInfo: SuperwallPlacementInfo) {
+                override fun handleSuperwallPlacement(eventInfo: SuperwallEventInfo) {
                     Log.e(
                         "\n!!SuperwallDelegate!!\n",
                         "\tEvent name:" + eventInfo.placement.rawName + "" +

@@ -9,8 +9,8 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.ProductDetails
+import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
 import com.superwall.sdk.analytics.superwall.SuperwallPlacement
-import com.superwall.sdk.analytics.superwall.SuperwallPlacementInfo
 import com.superwall.sdk.billing.BillingError
 import com.superwall.sdk.config.options.PaywallOptions
 import com.superwall.sdk.config.options.SuperwallOptions
@@ -228,7 +228,7 @@ class MockDelegate(
 ) : SuperwallDelegate {
     val events = MutableSharedFlow<SuperwallPlacement>(extraBufferCapacity = 20)
 
-    override fun handleSuperwallPlacement(eventInfo: SuperwallPlacementInfo) {
+    override fun handleSuperwallPlacement(eventInfo: SuperwallEventInfo) {
         Log.e("test", "handle event is ${eventInfo.placement}")
         scope.launch {
             events.emit(eventInfo.placement)

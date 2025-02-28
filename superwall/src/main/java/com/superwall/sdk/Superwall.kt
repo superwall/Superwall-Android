@@ -9,7 +9,7 @@ import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
-import com.superwall.sdk.analytics.superwall.SuperwallPlacementInfo
+import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
 import com.superwall.sdk.billing.toInternalResult
 import com.superwall.sdk.config.models.ConfigState
 import com.superwall.sdk.config.models.ConfigurationStatus
@@ -101,7 +101,7 @@ class Superwall(
 
     internal val presentationItems: PresentationItems = PresentationItems()
 
-    private val _placements: MutableSharedFlow<SuperwallPlacementInfo> =
+    private val _placements: MutableSharedFlow<SuperwallEventInfo> =
         MutableSharedFlow(
             0,
             extraBufferCapacity = 64 * 4,
@@ -110,10 +110,10 @@ class Superwall(
 
     /**
      * A flow emitting all Superwall placements as an alternative to delegate.
-     * @see SuperwallPlacementInfo for more information and possible placements
+     * @see SuperwallEventInfo for more information and possible placements
      * */
 
-    val placements: SharedFlow<SuperwallPlacementInfo> = _placements
+    val placements: SharedFlow<SuperwallEventInfo> = _placements
 
     var localeIdentifier: String?
         get() = dependencyContainer.configManager.options.localeIdentifier
@@ -180,7 +180,7 @@ class Superwall(
         }
     }
 
-    internal fun emitSuperwallEvent(info: SuperwallPlacementInfo) {
+    internal fun emitSuperwallEvent(info: SuperwallEventInfo) {
         ioScope.launch {
             _placements.emit(info)
         }

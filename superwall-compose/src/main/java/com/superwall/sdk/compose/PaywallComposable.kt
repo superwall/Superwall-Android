@@ -1,6 +1,8 @@
 package com.superwall.sdk.compose
 
 import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -8,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,14 +51,14 @@ fun PaywallComposable(
 ) {
     val viewState = remember { mutableStateOf<PaywallView?>(null) }
     val errorState = remember { mutableStateOf<Throwable?>(null) }
-    val context = LocalContext.current
+    val context = LocalContext.current.findNearestActivity()
 
     LaunchedEffect(Unit) {
         PaywallBuilder(placement)
             .params(params)
             .overrides(paywallOverrides)
             .delegate(delegate)
-            .activity(context as Activity)
+            .activity(context)
             .build()
             .fold(onSuccess = {
                 viewState.value = it
@@ -69,22 +70,22 @@ fun PaywallComposable(
     when {
         viewState.value != null -> {
             viewState.value?.let { viewToRender ->
-                DisposableEffect(viewToRender) {
+                LaunchedEffect(viewToRender) {
                     viewToRender.onViewCreated()
-
-                    onDispose {
-                        viewToRender.beforeOnDestroy()
-                        viewToRender.encapsulatingActivity = null
-
-                        CoroutineScope(Dispatchers.Main).launch {
-                            viewToRender.destroyed()
-                        }
-                    }
                 }
                 AndroidView(
                     modifier = modifier,
                     factory = { context ->
                         viewToRender
+                    },
+                    onRelease = {
+                        viewToRender.beforeOnDestroy()
+                        viewToRender.encapsulatingActivity = null
+
+                        CoroutineScope(Dispatchers.Main).launch {
+                            viewToRender.destroyed()
+                            viewToRender.cleanup()
+                        }
                     },
                 )
             }
@@ -99,3 +100,10 @@ fun PaywallComposable(
         }
     }
 }
+
+fun Context.findNearestActivity(): Activity =
+    when (this) {
+        is Activity -> this
+        is ContextWrapper -> baseContext.findNearestActivity()
+        else -> throw IllegalStateException("No Activity attached - activity required")
+    }

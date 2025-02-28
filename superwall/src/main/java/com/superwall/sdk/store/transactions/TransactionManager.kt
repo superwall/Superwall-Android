@@ -789,24 +789,6 @@ class TransactionManager(
             )
         }
 
-        val paywallInfo = paywallView.info
-
-        val trackedEvent =
-            InternalSuperwallEvent.Transaction(
-                InternalSuperwallEvent.Transaction.State.Fail(
-                    TransactionError.Failure(
-                        error.message ?: "",
-                        product,
-                    ),
-                ),
-                paywallInfo,
-                product,
-                null,
-                source = TransactionSource.INTERNAL,
-                isObserved = factory.makeSuperwallOptions().shouldObservePurchases,
-            )
-        track(trackedEvent)
-
         paywallView.showAlert(
             "An error occurred",
             error.message ?: "Unknown error",
