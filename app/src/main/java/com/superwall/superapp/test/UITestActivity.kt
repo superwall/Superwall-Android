@@ -62,11 +62,11 @@ class UITestInfo(
                 override fun handleSuperwallPlacement(eventInfo: SuperwallEventInfo) {
                     Log.e(
                         "\n!!SuperwallDelegate!!\n",
-                        "\tEvent name:" + eventInfo.placement.rawName + "" +
+                        "\tEvent name:" + eventInfo.event.rawName + "" +
                             ",\n\tParams:" + eventInfo.params + "\n",
                     )
                     scope.launch {
-                        events.emit(eventInfo.placement)
+                        events.emit(eventInfo.event)
                     }
                 }
             }

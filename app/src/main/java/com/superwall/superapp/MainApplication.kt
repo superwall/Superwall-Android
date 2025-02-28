@@ -153,7 +153,7 @@ class MainApplication :
     override fun handleSuperwallEvent(eventInfo: SuperwallEventInfo) {
         println(
             "\n!! SuperwallDelegate !! \n" +
-                "\tEvent name:" + eventInfo.placement.rawName + "" +
+                "\tEvent name:" + eventInfo.event.rawName + "" +
                 ",\n\tParams:" + eventInfo.params + "\n",
         )
     }

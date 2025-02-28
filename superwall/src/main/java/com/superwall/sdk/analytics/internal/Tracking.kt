@@ -54,7 +54,7 @@ suspend fun Superwall.track(event: Trackable): Result<TrackingResult> {
         if (event is TrackableSuperwallEvent) {
             val info =
                 SuperwallEventInfo(
-                    placement = event.superwallPlacement,
+                    event = event.superwallPlacement,
                     params = parameters.delegateParams,
                 )
 

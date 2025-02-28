@@ -229,9 +229,9 @@ class MockDelegate(
     val events = MutableSharedFlow<SuperwallPlacement>(extraBufferCapacity = 20)
 
     override fun handleSuperwallPlacement(eventInfo: SuperwallEventInfo) {
-        Log.e("test", "handle event is ${eventInfo.placement}")
+        Log.e("test", "handle event is ${eventInfo.event}")
         scope.launch {
-            events.emit(eventInfo.placement)
+            events.emit(eventInfo.event)
         }
     }
 }
