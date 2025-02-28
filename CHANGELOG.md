@@ -2,6 +2,16 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+# 2.0.1
+
+## Enhancements
+- Changes back to `handleSuperwallEvent` naming with a deprecation notice and a typealias for previous methods
+
+## Fixes
+- Removes extra failure logging when displaying alerts
+- Finds nearest activity instead of relying just on Context in `PaywallComposable`
+- Improves cleanup in `PaywallComposable`
+
 # 2.0.0
 
 Our 2.0.0 release brings some major and minor changes to both our API's and core features. For more information, please look at our [migration docs](https://superwall.com/docs/migrating-to-v2-android)
