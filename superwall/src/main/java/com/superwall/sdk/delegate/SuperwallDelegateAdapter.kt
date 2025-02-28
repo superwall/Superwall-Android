@@ -46,7 +46,9 @@ class SuperwallDelegateAdapter {
     }
 
     fun handleSuperwallEvent(eventInfo: SuperwallEventInfo) {
+        // Calling this until we deprecate it
         kotlinDelegate?.handleSuperwallPlacement(eventInfo)
+        kotlinDelegate?.handleSuperwallEvent(eventInfo)
             ?: javaDelegate?.handleSuperwallEvent(eventInfo)
     }
 
