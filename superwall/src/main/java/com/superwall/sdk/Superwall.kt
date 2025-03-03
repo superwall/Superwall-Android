@@ -36,6 +36,7 @@ import com.superwall.sdk.models.assignment.ConfirmedAssignment
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.events.EventData
+import com.superwall.sdk.models.internal.VendorId
 import com.superwall.sdk.network.device.InterfaceStyle
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.PaywallInfo
@@ -282,7 +283,7 @@ class Superwall(
     }
 
     internal val vendorId: VendorId
-        get() = dependencyContainer.deviceHelper.vendorId
+        get() = VendorId(dependencyContainer.deviceHelper.vendorId)
 
     /**
      * A property that indicates current configuration state of the SDK.
