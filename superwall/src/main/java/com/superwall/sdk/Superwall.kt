@@ -281,7 +281,7 @@ class Superwall(
         dependencyContainer.entitlements.status
     }
 
-    internal val vendorId: String
+    internal val vendorId: VendorId
         get() = dependencyContainer.deviceHelper.vendorId
 
     /**
