@@ -14,8 +14,8 @@ import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.events.EventsRequest
 import com.superwall.sdk.models.events.EventsResponse
 import com.superwall.sdk.models.geo.GeoInfo
+import com.superwall.sdk.models.internal.DeviceVendorId
 import com.superwall.sdk.models.internal.UserId
-import com.superwall.sdk.models.internal.VendorId
 import com.superwall.sdk.models.paywall.Paywall
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
@@ -107,7 +107,7 @@ open class Network(
     override suspend fun redeemToken(
         codes: List<String>,
         userId: UserId,
-        vendorId: VendorId,
+        vendorId: DeviceVendorId,
     ) = baseHostService
         .redeemToken(codes, userId, vendorId)
         .logError("/redeem")
@@ -117,9 +117,14 @@ open class Network(
             .redeemByEmail(email)
             .logError("/redeem")
 
-    override suspend fun webEntitlements(userId: String) =
+    override suspend fun webEntitlementsByUserId(userId: UserId) =
         baseHostService
-            .webEntitlements(userId)
+            .webEntitlementsByUserId(userId)
+            .logError("/redeem")
+
+    override suspend fun webEntitlementsByDeviceID(deviceId: DeviceVendorId) =
+        baseHostService
+            .webEntitlementsByDeviceId(deviceId)
             .logError("/redeem")
 
     private suspend fun awaitUntilAppInForeground() {
