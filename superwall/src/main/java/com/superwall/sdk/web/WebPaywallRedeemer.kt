@@ -12,7 +12,6 @@ import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.internal.DeviceVendorId
 import com.superwall.sdk.models.internal.UserId
 import com.superwall.sdk.network.Network
-import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.launch
 
 class WebPaywallRedeemer(
@@ -21,6 +20,8 @@ class WebPaywallRedeemer(
     val deepLinkReferrer: CheckForReferral,
     val network: Network,
     val setEntitlementStatus: (List<Entitlement>) -> Unit,
+    val getUserId: () -> UserId = { UserId(Superwall.instance.userId) },
+    val getDeviceId: () -> DeviceVendorId = { DeviceVendorId(Superwall.instance.vendorId) },
 ) {
     init {
         ioScope.launch {
@@ -29,7 +30,7 @@ class WebPaywallRedeemer(
     }
 
     suspend fun checkForRefferal() =
-        withErrorTracking {
+        asEither {
             deepLinkReferrer
                 .checkForReferral()
                 .fold(
@@ -44,10 +45,12 @@ class WebPaywallRedeemer(
         network
             .redeemToken(
                 codes,
-                UserId(Superwall.instance.userId),
-                DeviceVendorId(Superwall.instance.vendorId),
+                getUserId(),
+                getDeviceId(),
             ).fold({
-                setEntitlementStatus(it.entitlements)
+                if (it.entitlements.isNotEmpty()) {
+                    setEntitlementStatus(it.entitlements)
+                }
             }, {
                 Logger.debug(
                     LogLevel.error,
@@ -70,6 +73,6 @@ class WebPaywallRedeemer(
                     webEntitlementsByDevice.getSuccess()?.entitlements ?: listOf(),
                 )
 
-        entitlements
+        entitlements.toSet()
     }
 }
