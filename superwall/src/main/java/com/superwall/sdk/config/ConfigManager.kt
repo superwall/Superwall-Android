@@ -24,6 +24,7 @@ import com.superwall.sdk.misc.onError
 import com.superwall.sdk.misc.then
 import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
+import com.superwall.sdk.models.internal.DeviceVendorId
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.models.triggers.Trigger
@@ -413,9 +414,10 @@ open class ConfigManager(
             webPaywallRedeemer
                 .checkForWebEntitlements(
                     Superwall.instance.userId,
-                ).fold(onSuccess = {
-                    if (it.entitlements.isNotEmpty()) {
-                        val localWithWeb = entitlements.active + it.entitlements.toSet()
+                    DeviceVendorId(Superwall.instance.vendorId),
+                ).fold(onSuccess = { webEntitlements ->
+                    if (webEntitlements.isNotEmpty()) {
+                        val localWithWeb = entitlements.active + webEntitlements.toSet()
                         entitlements.setSubscriptionStatus(
                             SubscriptionStatus.Active(localWithWeb),
                         )

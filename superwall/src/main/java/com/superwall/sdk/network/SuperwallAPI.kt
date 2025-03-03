@@ -8,8 +8,8 @@ import com.superwall.sdk.models.entitlements.WebEntitlements
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.events.EventsRequest
 import com.superwall.sdk.models.geo.GeoInfo
+import com.superwall.sdk.models.internal.DeviceVendorId
 import com.superwall.sdk.models.internal.UserId
-import com.superwall.sdk.models.internal.VendorId
 import com.superwall.sdk.models.paywall.Paywall
 
 interface SuperwallAPI {
@@ -30,12 +30,14 @@ interface SuperwallAPI {
 
     suspend fun getAssignments(): Either<List<Assignment>, NetworkError>
 
-    suspend fun webEntitlements(userId: String): Either<WebEntitlements, NetworkError>
+    suspend fun webEntitlementsByUserId(userId: UserId): Either<WebEntitlements, NetworkError>
+
+    suspend fun webEntitlementsByDeviceID(deviceId: DeviceVendorId): Either<WebEntitlements, NetworkError>
 
     suspend fun redeemToken(
         token: List<String>,
         userId: UserId,
-        vendorId: VendorId,
+        vendorId: DeviceVendorId,
     ): Either<WebEntitlements, NetworkError>
 
     suspend fun redeemEmail(email: String): Either<WebEntitlements, NetworkError>
