@@ -63,3 +63,14 @@
 -keepclassmembers public class **$$serializer {
     private ** descriptor;
 }
+
+-keep class com.sun.jna.** { *; }
+-keep class java.awt.** { *; }
+-keepclassmembers class com.sun.jna.** { *; }
+-keep class com.sun.jna.Native { *; }
+-keep class com.sun.jna.NativeLibrary { *; }
+-keep class com.sun.jna.Callback { *; }
+-dontwarn java.awt.Component
+-dontwarn java.awt.GraphicsEnvironment
+-dontwarn java.awt.HeadlessException
+-dontwarn java.awt.Window

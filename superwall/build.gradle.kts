@@ -23,7 +23,7 @@ plugins {
     id("signing")
 }
 
-version = "2.0.1"
+version = "2.0.2"
 
 android {
     compileSdk = 34
@@ -56,6 +56,10 @@ android {
     }
 
     buildTypes {
+        debug {
+            consumerProguardFile("proguard-rules.pro")
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
         release {
             isMinifyEnabled = false
             consumerProguardFile("proguard-rules.pro")
@@ -183,7 +187,6 @@ dependencies {
     implementation(libs.room.ktx)
     ksp(libs.room.compiler)
     implementation(libs.kotlinx.coroutines.guava)
-
     implementation(libs.threetenbp)
     // Billing
     implementation(libs.billing)

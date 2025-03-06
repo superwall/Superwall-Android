@@ -2,6 +2,12 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+# 2.0.2
+
+## Fixes
+
+- Fixes issue with `NoAudienceMatch` appearing on some devices and issues with certain campaign rules
+
 # 2.0.1
 
 ## Enhancements
