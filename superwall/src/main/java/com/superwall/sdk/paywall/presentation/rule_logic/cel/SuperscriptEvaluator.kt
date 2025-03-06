@@ -1,6 +1,9 @@
 package com.superwall.sdk.paywall.presentation.rule_logic.cel
 
 import com.superwall.sdk.dependencies.RuleAttributesFactory
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.asyncWithTracking
 import com.superwall.sdk.models.config.ComputedPropertyRequest
@@ -19,6 +22,19 @@ import com.superwall.supercel.HostContext
 import com.superwall.supercel.evaluateWithContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.double
+import kotlinx.serialization.json.doubleOrNull
+import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.int
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.long
+import kotlinx.serialization.json.longOrNull
 
 internal class SuperscriptEvaluator(
     private val json: Json,
@@ -102,7 +118,7 @@ internal class SuperscriptEvaluator(
 }
 
 // PassableValues match the types in our Rust package
-internal fun Map<String, Any>.toPassableValue(): PassableValue.MapValue {
+internal fun <T : Any> Map<String, T>.toPassableValue(): PassableValue.MapValue {
     val passableMap =
         this.mapValues { (_, value) ->
             value.toPassableValue()
@@ -110,32 +126,63 @@ internal fun Map<String, Any>.toPassableValue(): PassableValue.MapValue {
     return PassableValue.MapValue(passableMap)
 }
 
-private fun Any.toPassableValue(): PassableValue =
+internal fun Any.toPassableValue(): PassableValue =
     when (this) {
         is Int -> PassableValue.IntValue(this)
         is Long -> PassableValue.UIntValue(this.toULong())
         is ULong -> PassableValue.UIntValue(this)
+        is Float -> PassableValue.FloatValue(this.toDouble())
         is Double -> PassableValue.FloatValue(this)
         is String -> PassableValue.StringValue(this.replace("$", ""))
         is ByteArray -> PassableValue.BytesValue(this)
         is Boolean -> PassableValue.BoolValue(this)
         is List<*> ->
             PassableValue.ListValue(
-                this.map {
-                    it?.toPassableValue() ?: PassableValue.NullValue
-                },
+                this.map { it?.toPassableValue() ?: PassableValue.NullValue },
             )
-
         is Map<*, *> -> {
-            val stringKeyMap = this.filterKeys { it is String }.mapKeys { it.key as String }
+            val stringKeyMap =
+                this
+                    .filterKeys { it is String }
+                    .mapKeys { it.key as String }
             PassableValue.MapValue(
-                stringKeyMap.mapValues {
-                    val toReturn = it.value?.toPassableValue() ?: PassableValue.NullValue
-                    toReturn
-                },
+                stringKeyMap.mapValues { it.value?.toPassableValue() ?: PassableValue.NullValue },
             )
         }
-
+        is JsonElement -> this.toPassableValue()
         is PassableValue -> this
-        else -> throw IllegalArgumentException("Unsupported type: $this")
+        else -> {
+            try {
+                val jsonElement = Json.encodeToJsonElement(this)
+                jsonElement.toPassableValue()
+            } catch (e: Exception) {
+                Logger.debug(
+                    LogLevel.warn,
+                    LogScope.jsEvaluator,
+                    "Cannot serialize $this::class, evaluating as string",
+                )
+                PassableValue.StringValue(this.toString())
+            }
+        }
+    }
+
+private fun JsonElement.toPassableValue(): PassableValue =
+    when (this) {
+        is JsonObject ->
+            PassableValue.MapValue(
+                this.mapValues { (_, value) -> value.toPassableValue() },
+            )
+        is JsonArray ->
+            PassableValue.ListValue(
+                this.map { it.toPassableValue() },
+            )
+        is JsonPrimitive ->
+            when {
+                this.isString -> PassableValue.StringValue(this.content)
+                this.booleanOrNull != null -> PassableValue.BoolValue(this.boolean)
+                this.intOrNull != null -> PassableValue.IntValue(this.int)
+                this.longOrNull != null -> PassableValue.UIntValue(this.long.toULong())
+                this.doubleOrNull != null -> PassableValue.FloatValue(this.double)
+                else -> PassableValue.StringValue(this.content)
+            }
     }
