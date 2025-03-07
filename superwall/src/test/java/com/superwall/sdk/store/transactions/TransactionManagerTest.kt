@@ -7,7 +7,7 @@ import com.superwall.sdk.Then
 import com.superwall.sdk.When
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
-import com.superwall.sdk.analytics.superwall.SuperwallPlacement
+import com.superwall.sdk.analytics.superwall.SuperwallEvent
 import com.superwall.sdk.billing.Billing
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.delegate.PurchaseResult
@@ -241,9 +241,9 @@ class TransactionManagerTest {
                             val transactionEvents =
                                 events.value.filterIsInstance<InternalSuperwallEvent.Transaction>()
 
-                            assert(transactionEvents.first().superwallPlacement is SuperwallPlacement.TransactionStart)
+                            assert(transactionEvents.first().superwallPlacement is SuperwallEvent.TransactionStart)
                             assert(transactionEvents.first().product?.fullIdentifier == "product1")
-                            assert(transactionEvents.last().superwallPlacement is SuperwallPlacement.TransactionComplete)
+                            assert(transactionEvents.last().superwallPlacement is SuperwallEvent.TransactionComplete)
 
                             val purchase =
                                 events.value.filterIsInstance<InternalSuperwallEvent.NonRecurringProductPurchase>()
@@ -287,8 +287,8 @@ class TransactionManagerTest {
                         And("Verify event order") {
                             val transactionEvents =
                                 events.value.filterIsInstance<InternalSuperwallEvent.Transaction>()
-                            assert(transactionEvents.first().superwallPlacement is SuperwallPlacement.TransactionStart)
-                            assert(transactionEvents.last().superwallPlacement is SuperwallPlacement.TransactionComplete)
+                            assert(transactionEvents.first().superwallPlacement is SuperwallEvent.TransactionStart)
+                            assert(transactionEvents.last().superwallPlacement is SuperwallEvent.TransactionComplete)
 
                             val purchase =
                                 events.value.filterIsInstance<InternalSuperwallEvent.NonRecurringProductPurchase>()

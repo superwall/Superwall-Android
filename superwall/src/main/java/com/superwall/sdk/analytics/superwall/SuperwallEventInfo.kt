@@ -4,10 +4,10 @@ package com.superwall.sdk.analytics.superwall
 typealias SuperwallPlacementInfo = SuperwallEventInfo
 
 data class SuperwallEventInfo(
-    public val event: SuperwallPlacement,
+    public val event: SuperwallEvent,
     public val params: Map<String, Any>,
 ) {
     @Deprecated("Use event instead")
-    val placement: SuperwallPlacement
+    val placement: SuperwallEvent
         get() = event
 }

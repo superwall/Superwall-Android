@@ -17,18 +17,21 @@ internal interface IsInternalEvent {
     val rawName: String
 }
 
+@Deprecated("Use SuperwallEvent")
+typealias SuperwallPlacement = SuperwallEvent
+
 // / Analytical events that are automatically tracked by Superwall.
 // /
 // / These events are tracked internally by the SDK and sent to the delegate method ``SuperwallDelegate/handleSuperwallEvent(withInfo:)-pm3v``.
-sealed class SuperwallPlacement {
+sealed class SuperwallEvent {
     // / When the user is first seen in the app, regardless of whether the user is logged in or not.
-    class FirstSeen : SuperwallPlacement() {
+    class FirstSeen : SuperwallEvent() {
         override val rawName: String
             get() = "first_seen"
     }
 
     // / Anytime the app enters the foreground
-    class AppOpen : SuperwallPlacement() {
+    class AppOpen : SuperwallEvent() {
         override val rawName: String
             get() = "app_open"
     }
@@ -36,13 +39,13 @@ sealed class SuperwallPlacement {
     // / When the app is launched from a cold start
     // /
     // / The raw value of this event can be added to a campaign to trigger a paywall.
-    class AppLaunch : SuperwallPlacement() {
+    class AppLaunch : SuperwallEvent() {
         override val rawName: String
             get() = "app_launch"
     }
 
     // / When the user's identity aliases after calling identify
-    class IdentityAlias : SuperwallPlacement() {
+    class IdentityAlias : SuperwallEvent() {
         override val rawName: String
             get() = "identity_alias"
     }
@@ -50,7 +53,7 @@ sealed class SuperwallPlacement {
     // / When the SDK is configured for the first time, or directly after calling ``Superwall/reset()``.
     // /
     // / The raw value of this event can be added to a campaign to trigger a paywall.
-    class AppInstall : SuperwallPlacement() {
+    class AppInstall : SuperwallEvent() {
         override val rawName: String
             get() = "app_install"
     }
@@ -58,12 +61,12 @@ sealed class SuperwallPlacement {
     // / When the app is opened at least an hour since last  ``appClose``.
     // /
     // / The raw value of this event can be added to a campaign to trigger a paywall.
-    class SessionStart : SuperwallPlacement() {
+    class SessionStart : SuperwallEvent() {
         override val rawName: String
             get() = "session_start"
     }
 
-    object ConfigAttributes : SuperwallPlacement() {
+    object ConfigAttributes : SuperwallEvent() {
         override val rawName: String
             get() = "config_attributes"
     }
@@ -71,19 +74,19 @@ sealed class SuperwallPlacement {
     // / When device attributes are sent to the backend.
     data class DeviceAttributes(
         val attributes: Map<String, Any>,
-    ) : SuperwallPlacement() {
+    ) : SuperwallEvent() {
         override val rawName: String
             get() = "device_attributes"
     }
 
     // / When the user's subscription status changes.
-    class SubscriptionStatusDidChange : SuperwallPlacement() {
+    class SubscriptionStatusDidChange : SuperwallEvent() {
         override val rawName: String
             get() = "subscriptionStatus_didChange"
     }
 
     // / Anytime the app leaves the foreground.
-    class AppClose : SuperwallPlacement() {
+    class AppClose : SuperwallEvent() {
         override val rawName: String
             get() = "app_close"
     }
@@ -93,7 +96,7 @@ sealed class SuperwallPlacement {
     // / The raw value of this event can be added to a campaign to trigger a paywall.
     data class DeepLink(
         val uri: Uri,
-    ) : SuperwallPlacement() {
+    ) : SuperwallEvent() {
         override val rawName: String
             get() = "deepLink_open"
     }
@@ -104,7 +107,7 @@ sealed class SuperwallPlacement {
     data class TriggerFire(
         val placementName: String,
         val result: TriggerResult,
-    ) : SuperwallPlacement() {
+    ) : SuperwallEvent() {
         override val rawName: String
             get() = "trigger_fire"
     }
@@ -112,7 +115,7 @@ sealed class SuperwallPlacement {
     // / When a paywall is opened.
     data class PaywallOpen(
         val paywallInfo: PaywallInfo,
-    ) : SuperwallPlacement() {
+    ) : SuperwallEvent() {
         override val rawName: String
             get() = "paywall_open"
     }
@@ -120,7 +123,7 @@ sealed class SuperwallPlacement {
     // / When a paywall is closed.
     data class PaywallClose(
         val paywallInfo: PaywallInfo,
-    ) : SuperwallPlacement() {
+    ) : SuperwallEvent() {
         override val rawName: String
             get() = "paywall_close"
     }
@@ -128,7 +131,7 @@ sealed class SuperwallPlacement {
     // / When a user dismisses a paywall instead of purchasing.
     data class PaywallDecline(
         val paywallInfo: PaywallInfo,
-    ) : SuperwallPlacement() {
+    ) : SuperwallEvent() {
         override val rawName: String
             get() = "paywall_decline"
     }
@@ -137,7 +140,7 @@ sealed class SuperwallPlacement {
     data class TransactionStart(
         val product: StoreProduct,
         val paywallInfo: PaywallInfo,
-    ) : SuperwallPlacement() {
+    ) : SuperwallEvent() {
         override val rawName: String
             get() = "transaction_start"
     }
@@ -148,7 +151,7 @@ sealed class SuperwallPlacement {
     data class TransactionFail(
         val error: TransactionError,
         val paywallInfo: PaywallInfo,
-    ) : SuperwallPlacement() {
+    ) : SuperwallEvent() {
         override val rawName: String
             get() = "transaction_fail"
     }
@@ -157,7 +160,7 @@ sealed class SuperwallPlacement {
     data class TransactionAbandon(
         val product: StoreProduct,
         val paywallInfo: PaywallInfo,
-    ) : SuperwallPlacement() {
+    ) : SuperwallEvent() {
         override val rawName: String
             get() = "transaction_abandon"
     }
@@ -172,7 +175,7 @@ sealed class SuperwallPlacement {
         val transaction: StoreTransactionType?,
         val product: StoreProduct,
         val paywallInfo: PaywallInfo,
-    ) : SuperwallPlacement() {
+    ) : SuperwallEvent() {
         override val rawName: String
             get() = "transaction_complete"
     }
@@ -181,7 +184,7 @@ sealed class SuperwallPlacement {
     data class SubscriptionStart(
         val product: StoreProduct,
         val paywallInfo: PaywallInfo,
-    ) : SuperwallPlacement() {
+    ) : SuperwallEvent() {
         override val rawName: String
             get() = "subscription_start"
     }
@@ -190,7 +193,7 @@ sealed class SuperwallPlacement {
     data class FreeTrialStart(
         val product: StoreProduct,
         val paywallInfo: PaywallInfo,
-    ) : SuperwallPlacement() {
+    ) : SuperwallEvent() {
         override val rawName: String
             get() = "freeTrial_start"
     }
@@ -199,13 +202,13 @@ sealed class SuperwallPlacement {
     data class TransactionRestore(
         val restoreType: RestoreType,
         val paywallInfo: PaywallInfo,
-    ) : SuperwallPlacement() {
+    ) : SuperwallEvent() {
         override val rawName: String
             get() = "transaction_restore"
     }
 
     // / State of transaction restoration
-    sealed class Restore : SuperwallPlacement() {
+    sealed class Restore : SuperwallEvent() {
         object Start : Restore() {
             override val rawName: String
                 get() = SuperwallEvents.RestoreStart.rawName
@@ -227,7 +230,7 @@ sealed class SuperwallPlacement {
     // / When the transaction took > 5 seconds to show the payment sheet.
     data class TransactionTimeout(
         val paywallInfo: PaywallInfo,
-    ) : SuperwallPlacement() {
+    ) : SuperwallEvent() {
         override val rawName: String
             get() = "transaction_timeout"
     }
@@ -235,7 +238,7 @@ sealed class SuperwallPlacement {
     // / When the user attributes are set.
     data class UserAttributes(
         val attributes: Map<String, Any>,
-    ) : SuperwallPlacement() {
+    ) : SuperwallEvent() {
         override val rawName: String
             get() = "user_attributes"
     }
@@ -243,7 +246,7 @@ sealed class SuperwallPlacement {
     data class NonRecurringProductPurchase(
         val product: TransactionProduct,
         val paywallInfo: PaywallInfo,
-    ) : SuperwallPlacement() {
+    ) : SuperwallEvent() {
         override val rawName: String
             get() = "nonRecurringProduct_purchase"
     }
@@ -251,7 +254,7 @@ sealed class SuperwallPlacement {
     // / When a paywall's request to Superwall's servers has started.
     data class PaywallResponseLoadStart(
         val triggeredPlacementName: String?,
-    ) : SuperwallPlacement() {
+    ) : SuperwallEvent() {
         override val rawName: String
             get() = "paywallResponseLoad_start"
     }
@@ -259,7 +262,7 @@ sealed class SuperwallPlacement {
     // / When a paywall's request to Superwall's servers returned a 404 error.
     data class PaywallResponseLoadNotFound(
         val triggeredPlacementName: String?,
-    ) : SuperwallPlacement() {
+    ) : SuperwallEvent() {
         override val rawName: String
             get() = "paywallResponseLoad_notFound"
     }
@@ -267,7 +270,7 @@ sealed class SuperwallPlacement {
     // / When a paywall's request to Superwall's servers produced an error.
     data class PaywallResponseLoadFail(
         val triggeredPlacementName: String?,
-    ) : SuperwallPlacement() {
+    ) : SuperwallEvent() {
         override val rawName: String
             get() = "paywallResponseLoad_fail"
     }
@@ -276,7 +279,7 @@ sealed class SuperwallPlacement {
     data class PaywallResponseLoadComplete(
         val triggeredPlacementName: String?,
         val paywallInfo: PaywallInfo,
-    ) : SuperwallPlacement() {
+    ) : SuperwallEvent() {
         override val rawName: String
             get() = "paywallResponseLoad_complete"
     }
@@ -284,7 +287,7 @@ sealed class SuperwallPlacement {
     // / When a paywall's website begins to load.
     data class PaywallWebviewLoadStart(
         val paywallInfo: PaywallInfo,
-    ) : SuperwallPlacement() {
+    ) : SuperwallEvent() {
         override val rawName: String
             get() = "paywallWebviewLoad_start"
     }
@@ -293,7 +296,7 @@ sealed class SuperwallPlacement {
     data class PaywallWebviewLoadFail(
         val paywallInfo: PaywallInfo,
         val errorMessage: WebviewError?,
-    ) : SuperwallPlacement() {
+    ) : SuperwallEvent() {
         override val rawName: String
             get() = "paywallWebviewLoad_fail"
     }
@@ -301,7 +304,7 @@ sealed class SuperwallPlacement {
     // / When a paywall's website completes loading.
     data class PaywallWebviewLoadComplete(
         val paywallInfo: PaywallInfo,
-    ) : SuperwallPlacement() {
+    ) : SuperwallEvent() {
         override val rawName: String
             get() = "paywallWebviewLoad_complete"
     }
@@ -309,7 +312,7 @@ sealed class SuperwallPlacement {
     // / When the loading of a paywall's website times out.
     data class PaywallWebviewLoadTimeout(
         val paywallInfo: PaywallInfo,
-    ) : SuperwallPlacement() {
+    ) : SuperwallEvent() {
         override val rawName: String
             get() = "paywallWebviewLoad_timeout"
     }
@@ -317,7 +320,7 @@ sealed class SuperwallPlacement {
     // When the paywall uses a fallback URL
     data class PaywallWebviewLoadFallback(
         val paywallInfo: PaywallInfo,
-    ) : SuperwallPlacement() {
+    ) : SuperwallEvent() {
         override val rawName: String
             get() = SuperwallEvents.PaywallWebviewLoadFallback.rawName
     }
@@ -326,7 +329,7 @@ sealed class SuperwallPlacement {
     data class PaywallProductsLoadStart(
         val triggeredPlacementName: String?,
         val paywallInfo: PaywallInfo,
-    ) : SuperwallPlacement() {
+    ) : SuperwallEvent() {
         override val rawName: String
             get() = "paywallProductsLoad_start"
     }
@@ -336,7 +339,7 @@ sealed class SuperwallPlacement {
         val errorMessage: String?,
         val triggeredPlacementName: String?,
         val paywallInfo: PaywallInfo,
-    ) : SuperwallPlacement() {
+    ) : SuperwallEvent() {
         override val rawName: String
             get() = "paywallProductsLoad_fail"
     }
@@ -345,7 +348,7 @@ sealed class SuperwallPlacement {
     data class PaywallProductsLoadComplete(
         val triggeredPlacementName: String?,
         val paywallInfo: PaywallInfo,
-    ) : SuperwallPlacement() {
+    ) : SuperwallEvent() {
         override val rawName: String
             get() = "paywallProductsLoad_complete"
     }
@@ -353,7 +356,7 @@ sealed class SuperwallPlacement {
     data class PaywallResourceLoadFail(
         val url: String,
         val error: String,
-    ) : SuperwallPlacement() {
+    ) : SuperwallEvent() {
         override val rawName: String
             get() = "paywallResourceLoad_fail"
     }
@@ -362,7 +365,7 @@ sealed class SuperwallPlacement {
     data class PaywallPresentationRequest(
         val status: PaywallPresentationRequestStatus,
         val reason: PaywallPresentationRequestStatusReason?,
-    ) : SuperwallPlacement() {
+    ) : SuperwallEvent() {
         override val rawName: String
             get() = "paywallPresentationRequest"
     }
@@ -373,37 +376,37 @@ sealed class SuperwallPlacement {
         val selectedOption: SurveyOption,
         val customResponse: String?,
         val paywallInfo: PaywallInfo,
-    ) : SuperwallPlacement() {
+    ) : SuperwallEvent() {
         override val rawName: String
             get() = "survey_response"
     }
 
     // / When the user chose the close button on a survey instead of responding.
-    class SurveyClose : SuperwallPlacement() {
+    class SurveyClose : SuperwallEvent() {
         override val rawName: String
             get() = "survey_close"
     }
 
     // When a configuration is refreshed successfully
-    object ConfigRefresh : SuperwallPlacement() {
+    object ConfigRefresh : SuperwallEvent() {
         override val rawName: String
             get() = "config_refresh"
     }
 
     // When a configuration fails to load
-    object ConfigFail : SuperwallPlacement() {
+    object ConfigFail : SuperwallEvent() {
         override val rawName: String
             get() = "config_fail"
     }
 
     // When `confirmAllAssignments` is invoked
-    object ConfirmAllAssignments : SuperwallPlacement() {
+    object ConfirmAllAssignments : SuperwallEvent() {
         override val rawName: String
             get() = "confirm_all_assignments"
     }
 
     // When Superwall.instance.reset is called
-    object Reset : SuperwallPlacement() {
+    object Reset : SuperwallEvent() {
         override val rawName: String
             get() = "reset"
     }
@@ -412,28 +415,28 @@ sealed class SuperwallPlacement {
         val placementName: String,
         val paywallInfo: PaywallInfo,
         val params: Map<String, Any>,
-    ) : SuperwallPlacement() {
+    ) : SuperwallEvent() {
         override val rawName: String = SuperwallEvents.CustomPlacement.rawName
     }
 
-    data object ShimmerViewStart : SuperwallPlacement() {
+    data object ShimmerViewStart : SuperwallEvent() {
         override val rawName: String
             get() = SuperwallEvents.ShimmerViewStart.rawName
     }
 
     data class ShimmerViewComplete(
         val duration: Double,
-    ) : SuperwallPlacement() {
+    ) : SuperwallEvent() {
         override val rawName: String
             get() = SuperwallEvents.ShimmerViewComplete.rawName
     }
 
-    internal object ErrorThrown : SuperwallPlacement(), IsInternalEvent {
+    internal object ErrorThrown : SuperwallEvent(), IsInternalEvent {
         override val rawName: String
             get() = "error_thrown"
     }
 
-    internal object ExpressionResult : SuperwallPlacement(), IsInternalEvent {
+    internal object ExpressionResult : SuperwallEvent(), IsInternalEvent {
         override val rawName: String
             get() = "cel_expression_result"
     }

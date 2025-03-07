@@ -9,8 +9,8 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.ProductDetails
+import com.superwall.sdk.analytics.superwall.SuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
-import com.superwall.sdk.analytics.superwall.SuperwallPlacement
 import com.superwall.sdk.billing.BillingError
 import com.superwall.sdk.config.options.PaywallOptions
 import com.superwall.sdk.config.options.SuperwallOptions
@@ -147,7 +147,7 @@ class ObserverModeTest {
                     Then("it should delegate to transaction manager and emit transaction start event") {
                         val event =
                             mockDelegate.events.first {
-                                it is SuperwallPlacement.TransactionStart
+                                it is SuperwallEvent.TransactionStart
                             }
                     }
                 }
@@ -185,7 +185,7 @@ class ObserverModeTest {
 
                     Then("it should handle successful purchase and emit transaction complete event") {
                         mockDelegate.events.first {
-                            it is SuperwallPlacement.TransactionComplete
+                            it is SuperwallEvent.TransactionComplete
                         }
                     }
                 }
@@ -215,7 +215,7 @@ class ObserverModeTest {
 
                     Then("it should handle failure and emit transaction fail event") {
                         mockDelegate.events.first {
-                            it is SuperwallPlacement.TransactionFail
+                            it is SuperwallEvent.TransactionFail
                         }
                     }
                 }
@@ -226,7 +226,7 @@ class ObserverModeTest {
 class MockDelegate(
     val scope: CoroutineScope,
 ) : SuperwallDelegate {
-    val events = MutableSharedFlow<SuperwallPlacement>(extraBufferCapacity = 20)
+    val events = MutableSharedFlow<SuperwallEvent>(extraBufferCapacity = 20)
 
     override fun handleSuperwallPlacement(eventInfo: SuperwallEventInfo) {
         Log.e("test", "handle event is ${eventInfo.event}")
