@@ -4,7 +4,10 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 # 2.0.3
 
+## Enhancements
+
 - Renames `SuperwallPlacement` back to `SuperwallEvent`
+
 # 2.0.2
 
 ## Fixes

@@ -28,8 +28,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.superwall.sdk.Superwall
+import com.superwall.sdk.analytics.superwall.SuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
-import com.superwall.sdk.analytics.superwall.SuperwallPlacement
 import com.superwall.sdk.delegate.SuperwallDelegate
 import com.superwall.superapp.test.UITestHandler.tests
 import com.superwall.superapp.ui.theme.MyApplicationTheme
@@ -45,9 +45,9 @@ class UITestInfo(
     val number: Int,
     val description: String,
     val testCaseType: TestCaseType = TestCaseType.iOS,
-    test: suspend Context.(testDispatcher: CoroutineScope, events: Flow<SuperwallPlacement>, message: MutableSharedFlow<Any?>) -> Unit,
+    test: suspend Context.(testDispatcher: CoroutineScope, events: Flow<SuperwallEvent>, message: MutableSharedFlow<Any?>) -> Unit,
 ) {
-    private val events = MutableSharedFlow<SuperwallPlacement?>(extraBufferCapacity = 50)
+    private val events = MutableSharedFlow<SuperwallEvent?>(extraBufferCapacity = 50)
     private val message = MutableSharedFlow<Any?>(extraBufferCapacity = 10, replay = 10)
 
     fun events() = events

@@ -5,8 +5,8 @@ import android.content.Intent
 import android.net.Uri
 import android.util.Log
 import com.superwall.sdk.Superwall
-import com.superwall.sdk.analytics.superwall.SuperwallPlacement
-import com.superwall.sdk.analytics.superwall.SuperwallPlacement.DeepLink
+import com.superwall.sdk.analytics.superwall.SuperwallEvent
+import com.superwall.sdk.analytics.superwall.SuperwallEvent.DeepLink
 import com.superwall.sdk.identity.identify
 import com.superwall.sdk.identity.setUserAttributes
 import com.superwall.sdk.misc.AlertControllerFactory
@@ -99,7 +99,7 @@ object UITestHandler {
                 // Present the paywall.
                 Superwall.instance.register(placement = "present_video")
                 // Dismiss after 4 seconds
-                events.first { it is SuperwallPlacement.PaywallWebviewLoadComplete }
+                events.first { it is SuperwallEvent.PaywallWebviewLoadComplete }
                 delay(4.seconds)
                 Superwall.instance.dismiss()
                 delay(4.seconds)
@@ -208,7 +208,7 @@ object UITestHandler {
                 Superwall.instance.setUserAttributes(mapOf("first_name" to "Claire"))
                 Superwall.instance.setSubscriptionStatus(SubscriptionStatus.Inactive)
                 Superwall.instance.register(placement = "present_data")
-                events.first { it is SuperwallPlacement.ShimmerViewComplete }
+                events.first { it is SuperwallEvent.ShimmerViewComplete }
                 // Dismiss any view controllers
                 delay(4.seconds)
 
@@ -217,7 +217,7 @@ object UITestHandler {
                 Superwall.instance.setUserAttributes(mapOf("first_name" to null))
                 Superwall.instance.setSubscriptionStatus(SubscriptionStatus.Inactive)
                 Superwall.instance.register(placement = "present_data")
-                events.first { it is SuperwallPlacement.PaywallOpen }
+                events.first { it is SuperwallEvent.PaywallOpen }
                 delay(10.seconds)
                 // Dismiss any views
                 Superwall.instance.dismiss()
@@ -249,7 +249,7 @@ object UITestHandler {
             test = { scope, events, _ ->
                 // Show a paywall
                 Superwall.instance.register(placement = "present_always")
-                events.first { it is SuperwallPlacement.ShimmerViewComplete }
+                events.first { it is SuperwallEvent.ShimmerViewComplete }
 
                 delay(8000)
 
@@ -315,7 +315,7 @@ object UITestHandler {
                     null,
                     paywallPresentationHandler,
                 )
-                events.first { it is SuperwallPlacement.PaywallWebviewLoadComplete }
+                events.first { it is SuperwallEvent.PaywallWebviewLoadComplete }
                 scope.launch {
                     delay(1.seconds)
                     assert(presentTriggered)
@@ -480,7 +480,7 @@ object UITestHandler {
                 // Register event - paywall shouldn't appear.
                 Superwall.instance.register(placement = "register_nongated_paywall")
                 scope.launch {
-                    events.first { it is SuperwallPlacement.SubscriptionStatusDidChange }
+                    events.first { it is SuperwallEvent.SubscriptionStatusDidChange }
                     delay(4000)
                     Superwall.instance.setSubscriptionStatus(SubscriptionStatus.Inactive)
                 }
@@ -649,7 +649,7 @@ object UITestHandler {
                 Superwall.instance.register(placement = "present_data")
 
                 scope.launch {
-                    events.first { it is SuperwallPlacement.PaywallWebviewLoadComplete }
+                    events.first { it is SuperwallEvent.PaywallWebviewLoadComplete }
                     delay(8000)
                     // Call reset while it is still on screen
                     Superwall.instance.reset()
@@ -999,11 +999,11 @@ object UITestHandler {
                 // Respond to Superwall events
                 delegate.handleSuperwallEvent { eventInfo ->
                     when (eventInfo.placement) {
-                        is SuperwallPlacement.PaywallDecline -> {
+                        is SuperwallEvent.PaywallDecline -> {
                             println("!!! TEST 59 !!! PaywallDecline")
                         }
 
-                        is SuperwallPlacement.SurveyResponse -> {
+                        is SuperwallEvent.SurveyResponse -> {
                             println("!!! TEST 59 !!! SurveyResponse")
                         }
 
@@ -1032,7 +1032,7 @@ object UITestHandler {
                 // Respond to Superwall events
                 delegate.handleSuperwallEvent { eventInfo ->
                     when (eventInfo.placement) {
-                        is SuperwallPlacement.TransactionFail -> {
+                        is SuperwallEvent.TransactionFail -> {
                             println("!!! TEST 60 !!! TransactionFail.")
                         }
 
@@ -1093,11 +1093,11 @@ object UITestHandler {
                 // Respond to Superwall events
                 delegate.handleSuperwallEvent { eventInfo ->
                     when (eventInfo.placement) {
-                        is SuperwallPlacement.PaywallClose -> {
+                        is SuperwallEvent.PaywallClose -> {
                             println("!!! TEST 64 !!! PaywallClose")
                         }
 
-                        is SuperwallPlacement.SurveyResponse -> {
+                        is SuperwallEvent.SurveyResponse -> {
                             println("!!! TEST 64 !!! SurveyResponse")
                         }
 
@@ -1134,13 +1134,13 @@ object UITestHandler {
                 // Respond to Superwall events
                 delegate.handleSuperwallEvent { eventInfo ->
                     when (eventInfo.placement) {
-                        is SuperwallPlacement.PaywallClose -> {
+                        is SuperwallEvent.PaywallClose -> {
                             scope.launch {
                                 message.emit(eventInfo.placement)
                             }
                         }
 
-                        is SuperwallPlacement.SurveyResponse -> {
+                        is SuperwallEvent.SurveyResponse -> {
                             scope.launch {
                                 message.emit(eventInfo.placement)
                                 println("!!! TEST 65 !!! SurveyResponse")
@@ -1179,11 +1179,11 @@ object UITestHandler {
                 // Respond to Superwall events
                 delegate.handleSuperwallEvent { eventInfo ->
                     when (eventInfo.placement) {
-                        is SuperwallPlacement.PaywallClose -> {
+                        is SuperwallEvent.PaywallClose -> {
                             println("!!! TEST 66 !!! PaywallClose")
                         }
 
-                        is SuperwallPlacement.SurveyResponse -> {
+                        is SuperwallEvent.SurveyResponse -> {
                             println("!!! TEST 66 !!! SurveyResponse")
                         }
 
@@ -1224,11 +1224,11 @@ object UITestHandler {
                     // Respond to Superwall events
                     delegate.handleSuperwallEvent { eventInfo ->
                         when (eventInfo.placement) {
-                            is SuperwallPlacement.PaywallClose -> {
+                            is SuperwallEvent.PaywallClose -> {
                                 println("!!! TEST 68 !!! PaywallClose")
                             }
 
-                            is SuperwallPlacement.SurveyResponse -> {
+                            is SuperwallEvent.SurveyResponse -> {
                                 println("!!! TEST 68 !!! SurveyResponse")
                             }
 
@@ -1267,11 +1267,11 @@ object UITestHandler {
                 // Respond to Superwall events
                 delegate.handleSuperwallEvent { eventInfo ->
                     when (eventInfo.placement) {
-                        is SuperwallPlacement.PaywallClose -> {
+                        is SuperwallEvent.PaywallClose -> {
                             println("!!! TEST 70 !!! PaywallClose")
                         }
 
-                        is SuperwallPlacement.SurveyResponse -> {
+                        is SuperwallEvent.SurveyResponse -> {
                             println("!!! TEST 70 !!! SurveyResponse")
                         }
 
@@ -1317,7 +1317,7 @@ object UITestHandler {
                 // Respond to Superwall events
                 delegate.handleSuperwallEvent { eventInfo ->
                     when (eventInfo.placement) {
-                        is SuperwallPlacement.SurveyResponse -> {
+                        is SuperwallEvent.SurveyResponse -> {
                             println("!!! TEST 71 !!! SurveyResponse")
                         }
 
@@ -1385,7 +1385,7 @@ object UITestHandler {
                 // Respond to Superwall events
                 delegate.handleSuperwallEvent { eventInfo ->
                     when (eventInfo.placement) {
-                        is SuperwallPlacement.SurveyClose -> {
+                        is SuperwallEvent.SurveyClose -> {
                             println("!!! TEST 74 !!! SurveyClose")
                         }
 
@@ -1412,13 +1412,13 @@ object UITestHandler {
                 // Respond to Superwall events
                 delegate.handleSuperwallEvent { eventInfo ->
                     when (eventInfo.placement) {
-                        is SuperwallPlacement.TransactionComplete -> {
+                        is SuperwallEvent.TransactionComplete -> {
                             val transaction =
-                                (eventInfo.placement as SuperwallPlacement.TransactionComplete).transaction == null
+                                (eventInfo.placement as SuperwallEvent.TransactionComplete).transaction == null
                             val productId =
-                                (eventInfo.placement as SuperwallPlacement.TransactionComplete).product.fullIdentifier
+                                (eventInfo.placement as SuperwallEvent.TransactionComplete).product.fullIdentifier
                             val paywallId =
-                                (eventInfo.placement as SuperwallPlacement.TransactionComplete).paywallInfo.identifier
+                                (eventInfo.placement as SuperwallEvent.TransactionComplete).paywallInfo.identifier
 
                             println("!!! TEST 75 !!! TransactionComplete. Transaction nil? $transaction, $productId, $paywallId")
                         }
@@ -1510,7 +1510,7 @@ object UITestHandler {
                 // Respond to Superwall events
                 delegate.handleSuperwallEvent { eventInfo ->
                     when (eventInfo.placement) {
-                        is SuperwallPlacement.NonRecurringProductPurchase -> {
+                        is SuperwallEvent.NonRecurringProductPurchase -> {
                             println("!!! Android TEST 20 !!! Non recurring product purchase")
                         }
 

@@ -10,7 +10,7 @@ import com.example.superapp.utils.delayFor
 import com.example.superapp.utils.screenshotFlow
 import com.example.superapp.utils.waitFor
 import com.superwall.sdk.Superwall
-import com.superwall.sdk.analytics.superwall.SuperwallPlacement
+import com.superwall.sdk.analytics.superwall.SuperwallEvent
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.superapp.Keys
 import com.superwall.superapp.test.UITestHandler
@@ -57,7 +57,7 @@ class PresentationRuleTests {
             Superwall.instance.reset()
             screenshotFlow(UITestHandler.test29Info) {
                 step("") {
-                    it.waitFor { it is SuperwallPlacement.UserAttributes }
+                    it.waitFor { it is SuperwallEvent.UserAttributes }
                     delayFor(1.seconds)
                 }
             }
@@ -89,7 +89,7 @@ class PresentationRuleTests {
         with(dropshots) {
             screenshotFlow(UITestHandler.test32Info) {
                 step("") {
-                    it.waitFor { it is SuperwallPlacement.SubscriptionStatusDidChange }
+                    it.waitFor { it is SuperwallEvent.SubscriptionStatusDidChange }
                     delayFor(1.seconds)
                 }
             }

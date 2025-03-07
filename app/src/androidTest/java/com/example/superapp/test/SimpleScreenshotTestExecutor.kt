@@ -16,7 +16,7 @@ import com.example.superapp.utils.paywallPresentsFor
 import com.example.superapp.utils.screenshotFlow
 import com.example.superapp.utils.waitFor
 import com.superwall.sdk.Superwall
-import com.superwall.sdk.analytics.superwall.SuperwallPlacement
+import com.superwall.sdk.analytics.superwall.SuperwallEvent
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.superapp.Keys
 import com.superwall.superapp.test.UITestHandler
@@ -104,7 +104,7 @@ class SimpleScreenshotTestExecutor {
             val mainScope = CoroutineScope(Dispatchers.Main)
             screenshotFlow(UITestHandler.test16Info) {
                 step("") {
-                    it.waitFor { it is SuperwallPlacement.PaywallWebviewLoadComplete }
+                    it.waitFor { it is SuperwallEvent.PaywallWebviewLoadComplete }
                     awaitUntilShimmerDisappears() || awaitUntilWebviewAppears()
                     delayFor(2.seconds)
                     mainScope
@@ -159,7 +159,7 @@ class SimpleScreenshotTestExecutor {
         with(dropshots) {
             screenshotFlow(UITestHandler.test25Info) {
                 step {
-                    it.waitFor { it is SuperwallPlacement.PaywallPresentationRequest }
+                    it.waitFor { it is SuperwallEvent.PaywallPresentationRequest }
                 }
             }
         }
@@ -200,7 +200,7 @@ class SimpleScreenshotTestExecutor {
             with(dropshots) {
                 screenshotFlow(UITestHandler.test45Info) {
                     step("") {
-                        it.waitFor { it is SuperwallPlacement.PaywallWebviewLoadComplete }
+                        it.waitFor { it is SuperwallEvent.PaywallWebviewLoadComplete }
                         awaitUntilShimmerDisappears() || awaitUntilWebviewAppears()
                         delayFor(2.seconds)
                     }
@@ -217,7 +217,7 @@ class SimpleScreenshotTestExecutor {
             with(dropshots) {
                 screenshotFlow(UITestHandler.test46Info, FlowTestConfiguration(true)) {
                     step("") {
-                        it.waitFor { it is SuperwallPlacement.PaywallWebviewLoadComplete }
+                        it.waitFor { it is SuperwallEvent.PaywallWebviewLoadComplete }
                         awaitUntilShimmerDisappears() || awaitUntilWebviewAppears()
                         delayFor(2.seconds)
                     }

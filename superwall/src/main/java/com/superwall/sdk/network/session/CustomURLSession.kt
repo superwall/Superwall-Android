@@ -17,8 +17,8 @@ import kotlinx.serialization.json.Json
 
 class CustomHttpUrlConnection(
     val json: Json,
-    val interceptors: List<(RequestResult) -> RequestResult> = emptyList(),
     val requestExecutor: RequestExecutor,
+    val interceptors: List<(RequestResult) -> RequestResult> = emptyList(),
 ) {
     @Throws(NetworkError::class)
     suspend inline fun <reified Response : @Serializable Any> request(
