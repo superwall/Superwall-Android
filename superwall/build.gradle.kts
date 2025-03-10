@@ -210,6 +210,7 @@ dependencies {
 
     // Serialization
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.install.referrer)
 
     // Test
     testImplementation(libs.junit)

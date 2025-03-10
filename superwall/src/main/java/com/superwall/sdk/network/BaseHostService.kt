@@ -5,6 +5,12 @@ import com.superwall.sdk.misc.Either
 import com.superwall.sdk.models.assignment.AssignmentPostback
 import com.superwall.sdk.models.assignment.ConfirmedAssignmentResponse
 import com.superwall.sdk.models.config.Config
+import com.superwall.sdk.models.entitlements.RedeemRequest
+import com.superwall.sdk.models.entitlements.RedemptionEmail
+import com.superwall.sdk.models.entitlements.Reedemable
+import com.superwall.sdk.models.entitlements.WebEntitlements
+import com.superwall.sdk.models.internal.DeviceVendorId
+import com.superwall.sdk.models.internal.UserId
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.Paywalls
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
@@ -75,4 +81,33 @@ class BaseHostService(
 
         return get<Paywall>("paywall/$identifier", queryItems = queryItems, isForDebugging = true)
     }
+
+    suspend fun redeemToken(
+        codes: List<String>,
+        userId: UserId,
+        vendorId: DeviceVendorId,
+    ) = post<WebEntitlements>(
+        "redeem",
+        body =
+            json
+                .encodeToString(
+                    RedeemRequest(
+                        vendorId.value,
+                        userId.value,
+                        codes.map {
+                            Reedemable(it)
+                        },
+                    ),
+                ).toByteArray(),
+    )
+
+    suspend fun redeemByEmail(email: String) =
+        post<WebEntitlements>(
+            "redeem",
+            body = json.encodeToString(RedemptionEmail(email)).toByteArray(),
+        )
+
+    suspend fun webEntitlementsByUserId(userId: UserId) = get<WebEntitlements>("users/$userId/entitlements")
+
+    suspend fun webEntitlementsByDeviceId(deviceId: DeviceVendorId) = get<WebEntitlements>("devices/$deviceId/entitlements")
 }
