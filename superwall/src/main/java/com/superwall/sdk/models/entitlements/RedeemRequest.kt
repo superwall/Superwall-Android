@@ -10,13 +10,15 @@ data class RedeemRequest(
     @SerialName("appUserId")
     val userId: String,
     @SerialName("codes")
-    val codes: List<Reedemable>,
+    val codes: List<Redeemable>,
 )
 
 @Serializable
-data class Reedemable(
+data class Redeemable(
     @SerialName("code")
     val code: String,
+    @SerialName("firstRedemption")
+    val firstRedemption: Boolean = false,
 )
 
 @Serializable

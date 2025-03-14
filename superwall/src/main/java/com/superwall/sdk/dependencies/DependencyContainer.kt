@@ -299,12 +299,17 @@ class DependencyContainer(
                 ioScope = ioScope,
                 deepLinkReferrer = DeepLinkReferrer({ context }, ioScope),
                 network = network,
+                storage = storage,
                 setEntitlementStatus = {
+                    val activeEntitlements = Superwall.instance.entitlements.active
                     Superwall.instance.setSubscriptionStatus(
                         SubscriptionStatus.Active(
-                            it.toSet(),
+                            it.toSet() + activeEntitlements,
                         ),
                     )
+                },
+                onRedemptionResult = { result, customer ->
+                    delegateAdapter.didRedeemCode(customer, result)
                 },
             )
         configManager =

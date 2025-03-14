@@ -5,6 +5,7 @@ import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.geo.GeoInfo
+import com.superwall.sdk.models.internal.WebRedemptionResponse
 import com.superwall.sdk.models.serialization.AnySerializer
 import com.superwall.sdk.models.transactions.SavedTransaction
 import com.superwall.sdk.models.triggers.Experiment
@@ -309,6 +310,34 @@ internal object PurchasingProductdIds : Storable<Set<String>> {
     override val serializer: KSerializer<Set<String>>
         get() = SetSerializer(String.serializer())
 }
+
+internal object UserVisibleRedemptionCodes : Storable<Set<String>> {
+    override val key: String
+        get() = "store.userVisibleRedemptionCodes"
+    override val directory: SearchPathDirectory
+        get() = SearchPathDirectory.APP_SPECIFIC_DOCUMENTS
+    override val serializer: KSerializer<Set<String>>
+        get() = SetSerializer(String.serializer())
+}
+
+internal object DeviceVisibleRedemptionCodes : Storable<Set<String>> {
+    override val key: String
+        get() = "store.deviceVisibleRedemptionCodes"
+    override val directory: SearchPathDirectory
+        get() = SearchPathDirectory.APP_SPECIFIC_DOCUMENTS
+    override val serializer: KSerializer<Set<String>>
+        get() = SetSerializer(String.serializer())
+}
+
+internal object LatestRedemptionResponse : Storable<WebRedemptionResponse> {
+    override val key: String
+        get() = "store.latestRedemptionResponse"
+    override val directory: SearchPathDirectory
+        get() = SearchPathDirectory.APP_SPECIFIC_DOCUMENTS
+    override val serializer: KSerializer<WebRedemptionResponse>
+        get() = WebRedemptionResponse.serializer()
+}
+
 //endregion
 
 // region Serializers

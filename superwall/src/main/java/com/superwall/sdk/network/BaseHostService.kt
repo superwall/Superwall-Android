@@ -6,11 +6,12 @@ import com.superwall.sdk.models.assignment.AssignmentPostback
 import com.superwall.sdk.models.assignment.ConfirmedAssignmentResponse
 import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.models.entitlements.RedeemRequest
+import com.superwall.sdk.models.entitlements.Redeemable
 import com.superwall.sdk.models.entitlements.RedemptionEmail
-import com.superwall.sdk.models.entitlements.Reedemable
 import com.superwall.sdk.models.entitlements.WebEntitlements
 import com.superwall.sdk.models.internal.DeviceVendorId
 import com.superwall.sdk.models.internal.UserId
+import com.superwall.sdk.models.internal.WebRedemptionResponse
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.Paywalls
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
@@ -83,10 +84,10 @@ class BaseHostService(
     }
 
     suspend fun redeemToken(
-        codes: List<String>,
+        codes: List<Redeemable>,
         userId: UserId,
         vendorId: DeviceVendorId,
-    ) = post<WebEntitlements>(
+    ) = post<WebRedemptionResponse>(
         "redeem",
         body =
             json
@@ -94,9 +95,7 @@ class BaseHostService(
                     RedeemRequest(
                         vendorId.value,
                         userId.value,
-                        codes.map {
-                            Reedemable(it)
-                        },
+                        codes,
                     ),
                 ).toByteArray(),
     )
