@@ -4,12 +4,14 @@ import com.superwall.sdk.misc.Either
 import com.superwall.sdk.models.assignment.Assignment
 import com.superwall.sdk.models.assignment.AssignmentPostback
 import com.superwall.sdk.models.config.Config
+import com.superwall.sdk.models.entitlements.Redeemable
 import com.superwall.sdk.models.entitlements.WebEntitlements
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.events.EventsRequest
 import com.superwall.sdk.models.geo.GeoInfo
 import com.superwall.sdk.models.internal.DeviceVendorId
 import com.superwall.sdk.models.internal.UserId
+import com.superwall.sdk.models.internal.WebRedemptionResponse
 import com.superwall.sdk.models.paywall.Paywall
 
 interface SuperwallAPI {
@@ -35,10 +37,10 @@ interface SuperwallAPI {
     suspend fun webEntitlementsByDeviceID(deviceId: DeviceVendorId): Either<WebEntitlements, NetworkError>
 
     suspend fun redeemToken(
-        token: List<String>,
+        token: List<Redeemable>,
         userId: UserId,
         vendorId: DeviceVendorId,
-    ): Either<WebEntitlements, NetworkError>
+    ): Either<WebRedemptionResponse, NetworkError>
 
     suspend fun redeemEmail(email: String): Either<WebEntitlements, NetworkError>
 }

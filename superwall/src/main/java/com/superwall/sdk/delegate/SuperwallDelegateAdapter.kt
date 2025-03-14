@@ -2,7 +2,9 @@ package com.superwall.sdk.delegate
 
 import android.net.Uri
 import com.superwall.sdk.analytics.superwall.SuperwallPlacementInfo
+import com.superwall.sdk.models.entitlements.CustomerInfo
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
+import com.superwall.sdk.models.internal.RedemptionResult
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import java.net.URI
 
@@ -13,6 +15,14 @@ class SuperwallDelegateAdapter {
     fun handleCustomPaywallAction(name: String) {
         kotlinDelegate?.handleCustomPaywallAction(name)
             ?: javaDelegate?.handleCustomPaywallAction(name)
+    }
+
+    fun didRedeemCode(
+        customerInfo: CustomerInfo,
+        result: RedemptionResult,
+    ) {
+        kotlinDelegate?.didRedeemCode(customerInfo, result)
+            ?: javaDelegate?.didRedeemCode(customerInfo, result)
     }
 
     fun willDismissPaywall(paywallInfo: PaywallInfo) {

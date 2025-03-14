@@ -50,4 +50,7 @@ enum class SuperwallEvents(
     ConfigAttributes("config_attributes"),
     ConfirmAllAssignments("confirm_all_assignments"),
     ConfigFail("config_fail"),
+    RedemptionStart("redemption_start"),
+    RedemptionComplete("redemption_complete"),
+    RedemptionFail("redemption_fail"),
 }

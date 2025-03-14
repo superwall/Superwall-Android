@@ -10,6 +10,7 @@ import com.superwall.sdk.misc.onError
 import com.superwall.sdk.models.assignment.Assignment
 import com.superwall.sdk.models.assignment.AssignmentPostback
 import com.superwall.sdk.models.config.Config
+import com.superwall.sdk.models.entitlements.Redeemable
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.events.EventsRequest
 import com.superwall.sdk.models.events.EventsResponse
@@ -105,7 +106,7 @@ open class Network(
             }.logError("/assignments")
 
     override suspend fun redeemToken(
-        codes: List<String>,
+        codes: List<Redeemable>,
         userId: UserId,
         vendorId: DeviceVendorId,
     ) = baseHostService

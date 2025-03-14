@@ -6,45 +6,96 @@ import com.superwall.sdk.Then
 import com.superwall.sdk.When
 import com.superwall.sdk.misc.Either
 import com.superwall.sdk.misc.IOScope
+import com.superwall.sdk.models.entitlements.CustomerInfo
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.WebEntitlements
 import com.superwall.sdk.models.internal.DeviceVendorId
+import com.superwall.sdk.models.internal.ErrorInfo
+import com.superwall.sdk.models.internal.PurchaserInfo
+import com.superwall.sdk.models.internal.RedemptionInfo
+import com.superwall.sdk.models.internal.RedemptionOwnership
+import com.superwall.sdk.models.internal.RedemptionResult
+import com.superwall.sdk.models.internal.StoreIdentifiers
 import com.superwall.sdk.models.internal.UserId
 import com.superwall.sdk.models.internal.VendorId
+import com.superwall.sdk.models.internal.WebRedemptionResponse
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.network.NetworkError
+import com.superwall.sdk.storage.LatestRedemptionResponse
+import com.superwall.sdk.storage.Storage
+import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
+import io.mockk.just
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
+import org.junit.Before
 import org.junit.Test
 
 class WebPaywallRedeemerTest {
     private val context: Context = mockk()
-    private val network: Network =
+    private val storage: Storage =
         mockk {
-            coEvery {
-                redeemToken(any(), any(), any())
-            } returns Either.Success(WebEntitlements(listOf()))
+            every { read(LatestRedemptionResponse) } returns null
+            every { write(LatestRedemptionResponse, any()) } just Runs
         }
+
+    private var mutableEntitlements = mutableSetOf<Entitlement>()
+    private var webEntitlement = Entitlement("web_entitlement")
+    private var normalEntitlement = Entitlement("normalEntitlement")
+
     private val deepLinkReferrer: CheckForReferral = mockk()
     private val testDispatcher = StandardTestDispatcher()
-    private val setEntitlementStatus: (List<Entitlement>) -> Unit = mockk(relaxed = true)
+    private val setEntitlementStatus: (List<Entitlement>) -> Unit = {
+        mutableEntitlements += it.toSet()
+    }
+    private var getAllEntitlements: () -> Set<Entitlement> = {
+        mutableEntitlements
+    }
+
+    @Before
+    fun setup() {
+        mutableEntitlements = mutableSetOf()
+    }
+
+    private val onRedemptionResult: (RedemptionResult, CustomerInfo) -> Unit = mockk(relaxed = true)
     private val getUserId: () -> UserId = { UserId("test_user") }
     private val getDeviceId: () -> DeviceVendorId = { DeviceVendorId(VendorId("test_vendor")) }
     private lateinit var redeemer: WebPaywallRedeemer
+    private val network: Network = mockk {}
 
     @Test
     fun `test successful redemption flow`() =
         runTest(testDispatcher) {
             Given("a WebPaywallRedeemer with valid redemption codes") {
-                val codes = listOf("code1", "code2")
-                val entitlements = listOf(Entitlement("test_entitlement"))
-                val response = WebEntitlements(entitlements)
+                val code = "test_code"
+                mutableEntitlements = mutableSetOf(normalEntitlement)
+                val response =
+                    WebRedemptionResponse(
+                        codes =
+                            listOf(
+                                RedemptionResult.Success(
+                                    code = code,
+                                    redemptionInfo =
+                                        RedemptionInfo(
+                                            ownership = RedemptionOwnership.AppUser(appUserId = getUserId().value),
+                                            purchaserInfo =
+                                                PurchaserInfo(
+                                                    getUserId().value,
+                                                    "email",
+                                                    StoreIdentifiers.Stripe(stripeSubscriptionId = "123"),
+                                                ),
+                                            entitlements = listOf(webEntitlement),
+                                        ),
+                                ),
+                            ),
+                        entitlements = listOf(webEntitlement),
+                    )
 
-                coEvery { deepLinkReferrer.checkForReferral() } returns Result.success(codes)
+                coEvery { deepLinkReferrer.checkForReferral() } returns Result.success(code)
                 coEvery {
                     network.redeemToken(
                         any(),
@@ -59,7 +110,10 @@ class WebPaywallRedeemerTest {
                         IOScope(testDispatcher),
                         deepLinkReferrer,
                         network,
+                        storage,
+                        onRedemptionResult,
                         setEntitlementStatus,
+                        getAllEntitlements,
                         getUserId,
                         getDeviceId,
                     )
@@ -68,9 +122,11 @@ class WebPaywallRedeemerTest {
                     redeemer.checkForRefferal()
 
                     Then("it should redeem the codes and set entitlement status") {
-                        verify {
-                            setEntitlementStatus.invoke(entitlements)
+                        verify(exactly = 1) {
+                            storage.write(LatestRedemptionResponse, response)
                         }
+                        println(mutableEntitlements)
+                        assert(mutableEntitlements == setOf(webEntitlement, normalEntitlement))
                     }
                 }
             }
@@ -89,7 +145,10 @@ class WebPaywallRedeemerTest {
                         IOScope(testDispatcher),
                         deepLinkReferrer,
                         network,
+                        storage,
+                        onRedemptionResult,
                         setEntitlementStatus,
+                        getAllEntitlements,
                         getUserId,
                         getDeviceId,
                     )
@@ -107,20 +166,21 @@ class WebPaywallRedeemerTest {
         }
 
     @Test
-    fun `test failed token redemption`() =
+    fun `test failed token redemption due to unknown error`() =
         runTest(testDispatcher) {
             Given("a WebPaywallRedeemer with failing token redemption") {
-                val codes = listOf("code1")
+                val codes = "code1"
                 val exception = Exception("Token redemption failed")
-
+                // User has a normal entitlement
+                mutableEntitlements = mutableSetOf(normalEntitlement)
                 coEvery { deepLinkReferrer.checkForReferral() } returns Result.success(codes)
                 coEvery {
                     network.redeemToken(
-                        codes,
-                        UserId("test_user"),
-                        DeviceVendorId(VendorId("test_vendor")),
+                        any(),
+                        any(),
+                        any(),
                     )
-                } returns Either.Failure(NetworkError.Unknown(Error()))
+                } returns Either.Failure(NetworkError.Unknown(exception))
 
                 redeemer =
                     WebPaywallRedeemer(
@@ -128,7 +188,10 @@ class WebPaywallRedeemerTest {
                         IOScope(testDispatcher),
                         deepLinkReferrer,
                         network,
+                        storage,
+                        onRedemptionResult,
                         setEntitlementStatus,
+                        getAllEntitlements,
                         getUserId,
                         getDeviceId,
                     )
@@ -137,8 +200,15 @@ class WebPaywallRedeemerTest {
                     redeemer.checkForRefferal()
 
                     Then("it should not set entitlement status") {
-                        verify(exactly = 0) {
-                            setEntitlementStatus(any())
+                        assert(mutableEntitlements == setOf(normalEntitlement))
+                        verify(exactly = 1) {
+                            onRedemptionResult(
+                                RedemptionResult.Error(
+                                    code = codes,
+                                    error = ErrorInfo(exception.localizedMessage ?: exception.message ?: ""),
+                                ),
+                                any(),
+                            )
                         }
                     }
                 }
@@ -166,7 +236,10 @@ class WebPaywallRedeemerTest {
                         IOScope(testDispatcher),
                         deepLinkReferrer,
                         network,
+                        storage,
+                        onRedemptionResult,
                         setEntitlementStatus,
+                        getAllEntitlements,
                         getUserId,
                         getDeviceId,
                     )
@@ -174,7 +247,7 @@ class WebPaywallRedeemerTest {
                 When("checking for web entitlements") {
                     val result =
                         redeemer.checkForWebEntitlements(
-                            getUserId().value,
+                            getUserId(),
                             getDeviceId(),
                         )
 
@@ -205,7 +278,10 @@ class WebPaywallRedeemerTest {
                         IOScope(testDispatcher),
                         deepLinkReferrer,
                         network,
+                        storage,
+                        onRedemptionResult,
                         setEntitlementStatus,
+                        getAllEntitlements,
                         getUserId,
                         getDeviceId,
                     )
@@ -213,7 +289,7 @@ class WebPaywallRedeemerTest {
                 When("checking for web entitlements") {
                     val result =
                         redeemer.checkForWebEntitlements(
-                            "test_user",
+                            UserId("test_user"),
                             DeviceVendorId(VendorId("test_device")),
                         )
 
@@ -230,11 +306,11 @@ class WebPaywallRedeemerTest {
     fun `test checkForWebEntitlements with partially successful responses - user success`() =
         runTest(testDispatcher) {
             Given("a WebPaywallRedeemer with only user entitlements succeeding") {
-                val userEntitlements = listOf(Entitlement("user_entitlement"))
+                val userEntitlements = setOf(Entitlement("user_entitlement"))
 
                 coEvery {
                     network.webEntitlementsByUserId(UserId("test_user"))
-                } returns Either.Success(WebEntitlements(userEntitlements))
+                } returns Either.Success(WebEntitlements(userEntitlements.toList()))
 
                 coEvery {
                     network.webEntitlementsByDeviceID(any())
@@ -246,21 +322,26 @@ class WebPaywallRedeemerTest {
                         IOScope(testDispatcher),
                         deepLinkReferrer,
                         network,
+                        storage,
+                        onRedemptionResult,
                         setEntitlementStatus,
+                        getAllEntitlements,
                         getUserId,
                         getDeviceId,
                     )
-
                 When("checking for web entitlements") {
                     val result =
                         redeemer.checkForWebEntitlements(
-                            "test_user",
+                            UserId("test_user"),
                             DeviceVendorId(VendorId("test_device")),
                         )
 
                     Then("it should return only user entitlements") {
                         assert(result is Either.Success)
                         val entitlements = (result as Either.Success).value
+                        println("Received $entitlements")
+                        println("Received $userEntitlements")
+                        println("Do equal ${entitlements == userEntitlements}")
                         assert(entitlements == userEntitlements)
                     }
                 }
@@ -271,11 +352,9 @@ class WebPaywallRedeemerTest {
     fun `test checkForWebEntitlements with partially successful responses - device success`() =
         runTest(testDispatcher) {
             Given("a WebPaywallRedeemer with only device entitlements succeeding") {
-                val deviceEntitlements = listOf(Entitlement("device_entitlement"))
-
                 coEvery {
                     deepLinkReferrer.checkForReferral()
-                } returns Result.success(emptyList())
+                } returns Result.success("code")
 
                 coEvery {
                     network.redeemToken(any(), any(), any())
@@ -287,7 +366,7 @@ class WebPaywallRedeemerTest {
 
                 coEvery {
                     network.webEntitlementsByDeviceID(any())
-                } returns Either.Success(WebEntitlements(deviceEntitlements))
+                } returns Either.Success(WebEntitlements(listOf(webEntitlement)))
 
                 redeemer =
                     WebPaywallRedeemer(
@@ -295,7 +374,10 @@ class WebPaywallRedeemerTest {
                         IOScope(testDispatcher),
                         deepLinkReferrer,
                         network,
+                        storage,
+                        onRedemptionResult,
                         setEntitlementStatus,
+                        getAllEntitlements,
                         getUserId,
                         getDeviceId,
                     )
@@ -303,14 +385,14 @@ class WebPaywallRedeemerTest {
                 When("checking for web entitlements") {
                     val result =
                         redeemer.checkForWebEntitlements(
-                            "test_user",
+                            UserId("test_user"),
                             DeviceVendorId(VendorId("test_device")),
                         )
 
                     Then("it should return only device entitlements") {
                         assert(result is Either.Success)
                         val entitlements = (result as Either.Success).value
-                        assert(entitlements == deviceEntitlements)
+                        assert(entitlements == setOf(webEntitlement))
                     }
                 }
             }
@@ -338,7 +420,10 @@ class WebPaywallRedeemerTest {
                         IOScope(testDispatcher),
                         deepLinkReferrer,
                         network,
+                        storage,
+                        onRedemptionResult,
                         setEntitlementStatus,
+                        getAllEntitlements,
                         getUserId,
                         getDeviceId,
                     )
@@ -346,7 +431,7 @@ class WebPaywallRedeemerTest {
                 When("checking for web entitlements") {
                     val result =
                         redeemer.checkForWebEntitlements(
-                            "test_user",
+                            UserId("test_user"),
                             DeviceVendorId(VendorId("test_device")),
                         )
 

@@ -22,6 +22,7 @@ data class Config(
     @SerialName("localization") var localizationConfig: LocalizationConfig,
     var requestId: String? = null,
     @Transient var locales: Set<String> = emptySet(),
+    @SerialName("webToAppConfig") var webToAppConfig: WebToAppConfig? = null,
     @SerialName("build_id") val buildId: String,
 ) : SerializableEntity {
     init {
@@ -60,6 +61,7 @@ data class Config(
                 enableCELLogging =
                     rawFeatureFlags.find { it.key == "enable_cel_logging" }?.enabled
                         ?: false,
+                web2App = rawFeatureFlags.value("web_2_app", false),
             )
 
     companion object {
