@@ -24,6 +24,7 @@ import com.superwall.sdk.misc.then
 import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.internal.DeviceVendorId
+import com.superwall.sdk.models.internal.UserId
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.models.triggers.Trigger
@@ -405,7 +406,7 @@ open class ConfigManager(
         if (entitlements.all.size != entitlements.active.size) {
             webPaywallRedeemer
                 .checkForWebEntitlements(
-                    Superwall.instance.userId,
+                    UserId(Superwall.instance.userId),
                     DeviceVendorId(Superwall.instance.vendorId),
                 ).fold(onSuccess = { webEntitlements ->
                     if (webEntitlements.isNotEmpty()) {

@@ -441,6 +441,21 @@ sealed class SuperwallEvent {
             get() = "cel_expression_result"
     }
 
+    object RedemptionComplete : SuperwallPlacement() {
+        override val rawName: String
+            get() = SuperwallEvents.RedemptionComplete.rawName
+    }
+
+    object RedemptionFail : SuperwallPlacement() {
+        override val rawName: String
+            get() = SuperwallEvents.RedemptionFail.rawName
+    }
+
+    object RedemptionStart : SuperwallPlacement() {
+        override val rawName: String
+            get() = SuperwallEvents.RedemptionStart.rawName
+    }
+
     open val rawName: String
         get() = this.toString()
 

@@ -36,6 +36,7 @@ import com.superwall.sdk.models.assignment.ConfirmedAssignment
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.events.EventData
+import com.superwall.sdk.models.internal.RedemptionOwnershipType
 import com.superwall.sdk.models.internal.VendorId
 import com.superwall.sdk.network.device.InterfaceStyle
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
@@ -563,6 +564,7 @@ class Superwall(
      */
     internal fun reset(duringIdentify: Boolean) {
         withErrorTracking {
+            dependencyContainer.reedemer.clear(RedemptionOwnershipType.AppUser)
             dependencyContainer.identityManager.reset(duringIdentify)
             dependencyContainer.storage.reset()
             dependencyContainer.paywallManager.resetCache()
