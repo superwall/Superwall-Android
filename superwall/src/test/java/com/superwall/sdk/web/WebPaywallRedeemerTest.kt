@@ -43,6 +43,7 @@ class WebPaywallRedeemerTest {
             every { write(LatestRedemptionResponse, any()) } just Runs
         }
 
+    private var maxAge: () -> Long = { 1L }
     private var mutableEntitlements = mutableSetOf<Entitlement>()
     private var webEntitlement = Entitlement("web_entitlement")
     private var normalEntitlement = Entitlement("normalEntitlement")
@@ -112,6 +113,7 @@ class WebPaywallRedeemerTest {
                         network,
                         storage,
                         onRedemptionResult,
+                        maxAge,
                         setEntitlementStatus,
                         getAllEntitlements,
                         getUserId,
@@ -147,6 +149,7 @@ class WebPaywallRedeemerTest {
                         network,
                         storage,
                         onRedemptionResult,
+                        maxAge,
                         setEntitlementStatus,
                         getAllEntitlements,
                         getUserId,
@@ -190,6 +193,7 @@ class WebPaywallRedeemerTest {
                         network,
                         storage,
                         onRedemptionResult,
+                        maxAge,
                         setEntitlementStatus,
                         getAllEntitlements,
                         getUserId,
@@ -238,6 +242,7 @@ class WebPaywallRedeemerTest {
                         network,
                         storage,
                         onRedemptionResult,
+                        maxAge,
                         setEntitlementStatus,
                         getAllEntitlements,
                         getUserId,
@@ -280,6 +285,7 @@ class WebPaywallRedeemerTest {
                         network,
                         storage,
                         onRedemptionResult,
+                        maxAge,
                         setEntitlementStatus,
                         getAllEntitlements,
                         getUserId,
@@ -324,6 +330,7 @@ class WebPaywallRedeemerTest {
                         network,
                         storage,
                         onRedemptionResult,
+                        maxAge,
                         setEntitlementStatus,
                         getAllEntitlements,
                         getUserId,
@@ -376,6 +383,7 @@ class WebPaywallRedeemerTest {
                         network,
                         storage,
                         onRedemptionResult,
+                        maxAge,
                         setEntitlementStatus,
                         getAllEntitlements,
                         getUserId,
@@ -422,6 +430,7 @@ class WebPaywallRedeemerTest {
                         network,
                         storage,
                         onRedemptionResult,
+                        maxAge,
                         setEntitlementStatus,
                         getAllEntitlements,
                         getUserId,
