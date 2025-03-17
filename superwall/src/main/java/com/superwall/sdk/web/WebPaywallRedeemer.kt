@@ -20,9 +20,11 @@ import com.superwall.sdk.models.internal.UserId
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.storage.LatestRedemptionResponse
 import com.superwall.sdk.storage.Storage
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.plus
 
 class WebPaywallRedeemer(
     val context: Context,
@@ -34,6 +36,7 @@ class WebPaywallRedeemer(
         redemptionResult: RedemptionResult,
         customerInfo: CustomerInfo,
     ) -> Unit,
+    val maxAge: () -> Long,
     val setEntitlementStatus: (List<Entitlement>) -> Unit,
     val getActiveEntitlements: () -> Set<Entitlement> = { Superwall.instance.entitlements.active },
     val getUserId: () -> UserId = { UserId(Superwall.instance.userId) },
@@ -129,6 +132,7 @@ class WebPaywallRedeemer(
                     info = mapOf(),
                 )
             })
+        startPolling()
     }
 
     suspend fun checkForWebEntitlements(
@@ -168,10 +172,10 @@ class WebPaywallRedeemer(
         storage.write(LatestRedemptionResponse, withUserCodesRemoved)
     }
 
-    fun startPolling(maxAge: Long = 60L) {
+    fun startPolling(maxAge: Long = maxAge()) {
         pollingJob?.cancel()
         pollingJob =
-            ioScope.launch {
+            (ioScope + Dispatchers.IO).launch {
                 while (true) {
                     delay(maxAge * 1000)
                     checkForWebEntitlements(getUserId(), getDeviceId())

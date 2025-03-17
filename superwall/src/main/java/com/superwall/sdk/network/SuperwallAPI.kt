@@ -41,6 +41,4 @@ interface SuperwallAPI {
         userId: UserId,
         vendorId: DeviceVendorId,
     ): Either<WebRedemptionResponse, NetworkError>
-
-    suspend fun redeemEmail(email: String): Either<WebEntitlements, NetworkError>
 }

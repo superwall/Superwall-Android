@@ -7,7 +7,6 @@ import com.superwall.sdk.models.assignment.ConfirmedAssignmentResponse
 import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.models.entitlements.RedeemRequest
 import com.superwall.sdk.models.entitlements.Redeemable
-import com.superwall.sdk.models.entitlements.RedemptionEmail
 import com.superwall.sdk.models.entitlements.WebEntitlements
 import com.superwall.sdk.models.internal.DeviceVendorId
 import com.superwall.sdk.models.internal.UserId
@@ -99,12 +98,6 @@ class BaseHostService(
                     ),
                 ).toByteArray(),
     )
-
-    suspend fun redeemByEmail(email: String) =
-        post<WebEntitlements>(
-            "redeem",
-            body = json.encodeToString(RedemptionEmail(email)).toByteArray(),
-        )
 
     suspend fun webEntitlementsByUserId(userId: UserId) = get<WebEntitlements>("users/$userId/entitlements")
 
