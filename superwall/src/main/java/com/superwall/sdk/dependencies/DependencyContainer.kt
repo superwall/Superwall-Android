@@ -147,7 +147,7 @@ class DependencyContainer(
     val googleBillingWrapper: GoogleBillingWrapper
 
     var entitlements: Entitlements
-    var reedemer: WebPaywallRedeemer
+    lateinit var reedemer: WebPaywallRedeemer
     private val uiScope
         get() = mainScope()
     private val ioScope
@@ -293,25 +293,6 @@ class DependencyContainer(
                 scope = ioScope,
             )
 
-        reedemer =
-            WebPaywallRedeemer(
-                context = context,
-                ioScope = ioScope,
-                deepLinkReferrer = DeepLinkReferrer({ context }, ioScope),
-                network = network,
-                storage = storage,
-                setEntitlementStatus = {
-                    val activeEntitlements = Superwall.instance.entitlements.active
-                    Superwall.instance.setSubscriptionStatus(
-                        SubscriptionStatus.Active(
-                            it.toSet() + activeEntitlements,
-                        ),
-                    )
-                },
-                onRedemptionResult = { result, customer ->
-                    delegateAdapter.didRedeemCode(customer, result)
-                },
-            )
         configManager =
             ConfigManager(
                 context = context,
@@ -330,6 +311,29 @@ class DependencyContainer(
                 },
                 entitlements = entitlements,
                 webPaywallRedeemer = reedemer,
+            )
+
+        reedemer =
+            WebPaywallRedeemer(
+                context = context,
+                ioScope = ioScope,
+                deepLinkReferrer = DeepLinkReferrer({ context }, ioScope),
+                network = network,
+                storage = storage,
+                setEntitlementStatus = {
+                    val activeEntitlements = Superwall.instance.entitlements.active
+                    Superwall.instance.setSubscriptionStatus(
+                        SubscriptionStatus.Active(
+                            it.toSet() + activeEntitlements,
+                        ),
+                    )
+                },
+                onRedemptionResult = { result, customer ->
+                    delegateAdapter.didRedeemCode(customer, result)
+                },
+                maxAge = {
+                    configManager.config?.webToAppConfig?.entitlementsMaxAgeMs ?: 60L
+                },
             )
 
         eventsQueue =

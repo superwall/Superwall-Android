@@ -113,11 +113,6 @@ open class Network(
         .redeemToken(codes, userId, vendorId)
         .logError("/redeem")
 
-    override suspend fun redeemEmail(email: String) =
-        baseHostService
-            .redeemByEmail(email)
-            .logError("/redeem")
-
     override suspend fun webEntitlementsByUserId(userId: UserId) =
         baseHostService
             .webEntitlementsByUserId(userId)

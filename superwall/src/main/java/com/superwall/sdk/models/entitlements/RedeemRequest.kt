@@ -18,7 +18,7 @@ data class Redeemable(
     @SerialName("code")
     val code: String,
     @SerialName("firstRedemption")
-    val firstRedemption: Boolean = false,
+    val firstRedemption: Boolean? = false,
 )
 
 @Serializable
