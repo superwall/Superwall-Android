@@ -8,6 +8,7 @@ import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.asEither
 import com.superwall.sdk.misc.fold
+import com.superwall.sdk.misc.map
 import com.superwall.sdk.models.entitlements.CustomerInfo
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.Redeemable
@@ -41,6 +42,7 @@ class WebPaywallRedeemer(
     val getActiveEntitlements: () -> Set<Entitlement> = { Superwall.instance.entitlements.active },
     val getUserId: () -> UserId = { UserId(Superwall.instance.userId) },
     val getDeviceId: () -> DeviceVendorId = { DeviceVendorId(Superwall.instance.vendorId) },
+    val getAliasId: () -> String? = { Superwall.instance.dependencyContainer.identityManager.aliasId },
 ) {
     private var pollingJob: Job? = null
 
@@ -62,25 +64,29 @@ class WebPaywallRedeemer(
                 )
         }
 
-    suspend fun redeem(code: String) {
+    suspend fun redeem(code: String?) {
         // We want to keep track of the codes that have been retrieved by the user
         val latestResponse = storage.read(LatestRedemptionResponse)
-        val allCodes = latestResponse?.allCodes ?: emptyList()
+        var allCodes = latestResponse?.allCodes ?: emptyList()
         var isFirstRedemption = true
         if (allCodes.isNotEmpty()) {
             isFirstRedemption = !allCodes.map { it.code }.contains(code)
         }
+        if (code != null) {
+            allCodes = allCodes + Redeemable(code, isFirstRedemption)
+        }
         network
             .redeemToken(
-                allCodes + Redeemable(code, isFirstRedemption),
+                allCodes,
                 getUserId(),
+                getAliasId(),
                 getDeviceId(),
             ).fold({
                 Logger.debug(
                     logLevel = LogLevel.debug,
                     scope = LogScope.webEntitlements,
-                    message = "Entitlement redemption succeeded",
-                    info = mapOf("code" to code),
+                    message = "Entitlement redemption done",
+                    info = mapOf("code" to (code ?: "")),
                 )
                 storage.write(LatestRedemptionResponse, it)
                 if (it.entitlements.isNotEmpty()) {
@@ -93,7 +99,7 @@ class WebPaywallRedeemer(
                     } else {
                         listOf(
                             RedemptionResult.Error(
-                                code = code,
+                                code = code ?: "",
                                 error = ErrorInfo("Redemption failed, code not returned"),
                             ),
                         )
@@ -110,14 +116,17 @@ class WebPaywallRedeemer(
                     logLevel = LogLevel.debug,
                     scope = LogScope.webEntitlements,
                     message = "Entitlement redemption failed",
-                    info = mapOf("code" to code),
+                    info = mapOf("code" to (code ?: "")),
                     error = it,
                 )
                 // Notify the delegate that the redemption failed
                 onRedemptionResult(
                     RedemptionResult.Error(
-                        code = code,
-                        error = ErrorInfo(it.localizedMessage ?: it.message ?: "Redemption failed, error unknown"),
+                        code = code ?: "",
+                        error =
+                            ErrorInfo(
+                                it.localizedMessage ?: it.message ?: "Redemption failed, error unknown",
+                            ),
                     ),
                     CustomerInfo(
                         entitlement = getActiveEntitlements(),
@@ -170,6 +179,7 @@ class WebPaywallRedeemer(
         val withUserCodesRemoved =
             latestResponse.copy(codes = latestResponse.codes.filterNot { it in userCodesToRemove.orEmpty() })
         storage.write(LatestRedemptionResponse, withUserCodesRemoved)
+        pollingJob?.cancel()
     }
 
     fun startPolling(maxAge: Long = maxAge()) {
@@ -177,7 +187,7 @@ class WebPaywallRedeemer(
         pollingJob =
             (ioScope + Dispatchers.IO).launch {
                 while (true) {
-                    delay(maxAge * 1000)
+                    delay(maxAge)
                     checkForWebEntitlements(getUserId(), getDeviceId())
                 }
             }
