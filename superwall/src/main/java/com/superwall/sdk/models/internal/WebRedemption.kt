@@ -6,11 +6,21 @@ import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.Redeemable
 import com.superwall.sdk.models.paywall.PaywallIdentifier
 import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.Polymorphic
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.descriptors.buildClassSerialDescriptor
+import kotlinx.serialization.descriptors.element
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonClassDiscriminator
+import kotlinx.serialization.json.JsonDecoder
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 typealias ExperimentId = String
 typealias VariantId = String
@@ -22,22 +32,21 @@ data class WebRedemptionResponse(
     val codes: List<RedemptionResult>,
     @SerialName("entitlements")
     val entitlements: List<Entitlement>,
-    @Transient
+    @kotlinx.serialization.Transient
     val allCodes: List<Redeemable> = codes.map { Redeemable(it.code, false) },
 )
 
 @Serializable
-@Polymorphic
 @JsonClassDiscriminator("status")
 sealed class RedemptionResult {
-    abstract val code: RedemptionCode
+    abstract val code: String
 
     // Represents that a redemption was successful
-    @Serializable
+    @Serializable(with = DirectSuccessSerializer::class)
     @SerialName("SUCCESS")
     data class Success(
         @SerialName("code")
-        override val code: RedemptionCode,
+        override val code: String,
         @SerialName("redemptionInfo")
         val redemptionInfo: RedemptionInfo,
     ) : RedemptionResult()
@@ -165,6 +174,7 @@ data class ExpiredInfo(
 )
 
 @Serializable
+@JsonClassDiscriminator("type")
 sealed class RedemptionOwnership {
     @Serializable
     @SerialName("device")
@@ -188,4 +198,66 @@ enum class RedemptionOwnershipType {
 
     @SerialName("app_user")
     AppUser,
+}
+
+// Custom serializer due to issue with nested polymorphic serialization
+object DirectSuccessSerializer : KSerializer<RedemptionResult.Success> {
+    override val descriptor: SerialDescriptor =
+        buildClassSerialDescriptor("SUCCESS") {
+            element<String>("code")
+            element<JsonElement>("redemptionInfo")
+        }
+
+    override fun serialize(
+        encoder: Encoder,
+        value: RedemptionResult.Success,
+    ) {
+        val compositeEncoder = encoder.beginStructure(descriptor)
+        compositeEncoder.encodeStringElement(descriptor, 0, value.code)
+
+        val json =
+            Json {
+                encodeDefaults = true
+            }
+        val redemptionInfoJson =
+            json.encodeToJsonElement(RedemptionInfo.serializer(), value.redemptionInfo)
+
+        compositeEncoder.encodeSerializableElement(
+            descriptor,
+            1,
+            JsonElement.serializer(),
+            redemptionInfoJson,
+        )
+
+        compositeEncoder.endStructure(descriptor)
+    }
+
+    override fun deserialize(decoder: Decoder): RedemptionResult.Success {
+        // Cast to JsonDecoder to access the JSON directly
+        val jsonDecoder =
+            decoder as? JsonDecoder
+                ?: throw SerializationException("Expected JSON decoder")
+
+        // Get the input JSON object directly
+        val jsonObject = jsonDecoder.decodeJsonElement().jsonObject
+
+        // Extract fields directly from JSON
+        val code =
+            jsonObject["code"]?.jsonPrimitive?.content
+                ?: throw SerializationException("Required field 'code' was not found")
+
+        // Get the redemptionInfo as a JsonElement
+        val redemptionInfoJson =
+            jsonObject["redemptionInfo"]
+                ?: throw SerializationException("Required field 'redemptionInfo' was not found")
+
+        // Then parse it with the RedemptionInfo serializer
+        val redemptionInfo =
+            Json.decodeFromJsonElement(
+                RedemptionInfo.serializer(),
+                redemptionInfoJson,
+            )
+
+        return RedemptionResult.Success(code = code, redemptionInfo = redemptionInfo)
+    }
 }

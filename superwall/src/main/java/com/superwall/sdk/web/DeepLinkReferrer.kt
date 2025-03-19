@@ -8,6 +8,7 @@ import com.superwall.sdk.misc.IOScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
+import java.net.URLDecoder
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -68,12 +69,28 @@ class DeepLinkReferrer(
             while (!referrerClient.isReady) {
                 // no-op
             }
-            referrerClient.installReferrer.installReferrer
+            referrerClient.installReferrer.installReferrer.toString()
         }.let {
-            if (it == null) {
+            val query = it?.getUrlParams() ?: emptyMap()
+            val code = query["code"]?.firstOrNull()
+            if (code == null) {
                 Result.failure(IllegalStateException("Play store cannot connect"))
             } else {
-                Result.success(it)
+                Result.success(code)
             }
         }
+
+    private fun String.getUrlParams(): Map<String, List<String>> {
+        val urlParts = split("\\?".toRegex()).filter(String::isNotEmpty)
+        if (urlParts.size < 2) {
+            return emptyMap()
+        }
+        val query = urlParts[1]
+        return listOf("item").associateWith { key ->
+            query
+                .split("&?$key=".toRegex())
+                .filter(String::isNotEmpty)
+                .map { URLDecoder.decode(it, "UTF-8") }
+        }
+    }
 }

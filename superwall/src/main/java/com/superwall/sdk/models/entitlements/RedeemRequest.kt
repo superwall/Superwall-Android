@@ -9,6 +9,8 @@ data class RedeemRequest(
     val deviceId: String,
     @SerialName("appUserId")
     val userId: String,
+    @SerialName("aliasId")
+    val aliasId: String? = null,
     @SerialName("codes")
     val codes: List<Redeemable>,
 )
@@ -19,9 +21,4 @@ data class Redeemable(
     val code: String,
     @SerialName("firstRedemption")
     val firstRedemption: Boolean? = false,
-)
-
-@Serializable
-data class RedemptionEmail(
-    val email: String,
 )

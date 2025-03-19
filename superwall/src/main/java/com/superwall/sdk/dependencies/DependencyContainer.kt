@@ -44,6 +44,7 @@ import com.superwall.sdk.network.GeoService
 import com.superwall.sdk.network.JsonFactory
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.network.RequestExecutor
+import com.superwall.sdk.network.SubscriptionService
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.network.device.DeviceInfo
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
@@ -132,7 +133,7 @@ class DependencyContainer(
     override var api: Api
     override var deviceHelper: DeviceHelper
     override lateinit var storage: LocalStorage
-    override var configManager: ConfigManager
+    override lateinit var configManager: ConfigManager
     override var identityManager: IdentityManager
     override var appLifecycleObserver: AppLifecycleObserver = AppLifecycleObserver()
     var appSessionManager: AppSessionManager
@@ -147,7 +148,7 @@ class DependencyContainer(
     val googleBillingWrapper: GoogleBillingWrapper
 
     var entitlements: Entitlements
-    lateinit var reedemer: WebPaywallRedeemer
+    var reedemer: WebPaywallRedeemer
     private val uiScope
         get() = mainScope()
     private val ioScope
@@ -238,6 +239,14 @@ class DependencyContainer(
                         json = json(),
                         customHttpUrlConnection = httpConnection,
                     ),
+                subscriptionService =
+                    SubscriptionService(
+                        host = "stg.us-east-1.subscriptions-api.superwall-services.com",
+                        version = Api.subscriptionsv1,
+                        factory = this,
+                        json = json(),
+                        customHttpUrlConnection = httpConnection,
+                    ),
                 collectorService =
                     CollectorService(
                         host = api.collector.host,
@@ -293,26 +302,6 @@ class DependencyContainer(
                 scope = ioScope,
             )
 
-        configManager =
-            ConfigManager(
-                context = context,
-                storeManager = storeManager,
-                storage = storage,
-                network = network,
-                options = options,
-                factory = this,
-                paywallManager = paywallManager,
-                deviceHelper = deviceHelper,
-                assignments = assignments,
-                ioScope = ioScope,
-                paywallPreload = paywallPreload,
-                track = {
-                    Superwall.instance.track(it)
-                },
-                entitlements = entitlements,
-                webPaywallRedeemer = reedemer,
-            )
-
         reedemer =
             WebPaywallRedeemer(
                 context = context,
@@ -334,6 +323,26 @@ class DependencyContainer(
                 maxAge = {
                     configManager.config?.webToAppConfig?.entitlementsMaxAgeMs ?: 60L
                 },
+            )
+
+        configManager =
+            ConfigManager(
+                context = context,
+                storeManager = storeManager,
+                storage = storage,
+                network = network,
+                options = options,
+                factory = this,
+                paywallManager = paywallManager,
+                deviceHelper = deviceHelper,
+                assignments = assignments,
+                ioScope = ioScope,
+                paywallPreload = paywallPreload,
+                track = {
+                    Superwall.instance.track(it)
+                },
+                entitlements = entitlements,
+                webPaywallRedeemer = reedemer,
             )
 
         eventsQueue =

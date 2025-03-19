@@ -106,6 +106,7 @@ fun Superwall.dismissSyncForNextPaywall() =
  *                is already paying or if they begin paying. If no paywall is configured, this gets called immediately. This will not be called
  *                in the event of an error, which you can detect via the `handler`.
  */
+@JvmOverloads
 fun Superwall.register(
     placement: String,
     params: Map<String, Any>? = null,

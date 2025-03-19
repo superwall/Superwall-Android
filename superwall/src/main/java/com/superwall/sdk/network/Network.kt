@@ -27,6 +27,7 @@ open class Network(
     private val collectorService: CollectorService,
     private val geoService: GeoService,
     private val factory: ApiFactory,
+    private val subscriptionService: SubscriptionService,
 ) : SuperwallAPI {
     override suspend fun sendEvents(events: EventsRequest): Either<Unit, NetworkError> =
         collectorService
@@ -108,18 +109,19 @@ open class Network(
     override suspend fun redeemToken(
         codes: List<Redeemable>,
         userId: UserId,
+        aliasId: String?,
         vendorId: DeviceVendorId,
-    ) = baseHostService
-        .redeemToken(codes, userId, vendorId)
+    ) = subscriptionService
+        .redeemToken(codes, userId, aliasId, vendorId)
         .logError("/redeem")
 
     override suspend fun webEntitlementsByUserId(userId: UserId) =
-        baseHostService
+        subscriptionService
             .webEntitlementsByUserId(userId)
             .logError("/redeem")
 
     override suspend fun webEntitlementsByDeviceID(deviceId: DeviceVendorId) =
-        baseHostService
+        subscriptionService
             .webEntitlementsByDeviceId(deviceId)
             .logError("/redeem")
 

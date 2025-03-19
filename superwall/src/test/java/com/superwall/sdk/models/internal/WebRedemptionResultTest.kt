@@ -9,50 +9,45 @@ class WebRedemptionResultTest {
         val json =
             """
             {
-              "codes": [
-                {
-                  "status": "SUCCESS",
-                  "code": "…",
-                  "redemptionInfo": {
-                    "ownership": {
-                      "type": "device",
-                      "deviceId": "…"
-                    },
-                    "purchaserInfo": {
-                      "appUserId": "…",
-                      "email": "…",
-                      "storeIdentifiers": {
-                        "store": "STRIPE",
-                        "stripeSubscriptionId": "some-id"
-                      }
-                    },
-                    "paywallInfo": {
-                      "identifier": "…",
-                      "placementName": "…",
-                      "placementParams": {},
-                      "variantId": "…",
-                      "experimentId": "…"
-                    },
-                    "entitlements": [
-                      {
-                        "identifier": "…",
-                        "type": "SERVICE_LEVEL"
-                      }
-                    ]
-                  }
-                }
-              ],
-              "entitlements": [
-                {
-                  "identifier": "…",
-                  "type": "SERVICE_LEVEL"
-                }
-              ]
-            }
-
+  "codes": [
+    {
+      "status": "SUCCESS",
+      "code": "redemption_c6358802-ab07-4642-a361-d7352473505a",
+      "redemptionInfo": {
+        "ownership": {
+          "type": "app_user",
+          "appUserId": "Alias:d1ba57dc-15bb-46e3-864c-a1f8805fe746"
+        },
+        "purchaserInfo": {
+          "appUserId": "Alias:d1ba57dc-15bb-46e3-864c-a1f8805fe746",
+          "email": "ian@superwall.com",
+          "storeIdentifiers": {
+            "store": "STRIPE",
+            "stripeSubscriptionId": "sub_1R3bMoBitwqMmwU0Wm4OgMsj"
+          }
+        },
+        "paywallInfo": null,
+        "entitlements": [
+          {
+            "identifier": "pro",
+            "type": "SERVICE_LEVEL"
+          }
+        ]
+      }
+    }
+  ],
+  "entitlements": [
+    {
+      "identifier": "pro",
+      "type": "SERVICE_LEVEL"
+    }
+  ]
+}
             """.trimIndent()
 
-        val result = Json.decodeFromString<WebRedemptionResponse>(json)
-        println(result)
+        val result =
+            Json {
+            }.decodeFromString<WebRedemptionResponse>(json)
+        assert(result != null)
     }
 }

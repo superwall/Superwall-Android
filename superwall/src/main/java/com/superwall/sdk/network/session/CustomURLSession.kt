@@ -31,7 +31,7 @@ class CustomHttpUrlConnection(
             requestExecutor.execute(requestData).flatMap {
                 try {
                     Either.Success(
-                        this.json.decodeFromString<Response>(
+                        json.decodeFromString<Response>(
                             it.responseMessage,
                         ),
                     )
