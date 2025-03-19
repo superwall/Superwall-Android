@@ -14,6 +14,7 @@ import com.superwall.sdk.models.internal.ErrorInfo
 import com.superwall.sdk.models.internal.PurchaserInfo
 import com.superwall.sdk.models.internal.RedemptionInfo
 import com.superwall.sdk.models.internal.RedemptionOwnership
+import com.superwall.sdk.models.internal.RedemptionOwnershipType
 import com.superwall.sdk.models.internal.RedemptionResult
 import com.superwall.sdk.models.internal.StoreIdentifiers
 import com.superwall.sdk.models.internal.UserId
@@ -22,6 +23,7 @@ import com.superwall.sdk.models.internal.WebRedemptionResponse
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.network.NetworkError
 import com.superwall.sdk.storage.LatestRedemptionResponse
+import com.superwall.sdk.storage.Storable
 import com.superwall.sdk.storage.Storage
 import io.mockk.Runs
 import io.mockk.coEvery
@@ -65,6 +67,7 @@ class WebPaywallRedeemerTest {
     private val onRedemptionResult: (RedemptionResult, CustomerInfo) -> Unit = mockk(relaxed = true)
     private val getUserId: () -> UserId = { UserId("test_user") }
     private val getDeviceId: () -> DeviceVendorId = { DeviceVendorId(VendorId("test_vendor")) }
+    private val getAlias: () -> String = { "test_alias" }
     private lateinit var redeemer: WebPaywallRedeemer
     private val network: Network = mockk {}
 
@@ -102,6 +105,7 @@ class WebPaywallRedeemerTest {
                         any(),
                         any(),
                         any(),
+                        any(),
                     )
                 } returns Either.Success(response)
 
@@ -118,6 +122,7 @@ class WebPaywallRedeemerTest {
                         getAllEntitlements,
                         getUserId,
                         getDeviceId,
+                        getAlias,
                     )
 
                 When("checking for referral") {
@@ -154,6 +159,7 @@ class WebPaywallRedeemerTest {
                         getAllEntitlements,
                         getUserId,
                         getDeviceId,
+                        getAlias,
                     )
 
                 When("checking for referral") {
@@ -161,7 +167,7 @@ class WebPaywallRedeemerTest {
 
                     Then("it should not call redeem") {
                         coVerify(exactly = 0) {
-                            network.redeemToken(any(), any(), any())
+                            network.redeemToken(any(), any(), any(), any())
                         }
                     }
                 }
@@ -182,6 +188,7 @@ class WebPaywallRedeemerTest {
                         any(),
                         any(),
                         any(),
+                        any(),
                     )
                 } returns Either.Failure(NetworkError.Unknown(exception))
 
@@ -198,6 +205,7 @@ class WebPaywallRedeemerTest {
                         getAllEntitlements,
                         getUserId,
                         getDeviceId,
+                        getAlias,
                     )
 
                 When("checking for referral") {
@@ -209,7 +217,10 @@ class WebPaywallRedeemerTest {
                             onRedemptionResult(
                                 RedemptionResult.Error(
                                     code = codes,
-                                    error = ErrorInfo(exception.localizedMessage ?: exception.message ?: ""),
+                                    error =
+                                        ErrorInfo(
+                                            exception.localizedMessage ?: exception.message ?: "",
+                                        ),
                                 ),
                                 any(),
                             )
@@ -247,6 +258,7 @@ class WebPaywallRedeemerTest {
                         getAllEntitlements,
                         getUserId,
                         getDeviceId,
+                        getAlias,
                     )
 
                 When("checking for web entitlements") {
@@ -290,6 +302,7 @@ class WebPaywallRedeemerTest {
                         getAllEntitlements,
                         getUserId,
                         getDeviceId,
+                        getAlias,
                     )
 
                 When("checking for web entitlements") {
@@ -335,6 +348,7 @@ class WebPaywallRedeemerTest {
                         getAllEntitlements,
                         getUserId,
                         getDeviceId,
+                        getAlias,
                     )
                 When("checking for web entitlements") {
                     val result =
@@ -364,7 +378,7 @@ class WebPaywallRedeemerTest {
                 } returns Result.success("code")
 
                 coEvery {
-                    network.redeemToken(any(), any(), any())
+                    network.redeemToken(any(), any(), any(), any())
                 } returns Either.Failure(NetworkError.Unknown(Error("Token redemption failed")))
 
                 coEvery {
@@ -388,6 +402,7 @@ class WebPaywallRedeemerTest {
                         getAllEntitlements,
                         getUserId,
                         getDeviceId,
+                        getAlias,
                     )
 
                 When("checking for web entitlements") {
@@ -435,6 +450,7 @@ class WebPaywallRedeemerTest {
                         getAllEntitlements,
                         getUserId,
                         getDeviceId,
+                        getAlias,
                     )
 
                 When("checking for web entitlements") {
@@ -453,4 +469,86 @@ class WebPaywallRedeemerTest {
                 }
             }
         }
+
+    @Test
+    fun clean_up_old_redemptions() {
+        val userCode = "code1"
+        val deviceCode = "code2"
+        val userId = "test_user"
+        Given("We have existing user redemptions") {
+            val response =
+                WebRedemptionResponse(
+                    codes =
+                        listOf(
+                            RedemptionResult.Success(
+                                code = userCode,
+                                redemptionInfo =
+                                    RedemptionInfo(
+                                        ownership = RedemptionOwnership.AppUser(appUserId = userId),
+                                        purchaserInfo =
+                                            PurchaserInfo(
+                                                userId,
+                                                email = null,
+                                                storeIdentifiers = StoreIdentifiers.Stripe("123"),
+                                            ),
+                                        entitlements = listOf(webEntitlement),
+                                    ),
+                            ),
+                            RedemptionResult.Success(
+                                code = deviceCode,
+                                redemptionInfo =
+                                    RedemptionInfo(
+                                        ownership = RedemptionOwnership.Device(deviceId = "deviceId"),
+                                        purchaserInfo =
+                                            PurchaserInfo(
+                                                userId,
+                                                email = null,
+                                                storeIdentifiers = StoreIdentifiers.Stripe("123"),
+                                            ),
+                                        entitlements = listOf(webEntitlement),
+                                    ),
+                            ),
+                        ),
+                    entitlements = listOf(webEntitlement),
+                )
+            val storage =
+                object : Storage {
+                    var saved: Any? = null
+
+                    override fun <T> read(storable: Storable<T>): T? = saved as T?
+
+                    override fun <T : Any> write(
+                        storable: Storable<T>,
+                        data: T,
+                    ) {
+                        saved = data as Any?
+                    }
+
+                    override fun clean() {
+                    }
+                }
+            redeemer =
+                WebPaywallRedeemer(
+                    context,
+                    IOScope(testDispatcher),
+                    deepLinkReferrer,
+                    network,
+                    storage,
+                    onRedemptionResult,
+                    maxAge,
+                    setEntitlementStatus,
+                    getAllEntitlements,
+                    getUserId,
+                    getDeviceId,
+                )
+            storage.write(LatestRedemptionResponse, response)
+            When("We call clean") {
+                redeemer.clear(RedemptionOwnershipType.AppUser)
+                Then("It should remove the old redemptions") {
+                    val saved = storage.saved as WebRedemptionResponse
+                    assert(saved.codes.first().code == deviceCode)
+                }
+            }
+        }
+    }
 }

@@ -39,6 +39,7 @@ interface SuperwallAPI {
     suspend fun redeemToken(
         token: List<Redeemable>,
         userId: UserId,
+        aliasId: String?,
         vendorId: DeviceVendorId,
     ): Either<WebRedemptionResponse, NetworkError>
 }

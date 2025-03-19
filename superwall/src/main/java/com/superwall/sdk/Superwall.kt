@@ -355,6 +355,7 @@ class Superwall(
          *
          * @return The configured [Superwall] instance.
          */
+        @JvmStatic
         @JvmOverloads
         fun configure(
             applicationContext: Application,
@@ -1033,6 +1034,12 @@ class Superwall(
                     )
                 }
             }
+        }
+    }
+
+    fun redeem(code: String) {
+        ioScope.launch {
+            dependencyContainer.reedemer.redeem(code)
         }
     }
 }
