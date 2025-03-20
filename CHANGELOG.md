@@ -2,6 +2,12 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+# 2.0.4
+
+## Enhancements
+- Provide overloads for Java interop
+- Provide utility functions for Java interop with `PurchaseController`
+
 # 2.0.3
 
 ## Enhancements

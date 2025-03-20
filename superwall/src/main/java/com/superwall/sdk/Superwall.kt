@@ -350,6 +350,7 @@ class Superwall(
          *
          * @return The configured [Superwall] instance.
          */
+        @JvmOverloads
         fun configure(
             applicationContext: Application,
             apiKey: String,
