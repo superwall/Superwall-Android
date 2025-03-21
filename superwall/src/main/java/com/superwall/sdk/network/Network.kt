@@ -1,5 +1,6 @@
 package com.superwall.sdk.network
 
+import android.util.Log
 import com.superwall.sdk.dependencies.ApiFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
@@ -17,6 +18,7 @@ import com.superwall.sdk.models.events.EventsResponse
 import com.superwall.sdk.models.geo.GeoInfo
 import com.superwall.sdk.models.internal.DeviceVendorId
 import com.superwall.sdk.models.internal.UserId
+import com.superwall.sdk.models.internal.WebRedemptionResponse
 import com.superwall.sdk.models.paywall.Paywall
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
@@ -111,14 +113,19 @@ open class Network(
         userId: UserId,
         aliasId: String?,
         vendorId: DeviceVendorId,
-    ) = subscriptionService
-        .redeemToken(codes, userId, aliasId, vendorId)
-        .logError("/redeem")
-
-    override suspend fun webEntitlementsByUserId(userId: UserId) =
-        subscriptionService
-            .webEntitlementsByUserId(userId)
+    ): Either<WebRedemptionResponse, NetworkError> {
+        Log.e("Redeeming", "Redeeming token - $codes")
+        return subscriptionService
+            .redeemToken(codes, userId, aliasId, vendorId)
             .logError("/redeem")
+    }
+
+    override suspend fun webEntitlementsByUserId(
+        userId: UserId,
+        deviceId: DeviceVendorId,
+    ) = subscriptionService
+        .webEntitlementsByUserId(userId, deviceId)
+        .logError("/redeem")
 
     override suspend fun webEntitlementsByDeviceID(deviceId: DeviceVendorId) =
         subscriptionService

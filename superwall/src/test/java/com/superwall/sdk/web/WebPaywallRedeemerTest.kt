@@ -238,7 +238,7 @@ class WebPaywallRedeemerTest {
                 val deviceEntitlements = listOf(Entitlement("device_entitlement"))
 
                 coEvery {
-                    network.webEntitlementsByUserId(any())
+                    network.webEntitlementsByUserId(any(), any())
                 } returns Either.Success(WebEntitlements(userEntitlements))
 
                 coEvery {
@@ -282,7 +282,7 @@ class WebPaywallRedeemerTest {
         runTest(testDispatcher) {
             Given("a WebPaywallRedeemer with failed web entitlements responses") {
                 coEvery {
-                    network.webEntitlementsByUserId(any())
+                    network.webEntitlementsByUserId(any(), any())
                 } returns Either.Failure(NetworkError.Unknown(Error("User entitlements failed")))
 
                 coEvery {
@@ -328,7 +328,7 @@ class WebPaywallRedeemerTest {
                 val userEntitlements = setOf(Entitlement("user_entitlement"))
 
                 coEvery {
-                    network.webEntitlementsByUserId(UserId("test_user"))
+                    network.webEntitlementsByUserId(UserId("test_user"), any())
                 } returns Either.Success(WebEntitlements(userEntitlements.toList()))
 
                 coEvery {
@@ -382,7 +382,7 @@ class WebPaywallRedeemerTest {
                 } returns Either.Failure(NetworkError.Unknown(Error("Token redemption failed")))
 
                 coEvery {
-                    network.webEntitlementsByUserId(any())
+                    network.webEntitlementsByUserId(any(), any())
                 } returns Either.Failure(NetworkError.Unknown(Error("User entitlements failed")))
 
                 coEvery {
@@ -430,7 +430,7 @@ class WebPaywallRedeemerTest {
                 val deviceEntitlements = listOf(commonEntitlement, Entitlement("device_specific"))
 
                 coEvery {
-                    network.webEntitlementsByUserId(any())
+                    network.webEntitlementsByUserId(any(), any())
                 } returns Either.Success(WebEntitlements(userEntitlements))
 
                 coEvery {

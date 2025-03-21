@@ -40,7 +40,7 @@ class SubscriptionService(
             json
                 .encodeToString(
                     RedeemRequest(
-                        userId.value.replace("Alias", "Device"), // TODO remove this,
+                        vendorId.value,
                         userId.value,
                         aliasId,
                         codes,
@@ -48,7 +48,17 @@ class SubscriptionService(
                 ).toByteArray(),
     )
 
-    suspend fun webEntitlementsByUserId(userId: UserId) = get<WebEntitlements>("users/${userId.value}/entitlements")
+    suspend fun webEntitlementsByUserId(
+        userId: UserId,
+        deviceId: DeviceVendorId,
+    ) = get<WebEntitlements>(
+        "users/${userId.value}/entitlements",
+        queryItems = listOf(URLQueryItem("deviceId", deviceId.value)),
+    )
 
-    suspend fun webEntitlementsByDeviceId(deviceId: DeviceVendorId) = get<WebEntitlements>("devices/${deviceId.value}/entitlements")
+    suspend fun webEntitlementsByDeviceId(deviceId: DeviceVendorId) =
+        get<WebEntitlements>(
+            "users/${deviceId.value}/entitlements",
+            queryItems = listOf(URLQueryItem("deviceId", deviceId.value)),
+        )
 }

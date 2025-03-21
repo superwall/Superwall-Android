@@ -92,6 +92,7 @@ class Cache(
                         file.delete()
                     }
                 } catch (e: Throwable) {
+                    e.printStackTrace()
                     Logger.debug(
                         logLevel = LogLevel.error,
                         LogScope.cache,

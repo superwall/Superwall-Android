@@ -32,7 +32,10 @@ interface SuperwallAPI {
 
     suspend fun getAssignments(): Either<List<Assignment>, NetworkError>
 
-    suspend fun webEntitlementsByUserId(userId: UserId): Either<WebEntitlements, NetworkError>
+    suspend fun webEntitlementsByUserId(
+        userId: UserId,
+        deviceId: DeviceVendorId,
+    ): Either<WebEntitlements, NetworkError>
 
     suspend fun webEntitlementsByDeviceID(deviceId: DeviceVendorId): Either<WebEntitlements, NetworkError>
 

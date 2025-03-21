@@ -1,5 +1,7 @@
 package com.superwall.sdk.models.internal
 
+import java.util.UUID
+
 @JvmInline
 value class VendorId(
     val value: String,
@@ -10,7 +12,7 @@ value class VendorId(
 class DeviceVendorId(
     vendorId: VendorId,
 ) {
-    val value = "\$SuperwallDevice:${vendorId.value}"
+    val value = "\$SuperwallDevice:${UUID.nameUUIDFromBytes(vendorId.value.toByteArray())}"
 
     override fun toString(): String = value
 }

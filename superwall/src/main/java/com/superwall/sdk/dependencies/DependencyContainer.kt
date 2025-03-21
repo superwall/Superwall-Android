@@ -3,6 +3,7 @@ package com.superwall.sdk.dependencies
 import android.app.Activity
 import android.app.Application
 import android.content.Context
+import android.util.Log
 import android.webkit.WebSettings
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.ViewModelProvider
@@ -241,10 +242,13 @@ class DependencyContainer(
                     ),
                 subscriptionService =
                     SubscriptionService(
-                        host = "stg.us-east-1.subscriptions-api.superwall-services.com",
+                        host = "subscriptions-api.superwall.dev",
                         version = Api.subscriptionsv1,
                         factory = this,
-                        json = json(),
+                        json =
+                            Json(from = json()) {
+                                namingStrategy = null
+                            },
                         customHttpUrlConnection = httpConnection,
                     ),
                 collectorService =
@@ -310,10 +314,9 @@ class DependencyContainer(
                 network = network,
                 storage = storage,
                 setEntitlementStatus = {
-                    val activeEntitlements = Superwall.instance.entitlements.active
                     Superwall.instance.setSubscriptionStatus(
                         SubscriptionStatus.Active(
-                            it.toSet() + activeEntitlements,
+                            it.toSet(),
                         ),
                     )
                 },
@@ -321,7 +324,8 @@ class DependencyContainer(
                     delegateAdapter.didRedeemCode(customer, result)
                 },
                 maxAge = {
-                    configManager.config?.webToAppConfig?.entitlementsMaxAgeMs ?: 60L
+                    Log.e("Redemption", "Max age is ${configManager.config?.webToAppConfig?.entitlementsMaxAgeMs}")
+                    configManager.config?.webToAppConfig?.entitlementsMaxAgeMs ?: 60000L
                 },
             )
 
