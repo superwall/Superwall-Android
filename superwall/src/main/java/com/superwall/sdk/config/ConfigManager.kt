@@ -1,6 +1,7 @@
 package com.superwall.sdk.config
 
 import android.content.Context
+import android.util.Log
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.config.models.ConfigState
@@ -411,12 +412,18 @@ open class ConfigManager(
 
     // This runs only if user does not have all of the entitlements
     suspend fun checkForWebEntitlements() {
+        webPaywallRedeemer.redeem(null)
+        Log.e("Redeemer", "Got all entitlements - ${entitlements.all}")
+        Log.e("Redeemer", "Got active entitlements - ${entitlements.active}")
         if (entitlements.all.size != entitlements.active.size) {
+            Log.e("Redeemer", "Hitting the check")
             webPaywallRedeemer
                 .checkForWebEntitlements(
                     UserId(Superwall.instance.userId),
                     DeviceVendorId(Superwall.instance.vendorId),
                 ).fold(onSuccess = { webEntitlements ->
+                    Log.e("Redeemer", "checkForWebEntitlements: Got web entitlements - $webEntitlements")
+
                     if (webEntitlements.isNotEmpty()) {
                         val localWithWeb = entitlements.active + webEntitlements.toSet()
                         entitlements.setSubscriptionStatus(
@@ -424,6 +431,7 @@ open class ConfigManager(
                         )
                     }
                 }, onFailure = {
+                    Log.e("Redeemer", "checkForWebEntitlements: Failed to get web entitlements - $it")
                     Logger.debug(
                         LogLevel.error,
                         LogScope.webEntitlements,

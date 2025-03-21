@@ -45,9 +45,27 @@ class WebRedemptionResultTest {
 }
             """.trimIndent()
 
-        val result =
-            Json {
-            }.decodeFromString<WebRedemptionResponse>(json)
+        val result = Json {}.decodeFromString<WebRedemptionResponse>(json)
+        assert(result != null)
+    }
+
+    @Test
+    fun test_code_expired() {
+        val json = """{
+  "codes": [
+    {
+      "status": "CODE_EXPIRED",
+      "code": "redemption_296db3d9-0f38-4399-a809-25b50849c753",
+      "expired": {
+        "resent": false,
+        "obfuscatedEmail": null
+      }
+    }
+  ],
+  "entitlements": []
+}"""
+
+        val result = Json {}.decodeFromString<WebRedemptionResponse>(json)
         assert(result != null)
     }
 }

@@ -44,6 +44,7 @@ import com.superwall.sdk.store.StoreManager
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
+import com.superwall.sdk.web.openRestoreOnWeb
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.dropWhile
@@ -772,6 +773,29 @@ class TransactionManager(
             )
         }
         return restorationResult
+    }
+
+    suspend fun askToRestoreFromWeb() {
+        lastPaywallView?.showAlert(
+            title =
+                factory
+                    .makeSuperwallOptions()
+                    .paywalls.restoreFailed.title,
+            message =
+                factory
+                    .makeSuperwallOptions()
+                    .paywalls.restoreFailed.message,
+            closeActionTitle =
+                factory
+                    .makeSuperwallOptions()
+                    .paywalls.restoreFailed.closeButtonTitle,
+            actionTitle = "I purchased on Web",
+            action = {
+                Superwall.instance.openRestoreOnWeb()
+            },
+            onClose = {
+            },
+        )
     }
 
     private suspend fun presentAlert(

@@ -150,7 +150,7 @@ sealed class StoreIdentifiers {
     @Serializable
     @SerialName("STRIPE")
     data class Stripe(
-        @SerialName("stripeSubscriptionId")
+        @SerialName("stripeCustomerId")
         val stripeSubscriptionId: String,
     ) : StoreIdentifiers()
 
@@ -170,21 +170,21 @@ data class ExpiredInfo(
     @SerialName("resent")
     val resent: Boolean,
     @SerialName("obfuscatedEmail")
-    val obfuscatedEmail: String?,
+    val obfuscatedEmail: String? = null,
 )
 
 @Serializable
 @JsonClassDiscriminator("type")
 sealed class RedemptionOwnership {
     @Serializable
-    @SerialName("device")
+    @SerialName("DEVICE")
     data class Device(
         @SerialName("deviceId")
         val deviceId: String,
     ) : RedemptionOwnership()
 
     @Serializable
-    @SerialName("app_user")
+    @SerialName("APP_USER")
     data class AppUser(
         @SerialName("appUserId")
         val appUserId: String,
