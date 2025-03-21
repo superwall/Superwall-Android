@@ -1,6 +1,5 @@
 package com.superwall.sdk.network
 
-import android.util.Log
 import com.superwall.sdk.dependencies.ApiFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
@@ -113,12 +112,10 @@ open class Network(
         userId: UserId,
         aliasId: String?,
         vendorId: DeviceVendorId,
-    ): Either<WebRedemptionResponse, NetworkError> {
-        Log.e("Redeeming", "Redeeming token - $codes")
-        return subscriptionService
+    ): Either<WebRedemptionResponse, NetworkError> =
+        subscriptionService
             .redeemToken(codes, userId, aliasId, vendorId)
             .logError("/redeem")
-    }
 
     override suspend fun webEntitlementsByUserId(
         userId: UserId,

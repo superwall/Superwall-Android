@@ -168,7 +168,6 @@ class MainApplication :
         result: RedemptionResult,
     ) {
         super.didRedeemCode(customerInfo, result)
-        Log.e("Redeemed", result.toString())
         Log.e("Redeemed", customerInfo.toString())
     }
 
