@@ -1,5 +1,6 @@
 package com.superwall.sdk.identity
 
+import android.util.Log
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
@@ -136,6 +137,7 @@ class IdentityManager(
             withErrorTracking {
                 IdentityLogic.sanitize(userId)?.let { sanitizedUserId ->
                     if (_appUserId == sanitizedUserId || sanitizedUserId == "") {
+                        Log.e("Redeemr", "The provided userId was empty or same.")
                         if (sanitizedUserId == "") {
                             Logger.debug(
                                 logLevel = LogLevel.error,
@@ -176,6 +178,7 @@ class IdentityManager(
                         Superwall.instance.track(trackableEvent)
                     }
 
+                    Log.e("Redeemer", "Checking for entitlements when re-identified $_appUserId")
                     configManager.checkForWebEntitlements()
                     if (options?.restorePaywallAssignments == true) {
                         identityJobs +=
@@ -211,7 +214,7 @@ class IdentityManager(
             // being set within the queue.
             _appUserId?.let {
                 storage.write(AppUserId, it)
-            }
+            } ?: kotlin.run { storage.delete(AppUserId) }
             storage.write(AliasId, _aliasId)
             storage.write(Seed, _seed)
 
@@ -229,27 +232,31 @@ class IdentityManager(
     }
 
     fun reset(duringIdentify: Boolean) {
+        Log.e("Reset", "Resetting in id manager")
         ioScope.launch {
             identityFlow.emit(false)
         }
+        Log.e("Reset", "Emmited false for flow")
 
+        Log.e("Reset", "Resetting $userId $duringIdentify")
         if (duringIdentify) {
             _reset()
         } else {
-            scope.launch {
-                _reset()
-                didSetIdentity()
-            }
+            _reset()
+            didSetIdentity()
         }
     }
 
     @Suppress("ktlint:standard:function-naming")
     private fun _reset() {
+        Log.e("Reset", "Resetting $userId")
         _appUserId = null
+        Log.e("Reset", "cleared - new $userId")
         _aliasId = IdentityLogic.generateAlias()
         _seed = IdentityLogic.generateSeed()
         _userAttributes = emptyMap()
         saveIds()
+        Log.e("Reset", "new $userId")
     }
 
     fun mergeUserAttributes(

@@ -565,12 +565,12 @@ class Superwall(
      */
     internal fun reset(duringIdentify: Boolean) {
         withErrorTracking {
-            dependencyContainer.reedemer.clear(RedemptionOwnershipType.AppUser)
             dependencyContainer.identityManager.reset(duringIdentify)
             dependencyContainer.storage.reset()
             dependencyContainer.paywallManager.resetCache()
             presentationItems.reset()
             dependencyContainer.configManager.reset()
+            dependencyContainer.reedemer.clear(RedemptionOwnershipType.AppUser)
             ioScope.launch {
                 track(InternalSuperwallEvent.Reset)
             }

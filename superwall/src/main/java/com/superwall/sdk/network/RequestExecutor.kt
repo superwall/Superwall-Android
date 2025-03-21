@@ -40,6 +40,7 @@ class RequestExecutor(
                 try {
                     request.responseCode
                 } catch (e: Throwable) {
+                    e.printStackTrace()
                     return Either.Failure(NetworkError.Unknown(e))
                 }
 
