@@ -3,7 +3,6 @@ package com.superwall.sdk.dependencies
 import android.app.Activity
 import android.app.Application
 import android.content.Context
-import android.util.Log
 import android.webkit.WebSettings
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.ViewModelProvider
@@ -324,7 +323,6 @@ class DependencyContainer(
                     delegateAdapter.didRedeemCode(customer, result)
                 },
                 maxAge = {
-                    Log.e("Redemption", "Max age is ${configManager.config?.webToAppConfig?.entitlementsMaxAgeMs}")
                     configManager.config?.webToAppConfig?.entitlementsMaxAgeMs ?: 60000L
                 },
             )
