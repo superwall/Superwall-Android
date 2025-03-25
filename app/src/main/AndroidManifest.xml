@@ -32,6 +32,13 @@
             android:exported="false"
             android:label="@string/title_activity_uitest"
             android:theme="@style/Theme.MyApplication" />
+
+        <activity
+            android:name=".test.WebTestActivity"
+            android:exported="false"
+            android:label="@string/title_activity_uitest"
+            android:theme="@style/Theme.MyApplication" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true">
@@ -67,7 +74,7 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <category android:name="android.intent.category.DEFAULT" />
-                <data android:scheme="null"  />
+                <data android:scheme="superapp" android:host="superwall"  />
             </intent-filter>
         </activity>
 
