@@ -15,6 +15,7 @@ import com.superwall.sdk.delegate.SuperwallDelegate
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.models.entitlements.CustomerInfo
+import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.internal.RedemptionResult
 import com.superwall.sdk.paywall.presentation.register
 import com.superwall.superapp.purchase.RevenueCatPurchaseController
@@ -94,7 +95,7 @@ class MainApplication :
     fun configureWithObserverMode() {
         Superwall.configure(
             this@MainApplication,
-            Keys.CONSTANT_API_KEY,
+            Keys.WEB_2_APP_API_KEY,
             options =
                 SuperwallOptions().apply {
                     shouldObservePurchases = true
@@ -167,7 +168,17 @@ class MainApplication :
         result: RedemptionResult,
     ) {
         super.didRedeemCode(customerInfo, result)
+        Log.e("Redeemed", result.toString())
         Log.e("Redeemed", customerInfo.toString())
+    }
+
+    override fun subscriptionStatusDidChange(
+        from: SubscriptionStatus,
+        to: SubscriptionStatus,
+    ) {
+        Log.e("Redeemed", "Status changing from: $from")
+        Log.e("Redeemed", "Status changing to: $from")
+        super.subscriptionStatusDidChange(from, to)
     }
 }
 
