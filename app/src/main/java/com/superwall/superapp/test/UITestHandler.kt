@@ -105,9 +105,9 @@ object UITestHandler {
                     1003,
                     "Identify",
                     test = { scope, events, _ ->
-                        Log.e("Registering event", "identify ${Superwall.instance.userId}")
+                        Log.e("Registering event", "identify before ${Superwall.instance.userId}")
                         Superwall.instance.identify("MigratedWebUser")
-                        Log.e("Registering event", "identify ${Superwall.instance.userId}")
+                        Log.e("Registering event", "identify after ${Superwall.instance.userId}")
                     },
                 ),
             )

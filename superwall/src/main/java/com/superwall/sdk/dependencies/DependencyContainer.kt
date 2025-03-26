@@ -325,6 +325,9 @@ class DependencyContainer(
                 maxAge = {
                     configManager.config?.webToAppConfig?.entitlementsMaxAgeMs ?: 60000L
                 },
+                offDeviceSubscriptionsDidChange = {
+                    purchaseController.offDeviceSubscriptionsDidChange(it)
+                },
             )
 
         configManager =

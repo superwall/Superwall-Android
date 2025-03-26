@@ -22,6 +22,7 @@ import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.IOScope
+import com.superwall.sdk.models.entitlements.CustomerInfo
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.store.abstractions.product.OfferType
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
@@ -231,6 +232,10 @@ class AutomaticPurchaseController(
     override suspend fun restorePurchases(): RestorationResult {
         syncSubscriptionStatusAndWait()
         return RestorationResult.Restored()
+    }
+
+    override suspend fun offDeviceSubscriptionsDidChange(customerInfo: CustomerInfo) {
+        Superwall.instance.setSubscriptionStatus(SubscriptionStatus.Active(customerInfo.entitlements))
     }
 
 //endregion

@@ -7,6 +7,7 @@ import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.delegate.subscription_controller.PurchaseControllerJava
+import com.superwall.sdk.models.entitlements.CustomerInfo
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
@@ -77,6 +78,20 @@ class InternalPurchaseController(
         } else {
             // Here is where we would implement our own restoration
             return RestorationResult.Failed(null)
+        }
+    }
+
+    override suspend fun offDeviceSubscriptionsDidChange(customerInfo: CustomerInfo) {
+        if (kotlinPurchaseController != null) {
+            kotlinPurchaseController.offDeviceSubscriptionsDidChange(customerInfo)
+        } else if (javaPurchaseController != null) {
+            return suspendCoroutine { continuation ->
+                javaPurchaseController.offDeviceSubscriptionsDidChange(customerInfo) {
+                    continuation.resume(
+                        Unit,
+                    )
+                }
+            }
         }
     }
 }
