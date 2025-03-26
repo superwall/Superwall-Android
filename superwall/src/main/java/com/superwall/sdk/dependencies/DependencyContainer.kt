@@ -241,7 +241,7 @@ class DependencyContainer(
                     ),
                 subscriptionService =
                     SubscriptionService(
-                        host = "subscriptions-api.superwall.dev",
+                        host = api.subscription.host,
                         version = Api.subscriptionsv1,
                         factory = this,
                         json =
