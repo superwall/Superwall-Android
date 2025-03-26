@@ -280,6 +280,10 @@ class RevenueCatPurchaseController(
         }
     }
 
+    override suspend fun offDeviceSubscriptionsDidChange(customerInfo: com.superwall.sdk.models.entitlements.CustomerInfo) {
+        TODO("Not yet implemented")
+    }
+
     /**
      * Check if the customer has any active entitlements
      */

@@ -452,10 +452,10 @@ class Superwall(
                         dependencyContainer.storage.recordAppInstall {
                             track(event = it)
                         }
-                        dependencyContainer.reedemer.checkForRefferal()
                         // Implicitly wait
                         dependencyContainer.configManager.fetchConfiguration()
                         dependencyContainer.identityManager.configure()
+                        dependencyContainer.reedemer.checkForRefferal()
                     }.toResult().fold({
                         CoroutineScope(Dispatchers.Main).launch {
                             completion?.invoke(Result.success(Unit))

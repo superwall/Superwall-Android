@@ -177,10 +177,12 @@ class IdentityManager(
                     }
 
                     configManager.checkForWebEntitlements()
+
                     if (options?.restorePaywallAssignments == true) {
                         identityJobs +=
                             ioScope.launch {
                                 configManager.getAssignments()
+
                                 didSetIdentity()
                             }
                     } else {
