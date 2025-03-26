@@ -35,7 +35,7 @@ data class Api(
         private val networkEnvironment: SuperwallOptions.NetworkEnvironment,
     ) {
         val host: String
-            get() = networkEnvironment.baseHost
+            get() = networkEnvironment.subscriptionHost
 //            get() = "10.0.2.2:9909"
     }
 
