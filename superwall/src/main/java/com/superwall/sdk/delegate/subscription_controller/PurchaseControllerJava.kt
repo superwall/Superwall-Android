@@ -3,6 +3,7 @@ package com.superwall.sdk.delegate.subscription_controller
 import com.android.billingclient.api.ProductDetails
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
+import com.superwall.sdk.models.entitlements.CustomerInfo
 
 /**
  * The Kotlin-only interface that handles Superwall's subscription-related logic.
@@ -49,4 +50,9 @@ interface PurchaseControllerJava {
      * **Note**: `restored` does not imply the user has an active subscription, it just mean the restore had no errors.
      */
     fun restorePurchases(completion: (RestorationResult, Throwable?) -> Unit)
+
+    fun offDeviceSubscriptionsDidChange(
+        customerInfo: CustomerInfo,
+        completion: () -> Unit,
+    )
 }
