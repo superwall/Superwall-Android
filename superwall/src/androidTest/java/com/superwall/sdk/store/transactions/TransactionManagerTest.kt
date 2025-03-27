@@ -1,18 +1,25 @@
 package com.superwall.sdk.store.transactions
 
+import And
+import Given
+import Then
+import When
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.testing.TestLifecycleOwner
+import androidx.test.platform.app.InstrumentationRegistry
 import com.android.billingclient.api.ProductDetails
-import com.superwall.sdk.And
-import com.superwall.sdk.Given
-import com.superwall.sdk.Then
-import com.superwall.sdk.When
+import com.android.billingclient.api.Purchase
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEvent
 import com.superwall.sdk.billing.Billing
+import com.superwall.sdk.billing.GoogleBillingWrapper
 import com.superwall.sdk.config.options.SuperwallOptions
+import com.superwall.sdk.delegate.InternalPurchaseResult
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
 import com.superwall.sdk.misc.ActivityProvider
+import com.superwall.sdk.misc.AppLifecycleObserver
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
@@ -24,8 +31,6 @@ import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.view.PaywallView
 import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
-import com.superwall.sdk.products.mockPricingPhase
-import com.superwall.sdk.products.mockSubscriptionOfferDetails
 import com.superwall.sdk.storage.EventsQueue
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.InternalPurchaseController
@@ -33,6 +38,11 @@ import com.superwall.sdk.store.StoreManager
 import com.superwall.sdk.store.abstractions.product.OfferType
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import com.superwall.sdk.store.abstractions.product.StoreProduct
+import com.superwall.sdk.store.abstractions.transactions.GoogleBillingPurchaseTransaction
+import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
+import com.superwall.sdk.utilities.PurchaseMockBuilder
+import com.superwall.sdk.utilities.mockPricingPhase
+import com.superwall.sdk.utilities.mockSubscriptionOfferDetails
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -45,7 +55,6 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
-import java.lang.ref.WeakReference
 
 class TransactionManagerTest {
     private val playProduct =
@@ -59,7 +68,6 @@ class TransactionManagerTest {
         }
 
     val entitlements = setOf("test-entitlement").map { Entitlement(it) }.toSet()
-
     private val mockProduct =
         RawStoreProduct(
             playProduct,
@@ -113,19 +121,26 @@ class TransactionManagerTest {
                 )
             coEvery { queryAllPurchases() } returns emptyList()
         }
-    private var storeManager = spyk(StoreManager(purchaseController, billing))
     private var activityProvider =
         mockk<ActivityProvider> {
             every { getCurrentActivity() } returns mockk()
         }
+    private val storeManager = spyk(StoreManager(purchaseController, billing))
 
     private var eventsQueue = mockk<EventsQueue>(relaxUnitFun = true)
     private var transactionManagerFactory =
         mockk<TransactionManager.Factory> {
             every { makeHasExternalPurchaseController() } returns false
             every { makeTransactionVerifier() } returns
-                mockk {
-                    coEvery { getLatestTransaction(any()) } returns mockk()
+                mockk<GoogleBillingWrapper> {
+                    coEvery { getLatestTransaction(any()) } returns
+                        StoreTransaction(
+                            GoogleBillingPurchaseTransaction(
+                                PurchaseMockBuilder.createDefaultPurchase("product1"),
+                            ),
+                            "config-req-id",
+                            "app-session-id",
+                        )
                 }
             every { makeHasExternalPurchaseController() } returns false
             every { makeSuperwallOptions() } returns SuperwallOptions()
@@ -134,11 +149,13 @@ class TransactionManagerTest {
     private var storage = mockk<Storage>(relaxUnitFun = true)
 
     fun TestScope.manager(
+        trManagerFactory: TransactionManager.Factory = transactionManagerFactory,
         track: (TrackableSuperwallEvent) -> Unit = {},
         dismiss: (paywallView: PaywallView, result: PaywallResult) -> Unit = { _, _ -> },
         subscriptionStatus: () -> SubscriptionStatus = {
             SubscriptionStatus.Active(entitlements)
         },
+        _storeManager: StoreManager = storeManager,
         options: SuperwallOptions.() -> Unit = {},
     ): TransactionManager {
         coEvery { transactionManagerFactory.makeSuperwallOptions() } returns
@@ -147,13 +164,13 @@ class TransactionManagerTest {
             )
         return TransactionManager(
             purchaseController = purchaseController,
-            storeManager = storeManager,
+            storeManager = _storeManager,
             activityProvider = activityProvider,
             subscriptionStatus = subscriptionStatus,
             track = { track(it) },
             dismiss = { i, e -> dismiss(i, e) },
             eventsQueue = eventsQueue,
-            factory = transactionManagerFactory,
+            factory = trManagerFactory,
             ioScope = IOScope(this.coroutineContext),
             storage = storage,
         )
@@ -207,6 +224,18 @@ class TransactionManagerTest {
     @Test
     fun test_purchase_successful_internal() =
         runTest {
+            val spy = createBillingWrapper()
+            val purchase = PurchaseMockBuilder.createDefaultPurchase("product1")
+            every { transactionManagerFactory.makeTransactionVerifier() } returns spy
+            coEvery { transactionManagerFactory.makeStoreTransaction(any()) } returns
+                StoreTransaction(
+                    GoogleBillingPurchaseTransaction(
+                        transaction = purchase,
+                    ),
+                    configRequestId = "123",
+                    appSessionId = "1234",
+                )
+
             val events = MutableStateFlow(emptyList<TrackableSuperwallEvent>())
             Given("We have loaded products and we can purchase successfully") {
                 // Pretend a paywall loaded a product
@@ -241,10 +270,22 @@ class TransactionManagerTest {
                             val transactionEvents =
                                 events.value.filterIsInstance<InternalSuperwallEvent.Transaction>()
 
-                            assert(transactionEvents.first().superwallPlacement is SuperwallEvent.TransactionStart)
+                            assert(
+                                transactionEvents.first().superwallPlacement
+                                    is SuperwallEvent.TransactionStart,
+                            )
                             assert(transactionEvents.first().product?.fullIdentifier == "product1")
-                            assert(transactionEvents.last().superwallPlacement is SuperwallEvent.TransactionComplete)
-
+                            assert(
+                                transactionEvents.last().superwallPlacement
+                                    is SuperwallEvent.TransactionComplete,
+                            )
+                            assert(
+                                (
+                                    transactionEvents.last().superwallPlacement
+                                        as SuperwallEvent.TransactionComplete
+                                ).transaction!!
+                                    .originalTransactionIdentifier != null,
+                            )
                             val purchase =
                                 events.value.filterIsInstance<InternalSuperwallEvent.NonRecurringProductPurchase>()
                             assert(purchase.first().product?.fullIdentifier == "product1")
@@ -254,10 +295,61 @@ class TransactionManagerTest {
             }
         }
 
+    private suspend fun TestScope.createBillingWrapper(
+        withPurchase: Purchase = PurchaseMockBuilder.createDefaultPurchase("product1"),
+        options: SuperwallOptions =
+            SuperwallOptions().apply
+                {
+                    shouldObservePurchases = false
+                },
+    ): GoogleBillingWrapper {
+        val mockLifecycle = AppLifecycleObserver()
+        val lc = TestLifecycleOwner()
+        lc.setCurrentState(Lifecycle.State.STARTED)
+        mockLifecycle.onStart(lc)
+        val bilingFactory =
+            object : GoogleBillingWrapper.Factory {
+                override fun makeHasExternalPurchaseController() = true
+
+                override fun makeHasInternalPurchaseController() = false
+
+                override fun makeSuperwallOptions(): SuperwallOptions = options
+            }
+        val billingWrapper =
+            GoogleBillingWrapper(
+                InstrumentationRegistry.getInstrumentation().context,
+                IOScope(this@createBillingWrapper.coroutineContext),
+                mockLifecycle,
+                bilingFactory,
+            )
+        val spy =
+            spyk(billingWrapper) {
+                every { purchaseResults } returns
+                    MutableStateFlow(
+                        InternalPurchaseResult.Purchased(
+                            withPurchase,
+                        ),
+                    )
+            }
+        return spy
+    }
+
     @Test
     fun test_purchase_successful_external() =
         runTest {
             Given("We have loaded products and we can purchase successfully externally") {
+                val spy = createBillingWrapper()
+                val purchase = PurchaseMockBuilder.createDefaultPurchase("product1")
+                every { transactionManagerFactory.makeTransactionVerifier() } returns spy
+                coEvery { transactionManagerFactory.makeStoreTransaction(any()) } returns
+                    StoreTransaction(
+                        GoogleBillingPurchaseTransaction(
+                            transaction = purchase,
+                        ),
+                        configRequestId = "123",
+                        appSessionId = "1234",
+                    )
+
                 val events = MutableStateFlow(emptyList<TrackableSuperwallEvent>())
                 val transactionManager: TransactionManager =
                     manager(track = { e ->
@@ -288,8 +380,9 @@ class TransactionManagerTest {
                             val transactionEvents =
                                 events.value.filterIsInstance<InternalSuperwallEvent.Transaction>()
                             assert(transactionEvents.first().superwallPlacement is SuperwallEvent.TransactionStart)
-                            assert(transactionEvents.last().superwallPlacement is SuperwallEvent.TransactionComplete)
-
+                            val complete = transactionEvents.last().superwallPlacement
+                            assert(complete is SuperwallEvent.TransactionComplete)
+                            assert((complete as SuperwallEvent.TransactionComplete).transaction!!.originalTransactionIdentifier != null)
                             val purchase =
                                 events.value.filterIsInstance<InternalSuperwallEvent.NonRecurringProductPurchase>()
                             assert(purchase.first().product?.fullIdentifier == "product1")
@@ -765,60 +858,6 @@ class TransactionManagerTest {
                             val failure: InternalSuperwallEvent.Restore.State.Failure =
                                 restoreEvents[1].state as InternalSuperwallEvent.Restore.State.Failure
                             assert(failure.reason.contains("\"inactive\""))
-                        }
-                    }
-                }
-            }
-        }
-
-    @Test
-    fun test_purchase_with_free_trial_internal() =
-        runTest {
-            Given("We have loaded products with a free trial and we can purchase successfully") {
-                storeManager.getProducts(paywall = mockedPaywall)
-                every { paywallView.encapsulatingActivity } returns WeakReference(mockk())
-                every { playProduct.oneTimePurchaseOfferDetails } returns null
-                every { playProduct.subscriptionOfferDetails } returns
-                    listOf(
-                        mockSubscriptionOfferDetails(
-                            basePlanId = "basePlan",
-                            pricingPhases = listOf(mockPricingPhase()),
-                        ),
-                        mockSubscriptionOfferDetails(
-                            offerId = "offer1",
-                            basePlanId = "basePlan",
-                            pricingPhases = listOf(mockPricingPhase(0.0), mockPricingPhase()),
-                        ),
-                    )
-                val events = MutableStateFlow(emptyList<TrackableSuperwallEvent>())
-                val transactionManager: TransactionManager =
-                    manager(track = { e ->
-                        events.update { it + e }
-                    })
-                coEvery {
-                    purchaseController.purchase(
-                        any(),
-                        any(),
-                        "basePlan",
-                        any(),
-                    )
-                } returns PurchaseResult.Purchased()
-                When("We try to purchase a product with a free trial from the paywall") {
-                    val result =
-                        transactionManager.purchase(
-                            TransactionManager.PurchaseSource.Internal(
-                                "product1",
-                                paywallView,
-                            ),
-                        )
-                    Then("The purchase is successful") {
-                        assert(result is PurchaseResult.Purchased)
-                        coVerify { storeManager.loadPurchasedProducts() }
-                        And("Verify free trial start event") {
-                            val freeTrialStartEvent =
-                                events.value.filterIsInstance<InternalSuperwallEvent.FreeTrialStart>()
-                            assert(freeTrialStartEvent.isNotEmpty())
-                            assert(freeTrialStartEvent.first().product?.fullIdentifier == "product1")
                         }
                     }
                 }

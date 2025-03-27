@@ -23,7 +23,7 @@ plugins {
     id("signing")
 }
 
-version = "2.0.4"
+version = "2.0.5"
 
 android {
     compileSdk = 34
@@ -221,4 +221,5 @@ dependencies {
     androidTestImplementation(libs.espresso.core)
     androidTestImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.mockk.android)
+    androidTestImplementation(libs.lifecycle.testing)
 }
