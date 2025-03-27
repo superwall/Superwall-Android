@@ -59,8 +59,7 @@ class GoogleBillingWrapper(
 
     private val threadHandler = Handler(ioScope)
     private val shouldFinishTransactions: Boolean
-        get() =
-            factory.makeHasInternalPurchaseController()
+        get() = !factory.makeSuperwallOptions().shouldObservePurchases
 
     @get:Synchronized
     @set:Synchronized

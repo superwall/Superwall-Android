@@ -41,6 +41,7 @@ class BaseHostServiceTest {
                     CustomHttpUrlConnection(
                         Json { ignoreUnknownKeys = true },
                         executor,
+                        emptyList(),
                     ),
             )
     }

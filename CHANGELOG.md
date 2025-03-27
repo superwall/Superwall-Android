@@ -2,6 +2,11 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.0.5
+
+## Fixes
+- Fix issue with `original_transaction_id` missing when using a `PurchaseController`
+
 # 2.0.4
 
 ## Enhancements
