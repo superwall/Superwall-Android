@@ -14,7 +14,6 @@ import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.delegate.SuperwallDelegate
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
-import com.superwall.sdk.models.entitlements.CustomerInfo
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.internal.RedemptionResult
 import com.superwall.sdk.paywall.presentation.register
@@ -98,7 +97,6 @@ class MainApplication :
             Keys.WEB_2_APP_API_KEY,
             options =
                 SuperwallOptions().apply {
-                    shouldObservePurchases = true
                     paywalls =
                         PaywallOptions().apply {
                             shouldPreload = false
@@ -163,12 +161,8 @@ class MainApplication :
         )
     }
 
-    override fun didRedeemCode(
-        customerInfo: CustomerInfo,
-        result: RedemptionResult,
-    ) {
-        super.didRedeemCode(customerInfo, result)
-        Log.e("Redeemed", customerInfo.toString())
+    override fun didRedeemCode(result: RedemptionResult) {
+        super.didRedeemCode(result)
     }
 
     override fun subscriptionStatusDidChange(

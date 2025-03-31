@@ -2,7 +2,6 @@ package com.superwall.sdk.delegate
 
 import android.net.Uri
 import com.superwall.sdk.analytics.superwall.SuperwallPlacementInfo
-import com.superwall.sdk.models.entitlements.CustomerInfo
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.internal.RedemptionResult
 import com.superwall.sdk.paywall.presentation.PaywallInfo
@@ -14,10 +13,7 @@ interface SuperwallDelegate {
         to: SubscriptionStatus,
     ) {}
 
-    fun didRedeemCode(
-        customerInfo: CustomerInfo,
-        result: RedemptionResult,
-    ) {}
+    fun didRedeemCode(result: RedemptionResult) {}
 
     fun handleSuperwallPlacement(eventInfo: SuperwallPlacementInfo) {}
 

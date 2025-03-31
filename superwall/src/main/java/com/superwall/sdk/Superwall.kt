@@ -220,7 +220,7 @@ class Superwall(
      * @param subscriptionStatus The entitlement status of the user.
      */
     fun setSubscriptionStatus(subscriptionStatus: SubscriptionStatus) {
-        entitlements.setSubscriptionStatus(subscriptionStatus)
+        internallySetSubscriptionStatus(subscriptionStatus)
     }
 
     /**
@@ -235,9 +235,46 @@ class Superwall(
      * */
     fun setSubscriptionStatus(vararg entitlements: String) {
         if (entitlements.isEmpty()) {
-            this.entitlements.setSubscriptionStatus(SubscriptionStatus.Inactive)
+            internallySetSubscriptionStatus(SubscriptionStatus.Inactive)
         } else {
-            this.setSubscriptionStatus(SubscriptionStatus.Active(entitlements.map { Entitlement(it) }.toSet()))
+            internallySetSubscriptionStatus(
+                SubscriptionStatus.Active(
+                    entitlements
+                        .map {
+                            Entitlement(
+                                it,
+                            )
+                        }.toSet(),
+                ),
+            )
+        }
+    }
+
+    internal fun internallySetSubscriptionStatus(toStatus: SubscriptionStatus) {
+        if (dependencyContainer.makeHasExternalPurchaseController() && !_dependencyContainer.makeHasInternalPurchaseController()) {
+            return
+        }
+        val webEntitlements = dependencyContainer.entitlements.web
+        when (toStatus) {
+            is SubscriptionStatus.Active -> {
+                val allEntitlements = toStatus.entitlements.plus(webEntitlements)
+                if (allEntitlements.isEmpty()) {
+                    entitlements.setSubscriptionStatus(SubscriptionStatus.Inactive)
+                } else {
+                    entitlements.setSubscriptionStatus(SubscriptionStatus.Active(allEntitlements))
+                }
+            }
+
+            SubscriptionStatus.Inactive ->
+                if (webEntitlements.isEmpty()) {
+                    entitlements.setSubscriptionStatus(SubscriptionStatus.Inactive)
+                } else {
+                    entitlements.setSubscriptionStatus(SubscriptionStatus.Active(webEntitlements))
+                }
+
+            SubscriptionStatus.Unknown -> {
+                entitlements.setSubscriptionStatus(SubscriptionStatus.Unknown)
+            }
         }
     }
 
@@ -486,7 +523,10 @@ class Superwall(
                         dependencyContainer.storage.read(StoredSubscriptionStatus)
                             ?: SubscriptionStatus.Unknown
                     dependencyContainer.storage.write(StoredSubscriptionStatus, newValue)
-                    dependencyContainer.delegateAdapter.subscriptionStatusDidChange(oldValue, newValue)
+                    dependencyContainer.delegateAdapter.subscriptionStatusDidChange(
+                        oldValue,
+                        newValue,
+                    )
                     val event = InternalSuperwallEvent.SubscriptionStatusDidChange(newValue)
                     track(event)
                 }

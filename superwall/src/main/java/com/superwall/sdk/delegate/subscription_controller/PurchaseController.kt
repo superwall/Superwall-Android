@@ -5,7 +5,6 @@ import androidx.annotation.MainThread
 import com.android.billingclient.api.ProductDetails
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
-import com.superwall.sdk.models.entitlements.CustomerInfo
 
 /**
  * The interface that handles Superwall's subscription-related logic.
@@ -52,6 +51,4 @@ interface PurchaseController {
      */
     @MainThread
     suspend fun restorePurchases(): RestorationResult
-
-    suspend fun offDeviceSubscriptionsDidChange(customerInfo: CustomerInfo)
 }

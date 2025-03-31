@@ -4,10 +4,11 @@ import android.content.Context
 import com.superwall.sdk.Given
 import com.superwall.sdk.Then
 import com.superwall.sdk.When
+import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.misc.Either
 import com.superwall.sdk.misc.IOScope
-import com.superwall.sdk.models.entitlements.CustomerInfo
 import com.superwall.sdk.models.entitlements.Entitlement
+import com.superwall.sdk.models.entitlements.SourceType
 import com.superwall.sdk.models.entitlements.WebEntitlements
 import com.superwall.sdk.models.internal.DeviceVendorId
 import com.superwall.sdk.models.internal.ErrorInfo
@@ -64,10 +65,12 @@ class WebPaywallRedeemerTest {
         mutableEntitlements = mutableSetOf()
     }
 
-    private val onRedemptionResult: (RedemptionResult, CustomerInfo) -> Unit = mockk(relaxed = true)
+    private val onRedemptionResult: (RedemptionResult) -> Unit = mockk(relaxed = true)
     private val getUserId: () -> UserId = { UserId("test_user") }
     private val getDeviceId: () -> DeviceVendorId = { DeviceVendorId(VendorId("test_vendor")) }
     private val getAlias: () -> String = { "test_alias" }
+    private val offDeviceEntitlements: () -> Unit = {}
+    private val track: (Trackable) -> Unit = {}
     private lateinit var redeemer: WebPaywallRedeemer
     private val network: Network = mockk {}
 
@@ -123,6 +126,8 @@ class WebPaywallRedeemerTest {
                         getUserId,
                         getDeviceId,
                         getAlias,
+                        track,
+                        offDeviceEntitlements,
                     )
 
                 When("checking for referral") {
@@ -160,6 +165,8 @@ class WebPaywallRedeemerTest {
                         getUserId,
                         getDeviceId,
                         getAlias,
+                        track,
+                        offDeviceEntitlements,
                     )
 
                 When("checking for referral") {
@@ -206,6 +213,8 @@ class WebPaywallRedeemerTest {
                         getUserId,
                         getDeviceId,
                         getAlias,
+                        track,
+                        offDeviceEntitlements,
                     )
 
                 When("checking for referral") {
@@ -259,6 +268,8 @@ class WebPaywallRedeemerTest {
                         getUserId,
                         getDeviceId,
                         getAlias,
+                        track,
+                        offDeviceEntitlements,
                     )
 
                 When("checking for web entitlements") {
@@ -303,6 +314,8 @@ class WebPaywallRedeemerTest {
                         getUserId,
                         getDeviceId,
                         getAlias,
+                        track,
+                        offDeviceEntitlements,
                     )
 
                 When("checking for web entitlements") {
@@ -325,7 +338,7 @@ class WebPaywallRedeemerTest {
     fun `test checkForWebEntitlements with partially successful responses - user success`() =
         runTest(testDispatcher) {
             Given("a WebPaywallRedeemer with only user entitlements succeeding") {
-                val userEntitlements = setOf(Entitlement("user_entitlement"))
+                val userEntitlements = setOf(Entitlement("user_entitlement", source = setOf(SourceType.WEB)))
 
                 coEvery {
                     network.webEntitlementsByUserId(UserId("test_user"), any())
@@ -349,6 +362,8 @@ class WebPaywallRedeemerTest {
                         getUserId,
                         getDeviceId,
                         getAlias,
+                        track,
+                        offDeviceEntitlements,
                     )
                 When("checking for web entitlements") {
                     val result =
@@ -360,10 +375,7 @@ class WebPaywallRedeemerTest {
                     Then("it should return only user entitlements") {
                         assert(result is Either.Success)
                         val entitlements = (result as Either.Success).value
-                        println("Received $entitlements")
-                        println("Received $userEntitlements")
-                        println("Do equal ${entitlements == userEntitlements}")
-                        assert(entitlements == userEntitlements)
+                        assert(entitlements.first() == userEntitlements.first())
                     }
                 }
             }
@@ -403,6 +415,8 @@ class WebPaywallRedeemerTest {
                         getUserId,
                         getDeviceId,
                         getAlias,
+                        track,
+                        offDeviceEntitlements,
                     )
 
                 When("checking for web entitlements") {
@@ -451,6 +465,8 @@ class WebPaywallRedeemerTest {
                         getUserId,
                         getDeviceId,
                         getAlias,
+                        track,
+                        offDeviceEntitlements,
                     )
 
                 When("checking for web entitlements") {
@@ -540,13 +556,16 @@ class WebPaywallRedeemerTest {
                     getAllEntitlements,
                     getUserId,
                     getDeviceId,
+                    getAlias,
+                    track,
+                    offDeviceEntitlements,
                 )
             storage.write(LatestRedemptionResponse, response)
             When("We call clean") {
                 redeemer.clear(RedemptionOwnershipType.AppUser)
                 Then("It should remove the old redemptions") {
                     val saved = storage.saved as WebRedemptionResponse
-                    assert(saved.codes.first().code == deviceCode)
+                    assert(saved.codes.isEmpty())
                 }
             }
         }

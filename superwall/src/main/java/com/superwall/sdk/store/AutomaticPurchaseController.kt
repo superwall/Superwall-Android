@@ -22,7 +22,6 @@ import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.IOScope
-import com.superwall.sdk.models.entitlements.CustomerInfo
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.store.abstractions.product.OfferType
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
@@ -234,10 +233,6 @@ class AutomaticPurchaseController(
         return RestorationResult.Restored()
     }
 
-    override suspend fun offDeviceSubscriptionsDidChange(customerInfo: CustomerInfo) {
-        Superwall.instance.setSubscriptionStatus(SubscriptionStatus.Active(customerInfo.entitlements))
-    }
-
 //endregion
 
 //region PurchasesUpdatedListener
@@ -299,6 +294,7 @@ class AutomaticPurchaseController(
                         res
                     }.toSet()
                     .let { entitlements ->
+                        entitlementsInfo.activeDeviceEntitlements = entitlements
                         if (entitlements.isNotEmpty()) {
                             SubscriptionStatus.Active(entitlements)
                         } else {
@@ -308,8 +304,6 @@ class AutomaticPurchaseController(
             } else {
                 SubscriptionStatus.Inactive
             }
-        Superwall.instance.setSubscriptionStatus(status)
-
         if (!Superwall.initialized) {
             Logger.debug(
                 logLevel = LogLevel.error,
@@ -319,7 +313,7 @@ class AutomaticPurchaseController(
             return
         }
 
-        Superwall.instance.setSubscriptionStatus(status)
+        Superwall.instance.internallySetSubscriptionStatus(status)
     }
 
     private suspend fun queryPurchasesOfType(productType: String): List<Purchase> {

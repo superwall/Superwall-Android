@@ -156,7 +156,9 @@ sealed class StoreIdentifiers {
 
     @Serializable
     @SerialName("UNKNOWN")
-    class Unknown : StoreIdentifiers()
+    data class Unknown(
+        val properties: Map<String, JsonElement?>,
+    ) : StoreIdentifiers()
 }
 
 @Serializable

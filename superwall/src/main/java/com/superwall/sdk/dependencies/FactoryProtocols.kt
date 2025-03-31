@@ -130,6 +130,12 @@ interface HasInternalPurchaseControllerFactory {
     fun makeHasInternalPurchaseController(): Boolean
 }
 
+interface WebToAppFactory {
+    fun isWebToAppEnabled(): Boolean
+
+    fun restoreUrl(): String
+}
+
 interface ViewFactory {
     // NOTE: THIS MUST BE EXECUTED ON THE MAIN THREAD (no way to enforce in Kotlin)
     suspend fun makePaywallView(

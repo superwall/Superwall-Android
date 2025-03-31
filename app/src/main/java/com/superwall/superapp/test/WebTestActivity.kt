@@ -149,7 +149,7 @@ fun WebUITestTable() {
                             Text(
                                 text =
                                     Superwall.instance.entitlements.active
-                                        .map { " id: ${it.id} - sources: ${it.source.joinToString()}" }
+                                        .map { " id: ${it.id}" }
                                         .joinToString("\n"),
                                 style = TextStyle(fontWeight = FontWeight.Bold),
                                 color = mainTextColor,

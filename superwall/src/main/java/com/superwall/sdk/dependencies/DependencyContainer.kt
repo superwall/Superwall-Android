@@ -50,6 +50,7 @@ import com.superwall.sdk.network.device.DeviceInfo
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
 import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.paywall.manager.PaywallViewCache
+import com.superwall.sdk.paywall.presentation.dismiss
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.dismiss
@@ -312,21 +313,31 @@ class DependencyContainer(
                 deepLinkReferrer = DeepLinkReferrer({ context }, ioScope),
                 network = network,
                 storage = storage,
-                setEntitlementStatus = {
-                    Superwall.instance.setSubscriptionStatus(
-                        SubscriptionStatus.Active(
-                            it.toSet(),
-                        ),
-                    )
-                },
-                onRedemptionResult = { result, customer ->
-                    delegateAdapter.didRedeemCode(customer, result)
+                onRedemptionResult = { result ->
+                    delegateAdapter.didRedeemCode(result)
                 },
                 maxAge = {
                     configManager.config?.webToAppConfig?.entitlementsMaxAgeMs ?: 60000L
                 },
-                offDeviceSubscriptionsDidChange = {
-                    purchaseController.offDeviceSubscriptionsDidChange(it)
+                setActiveWebEntitlements = {
+                    entitlements.setWebEntitlements(it)
+                },
+                setSubscriptionStatus = {
+                    Superwall.instance.internallySetSubscriptionStatus(it)
+                },
+                isPaywallVisible = {
+                    Superwall.instance.isPaywallPresented
+                },
+                showRestoreDialogAndDismiss = {
+                    showWebRestoreSuccesful()
+                },
+                currentPaywallEntitlements = {
+                    Superwall.instance.paywallView
+                        ?.paywall
+                        ?.productIds
+                        ?.flatMap {
+                            entitlements.byProductId(it)
+                        }?.toSet() ?: emptySet()
                 },
             )
 
@@ -409,6 +420,13 @@ class DependencyContainer(
                     Superwall.instance.dismiss(it, et)
                 },
                 ioScope = ioScope(),
+                showRestoreDialogForWeb = {
+                    showWebRestoreSuccesful()
+                    true
+                },
+                entitlementsById = {
+                    entitlements.byProductId(it)
+                },
             )
 
         /**
@@ -574,6 +592,10 @@ class DependencyContainer(
 
     override fun makeHasInternalPurchaseController(): Boolean = storeManager.purchaseController.hasInternalPurchaseController
 
+    override fun isWebToAppEnabled(): Boolean = configManager.config?.featureFlags?.web2App ?: false
+
+    override fun restoreUrl(): String = configManager?.config?.webToAppConfig?.restoreAccesUrl ?: ""
+
     override suspend fun didUpdateAppSession(appSession: AppSession) {
     }
 
@@ -738,5 +760,24 @@ class DependencyContainer(
             _ioScope = IOScope()
         }
         return _ioScope!!
+    }
+
+    private fun showWebRestoreSuccesful() {
+        Superwall.instance.paywallView?.showAlert(
+            title = "Restoration Successful",
+            message = "Your subscriptions have been restored.",
+            actionTitle = "OK",
+            action = {
+                ioScope.launch {
+                    Superwall.instance.dismiss()
+                }
+            },
+            closeActionTitle = "Close",
+            onClose = {
+                ioScope.launch {
+                    Superwall.instance.dismiss()
+                }
+            },
+        )
     }
 }
