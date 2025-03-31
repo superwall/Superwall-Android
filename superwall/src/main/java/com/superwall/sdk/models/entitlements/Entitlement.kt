@@ -9,21 +9,8 @@ data class Entitlement(
     val id: String,
     @SerialName("type")
     val type: Type = Type.SERVICE_LEVEL,
-    @Transient
-    val source: Set<SourceType> = setOf(SourceType.ANDROID),
 ) {
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-
-        other as Entitlement
-
-        if (id != other.id) return false
-        if (type != other.type) return false
-
-        return true
-    }
-    constructor(id: String) : this(id, type = Type.SERVICE_LEVEL, source = setOf(SourceType.ANDROID))
+    constructor(id: String) : this(id, type = Type.SERVICE_LEVEL)
 
     @Serializable
     enum class Type(
@@ -32,10 +19,4 @@ data class Entitlement(
         @SerialName("SERVICE_LEVEL")
         SERVICE_LEVEL("SERVICE_LEVEL"),
     }
-}
-
-enum class SourceType {
-    WEB,
-    ANDROID,
-    IOS,
 }

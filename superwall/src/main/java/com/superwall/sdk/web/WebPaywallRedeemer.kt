@@ -3,19 +3,20 @@ package com.superwall.sdk.web
 import android.content.Context
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
-import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
+import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.Redemptions
+import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.Redemptions.RedemptionState
 import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
+import com.superwall.sdk.misc.Either
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.asEither
 import com.superwall.sdk.misc.fold
-import com.superwall.sdk.misc.map
-import com.superwall.sdk.models.entitlements.CustomerInfo
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.Redeemable
-import com.superwall.sdk.models.entitlements.SourceType
+import com.superwall.sdk.models.entitlements.SubscriptionStatus
+import com.superwall.sdk.models.entitlements.WebEntitlements
 import com.superwall.sdk.models.internal.DeviceVendorId
 import com.superwall.sdk.models.internal.ErrorInfo
 import com.superwall.sdk.models.internal.RedemptionOwnershipType
@@ -42,20 +43,28 @@ class WebPaywallRedeemer(
     val storage: Storage,
     val onRedemptionResult: (
         redemptionResult: RedemptionResult,
-        customerInfo: CustomerInfo,
     ) -> Unit,
     val maxAge: () -> Long,
-    val setEntitlementStatus: (List<Entitlement>) -> Unit,
-    val getActiveEntitlements: () -> Set<Entitlement> = {
-        Superwall.instance.entitlements.active
+    val getActiveDeviceEntitlements: () -> Set<Entitlement> = {
+        Superwall.instance.entitlements.activeDeviceEntitlements
     },
-    val getUserId: () -> UserId = { UserId(Superwall.instance.userId) },
+    val getUserId: () -> UserId? = {
+        Superwall.instance.dependencyContainer.identityManager.appUserId?.let {
+            UserId(
+                it,
+            )
+        }
+    },
     val getDeviceId: () -> DeviceVendorId = { DeviceVendorId(Superwall.instance.vendorId) },
     val getAliasId: () -> String? = { Superwall.instance.dependencyContainer.identityManager.aliasId },
     val track: suspend (Trackable) -> Unit = {
         Superwall.instance.track(it)
     },
-    val offDeviceSubscriptionsDidChange: suspend (customerInfo: CustomerInfo) -> Unit,
+    val setActiveWebEntitlements: suspend (Set<Entitlement>) -> Unit,
+    val setSubscriptionStatus: (SubscriptionStatus) -> Unit,
+    val isPaywallVisible: suspend () -> Boolean = { Superwall.instance.isPaywallPresented },
+    val showRestoreDialogAndDismiss: suspend () -> Unit = { },
+    val currentPaywallEntitlements: () -> Set<Entitlement>,
 ) {
     private var pollingJob: Job? = null
 
@@ -64,25 +73,6 @@ class WebPaywallRedeemer(
             checkForRefferal()
             startPolling()
         }
-    }
-
-    private fun mergeEntitlements(
-        deviceEntitlements: Set<Entitlement>,
-        webEntitlements: Set<Entitlement>,
-    ): Set<Entitlement> {
-        val deviceWithWeb =
-            deviceEntitlements.map {
-                if (webEntitlements.contains(it)) {
-                    it.copy(source = it.source + SourceType.WEB)
-                } else {
-                    it
-                }
-            }
-        val onlyOnWeb =
-            webEntitlements.filter {
-                !deviceEntitlements.contains(it)
-            }
-        return (deviceWithWeb + onlyOnWeb).toSet()
     }
 
     suspend fun checkForRefferal() =
@@ -100,11 +90,7 @@ class WebPaywallRedeemer(
     suspend fun redeem(code: String?) {
         // We want to keep track of the codes that have been retrieved by the user
         val latestResponse = storage.read(LatestRedemptionResponse)
-        track(
-            InternalSuperwallEvent.Redemptions(
-                InternalSuperwallEvent.Redemptions.RedemptionState.Start,
-            ),
-        )
+        track(Redemptions(RedemptionState.Start))
         var allCodes = latestResponse?.allCodes?.toMutableList() ?: mutableListOf()
         var isFirstRedemption = true
         if (allCodes.isNotEmpty()) {
@@ -119,17 +105,10 @@ class WebPaywallRedeemer(
                 getUserId(),
                 getAliasId(),
                 getDeviceId(),
-            ).map {
-                it.copy(
-                    entitlements =
-                        it.entitlements.map {
-                            it.copy(source = setOf(SourceType.WEB))
-                        },
-                )
-            }.fold({
+            ).fold(onSuccess = {
                 track(
-                    InternalSuperwallEvent.Redemptions(
-                        InternalSuperwallEvent.Redemptions.RedemptionState.Complete(code ?: ""),
+                    Redemptions(
+                        RedemptionState.Complete(code ?: ""),
                     ),
                 )
 
@@ -141,14 +120,7 @@ class WebPaywallRedeemer(
                 )
                 storage.write(LatestRedemptionResponse, it)
                 if (it.entitlements.isNotEmpty()) {
-                    mergeEntitlements(getActiveEntitlements(), it.entitlements.toSet())
-
-                    offDeviceSubscriptionsDidChange(
-                        CustomerInfo(
-                            entitlements = getActiveEntitlements(),
-                            redemptions = it.codes,
-                        ),
-                    )
+                    setActiveWebEntitlements(it.entitlements.toSet())
                 }
                 // Notify the delegate that the redemption succeeded, unless the code has not been redeemed
                 val result =
@@ -166,16 +138,15 @@ class WebPaywallRedeemer(
                 if (redemptionResultForCode != null) {
                     onRedemptionResult(
                         redemptionResultForCode,
-                        CustomerInfo(
-                            entitlements = getActiveEntitlements(),
-                            redemptions = it.codes,
-                        ),
                     )
+                }
+                if (isPaywallVisible() && it.entitlements.containsAll(currentPaywallEntitlements())) {
+                    showRestoreDialogAndDismiss()
                 }
             }, onFailure = {
                 track(
-                    InternalSuperwallEvent.Redemptions(
-                        InternalSuperwallEvent.Redemptions.RedemptionState.Fail(code ?: ""),
+                    Redemptions(
+                        RedemptionState.Fail(code ?: ""),
                     ),
                 )
                 Logger.debug(
@@ -195,10 +166,6 @@ class WebPaywallRedeemer(
                                     ?: "Redemption failed, error unknown",
                             ),
                     ),
-                    CustomerInfo(
-                        entitlements = getActiveEntitlements(),
-                        redemptions = latestResponse?.codes ?: emptyList(),
-                    ),
                 )
 
                 Logger.debug(
@@ -212,11 +179,18 @@ class WebPaywallRedeemer(
     }
 
     suspend fun checkForWebEntitlements(
-        userId: UserId,
+        userId: UserId?,
         deviceId: DeviceVendorId,
     ) = withErrorTracking {
         val webEntitlementsByUserCall =
-            ioScope.async { network.webEntitlementsByUserId(userId, deviceId) }
+            ioScope.async {
+                // If no user ID, we don't call this just the device ID
+                if (userId != null) {
+                    network.webEntitlementsByUserId(userId, deviceId)
+                } else {
+                    Either.Success(WebEntitlements(emptyList()))
+                }
+            }
         val webEntitlementsByDeviceCall =
             ioScope.async { network.webEntitlementsByDeviceID(deviceId) }
         val (webEntitlementsByUser, webEntitlementsByDevice) =
@@ -231,9 +205,6 @@ class WebPaywallRedeemer(
                 )
         entitlements
             .toSet()
-            .map {
-                it.copy(source = setOf(SourceType.WEB))
-            }
     }
 
     fun clear(ownership: RedemptionOwnershipType) {
@@ -258,21 +229,16 @@ class WebPaywallRedeemer(
             )
 
         // Get active entitlements that remain after removing web sources or ones from the web
-        val activeEntitlements =
-            getActiveEntitlements()
-                .map {
-                    // If it comes only from web, then we remove it
-                    if (it.source.size == 1 && it.source.contains(SourceType.WEB)) {
-                        null
-                    } else {
-                        // Otherwise we remove the web source
-                        it.copy(source = it.source.filterNot { it == SourceType.WEB }.toSet())
-                    }
-                }.filterNotNull()
-
-        setEntitlementStatus(activeEntitlements)
+        ioScope.launch {
+            setActiveWebEntitlements(emptySet())
+            setSubscriptionStatus(SubscriptionStatus.Active(getActiveDeviceEntitlements()))
+        }
         if (withUserCodesRemoved != null) {
             storage.write(LatestRedemptionResponse, withUserCodesRemoved)
+        }
+        ioScope.launch {
+            startPolling(maxAge())
+            redeem(null)
         }
     }
 
@@ -287,15 +253,17 @@ class WebPaywallRedeemer(
                                 it.printStackTrace()
                             },
                             onSuccess = {
-                                val newEntitlements =
-                                    mergeEntitlements(getActiveEntitlements(), it.toSet())
+                                setActiveWebEntitlements(it)
+                                val newEntitlements = it
+                                setSubscriptionStatus(SubscriptionStatus.Active(it + getActiveDeviceEntitlements()))
                                 var latestRedeemResponse = storage.read(LatestRedemptionResponse)
-                                latestRedeemResponse = latestRedeemResponse?.copy(entitlements = newEntitlements.toList())
-                                    ?: WebRedemptionResponse(emptyList(), newEntitlements.toList())
+                                latestRedeemResponse =
+                                    latestRedeemResponse?.copy(entitlements = newEntitlements.toList())
+                                        ?: WebRedemptionResponse(
+                                            emptyList(),
+                                            newEntitlements.toList(),
+                                        )
                                 storage.write(LatestRedemptionResponse, latestRedeemResponse)
-                                offDeviceSubscriptionsDidChange(
-                                    CustomerInfo(newEntitlements, emptyList()),
-                                )
                             },
                         )
                     delay(maxAge)

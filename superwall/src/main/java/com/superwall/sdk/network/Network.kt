@@ -109,7 +109,7 @@ open class Network(
 
     override suspend fun redeemToken(
         codes: List<Redeemable>,
-        userId: UserId,
+        userId: UserId?,
         aliasId: String?,
         vendorId: DeviceVendorId,
     ): Either<WebRedemptionResponse, NetworkError> =

@@ -634,23 +634,30 @@ class PaywallView(
         action: (() -> Unit)? = null,
         onClose: (() -> Unit)? = null,
     ) {
-        val activity = encapsulatingActivity?.get() ?: return
+        val activity =
+            encapsulatingActivity?.get() ?: kotlin.run {
+                return
+            }
 
-        val alertController =
-            AlertControllerFactory.make(
-                context = activity,
-                title = title,
-                message = message,
-                actionTitle = actionTitle,
-                action = {
-                    action?.invoke()
-                },
-                onClose = {
-                    onClose?.invoke()
-                },
-            )
-        alertController.show()
-        loadingState = PaywallLoadingState.Ready()
+        mainScope.launch {
+            val alertController =
+                AlertControllerFactory.make(
+                    context = activity,
+                    title = title,
+                    message = message,
+                    actionTitle = actionTitle,
+                    closeActionTitle = closeActionTitle,
+                    action = {
+                        action?.invoke()
+                    },
+                    onClose = {
+                        onClose?.invoke()
+                    },
+                )
+            alertController.show()
+
+            loadingState = PaywallLoadingState.Ready()
+        }
     }
 
     //endregion

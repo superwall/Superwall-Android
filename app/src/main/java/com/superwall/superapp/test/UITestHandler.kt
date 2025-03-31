@@ -42,7 +42,7 @@ object UITestHandler {
                             "Entitlements are",
                             Superwall.instance.entitlements.active
                                 .map {
-                                    "${it.id}- ${it.source}"
+                                    "${it.id}"
                                 }.joinToString(separator = ", "),
                         )
                         Superwall.instance.register(placement = "show_if_web_failed")
@@ -59,7 +59,7 @@ object UITestHandler {
                             "Entitlements are",
                             Superwall.instance.entitlements.active
                                 .map {
-                                    "${it.id}- ${it.source}"
+                                    "${it.id}}"
                                 }.joinToString(separator = ", "),
                         )
                         Superwall.instance.register(placement = "show_if_web_failed")
@@ -78,7 +78,7 @@ object UITestHandler {
                             "Entitlements are",
                             Superwall.instance.entitlements.active
                                 .map {
-                                    "${it.id}- ${it.source}"
+                                    "${it.id}"
                                 }.joinToString(separator = ", "),
                         )
                         delay(5.seconds)
@@ -87,7 +87,7 @@ object UITestHandler {
                             "Entitlements are",
                             Superwall.instance.entitlements.active
                                 .map {
-                                    "${it.id}- ${it.source}"
+                                    "${it.id}"
                                 }.joinToString(separator = ", "),
                         )
                         delay(5.seconds)
@@ -107,6 +107,23 @@ object UITestHandler {
                     test = { scope, events, _ ->
                         Log.e("Registering event", "identify before ${Superwall.instance.userId}")
                         Superwall.instance.identify("MigratedWebUser")
+                        Log.e("Registering event", "identify after ${Superwall.instance.userId}")
+                    },
+                ),
+                UITestInfo(
+                    1003,
+                    "Start paywall and then identify, should dismiss paywall",
+                    test = { scope, events, _ ->
+                        Superwall.instance.register(placement = "pro_only")
+                        Superwall.instance.identify("MigratedWebUser")
+                        Log.e("Registering event", "identify after ${Superwall.instance.userId}")
+                    },
+                ),
+                UITestInfo(
+                    1003,
+                    "Start paywall anonymously and hit restore. Should ask to open on web.",
+                    test = { scope, events, _ ->
+                        Superwall.instance.register(placement = "pro_only")
                         Log.e("Registering event", "identify after ${Superwall.instance.userId}")
                     },
                 ),
