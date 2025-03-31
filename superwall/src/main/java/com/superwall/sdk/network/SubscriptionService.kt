@@ -26,11 +26,12 @@ class SubscriptionService(
     private val json =
         Json(json) {
             namingStrategy = null
+            explicitNulls = false
         }
 
     suspend fun redeemToken(
         codes: List<Redeemable>,
-        userId: UserId,
+        userId: UserId?,
         aliasId: String?,
         vendorId: DeviceVendorId,
     ) = post<WebRedemptionResponse>(
@@ -41,7 +42,7 @@ class SubscriptionService(
                 .encodeToString(
                     RedeemRequest(
                         vendorId.value,
-                        userId.value,
+                        userId?.value,
                         aliasId,
                         codes,
                     ),
@@ -52,7 +53,7 @@ class SubscriptionService(
         userId: UserId,
         deviceId: DeviceVendorId,
     ) = get<WebEntitlements>(
-        "users/${userId.value}/entitlements",
+        "users/${userId?.value}/entitlements",
         queryItems = listOf(URLQueryItem("deviceId", deviceId.value)),
     )
 

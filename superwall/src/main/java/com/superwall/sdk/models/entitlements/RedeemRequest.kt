@@ -8,7 +8,7 @@ data class RedeemRequest(
     @SerialName("deviceId")
     val deviceId: String,
     @SerialName("appUserId")
-    val userId: String,
+    val userId: String?,
     @SerialName("aliasId")
     val aliasId: String? = null,
     @SerialName("codes")

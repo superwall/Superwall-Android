@@ -23,12 +23,14 @@ import com.superwall.sdk.dependencies.OptionsFactory
 import com.superwall.sdk.dependencies.StoreTransactionFactory
 import com.superwall.sdk.dependencies.TransactionVerifierFactory
 import com.superwall.sdk.dependencies.TriggerFactory
+import com.superwall.sdk.dependencies.WebToAppFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.ActivityProvider
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.launchWithTracking
+import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.paywall.LocalNotificationType
 import com.superwall.sdk.paywall.presentation.PaywallInfo
@@ -67,6 +69,8 @@ class TransactionManager(
     private val subscriptionStatus: () -> SubscriptionStatus = {
         Superwall.instance.entitlements.status.value
     },
+    private val entitlementsById: (String) -> Set<Entitlement>,
+    private val showRestoreDialogForWeb: suspend () -> Boolean,
 ) {
     sealed class PurchaseSource {
         data class Internal(
@@ -91,7 +95,8 @@ class TransactionManager(
         DeviceHelperFactory,
         CacheFactory,
         HasExternalPurchaseControllerFactory,
-        HasInternalPurchaseControllerFactory
+        HasInternalPurchaseControllerFactory,
+        WebToAppFactory
 
     private var lastPaywallView: PaywallView? = null
 
@@ -706,9 +711,8 @@ class TransactionManager(
      */
     suspend fun tryToRestorePurchases(paywallView: PaywallView?): RestorationResult {
         log(message = "Attempting Restore")
-
+        lastPaywallView = paywallView
         val paywallInfo = paywallView?.info ?: PaywallInfo.empty()
-
         paywallView?.loadingState = PaywallLoadingState.LoadingPurchase()
 
         track(
@@ -720,19 +724,36 @@ class TransactionManager(
         val restorationResult = purchaseController.restorePurchases()
 
         val hasRestored = restorationResult is RestorationResult.Restored
+        val status = subscriptionStatus()
         val hasEntitlements =
-            subscriptionStatus() is SubscriptionStatus.Active
+            status is SubscriptionStatus.Active
         storeManager.loadPurchasedProducts()
+
+        val webToAppEnabled = factory.isWebToAppEnabled()
+        val allPaywallEntitlements =
+            paywallView
+                ?.paywall
+                ?.productIds
+                ?.map {
+                    entitlementsById(it)
+                }?.flatten() ?: emptyList()
+        val existingEntitlements =
+            (status as? SubscriptionStatus.Active)?.entitlements ?: emptySet()
         if (hasRestored && hasEntitlements) {
-            log(message = "Transactions Restored")
-            track(
-                InternalSuperwallEvent.Restore(
-                    state = InternalSuperwallEvent.Restore.State.Complete,
-                    paywallInfo = paywallView?.info ?: PaywallInfo.empty(),
-                ),
-            )
-            if (paywallView != null) {
-                didRestore(null, PurchaseSource.Internal("", paywallView))
+            if (existingEntitlements.containsAll(allPaywallEntitlements) || !webToAppEnabled) {
+                log(message = "Transactions Restored")
+                track(
+                    InternalSuperwallEvent.Restore(
+                        state = InternalSuperwallEvent.Restore.State.Complete,
+                        paywallInfo = paywallView?.info ?: PaywallInfo.empty(),
+                    ),
+                )
+                if (paywallView != null) {
+                    didRestore(null, PurchaseSource.Internal("", paywallView))
+                }
+            } else {
+                paywallView?.loadingState = PaywallLoadingState.Ready()
+                askToRestoreFromWeb()
             }
         } else {
             val msg = "Transactions Failed to Restore.${
@@ -748,52 +769,53 @@ class TransactionManager(
                     }"
                 }
             }"
-
             log(message = msg)
+
             track(
                 InternalSuperwallEvent.Restore(
                     state = InternalSuperwallEvent.Restore.State.Failure(msg),
                     paywallInfo = paywallView?.info ?: PaywallInfo.empty(),
                 ),
             )
-
-            paywallView?.showAlert(
-                title =
-                    factory
-                        .makeSuperwallOptions()
-                        .paywalls.restoreFailed.title,
-                message =
-                    factory
-                        .makeSuperwallOptions()
-                        .paywalls.restoreFailed.message,
-                closeActionTitle =
-                    factory
-                        .makeSuperwallOptions()
-                        .paywalls.restoreFailed.closeButtonTitle,
-            )
+            if (webToAppEnabled) {
+                askToRestoreFromWeb()
+            } else {
+                paywallView?.showAlert(
+                    title =
+                        factory
+                            .makeSuperwallOptions()
+                            .paywalls.restoreFailed.title,
+                    message =
+                        factory
+                            .makeSuperwallOptions()
+                            .paywalls.restoreFailed.message,
+                    closeActionTitle =
+                        factory
+                            .makeSuperwallOptions()
+                            .paywalls.restoreFailed.closeButtonTitle,
+                )
+            }
         }
         return restorationResult
     }
 
-    suspend fun askToRestoreFromWeb() {
+    private fun askToRestoreFromWeb() {
+        val hasEntitlements =
+            Superwall.instance.entitlements.activeDeviceEntitlements
+                .isNotEmpty()
+        val hasSubsText =
+            "Your Play Store subscriptions were restored. Would you like to check for more on the web?"
+        val noSubsText = "No Play Store subscription found, would you like to check on the web?"
         lastPaywallView?.showAlert(
             title =
-                factory
-                    .makeSuperwallOptions()
-                    .paywalls.restoreFailed.title,
+                if (hasEntitlements) "Restore via the web?" else "No Subscription Found",
             message =
-                factory
-                    .makeSuperwallOptions()
-                    .paywalls.restoreFailed.message,
+                if (hasEntitlements) hasSubsText else noSubsText,
             closeActionTitle =
-                factory
-                    .makeSuperwallOptions()
-                    .paywalls.restoreFailed.closeButtonTitle,
-            actionTitle = "I purchased on Web",
+                "Close",
+            actionTitle = "Yes",
             action = {
                 Superwall.instance.openRestoreOnWeb()
-            },
-            onClose = {
             },
         )
     }
