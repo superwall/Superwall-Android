@@ -148,6 +148,10 @@ class TransactionManagerTest {
         }
 
     private var storage = mockk<Storage>(relaxUnitFun = true)
+    private var entitlementsById: (String) -> Set<Entitlement> = {
+        setOf(Entitlement(it))
+    }
+    private var showRestoreDialogForWeb = {}
 
     fun TestScope.manager(
         trManagerFactory: TransactionManager.Factory = transactionManagerFactory,
@@ -174,6 +178,8 @@ class TransactionManagerTest {
             factory = trManagerFactory,
             ioScope = IOScope(this.coroutineContext),
             storage = storage,
+            entitlementsById = entitlementsById,
+            showRestoreDialogForWeb = showRestoreDialogForWeb,
         )
     }
 

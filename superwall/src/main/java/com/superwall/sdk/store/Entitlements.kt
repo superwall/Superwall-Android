@@ -23,7 +23,8 @@ class Entitlements(
     private val storage: Storage,
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Default),
 ) {
-    internal var web: Set<Entitlement> = storage.read(LatestRedemptionResponse)?.entitlements?.toSet() ?: emptySet()
+    internal var web: Set<Entitlement> =
+        storage.read(LatestRedemptionResponse)?.entitlements?.toSet() ?: emptySet()
 
     // MARK: - Private Properties
     private val _entitlementsByProduct = ConcurrentHashMap<String, Set<Entitlement>>()
@@ -87,8 +88,35 @@ class Entitlements(
         }
     }
 
+    private fun mergeWebEntitlements(entitlements: Set<Entitlement>) {
+        val mergedStatus =
+            when (val status = _status.value) {
+                is SubscriptionStatus.Active -> {
+                    if (entitlements.isEmpty() && _activeDeviceEntitlements.isEmpty()) {
+                        SubscriptionStatus.Inactive
+                    } else {
+                        SubscriptionStatus.Active(
+                            status.entitlements.plus(entitlements),
+                        )
+                    }
+                }
+
+                SubscriptionStatus.Inactive, SubscriptionStatus.Unknown ->
+                    if (entitlements.isEmpty()) {
+                        SubscriptionStatus.Inactive
+                    } else {
+                        SubscriptionStatus.Active(
+                            entitlements,
+                        )
+                    }
+            }
+
+        setSubscriptionStatus(mergedStatus)
+    }
+
     internal fun setWebEntitlements(entitlements: Set<Entitlement>) {
         web = entitlements
+        mergeWebEntitlements(entitlements)
     }
 
     /**
@@ -100,6 +128,7 @@ class Entitlements(
                 if (value.entitlements.isEmpty()) {
                     setSubscriptionStatus(SubscriptionStatus.Inactive)
                 } else {
+                    _activeDeviceEntitlements.addAll(value.entitlements)
                     _all.addAll(value.entitlements)
                     _inactive.removeAll(value.entitlements)
                     _status.value = value

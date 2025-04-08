@@ -90,8 +90,10 @@ class WebPaywallRedeemer(
     suspend fun redeem(code: String?) {
         // We want to keep track of the codes that have been retrieved by the user
         val latestResponse = storage.read(LatestRedemptionResponse)
-        track(Redemptions(RedemptionState.Start))
-        var allCodes = latestResponse?.allCodes?.toMutableList() ?: mutableListOf()
+        if (code != null) {
+            track(Redemptions(RedemptionState.Start))
+        }
+        val allCodes = latestResponse?.allCodes?.toMutableList() ?: mutableListOf()
         var isFirstRedemption = true
         if (allCodes.isNotEmpty()) {
             isFirstRedemption = !allCodes.map { it.code }.contains(code)
@@ -106,11 +108,13 @@ class WebPaywallRedeemer(
                 getAliasId(),
                 getDeviceId(),
             ).fold(onSuccess = {
-                track(
-                    Redemptions(
-                        RedemptionState.Complete(code ?: ""),
-                    ),
-                )
+                if (code != null) {
+                    track(
+                        Redemptions(
+                            RedemptionState.Complete(code),
+                        ),
+                    )
+                }
 
                 Logger.debug(
                     logLevel = LogLevel.debug,
@@ -140,15 +144,17 @@ class WebPaywallRedeemer(
                         redemptionResultForCode,
                     )
                 }
+
                 if (isPaywallVisible() && it.entitlements.containsAll(currentPaywallEntitlements())) {
                     showRestoreDialogAndDismiss()
                 }
             }, onFailure = {
-                track(
-                    Redemptions(
-                        RedemptionState.Fail(code ?: ""),
-                    ),
-                )
+                if (code != null)
+                    track(
+                        Redemptions(
+                            RedemptionState.Fail(code),
+                        ),
+                    )
                 Logger.debug(
                     logLevel = LogLevel.debug,
                     scope = LogScope.webEntitlements,
@@ -163,7 +169,7 @@ class WebPaywallRedeemer(
                         error =
                             ErrorInfo(
                                 it.localizedMessage ?: it.message
-                                    ?: "Redemption failed, error unknown",
+                                ?: "Redemption failed, error unknown",
                             ),
                     ),
                 )
@@ -214,7 +220,7 @@ class WebPaywallRedeemer(
         val userCodesToRemove =
             latestResponse?.codes?.filterIsInstance<RedemptionResult.Success>()?.filter {
                 ownership ==
-                    RedemptionOwnershipType.AppUser
+                        RedemptionOwnershipType.AppUser
             }
         // Find entitlements belonging to those codes
         val userCodeEntitlementsToRemove =
