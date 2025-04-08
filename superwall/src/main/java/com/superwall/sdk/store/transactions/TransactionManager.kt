@@ -70,7 +70,7 @@ class TransactionManager(
         Superwall.instance.entitlements.status.value
     },
     private val entitlementsById: (String) -> Set<Entitlement>,
-    private val showRestoreDialogForWeb: suspend () -> Boolean,
+    private val showRestoreDialogForWeb: suspend () -> Unit,
 ) {
     sealed class PurchaseSource {
         data class Internal(

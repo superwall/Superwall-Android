@@ -422,7 +422,6 @@ class DependencyContainer(
                 ioScope = ioScope(),
                 showRestoreDialogForWeb = {
                     showWebRestoreSuccesful()
-                    true
                 },
                 entitlementsById = {
                     entitlements.byProductId(it)

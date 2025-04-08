@@ -8,7 +8,7 @@ import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.misc.Either
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.models.entitlements.Entitlement
-import com.superwall.sdk.models.entitlements.SourceType
+import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.entitlements.WebEntitlements
 import com.superwall.sdk.models.internal.DeviceVendorId
 import com.superwall.sdk.models.internal.ErrorInfo
@@ -60,6 +60,16 @@ class WebPaywallRedeemerTest {
         mutableEntitlements
     }
 
+    private var isPaywallVisible = { false }
+    private var showRestoreDialogAndDismiss = {}
+    private var currentPaywallEntitlements = {
+        setOf<Entitlement>()
+    }
+    private var setSubscriptionStatus = { it: SubscriptionStatus -> }
+    private var getActiveDeviceEntitlements = {
+        setOf<Entitlement>()
+    }
+
     @Before
     fun setup() {
         mutableEntitlements = mutableSetOf()
@@ -69,7 +79,7 @@ class WebPaywallRedeemerTest {
     private val getUserId: () -> UserId = { UserId("test_user") }
     private val getDeviceId: () -> DeviceVendorId = { DeviceVendorId(VendorId("test_vendor")) }
     private val getAlias: () -> String = { "test_alias" }
-    private val offDeviceEntitlements: () -> Unit = {}
+    private val setActiveWebEntitlements: (Set<Entitlement>) -> Unit = {}
     private val track: (Trackable) -> Unit = {}
     private lateinit var redeemer: WebPaywallRedeemer
     private val network: Network = mockk {}
@@ -121,13 +131,16 @@ class WebPaywallRedeemerTest {
                         storage,
                         onRedemptionResult,
                         maxAge,
-                        setEntitlementStatus,
-                        getAllEntitlements,
+                        getActiveDeviceEntitlements,
                         getUserId,
                         getDeviceId,
                         getAlias,
                         track,
-                        offDeviceEntitlements,
+                        setActiveWebEntitlements,
+                        setSubscriptionStatus,
+                        isPaywallVisible,
+                        showRestoreDialogAndDismiss,
+                        currentPaywallEntitlements,
                     )
 
                 When("checking for referral") {
@@ -160,13 +173,16 @@ class WebPaywallRedeemerTest {
                         storage,
                         onRedemptionResult,
                         maxAge,
-                        setEntitlementStatus,
-                        getAllEntitlements,
+                        getActiveDeviceEntitlements,
                         getUserId,
                         getDeviceId,
                         getAlias,
                         track,
-                        offDeviceEntitlements,
+                        setActiveWebEntitlements,
+                        setSubscriptionStatus,
+                        isPaywallVisible,
+                        showRestoreDialogAndDismiss,
+                        currentPaywallEntitlements,
                     )
 
                 When("checking for referral") {
@@ -208,13 +224,16 @@ class WebPaywallRedeemerTest {
                         storage,
                         onRedemptionResult,
                         maxAge,
-                        setEntitlementStatus,
-                        getAllEntitlements,
+                        getActiveDeviceEntitlements,
                         getUserId,
                         getDeviceId,
                         getAlias,
                         track,
-                        offDeviceEntitlements,
+                        setActiveWebEntitlements,
+                        setSubscriptionStatus,
+                        isPaywallVisible,
+                        showRestoreDialogAndDismiss,
+                        currentPaywallEntitlements,
                     )
 
                 When("checking for referral") {
@@ -231,7 +250,6 @@ class WebPaywallRedeemerTest {
                                             exception.localizedMessage ?: exception.message ?: "",
                                         ),
                                 ),
-                                any(),
                             )
                         }
                     }
@@ -263,13 +281,16 @@ class WebPaywallRedeemerTest {
                         storage,
                         onRedemptionResult,
                         maxAge,
-                        setEntitlementStatus,
-                        getAllEntitlements,
+                        getActiveDeviceEntitlements,
                         getUserId,
                         getDeviceId,
                         getAlias,
                         track,
-                        offDeviceEntitlements,
+                        setActiveWebEntitlements,
+                        setSubscriptionStatus,
+                        isPaywallVisible,
+                        showRestoreDialogAndDismiss,
+                        currentPaywallEntitlements,
                     )
 
                 When("checking for web entitlements") {
@@ -309,13 +330,16 @@ class WebPaywallRedeemerTest {
                         storage,
                         onRedemptionResult,
                         maxAge,
-                        setEntitlementStatus,
-                        getAllEntitlements,
+                        getActiveDeviceEntitlements,
                         getUserId,
                         getDeviceId,
                         getAlias,
                         track,
-                        offDeviceEntitlements,
+                        setActiveWebEntitlements,
+                        setSubscriptionStatus,
+                        isPaywallVisible,
+                        showRestoreDialogAndDismiss,
+                        currentPaywallEntitlements,
                     )
 
                 When("checking for web entitlements") {
@@ -338,7 +362,8 @@ class WebPaywallRedeemerTest {
     fun `test checkForWebEntitlements with partially successful responses - user success`() =
         runTest(testDispatcher) {
             Given("a WebPaywallRedeemer with only user entitlements succeeding") {
-                val userEntitlements = setOf(Entitlement("user_entitlement", source = setOf(SourceType.WEB)))
+                val userEntitlements =
+                    setOf(Entitlement("user_entitlement"))
 
                 coEvery {
                     network.webEntitlementsByUserId(UserId("test_user"), any())
@@ -357,14 +382,18 @@ class WebPaywallRedeemerTest {
                         storage,
                         onRedemptionResult,
                         maxAge,
-                        setEntitlementStatus,
-                        getAllEntitlements,
+                        getActiveDeviceEntitlements,
                         getUserId,
                         getDeviceId,
                         getAlias,
                         track,
-                        offDeviceEntitlements,
+                        setActiveWebEntitlements,
+                        setSubscriptionStatus,
+                        isPaywallVisible,
+                        showRestoreDialogAndDismiss,
+                        currentPaywallEntitlements,
                     )
+
                 When("checking for web entitlements") {
                     val result =
                         redeemer.checkForWebEntitlements(
@@ -410,13 +439,16 @@ class WebPaywallRedeemerTest {
                         storage,
                         onRedemptionResult,
                         maxAge,
-                        setEntitlementStatus,
-                        getAllEntitlements,
+                        getActiveDeviceEntitlements,
                         getUserId,
                         getDeviceId,
                         getAlias,
                         track,
-                        offDeviceEntitlements,
+                        setActiveWebEntitlements,
+                        setSubscriptionStatus,
+                        isPaywallVisible,
+                        showRestoreDialogAndDismiss,
+                        currentPaywallEntitlements,
                     )
 
                 When("checking for web entitlements") {
@@ -460,13 +492,16 @@ class WebPaywallRedeemerTest {
                         storage,
                         onRedemptionResult,
                         maxAge,
-                        setEntitlementStatus,
-                        getAllEntitlements,
+                        getActiveDeviceEntitlements,
                         getUserId,
                         getDeviceId,
                         getAlias,
                         track,
-                        offDeviceEntitlements,
+                        setActiveWebEntitlements,
+                        setSubscriptionStatus,
+                        isPaywallVisible,
+                        showRestoreDialogAndDismiss,
+                        currentPaywallEntitlements,
                     )
 
                 When("checking for web entitlements") {
@@ -552,14 +587,18 @@ class WebPaywallRedeemerTest {
                     storage,
                     onRedemptionResult,
                     maxAge,
-                    setEntitlementStatus,
-                    getAllEntitlements,
+                    getActiveDeviceEntitlements,
                     getUserId,
                     getDeviceId,
                     getAlias,
                     track,
-                    offDeviceEntitlements,
+                    setActiveWebEntitlements,
+                    setSubscriptionStatus,
+                    isPaywallVisible,
+                    showRestoreDialogAndDismiss,
+                    currentPaywallEntitlements,
                 )
+
             storage.write(LatestRedemptionResponse, response)
             When("We call clean") {
                 redeemer.clear(RedemptionOwnershipType.AppUser)

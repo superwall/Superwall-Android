@@ -65,7 +65,7 @@ class MainApplication :
         )
 
         if (!isRunningTest()) {
-            configureWithObserverMode()
+            configureWithAutomaticInitialization()
         }
 //        configureWithRevenueCatInitialization()
     }
@@ -80,7 +80,7 @@ class MainApplication :
                 SuperwallOptions().apply {
                     paywalls =
                         PaywallOptions().apply {
-                            shouldPreload = false
+                            shouldPreload = true
                         }
                 },
         )
@@ -99,7 +99,7 @@ class MainApplication :
                 SuperwallOptions().apply {
                     paywalls =
                         PaywallOptions().apply {
-                            shouldPreload = false
+                            shouldPreload = true
                         }
                 },
         )
