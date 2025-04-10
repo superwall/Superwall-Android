@@ -1,4 +1,4 @@
-package com.superwall.exampleapp
+package com.superwall.superapp
 
 import android.app.AlertDialog
 import android.content.Context
