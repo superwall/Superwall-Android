@@ -2,6 +2,11 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.0.6
+
+## Fixes
+- Fix potential crash while setting render priority
+
 ## 2.0.5
 
 ## Fixes
