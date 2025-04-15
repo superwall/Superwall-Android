@@ -314,7 +314,16 @@ class PaywallView(
         Superwall.instance.dependencyContainer.delegateAdapter
             .willPresentPaywall(info)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            webView.setRendererPriorityPolicy(RENDERER_PRIORITY_IMPORTANT, true)
+            try {
+                webView.setRendererPriorityPolicy(RENDERER_PRIORITY_IMPORTANT, true)
+            } catch (e: Throwable) {
+                Logger.debug(
+                    LogLevel.info,
+                    LogScope.paywallView,
+                    "Cannot set webview priority when beginning presentation",
+                    error = e,
+                )
+            }
         }
         webView.scrollTo(0, 0)
         if (loadingState is PaywallLoadingState.Ready) {
