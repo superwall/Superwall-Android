@@ -7,18 +7,18 @@ import com.superwall.sdk.config.models.Survey
 import com.superwall.sdk.config.models.SurveyOption
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.config.options.toMap
-import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.dependencies.ComputedPropertyRequestsFactory
 import com.superwall.sdk.dependencies.FeatureFlagsFactory
 import com.superwall.sdk.dependencies.RuleAttributesFactory
+import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.triggers.InternalTriggerResult
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatus
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatusReason
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
-import com.superwall.sdk.paywall.vc.Survey.SurveyPresentationResult
-import com.superwall.sdk.paywall.vc.web_view.WebviewError
+import com.superwall.sdk.paywall.view.survey.SurveyPresentationResult
+import com.superwall.sdk.paywall.view.webview.WebviewError
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
@@ -26,17 +26,17 @@ import com.superwall.sdk.store.transactions.RestoreType
 import com.superwall.sdk.store.transactions.TransactionError
 
 interface TrackableSuperwallEvent : Trackable {
-    val superwallEvent: SuperwallEvent
+    val superwallPlacement: SuperwallEvent
 }
 
 sealed class InternalSuperwallEvent(
-    override val superwallEvent: SuperwallEvent,
+    override val superwallPlacement: SuperwallEvent,
 ) : TrackableSuperwallEvent {
     override val rawName: String
-        get() = this.superwallEvent.rawName
+        get() = this.superwallPlacement.rawName
 
     override val canImplicitlyTriggerPaywall: Boolean
-        get() = this.superwallEvent.canImplicitlyTriggerPaywall
+        get() = this.superwallPlacement.canImplicitlyTriggerPaywall
 
     class AppOpen(
         override var audienceFilterParams: HashMap<String, Any> = HashMap(),
@@ -77,7 +77,7 @@ sealed class InternalSuperwallEvent(
                 paywallInfo,
             ),
         ) {
-        override val superwallEvent: SuperwallEvent
+        override val superwallPlacement: SuperwallEvent
             get() =
                 SuperwallEvent.SurveyResponse(
                     survey,
@@ -203,7 +203,7 @@ sealed class InternalSuperwallEvent(
             ) : State()
         }
 
-        override val superwallEvent: SuperwallEvent
+        override val superwallPlacement: SuperwallEvent
             get() =
                 when (state) {
                     is State.Start ->
@@ -261,7 +261,12 @@ sealed class InternalSuperwallEvent(
     ) : InternalSuperwallEvent(SuperwallEvent.SubscriptionStatusDidChange()) {
         override suspend fun getSuperwallParameters(): HashMap<String, Any> =
             hashMapOf(
-                "subscription_status" to subscriptionStatus.toString(),
+                "subscription_status" to
+                    when (subscriptionStatus) {
+                        is SubscriptionStatus.Active -> "active"
+                        is SubscriptionStatus.Inactive -> "inactive"
+                        is SubscriptionStatus.Unknown -> "unknown"
+                    },
             )
     }
 
@@ -305,7 +310,7 @@ sealed class InternalSuperwallEvent(
         override var audienceFilterParams: HashMap<String, Any> = HashMap(),
     ) : InternalSuperwallEvent(
             SuperwallEvent.TriggerFire(
-                eventName = triggerName,
+                placementName = triggerName,
                 result = triggerResult.toPublicType(),
             ),
         ) {
@@ -316,7 +321,7 @@ sealed class InternalSuperwallEvent(
                 )
 
             return when (triggerResult) {
-                is InternalTriggerResult.NoRuleMatch -> {
+                is InternalTriggerResult.NoAudienceMatch -> {
                     params.apply {
                         this["result"] = "no_rule_match"
                     }
@@ -340,7 +345,7 @@ sealed class InternalSuperwallEvent(
                     }
                 }
 
-                is InternalTriggerResult.EventNotFound -> {
+                is InternalTriggerResult.PlacementNotFound -> {
                     params.apply {
                         this["result"] = "eventNotFound"
                     }
@@ -434,7 +439,17 @@ sealed class InternalSuperwallEvent(
         val paywallInfo: PaywallInfo,
         val product: StoreProduct?,
         val model: StoreTransaction?,
+        val source: TransactionSource,
+        val isObserved: Boolean,
     ) : TrackableSuperwallEvent {
+        enum class TransactionSource(
+            val raw: String,
+        ) {
+            INTERNAL("SUPERWALL"),
+            OBSERVER("OBSERVER"),
+            EXTERNAL("APP"),
+        }
+
         sealed class State {
             class Start(
                 val product: StoreProduct,
@@ -463,7 +478,7 @@ sealed class InternalSuperwallEvent(
         override val audienceFilterParams: Map<String, Any>
             get() {
                 return paywallInfo.audienceFilterParams().let {
-                    if (superwallEvent is SuperwallEvent.TransactionAbandon) {
+                    if (superwallPlacement is SuperwallEvent.TransactionAbandon) {
                         it.plus("abandoned_product_id" to (product?.productIdentifier ?: ""))
                     } else {
                         it
@@ -471,7 +486,7 @@ sealed class InternalSuperwallEvent(
                 }
             }
 
-        override val superwallEvent: SuperwallEvent
+        override val superwallPlacement: SuperwallEvent
             get() =
                 when (state) {
                     is State.Start ->
@@ -508,10 +523,10 @@ sealed class InternalSuperwallEvent(
                     is State.Timeout -> SuperwallEvent.TransactionTimeout(paywallInfo = paywallInfo)
                 }
         override val rawName: String
-            get() = superwallEvent.rawName
+            get() = superwallPlacement.rawName
 
         override val canImplicitlyTriggerPaywall: Boolean
-            get() = superwallEvent.canImplicitlyTriggerPaywall
+            get() = if (isObserved) false else superwallPlacement.canImplicitlyTriggerPaywall
 
         override suspend fun getSuperwallParameters(): HashMap<String, Any> {
             return when (state) {
@@ -630,7 +645,7 @@ sealed class InternalSuperwallEvent(
             class Complete : State()
         }
 
-        override val superwallEvent: SuperwallEvent
+        override val superwallPlacement: SuperwallEvent
             get() =
                 when (state) {
                     is PaywallWebviewLoad.State.Start ->
@@ -713,7 +728,7 @@ sealed class InternalSuperwallEvent(
             class Complete : State()
         }
 
-        override val superwallEvent: SuperwallEvent
+        override val superwallPlacement: SuperwallEvent
             get() =
                 when (state) {
                     is State.Start ->
@@ -830,7 +845,13 @@ sealed class InternalSuperwallEvent(
         val placementName: String,
         val paywallInfo: PaywallInfo,
         val params: Map<String, Any>,
-    ) : InternalSuperwallEvent(SuperwallEvent.CustomPlacement(placementName, paywallInfo, params)) {
+    ) : InternalSuperwallEvent(
+            SuperwallEvent.CustomPlacement(
+                placementName,
+                paywallInfo,
+                params,
+            ),
+        ) {
         override val audienceFilterParams: Map<String, Any>
             get() = paywallInfo.audienceFilterParams() + params
 
@@ -866,7 +887,7 @@ sealed class InternalSuperwallEvent(
         override val audienceFilterParams: Map<String, Any> = emptyMap()
 
         override val rawName: String
-            get() = superwallEvent.rawName
+            get() = superwallPlacement.rawName
 
         override suspend fun getSuperwallParameters(): Map<String, Any> =
             mapOf(
@@ -878,7 +899,8 @@ sealed class InternalSuperwallEvent(
         override val canImplicitlyTriggerPaywall: Boolean = false
     }
 
-    object ConfirmAllAssignments : InternalSuperwallEvent(SuperwallEvent.ConfirmAllAssignments) {
+    object ConfirmAllAssignments :
+        InternalSuperwallEvent(SuperwallEvent.ConfirmAllAssignments) {
         override val audienceFilterParams: Map<String, Any> = emptyMap()
 
         override suspend fun getSuperwallParameters(): Map<String, Any> = emptyMap()

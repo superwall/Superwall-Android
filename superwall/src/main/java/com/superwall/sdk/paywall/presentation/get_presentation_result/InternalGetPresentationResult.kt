@@ -41,11 +41,10 @@ private fun handle(
     }
 
     return when (error) {
-        is PaywallPresentationRequestStatusReason.UserIsSubscribed -> PresentationResult.UserIsSubscribed()
         is PaywallPresentationRequestStatusReason.NoPaywallView -> PresentationResult.PaywallNotAvailable()
-        is PaywallPresentationRequestStatusReason.NoRuleMatch -> PresentationResult.NoRuleMatch()
+        is PaywallPresentationRequestStatusReason.NoAudienceMatch -> PresentationResult.NoAudienceMatch()
         is PaywallPresentationRequestStatusReason.Holdout -> PresentationResult.Holdout(error.experiment)
-        is PaywallPresentationRequestStatusReason.EventNotFound -> PresentationResult.EventNotFound()
+        is PaywallPresentationRequestStatusReason.PlacementNotFound -> PresentationResult.PlacementNotFound()
         is PaywallPresentationRequestStatusReason.DebuggerPresented,
         is PaywallPresentationRequestStatusReason.NoPresenter,
         is PaywallPresentationRequestStatusReason.PaywallAlreadyPresented,

@@ -7,7 +7,7 @@ import com.superwall.sdk.models.triggers.TriggerResult
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatus
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatusReason
-import com.superwall.sdk.paywall.vc.web_view.WebviewError
+import com.superwall.sdk.paywall.view.webview.WebviewError
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
 import com.superwall.sdk.store.transactions.RestoreType
@@ -16,6 +16,9 @@ import com.superwall.sdk.store.transactions.TransactionError
 internal interface IsInternalEvent {
     val rawName: String
 }
+
+@Deprecated("Use SuperwallEvent")
+typealias SuperwallPlacement = SuperwallEvent
 
 // / Analytical events that are automatically tracked by Superwall.
 // /
@@ -102,7 +105,7 @@ sealed class SuperwallEvent {
     // /
     // / The result of firing the trigger is accessible in the `result` associated value.
     data class TriggerFire(
-        val eventName: String,
+        val placementName: String,
         val result: TriggerResult,
     ) : SuperwallEvent() {
         override val rawName: String
@@ -250,7 +253,7 @@ sealed class SuperwallEvent {
 
     // / When a paywall's request to Superwall's servers has started.
     data class PaywallResponseLoadStart(
-        val triggeredEventName: String?,
+        val triggeredPlacementName: String?,
     ) : SuperwallEvent() {
         override val rawName: String
             get() = "paywallResponseLoad_start"
@@ -258,7 +261,7 @@ sealed class SuperwallEvent {
 
     // / When a paywall's request to Superwall's servers returned a 404 error.
     data class PaywallResponseLoadNotFound(
-        val triggeredEventName: String?,
+        val triggeredPlacementName: String?,
     ) : SuperwallEvent() {
         override val rawName: String
             get() = "paywallResponseLoad_notFound"
@@ -266,7 +269,7 @@ sealed class SuperwallEvent {
 
     // / When a paywall's request to Superwall's servers produced an error.
     data class PaywallResponseLoadFail(
-        val triggeredEventName: String?,
+        val triggeredPlacementName: String?,
     ) : SuperwallEvent() {
         override val rawName: String
             get() = "paywallResponseLoad_fail"
@@ -274,7 +277,7 @@ sealed class SuperwallEvent {
 
     // / When a paywall's request to Superwall's servers is complete.
     data class PaywallResponseLoadComplete(
-        val triggeredEventName: String?,
+        val triggeredPlacementName: String?,
         val paywallInfo: PaywallInfo,
     ) : SuperwallEvent() {
         override val rawName: String
@@ -324,7 +327,7 @@ sealed class SuperwallEvent {
 
     // / When the request to load the paywall's products started.
     data class PaywallProductsLoadStart(
-        val triggeredEventName: String?,
+        val triggeredPlacementName: String?,
         val paywallInfo: PaywallInfo,
     ) : SuperwallEvent() {
         override val rawName: String
@@ -334,7 +337,7 @@ sealed class SuperwallEvent {
     // / When the request to load the paywall's products failed.
     data class PaywallProductsLoadFail(
         val errorMessage: String?,
-        val triggeredEventName: String?,
+        val triggeredPlacementName: String?,
         val paywallInfo: PaywallInfo,
     ) : SuperwallEvent() {
         override val rawName: String
@@ -343,7 +346,7 @@ sealed class SuperwallEvent {
 
     // / When the request to load the paywall's products completed.
     data class PaywallProductsLoadComplete(
-        val triggeredEventName: String?,
+        val triggeredPlacementName: String?,
         val paywallInfo: PaywallInfo,
     ) : SuperwallEvent() {
         override val rawName: String

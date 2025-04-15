@@ -14,7 +14,7 @@ sealed class InternalPurchaseResult {
     object Pending : InternalPurchaseResult()
 
     data class Failed(
-        val error: Exception,
+        val error: Throwable,
     ) : InternalPurchaseResult()
 }
 
@@ -46,11 +46,6 @@ sealed class PurchaseResult {
      * With RevenueCat, this is retrieved by checking the specific error during purchase.
      */
     class Pending : PurchaseResult()
-
-    /**
-     * The product was restored.
-     */
-    class Restored : PurchaseResult()
 
     /**
      * The purchase failed for a reason other than the user cancelling or the payment pending.

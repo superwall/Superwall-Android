@@ -24,19 +24,16 @@ sealed class PaywallPresentationRequestStatusReason(
     /** There's already a paywall presented. */
     class PaywallAlreadyPresented : PaywallPresentationRequestStatusReason("paywall_already_presented")
 
-    /** The user is subscribed. */
-    class UserIsSubscribed : PaywallPresentationRequestStatusReason("user_is_subscribed")
-
     /** The user is in a holdout group. */
     data class Holdout(
         val experiment: Experiment,
     ) : PaywallPresentationRequestStatusReason("holdout")
 
     /** No rules defined in the campaign for the event matched. */
-    class NoRuleMatch : PaywallPresentationRequestStatusReason("no_rule_match")
+    class NoAudienceMatch : PaywallPresentationRequestStatusReason("no_rule_match")
 
     /** The event provided was not found in any campaign on the dashboard. */
-    class EventNotFound : PaywallPresentationRequestStatusReason("event_not_found")
+    class PlacementNotFound : PaywallPresentationRequestStatusReason("event_not_found")
 
     /** There was an error getting the paywall view. */
     class NoPaywallView : PaywallPresentationRequestStatusReason("no_paywall_view_controller")
@@ -48,12 +45,10 @@ sealed class PaywallPresentationRequestStatusReason(
     class NoConfig : PaywallPresentationRequestStatusReason("no_config")
 
     /**
-     * The subscription status timed out.
-     * This happens when the subscriptionStatus stays unknown for more than 5 seconds.
+     * The entitlement status timed out.
+     * This happens when the entitlementStatus stays unknown for more than 5 seconds.
      */
     class SubscriptionStatusTimeout : PaywallPresentationRequestStatusReason("subscription_status_timeout")
 }
 
-@Deprecated("Will be removed in the upcoming versions, use NoPaywallView instead")
-typealias NoPaywallController = PaywallPresentationRequestStatusReason.NoPaywallView
 typealias PresentationPipelineError = PaywallPresentationRequestStatusReason

@@ -2,13 +2,14 @@ package com.superwall.sdk.store.abstractions.product
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.ProductDetails.PricingPhase
 import com.android.billingclient.api.ProductDetails.SubscriptionOfferDetails
+import com.superwall.sdk.billing.DecomposedProductIds
 import com.superwall.sdk.contrib.threeteen.AmountFormats
 import com.superwall.sdk.utilities.DateUtils
 import com.superwall.sdk.utilities.dateFormat
 import kotlinx.serialization.Transient
+import org.threeten.bp.Period
 import java.math.BigDecimal
 import java.math.RoundingMode
-import java.time.Period
 import java.util.Calendar
 import java.util.Currency
 import java.util.Locale
@@ -19,6 +20,18 @@ class RawStoreProduct(
     val basePlanId: String?,
     private val offerType: OfferType?,
 ) : StoreProductType {
+    companion object {
+        fun from(details: ProductDetails): RawStoreProduct {
+            val ids = DecomposedProductIds.from(details.productId)
+            return RawStoreProduct(
+                underlyingProductDetails = details,
+                fullIdentifier = details.productId,
+                basePlanId = ids.basePlanId,
+                offerType = ids.offerType,
+            )
+        }
+    }
+
     @Transient
     private val priceFormatterProvider = PriceFormatterProvider()
 
@@ -277,7 +290,10 @@ class RawStoreProduct(
         val offersForBasePlan = subscriptionOfferDetails.filter { it.basePlanId == basePlanId }
 
         // In offers that match base plan, if there's only 1 pricing phase then this offer represents the base plan.
-        val basePlan = offersForBasePlan.firstOrNull { it.pricingPhases.pricingPhaseList.size == 1 } ?: return null
+        val basePlan =
+            offersForBasePlan.firstOrNull {
+                it.pricingPhases.pricingPhaseList.size == 1
+            } ?: return null
 
         return when (offerType) {
             is OfferType.Auto -> {
@@ -485,7 +501,8 @@ class RawStoreProduct(
                 .billingPeriod
 
         try {
-            SubscriptionPeriod.from(baseBillingPeriod)
+            SubscriptionPeriod.from(baseBillingPeriod).also {
+            }
         } catch (e: Throwable) {
             null
         }

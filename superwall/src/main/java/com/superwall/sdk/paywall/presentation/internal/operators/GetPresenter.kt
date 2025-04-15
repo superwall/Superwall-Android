@@ -4,52 +4,37 @@ import android.app.Activity
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
-import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
-import com.superwall.sdk.models.assignment.ConfirmableAssignment
 import com.superwall.sdk.models.triggers.InternalTriggerResult
 import com.superwall.sdk.paywall.presentation.internal.InternalPresentationLogic
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatusReason
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
-import com.superwall.sdk.paywall.presentation.internal.state.PaywallSkippedReason
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.paywall.presentation.rule_logic.RuleEvaluationOutcome
-import com.superwall.sdk.paywall.vc.PaywallView
+import com.superwall.sdk.paywall.view.PaywallView
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.first
 
-data class PresentablePipelineOutput(
-    val debugInfo: Map<String, Any>,
-    val paywallView: PaywallView,
-    val presenter: Activity,
-    val confirmableAssignment: ConfirmableAssignment?,
-)
-
-suspend fun Superwall.getPresenterIfNecessary(
+/**
+ * Checks conditions for whether the paywall can present before accessing a window on
+ * which the paywall can present.
+ *
+ * @param paywallView The [PaywallView] to present.
+ * @param rulesOutcome The output from evaluating rules.
+ * @param request The presentation request.
+ * @param paywallStatePublisher A [MutableSharedFlow] that gets sent [PaywallState] objects.
+ *
+ * @return An [Activity] to present on, or null if presentation is not necessary.
+ */
+internal suspend fun Superwall.getPresenterIfNecessary(
     paywallView: PaywallView,
     rulesOutcome: RuleEvaluationOutcome,
     request: PresentationRequest,
     paywallStatePublisher: MutableSharedFlow<PaywallState>? = null,
 ): Activity? {
-    val subscriptionStatus = request.flags.subscriptionStatus.first()
-    if (InternalPresentationLogic.userSubscribedAndNotOverridden(
-            isUserSubscribed = subscriptionStatus == SubscriptionStatus.ACTIVE,
-            overrides =
-                InternalPresentationLogic.UserSubscriptionOverrides(
-                    isDebuggerLaunched = request.flags.isDebuggerLaunched,
-                    shouldIgnoreSubscriptionStatus = request.paywallOverrides?.ignoreSubscriptionStatus,
-                    presentationCondition = paywallView.paywall.presentation.condition,
-                ),
-        )
-    ) {
-        paywallStatePublisher?.emit(PaywallState.Skipped(PaywallSkippedReason.UserIsSubscribed()))
-        throw PaywallPresentationRequestStatusReason.UserIsSubscribed()
-    }
-
     when (request.flags.type) {
         is PresentationRequestType.GetPaywall -> {
             val sessionId =
@@ -64,6 +49,7 @@ suspend fun Superwall.getPresenterIfNecessary(
         is PresentationRequestType.GetPresentationResult,
         is PresentationRequestType.ConfirmAllAssignments,
         -> return null
+
         is PresentationRequestType.Presentation -> Unit
         else -> Unit
     }
@@ -96,7 +82,7 @@ suspend fun Superwall.getPresenterIfNecessary(
     return currentActivity
 }
 
-suspend fun Superwall.attemptTriggerFire(
+internal suspend fun Superwall.attemptTriggerFire(
     request: PresentationRequest,
     triggerResult: InternalTriggerResult,
 ) {
@@ -106,11 +92,13 @@ suspend fun Superwall.attemptTriggerFire(
     when (val req = request.presentationInfo) {
         is PresentationInfo.ExplicitTrigger, is PresentationInfo.ImplicitTrigger -> {
             when (triggerResult) {
-                is InternalTriggerResult.Error, is InternalTriggerResult.EventNotFound ->
+                is InternalTriggerResult.Error, is InternalTriggerResult.PlacementNotFound ->
                     return
+
                 else -> {} // No-op
             }
         }
+
         is PresentationInfo.FromIdentifier -> {} // No-op
     }
     val trackedEvent =

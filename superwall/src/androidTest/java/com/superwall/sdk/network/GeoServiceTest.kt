@@ -37,6 +37,7 @@ class GeoServiceTest {
                     CustomHttpUrlConnection(
                         Json { ignoreUnknownKeys = true },
                         executor,
+                        emptyList(),
                     ),
             )
     }

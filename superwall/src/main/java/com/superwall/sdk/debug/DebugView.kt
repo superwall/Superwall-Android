@@ -31,7 +31,6 @@ import com.superwall.sdk.BuildConfig
 import com.superwall.sdk.R
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.debug.localizations.SWLocalizationActivity
-import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.dependencies.RequestFactory
 import com.superwall.sdk.dependencies.ViewFactory
 import com.superwall.sdk.logger.LogLevel
@@ -39,6 +38,7 @@ import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.fold
 import com.superwall.sdk.misc.toResult
+import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.paywall.manager.PaywallManager
@@ -49,8 +49,8 @@ import com.superwall.sdk.paywall.presentation.internal.state.PaywallSkippedReaso
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.paywall.request.PaywallRequestManager
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
-import com.superwall.sdk.paywall.vc.ActivityEncapsulatable
-import com.superwall.sdk.store.StoreKitManager
+import com.superwall.sdk.paywall.view.ActivityEncapsulatable
+import com.superwall.sdk.store.StoreManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -65,7 +65,7 @@ interface AppCompatActivityEncapsulatable {
 
 class DebugView(
     private val context: Context,
-    private val storeKitManager: StoreKitManager,
+    private val storeManager: StoreManager,
     private val network: Network,
     private val paywallRequestManager: PaywallRequestManager,
     private val paywallManager: PaywallManager,
@@ -83,7 +83,7 @@ class DebugView(
         val style: Int = AlertDialog.BUTTON_POSITIVE,
     )
 
-    // The full screen activity instance if this view controller has been presented in one.
+    // The full screen activity instance if this view has been presented in one.
     override var encapsulatingActivity: AppCompatActivity? = null
 
     internal var paywallDatabaseId: String? = null
@@ -561,12 +561,11 @@ class DebugView(
                     overrides = null,
                     isDebuggerLaunched = true,
                     presentationSourceType = null,
-                    retryCount = 6,
                 )
             var paywall = paywallRequestManager.getPaywall(request).toResult().getOrThrow()
 
             val productVariables =
-                storeKitManager.getProductVariables(
+                storeManager.getProductVariables(
                     paywall,
                     request = request,
                 )
@@ -737,7 +736,7 @@ class DebugView(
 
         try {
             val (productsById, _) =
-                storeKitManager.getProducts(
+                storeManager.getProducts(
                     paywall = paywall,
                 )
 
@@ -763,7 +762,7 @@ class DebugView(
         // Set the completion callback
         SWLocalizationActivity.completion = { locale ->
             // Handle the locale identifier
-            Superwall.instance.options.localeIdentifier = locale
+            Superwall.instance.localeIdentifier = locale
             // Continue with any other operations after locale selection
             CoroutineScope(Dispatchers.IO).launch {
                 loadPreview()
@@ -836,7 +835,7 @@ class DebugView(
         // bottomButton.setImageDrawable(null)
         // bottomButton.showLoading = true
 
-        val inactiveSubscriptionPublisher = MutableStateFlow(SubscriptionStatus.INACTIVE)
+        val inactiveSubscriptionPublisher = MutableStateFlow(SubscriptionStatus.Inactive)
 
         val presentationRequest =
             factory.makePresentationRequest(
@@ -868,8 +867,8 @@ class DebugView(
                         val errorMessage =
                             when (state.paywallSkippedReason) {
                                 is PaywallSkippedReason.Holdout -> "The user was assigned to a holdout."
-                                is PaywallSkippedReason.NoRuleMatch -> "The user didn't match a rule."
-                                is PaywallSkippedReason.EventNotFound -> "Couldn't find event."
+                                is PaywallSkippedReason.NoAudienceMatch -> "The user didn't match a rule."
+                                is PaywallSkippedReason.PlacementNotFound -> "Couldn't find event."
                                 is PaywallSkippedReason.UserIsSubscribed -> "The user is subscribed."
                             }
                         presentAlert(

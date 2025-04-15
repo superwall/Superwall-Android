@@ -45,7 +45,7 @@ class RuleLogic(
         return withErrorTracking {
             val trigger =
                 triggers[event.name]
-                    ?: return@withErrorTracking RuleEvaluationOutcome(triggerResult = InternalTriggerResult.EventNotFound)
+                    ?: return@withErrorTracking RuleEvaluationOutcome(triggerResult = InternalTriggerResult.PlacementNotFound)
 
             val ruleMatchOutcome = findMatchingRule(event, trigger)
 
@@ -53,7 +53,7 @@ class RuleLogic(
                 when (ruleMatchOutcome) {
                     is RuleMatchOutcome.Matched -> ruleMatchOutcome.item
                     is RuleMatchOutcome.NoMatchingRules -> return@withErrorTracking RuleEvaluationOutcome(
-                        triggerResult = InternalTriggerResult.NoRuleMatch(ruleMatchOutcome.unmatchedRules),
+                        triggerResult = InternalTriggerResult.NoAudienceMatch(ruleMatchOutcome.unmatchedRules),
                     )
                 }
 

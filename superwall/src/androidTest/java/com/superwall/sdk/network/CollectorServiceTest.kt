@@ -41,6 +41,7 @@ class CollectorServiceTest {
                     CustomHttpUrlConnection(
                         Json { ignoreUnknownKeys = true },
                         executor,
+                        emptyList(),
                     ),
             )
     }

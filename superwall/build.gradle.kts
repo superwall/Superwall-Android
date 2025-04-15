@@ -23,24 +23,26 @@ plugins {
     id("signing")
 }
 
-version = "1.5.5"
+version = "2.0.6"
 
 android {
     compileSdk = 34
     namespace = "com.superwall.sdk"
 
     defaultConfig {
-        minSdkVersion(26)
+        minSdkVersion(22)
         targetSdkVersion(33)
 
         aarMetadata {
             minCompileSdk = 26
         }
 
+        ndk {
+            abiFilters += listOf("armeabi-v7a", "arm64-v8a", "x86_64", "x86")
+        }
+
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
-
-        consumerProguardFile("proguard-rules.pro")
 
         val gitSha =
             project
@@ -58,10 +60,14 @@ android {
     }
 
     buildTypes {
-        getByName("release") {
-            isMinifyEnabled = false
+        debug {
+            consumerProguardFile("proguard-rules.pro")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            consumerProguardFile("../consumer-rules.pro")
+        }
+        release {
+            isMinifyEnabled = false
+            consumerProguardFile("proguard-rules.pro")
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
 
@@ -71,12 +77,7 @@ android {
     }
 
     buildFeatures {
-        compose = true
         buildConfig = true
-    }
-
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.0"
     }
 
     kotlinOptions {
@@ -189,9 +190,7 @@ dependencies {
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
     ksp(libs.room.compiler)
-    implementation(libs.javascriptengine)
     implementation(libs.kotlinx.coroutines.guava)
-
     implementation(libs.threetenbp)
     // Billing
     implementation(libs.billing)
@@ -209,13 +208,6 @@ dependencies {
     // Coroutines
     implementation(libs.kotlinx.coroutines.core)
 
-    // Compose
-    implementation(platform(libs.compose.bom))
-    implementation(libs.ui)
-    implementation(libs.ui.graphics)
-    implementation(libs.ui.tooling.preview)
-    implementation(libs.material3)
-
     // Serialization
     implementation(libs.kotlinx.serialization.json)
 
@@ -229,4 +221,5 @@ dependencies {
     androidTestImplementation(libs.espresso.core)
     androidTestImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.mockk.android)
+    androidTestImplementation(libs.lifecycle.testing)
 }
