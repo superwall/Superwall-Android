@@ -61,7 +61,7 @@ class MainApplication :
         )
 
         if (!isRunningTest()) {
-            configureWithObserverMode()
+            configureWithAutomaticInitialization()
         }
 //        configureWithRevenueCatInitialization()
     }
@@ -80,7 +80,6 @@ class MainApplication :
                         }
                 },
         )
-        Superwall.instance.placements
         Superwall.instance.delegate = this
 
         // Make sure we enable the game controller

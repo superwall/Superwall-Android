@@ -22,6 +22,7 @@ import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.then
 import com.superwall.sdk.misc.toResult
 import com.superwall.sdk.models.config.ComputedPropertyRequest
+import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.geo.GeoInfo
 import com.superwall.sdk.network.JsonFactory
@@ -486,6 +487,14 @@ class DeviceHelper(
                 activeEntitlementsObject =
                     Superwall.instance.entitlements.active
                         .map { mapOf("identifier" to it.id, "type" to it.type.raw) },
+                subscriptionStatus =
+                    Superwall.instance.subscriptionStatus.value?.let {
+                        when (it) {
+                            is SubscriptionStatus.Active -> "ACTIVE"
+                            is SubscriptionStatus.Inactive -> "INACTIVE"
+                            is SubscriptionStatus.Unknown -> "UNKNOWN"
+                        }
+                    },
                 activeProducts = factory.activeProductIds(),
                 isFirstAppOpen = isFirstAppOpen,
                 sdkVersion = sdkVersion,
