@@ -144,7 +144,14 @@ internal fun Any.toPassableValue(): PassableValue =
                 this.map { it?.toPassableValue() ?: PassableValue.NullValue },
             )
         is LinkedHashMap<*, *> -> {
-            this.toMap().toPassableValue()
+            // Due to issues with Kotlin 2.0 compatibility we have to use this workaround
+            val stringKeyMap =
+                this
+                    .filterKeys { it is String }
+                    .mapKeys { it.key as String }
+            PassableValue.MapValue(
+                stringKeyMap.mapValues { it.value?.toPassableValue() ?: PassableValue.NullValue }.toMap(),
+            )
         }
         is Map<*, *> -> {
             val stringKeyMap =
