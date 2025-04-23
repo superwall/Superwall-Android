@@ -79,6 +79,7 @@ class SWWebView(
     }
 
     private var lastWebViewClient: WebViewClient? = null
+    private var lastLoadedUrl: String? = null
 
     internal fun prepareWebview() {
         addJavascriptInterface(messageHandler, "SWAndroid")
@@ -97,7 +98,6 @@ class SWWebView(
         }
 
         this.setBackgroundColor(Color.TRANSPARENT)
-
         this.webChromeClient = ChromeClient
     }
 
@@ -118,6 +118,7 @@ class SWWebView(
                 mainScope = mainScope,
                 ioScope = ioScope,
                 loadUrl = {
+                    lastLoadedUrl = it.url
                     super.loadUrl(transformUri(it.url))
                 },
                 stopLoading = {
@@ -160,6 +161,7 @@ class SWWebView(
     }
 
     override fun loadUrl(url: String) {
+        lastLoadedUrl = url
         prepareWebview()
         val client =
             DefaultWebviewClient(
@@ -231,6 +233,17 @@ class SWWebView(
                                         is WebviewError.AllUrlsFailed -> e.urls
                                     },
                                 )
+                                if (lastLoadedUrl != null) {
+                                    when (lastWebViewClient) {
+                                        is WebviewFallbackClient -> {}
+                                        is DefaultWebviewClient -> {
+                                            loadUrl(lastLoadedUrl!!)
+                                        }
+                                        else -> {
+                                            // NO-OP as it has internal fallback
+                                        }
+                                    }
+                                }
                             }
 
                             is WebviewClientEvent.OnResourceError -> {

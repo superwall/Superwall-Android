@@ -53,7 +53,7 @@ class Converters {
 }
 
 fun Json.fromTypedMap(map: Map<String, Any?>): String {
-    val jsonObject = JsonObject(map.mapValues { it.value.convertToJsonElement() })
+    val jsonObject = JsonObject(map.mapValues { it.value.convertToJsonElement() }.toMap())
     return encodeToString(jsonObject)
 }
 

@@ -53,7 +53,7 @@ internal open class DefaultWebviewClient(
         }
         ioScope.launch {
             webviewClientEvents.emit(
-                WebviewClientEvent.OnResourceError(
+                WebviewClientEvent.OnError(
                     WebviewError.NetworkError(
                         errorResponse?.statusCode ?: -1,
                         errorResponse?.let {
@@ -81,23 +81,45 @@ internal open class DefaultWebviewClient(
         error: WebResourceError,
     ) {
         ioScope.launch {
-            webviewClientEvents.emit(
-                WebviewClientEvent.OnError(
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (request?.url?.toString()?.contains("runtime") == true) {
+                val (code, desc) =
+                    error?.let {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                            val code = it.errorCode
+                            val description = it.description.toString()
+                            code to description
+                        } else {
+                            -1 to "Error description unavailable, Android API version < 23"
+                        }
+                    } ?: (-1 to "Unknown error")
+                webviewClientEvents.emit(
+                    WebviewClientEvent.OnError(
                         WebviewError.NetworkError(
-                            error.errorCode,
-                            error.description.toString(),
+                            code,
+                            desc,
                             forUrl,
-                        )
-                    } else {
-                        WebviewError.NetworkError(
-                            -1,
-                            "Error description unavailable, Android API version < 23",
-                            forUrl,
-                        )
-                    },
-                ),
-            )
+                        ),
+                    ),
+                )
+            } else {
+                webviewClientEvents.emit(
+                    WebviewClientEvent.OnResourceError(
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                            WebviewError.NetworkError(
+                                error.errorCode,
+                                error.description.toString(),
+                                forUrl,
+                            )
+                        } else {
+                            WebviewError.NetworkError(
+                                -1,
+                                "Error description unavailable, Android API version < 23",
+                                forUrl,
+                            )
+                        },
+                    ),
+                )
+            }
         }
     }
 }
