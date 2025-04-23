@@ -52,10 +52,6 @@ internal open class DefaultWebviewClient(
         if (requestUrl.contains("favicon.ico")) {
             return
         }
-        Log.e(
-            "VW",
-            "HttpError ${errorResponse?.statusCode} - ${errorResponse?.reasonPhrase} - ${request?.url}",
-        )
         ioScope.launch {
             webviewClientEvents.emit(
                 WebviewClientEvent.OnError(
