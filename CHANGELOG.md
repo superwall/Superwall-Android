@@ -2,6 +2,12 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.0.7
+
+## Enhancements
+- Improves how errors are handled when loading, improving the UX and reloading in real failure cases
+- Added `device.subscriptionStatus` to the device object 
+
 ## 2.0.6
 
 ## Fixes
