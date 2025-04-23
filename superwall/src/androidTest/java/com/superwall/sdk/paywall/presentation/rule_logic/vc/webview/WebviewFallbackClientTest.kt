@@ -4,10 +4,13 @@ import And
 import Given
 import Then
 import When
+import android.app.Application
 import android.util.Log
 import android.webkit.WebView
 import androidx.test.platform.app.InstrumentationRegistry
+import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.SessionEventsManager
+import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.dependencies.VariablesFactory
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.MainScope
@@ -19,6 +22,7 @@ import com.superwall.sdk.paywall.view.webview.WebviewClientEvent
 import com.superwall.sdk.paywall.view.webview.WebviewClientEvent.OnPageFinished
 import com.superwall.sdk.paywall.view.webview.WebviewError
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessageHandler
+import com.superwall.sdk.storage.CONSTANT_API_KEY
 import io.mockk.mockk
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -28,6 +32,7 @@ import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
+import org.junit.Before
 import org.junit.Test
 import kotlin.time.Duration.Companion.seconds
 
@@ -57,6 +62,17 @@ class WebviewFallbackClientTest {
                     endpoints = configs.toList(),
                 ),
         )
+    }
+
+    @Before
+    fun setup() {
+        if (!Superwall.initialized) {
+            Superwall.configure(
+                InstrumentationRegistry.getInstrumentation().targetContext.applicationContext as Application,
+                CONSTANT_API_KEY,
+                options = SuperwallOptions().apply { paywalls.shouldPreload = false },
+            )
+        }
     }
 
     @Test

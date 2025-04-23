@@ -235,6 +235,7 @@ class SWWebView(
                                 )
                                 if (lastLoadedUrl != null) {
                                     when (lastWebViewClient) {
+                                        is WebviewFallbackClient -> {}
                                         is DefaultWebviewClient -> {
                                             loadUrl(lastLoadedUrl!!)
                                         }
