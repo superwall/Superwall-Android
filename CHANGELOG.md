@@ -8,6 +8,9 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 - Improves how errors are handled when loading, improving the UX and reloading in real failure cases
 - Added `device.subscriptionStatus` to the device object 
 
+## Fixes
+- Fixes an issue where users of kotlin 2.0 would experience a `NoAudienceMatch` when evaluating rules
+
 ## 2.0.6
 
 ## Fixes
