@@ -2,7 +2,6 @@ package com.superwall.sdk.paywall.view.webview
 
 import android.graphics.Bitmap
 import android.os.Build
-import android.util.Log
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest

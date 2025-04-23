@@ -71,6 +71,7 @@ class DeviceTemplateTest {
             platformWrapperVersion = "1.0.0",
             appVersionPadded = "001.000.000",
             activeProducts = listOf("product1", "product2"),
+            subscriptionStatus = "ACTIVE",
         )
 
     @Test
@@ -150,6 +151,7 @@ class DeviceTemplateTest {
                 platformWrapperVersion = "1.0.0",
                 appVersionPadded = "001.000.000",
                 activeProducts = listOf(),
+                subscriptionStatus = "INACTIVE",
             )
 
         val dictionary1 = template.toDictionary(json)
