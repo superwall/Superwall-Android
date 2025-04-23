@@ -85,14 +85,15 @@ object AnySerializer : KSerializer<Any> {
         }
 
     private fun deserializeObject(element: JsonObject): Map<String, Any> =
-        element.mapValues { (_, value) ->
-            when (value) {
-                is JsonPrimitive -> deserializePrimitive(value)
-                is JsonObject -> deserializeObject(value)
-                is JsonArray -> deserializeArray(value)
-                else -> throw SerializationException("Unknown type in JsonObject")
-            }
-        }
+        element
+            .mapValues { (_, value) ->
+                when (value) {
+                    is JsonPrimitive -> deserializePrimitive(value)
+                    is JsonObject -> deserializeObject(value)
+                    is JsonArray -> deserializeArray(value)
+                    else -> throw SerializationException("Unknown type in JsonObject")
+                }
+            }.toMap()
 
     private fun deserializeArray(element: JsonArray): List<Any> =
         element.map { item ->

@@ -79,13 +79,15 @@ internal class SuperscriptEvaluator(
                         variables = PassableMap(map = userAttributes.value),
                         expression = expression,
                         device =
-                            availableComputedProperties.mapValues {
-                                listOf(PassableValue.StringValue("event_name"))
-                            },
+                            availableComputedProperties
+                                .mapValues {
+                                    listOf(PassableValue.StringValue("event_name"))
+                                }.toMap(),
                         computed =
-                            availableComputedProperties.mapValues {
-                                listOf(PassableValue.StringValue("event_name"))
-                            },
+                            availableComputedProperties
+                                .mapValues {
+                                    listOf(PassableValue.StringValue("event_name"))
+                                }.toMap(),
                     )
 
                 val ctx = json.encodeToString(executionContext)
@@ -120,9 +122,10 @@ internal class SuperscriptEvaluator(
 // PassableValues match the types in our Rust package
 internal fun <T : Any> Map<String, T>.toPassableValue(): PassableValue.MapValue {
     val passableMap =
-        this.mapValues { (_, value) ->
-            value.toPassableValue()
-        }
+        this
+            .mapValues { (_, value) ->
+                value.toPassableValue()
+            }.toMap()
     return PassableValue.MapValue(passableMap)
 }
 
@@ -140,13 +143,16 @@ internal fun Any.toPassableValue(): PassableValue =
             PassableValue.ListValue(
                 this.map { it?.toPassableValue() ?: PassableValue.NullValue },
             )
+        is LinkedHashMap<*, *> -> {
+            this.toMap().toPassableValue()
+        }
         is Map<*, *> -> {
             val stringKeyMap =
                 this
                     .filterKeys { it is String }
                     .mapKeys { it.key as String }
             PassableValue.MapValue(
-                stringKeyMap.mapValues { it.value?.toPassableValue() ?: PassableValue.NullValue },
+                stringKeyMap.mapValues { it.value?.toPassableValue() ?: PassableValue.NullValue }.toMap(),
             )
         }
         is JsonElement -> this.toPassableValue()
@@ -170,7 +176,7 @@ private fun JsonElement.toPassableValue(): PassableValue =
     when (this) {
         is JsonObject ->
             PassableValue.MapValue(
-                this.mapValues { (_, value) -> value.toPassableValue() },
+                this.mapValues { (_, value) -> value.toPassableValue() }.toMap(),
             )
         is JsonArray ->
             PassableValue.ListValue(
