@@ -10,7 +10,7 @@ plugins {
     id("signing")
 }
 
-version = "2.0.7"
+version = "2.0.8"
 
 android {
     namespace = "com.superwall.sdk.composable"

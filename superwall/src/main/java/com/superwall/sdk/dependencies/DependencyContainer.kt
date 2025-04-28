@@ -157,7 +157,7 @@ class DependencyContainer(
                 SuperscriptEvaluator(
                     json =
                         Json(json()) {
-                            classDiscriminatorMode = ClassDiscriminatorMode.ALL_JSON_OBJECTS
+                            classDiscriminatorMode = ClassDiscriminatorMode.POLYMORPHIC
                             classDiscriminator = "type"
                         },
                     storage = storage.coreDataManager,
