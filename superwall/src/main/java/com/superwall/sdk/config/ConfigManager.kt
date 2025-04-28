@@ -18,13 +18,13 @@ import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.awaitFirstValidConfig
 import com.superwall.sdk.misc.fold
 import com.superwall.sdk.misc.into
+import com.superwall.sdk.misc.mapError
 import com.superwall.sdk.misc.onError
 import com.superwall.sdk.misc.then
 import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.models.triggers.Trigger
-import com.superwall.sdk.network.NetworkError
 import com.superwall.sdk.network.SuperwallAPI
 import com.superwall.sdk.network.awaitUntilNetworkExists
 import com.superwall.sdk.network.device.DeviceHelper
@@ -61,6 +61,9 @@ open class ConfigManager(
     private val paywallPreload: PaywallPreload,
     private val ioScope: IOScope,
     private val track: suspend (InternalSuperwallEvent) -> Unit,
+    private val awaitUtilNetwork: suspend () -> Unit = {
+        context.awaitUntilNetworkExists()
+    },
 ) {
     private val CACHE_LIMIT = 1000L
 
@@ -134,7 +137,7 @@ open class ConfigManager(
                                         // Emit retrying state
                                         configState.update { ConfigState.Retrying }
                                         configRetryCount.incrementAndGet()
-                                        context.awaitUntilNetworkExists()
+                                        awaitUtilNetwork()
                                     }.into {
                                         if (it is Either.Failure) {
                                             isConfigFromCache = true
@@ -145,7 +148,6 @@ open class ConfigManager(
                                     }
                             }
                         } catch (e: Throwable) {
-                            e.printStackTrace()
                             // If fetching config fails, default to the cached version
                             // Note: Only a timeout exception is possible here
                             oldConfig?.let {
@@ -250,6 +252,7 @@ open class ConfigManager(
                     },
                 onFailure =
                     { e ->
+                        e.printStackTrace()
                         configState.update { ConfigState.Failed(e) }
                         if (!isConfigFromCache) {
                             refreshConfiguration()
@@ -291,6 +294,7 @@ open class ConfigManager(
                         )
                     }
             } catch (e: Throwable) {
+                e.printStackTrace()
                 Logger.debug(
                     logLevel = LogLevel.error,
                     scope = LogScope.configManager,
@@ -338,7 +342,7 @@ open class ConfigManager(
             eventNames,
         )
 
-    private suspend fun Either<Config, NetworkError>.handleConfigUpdate(
+    private suspend fun Either<Config, *>.handleConfigUpdate(
         fetchDuration: Long,
         retryCount: Int,
     ) = then {
@@ -363,6 +367,7 @@ open class ConfigManager(
             ioScope.launch { preloadPaywalls() }
         },
         onFailure = {
+            it.printStackTrace()
             Logger.debug(
                 logLevel = LogLevel.warn,
                 scope = LogScope.superwallCore,
@@ -388,6 +393,9 @@ open class ConfigManager(
             .getConfig {
                 retryCount.incrementAndGet()
                 context.awaitUntilNetworkExists()
+            }.mapError {
+                it.printStackTrace()
+                it
             }.handleConfigUpdate(
                 retryCount = retryCount.get(),
                 fetchDuration = System.currentTimeMillis() - startTime,

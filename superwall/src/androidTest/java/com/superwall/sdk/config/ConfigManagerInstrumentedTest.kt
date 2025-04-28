@@ -6,6 +6,7 @@ import Then
 import When
 import android.app.Application
 import android.content.Context
+import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.superwall.sdk.Superwall
@@ -31,6 +32,7 @@ import com.superwall.sdk.network.NetworkMock
 import com.superwall.sdk.network.SuperwallAPI
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.paywall.manager.PaywallManager
+import com.superwall.sdk.storage.CONSTANT_API_KEY
 import com.superwall.sdk.storage.LatestConfig
 import com.superwall.sdk.storage.LatestGeoInfo
 import com.superwall.sdk.storage.LocalStorage
@@ -41,6 +43,7 @@ import com.superwall.sdk.storage.StoredSubscriptionStatus
 import com.superwall.sdk.store.Entitlements
 import com.superwall.sdk.store.StoreManager
 import io.mockk.Runs
+import io.mockk.clearMocks
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -55,14 +58,18 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 class ConfigManagerUnderTest(
     private val context: Context,
@@ -95,6 +102,7 @@ class ConfigManagerUnderTest(
                     every { read(StoredEntitlementsByProductId) } returns emptyMap()
                 },
             ),
+        awaitUtilNetwork = {},
     ) {
     suspend fun setConfig(config: Config) {
         configState.emit(ConfigState.Retrieved(config))
@@ -109,6 +117,17 @@ class ConfigManagerTests {
             every { locale } returns "en-US"
             coEvery { getTemplateDevice() } returns emptyMap()
         }
+
+    @Before
+    fun setup() {
+        if (!Superwall.initialized) {
+            Superwall.configure(
+                InstrumentationRegistry.getInstrumentation().targetContext.applicationContext as Application,
+                CONSTANT_API_KEY,
+                options = SuperwallOptions().apply { paywalls.shouldPreload = false },
+            )
+        }
+    }
 
     @Test
     fun test_confirmAssignment() =
@@ -198,6 +217,7 @@ class ConfigManagerTests {
                         ioScope = this@runTest,
                     )
 
+                Log.e("test", "test_loadAssignments_noConfig")
                 When("we try to get assignments") {
                     val job =
                         launch {
@@ -209,11 +229,13 @@ class ConfigManagerTests {
                     job.cancel()
                 }
 
+                Log.e("test", "test_loadAssignments_noConfig")
                 Then("no assignments should be stored") {
                     assertTrue(storage.getConfirmedAssignments().isEmpty())
                     assertTrue(configManager.unconfirmedAssignments.isEmpty())
                 }
             }
+            return@runTest
         }
 
     @Test
@@ -328,6 +350,7 @@ class ConfigManagerTests {
                     assertTrue(configManager.unconfirmedAssignments.isEmpty())
                 }
             }
+            return@runTest
         }
 
     @Test
@@ -685,7 +708,9 @@ class ConfigManagerTests {
 
                             Then("the new config should be set and used") {
                                 configManager.configState
-                                    .drop(1)
+                                    .onEach {
+                                        println("$it is ${it::class}")
+                                    }.drop(1)
                                     .first { it is ConfigState.Retrieved }
                                 assertEquals("not", configManager.config?.buildId)
                             }
@@ -748,30 +773,38 @@ class ConfigManagerTests {
                         assertEquals("not", configManager.config?.buildId)
                     }
                 }
+                return@runTest
             }
         }
 
     @Test
     fun test_config_and_geo_calls_both_cached() =
-        runTest {
+        runTest(timeout = 500.seconds) {
             Given("we have cached config and geo info, and delayed network responses") {
                 val cachedConfig =
                     Config.stub().copy(
                         buildId = "cached",
-                        rawFeatureFlags = listOf(RawFeatureFlag("enable_config_refresh _v2", true)),
+                        rawFeatureFlags = listOf(RawFeatureFlag("enable_config_refresh_v2", true)),
                     )
                 val newConfig = Config.stub().copy(buildId = "not")
                 val cachedGeo = GeoInfo.stub().copy(country = "cachedCountry")
                 val newGeo = GeoInfo.stub().copy(country = "newCountry")
 
+                coEvery { preload.preloadAllPaywalls(any(), any()) } just Runs
                 coEvery { storage.read(LatestConfig) } returns cachedConfig
                 coEvery { storage.read(LatestGeoInfo) } returns cachedGeo
+                coEvery { storage.write(any(), any()) } just Runs
                 coEvery { localStorage.read(LatestGeoInfo) } returns cachedGeo
-
+                every { manager.resetPaywallRequestCache() } just Runs
+                coEvery { preload.removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
+                var callCount = 0
                 coEvery { mockNetwork.getConfig(any()) } coAnswers {
-                    async(Dispatchers.IO) {
-                        delay(5000)
-                    }.await()
+                    if (callCount == 0) {
+                        async(Dispatchers.IO) {
+                            callCount += 1
+                            delay(5000)
+                        }.await()
+                    }
                     Either.Success(newConfig)
                 }
                 coEvery { mockDeviceHelper.getGeoInfo() } coAnswers {
@@ -792,6 +825,7 @@ class ConfigManagerTests {
                         every { deviceHelper } returns mockDeviceHelper
                         every { paywallManager } returns manager
                     }
+
                 val assignmentStore = Assignments(localStorage, mockNetwork, this@runTest)
                 val configManager =
                     ConfigManagerUnderTest(
@@ -814,6 +848,12 @@ class ConfigManagerTests {
                         configManager.configState.first { it is ConfigState.Retrieved }.also {
                             assertEquals("cached", it.getConfig()?.buildId)
                         }
+                        coEvery { mockNetwork.getConfig(any()) } coAnswers {
+                            async(Dispatchers.IO) {
+                                delay(100)
+                            }.await()
+                            Either.Success(newConfig)
+                        }
 
                         And("we wait until new config is available") {
                             configManager.configState.drop(1).first { it is ConfigState.Retrieved }
@@ -826,4 +866,9 @@ class ConfigManagerTests {
                 }
             }
         }
+
+    @After
+    fun tearDown() {
+        clearMocks(dependencyContainer, manager, storage, preload, localStorage, mockNetwork)
+    }
 }

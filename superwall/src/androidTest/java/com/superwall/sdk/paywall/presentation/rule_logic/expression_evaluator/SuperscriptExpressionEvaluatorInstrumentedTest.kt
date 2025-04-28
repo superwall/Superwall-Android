@@ -4,6 +4,7 @@ import com.superwall.sdk.RuleAttributeFactoryBuilder
 import com.superwall.sdk.dependencies.RuleAttributesFactory
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.models.events.EventData
+import com.superwall.sdk.models.paywall.LocalNotificationTypeSerializer
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.MatchedItem
 import com.superwall.sdk.models.triggers.TriggerPreloadBehavior
@@ -12,14 +13,19 @@ import com.superwall.sdk.models.triggers.TriggerRuleOutcome
 import com.superwall.sdk.models.triggers.UnmatchedRule
 import com.superwall.sdk.models.triggers.VariantOption
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.SuperscriptEvaluator
+import com.superwall.sdk.paywall.presentation.rule_logic.cel.toPassableValue
 import com.superwall.sdk.storage.core_data.CoreDataManager
 import io.mockk.mockk
 import junit.framework.TestCase.assertEquals
+import junit.framework.TestCase.assertTrue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.ClassDiscriminatorMode
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonNamingStrategy
+import kotlinx.serialization.modules.serializersModuleOf
 import org.junit.Test
 import java.util.Date
 
@@ -39,6 +45,45 @@ class SuperscriptExpressionEvaluatorInstrumentedTest {
         factory = factoryBuilder,
         ioScope = IOScope(this.coroutineContext),
     )
+
+    @Test
+    fun testLinkedHashMapSerialization() {
+        // Create a LinkedHashMap explicitly
+        val deviceAttributes =
+            LinkedHashMap<String, Any>().apply {
+                put("publicApiKey", "pk_1234")
+                put("platform", "Android")
+                put("appUserId", "PyopUpiB6vYVlVQ")
+            }
+
+        // Create the full structure
+        val attributes =
+            mapOf(
+                "user" to mapOf("isLoggedIn" to true),
+                "device" to deviceAttributes, // Use LinkedHashMap here
+                "params" to "",
+            )
+
+        // Convert to PassableValue
+        val passableValue = attributes.toPassableValue()
+
+        // Serialize and check the output
+        val serialized =
+            Json {
+                ignoreUnknownKeys = true
+                encodeDefaults = true
+                namingStrategy = JsonNamingStrategy.SnakeCase
+                serializersModuleOf(
+                    LocalNotificationTypeSerializer,
+                )
+                classDiscriminatorMode = ClassDiscriminatorMode.ALL_JSON_OBJECTS
+                classDiscriminator = "type"
+            }.encodeToString(passableValue)
+        println(serialized)
+
+        // Check if the type field appears
+        assertTrue(serialized.contains("LinkedHashMap"))
+    }
 
     @Test
     fun test_happy_path_evaluator() =

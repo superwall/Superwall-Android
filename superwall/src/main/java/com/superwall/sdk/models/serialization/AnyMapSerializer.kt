@@ -15,7 +15,6 @@ data class AnyMap(
     val map: Map<String, Any>,
 )
 
-@Serializer(forClass = Map::class)
 object AnyMapSerializer : KSerializer<Map<String, Any?>> {
     override val descriptor: SerialDescriptor =
         buildClassSerialDescriptor("AnyMap") {

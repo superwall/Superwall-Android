@@ -1,5 +1,6 @@
 package com.superwall.sdk.paywall.presentation.rule_logic.cel
 
+import com.superwall.sdk.Superwall
 import com.superwall.sdk.dependencies.RuleAttributesFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
@@ -18,6 +19,8 @@ import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.PassableValu
 import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.ExpressionEvaluating
 import com.superwall.sdk.paywall.presentation.rule_logic.tryToMatchOccurrence
 import com.superwall.sdk.storage.core_data.CoreDataManager
+import com.superwall.sdk.utilities.trackError
+import com.superwall.sdk.utilities.withErrorTracking
 import com.superwall.supercel.HostContext
 import com.superwall.supercel.evaluateWithContext
 import kotlinx.serialization.encodeToString
@@ -44,7 +47,7 @@ internal class SuperscriptEvaluator(
     private val hostContext: HostContext =
         CELHostContext(
             availableComputedProperties,
-            emptyMap(),
+            availableComputedProperties,
             json,
             storage,
         ),
@@ -58,6 +61,10 @@ internal class SuperscriptEvaluator(
                 "monthsSince" to ComputedPropertyRequest.ComputedPropertyRequestType.MONTHS_SINCE,
             )
     }
+
+    class NotError(
+        val string: String,
+    ) : Throwable(string)
 
     override suspend fun evaluateExpression(
         rule: TriggerRule,
@@ -76,7 +83,7 @@ internal class SuperscriptEvaluator(
 
                 val executionContext =
                     ExecutionContext(
-                        variables = PassableMap(map = userAttributes.value),
+                        variables = PassableMap(map = userAttributes.value.toMap()),
                         expression = expression,
                         device =
                             availableComputedProperties
@@ -91,16 +98,31 @@ internal class SuperscriptEvaluator(
                     )
 
                 val ctx = json.encodeToString(executionContext)
+                Superwall.instance.trackError(NotError("ctx: $ctx"))
                 val result =
                     evaluateWithContext(ctx, hostContext)
+                Superwall.instance.trackError(NotError("result: $result"))
 
                 val celResult = json.decodeFromString<CELResult>(result)
                 return@asyncWithTracking when (celResult) {
-                    is CELResult.Err ->
+                    is CELResult.Err -> {
+                        Logger.debug(
+                            LogLevel.error,
+                            LogScope.jsEvaluator,
+                            "Superscript evaluation failed for expression $result: ${celResult.message}",
+                        )
+                        withErrorTracking {
+                            throw IllegalStateException(
+                                "Superscript evaluation failed: ${celResult.message}." +
+                                    "Received: $result. " +
+                                    "Context: $ctx",
+                            )
+                        }
                         TriggerRuleOutcome.noMatch(
                             UnmatchedRule.Source.EXPRESSION,
                             rule.experiment.id,
                         )
+                    }
 
                     is CELResult.Ok -> {
                         if (celResult.value is PassableValue.BoolValue && celResult.value.value
@@ -115,7 +137,23 @@ internal class SuperscriptEvaluator(
                     }
                 }
             }.await()
-            .getSuccess() ?: TriggerRuleOutcome.noMatch(UnmatchedRule.Source.EXPRESSION, rule.experiment.id)
+            .let {
+                it.getSuccess() ?: run {
+                    val e =
+                        if (it.getThrowable() is Throwable) {
+                            it.getThrowable() as Throwable
+                        } else {
+                            NotError(
+                                "Unknown error ${it.getThrowable()}",
+                            )
+                        }
+                    Superwall.instance.trackError(e)
+                    TriggerRuleOutcome.noMatch(
+                        UnmatchedRule.Source.EXPRESSION,
+                        rule.experiment.id,
+                    )
+                }
+            }
     }
 }
 
@@ -166,15 +204,20 @@ internal fun Any.toPassableValue(): PassableValue =
         is PassableValue -> this
         else -> {
             try {
-                val jsonElement = Json.encodeToJsonElement(this)
-                jsonElement.toPassableValue()
+                val map = this as Map<*, *>
+                PassableValue.MapValue(map.map { it.key.toString() to (it.value?.toPassableValue() ?: PassableValue.NullValue) }.toMap())
             } catch (e: Exception) {
-                Logger.debug(
-                    LogLevel.warn,
-                    LogScope.jsEvaluator,
-                    "Cannot serialize $this::class, evaluating as string",
-                )
-                PassableValue.StringValue(this.toString())
+                try {
+                    val jsonElement = Json.encodeToJsonElement(this)
+                    jsonElement.toPassableValue()
+                } catch (e: Exception) {
+                    Logger.debug(
+                        LogLevel.warn,
+                        LogScope.jsEvaluator,
+                        "Cannot serialize $this::class, evaluating as string",
+                    )
+                    PassableValue.StringValue(this.toString())
+                }
             }
         }
     }

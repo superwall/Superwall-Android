@@ -112,12 +112,15 @@ class BaseHostServiceTest {
                             headers = mapOf("Authorization" to "Bearer token"),
                         ),
                     )
+                println("In given")
                 coEvery { apiFactory.makeHeaders(any(), any()) } returns mapOf("Authorization" to "Bearer token")
 
                 When("requesting assignments") {
+                    println("In when")
                     val result = service.assignments()
 
                     Then("the result should be a success with the expected assignments") {
+                        println("in then")
                         assertTrue(result is Either.Success)
                         assertEquals(mockResponse, (result as Either.Success).value)
                     }
