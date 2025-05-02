@@ -50,7 +50,7 @@ class SubscriptionService(
                 ).let {
                     Log.e("RedeemBody", "$it")
                     it
-                } .toByteArray(),
+                }.toByteArray(),
     )
 
     suspend fun webEntitlementsByUserId(

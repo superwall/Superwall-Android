@@ -90,7 +90,10 @@ class WebPaywallRedeemer(
         }
 
     sealed interface RedeemType {
-        data class Code(val code: String) : RedeemType
+        data class Code(
+            val code: String,
+        ) : RedeemType
+
         object Existing : RedeemType
     }
 
@@ -111,7 +114,7 @@ class WebPaywallRedeemer(
         }
         Log.e(
             "Redemption",
-            "Codes: $allCodes \n user ${getUserId()} Alias ${getAliasId()} device ${getDeviceId()}"
+            "Codes: $allCodes \n user ${getUserId()} Alias ${getAliasId()} device ${getDeviceId()}",
         )
         network
             .redeemToken(
@@ -182,14 +185,13 @@ class WebPaywallRedeemer(
                         RedemptionResult.Error(
                             code = redemption.code ?: "",
                             error =
-                            ErrorInfo(
-                                it.localizedMessage ?: it.message
-                                ?: "Redemption failed, error unknown",
-                            ),
+                                ErrorInfo(
+                                    it.localizedMessage ?: it.message
+                                        ?: "Redemption failed, error unknown",
+                                ),
                         ),
                     )
                 }
-
             })
         startPolling()
     }
@@ -230,7 +232,7 @@ class WebPaywallRedeemer(
         val userCodesToRemove =
             latestResponse?.codes?.filterIsInstance<RedemptionResult.Success>()?.filter {
                 ownership ==
-                        RedemptionOwnershipType.AppUser
+                    RedemptionOwnershipType.AppUser
             }
         // Find entitlements belonging to those codes
         val userCodeEntitlementsToRemove =
