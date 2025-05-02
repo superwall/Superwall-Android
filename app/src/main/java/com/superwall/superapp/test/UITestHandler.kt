@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.util.Log
+import androidx.core.net.toUri
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.superwall.SuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEvent.DeepLink
@@ -30,6 +31,125 @@ import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.seconds
 
 object UITestHandler {
+    object WebTests {
+        val tests =
+            listOf(
+                UITestInfo(
+                    1000,
+                    "Purchase an entitlement from the web and redeem it as anonymous user. Paywall wont show if redemption succeeded.",
+                    test = { scope, events, _ ->
+                        Log.e("Registering event", "show_if_web_failed")
+                        Log.e(
+                            "Entitlements are",
+                            Superwall.instance.entitlements.active
+                                .map {
+                                    "${it.id}"
+                                }.joinToString(separator = ", "),
+                        )
+                        Superwall.instance.register(placement = "show_if_web_failed")
+                    },
+                ),
+                UITestInfo(
+                    1001,
+                    "Purchase an entitlement from the web and redeem it as anonymous user. Call identify and confirm entitlement has been migrated. Paywall wont show if redemption succeeded.",
+                    test = { scope, events, _ ->
+                        Superwall.instance.identify("MigratedWebUser")
+                        Log.e("Registering event", "show_if_web_failed")
+                        delay(5.seconds)
+                        Log.e(
+                            "Entitlements are",
+                            Superwall.instance.entitlements.active
+                                .map {
+                                    "${it.id}}"
+                                }.joinToString(separator = ", "),
+                        )
+                        Superwall.instance.register(placement = "show_if_web_failed")
+                    },
+                ),
+                UITestInfo(
+                    1001,
+                    "Purchase an entitlement from the web and redeem it as anonymous user." +
+                        "Call identify and confirm entitlement has been migrated (paywall shows)." +
+                        "Call reset and confirm entitlement was removed.",
+                    test = { scope, events, _ ->
+                        Superwall.instance.identify("MigratedWebUser")
+                        Log.e("Registering event", "show_if_web_failed")
+                        delay(5.seconds)
+                        Log.e(
+                            "Entitlements are",
+                            Superwall.instance.entitlements.active
+                                .map {
+                                    "${it.id}"
+                                }.joinToString(separator = ", "),
+                        )
+                        delay(5.seconds)
+                        Superwall.instance.reset()
+                        Log.e(
+                            "Entitlements are",
+                            Superwall.instance.entitlements.active
+                                .map {
+                                    "${it.id}"
+                                }.joinToString(separator = ", "),
+                        )
+                        delay(5.seconds)
+                        Superwall.instance.register(placement = "show_if_web_failed")
+                    },
+                ),
+                UITestInfo(
+                    1002,
+                    "Reset",
+                    test = { scope, events, _ ->
+                        Superwall.instance.reset()
+                    },
+                ),
+                UITestInfo(
+                    1003,
+                    "Identify",
+                    test = { scope, events, _ ->
+                        Log.e("Registering event", "identify before ${Superwall.instance.userId}")
+                        Superwall.instance.identify("MigratedWebUser")
+                        Log.e("Registering event", "identify after ${Superwall.instance.userId}")
+                    },
+                ),
+                UITestInfo(
+                    1004,
+                    "Start paywall, will identify. Hit restore, should dismiss paywall",
+                    test = { scope, events, _ ->
+                        Superwall.instance.register(placement = "pro_only")
+                        Superwall.instance.identify("MigratedWebUser")
+                        Log.e("Registering event", "identify after ${Superwall.instance.userId}")
+                    },
+                ),
+                UITestInfo(
+                    1005,
+                    "Start paywall anonymously and hit restore. Should ask to open on web.",
+                    test = { scope, events, _ ->
+                        Superwall.instance.register(placement = "pro_only")
+                        Log.e("Registering event", "identify after ${Superwall.instance.userId}")
+                    },
+                ),
+                UITestInfo(
+                    1006,
+                    "Try handling a VALID link with invalid code.",
+                    test = { scope, events, _ ->
+                        Superwall.instance.handleDeepLink("superapp://superwall/redeem?code=redeem_testing123".toUri())?.let {
+                            Log.e("Output", "IS HANDLED: ${it.getOrThrow()}")
+                        }
+                    },
+                ),
+                UITestInfo(
+                    1006,
+                    "Try handling an INVALID link with invalid code.",
+                    test = { scope, events, _ ->
+                        Superwall.instance.handleDeepLink("superapp://superwall/dontredeem?code=abcd".toUri())?.let {
+                            Log.e("Output", "IS HANDLED: ${it.getOrThrow()}")
+                        }
+                        Log.e("Registering event", "identify after ${Superwall.instance.userId}")
+                    },
+                ),
+            )
+    }
+
     var test0Info =
         UITestInfo(
             0,
@@ -180,7 +300,15 @@ object UITestHandler {
             "Sets subs status to active, paywall should present regardless of this," +
                 " then it sets the status back to inactive.",
             test = { scope, events, _ ->
-                Superwall.instance.setSubscriptionStatus(SubscriptionStatus.Active(setOf(Entitlement("test"))))
+                Superwall.instance.setSubscriptionStatus(
+                    SubscriptionStatus.Active(
+                        setOf(
+                            Entitlement(
+                                "test",
+                            ),
+                        ),
+                    ),
+                )
                 Superwall.instance.register(placement = "present_always")
                 Superwall.instance.setSubscriptionStatus(SubscriptionStatus.Inactive)
             },
@@ -476,7 +604,15 @@ object UITestHandler {
                 "4s later.",
             test = { scope, events, _ ->
                 // Set user as subscribed
-                Superwall.instance.setSubscriptionStatus(SubscriptionStatus.Active(setOf(Entitlement("pro"))))
+                Superwall.instance.setSubscriptionStatus(
+                    SubscriptionStatus.Active(
+                        setOf(
+                            Entitlement(
+                                "pro",
+                            ),
+                        ),
+                    ),
+                )
                 // Register event - paywall shouldn't appear.
                 Superwall.instance.register(placement = "register_nongated_paywall")
                 scope.launch {
@@ -492,7 +628,15 @@ object UITestHandler {
             "Tapping the button shouldn't present a paywall. These register calls don't " +
                 "have a feature gate. Differs from iOS in that there is no purchase taking place.",
             test = { scope, events, _ ->
-                Superwall.instance.setSubscriptionStatus(SubscriptionStatus.Active(setOf(Entitlement("pro"))))
+                Superwall.instance.setSubscriptionStatus(
+                    SubscriptionStatus.Active(
+                        setOf(
+                            Entitlement(
+                                "pro",
+                            ),
+                        ),
+                    ),
+                )
                 // Try to present paywall again
                 Superwall.instance.register(placement = "register_nongated_paywall")
                 scope.launch {
@@ -617,7 +761,15 @@ object UITestHandler {
             "This sets the subscription status active, prints out \"userIsSubscribed\" " +
                 "and then returns subscription status to inactive.",
             test = { scope, events, _ ->
-                Superwall.instance.setSubscriptionStatus(SubscriptionStatus.Active(setOf(Entitlement("test"))))
+                Superwall.instance.setSubscriptionStatus(
+                    SubscriptionStatus.Active(
+                        setOf(
+                            Entitlement(
+                                "test",
+                            ),
+                        ),
+                    ),
+                )
                 scope.launch {
                     val result = Superwall.instance.getPresentationResult("present_data")
                     fatalAssert(
@@ -1580,7 +1732,15 @@ object UITestHandler {
             "Entitlements test: Tap launch button. Paywall should not display since user has the entitlement `basic`. Dialog should show.",
             testCaseType = TestCaseType.Android,
             test = { scope, events, _ ->
-                Superwall.instance.setSubscriptionStatus(SubscriptionStatus.Active(setOf(Entitlement("basic"))))
+                Superwall.instance.setSubscriptionStatus(
+                    SubscriptionStatus.Active(
+                        setOf(
+                            Entitlement(
+                                "basic",
+                            ),
+                        ),
+                    ),
+                )
                 Superwall.instance.register(placement = "entitlements_test_basic") {
                     val alertController =
                         AlertControllerFactory.make(
