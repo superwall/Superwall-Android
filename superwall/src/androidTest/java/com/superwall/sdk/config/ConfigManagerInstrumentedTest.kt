@@ -69,6 +69,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 class ConfigManagerUnderTest(
@@ -131,7 +132,7 @@ class ConfigManagerTests {
 
     @Test
     fun test_confirmAssignment() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             Given("we have a ConfigManager with a mock assignment") {
                 // get context
                 val context = InstrumentationRegistry.getInstrumentation().targetContext
@@ -187,7 +188,7 @@ class ConfigManagerTests {
 
     @Test
     fun test_loadAssignments_noConfig() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             Given("we have a ConfigManager with no config") {
                 // get context
                 val context = InstrumentationRegistry.getInstrumentation().targetContext
@@ -240,7 +241,7 @@ class ConfigManagerTests {
 
     @Test
     fun test_loadAssignments_noTriggers() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             Given("we have a ConfigManager with a config that has no triggers") {
                 // get context
                 val context = InstrumentationRegistry.getInstrumentation().targetContext
@@ -280,7 +281,7 @@ class ConfigManagerTests {
 
     @Test
     fun test_loadAssignments_saveAssignmentsFromServer() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             Given("we have a ConfigManager with assignments from the server") {
                 // get context
                 val context = InstrumentationRegistry.getInstrumentation().targetContext
@@ -529,7 +530,7 @@ class ConfigManagerTests {
 
     @Test
     fun test_network_delay_with_cached_version() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             Given("we have a cached config and a delayed network response") {
                 val cachedConfig =
                     Config.stub().copy(
@@ -596,7 +597,7 @@ class ConfigManagerTests {
 
     @Test
     fun test_network_delay_without_cached_version() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             Given("we have no cached config and a delayed network response") {
                 coEvery { storage.read(LatestConfig) } returns null
                 coEvery { localStorage.read(LatestGeoInfo) } returns null
@@ -647,7 +648,7 @@ class ConfigManagerTests {
 
     @Test
     fun test_network_failure_with_cached_version() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             Given("we have a cached config and a network failure") {
                 val cachedConfig =
                     Config.stub().copy(

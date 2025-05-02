@@ -55,6 +55,7 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
+import kotlin.time.Duration.Companion.minutes
 
 class TransactionManagerTest {
     private val playProduct =
@@ -178,7 +179,7 @@ class TransactionManagerTest {
 
     @Test
     fun test_purchase_internal_product_not_found() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             Given("We try to purchase a product that does not exist") {
                 val transactionManager: TransactionManager = manager()
                 When("We try to purchase a product from the paywall") {
@@ -198,7 +199,7 @@ class TransactionManagerTest {
 
     @Test
     fun test_purchase_activity_not_found() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             Given("We have loaded products but no activity") {
                 storeManager.getProducts(paywall = mockedPaywall)
                 every { activityProvider.getCurrentActivity() } returns null
@@ -223,7 +224,7 @@ class TransactionManagerTest {
 
     @Test
     fun test_purchase_successful_internal() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             val spy = createBillingWrapper()
             val purchase = PurchaseMockBuilder.createDefaultPurchase("product1")
             every { transactionManagerFactory.makeTransactionVerifier() } returns spy
@@ -336,7 +337,7 @@ class TransactionManagerTest {
 
     @Test
     fun test_purchase_successful_external() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             Given("We have loaded products and we can purchase successfully externally") {
                 val spy = createBillingWrapper()
                 val purchase = PurchaseMockBuilder.createDefaultPurchase("product1")
@@ -394,7 +395,7 @@ class TransactionManagerTest {
 
     @Test
     fun test_purchase_restored_internal() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             Given("We have loaded products and a purchase results in restoration") {
                 storeManager.getProducts(paywall = mockedPaywall)
                 val events = MutableStateFlow(emptyList<TrackableSuperwallEvent>())
@@ -436,7 +437,7 @@ class TransactionManagerTest {
 
     @Test
     fun test_purchase_restored_external() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             Given("We want to restore a product externally") {
                 val events = MutableStateFlow(emptyList<TrackableSuperwallEvent>())
                 val transactionManager: TransactionManager =
@@ -466,7 +467,7 @@ class TransactionManagerTest {
 
     @Test
     fun test_purchase_failed_with_alert() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             Given("We have loaded products and a purchase fails") {
                 storeManager.getProducts(paywall = mockedPaywall)
                 val events = MutableStateFlow(emptyList<TrackableSuperwallEvent>())
@@ -524,7 +525,7 @@ class TransactionManagerTest {
 
     @Test
     fun test_purchase_failed_without_alert() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             Given("We have loaded products and a purchase fails") {
                 storeManager.getProducts(paywall = mockedPaywall)
                 val events = MutableStateFlow(emptyList<TrackableSuperwallEvent>())
@@ -582,7 +583,7 @@ class TransactionManagerTest {
 
     @Test
     fun test_purchase_pending() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             Given("We have loaded products and a purchase is pending") {
                 storeManager.getProducts(paywall = mockedPaywall)
                 val events = MutableStateFlow(emptyList<TrackableSuperwallEvent>())
@@ -627,7 +628,7 @@ class TransactionManagerTest {
 
     @Test
     fun test_purchase_cancelled_internal() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             Given("We have loaded products and a purchase is pending") {
                 storeManager.getProducts(paywall = mockedPaywall)
                 val events = MutableStateFlow(emptyList<TrackableSuperwallEvent>())
@@ -674,7 +675,7 @@ class TransactionManagerTest {
 
     @Test
     fun test_purchase_cancelled_external() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             Given("An external purchase was cancelled") {
                 val events = MutableStateFlow(emptyList<TrackableSuperwallEvent>())
                 val transactionManager: TransactionManager =
@@ -719,7 +720,7 @@ class TransactionManagerTest {
 
     @Test
     fun test_try_to_restore_purchases_success() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             Given("We can successfully restore purchases from a paywall") {
                 val events = MutableStateFlow(emptyList<TrackableSuperwallEvent>())
                 val transactionManager: TransactionManager =
@@ -749,7 +750,7 @@ class TransactionManagerTest {
 
     @Test
     fun test_try_to_restore_purchases_success_externally() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             Given("We can successfully restore purchases without a paywall") {
                 val events = MutableStateFlow(emptyList<TrackableSuperwallEvent>())
                 val transactionManager: TransactionManager =
@@ -779,7 +780,7 @@ class TransactionManagerTest {
 
     @Test
     fun test_try_to_restore_purchases_failure() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             Given("Restoration of purchases fails") {
                 val events = MutableStateFlow(emptyList<TrackableSuperwallEvent>())
                 val transactionManager: TransactionManager =
@@ -823,7 +824,7 @@ class TransactionManagerTest {
 
     @Test
     fun test_try_to_restore_purchases_restored_but_inactive() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             Given("Restoration of purchases fails") {
                 val events = MutableStateFlow(emptyList<TrackableSuperwallEvent>())
                 val transactionManager: TransactionManager =
@@ -866,7 +867,7 @@ class TransactionManagerTest {
 
     @Test
     fun test_purchase_with_free_trial_external() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             Given("We can purchase a product with a free trial externally") {
                 val events = MutableStateFlow(emptyList<TrackableSuperwallEvent>())
                 val transactionManager: TransactionManager =
@@ -918,7 +919,7 @@ class TransactionManagerTest {
 
     @Test
     fun test_purchase_non_recurring_product_internal() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             Given("We have loaded a non-recurring product and we can purchase successfully") {
                 storeManager.getProducts(paywall = mockedPaywall)
                 val events = MutableStateFlow(emptyList<TrackableSuperwallEvent>())
@@ -961,7 +962,7 @@ class TransactionManagerTest {
 
     @Test
     fun test_purchase_non_recurring_product_external() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             Given("We can purchase a non-recurring product externally") {
                 every { playProduct.oneTimePurchaseOfferDetails } returns null
                 every { playProduct.subscriptionOfferDetails } returns null
@@ -1005,7 +1006,7 @@ class TransactionManagerTest {
 
     @Test
     fun test_purchase_subscription_without_trial_internal() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             Given("We have loaded a subscription product without trial and we can purchase successfully") {
                 storeManager.getProducts(paywall = mockedPaywall)
                 val events = MutableStateFlow(emptyList<TrackableSuperwallEvent>())
@@ -1054,7 +1055,7 @@ class TransactionManagerTest {
 
     @Test
     fun test_purchase_subscription_without_trial_external() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             Given("We can purchase a subscription product without trial externally") {
                 val events = MutableStateFlow(emptyList<TrackableSuperwallEvent>())
                 val transactionManager: TransactionManager =

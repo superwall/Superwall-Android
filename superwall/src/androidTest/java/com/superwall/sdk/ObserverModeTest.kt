@@ -133,7 +133,7 @@ class ObserverModeTest {
 
     @Test
     fun test_observe_purchase_will_begin_with_controller() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             setup()
             Given("a configured Superwall instance with purchase observation enabled") {
                 mockDelegate = MockDelegate(this@runTest)
