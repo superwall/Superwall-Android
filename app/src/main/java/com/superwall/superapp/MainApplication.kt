@@ -15,7 +15,6 @@ import com.superwall.sdk.delegate.SuperwallDelegate
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
-import com.superwall.sdk.models.internal.RedemptionResult
 import com.superwall.sdk.paywall.presentation.register
 import com.superwall.superapp.purchase.RevenueCatPurchaseController
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -152,19 +151,12 @@ class MainApplication :
         super.handleLog(level, scope, message, info, error)
     }
 
-    override fun willRedeemLink() {
-    }
-
     override fun handleSuperwallEvent(eventInfo: SuperwallEventInfo) {
         println(
             "\n!! SuperwallDelegate !! \n" +
                 "\tEvent name:" + eventInfo.event.rawName + "" +
                 ",\n\tParams:" + eventInfo.params + "\n",
         )
-    }
-
-    override fun didRedeemLink(result: RedemptionResult) {
-        super.didRedeemLink(result)
     }
 
     override fun subscriptionStatusDidChange(

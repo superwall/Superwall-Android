@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.util.Log
+import androidx.core.net.toUri
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.superwall.SuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEvent.DeepLink
@@ -111,7 +112,7 @@ object UITestHandler {
                     },
                 ),
                 UITestInfo(
-                    1003,
+                    1004,
                     "Start paywall, will identify. Hit restore, should dismiss paywall",
                     test = { scope, events, _ ->
                         Superwall.instance.register(placement = "pro_only")
@@ -120,10 +121,29 @@ object UITestHandler {
                     },
                 ),
                 UITestInfo(
-                    1003,
+                    1005,
                     "Start paywall anonymously and hit restore. Should ask to open on web.",
                     test = { scope, events, _ ->
                         Superwall.instance.register(placement = "pro_only")
+                        Log.e("Registering event", "identify after ${Superwall.instance.userId}")
+                    },
+                ),
+                UITestInfo(
+                    1006,
+                    "Try handling a VALID link with invalid code.",
+                    test = { scope, events, _ ->
+                        Superwall.instance.handleDeepLink("superapp://superwall/redeem?code=redeem_testing123".toUri())?.let {
+                            Log.e("Output", "IS HANDLED: ${it.getOrThrow()}")
+                        }
+                    },
+                ),
+                UITestInfo(
+                    1006,
+                    "Try handling an INVALID link with invalid code.",
+                    test = { scope, events, _ ->
+                        Superwall.instance.handleDeepLink("superapp://superwall/dontredeem?code=abcd".toUri())?.let {
+                            Log.e("Output", "IS HANDLED: ${it.getOrThrow()}")
+                        }
                         Log.e("Registering event", "identify after ${Superwall.instance.userId}")
                     },
                 ),
