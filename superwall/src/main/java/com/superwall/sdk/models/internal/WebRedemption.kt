@@ -41,17 +41,21 @@ data class WebRedemptionResponse(
 sealed class RedemptionResult {
     abstract val code: String
 
+    var stripeSubscriptionId: List<String?> =
+        when (this) {
+            is RedemptionResult.Success ->
+                when (this.redemptionInfo.purchaserInfo?.storeIdentifiers) {
+                    is StoreIdentifiers.Stripe ->
+                        this.redemptionInfo.purchaserInfo
+                            ?.storeIdentifiers
+                            ?.subscriptionIds
+                            ?: listOf()
 
-    var stripeSubscriptionId: List<String?> = when (this) {
-        is RedemptionResult.Success -> when (this.redemptionInfo.purchaserInfo?.storeIdentifiers) {
-            is StoreIdentifiers.Stripe -> this.redemptionInfo.purchaserInfo?.storeIdentifiers?.subscriptionIds
-                ?: listOf()
+                    else -> listOf()
+                }
 
             else -> listOf()
         }
-
-        else -> listOf()
-    }
 
     // Represents that a redemption was successful
     @Serializable(with = DirectSuccessSerializer::class)
@@ -165,7 +169,7 @@ sealed class StoreIdentifiers {
         @SerialName("stripeCustomerId")
         val stripeSubscriptionId: String,
         @SerialName("stripeSubscriptionIds")
-        val subscriptionIds: List<String>
+        val subscriptionIds: List<String>,
     ) : StoreIdentifiers()
 
     @Serializable
