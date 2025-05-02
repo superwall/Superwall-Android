@@ -128,6 +128,9 @@ class WebPaywallRedeemerTest {
                         any(),
                     )
                 } returns Either.Success(response)
+                coEvery {
+                    network.webEntitlementsByUserId(getUserId(), getDeviceId())
+                } returns Either.Success(WebEntitlements(listOf(webEntitlement)))
 
                 redeemer =
                     WebPaywallRedeemer(
@@ -646,7 +649,8 @@ class WebPaywallRedeemerTest {
                 redeemer.clear(RedemptionOwnershipType.AppUser)
                 Then("It should remove the old redemptions") {
                     val saved = storage.saved as WebRedemptionResponse
-                    assert(saved.codes.isEmpty())
+                    println(saved.codes)
+                    assert(saved.codes.size == 1)
                 }
             }
         }

@@ -20,6 +20,7 @@ import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.entitlements.WebEntitlements
 import com.superwall.sdk.models.internal.DeviceVendorId
 import com.superwall.sdk.models.internal.ErrorInfo
+import com.superwall.sdk.models.internal.RedemptionOwnership
 import com.superwall.sdk.models.internal.RedemptionOwnershipType
 import com.superwall.sdk.models.internal.RedemptionResult
 import com.superwall.sdk.models.internal.UserId
@@ -76,7 +77,6 @@ class WebPaywallRedeemer(
     init {
         ioScope.launch {
             checkForRefferal()
-            startPolling()
         }
     }
 
@@ -273,15 +273,15 @@ class WebPaywallRedeemer(
                 ?.codes
                 ?.filterIsInstance<RedemptionResult.Success>()
                 ?.filter {
-                    ownership ==
-                        RedemptionOwnershipType.AppUser
+                    when (ownership) {
+                        RedemptionOwnershipType.AppUser -> it.redemptionInfo.ownership is RedemptionOwnership.AppUser
+                        RedemptionOwnershipType.Device -> it.redemptionInfo.ownership is RedemptionOwnership.Device
+                    }
                 }
-        // Find entitlements belonging to those codes
-        val userCodeEntitlementsToRemove =
-            userCodesToRemove?.flatMap { userCode -> userCode.redemptionInfo.entitlements }
 
         // Create a new response with the filtered codes and entitlements
         // (we do not need to check source here as they are all web)
+
         val withUserCodesRemoved =
             latestResponse?.copy(
                 codes = latestResponse.codes.filterNot { it in userCodesToRemove.orEmpty() },
@@ -289,20 +289,17 @@ class WebPaywallRedeemer(
             )
 
         // Get active entitlements that remain after removing web sources or ones from the web
-        ioScope.launch {
-            if (withUserCodesRemoved != null) {
-                storage.write(LatestRedemptionResponse, withUserCodesRemoved)
-            }
-
-            internallySetSubscriptionStatus(
-                SubscriptionStatus.Active(
-                    (
-                        withUserCodesRemoved?.entitlements?.toSet()
-                            ?: emptySet()
-                    ) + getActiveDeviceEntitlements(),
-                ),
-            )
+        if (withUserCodesRemoved != null) {
+            storage.write(LatestRedemptionResponse, withUserCodesRemoved)
         }
+        internallySetSubscriptionStatus(
+            SubscriptionStatus.Active(
+                (
+                    withUserCodesRemoved?.entitlements?.toSet()
+                        ?: emptySet()
+                ) + getActiveDeviceEntitlements(),
+            ),
+        )
         ioScope.launch {
             startPolling(maxAge())
             redeem(RedeemType.Existing)

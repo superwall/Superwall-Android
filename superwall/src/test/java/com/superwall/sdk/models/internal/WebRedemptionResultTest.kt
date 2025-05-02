@@ -1,6 +1,9 @@
 package com.superwall.sdk.models.internal
 
+import com.superwall.sdk.models.paywall.LocalNotificationTypeSerializer
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonNamingStrategy
+import kotlinx.serialization.modules.serializersModuleOf
 import org.junit.Test
 
 class WebRedemptionResultTest {
@@ -15,7 +18,7 @@ class WebRedemptionResultTest {
       "code": "redemption_c6358802-ab07-4642-a361-d7352473505a",
       "redemptionInfo": {
         "ownership": {
-          "type": "app_user",
+          "type": "APP_USER",
           "appUserId": "Alias:d1ba57dc-15bb-46e3-864c-a1f8805fe746"
         },
         "purchaserInfo": {
@@ -23,7 +26,8 @@ class WebRedemptionResultTest {
           "email": "ian@superwall.com",
           "storeIdentifiers": {
             "store": "STRIPE",
-            "stripeSubscriptionId": "sub_1R3bMoBitwqMmwU0Wm4OgMsj"
+            "stripeCustomerId" : "asdasf",
+            "stripeSubscriptionIds": ["sub_1R3bMoBitwqMmwU0Wm4OgMsj"]
           }
         },
         "paywallInfo": null,
@@ -45,7 +49,16 @@ class WebRedemptionResultTest {
 }
             """.trimIndent()
 
-        val result = Json {}.decodeFromString<WebRedemptionResponse>(json)
+        val result =
+            Json {
+                ignoreUnknownKeys = true
+                encodeDefaults = true
+                namingStrategy = JsonNamingStrategy.SnakeCase
+                serializersModule =
+                    serializersModuleOf(
+                        LocalNotificationTypeSerializer,
+                    )
+            }.decodeFromString<WebRedemptionResponse>(json)
         assert(result != null)
     }
 

@@ -35,6 +35,7 @@ import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.storage.CONSTANT_API_KEY
 import com.superwall.sdk.storage.LatestConfig
 import com.superwall.sdk.storage.LatestGeoInfo
+import com.superwall.sdk.storage.LatestRedemptionResponse
 import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.StorageMock
@@ -42,6 +43,7 @@ import com.superwall.sdk.storage.StoredEntitlementsByProductId
 import com.superwall.sdk.storage.StoredSubscriptionStatus
 import com.superwall.sdk.store.Entitlements
 import com.superwall.sdk.store.StoreManager
+import com.superwall.sdk.web.WebPaywallRedeemer
 import io.mockk.Runs
 import io.mockk.clearMocks
 import io.mockk.coEvery
@@ -101,9 +103,11 @@ class ConfigManagerUnderTest(
                 mockk<Storage>(relaxUnitFun = true) {
                     every { read(StoredSubscriptionStatus) } returns SubscriptionStatus.Unknown
                     every { read(StoredEntitlementsByProductId) } returns emptyMap()
+                    every { read(LatestRedemptionResponse) } returns null
                 },
             ),
         awaitUtilNetwork = {},
+        webPaywallRedeemer = { mockk<WebPaywallRedeemer>(relaxed = true) },
     ) {
     suspend fun setConfig(config: Config) {
         configState.emit(ConfigState.Retrieved(config))
@@ -497,6 +501,8 @@ class ConfigManagerTests {
     private val storage =
         mockk<Storage> {
             coEvery { write(any(), any()) } just Runs
+            coEvery { read(LatestRedemptionResponse) } returns null
+            coEvery { read(StoredEntitlementsByProductId) } returns emptyMap()
         }
     private val dependencyContainer =
         mockk<DependencyContainer> {
@@ -525,6 +531,8 @@ class ConfigManagerTests {
         mockk<LocalStorage> {
             every { getConfirmedAssignments() } returns emptyMap()
             every { saveConfirmedAssignments(any()) } just Runs
+            coEvery { read(LatestRedemptionResponse) } returns null
+            coEvery { read(StoredEntitlementsByProductId) } returns emptyMap()
         }
     private val mockNetwork = mockk<Network>()
 
@@ -539,6 +547,8 @@ class ConfigManagerTests {
                     )
                 val newConfig = Config.stub().copy(buildId = "not")
 
+                coEvery { storage.read(LatestRedemptionResponse) } returns null
+                coEvery { localStorage.read(LatestRedemptionResponse) } returns null
                 coEvery { storage.read(LatestConfig) } returns cachedConfig
                 coEvery { storage.write(any(), any()) } just Runs
                 coEvery { storage.read(LatestGeoInfo) } returns GeoInfo.stub()
@@ -599,7 +609,9 @@ class ConfigManagerTests {
     fun test_network_delay_without_cached_version() =
         runTest(timeout = 5.minutes) {
             Given("we have no cached config and a delayed network response") {
+                coEvery { storage.read(LatestRedemptionResponse) } returns null
                 coEvery { storage.read(LatestConfig) } returns null
+                coEvery { localStorage.read(LatestRedemptionResponse) } returns null
                 coEvery { localStorage.read(LatestGeoInfo) } returns null
                 coEvery { storage.read(LatestGeoInfo) } returns null
                 coEvery {
@@ -658,7 +670,8 @@ class ConfigManagerTests {
                                 RawFeatureFlag("enable_config_refresh_v2", true),
                             ),
                     )
-
+                coEvery { storage.read(LatestRedemptionResponse) } returns null
+                coEvery { localStorage.read(LatestRedemptionResponse) } returns null
                 coEvery { storage.read(LatestConfig) } returns cachedConfig
                 coEvery { mockNetwork.getConfig(any()) } returns Either.Failure(NetworkError.Unknown())
                 coEvery { localStorage.read(LatestGeoInfo) } returns null
@@ -726,7 +739,8 @@ class ConfigManagerTests {
         runTest {
             Given("we have a quick network response") {
                 val newConfig = Config.stub().copy(buildId = "not")
-
+                coEvery { storage.read(LatestRedemptionResponse) } returns null
+                coEvery { localStorage.read(LatestRedemptionResponse) } returns null
                 coEvery { storage.read(LatestConfig) } returns null
                 coEvery { mockNetwork.getConfig(any()) } coAnswers {
                     delay(200)
@@ -792,6 +806,8 @@ class ConfigManagerTests {
                 val newGeo = GeoInfo.stub().copy(country = "newCountry")
 
                 coEvery { preload.preloadAllPaywalls(any(), any()) } just Runs
+                coEvery { storage.read(LatestRedemptionResponse) } returns null
+                coEvery { localStorage.read(LatestRedemptionResponse) } returns null
                 coEvery { storage.read(LatestConfig) } returns cachedConfig
                 coEvery { storage.read(LatestGeoInfo) } returns cachedGeo
                 coEvery { storage.write(any(), any()) } just Runs
