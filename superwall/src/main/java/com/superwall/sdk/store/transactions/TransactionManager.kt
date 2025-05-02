@@ -171,12 +171,12 @@ class TransactionManager(
                     " This is likely a bug. Have you tracked the purchase start?",
             )
             return
-        } else {
-            transactionsInProgress.clear()
         }
 
+        val lastProduct = transactionsInProgress.entries.last()
         when (result) {
             is InternalPurchaseResult.Purchased -> {
+                transactionsInProgress.remove(lastProduct.key)
                 val state = state as PurchasingObserverState.PurchaseResult
                 state.purchases?.forEach { purchase ->
                     purchase.products.map {
@@ -192,16 +192,17 @@ class TransactionManager(
                 }
             }
 
-            InternalPurchaseResult.Cancelled -> {
-                val lastProduct = transactionsInProgress.entries.last()
+            is InternalPurchaseResult.Cancelled -> {
                 val product = StoreProduct(RawStoreProduct.from(lastProduct.value))
                 trackCancelled(
                     product = product,
                     purchaseSource = PurchaseSource.ObserverMode(product),
                 )
+                transactionsInProgress.remove(lastProduct.key)
             }
 
             is InternalPurchaseResult.Failed -> {
+                transactionsInProgress.remove(lastProduct.key)
                 val state = state as PurchasingObserverState.PurchaseError
                 val product = StoreProduct(RawStoreProduct.from(state.product))
                 trackFailure(
@@ -213,6 +214,7 @@ class TransactionManager(
 
             InternalPurchaseResult.Pending -> {
                 val result = state as PurchasingObserverState.PurchaseResult
+                transactionsInProgress.remove(lastProduct.key)
                 result.purchases?.forEach { purchase ->
                     purchase.products.map {
                         storeManager.productsByFullId[it]?.let { product ->
@@ -224,6 +226,7 @@ class TransactionManager(
 
             InternalPurchaseResult.Restored -> {
                 val state = state as PurchasingObserverState.PurchaseResult
+                transactionsInProgress.remove(lastProduct.key)
                 state.purchases?.forEach { purchase ->
                     purchase.products.map {
                         storeManager.productsByFullId[it]?.let { product ->
@@ -392,7 +395,6 @@ class TransactionManager(
             is PurchaseSource.Internal -> {
                 log(
                     message =
-
                         "Transaction Error: $errorMessage",
                     info =
                         mapOf(
@@ -573,17 +575,20 @@ class TransactionManager(
                 )
                 val transactionVerifier = factory.makeTransactionVerifier()
                 val transaction =
-                    transactionVerifier.getLatestTransaction(
-                        factory = factory,
-                    )
-
-                if (purchase != null) {
-                    factory.makeStoreTransaction(purchase)
-                } else {
-                    transactionVerifier.getLatestTransaction(
-                        factory = factory,
-                    )
-                }
+                    if (purchaseSource is PurchaseSource.ExternalPurchase) {
+                        transactionVerifier.getLatestTransaction(
+                            factory = factory,
+                        )
+                        if (purchase != null) {
+                            factory.makeStoreTransaction(purchase)
+                        } else {
+                            transactionVerifier.getLatestTransaction(
+                                factory = factory,
+                            )
+                        }
+                    } else {
+                        null
+                    }
                 storeManager.loadPurchasedProducts()
 
                 trackTransactionDidSucceed(transaction, product, purchaseSource, didStartFreeTrial)

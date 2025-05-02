@@ -156,7 +156,7 @@ class ObserverModeTest {
 
     @Test
     fun test_observe_purchase_complete_with_controller() =
-        runTest(timeout = 3.minutes) {
+        runTest(timeout = 30.seconds) {
             setup()
             Given("a configured Superwall instance and completed purchase") {
                 mockDelegate = MockDelegate(this@runTest)
@@ -194,7 +194,7 @@ class ObserverModeTest {
 
     @Test
     fun test_observe_purchase_failed_with_controller() =
-        runTest(timeout = 3.minutes) {
+        runTest(timeout = 30.seconds) {
             setup()
             Given("a configured Superwall instance and failed purchase") {
                 mockDelegate = MockDelegate(this@runTest)
@@ -206,6 +206,7 @@ class ObserverModeTest {
                     Superwall.instance.observe(
                         PurchasingObserverState.PurchaseWillBegin(mockProductDetails),
                     )
+                    delayFor(1.seconds)
                     Superwall.instance.observe(
                         PurchasingObserverState.PurchaseError(
                             error = error,

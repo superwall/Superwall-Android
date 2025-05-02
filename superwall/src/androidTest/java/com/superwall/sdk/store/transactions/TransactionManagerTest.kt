@@ -131,6 +131,7 @@ class TransactionManagerTest {
     private var eventsQueue = mockk<EventsQueue>(relaxUnitFun = true)
     private var transactionManagerFactory =
         mockk<TransactionManager.Factory> {
+            every { isWebToAppEnabled() } returns false
             every { makeHasExternalPurchaseController() } returns false
             every { makeTransactionVerifier() } returns
                 mockk<GoogleBillingWrapper> {

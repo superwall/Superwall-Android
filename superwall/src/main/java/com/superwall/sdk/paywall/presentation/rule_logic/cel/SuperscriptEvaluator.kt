@@ -98,10 +98,8 @@ internal class SuperscriptEvaluator(
                     )
 
                 val ctx = json.encodeToString(executionContext)
-                Superwall.instance.trackError(NotError("ctx: $ctx"))
                 val result =
                     evaluateWithContext(ctx, hostContext)
-                Superwall.instance.trackError(NotError("result: $result"))
 
                 val celResult = json.decodeFromString<CELResult>(result)
                 return@asyncWithTracking when (celResult) {

@@ -19,7 +19,6 @@ import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.awaitFirstValidConfig
 import com.superwall.sdk.misc.fold
 import com.superwall.sdk.misc.into
-import com.superwall.sdk.misc.mapError
 import com.superwall.sdk.misc.onError
 import com.superwall.sdk.misc.then
 import com.superwall.sdk.models.config.Config
@@ -374,7 +373,6 @@ open class ConfigManager(
             ioScope.launch { preloadPaywalls() }
         },
         onFailure = {
-            it.printStackTrace()
             Logger.debug(
                 logLevel = LogLevel.warn,
                 scope = LogScope.superwallCore,
@@ -400,9 +398,6 @@ open class ConfigManager(
             .getConfig {
                 retryCount.incrementAndGet()
                 context.awaitUntilNetworkExists()
-            }.mapError {
-                it.printStackTrace()
-                it
             }.handleConfigUpdate(
                 retryCount = retryCount.get(),
                 fetchDuration = System.currentTimeMillis() - startTime,
