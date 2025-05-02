@@ -39,7 +39,7 @@ interface SuperwallDelegate {
         error: Throwable?,
     ) {}
 
-    fun willRedeemLink()
+    fun willRedeemLink() {}
 
     fun didRedeemLink(result: RedemptionResult) {}
 }

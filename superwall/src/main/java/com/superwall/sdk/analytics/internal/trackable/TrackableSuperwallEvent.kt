@@ -952,9 +952,9 @@ sealed class InternalSuperwallEvent(
         val state: RedemptionState,
     ) : InternalSuperwallEvent(
             when (state) {
-                RedemptionState.Start -> SuperwallPlacement.RedemptionStart
-                is RedemptionState.Complete -> SuperwallPlacement.RedemptionComplete
-                is RedemptionState.Fail -> SuperwallPlacement.RedemptionFail
+                RedemptionState.Start -> SuperwallEvent.RedemptionStart
+                is RedemptionState.Complete -> SuperwallEvent.RedemptionComplete
+                is RedemptionState.Fail -> SuperwallEvent.RedemptionFail
             },
         ) {
         sealed class RedemptionState {

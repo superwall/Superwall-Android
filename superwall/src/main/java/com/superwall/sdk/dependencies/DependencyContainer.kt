@@ -151,7 +151,7 @@ class DependencyContainer(
     val googleBillingWrapper: GoogleBillingWrapper
 
     var entitlements: Entitlements
-    var reedemer: WebPaywallRedeemer
+    lateinit var reedemer: WebPaywallRedeemer
     private val uiScope
         get() = mainScope()
     private val ioScope
@@ -309,6 +309,26 @@ class DependencyContainer(
                 scope = ioScope,
             )
 
+        configManager =
+            ConfigManager(
+                context = context,
+                storeManager = storeManager,
+                storage = storage,
+                network = network,
+                options = options,
+                factory = this,
+                paywallManager = paywallManager,
+                deviceHelper = deviceHelper,
+                assignments = assignments,
+                ioScope = ioScope,
+                paywallPreload = paywallPreload,
+                track = {
+                    Superwall.instance.track(it)
+                },
+                entitlements = entitlements,
+                webPaywallRedeemer = { reedemer },
+            )
+
         reedemer =
             WebPaywallRedeemer(
                 context = context,
@@ -349,26 +369,6 @@ class DependencyContainer(
                     Superwall.instance.paywallView?.info ?: PaywallInfo.empty()
                 },
                 isWebToAppEnabled = { isWebToAppEnabled() },
-            )
-
-        configManager =
-            ConfigManager(
-                context = context,
-                storeManager = storeManager,
-                storage = storage,
-                network = network,
-                options = options,
-                factory = this,
-                paywallManager = paywallManager,
-                deviceHelper = deviceHelper,
-                assignments = assignments,
-                ioScope = ioScope,
-                paywallPreload = paywallPreload,
-                track = {
-                    Superwall.instance.track(it)
-                },
-                entitlements = entitlements,
-                webPaywallRedeemer = reedemer,
             )
 
         eventsQueue =

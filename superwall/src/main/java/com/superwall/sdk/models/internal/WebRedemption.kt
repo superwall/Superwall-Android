@@ -41,21 +41,22 @@ data class WebRedemptionResponse(
 sealed class RedemptionResult {
     abstract val code: String
 
-    var stripeSubscriptionId: List<String?> =
-        when (this) {
-            is RedemptionResult.Success ->
-                when (this.redemptionInfo.purchaserInfo?.storeIdentifiers) {
-                    is StoreIdentifiers.Stripe ->
-                        this.redemptionInfo.purchaserInfo
-                            ?.storeIdentifiers
-                            ?.subscriptionIds
-                            ?: listOf()
+    val stripeSubscriptionId: List<String?>
+        get() =
+            when (this) {
+                is RedemptionResult.Success ->
+                    when (this.redemptionInfo.purchaserInfo?.storeIdentifiers) {
+                        is StoreIdentifiers.Stripe ->
+                            this.redemptionInfo.purchaserInfo
+                                ?.storeIdentifiers
+                                ?.subscriptionIds
+                                ?: listOf()
 
-                    else -> listOf()
-                }
+                        else -> listOf()
+                    }
 
-            else -> listOf()
-        }
+                else -> listOf()
+            }
 
     // Represents that a redemption was successful
     @Serializable(with = DirectSuccessSerializer::class)
@@ -63,7 +64,7 @@ sealed class RedemptionResult {
     data class Success(
         @SerialName("code")
         override val code: String,
-        @SerialName("redemptionInfo")
+        @SerialName("redemption_info")
         val redemptionInfo: RedemptionInfo,
     ) : RedemptionResult()
 
@@ -167,7 +168,7 @@ sealed class StoreIdentifiers {
     @SerialName("STRIPE")
     data class Stripe(
         @SerialName("stripeCustomerId")
-        val stripeSubscriptionId: String,
+        val stripeCustomerId: String,
         @SerialName("stripeSubscriptionIds")
         val subscriptionIds: List<String>,
     ) : StoreIdentifiers()
@@ -269,7 +270,7 @@ object DirectSuccessSerializer : KSerializer<RedemptionResult.Success> {
 
         // Get the redemptionInfo as a JsonElement
         val redemptionInfoJson =
-            jsonObject["redemptionInfo"]
+            (jsonObject["redemption_info"] ?: jsonObject["redemptionInfo"])
                 ?: throw SerializationException("Required field 'redemptionInfo' was not found")
 
         // Then parse it with the RedemptionInfo serializer

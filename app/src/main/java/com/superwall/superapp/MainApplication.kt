@@ -152,6 +152,9 @@ class MainApplication :
         super.handleLog(level, scope, message, info, error)
     }
 
+    override fun willRedeemLink() {
+    }
+
     override fun handleSuperwallEvent(eventInfo: SuperwallEventInfo) {
         println(
             "\n!! SuperwallDelegate !! \n" +

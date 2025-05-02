@@ -23,6 +23,7 @@ import com.superwall.sdk.models.internal.VendorId
 import com.superwall.sdk.models.internal.WebRedemptionResponse
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.network.NetworkError
+import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.storage.LatestRedemptionResponse
 import com.superwall.sdk.storage.Storable
 import com.superwall.sdk.storage.Storage
@@ -53,6 +54,7 @@ class WebPaywallRedeemerTest {
 
     private val deepLinkReferrer: CheckForReferral = mockk()
     private val testDispatcher = StandardTestDispatcher()
+
     private val setEntitlementStatus: (List<Entitlement>) -> Unit = {
         mutableEntitlements += it.toSet()
     }
@@ -65,7 +67,12 @@ class WebPaywallRedeemerTest {
     private var currentPaywallEntitlements = {
         setOf<Entitlement>()
     }
-    private var setSubscriptionStatus = { it: SubscriptionStatus -> }
+    private val setSubscriptionStatus: (SubscriptionStatus) -> Unit = { it: SubscriptionStatus ->
+        when (it) {
+            is SubscriptionStatus.Active -> mutableEntitlements.addAll(it.entitlements)
+            else -> mutableEntitlements.clear()
+        }
+    }
     private var getActiveDeviceEntitlements = {
         setOf<Entitlement>()
     }
@@ -103,7 +110,7 @@ class WebPaywallRedeemerTest {
                                                 PurchaserInfo(
                                                     getUserId().value,
                                                     "email",
-                                                    StoreIdentifiers.Stripe(stripeSubscriptionId = "123"),
+                                                    StoreIdentifiers.Stripe(stripeCustomerId = "123", emptyList()),
                                                 ),
                                             entitlements = listOf(webEntitlement),
                                         ),
@@ -129,18 +136,21 @@ class WebPaywallRedeemerTest {
                         deepLinkReferrer,
                         network,
                         storage,
-                        onRedemptionResult,
+                        willRedeemLink = {},
+                        didRedeemLink = {},
                         maxAge,
                         getActiveDeviceEntitlements,
                         getUserId,
                         getDeviceId,
                         getAlias,
                         track,
-                        setActiveWebEntitlements,
                         setSubscriptionStatus,
                         isPaywallVisible,
                         showRestoreDialogAndDismiss,
                         currentPaywallEntitlements,
+                        getPaywallInfo = { PaywallInfo.empty() },
+                        trackRestorationFailed = {},
+                        isWebToAppEnabled = { true },
                     )
 
                 When("checking for referral") {
@@ -171,18 +181,21 @@ class WebPaywallRedeemerTest {
                         deepLinkReferrer,
                         network,
                         storage,
-                        onRedemptionResult,
+                        willRedeemLink = {},
+                        didRedeemLink = {},
                         maxAge,
                         getActiveDeviceEntitlements,
                         getUserId,
                         getDeviceId,
                         getAlias,
                         track,
-                        setActiveWebEntitlements,
                         setSubscriptionStatus,
                         isPaywallVisible,
                         showRestoreDialogAndDismiss,
                         currentPaywallEntitlements,
+                        getPaywallInfo = { PaywallInfo.empty() },
+                        trackRestorationFailed = {},
+                        isWebToAppEnabled = { true },
                     )
 
                 When("checking for referral") {
@@ -222,18 +235,21 @@ class WebPaywallRedeemerTest {
                         deepLinkReferrer,
                         network,
                         storage,
-                        onRedemptionResult,
+                        willRedeemLink = {},
+                        didRedeemLink = onRedemptionResult,
                         maxAge,
                         getActiveDeviceEntitlements,
                         getUserId,
                         getDeviceId,
                         getAlias,
                         track,
-                        setActiveWebEntitlements,
                         setSubscriptionStatus,
                         isPaywallVisible,
                         showRestoreDialogAndDismiss,
                         currentPaywallEntitlements,
+                        getPaywallInfo = { PaywallInfo.empty() },
+                        trackRestorationFailed = {},
+                        isWebToAppEnabled = { true },
                     )
 
                 When("checking for referral") {
@@ -279,18 +295,21 @@ class WebPaywallRedeemerTest {
                         deepLinkReferrer,
                         network,
                         storage,
-                        onRedemptionResult,
+                        willRedeemLink = {},
+                        didRedeemLink = {},
                         maxAge,
                         getActiveDeviceEntitlements,
                         getUserId,
                         getDeviceId,
                         getAlias,
                         track,
-                        setActiveWebEntitlements,
                         setSubscriptionStatus,
                         isPaywallVisible,
                         showRestoreDialogAndDismiss,
                         currentPaywallEntitlements,
+                        getPaywallInfo = { PaywallInfo.empty() },
+                        trackRestorationFailed = {},
+                        isWebToAppEnabled = { true },
                     )
 
                 When("checking for web entitlements") {
@@ -328,18 +347,21 @@ class WebPaywallRedeemerTest {
                         deepLinkReferrer,
                         network,
                         storage,
-                        onRedemptionResult,
+                        willRedeemLink = {},
+                        didRedeemLink = {},
                         maxAge,
                         getActiveDeviceEntitlements,
                         getUserId,
                         getDeviceId,
                         getAlias,
                         track,
-                        setActiveWebEntitlements,
                         setSubscriptionStatus,
                         isPaywallVisible,
                         showRestoreDialogAndDismiss,
                         currentPaywallEntitlements,
+                        getPaywallInfo = { PaywallInfo.empty() },
+                        trackRestorationFailed = {},
+                        isWebToAppEnabled = { true },
                     )
 
                 When("checking for web entitlements") {
@@ -380,18 +402,21 @@ class WebPaywallRedeemerTest {
                         deepLinkReferrer,
                         network,
                         storage,
-                        onRedemptionResult,
+                        willRedeemLink = {},
+                        didRedeemLink = {},
                         maxAge,
                         getActiveDeviceEntitlements,
                         getUserId,
                         getDeviceId,
                         getAlias,
                         track,
-                        setActiveWebEntitlements,
                         setSubscriptionStatus,
                         isPaywallVisible,
                         showRestoreDialogAndDismiss,
                         currentPaywallEntitlements,
+                        getPaywallInfo = { PaywallInfo.empty() },
+                        trackRestorationFailed = {},
+                        isWebToAppEnabled = { true },
                     )
 
                 When("checking for web entitlements") {
@@ -437,18 +462,21 @@ class WebPaywallRedeemerTest {
                         deepLinkReferrer,
                         network,
                         storage,
-                        onRedemptionResult,
+                        willRedeemLink = {},
+                        didRedeemLink = {},
                         maxAge,
                         getActiveDeviceEntitlements,
                         getUserId,
                         getDeviceId,
                         getAlias,
                         track,
-                        setActiveWebEntitlements,
                         setSubscriptionStatus,
                         isPaywallVisible,
                         showRestoreDialogAndDismiss,
                         currentPaywallEntitlements,
+                        getPaywallInfo = { PaywallInfo.empty() },
+                        trackRestorationFailed = {},
+                        isWebToAppEnabled = { true },
                     )
 
                 When("checking for web entitlements") {
@@ -490,18 +518,21 @@ class WebPaywallRedeemerTest {
                         deepLinkReferrer,
                         network,
                         storage,
-                        onRedemptionResult,
+                        willRedeemLink = {},
+                        didRedeemLink = {},
                         maxAge,
                         getActiveDeviceEntitlements,
                         getUserId,
                         getDeviceId,
                         getAlias,
                         track,
-                        setActiveWebEntitlements,
                         setSubscriptionStatus,
                         isPaywallVisible,
                         showRestoreDialogAndDismiss,
                         currentPaywallEntitlements,
+                        getPaywallInfo = { PaywallInfo.empty() },
+                        trackRestorationFailed = {},
+                        isWebToAppEnabled = { true },
                     )
 
                 When("checking for web entitlements") {
@@ -540,7 +571,11 @@ class WebPaywallRedeemerTest {
                                             PurchaserInfo(
                                                 userId,
                                                 email = null,
-                                                storeIdentifiers = StoreIdentifiers.Stripe("123"),
+                                                storeIdentifiers =
+                                                    StoreIdentifiers.Stripe(
+                                                        "123",
+                                                        emptyList(),
+                                                    ),
                                             ),
                                         entitlements = listOf(webEntitlement),
                                     ),
@@ -554,7 +589,11 @@ class WebPaywallRedeemerTest {
                                             PurchaserInfo(
                                                 userId,
                                                 email = null,
-                                                storeIdentifiers = StoreIdentifiers.Stripe("123"),
+                                                storeIdentifiers =
+                                                    StoreIdentifiers.Stripe(
+                                                        "123",
+                                                        emptyList(),
+                                                    ),
                                             ),
                                         entitlements = listOf(webEntitlement),
                                     ),
@@ -585,18 +624,21 @@ class WebPaywallRedeemerTest {
                     deepLinkReferrer,
                     network,
                     storage,
-                    onRedemptionResult,
+                    willRedeemLink = {},
+                    didRedeemLink = {},
                     maxAge,
                     getActiveDeviceEntitlements,
                     getUserId,
                     getDeviceId,
                     getAlias,
                     track,
-                    setActiveWebEntitlements,
                     setSubscriptionStatus,
                     isPaywallVisible,
                     showRestoreDialogAndDismiss,
                     currentPaywallEntitlements,
+                    getPaywallInfo = { PaywallInfo.empty() },
+                    trackRestorationFailed = {},
+                    isWebToAppEnabled = { true },
                 )
 
             storage.write(LatestRedemptionResponse, response)
