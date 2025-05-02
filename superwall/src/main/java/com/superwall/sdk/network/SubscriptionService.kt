@@ -1,5 +1,6 @@
 package com.superwall.sdk.network
 
+import android.util.Log
 import com.superwall.sdk.dependencies.ApiFactory
 import com.superwall.sdk.models.entitlements.RedeemRequest
 import com.superwall.sdk.models.entitlements.Redeemable
@@ -46,7 +47,10 @@ class SubscriptionService(
                         aliasId,
                         codes,
                     ),
-                ).toByteArray(),
+                ).let {
+                    Log.e("RedeemBody", "$it")
+                    it
+                } .toByteArray(),
     )
 
     suspend fun webEntitlementsByUserId(

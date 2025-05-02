@@ -6,6 +6,7 @@ import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.config.models.ConfigState
 import com.superwall.sdk.config.models.getConfig
 import com.superwall.sdk.config.options.SuperwallOptions
+import com.superwall.sdk.delegate.SubscriptionStatus
 import com.superwall.sdk.dependencies.DeviceHelperFactory
 import com.superwall.sdk.dependencies.DeviceInfoFactory
 import com.superwall.sdk.dependencies.RequestFactory
@@ -411,7 +412,7 @@ open class ConfigManager(
 
     suspend fun checkForWebEntitlements() {
         ioScope.launch {
-            webPaywallRedeemer.redeem(null)
+            webPaywallRedeemer.redeem(WebPaywallRedeemer.RedeemType.Existing)
             if (entitlements.all.size != entitlements.active.size) {
                 // This runs only if user does not have all of the entitlements
                 webPaywallRedeemer

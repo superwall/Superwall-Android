@@ -10,16 +10,16 @@ import com.superwall.sdk.delegate.subscription_controller.PurchaseControllerJava
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
-class InternalPurchaseController(
+internal class InternalPurchaseController(
     private val kotlinPurchaseController: PurchaseController?,
     private val javaPurchaseController: PurchaseControllerJava?,
     val context: Context,
 ) : PurchaseController {
     val hasExternalPurchaseController: Boolean
-        get() = kotlinPurchaseController != null || javaPurchaseController != null
+        get() = !hasInternalPurchaseController
 
     val hasInternalPurchaseController: Boolean
-        get() = hasExternalPurchaseController && kotlinPurchaseController is AutomaticPurchaseController
+        get() = kotlinPurchaseController is AutomaticPurchaseController
 
     override suspend fun purchase(
         activity: Activity,

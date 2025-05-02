@@ -10,7 +10,9 @@ import java.net.URI
 interface SuperwallDelegateJava {
     fun handleCustomPaywallAction(name: String) {}
 
-    fun didRedeemCode(result: RedemptionResult) {}
+    fun willRedeemLink() {}
+
+    fun didRedeemLink(result: RedemptionResult) {}
 
     fun willDismissPaywall(paywallInfo: PaywallInfo) {}
 

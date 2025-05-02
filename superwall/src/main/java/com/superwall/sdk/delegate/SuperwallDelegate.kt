@@ -1,6 +1,7 @@
 package com.superwall.sdk.delegate
 
 import android.net.Uri
+import com.superwall.sdk.analytics.superwall.SuperwallPlacementInfo
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.internal.RedemptionResult
@@ -38,4 +39,9 @@ interface SuperwallDelegate {
         info: Map<String, Any>?,
         error: Throwable?,
     ) {}
+
+    fun willRedeemLink()
+
+    fun didRedeemLink(result: RedemptionResult) {}
+
 }
