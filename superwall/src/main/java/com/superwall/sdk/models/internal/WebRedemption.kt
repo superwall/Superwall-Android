@@ -41,6 +41,18 @@ data class WebRedemptionResponse(
 sealed class RedemptionResult {
     abstract val code: String
 
+
+    var stripeSubscriptionId: List<String?> = when (this) {
+        is RedemptionResult.Success -> when (this.redemptionInfo.purchaserInfo?.storeIdentifiers) {
+            is StoreIdentifiers.Stripe -> this.redemptionInfo.purchaserInfo?.storeIdentifiers?.subscriptionIds
+                ?: listOf()
+
+            else -> listOf()
+        }
+
+        else -> listOf()
+    }
+
     // Represents that a redemption was successful
     @Serializable(with = DirectSuccessSerializer::class)
     @SerialName("SUCCESS")
@@ -152,6 +164,8 @@ sealed class StoreIdentifiers {
     data class Stripe(
         @SerialName("stripeCustomerId")
         val stripeSubscriptionId: String,
+        @SerialName("stripeSubscriptionIds")
+        val subscriptionIds: List<String>
     ) : StoreIdentifiers()
 
     @Serializable
@@ -220,6 +234,7 @@ object DirectSuccessSerializer : KSerializer<RedemptionResult.Success> {
         val json =
             Json {
                 encodeDefaults = true
+                ignoreUnknownKeys = true
             }
         val redemptionInfoJson =
             json.encodeToJsonElement(RedemptionInfo.serializer(), value.redemptionInfo)

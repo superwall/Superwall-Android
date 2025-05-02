@@ -75,7 +75,7 @@ class MainApplication :
     fun configureWithAutomaticInitialization() {
         Superwall.configure(
             this,
-            Keys.CONSTANT_API_KEY,
+            Keys.WEB_2_APP_API_KEY,
             options =
                 SuperwallOptions().apply {
                     paywalls =
@@ -161,8 +161,8 @@ class MainApplication :
         )
     }
 
-    override fun didRedeemCode(result: RedemptionResult) {
-        super.didRedeemCode(result)
+    override fun didRedeemLink(result: RedemptionResult) {
+        super.didRedeemLink(result)
     }
 
     override fun subscriptionStatusDidChange(

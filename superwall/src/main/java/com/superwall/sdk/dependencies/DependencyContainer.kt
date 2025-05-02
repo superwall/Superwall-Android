@@ -56,6 +56,7 @@ import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.dismiss
 import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
+import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.SuperscriptEvaluator
 import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.CombinedExpressionEvaluator
 import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.ExpressionEvaluating
@@ -69,6 +70,7 @@ import com.superwall.sdk.paywall.view.SuperwallStoreOwner
 import com.superwall.sdk.paywall.view.ViewModelFactory
 import com.superwall.sdk.paywall.view.ViewStorageViewModel
 import com.superwall.sdk.paywall.view.delegate.PaywallViewDelegateAdapter
+import com.superwall.sdk.paywall.view.webview.PaywallMessage
 import com.superwall.sdk.paywall.view.webview.SWWebView
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessageHandler
 import com.superwall.sdk.paywall.view.webview.templating.models.JsonVariables
@@ -158,16 +160,16 @@ class DependencyContainer(
         CombinedExpressionEvaluator(
             storage = storage,
             superscriptEvaluator =
-                SuperscriptEvaluator(
-                    json =
-                        Json(json()) {
-                            classDiscriminatorMode = ClassDiscriminatorMode.ALL_JSON_OBJECTS
-                            classDiscriminator = "type"
-                        },
-                    storage = storage.coreDataManager,
-                    factory = this,
-                    ioScope = ioScope,
-                ),
+            SuperscriptEvaluator(
+                json =
+                Json(json()) {
+                    classDiscriminatorMode = ClassDiscriminatorMode.ALL_JSON_OBJECTS
+                    classDiscriminator = "type"
+                },
+                storage = storage.coreDataManager,
+                factory = this,
+                ioScope = ioScope,
+            ),
         )
     }
 
@@ -211,8 +213,8 @@ class DependencyContainer(
         var purchaseController =
             InternalPurchaseController(
                 kotlinPurchaseController =
-                    purchaseController
-                        ?: AutomaticPurchaseController(context, ioScope, entitlements),
+                purchaseController
+                    ?: AutomaticPurchaseController(context, ioScope, entitlements),
                 javaPurchaseController = null,
                 context,
             )
@@ -223,9 +225,9 @@ class DependencyContainer(
             CustomHttpUrlConnection(
                 json = json(),
                 requestExecutor =
-                    RequestExecutor { debugging, requestId ->
-                        makeHeaders(debugging, requestId)
-                    },
+                RequestExecutor { debugging, requestId ->
+                    makeHeaders(debugging, requestId)
+                },
             )
         val options = options ?: SuperwallOptions()
 
@@ -233,39 +235,40 @@ class DependencyContainer(
         network =
             Network(
                 baseHostService =
-                    BaseHostService(
-                        host = api.base.host,
-                        Api.version1,
-                        factory = this,
-                        json = json(),
-                        customHttpUrlConnection = httpConnection,
-                    ),
+                BaseHostService(
+                    host = api.base.host,
+                    Api.version1,
+                    factory = this,
+                    json = json(),
+                    customHttpUrlConnection = httpConnection,
+                ),
                 subscriptionService =
-                    SubscriptionService(
-                        host = api.subscription.host,
-                        version = Api.subscriptionsv1,
-                        factory = this,
-                        json =
-                            Json(from = json()) {
-                                namingStrategy = null
-                            },
-                        customHttpUrlConnection = httpConnection,
-                    ),
+                SubscriptionService(
+                    host = api.subscription.host,
+                    version = Api.subscriptionsv1,
+                    factory = this,
+                    json =
+                    Json(from = json()) {
+                        ignoreUnknownKeys = true
+                        namingStrategy = null
+                    },
+                    customHttpUrlConnection = httpConnection,
+                ),
                 collectorService =
-                    CollectorService(
-                        host = api.collector.host,
-                        version = Api.version1,
-                        factory = this,
-                        json = json(),
-                        customHttpUrlConnection = httpConnection,
-                    ),
+                CollectorService(
+                    host = api.collector.host,
+                    version = Api.version1,
+                    factory = this,
+                    json = json(),
+                    customHttpUrlConnection = httpConnection,
+                ),
                 geoService =
-                    GeoService(
-                        host = api.geo.host,
-                        version = Api.version1,
-                        factory = this,
-                        customHttpUrlConnection = httpConnection,
-                    ),
+                GeoService(
+                    host = api.geo.host,
+                    version = Api.version1,
+                    factory = this,
+                    customHttpUrlConnection = httpConnection,
+                ),
                 factory = this,
             )
         errorTracker = ErrorTracker(scope = ioScope, cache = storage)
@@ -313,13 +316,14 @@ class DependencyContainer(
                 deepLinkReferrer = DeepLinkReferrer({ context }, ioScope),
                 network = network,
                 storage = storage,
-                onRedemptionResult = { result ->
+                didRedeemLink = { result ->
                     delegateAdapter.didRedeemCode(result)
                 },
                 maxAge = {
                     configManager.config?.webToAppConfig?.entitlementsMaxAgeMs ?: 60000L
                 },
                 setActiveWebEntitlements = {
+                    if(!makeHasExternalPurchaseController())
                     entitlements.setWebEntitlements(it)
                 },
                 setSubscriptionStatus = {
@@ -339,6 +343,9 @@ class DependencyContainer(
                             entitlements.byProductId(it)
                         }?.toSet() ?: emptySet()
                 },
+                willRedeemLink = {
+                    Superwall.instance.delegate?.willRedeemLink()
+                }
             )
 
         configManager =
@@ -484,8 +491,8 @@ class DependencyContainer(
                 "X-Low-Power-Mode" to deviceHelper.isLowPowerModeEnabled.toString(),
                 "X-Is-Sandbox" to deviceHelper.isSandbox.toString(),
                 "X-Entitlement-Status" to
-                    Superwall.instance.entitlements.status.value
-                        .toString(),
+                        Superwall.instance.entitlements.status.value
+                            .toString(),
                 "Content-Type" to "application/json",
                 "X-Current-Time" to dateFormat(DateUtils.ISO_MILLIS).format(Date()),
                 "X-Static-Config-Build-Id" to (configManager.config?.buildId ?: ""),
@@ -531,8 +538,8 @@ class DependencyContainer(
                             webView = webView,
                             eventCallback = Superwall.instance,
                             useMultipleUrls =
-                                configManager.config?.featureFlags?.enableMultiplePaywallUrls
-                                    ?: false,
+                            configManager.config?.featureFlags?.enableMultiplePaywallUrls
+                                ?: false,
                         )
                     webView.delegate = paywallView
                     messageHandler.delegate = paywallView
@@ -558,7 +565,8 @@ class DependencyContainer(
         return view
     }
 
-    override fun makeCache(): PaywallViewCache = PaywallViewCache(context, makeViewStore(), activityProvider!!, deviceHelper)
+    override fun makeCache(): PaywallViewCache =
+        PaywallViewCache(context, makeViewStore(), activityProvider!!, deviceHelper)
 
     override fun makeDeviceInfo(): DeviceInfo =
         DeviceInfo(
@@ -587,9 +595,11 @@ class DependencyContainer(
             audienceFilterParams = HashMap(identityManager.userAttributes),
         )
 
-    override fun makeHasExternalPurchaseController(): Boolean = storeManager.purchaseController.hasExternalPurchaseController
+    override fun makeHasExternalPurchaseController(): Boolean =
+        storeManager.purchaseController.hasExternalPurchaseController
 
-    override fun makeHasInternalPurchaseController(): Boolean = storeManager.purchaseController.hasInternalPurchaseController
+    override fun makeHasInternalPurchaseController(): Boolean =
+        storeManager.purchaseController.hasInternalPurchaseController
 
     override fun isWebToAppEnabled(): Boolean = configManager.config?.featureFlags?.web2App ?: false
 
@@ -632,14 +642,14 @@ class DependencyContainer(
             presenter = WeakReference(presenter),
             paywallOverrides = paywallOverrides,
             flags =
-                PresentationRequest.Flags(
-                    isDebuggerLaunched = isDebuggerLaunched ?: debugManager.isDebuggerLaunched,
-                    // TODO: (PresentationCritical) Fix subscription status
-                    entitlements = subscriptionStatus ?: Superwall.instance.entitlements.status,
+            PresentationRequest.Flags(
+                isDebuggerLaunched = isDebuggerLaunched ?: debugManager.isDebuggerLaunched,
+                // TODO: (PresentationCritical) Fix subscription status
+                entitlements = subscriptionStatus ?: Superwall.instance.entitlements.status,
 //                subscriptionStatus = subscriptionStatus!!,
-                    isPaywallPresented = isPaywallPresented,
-                    type = type,
-                ),
+                isPaywallPresented = isPaywallPresented,
+                type = type,
+            ),
         )
 
     override fun makeStaticPaywall(
@@ -679,7 +689,8 @@ class DependencyContainer(
 
     override fun makeFeatureFlags(): FeatureFlags? = configManager.config?.featureFlags
 
-    override fun makeComputedPropertyRequests(): List<ComputedPropertyRequest> = configManager.config?.allComputedProperties ?: emptyList()
+    override fun makeComputedPropertyRequests(): List<ComputedPropertyRequest> =
+        configManager.config?.allComputedProperties ?: emptyList()
 
     override suspend fun makeIdentityInfo(): IdentityInfo =
         IdentityInfo(
@@ -717,7 +728,8 @@ class DependencyContainer(
             appSessionId = appSessionManager.appSession.id,
         )
 
-    override suspend fun activeProductIds(): List<String> = storeManager.receiptManager.purchases.toList()
+    override suspend fun activeProductIds(): List<String> =
+        storeManager.receiptManager.purchases.toList()
 
     override fun makeTransactionVerifier(): GoogleBillingWrapper = googleBillingWrapper
 
@@ -742,7 +754,8 @@ class DependencyContainer(
         get() = ViewModelFactory()
     private val vmProvider = ViewModelProvider(storeOwner, vmFactory)
 
-    override fun makeViewStore(): ViewStorageViewModel = vmProvider[ViewStorageViewModel::class.java]
+    override fun makeViewStore(): ViewStorageViewModel =
+        vmProvider[ViewStorageViewModel::class.java]
 
     private var _mainScope: MainScope? = null
     private var _ioScope: IOScope? = null
@@ -762,21 +775,22 @@ class DependencyContainer(
     }
 
     private fun showWebRestoreSuccesful() {
-        Superwall.instance.paywallView?.showAlert(
-            title = "Restoration Successful",
-            message = "Your subscriptions have been restored.",
-            actionTitle = "OK",
-            action = {
+        val pv : PaywallView? = Superwall.instance.paywallView
+        if (pv != null) {
+            ioScope.launch {
+                Superwall.instance.track(
+                    InternalSuperwallEvent.Restore(
+                        state = InternalSuperwallEvent.Restore.State.Complete,
+                        paywallInfo = pv.info,
+                    )
+                )
+                pv.webView.messageHandler.handle(PaywallMessage.Restore)
+            }
+            if(makeSuperwallOptions().paywalls.automaticallyDismiss) {
                 ioScope.launch {
                     Superwall.instance.dismiss()
                 }
-            },
-            closeActionTitle = "Close",
-            onClose = {
-                ioScope.launch {
-                    Superwall.instance.dismiss()
-                }
-            },
-        )
+            }
+        }
     }
 }

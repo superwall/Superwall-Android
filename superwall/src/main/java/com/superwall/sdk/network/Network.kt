@@ -114,7 +114,7 @@ open class Network(
         vendorId: DeviceVendorId,
     ): Either<WebRedemptionResponse, NetworkError> =
         subscriptionService
-            .redeemToken(codes, userId, aliasId, vendorId)
+            .redeemToken(codes, userId ?: aliasId?.let { UserId(it) }, aliasId, vendorId)
             .logError("/redeem")
 
     override suspend fun webEntitlementsByUserId(
