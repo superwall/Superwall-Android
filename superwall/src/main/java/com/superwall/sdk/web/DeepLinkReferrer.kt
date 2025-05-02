@@ -1,6 +1,7 @@
 package com.superwall.sdk.web
 
 import android.content.Context
+import android.net.Uri
 import com.android.installreferrer.api.InstallReferrerClient
 import com.android.installreferrer.api.InstallReferrerClient.newBuilder
 import com.android.installreferrer.api.InstallReferrerStateListener
@@ -14,6 +15,8 @@ import kotlin.time.Duration.Companion.seconds
 
 interface CheckForReferral {
     suspend fun checkForReferral(): Result<String>
+
+    fun handleDeepLink(url: Uri): Result<String>
 }
 
 class DeepLinkReferrer(
@@ -79,6 +82,18 @@ class DeepLinkReferrer(
                 Result.success(code)
             }
         }
+
+    override fun handleDeepLink(url: Uri): Result<String> {
+        val failure =
+            Result.failure<String>(UnsupportedOperationException("Link not valid for redemption"))
+        return if (url.host == "superwall" && url.lastPathSegment.equals("redeem")) {
+            url.getQueryParameter("code")?.let {
+                Result.success(it)
+            } ?: failure
+        } else {
+            failure
+        }
+    }
 
     private fun String.getUrlParams(): Map<String, List<String>> {
         val urlParts = split("\\?".toRegex()).filter(String::isNotEmpty)

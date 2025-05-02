@@ -78,6 +78,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.update
@@ -221,7 +222,7 @@ class Superwall(
      * @param subscriptionStatus The entitlement status of the user.
      */
     fun setSubscriptionStatus(subscriptionStatus: SubscriptionStatus) {
-        internallySetSubscriptionStatus(subscriptionStatus)
+        entitlements.setSubscriptionStatus(subscriptionStatus)
     }
 
     /**
@@ -236,9 +237,9 @@ class Superwall(
      * */
     fun setSubscriptionStatus(vararg entitlements: String) {
         if (entitlements.isEmpty()) {
-            internallySetSubscriptionStatus(SubscriptionStatus.Inactive)
+            this@Superwall.entitlements.setSubscriptionStatus(SubscriptionStatus.Inactive)
         } else {
-            internallySetSubscriptionStatus(
+            this@Superwall.entitlements.setSubscriptionStatus(
                 SubscriptionStatus.Active(
                     entitlements
                         .map {
@@ -634,6 +635,13 @@ class Superwall(
         withErrorTracking<Boolean> {
             ioScope.launch {
                 track(InternalSuperwallEvent.DeepLink(uri = uri))
+            }
+            dependencyContainer.reedemer.deepLinkReferrer.handleDeepLink(uri).onSuccess {
+                ioScope.launch {
+                    configurationStateListener.first { it is ConfigurationStatus.Configured }
+                    redeem(it)
+                }
+                return Result.success(true)
             }
             dependencyContainer.debugManager.handle(deepLinkUrl = uri)
         }.toResult()
@@ -1077,7 +1085,7 @@ class Superwall(
         }
     }
 
-    fun redeem(code: String) {
+    internal fun redeem(code: String) {
         ioScope.launch {
             dependencyContainer.reedemer.redeem(WebPaywallRedeemer.RedeemType.Code(code))
         }
