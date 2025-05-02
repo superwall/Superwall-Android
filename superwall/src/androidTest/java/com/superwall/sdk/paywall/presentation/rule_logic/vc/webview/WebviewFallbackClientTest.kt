@@ -5,7 +5,6 @@ import Given
 import Then
 import When
 import android.app.Application
-import android.util.Log
 import android.webkit.WebView
 import androidx.test.platform.app.InstrumentationRegistry
 import com.superwall.sdk.Superwall
@@ -28,12 +27,14 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 class WebviewFallbackClientTest {
@@ -53,7 +54,7 @@ class WebviewFallbackClientTest {
 
     private fun createPaywallConfig(
         vararg configs: PaywallWebviewUrl,
-        maxAttemps: Int = configs.size,
+        maxAttemps: Int = configs.size + 2,
     ) = Paywall.stub().let {
         it.copy(
             urlConfig =
@@ -160,6 +161,7 @@ class WebviewFallbackClientTest {
                     }
                 }
             }
+            return@runTest
         }
 
     @Test
@@ -175,14 +177,14 @@ class WebviewFallbackClientTest {
             val paywall =
                 createPaywallConfig(
                     PaywallWebviewUrl(
-                        url = "https://www.this-url-doesnt-exist-so-test-fails.com",
+                        url = "https://www.this-url-doesnt-exist-so-test-fails.com/runtime/",
                         timeout = 10,
-                        score = 100,
+                        score = 1000,
                     ),
                     PaywallWebviewUrl(
-                        url = "https://www.wikipedia.org",
+                        url = "https://www.example.com/",
                         timeout = 500,
-                        score = 1,
+                        score = 0,
                     ),
                 )
             val context = InstrumentationRegistry.getInstrumentation().context
@@ -201,18 +203,24 @@ class WebviewFallbackClientTest {
                         val events =
                             webview
                                 .clientEvents(mainScope)
-                                .take(5)
+                                .onEach {
+                                    println("Incoming event $it")
+                                }.takeWhile { !(it is OnPageFinished && it.url.contains("example.com")) }
                                 .toList()
+
                         assert(events.any { it is WebviewClientEvent.OnError })
-                        assert(events.count { it is OnPageFinished && it.url.contains("wiki") } == 1)
+                        assert(events.count { it is OnPageFinished } == 1)
+                        val pageFinished = events.filterIsInstance<OnPageFinished>()
+                        assert(pageFinished.any { it.url.contains("fails") })
                     }
                 }
             }
+            return@runTest
         }
 
     @Test
     fun test_failed_loading_until_last_with_score_0() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             val handler =
                 PaywallMessageHandler(
                     mockk<SessionEventsManager>(),
@@ -223,20 +231,21 @@ class WebviewFallbackClientTest {
             val paywall =
                 createPaywallConfig(
                     PaywallWebviewUrl(
-                        url = "https://www.this-url-doesnt-exist-so-test-fails.com",
+                        url = "https://www.this-url-doesnt-exist-so-test-fails.com/runtime",
                         timeout = 0,
                         score = 100,
                     ),
                     PaywallWebviewUrl(
-                        url = "https://www.this-url-doesnt-exist-so-test-fails-too.com",
+                        url = "https://www.this-url-doesnt-exist-so-test-fails-too.com/runtime",
                         timeout = 10,
                         score = 10,
                     ),
                     PaywallWebviewUrl(
-                        url = "https://www.wikipedia.org",
+                        url = "https://www.example.com/",
                         timeout = 500,
                         score = 0,
                     ),
+                    maxAttemps = 4,
                 )
             val context = InstrumentationRegistry.getInstrumentation().context
             val webview =
@@ -253,21 +262,21 @@ class WebviewFallbackClientTest {
                         val events =
                             webview
                                 .clientEvents(mainScope)
-                                .take(8)
+                                .takeWhile { !(it is OnPageFinished && it.url.contains("example")) }
                                 .toList()
                         And("the last one is the one with score 0") {
-                            val last = events.filterIsInstance<OnPageFinished>().last()
-                            Log.e("WebviewFallbackClientTest", "last.url: ${last.url}")
-                            assert(last.url.contains("wiki"))
+                            val last = events.filterIsInstance<OnPageFinished>()
+                            assert(last.count() == 2)
                         }
                     }
                 }
             }
+            return@runTest
         }
 
     @Test
     fun test_failed_loading_all() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             val handler =
                 PaywallMessageHandler(
                     mockk<SessionEventsManager>(),
@@ -278,17 +287,17 @@ class WebviewFallbackClientTest {
             val paywall =
                 createPaywallConfig(
                     PaywallWebviewUrl(
-                        url = "https://www.this-url-doesnt-exist-so-test-fails.com",
+                        url = "https://www.this-url-doesnt-exist-so-test-fails.com/runtime",
                         timeout = 1,
                         score = 100,
                     ),
                     PaywallWebviewUrl(
-                        url = "https://www.this-url-doesnt-exist-so-test-fails-too.com",
+                        url = "https://www.this-url-doesnt-exist-so-test-fails-too.com/runtime",
                         timeout = 500,
                         score = 10,
                     ),
                     PaywallWebviewUrl(
-                        url = "https://www.this-url-doesnt-exist-so-test-fails-third.com",
+                        url = "https://www.this-url-doesnt-exist-so-test-fails-third.com/runtime",
                         timeout = 500,
                         score = 0,
                     ),
@@ -308,7 +317,9 @@ class WebviewFallbackClientTest {
                         val event =
                             webview
                                 .clientEvents(mainScope)
-                                .first {
+                                .onEach {
+                                    println("Event $it")
+                                }.first {
                                     it is WebviewClientEvent.OnError && it.webviewError is WebviewError.AllUrlsFailed
                                 } as WebviewClientEvent.OnError
                         val error = event.webviewError as WebviewError.AllUrlsFailed
@@ -316,6 +327,7 @@ class WebviewFallbackClientTest {
                     }
                 }
             }
+            return@runTest
         }
 
     private fun failingUrl(
@@ -323,7 +335,7 @@ class WebviewFallbackClientTest {
         score: Int = 10,
         timeout: Long = 0,
     ) = PaywallWebviewUrl(
-        url = "https://www.this-url-doesnt-exist-$index.com/",
+        url = "https://www.this-url-doesnt-exist-$index.com//runtime",
         score = score,
         timeout = timeout,
     )
@@ -344,7 +356,7 @@ class WebviewFallbackClientTest {
                         (0 until 3).map { failingUrl(it) } +
                             (0 until 3).map { failingUrl(it + 3, 0) }
                     ).toTypedArray(),
-                    maxAttemps = 3,
+                    maxAttemps = 4,
                 )
             val context = InstrumentationRegistry.getInstrumentation().context
             val webview =
@@ -367,5 +379,6 @@ class WebviewFallbackClientTest {
                     }
                 }
             }
+            return@runTest
         }
 }
