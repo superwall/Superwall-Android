@@ -493,7 +493,6 @@ class Superwall(
                         // Implicitly wait
                         dependencyContainer.configManager.fetchConfiguration()
                         dependencyContainer.identityManager.configure()
-                        dependencyContainer.reedemer.checkForRefferal()
                     }.toResult().fold({
                         CoroutineScope(Dispatchers.Main).launch {
                             completion?.invoke(Result.success(Unit))

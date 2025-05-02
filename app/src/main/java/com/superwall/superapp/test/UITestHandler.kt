@@ -112,7 +112,7 @@ object UITestHandler {
                 ),
                 UITestInfo(
                     1003,
-                    "Start paywall and then identify, should dismiss paywall",
+                    "Start paywall, will identify. Hit restore, should dismiss paywall",
                     test = { scope, events, _ ->
                         Superwall.instance.register(placement = "pro_only")
                         Superwall.instance.identify("MigratedWebUser")

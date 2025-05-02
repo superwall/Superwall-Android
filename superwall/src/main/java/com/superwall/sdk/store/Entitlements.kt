@@ -43,9 +43,15 @@ class Entitlements(
         get() = _status.asStateFlow()
 
     // MARK: - Backing Fields
+
+    /**
+     * Internal backing variable that is set only via setSubscriptionStatus
+     */
+    private var backingActive: Set<Entitlement> = emptySet()
+
     private val _all = mutableSetOf<Entitlement>()
     private val _activeDeviceEntitlements = mutableSetOf<Entitlement>()
-    private val _inactive = mutableSetOf<Entitlement>()
+    private val _inactive = _all.subtract(backingActive).toMutableSet()
 
     // MARK: - Public Properties
 
@@ -66,7 +72,7 @@ class Entitlements(
      * The active entitlements.
      */
     val active: Set<Entitlement>
-        get() = _activeDeviceEntitlements.toSet() + web.toSet()
+        get() = backingActive
 
     /**
      * The inactive entitlements.
@@ -98,7 +104,7 @@ class Entitlements(
                 if (value.entitlements.isEmpty()) {
                     setSubscriptionStatus(SubscriptionStatus.Inactive)
                 } else {
-                    _activeDeviceEntitlements.addAll(value.entitlements)
+                    backingActive = value.entitlements
                     _all.addAll(value.entitlements)
                     _inactive.removeAll(value.entitlements)
                     _status.value = value

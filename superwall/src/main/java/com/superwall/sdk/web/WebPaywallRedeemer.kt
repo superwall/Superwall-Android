@@ -1,7 +1,6 @@
 package com.superwall.sdk.web
 
 import android.content.Context
-import android.util.Log
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
@@ -126,11 +125,6 @@ class WebPaywallRedeemer(
             }
             track(Redemptions(RedemptionState.Start))
         }
-        Log.e(
-            "Redemption",
-            "Codes: $allCodes \n user ${getUserId()} Alias ${getAliasId()} device ${getDeviceId()}",
-        )
-
         network
             .redeemToken(
                 allCodes,
@@ -291,11 +285,15 @@ class WebPaywallRedeemer(
         val withUserCodesRemoved =
             latestResponse?.copy(
                 codes = latestResponse.codes.filterNot { it in userCodesToRemove.orEmpty() },
-                entitlements = latestResponse.entitlements.filterNot { it in userCodeEntitlementsToRemove.orEmpty() },
+                entitlements = emptyList(),
             )
 
         // Get active entitlements that remain after removing web sources or ones from the web
         ioScope.launch {
+            if (withUserCodesRemoved != null) {
+                storage.write(LatestRedemptionResponse, withUserCodesRemoved)
+            }
+
             internallySetSubscriptionStatus(
                 SubscriptionStatus.Active(
                     (
@@ -304,9 +302,6 @@ class WebPaywallRedeemer(
                     ) + getActiveDeviceEntitlements(),
                 ),
             )
-        }
-        if (withUserCodesRemoved != null) {
-            storage.write(LatestRedemptionResponse, withUserCodesRemoved)
         }
         ioScope.launch {
             startPolling(maxAge())

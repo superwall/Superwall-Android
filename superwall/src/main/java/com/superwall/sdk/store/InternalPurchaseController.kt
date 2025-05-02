@@ -10,7 +10,7 @@ import com.superwall.sdk.delegate.subscription_controller.PurchaseControllerJava
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
-internal class InternalPurchaseController(
+class InternalPurchaseController(
     private val kotlinPurchaseController: PurchaseController?,
     private val javaPurchaseController: PurchaseControllerJava?,
     val context: Context,

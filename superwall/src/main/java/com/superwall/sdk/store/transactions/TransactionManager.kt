@@ -1,6 +1,5 @@
 package com.superwall.sdk.store.transactions
 
-import android.util.Log
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.ProductDetails
@@ -420,7 +419,6 @@ class TransactionManager(
                             source = TransactionSource.INTERNAL,
                         )
                     val fail = (trackedEvent.state as InternalSuperwallEvent.Transaction.State.Fail)
-                    Log.e("FAILURE TRACKED", "With ${(fail.error.message)} - ${fail.error.localizedMessage}")
                     track(trackedEvent)
                 }
             }
