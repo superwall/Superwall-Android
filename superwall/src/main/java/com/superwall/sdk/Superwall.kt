@@ -65,6 +65,7 @@ import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.transactions.TransactionManager
 import com.superwall.sdk.utilities.withErrorTracking
+import com.superwall.sdk.web.WebPaywallRedeemer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -251,7 +252,7 @@ class Superwall(
     }
 
     internal fun internallySetSubscriptionStatus(toStatus: SubscriptionStatus) {
-        if (dependencyContainer.makeHasExternalPurchaseController() && !_dependencyContainer.makeHasInternalPurchaseController()) {
+        if (dependencyContainer.makeHasExternalPurchaseController()) {
             return
         }
         val webEntitlements = dependencyContainer.entitlements.web
@@ -1079,7 +1080,7 @@ class Superwall(
 
     fun redeem(code: String) {
         ioScope.launch {
-            dependencyContainer.reedemer.redeem(code)
+            dependencyContainer.reedemer.redeem(WebPaywallRedeemer.RedeemType.Code(code))
         }
     }
 }

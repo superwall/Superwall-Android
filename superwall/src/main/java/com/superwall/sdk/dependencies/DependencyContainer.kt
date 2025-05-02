@@ -50,6 +50,7 @@ import com.superwall.sdk.network.device.DeviceInfo
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
 import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.paywall.manager.PaywallViewCache
+import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.dismiss
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
@@ -321,19 +322,17 @@ class DependencyContainer(
                 maxAge = {
                     configManager.config?.webToAppConfig?.entitlementsMaxAgeMs ?: 60000L
                 },
-                setActiveWebEntitlements = {
-                    if (!makeHasExternalPurchaseController()) {
-                        entitlements.setWebEntitlements(it)
-                    }
-                },
-                setSubscriptionStatus = {
+                internallySetSubscriptionStatus = {
                     Superwall.instance.internallySetSubscriptionStatus(it)
                 },
                 isPaywallVisible = {
                     Superwall.instance.isPaywallPresented
                 },
-                showRestoreDialogAndDismiss = {
+                triggerRestoreInPaywall = {
                     showWebRestoreSuccesful()
+                },
+                trackRestorationFailed = {
+                    trackRestorationFailure(it)
                 },
                 currentPaywallEntitlements = {
                     Superwall.instance.paywallView
@@ -346,6 +345,10 @@ class DependencyContainer(
                 willRedeemLink = {
                     Superwall.instance.delegate?.willRedeemLink()
                 },
+                getPaywallInfo = {
+                    Superwall.instance.paywallView?.info ?: PaywallInfo.empty()
+                },
+                isWebToAppEnabled = { isWebToAppEnabled() },
             )
 
         configManager =
@@ -769,22 +772,45 @@ class DependencyContainer(
     }
 
     private fun showWebRestoreSuccesful() {
-        val pv: PaywallView? = Superwall.instance.paywallView
-        if (pv != null) {
+        val paywallView: PaywallView? = Superwall.instance.paywallView
+
+        if (paywallView != null) {
             ioScope.launch {
                 Superwall.instance.track(
                     InternalSuperwallEvent.Restore(
                         state = InternalSuperwallEvent.Restore.State.Complete,
-                        paywallInfo = pv.info,
+                        paywallInfo = paywallView.info,
                     ),
                 )
-                pv.webView.messageHandler.handle(PaywallMessage.Restore)
+                paywallView.webView.messageHandler.handle(PaywallMessage.Restore)
             }
             if (makeSuperwallOptions().paywalls.automaticallyDismiss) {
                 ioScope.launch {
                     Superwall.instance.dismiss()
                 }
             }
+        }
+    }
+
+    private fun trackRestorationFailure(message: String) {
+        val paywallView: PaywallView? = Superwall.instance.paywallView
+        val options = makeSuperwallOptions()
+
+        if (paywallView != null) {
+            val trackedEvent =
+                InternalSuperwallEvent.Restore(
+                    InternalSuperwallEvent.Restore.State.Failure(message),
+                    paywallView.info,
+                )
+            ioScope.launch {
+                Superwall.instance.track(trackedEvent)
+            }
+            paywallView.webView.messageHandler.handle(PaywallMessage.RestoreFailed(message))
+            paywallView.showAlert(
+                title = options.paywalls.restoreFailed.title,
+                message = options.paywalls.restoreFailed.message,
+                closeActionTitle = options.paywalls.restoreFailed.closeButtonTitle,
+            )
         }
     }
 }
