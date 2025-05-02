@@ -23,8 +23,9 @@ class Entitlements(
     private val storage: Storage,
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Default),
 ) {
-    internal var web: Set<Entitlement> =
-        storage.read(LatestRedemptionResponse)?.entitlements?.toSet() ?: emptySet()
+    val web: Set<Entitlement>
+        get() =
+            storage.read(LatestRedemptionResponse)?.entitlements?.toSet() ?: emptySet()
 
     // MARK: - Private Properties
     private val _entitlementsByProduct = ConcurrentHashMap<String, Set<Entitlement>>()
@@ -71,7 +72,7 @@ class Entitlements(
      * The inactive entitlements.
      */
     val inactive: Set<Entitlement>
-        get() = _inactive.toSet()
+        get() = _inactive.toSet() + all.minus(active)
 
     init {
         storage.read(StoredSubscriptionStatus)?.let {
@@ -86,37 +87,6 @@ class Entitlements(
                 storage.write(StoredSubscriptionStatus, it)
             }
         }
-    }
-
-    private fun mergeWebEntitlements(entitlements: Set<Entitlement>) {
-        val mergedStatus =
-            when (val status = _status.value) {
-                is SubscriptionStatus.Active -> {
-                    if (entitlements.isEmpty() && _activeDeviceEntitlements.isEmpty()) {
-                        SubscriptionStatus.Inactive
-                    } else {
-                        SubscriptionStatus.Active(
-                            status.entitlements.plus(entitlements),
-                        )
-                    }
-                }
-
-                SubscriptionStatus.Inactive, SubscriptionStatus.Unknown ->
-                    if (entitlements.isEmpty()) {
-                        SubscriptionStatus.Inactive
-                    } else {
-                        SubscriptionStatus.Active(
-                            entitlements,
-                        )
-                    }
-            }
-
-        setSubscriptionStatus(mergedStatus)
-    }
-
-    internal fun setWebEntitlements(entitlements: Set<Entitlement>) {
-        web = entitlements
-        mergeWebEntitlements(entitlements)
     }
 
     /**
