@@ -80,6 +80,9 @@ class WebPaywallRedeemerTest {
     @Before
     fun setup() {
         mutableEntitlements = mutableSetOf()
+        coEvery {
+            network.webEntitlementsByUserId(any(), any())
+        } returns Either.Success(WebEntitlements(listOf(webEntitlement)))
     }
 
     private val onRedemptionResult: (RedemptionResult) -> Unit = mockk(relaxed = true)
@@ -118,6 +121,9 @@ class WebPaywallRedeemerTest {
                             ),
                         entitlements = listOf(webEntitlement),
                     )
+                coEvery {
+                    network.webEntitlementsByUserId(any(), any())
+                } returns Either.Success(WebEntitlements(listOf(webEntitlement)))
 
                 coEvery { deepLinkReferrer.checkForReferral() } returns Result.success(code)
                 coEvery {
@@ -128,9 +134,6 @@ class WebPaywallRedeemerTest {
                         any(),
                     )
                 } returns Either.Success(response)
-                coEvery {
-                    network.webEntitlementsByUserId(getUserId(), getDeviceId())
-                } returns Either.Success(WebEntitlements(listOf(webEntitlement)))
 
                 redeemer =
                     WebPaywallRedeemer(
