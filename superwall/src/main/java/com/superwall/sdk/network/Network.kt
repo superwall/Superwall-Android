@@ -10,10 +10,14 @@ import com.superwall.sdk.misc.onError
 import com.superwall.sdk.models.assignment.Assignment
 import com.superwall.sdk.models.assignment.AssignmentPostback
 import com.superwall.sdk.models.config.Config
+import com.superwall.sdk.models.entitlements.Redeemable
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.events.EventsRequest
 import com.superwall.sdk.models.events.EventsResponse
 import com.superwall.sdk.models.geo.GeoInfo
+import com.superwall.sdk.models.internal.DeviceVendorId
+import com.superwall.sdk.models.internal.UserId
+import com.superwall.sdk.models.internal.WebRedemptionResponse
 import com.superwall.sdk.models.paywall.Paywall
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
@@ -24,6 +28,7 @@ open class Network(
     private val collectorService: CollectorService,
     private val geoService: GeoService,
     private val factory: ApiFactory,
+    private val subscriptionService: SubscriptionService,
 ) : SuperwallAPI {
     override suspend fun sendEvents(events: EventsRequest): Either<Unit, NetworkError> =
         collectorService
@@ -101,6 +106,28 @@ open class Network(
             .map {
                 it.assignments
             }.logError("/assignments")
+
+    override suspend fun redeemToken(
+        codes: List<Redeemable>,
+        userId: UserId?,
+        aliasId: String?,
+        vendorId: DeviceVendorId,
+    ): Either<WebRedemptionResponse, NetworkError> =
+        subscriptionService
+            .redeemToken(codes, userId ?: aliasId?.let { UserId(it) }, aliasId, vendorId)
+            .logError("/redeem")
+
+    override suspend fun webEntitlementsByUserId(
+        userId: UserId,
+        deviceId: DeviceVendorId,
+    ) = subscriptionService
+        .webEntitlementsByUserId(userId, deviceId)
+        .logError("/redeem")
+
+    override suspend fun webEntitlementsByDeviceID(deviceId: DeviceVendorId) =
+        subscriptionService
+            .webEntitlementsByDeviceId(deviceId)
+            .logError("/redeem")
 
     private suspend fun awaitUntilAppInForeground() {
         // Wait until the app is not in the background.

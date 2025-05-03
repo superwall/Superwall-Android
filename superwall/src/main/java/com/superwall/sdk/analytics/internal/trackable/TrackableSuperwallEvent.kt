@@ -947,4 +947,31 @@ sealed class InternalSuperwallEvent(
                 "error_message" to (errorMessage ?: ""),
             )
     }
+
+    internal class Redemptions(
+        val state: RedemptionState,
+    ) : InternalSuperwallEvent(
+            when (state) {
+                RedemptionState.Start -> SuperwallEvent.RedemptionStart
+                is RedemptionState.Complete -> SuperwallEvent.RedemptionComplete
+                is RedemptionState.Fail -> SuperwallEvent.RedemptionFail
+            },
+        ) {
+        sealed class RedemptionState {
+            object Start : RedemptionState()
+
+            data class Complete(
+                val code: String,
+            ) : RedemptionState()
+
+            data class Fail(
+                val code: String,
+            ) : RedemptionState()
+        }
+
+        override val audienceFilterParams: Map<String, Any>
+            get() = emptyMap()
+
+        override suspend fun getSuperwallParameters(): Map<String, Any> = emptyMap()
+    }
 }

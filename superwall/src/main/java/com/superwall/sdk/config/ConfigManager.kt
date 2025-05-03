@@ -1,6 +1,7 @@
 package com.superwall.sdk.config
 
 import android.content.Context
+import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.config.models.ConfigState
 import com.superwall.sdk.config.models.getConfig
@@ -18,10 +19,12 @@ import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.awaitFirstValidConfig
 import com.superwall.sdk.misc.fold
 import com.superwall.sdk.misc.into
-import com.superwall.sdk.misc.mapError
 import com.superwall.sdk.misc.onError
 import com.superwall.sdk.misc.then
 import com.superwall.sdk.models.config.Config
+import com.superwall.sdk.models.entitlements.SubscriptionStatus
+import com.superwall.sdk.models.internal.DeviceVendorId
+import com.superwall.sdk.models.internal.UserId
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.models.triggers.Trigger
@@ -35,6 +38,7 @@ import com.superwall.sdk.storage.LatestGeoInfo
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.Entitlements
 import com.superwall.sdk.store.StoreManager
+import com.superwall.sdk.web.WebPaywallRedeemer
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.Flow
@@ -56,6 +60,7 @@ open class ConfigManager(
     private val deviceHelper: DeviceHelper,
     var options: SuperwallOptions,
     private val paywallManager: PaywallManager,
+    private val webPaywallRedeemer: () -> WebPaywallRedeemer,
     private val factory: Factory,
     private val assignments: Assignments,
     private val paywallPreload: PaywallPreload,
@@ -317,6 +322,7 @@ open class ConfigManager(
         }
         ioScope.launch {
             storeManager.loadPurchasedProducts()
+            checkForWebEntitlements()
         }
     }
 
@@ -367,7 +373,6 @@ open class ConfigManager(
             ioScope.launch { preloadPaywalls() }
         },
         onFailure = {
-            it.printStackTrace()
             Logger.debug(
                 logLevel = LogLevel.warn,
                 scope = LogScope.superwallCore,
@@ -393,12 +398,39 @@ open class ConfigManager(
             .getConfig {
                 retryCount.incrementAndGet()
                 context.awaitUntilNetworkExists()
-            }.mapError {
-                it.printStackTrace()
-                it
             }.handleConfigUpdate(
                 retryCount = retryCount.get(),
                 fetchDuration = System.currentTimeMillis() - startTime,
             )
+    }
+
+    suspend fun checkForWebEntitlements() {
+        ioScope.launch {
+            webPaywallRedeemer().redeem(WebPaywallRedeemer.RedeemType.Existing)
+            if (entitlements.all.size != entitlements.active.size) {
+                // This runs only if user does not have all of the entitlements
+                webPaywallRedeemer()
+                    .checkForWebEntitlements(
+                        UserId(Superwall.instance.userId),
+                        DeviceVendorId(Superwall.instance.vendorId),
+                    ).fold(onSuccess = { webEntitlements ->
+
+                        if (webEntitlements.isNotEmpty()) {
+                            val localWithWeb = entitlements.active + webEntitlements.toSet()
+                            entitlements.setSubscriptionStatus(
+                                SubscriptionStatus.Active(localWithWeb),
+                            )
+                        }
+                    }, onFailure = {
+                        Logger.debug(
+                            LogLevel.error,
+                            LogScope.webEntitlements,
+                            "Checking for web entitlements failed",
+                            emptyMap(),
+                            it,
+                        )
+                    })
+            }
+        }
     }
 }

@@ -3,6 +3,7 @@ package com.superwall.sdk.logger
 enum class LogScope {
     localizationManager,
     bounceButton,
+    webEntitlements,
     coreData,
     configManager,
     identityManager,

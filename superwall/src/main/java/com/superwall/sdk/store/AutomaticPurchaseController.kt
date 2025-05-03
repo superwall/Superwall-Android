@@ -294,6 +294,7 @@ class AutomaticPurchaseController(
                         res
                     }.toSet()
                     .let { entitlements ->
+                        entitlementsInfo.activeDeviceEntitlements = entitlements
                         if (entitlements.isNotEmpty()) {
                             SubscriptionStatus.Active(entitlements)
                         } else {
@@ -303,8 +304,6 @@ class AutomaticPurchaseController(
             } else {
                 SubscriptionStatus.Inactive
             }
-        Superwall.instance.setSubscriptionStatus(status)
-
         if (!Superwall.initialized) {
             Logger.debug(
                 logLevel = LogLevel.error,
@@ -314,7 +313,7 @@ class AutomaticPurchaseController(
             return
         }
 
-        Superwall.instance.setSubscriptionStatus(status)
+        Superwall.instance.internallySetSubscriptionStatus(status)
     }
 
     private suspend fun queryPurchasesOfType(productType: String): List<Purchase> {

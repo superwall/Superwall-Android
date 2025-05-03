@@ -5,6 +5,7 @@ import android.app.Activity
 import android.os.StrictMode
 import android.os.StrictMode.ThreadPolicy
 import android.os.StrictMode.VmPolicy
+import android.util.Log
 import androidx.appcompat.app.AlertDialog
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
@@ -13,6 +14,7 @@ import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.delegate.SuperwallDelegate
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.paywall.presentation.register
 import com.superwall.superapp.purchase.RevenueCatPurchaseController
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -30,6 +32,7 @@ object Keys {
     const val TRANSACTION_ABANDON_API_KEY = "pk_f406422339b71cf568ffe8cba02f849ab27e9791bb9b2ed4"
     const val TRANSACTION_FAIL_API_KEY = "pk_b6cd945401435766da627080a3fbe349adb2dcd69ab767f3"
     const val SURVEY_RESPONSE_API_KEY = "pk_3698d9fe123f1e4aa8014ceca111096ca06fd68d31d9e662"
+    const val WEB_2_APP_API_KEY = "pk_c6190cdd41b924c020e3b88deb2755d51f68dff0b9c8a3a6"
 }
 
 class MainApplication :
@@ -76,7 +79,7 @@ class MainApplication :
                 SuperwallOptions().apply {
                     paywalls =
                         PaywallOptions().apply {
-                            shouldPreload = false
+                            shouldPreload = true
                         }
                 },
         )
@@ -89,13 +92,12 @@ class MainApplication :
     fun configureWithObserverMode() {
         Superwall.configure(
             this@MainApplication,
-            Keys.CONSTANT_API_KEY,
+            Keys.WEB_2_APP_API_KEY,
             options =
                 SuperwallOptions().apply {
-                    shouldObservePurchases = true
                     paywalls =
                         PaywallOptions().apply {
-                            shouldPreload = false
+                            shouldPreload = true
                         }
                 },
         )
@@ -155,6 +157,15 @@ class MainApplication :
                 "\tEvent name:" + eventInfo.event.rawName + "" +
                 ",\n\tParams:" + eventInfo.params + "\n",
         )
+    }
+
+    override fun subscriptionStatusDidChange(
+        from: SubscriptionStatus,
+        to: SubscriptionStatus,
+    ) {
+        Log.e("Redeemed", "Status changing from: $from")
+        Log.e("Redeemed", "Status changing to: $from")
+        super.subscriptionStatusDidChange(from, to)
     }
 }
 
