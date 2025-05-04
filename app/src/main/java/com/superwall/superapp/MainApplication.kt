@@ -79,7 +79,7 @@ class MainApplication :
                 SuperwallOptions().apply {
                     paywalls =
                         PaywallOptions().apply {
-                            shouldPreload = true
+                            shouldPreload = false
                         }
                 },
         )

@@ -26,7 +26,7 @@ plugins {
 version = "2.0.8"
 
 android {
-    compileSdk = 34
+    compileSdk = 35
     namespace = "com.superwall.sdk"
 
     defaultConfig {
@@ -72,8 +72,8 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     buildFeatures {
@@ -81,7 +81,7 @@ android {
     }
 
     kotlinOptions {
-        jvmTarget = "1.8"
+        jvmTarget = "17"
     }
 
     packaging {

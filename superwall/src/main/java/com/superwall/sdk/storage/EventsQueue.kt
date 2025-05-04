@@ -19,7 +19,6 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlin.coroutines.CoroutineContext
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class EventsQueue(
     private val context: Context,
     private val network: Network,
@@ -93,7 +92,7 @@ class EventsQueue(
             val eventsToSend = mutableListOf<EventData>()
             var i = 0
             while (i < maxEventCount && elements.isNotEmpty()) {
-                eventsToSend.add(elements.removeFirst())
+                eventsToSend.add(elements.removeAt(0))
                 i += 1
             }
             if (eventsToSend.isNotEmpty()) {

@@ -23,11 +23,6 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.MyApplication">
         <activity
-            android:name=".ComposeActivity"
-            android:exported="false"
-            android:label="@string/title_activity_compose"
-            android:theme="@style/Theme.MyApplication" />
-        <activity
             android:name=".test.UITestActivity"
             android:exported="false"
             android:label="@string/title_activity_uitest"

@@ -3,11 +3,12 @@ plugins {
     id("org.jetbrains.kotlin.android")
     alias(libs.plugins.serialization)
     alias(libs.plugins.dropshot)
+    alias(libs.plugins.compose.compiler)
 }
 
 android {
     namespace = "com.superwall.superapp"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.superwall.superapp"
@@ -42,19 +43,17 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions {
-        jvmTarget = "1.8"
+        jvmTarget = "17"
     }
 
     buildFeatures {
         compose = true
     }
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.0"
-    }
+
     packaging {
         resources.excludes += "META-INF/{AL2.0,LGPL2.1}"
         resources.excludes += "META-INF/LICENSE.md"

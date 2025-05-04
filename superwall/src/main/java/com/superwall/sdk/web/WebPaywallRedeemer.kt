@@ -103,6 +103,9 @@ class WebPaywallRedeemer(
     }
 
     suspend fun redeem(redemption: RedeemType) {
+        if (!isWebToAppEnabled()) {
+            return
+        }
         // We want to keep track of the codes that have been retrieved by the user
         val latestResponse = storage.read(LatestRedemptionResponse)
         val allCodes = latestResponse?.allCodes?.toMutableList() ?: mutableListOf()
