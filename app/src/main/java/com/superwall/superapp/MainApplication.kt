@@ -77,6 +77,7 @@ class MainApplication :
             Keys.CONSTANT_API_KEY,
             options =
                 SuperwallOptions().apply {
+                    logging.level = LogLevel.info
                     paywalls =
                         PaywallOptions().apply {
                             shouldPreload = false

@@ -405,31 +405,33 @@ open class ConfigManager(
     }
 
     suspend fun checkForWebEntitlements() {
-        ioScope.launch {
-            webPaywallRedeemer().redeem(WebPaywallRedeemer.RedeemType.Existing)
-            if (entitlements.all.size != entitlements.active.size) {
-                // This runs only if user does not have all of the entitlements
-                webPaywallRedeemer()
-                    .checkForWebEntitlements(
-                        UserId(Superwall.instance.userId),
-                        DeviceVendorId(Superwall.instance.vendorId),
-                    ).fold(onSuccess = { webEntitlements ->
+        if (config?.featureFlags?.web2App == true) {
+            ioScope.launch {
+                webPaywallRedeemer().redeem(WebPaywallRedeemer.RedeemType.Existing)
+                if (entitlements.all.size != entitlements.active.size) {
+                    // This runs only if user does not have all of the entitlements
+                    webPaywallRedeemer()
+                        .checkForWebEntitlements(
+                            UserId(Superwall.instance.userId),
+                            DeviceVendorId(Superwall.instance.vendorId),
+                        ).fold(onSuccess = { webEntitlements ->
 
-                        if (webEntitlements.isNotEmpty()) {
-                            val localWithWeb = entitlements.active + webEntitlements.toSet()
-                            entitlements.setSubscriptionStatus(
-                                SubscriptionStatus.Active(localWithWeb),
+                            if (webEntitlements.isNotEmpty()) {
+                                val localWithWeb = entitlements.active + webEntitlements.toSet()
+                                entitlements.setSubscriptionStatus(
+                                    SubscriptionStatus.Active(localWithWeb),
+                                )
+                            }
+                        }, onFailure = {
+                            Logger.debug(
+                                LogLevel.error,
+                                LogScope.webEntitlements,
+                                "Checking for web entitlements failed",
+                                emptyMap(),
+                                it,
                             )
-                        }
-                    }, onFailure = {
-                        Logger.debug(
-                            LogLevel.error,
-                            LogScope.webEntitlements,
-                            "Checking for web entitlements failed",
-                            emptyMap(),
-                            it,
-                        )
-                    })
+                        })
+                }
             }
         }
     }
