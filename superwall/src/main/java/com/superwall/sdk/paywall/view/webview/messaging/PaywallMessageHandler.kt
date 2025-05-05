@@ -170,6 +170,11 @@ class PaywallMessageHandler(
 
             is PaywallMessage.Custom -> handleCustomEvent(message.data)
             is PaywallMessage.CustomPlacement -> handleCustomPlacement(message.name, message.params)
+            is PaywallMessage.RestoreFailed ->
+                ioScope.launch {
+                    pass(SuperwallEvents.RestoreFail.rawName, paywall)
+                }
+
             else -> {
                 Logger.debug(
                     LogLevel.error,

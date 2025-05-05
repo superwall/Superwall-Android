@@ -10,6 +10,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.util.*
+import kotlin.time.Duration.Companion.minutes
 
 @RunWith(AndroidJUnit4::class)
 class CacheInstrumentedTest {
@@ -34,7 +35,7 @@ class CacheInstrumentedTest {
 
     @Test
     fun test_alias_id() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             val appContext = InstrumentationRegistry.getInstrumentation().targetContext
             val cache = Cache(appContext, json = json)
 
@@ -55,7 +56,7 @@ class CacheInstrumentedTest {
 
     @Test
     fun test_app_user_id() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             val appContext = InstrumentationRegistry.getInstrumentation().targetContext
             val cache = Cache(appContext, json = json)
 
@@ -76,7 +77,7 @@ class CacheInstrumentedTest {
 
     @Test
     fun test_user_attributes() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             val appContext = InstrumentationRegistry.getInstrumentation().targetContext
             val cache = Cache(appContext, json = json)
 
@@ -98,7 +99,7 @@ class CacheInstrumentedTest {
 
     @Test
     fun test_last_paywall_view() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             val appContext = InstrumentationRegistry.getInstrumentation().targetContext
             val cache = Cache(appContext, json = json)
 

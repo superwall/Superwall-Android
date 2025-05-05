@@ -3,11 +3,16 @@ package com.superwall.sdk.delegate
 import android.net.Uri
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
+import com.superwall.sdk.models.internal.RedemptionResult
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import java.net.URI
 
 interface SuperwallDelegateJava {
     fun handleCustomPaywallAction(name: String) {}
+
+    fun willRedeemLink() {}
+
+    fun didRedeemLink(result: RedemptionResult) {}
 
     fun willDismissPaywall(paywallInfo: PaywallInfo) {}
 
@@ -26,7 +31,8 @@ interface SuperwallDelegateJava {
     fun subscriptionStatusDidChange(
         from: SubscriptionStatus,
         to: SubscriptionStatus,
-    ) {}
+    ) {
+    }
 
     fun handleLog(
         level: String,

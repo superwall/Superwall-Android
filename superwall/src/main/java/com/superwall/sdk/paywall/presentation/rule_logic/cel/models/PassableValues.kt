@@ -18,14 +18,20 @@ import kotlinx.serialization.json.jsonPrimitive
 
 @Serializable
 data class ExecutionContext(
+    @SerialName("variables")
     val variables: PassableMap,
+    @SerialName("expression")
     val expression: String,
+    @SerialName("computed")
     val computed: Map<String, List<PassableValue>>,
+    @SerialName("device")
     val device: Map<String, List<PassableValue>>,
 )
 
 @Serializable
+@SerialName("PassableMap")
 data class PassableMap(
+    @SerialName("map")
     val map: Map<String, PassableValue>,
 )
 

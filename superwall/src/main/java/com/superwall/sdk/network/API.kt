@@ -7,9 +7,11 @@ data class Api(
     val base: Base,
     val collector: Collector,
     val geo: Geo,
+    val subscription: Subscriptions,
 ) {
     companion object {
         const val version1 = "/api/v1/"
+        const val subscriptionsv1 = "/subscriptions-api/public/v1/"
         const val scheme = "https"
     }
 
@@ -18,6 +20,7 @@ data class Api(
         base = Base(networkEnvironment),
         collector = Collector(networkEnvironment),
         geo = Geo(networkEnvironment),
+        subscription = Subscriptions(networkEnvironment),
     )
 
     data class Base(
@@ -25,6 +28,14 @@ data class Api(
     ) {
         val host: String
             get() = networkEnvironment.baseHost
+//            get() = "10.0.2.2:9909"
+    }
+
+    data class Subscriptions(
+        private val networkEnvironment: SuperwallOptions.NetworkEnvironment,
+    ) {
+        val host: String
+            get() = networkEnvironment.subscriptionHost
 //            get() = "10.0.2.2:9909"
     }
 

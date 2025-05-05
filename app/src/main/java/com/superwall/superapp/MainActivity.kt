@@ -6,6 +6,7 @@ import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
 import com.superwall.sdk.Superwall
 import com.superwall.superapp.test.UITestActivity
+import com.superwall.superapp.test.WebTestActivity
 import java.lang.ref.WeakReference
 
 class MainActivity : AppCompatActivity() {
@@ -79,6 +80,11 @@ class MainActivity : AppCompatActivity() {
             app?.invokeRegister("device_product_test")
         }
 
+        val webButton = findViewById<Button>(R.id.webTests)
+        webButton.setOnClickListener {
+            val intent = Intent(this, WebTestActivity::class.java)
+            startActivity(intent)
+        }
         val backboneTestButton: Button = findViewById(R.id.backboneTest)
         backboneTestButton.setOnClickListener {
             val app = application as? MainApplication

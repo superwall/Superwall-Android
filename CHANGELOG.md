@@ -2,6 +2,15 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.1.0-beta.1
+
+## Enhancements
+
+- Updates kotlin version to 2.0.21
+- Updates `compileSDK` to 35
+- Adds web checkout and redemption support
+- Adds SuperwallDelegate methods `willRedeemLink` and `didRedeemLink`
+
 ## 2.0.8
 
 ## Fixes

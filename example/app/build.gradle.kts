@@ -1,11 +1,12 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    alias(libs.plugins.compose.compiler)
 }
 
 android {
     namespace = "com.superwall.superapp"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.superwall.superapp"
@@ -54,12 +55,6 @@ android {
     kotlinOptions {
         jvmTarget = "1.8"
     }
-    buildFeatures {
-        compose = true
-    }
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.0"
-    }
     packagingOptions {
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
     }
@@ -76,9 +71,6 @@ dependencies {
     // Compose
     implementation(platform(libs.compose.bom))
     implementation(libs.activity.compose)
-    implementation(libs.ui)
-    implementation(libs.ui.graphics)
-    implementation(libs.ui.tooling.preview)
     implementation(libs.material3)
 
     // Core

@@ -77,7 +77,6 @@ internal suspend fun Superwall.internallyGetPresentationResult(
     isImplicit: Boolean,
 ): PresentationResult {
     val eventCreatedAt = Date()
-
     val parameters =
         TrackingLogic.processParameters(
             trackableEvent = event,

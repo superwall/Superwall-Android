@@ -14,6 +14,12 @@ sealed class Either<out T, E : Throwable> {
             is Success<T, E> -> this.value
             else -> null
         }
+
+    fun getThrowable(): E? =
+        when (this) {
+            is Failure<E> -> this.error
+            else -> null
+        }
 }
 
 suspend fun <In, E : Throwable> Either<In, E>.then(then: suspend (In) -> Unit): Either<In, E> =

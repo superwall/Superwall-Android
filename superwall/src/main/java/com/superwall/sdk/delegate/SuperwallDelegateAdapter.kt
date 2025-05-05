@@ -2,7 +2,7 @@ package com.superwall.sdk.delegate
 
 import android.net.Uri
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
-import com.superwall.sdk.models.entitlements.SubscriptionStatus
+import com.superwall.sdk.models.internal.RedemptionResult
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import java.net.URI
 
@@ -13,6 +13,16 @@ class SuperwallDelegateAdapter {
     fun handleCustomPaywallAction(name: String) {
         kotlinDelegate?.handleCustomPaywallAction(name)
             ?: javaDelegate?.handleCustomPaywallAction(name)
+    }
+
+    fun didRedeemCode(result: RedemptionResult) {
+        kotlinDelegate?.didRedeemLink(result)
+            ?: javaDelegate?.didRedeemLink(result)
+    }
+
+    fun willRedeemLink() {
+        kotlinDelegate?.willRedeemLink()
+            ?: javaDelegate?.willRedeemLink()
     }
 
     fun willDismissPaywall(paywallInfo: PaywallInfo) {
@@ -47,14 +57,13 @@ class SuperwallDelegateAdapter {
 
     fun handleSuperwallEvent(eventInfo: SuperwallEventInfo) {
         // Calling this until we deprecate it
-        kotlinDelegate?.handleSuperwallPlacement(eventInfo)
         kotlinDelegate?.handleSuperwallEvent(eventInfo)
             ?: javaDelegate?.handleSuperwallEvent(eventInfo)
     }
 
     fun subscriptionStatusDidChange(
-        from: SubscriptionStatus,
-        to: SubscriptionStatus,
+        from: com.superwall.sdk.models.entitlements.SubscriptionStatus,
+        to: com.superwall.sdk.models.entitlements.SubscriptionStatus,
     ) {
         kotlinDelegate?.subscriptionStatusDidChange(from, to)
             ?: javaDelegate?.subscriptionStatusDidChange(from, to)

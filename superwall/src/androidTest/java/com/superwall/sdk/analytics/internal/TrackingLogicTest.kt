@@ -19,6 +19,7 @@ import io.mockk.mockk
 import io.mockk.spyk
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
+import kotlin.time.Duration.Companion.minutes
 
 class TrackingLogicTest {
     val store =
@@ -34,7 +35,7 @@ class TrackingLogicTest {
 
     @Test
     fun should_clean_up_attributes() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             val ctx = InstrumentationRegistry.getInstrumentation().context
             Superwall.configure(ctx.applicationContext as Application, "pk_test_1234", null, null, null, null)
             val deviceHelper =

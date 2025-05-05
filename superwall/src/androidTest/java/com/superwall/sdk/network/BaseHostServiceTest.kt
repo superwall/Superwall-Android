@@ -19,6 +19,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import kotlin.time.Duration.Companion.minutes
 
 class BaseHostServiceTest {
     private lateinit var customHttpUrlConnection: CustomHttpUrlConnection
@@ -48,7 +49,7 @@ class BaseHostServiceTest {
 
     @Test
     fun test_config_success() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             Given("a valid API key and request ID") {
                 val apiKey = "test_api_key"
                 val requestId = "test_request_id"
@@ -78,7 +79,7 @@ class BaseHostServiceTest {
 
     @Test
     fun test_config_failure() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             val error = NetworkError.Unknown()
             Given("an invalid API key or network error") {
                 val requestId = "test_request_id"
@@ -99,7 +100,7 @@ class BaseHostServiceTest {
 
     @Test
     fun test_assignments_success() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             Given("a valid request for assignments") {
                 val mockResponse = ConfirmedAssignmentResponse(mutableListOf(Assignment("exp1", "var1")))
                 coEvery { executor.execute(any()) } returns
@@ -112,12 +113,15 @@ class BaseHostServiceTest {
                             headers = mapOf("Authorization" to "Bearer token"),
                         ),
                     )
+                println("In given")
                 coEvery { apiFactory.makeHeaders(any(), any()) } returns mapOf("Authorization" to "Bearer token")
 
                 When("requesting assignments") {
+                    println("In when")
                     val result = service.assignments()
 
                     Then("the result should be a success with the expected assignments") {
+                        println("in then")
                         assertTrue(result is Either.Success)
                         assertEquals(mockResponse, (result as Either.Success).value)
                     }
@@ -127,7 +131,7 @@ class BaseHostServiceTest {
 
     @Test
     fun test_assignments_failure() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             val error = NetworkError.Unknown()
             Given("a network error occurs") {
                 coEvery { executor.execute(any()) } returns Either.Failure(error)
@@ -146,7 +150,7 @@ class BaseHostServiceTest {
 
     @Test
     fun test_paywalls_success() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             Given("a valid request for paywalls") {
                 val mockResponse = Paywalls(listOf(Paywall.stub()))
                 coEvery { executor.execute(any()) } returns
@@ -174,7 +178,7 @@ class BaseHostServiceTest {
 
     @Test
     fun test_paywalls_failure() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             val error = NetworkError.Unknown()
 
             Given("a network error occurs") {
@@ -194,7 +198,7 @@ class BaseHostServiceTest {
 
     @Test
     fun test_paywall_success() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             Given("a valid request for a specific paywall") {
                 val paywallId = "test_paywall_id"
                 val mockResponse = Paywall.stub()
@@ -226,7 +230,7 @@ class BaseHostServiceTest {
 
     @Test
     fun test_paywall_failure() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             Given("an invalid paywall ID or network error") {
                 val paywallId = "invalid_paywall_id"
                 val error = NetworkError.Unknown()

@@ -27,6 +27,9 @@ class SuperwallOptions {
         open val collectorHost: String
             get() = "collector.$hostDomain"
 
+        open val subscriptionHost: String
+            get() = "subscriptions-api.superwall.com"
+
         open val scheme: String
             get() = "https"
 

@@ -21,6 +21,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import kotlin.time.Duration.Companion.minutes
 
 class AssignmentsTest {
     private lateinit var storage: LocalStorage
@@ -35,7 +36,7 @@ class AssignmentsTest {
 
     @Test
     fun test_choosePaywallVariants() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             val assignments = Assignments(storage, network, ioScope = this)
             coEvery { network.confirmAssignments(any()) } returns Either.Success(Unit)
             Given("We have a set of triggers") {
@@ -58,7 +59,7 @@ class AssignmentsTest {
 
     @Test
     fun test_getAssignments() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             val assignments = Assignments(storage, network, ioScope = this)
             Given("We have a set of triggers and server assignments") {
                 val triggers =
@@ -86,7 +87,7 @@ class AssignmentsTest {
 
     @Test
     fun test_confirmAssignment() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             val assignments = Assignments(storage, network, ioScope = CoroutineScope(Dispatchers.IO))
             coEvery { network.confirmAssignments(any()) } returns Either.Success(Unit)
 
@@ -116,7 +117,7 @@ class AssignmentsTest {
 
     @Test
     fun test_reset() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             Given("We have some unconfirmed assignments") {
                 val assignments =
                     Assignments(

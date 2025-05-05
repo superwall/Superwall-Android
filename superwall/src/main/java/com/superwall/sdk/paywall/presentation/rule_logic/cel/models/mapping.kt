@@ -50,9 +50,10 @@ internal fun PassableValue.toCELExpression(): CELExpression =
         is PassableValue.ListValue -> CELExpression.List(value.map { it.toCELExpression() })
         is PassableValue.MapValue ->
             CELExpression.Map(
-                value.map { (key, value) ->
-                    CELExpression.Atom(CELAtom.String(key)) to value.toCELExpression()
-                },
+                this.value
+                    .map { (key, value) ->
+                        CELExpression.Atom(CELAtom.String(key)) to value.toCELExpression()
+                    }.toList(),
             )
 
         is PassableValue.FunctionValue -> {

@@ -20,6 +20,7 @@ data class FeatureFlags(
     @SerialName("disable_verbose_events") var disableVerboseEvents: Boolean,
     @SerialName("enable_multiple_paywall_urls") var enableMultiplePaywallUrls: Boolean,
     @SerialName("enable_cel_logging") var enableCELLogging: Boolean,
+    @SerialName("web_2_app") var web2App: Boolean,
 )
 
 fun List<RawFeatureFlag>.value(

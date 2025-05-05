@@ -36,6 +36,8 @@ import com.superwall.sdk.models.assignment.ConfirmedAssignment
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.events.EventData
+import com.superwall.sdk.models.internal.RedemptionOwnershipType
+import com.superwall.sdk.models.internal.VendorId
 import com.superwall.sdk.network.device.InterfaceStyle
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.PaywallInfo
@@ -63,6 +65,7 @@ import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.transactions.TransactionManager
 import com.superwall.sdk.utilities.withErrorTracking
+import com.superwall.sdk.web.WebPaywallRedeemer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -75,6 +78,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.update
@@ -233,9 +237,46 @@ class Superwall(
      * */
     fun setSubscriptionStatus(vararg entitlements: String) {
         if (entitlements.isEmpty()) {
-            this.entitlements.setSubscriptionStatus(SubscriptionStatus.Inactive)
+            this@Superwall.entitlements.setSubscriptionStatus(SubscriptionStatus.Inactive)
         } else {
-            this.setSubscriptionStatus(SubscriptionStatus.Active(entitlements.map { Entitlement(it) }.toSet()))
+            this@Superwall.entitlements.setSubscriptionStatus(
+                SubscriptionStatus.Active(
+                    entitlements
+                        .map {
+                            Entitlement(
+                                it,
+                            )
+                        }.toSet(),
+                ),
+            )
+        }
+    }
+
+    internal fun internallySetSubscriptionStatus(toStatus: SubscriptionStatus) {
+        if (dependencyContainer.makeHasExternalPurchaseController()) {
+            return
+        }
+        val webEntitlements = dependencyContainer.entitlements.web
+        when (toStatus) {
+            is SubscriptionStatus.Active -> {
+                val allEntitlements = toStatus.entitlements.plus(webEntitlements)
+                if (allEntitlements.isEmpty()) {
+                    entitlements.setSubscriptionStatus(SubscriptionStatus.Inactive)
+                } else {
+                    entitlements.setSubscriptionStatus(SubscriptionStatus.Active(allEntitlements))
+                }
+            }
+
+            SubscriptionStatus.Inactive ->
+                if (webEntitlements.isEmpty()) {
+                    entitlements.setSubscriptionStatus(SubscriptionStatus.Inactive)
+                } else {
+                    entitlements.setSubscriptionStatus(SubscriptionStatus.Active(webEntitlements))
+                }
+
+            SubscriptionStatus.Unknown -> {
+                entitlements.setSubscriptionStatus(SubscriptionStatus.Unknown)
+            }
         }
     }
 
@@ -280,6 +321,9 @@ class Superwall(
     val subscriptionStatus: StateFlow<SubscriptionStatus> by lazy {
         dependencyContainer.entitlements.status
     }
+
+    internal val vendorId: VendorId
+        get() = VendorId(dependencyContainer.deviceHelper.vendorId)
 
     /**
      * A property that indicates current configuration state of the SDK.
@@ -350,6 +394,7 @@ class Superwall(
          *
          * @return The configured [Superwall] instance.
          */
+        @JvmStatic
         @JvmOverloads
         fun configure(
             applicationContext: Application,
@@ -479,7 +524,10 @@ class Superwall(
                         dependencyContainer.storage.read(StoredSubscriptionStatus)
                             ?: SubscriptionStatus.Unknown
                     dependencyContainer.storage.write(StoredSubscriptionStatus, newValue)
-                    dependencyContainer.delegateAdapter.subscriptionStatusDidChange(oldValue, newValue)
+                    dependencyContainer.delegateAdapter.subscriptionStatusDidChange(
+                        oldValue,
+                        newValue,
+                    )
                     val event = InternalSuperwallEvent.SubscriptionStatusDidChange(newValue)
                     track(event)
                 }
@@ -563,6 +611,7 @@ class Superwall(
             dependencyContainer.paywallManager.resetCache()
             presentationItems.reset()
             dependencyContainer.configManager.reset()
+            dependencyContainer.reedemer.clear(RedemptionOwnershipType.AppUser)
             ioScope.launch {
                 track(InternalSuperwallEvent.Reset)
             }
@@ -586,6 +635,13 @@ class Superwall(
         withErrorTracking<Boolean> {
             ioScope.launch {
                 track(InternalSuperwallEvent.DeepLink(uri = uri))
+            }
+            dependencyContainer.reedemer.deepLinkReferrer.handleDeepLink(uri).onSuccess {
+                ioScope.launch {
+                    configurationStateListener.first { it is ConfigurationStatus.Configured }
+                    redeem(it)
+                }
+                return Result.success(true)
             }
             dependencyContainer.debugManager.handle(deepLinkUrl = uri)
         }.toResult()
@@ -1026,6 +1082,12 @@ class Superwall(
                     )
                 }
             }
+        }
+    }
+
+    internal fun redeem(code: String) {
+        ioScope.launch {
+            dependencyContainer.reedemer.redeem(WebPaywallRedeemer.RedeemType.Code(code))
         }
     }
 }

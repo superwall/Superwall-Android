@@ -1,6 +1,8 @@
 package com.example.superapp.test
 
 import android.app.Application
+import android.os.Build
+import androidx.test.InstrumentationRegistry.getTargetContext
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.platform.app.InstrumentationRegistry.getInstrumentation
@@ -35,6 +37,18 @@ class NoConnectionTestExecutor {
             resultValidator = ThresholdValidator(0.01f),
             imageComparator = CustomComparator(),
         )
+
+    @Before
+    fun grantPhonePermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            getInstrumentation().uiAutomation.executeShellCommand(
+                (
+                    "pm grant " + getTargetContext().packageName +
+                        " android.permission.WRITE_EXTERNAL_STORAGE"
+                ),
+            )
+        }
+    }
 
     @Before
     fun setup() {

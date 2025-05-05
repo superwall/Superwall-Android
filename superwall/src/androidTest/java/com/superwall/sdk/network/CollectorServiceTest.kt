@@ -19,6 +19,7 @@ import org.junit.Before
 import org.junit.Test
 import java.time.Instant
 import java.util.Date
+import kotlin.time.Duration.Companion.minutes
 
 class CollectorServiceTest {
     private lateinit var customHttpUrlConnection: CustomHttpUrlConnection
@@ -48,7 +49,7 @@ class CollectorServiceTest {
 
     @Test
     fun test_events_success() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             Given("a valid events request") {
                 val eventsRequest =
                     EventsRequest(
@@ -89,7 +90,7 @@ class CollectorServiceTest {
 
     @Test
     fun test_events_partial_success() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             Given("a partially valid events request") {
                 val eventsRequest =
                     EventsRequest(

@@ -6,7 +6,7 @@ sealed class NetworkError(
 ) : Throwable(message, cause) {
     data class Unknown(
         override val cause: Throwable? = null,
-    ) : NetworkError("An unknown error occurred.", cause)
+    ) : NetworkError(cause?.localizedMessage ?: cause?.message ?: "Unknown error occurred.", cause)
 
     class NotAuthenticated : NetworkError("Unauthorized.")
 

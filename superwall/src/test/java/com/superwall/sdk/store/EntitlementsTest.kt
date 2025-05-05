@@ -6,6 +6,7 @@ import com.superwall.sdk.Then
 import com.superwall.sdk.When
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
+import com.superwall.sdk.storage.LatestRedemptionResponse
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.StoredEntitlementsByProductId
 import com.superwall.sdk.storage.StoredSubscriptionStatus
@@ -18,7 +19,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class EntitlementsTest {
-    private val storage: Storage = mockk(relaxUnitFun = true)
+    private val storage: Storage =
+        mockk(relaxUnitFun = true) {
+            every { read(LatestRedemptionResponse) } returns null
+        }
 
     private lateinit var entitlements: Entitlements
 

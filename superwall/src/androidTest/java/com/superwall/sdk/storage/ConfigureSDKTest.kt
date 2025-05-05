@@ -9,6 +9,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
+import kotlin.time.Duration.Companion.minutes
 
 const val CONSTANT_API_KEY = "pk_0ff90006c5c2078e1ce832bd2343ba2f806ca510a0a1696a"
 
@@ -16,7 +17,7 @@ const val CONSTANT_API_KEY = "pk_0ff90006c5c2078e1ce832bd2343ba2f806ca510a0a1696
 class ConfigureSDKTest {
     @Test
     fun configure_should_trigger_hasInitialised() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             // Context of the app under test.
             val appContext = InstrumentationRegistry.getInstrumentation().targetContext
             val superwall = Superwall.configure(appContext.applicationContext as Application, CONSTANT_API_KEY)

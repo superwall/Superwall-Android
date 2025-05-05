@@ -11,8 +11,9 @@ interface JsonFactory {
             ignoreUnknownKeys = true
             encodeDefaults = true
             namingStrategy = JsonNamingStrategy.SnakeCase
-            serializersModuleOf(
-                LocalNotificationTypeSerializer,
-            )
+            serializersModule =
+                serializersModuleOf(
+                    LocalNotificationTypeSerializer,
+                )
         }
 }
