@@ -24,6 +24,7 @@ import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
 import com.superwall.sdk.store.transactions.RestoreType
 import com.superwall.sdk.store.transactions.TransactionError
+import com.superwall.sdk.web.WebPaywallRedeemer
 
 interface TrackableSuperwallEvent : Trackable {
     val superwallPlacement: SuperwallEvent
@@ -950,6 +951,7 @@ sealed class InternalSuperwallEvent(
 
     internal class Redemptions(
         val state: RedemptionState,
+        val type: WebPaywallRedeemer.RedeemType,
     ) : InternalSuperwallEvent(
             when (state) {
                 RedemptionState.Start -> SuperwallEvent.RedemptionStart
@@ -960,18 +962,21 @@ sealed class InternalSuperwallEvent(
         sealed class RedemptionState {
             object Start : RedemptionState()
 
-            data class Complete(
-                val code: String,
-            ) : RedemptionState()
+            object Complete : RedemptionState()
 
-            data class Fail(
-                val code: String,
-            ) : RedemptionState()
+            object Fail : RedemptionState()
         }
 
         override val audienceFilterParams: Map<String, Any>
             get() = emptyMap()
 
-        override suspend fun getSuperwallParameters(): Map<String, Any> = emptyMap()
+        override suspend fun getSuperwallParameters(): Map<String, Any> {
+            val map =
+                mutableMapOf(
+                    "type" to type.description,
+                )
+            if (type.code != null) map["code"] = type.code!!
+            return map.toMap()
+        }
     }
 }

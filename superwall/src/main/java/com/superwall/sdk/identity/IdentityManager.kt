@@ -182,7 +182,6 @@ class IdentityManager(
                         identityJobs +=
                             ioScope.launch {
                                 configManager.getAssignments()
-
                                 didSetIdentity()
                             }
                     } else {

@@ -10,7 +10,6 @@ import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlin.coroutines.CoroutineContext
 
@@ -20,8 +19,10 @@ class Cache(
     private val json: Json,
 ) : CoroutineScope by CoroutineScope(ioQueue) {
     companion object {
-        private const val userSpecificDocumentDirectoryPrefix = "com.superwall.document.userSpecific.Store"
-        private const val appSpecificDocumentDirectoryPrefix = "com.superwall.document.appSpecific.Store"
+        private const val userSpecificDocumentDirectoryPrefix =
+            "com.superwall.document.userSpecific.Store"
+        private const val appSpecificDocumentDirectoryPrefix =
+            "com.superwall.document.appSpecific.Store"
         private const val cacheDirectoryPrefix = "com.superwall.cache.Store"
         private const val ioQueuePrefix = "com.superwall.queue.Store"
         private const val defaultMaxCachePeriodInSecond: Long = 60 * 60 * 24 * 7 // a week
@@ -35,24 +36,22 @@ class Cache(
     fun <T> read(storable: Storable<T>): T? {
         var data = memCache[storable.key] as? T
         if (data == null) {
-            runBlocking(ioQueue) {
-                val file = storable.file(context = context)
-                if (file.exists()) {
-                    var jsonString = ""
-                    try {
-                        jsonString = file.readText(Charsets.UTF_8)
-                        data = json.decodeFromString(storable.serializer, jsonString)
-                        data?.let {
-                            memCache[storable.key] = it
-                        }
-                    } catch (e: Throwable) {
-                        Logger.debug(
-                            logLevel = LogLevel.error,
-                            LogScope.cache,
-                            message = "Unable to read key: ${storable.key}, got $jsonString",
-                            error = e,
-                        )
+            val file = storable.file(context = context)
+            if (file.exists()) {
+                var jsonString = ""
+                try {
+                    jsonString = file.readText(Charsets.UTF_8)
+                    data = json.decodeFromString(storable.serializer, jsonString)
+                    data?.let {
+                        memCache[storable.key] = it
                     }
+                } catch (e: Throwable) {
+                    Logger.debug(
+                        logLevel = LogLevel.error,
+                        LogScope.cache,
+                        message = "Unable to read key: ${storable.key}, got $jsonString",
+                        error = e,
+                    )
                 }
             }
         }

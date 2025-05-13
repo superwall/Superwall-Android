@@ -52,10 +52,10 @@ class SubscriptionService(
     )
 
     suspend fun webEntitlementsByUserId(
-        userId: UserId,
+        userId: UserId?,
         deviceId: DeviceVendorId,
     ) = get<WebEntitlements>(
-        "users/${userId?.value}/entitlements",
+        "users/${userId?.value ?: deviceId.value}/entitlements",
         queryItems = listOf(URLQueryItem("deviceId", deviceId.value)),
     )
 

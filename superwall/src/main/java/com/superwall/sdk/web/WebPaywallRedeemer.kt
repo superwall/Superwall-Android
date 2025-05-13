@@ -10,21 +10,18 @@ import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
-import com.superwall.sdk.misc.Either
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.asEither
 import com.superwall.sdk.misc.fold
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.Redeemable
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
-import com.superwall.sdk.models.entitlements.WebEntitlements
 import com.superwall.sdk.models.internal.DeviceVendorId
 import com.superwall.sdk.models.internal.ErrorInfo
 import com.superwall.sdk.models.internal.RedemptionOwnership
 import com.superwall.sdk.models.internal.RedemptionOwnershipType
 import com.superwall.sdk.models.internal.RedemptionResult
 import com.superwall.sdk.models.internal.UserId
-import com.superwall.sdk.models.internal.WebRedemptionResponse
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.storage.LatestRedemptionResponse
@@ -32,8 +29,6 @@ import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.plus
@@ -95,11 +90,19 @@ class WebPaywallRedeemer(
         }
 
     sealed interface RedeemType {
-        data class Code(
-            val code: String,
-        ) : RedeemType
+        val description: String
+        val code: String?
 
-        object Existing : RedeemType
+        data class Code(
+            override val code: String,
+        ) : RedeemType {
+            override val description: String = "CODE"
+        }
+
+        object Existing : RedeemType {
+            override val description: String = "EXISTING_CODES"
+            override val code: String? = null
+        }
     }
 
     suspend fun redeem(redemption: RedeemType) {
@@ -126,8 +129,8 @@ class WebPaywallRedeemer(
                         ),
                     )
                 }
-                track(Redemptions(RedemptionState.Start))
             }
+            track(Redemptions(RedemptionState.Start, redemption))
             network
                 .redeemToken(
                     allCodes,
@@ -137,13 +140,14 @@ class WebPaywallRedeemer(
                 ).fold(
                     onSuccess = {
                         storage.write(LatestRedemptionResponse, it)
+                        track(
+                            Redemptions(
+                                RedemptionState.Complete,
+                                redemption,
+                            ),
+                        )
                         when (redemption) {
                             is RedeemType.Code -> {
-                                track(
-                                    Redemptions(
-                                        RedemptionState.Complete(redemption.code),
-                                    ),
-                                )
                                 Logger.debug(
                                     logLevel = LogLevel.debug,
                                     scope = LogScope.webEntitlements,
@@ -202,13 +206,13 @@ class WebPaywallRedeemer(
                         // Notify the delegate that the redemption succeeded, unless the code has not been redeemed
                     },
                     onFailure = {
+                        track(
+                            Redemptions(
+                                RedemptionState.Fail,
+                                redemption,
+                            ),
+                        )
                         if (redemption is RedeemType.Code) {
-                            track(
-                                Redemptions(
-                                    RedemptionState.Fail(redemption.code),
-                                ),
-                            )
-
                             val errorMessage =
                                 it.localizedMessage ?: it.message
                                     ?: "Redemption failed, error unknown"
@@ -248,27 +252,14 @@ class WebPaywallRedeemer(
         userId: UserId?,
         deviceId: DeviceVendorId,
     ) = withErrorTracking {
-        val webEntitlementsByUserCall =
-            ioScope.async {
-                // If no user ID, we don't call this just the device ID
-                if (userId != null) {
-                    network.webEntitlementsByUserId(userId, deviceId)
-                } else {
-                    Either.Success(WebEntitlements(emptyList()))
-                }
+        val webEntitlementsResult =
+            if (userId == null) {
+                network.webEntitlementsByDeviceID(deviceId)
+            } else {
+                network.webEntitlementsByUserId(userId, deviceId)
             }
-        val webEntitlementsByDeviceCall =
-            ioScope.async { network.webEntitlementsByDeviceID(deviceId) }
-        val (webEntitlementsByUser, webEntitlementsByDevice) =
-            listOf(
-                webEntitlementsByUserCall,
-                webEntitlementsByDeviceCall,
-            ).awaitAll()
         val entitlements =
-            (webEntitlementsByUser.getSuccess()?.entitlements ?: listOf())
-                .plus(
-                    webEntitlementsByDevice.getSuccess()?.entitlements ?: listOf(),
-                )
+            (webEntitlementsResult.getSuccess()?.entitlements ?: listOf())
         entitlements
             .toSet()
     }
@@ -303,19 +294,15 @@ class WebPaywallRedeemer(
         }
         internallySetSubscriptionStatus(
             SubscriptionStatus.Active(
-                (
-                    withUserCodesRemoved?.entitlements?.toSet()
-                        ?: emptySet()
-                ) + getActiveDeviceEntitlements(),
+                getActiveDeviceEntitlements(),
             ),
         )
         ioScope.launch {
-            startPolling(maxAge())
             redeem(RedeemType.Existing)
         }
     }
 
-    fun startPolling(maxAge: Long = maxAge()) {
+    private fun startPolling(maxAge: Long = maxAge()) {
         if (isWebToAppEnabled()) {
             pollingJob?.cancel()
             pollingJob =
@@ -334,14 +321,12 @@ class WebPaywallRedeemer(
                                         latestRedeemResponse?.entitlements ?: emptySet()
                                     latestRedeemResponse =
                                         latestRedeemResponse?.copy(entitlements = newEntitlements.toList())
-                                            ?: WebRedemptionResponse(
-                                                emptyList(),
-                                                newEntitlements.toList(),
-                                            )
-                                    storage.write(
-                                        LatestRedemptionResponse,
-                                        latestRedeemResponse,
-                                    )
+                                    if (latestRedeemResponse != null) {
+                                        storage.write(
+                                            LatestRedemptionResponse,
+                                            latestRedeemResponse,
+                                        )
+                                    }
                                     if (existingWebEntitlements.toSet() != newEntitlements) {
                                         internallySetSubscriptionStatus(SubscriptionStatus.Active(it + getActiveDeviceEntitlements()))
                                     }

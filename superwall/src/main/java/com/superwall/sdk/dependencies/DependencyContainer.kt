@@ -340,7 +340,7 @@ class DependencyContainer(
                     delegateAdapter.didRedeemCode(result)
                 },
                 maxAge = {
-                    configManager.config?.webToAppConfig?.entitlementsMaxAgeMs ?: 60000L
+                    configManager.config?.webToAppConfig?.entitlementsMaxAgeMs ?: 86400000L
                 },
                 internallySetSubscriptionStatus = {
                     Superwall.instance.internallySetSubscriptionStatus(it)
