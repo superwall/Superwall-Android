@@ -8,13 +8,14 @@ plugins {
     alias(libs.plugins.kotlinAndroid)
     id("maven-publish")
     id("signing")
+    alias(libs.plugins.compose.compiler)
 }
 
-version = "2.0.8"
+version = "2.1.0"
 
 android {
     namespace = "com.superwall.sdk.composable"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         minSdk = 22
@@ -47,20 +48,17 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions {
-        jvmTarget = "1.8"
+        jvmTarget = "17"
     }
     buildFeatures {
         compose = true
         buildConfig = true
     }
 
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.0"
-    }
     publishing {
         singleVariant("release") {
             withSourcesJar()

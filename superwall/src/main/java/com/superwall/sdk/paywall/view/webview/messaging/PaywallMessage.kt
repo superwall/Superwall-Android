@@ -27,6 +27,10 @@ sealed class PaywallMessage {
 
     object Restore : PaywallMessage()
 
+    data class RestoreFailed(
+        val message: String,
+    ) : PaywallMessage()
+
     data class OpenUrl(
         val url: URI,
     ) : PaywallMessage()

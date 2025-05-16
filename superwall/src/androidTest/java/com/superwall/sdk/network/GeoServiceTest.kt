@@ -16,6 +16,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import kotlin.time.Duration.Companion.minutes
 
 class GeoServiceTest {
     private lateinit var customHttpUrlConnection: CustomHttpUrlConnection
@@ -44,7 +45,7 @@ class GeoServiceTest {
 
     @Test
     fun test_geo_success() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             Given("a valid request for geo information") {
                 val mockResponse =
                     GeoWrapper(
@@ -86,7 +87,7 @@ class GeoServiceTest {
 
     @Test
     fun test_geo_failure() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             Given("a network error occurs") {
                 val error = NetworkError.Unknown()
                 coEvery { executor.execute(any()) } returns Either.Failure(error)

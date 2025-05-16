@@ -59,7 +59,7 @@ class UITestInfo(
         delay(100)
         Superwall.instance.delegate =
             object : SuperwallDelegate {
-                override fun handleSuperwallPlacement(eventInfo: SuperwallEventInfo) {
+                override fun handleSuperwallEvent(eventInfo: SuperwallEventInfo) {
                     Log.e(
                         "\n!!SuperwallDelegate!!\n",
                         "\tEvent name:" + eventInfo.event.rawName + "" +

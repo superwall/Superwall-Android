@@ -176,6 +176,8 @@ class IdentityManager(
                         Superwall.instance.track(trackableEvent)
                     }
 
+                    configManager.checkForWebEntitlements()
+
                     if (options?.restorePaywallAssignments == true) {
                         identityJobs +=
                             ioScope.launch {
@@ -210,7 +212,7 @@ class IdentityManager(
             // being set within the queue.
             _appUserId?.let {
                 storage.write(AppUserId, it)
-            }
+            } ?: kotlin.run { storage.delete(AppUserId) }
             storage.write(AliasId, _aliasId)
             storage.write(Seed, _seed)
 
@@ -235,10 +237,8 @@ class IdentityManager(
         if (duringIdentify) {
             _reset()
         } else {
-            scope.launch {
-                _reset()
-                didSetIdentity()
-            }
+            _reset()
+            didSetIdentity()
         }
     }
 

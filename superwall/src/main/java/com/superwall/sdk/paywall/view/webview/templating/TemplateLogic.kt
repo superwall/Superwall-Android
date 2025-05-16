@@ -4,6 +4,7 @@ import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
+import com.superwall.sdk.paywall.view.webview.templating.models.ExperimentTemplate
 import com.superwall.sdk.paywall.view.webview.templating.models.FreeTrialTemplate
 import com.superwall.sdk.paywall.view.webview.templating.models.JsonVariables
 import com.superwall.sdk.paywall.view_controller.web_view.templating.models.ProductTemplate
@@ -34,7 +35,13 @@ object TemplateLogic {
                 eventName = "template_substitutions_prefix",
                 prefix = if (paywall.isFreeTrialAvailable) "freeTrial" else null,
             )
-
+        val experimentTemplate =
+            ExperimentTemplate(
+                "experiment",
+                paywall.experiment?.id ?: "",
+                paywall?.experiment?.variant?.id ?: "",
+                paywall?.experiment?.groupId ?: "",
+            )
 //
 //        val swProductTemplate = swProductTemplate(
 //            swProductTemplateVariables = paywall.swProductVariablesTemplate ?: emptyList()
@@ -45,6 +52,7 @@ object TemplateLogic {
                 json.encodeToString(ProductTemplate.serializer(), productsTemplate),
                 json.encodeToString(JsonVariables.serializer(), variablesTemplate),
                 json.encodeToString(FreeTrialTemplate.serializer(), freeTrialTemplate),
+                json.encodeToString(ExperimentTemplate.serializer(), experimentTemplate),
 //            json.encodeToString(swProductTemplate)
             )
         val templatesString = "[" + encodedTemplates.joinToString(",") + "]"

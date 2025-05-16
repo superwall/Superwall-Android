@@ -3,6 +3,7 @@ package com.superwall.sdk.paywall.request
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
+import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.dependencies.ConfigManagerFactory
 import com.superwall.sdk.dependencies.DeviceInfoFactory
 import com.superwall.sdk.logger.LogLevel
@@ -27,13 +28,18 @@ import java.util.Date
 
 interface PaywallRequestManagerDepFactory :
     DeviceInfoFactory,
-    ConfigManagerFactory
+    ConfigManagerFactory {
+    fun activePaywallId(): String?
+}
 
 class PaywallRequestManager(
     private val storeManager: StoreManager,
     private val network: Network,
     private val factory: PaywallRequestManagerDepFactory,
     private val ioScope: IOScope,
+    private val track: suspend (TrackableSuperwallEvent) -> Unit = {
+        Superwall.instance.track(it)
+    },
 ) {
     // Single thread context to make this class similar to an actor. All functions in this class
     // must execute with this context.
@@ -41,7 +47,10 @@ class PaywallRequestManager(
     private val activeTasks: MutableMap<String, Deferred<Paywall>> = mutableMapOf()
     private val paywallsByHash: MutableMap<String, Paywall> = mutableMapOf()
 
-    suspend fun getPaywall(request: PaywallRequest): Either<Paywall, Throwable> =
+    suspend fun getPaywall(
+        request: PaywallRequest,
+        isPreloading: Boolean = false,
+    ): Either<Paywall, Throwable> =
         withErrorTracking {
             withContext(ioScope.coroutineContext) {
                 val deviceInfo = factory.makeDeviceInfo()
@@ -59,21 +68,29 @@ class PaywallRequestManager(
                     )
 
                 var paywall = paywallsByHash[requestHash]
-                if (paywall != null && !request.isDebuggerLaunched) {
-                    return@withContext updatePaywall(paywall, request)
+                if (paywall != null &&
+                    !request.isDebuggerLaunched
+                ) {
+                    if (!(isPreloading && paywall.identifier == factory.activePaywallId())) {
+                        return@withContext updatePaywall(paywall, request)
+                    } else {
+                        return@withContext paywall
+                    }
                 }
 
                 val existingTask = activeTasks[requestHash]
                 if (existingTask != null) {
-                    var paywall = existingTask.await()
-                    paywall = updatePaywall(paywall, request)
+                    paywall = existingTask.await()
+                    if (!(isPreloading && paywall.identifier == factory.activePaywallId())) {
+                        paywall = updatePaywall(paywall, request)
+                    }
                     return@withContext paywall
                 }
 
                 val deferredTask = CompletableDeferred<Paywall>()
                 activeTasks[requestHash] = deferredTask
 
-                getRawPaywall(request)
+                getRawPaywall(request, isPreloading)
                     .then {
                         val finalPaywall =
                             addProducts(it, request)
@@ -86,7 +103,9 @@ class PaywallRequestManager(
                     }
 
                 paywall = deferredTask.await()
-                paywall = updatePaywall(paywall, request)
+                if (!(isPreloading && paywall.identifier == factory.activePaywallId())) {
+                    paywall = updatePaywall(paywall, request)
+                }
 
                 return@withContext paywall
             }
@@ -114,7 +133,10 @@ class PaywallRequestManager(
         }
     }
 
-    suspend fun getRawPaywall(request: PaywallRequest): Either<Paywall, *> =
+    suspend fun getRawPaywall(
+        request: PaywallRequest,
+        isPreloading: Boolean = false,
+    ): Either<Paywall, *> =
 
         withContext(ioScope.coroutineContext) {
             Logger.debug(
@@ -123,7 +145,7 @@ class PaywallRequestManager(
                 "!!getRawPaywall - ${request.responseIdentifiers.paywallId}",
             )
             trackResponseStarted(event = request.eventData)
-            return@withContext getPaywallResponse(request)
+            return@withContext getPaywallResponse(request, isPreloading)
                 .then {
                     val paywallInfo =
                         it.getInfo(
@@ -136,7 +158,10 @@ class PaywallRequestManager(
                 }
         }
 
-    private suspend fun getPaywallResponse(request: PaywallRequest): Either<Paywall, *> =
+    private suspend fun getPaywallResponse(
+        request: PaywallRequest,
+        isPreloading: Boolean = false,
+    ): Either<Paywall, *> =
         withContext(ioScope.coroutineContext) {
             val responseLoadStartTime = Date()
             val paywallId = request.responseIdentifiers.paywallId
@@ -160,9 +185,11 @@ class PaywallRequestManager(
                     "!!getPaywallResponse - $paywallId - $it",
                 )
             }.map {
-                it.experiment = request.responseIdentifiers.experiment
-                it.responseLoadingInfo.startAt = responseLoadStartTime
-                it.responseLoadingInfo.endAt = Date()
+                if (!(isPreloading && it.identifier == factory.activePaywallId())) {
+                    it.experiment = request.responseIdentifiers.experiment
+                    it.responseLoadingInfo.startAt = responseLoadStartTime
+                    it.responseLoadingInfo.endAt = Date()
+                }
                 it
             }.then {
                 Logger.debug(
@@ -186,7 +213,7 @@ class PaywallRequestManager(
                     state = InternalSuperwallEvent.PaywallLoad.State.Start(),
                     eventData = event,
                 )
-            Superwall.instance.track(trackedEvent)
+            track(trackedEvent)
         }
 
     private suspend fun trackResponseLoaded(
@@ -198,7 +225,7 @@ class PaywallRequestManager(
                 InternalSuperwallEvent.PaywallLoad.State.Complete(paywallInfo = paywallInfo),
                 eventData = event,
             )
-        Superwall.instance.track(responseLoadEvent)
+        track(responseLoadEvent)
     }
 
     suspend fun addProducts(
@@ -265,7 +292,7 @@ class PaywallRequestManager(
                     paywallInfo,
                     request.eventData,
                 )
-            Superwall.instance.track(productLoadEvent)
+            track(productLoadEvent)
             return@withContext paywall
         }
 
@@ -283,7 +310,7 @@ class PaywallRequestManager(
                     paywallInfo,
                     event,
                 )
-            Superwall.instance.track(productLoadEvent)
+            track(productLoadEvent)
 
             return@withContext paywall
         }

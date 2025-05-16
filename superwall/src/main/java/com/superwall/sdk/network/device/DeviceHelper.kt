@@ -166,7 +166,7 @@ class DeviceHelper(
         get() =
             try {
                 val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-                packageInfo.versionName
+                packageInfo.versionName ?: "Unknown"
             } catch (e: Throwable) {
                 Logger.debug(
                     LogLevel.error,

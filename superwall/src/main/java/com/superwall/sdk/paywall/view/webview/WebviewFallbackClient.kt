@@ -156,6 +156,7 @@ internal class WebviewFallbackClient(
         request: WebResourceRequest?,
         errorResponse: WebResourceResponse?,
     ) {
+        timeoutFlow.update { UrlState.PageError }
         super.onReceivedHttpError(view, request, errorResponse)
     }
 

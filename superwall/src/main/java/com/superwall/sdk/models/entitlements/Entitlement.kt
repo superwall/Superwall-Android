@@ -10,6 +10,8 @@ data class Entitlement(
     @SerialName("type")
     val type: Type = Type.SERVICE_LEVEL,
 ) {
+    constructor(id: String) : this(id, type = Type.SERVICE_LEVEL)
+
     @Serializable
     enum class Type(
         val raw: String,

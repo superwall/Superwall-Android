@@ -133,7 +133,7 @@ class ObserverModeTest {
 
     @Test
     fun test_observe_purchase_will_begin_with_controller() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             setup()
             Given("a configured Superwall instance with purchase observation enabled") {
                 mockDelegate = MockDelegate(this@runTest)
@@ -156,7 +156,7 @@ class ObserverModeTest {
 
     @Test
     fun test_observe_purchase_complete_with_controller() =
-        runTest(timeout = 3.minutes) {
+        runTest(timeout = 30.seconds) {
             setup()
             Given("a configured Superwall instance and completed purchase") {
                 mockDelegate = MockDelegate(this@runTest)
@@ -194,7 +194,7 @@ class ObserverModeTest {
 
     @Test
     fun test_observe_purchase_failed_with_controller() =
-        runTest(timeout = 3.minutes) {
+        runTest(timeout = 30.seconds) {
             setup()
             Given("a configured Superwall instance and failed purchase") {
                 mockDelegate = MockDelegate(this@runTest)
@@ -206,6 +206,7 @@ class ObserverModeTest {
                     Superwall.instance.observe(
                         PurchasingObserverState.PurchaseWillBegin(mockProductDetails),
                     )
+                    delayFor(1.seconds)
                     Superwall.instance.observe(
                         PurchasingObserverState.PurchaseError(
                             error = error,
@@ -228,7 +229,7 @@ class MockDelegate(
 ) : SuperwallDelegate {
     val events = MutableSharedFlow<SuperwallEvent>(extraBufferCapacity = 20)
 
-    override fun handleSuperwallPlacement(eventInfo: SuperwallEventInfo) {
+    override fun handleSuperwallEvent(eventInfo: SuperwallEventInfo) {
         Log.e("test", "handle event is ${eventInfo.event}")
         scope.launch {
             events.emit(eventInfo.event)

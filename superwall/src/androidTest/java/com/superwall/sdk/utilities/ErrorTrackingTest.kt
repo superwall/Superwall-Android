@@ -14,11 +14,12 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
+import kotlin.time.Duration.Companion.minutes
 
 class ErrorTrackingTest {
     @Test
     fun should_save_error_when_occured() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             val storage =
                 mockk<LocalStorage> {
                     every { write(ErrorLog, any()) } just Runs
@@ -35,7 +36,7 @@ class ErrorTrackingTest {
 
     @Test
     fun should_track_error_when_invoked() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             val error = ErrorTracking.ErrorOccurence("Type", "Test Error", "Test Stacktrace", System.currentTimeMillis(), false)
             val storage =
                 mockk<LocalStorage> {

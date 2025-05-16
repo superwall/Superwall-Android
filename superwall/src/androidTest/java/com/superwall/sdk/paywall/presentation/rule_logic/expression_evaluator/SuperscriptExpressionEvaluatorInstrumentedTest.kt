@@ -22,6 +22,7 @@ import kotlinx.serialization.json.ClassDiscriminatorMode
 import kotlinx.serialization.json.Json
 import org.junit.Test
 import java.util.Date
+import kotlin.time.Duration.Companion.minutes
 
 class SuperscriptExpressionEvaluatorInstrumentedTest {
     private val attributesFactory = RuleAttributeFactoryBuilder()
@@ -42,7 +43,7 @@ class SuperscriptExpressionEvaluatorInstrumentedTest {
 
     @Test
     fun test_happy_path_evaluator() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             // get context
             val storage = mockk<CoreDataManager>()
 
@@ -89,7 +90,7 @@ class SuperscriptExpressionEvaluatorInstrumentedTest {
 
     @Test
     fun test_expression_evaluator_expression_js() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             val storage = mockk<CoreDataManager>()
 
             val expressionEvaluator =
@@ -176,7 +177,7 @@ class SuperscriptExpressionEvaluatorInstrumentedTest {
 
     @Test
     fun multi_threaded() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             val storage = mockk<CoreDataManager>()
 
             val expressionEvaluator =
@@ -270,7 +271,7 @@ class SuperscriptExpressionEvaluatorInstrumentedTest {
 
     @Test
     fun test_no_expression() =
-        runTest {
+        runTest(timeout = 5.minutes) {
             val storage = mockk<CoreDataManager>()
 
             val expressionEvaluator =

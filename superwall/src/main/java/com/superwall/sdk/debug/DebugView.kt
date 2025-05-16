@@ -698,7 +698,7 @@ class DebugView(
         var versionCode = ""
         try {
             val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-            releaseVersionNumber = packageInfo.versionName
+            releaseVersionNumber = packageInfo.versionName ?: "Unknown"
             versionCode =
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                     packageInfo.longVersionCode.toString()

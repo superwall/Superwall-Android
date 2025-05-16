@@ -44,11 +44,14 @@ import com.superwall.sdk.network.GeoService
 import com.superwall.sdk.network.JsonFactory
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.network.RequestExecutor
+import com.superwall.sdk.network.SubscriptionService
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.network.device.DeviceInfo
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
 import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.paywall.manager.PaywallViewCache
+import com.superwall.sdk.paywall.presentation.PaywallInfo
+import com.superwall.sdk.paywall.presentation.dismiss
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.dismiss
@@ -67,6 +70,7 @@ import com.superwall.sdk.paywall.view.SuperwallStoreOwner
 import com.superwall.sdk.paywall.view.ViewModelFactory
 import com.superwall.sdk.paywall.view.ViewStorageViewModel
 import com.superwall.sdk.paywall.view.delegate.PaywallViewDelegateAdapter
+import com.superwall.sdk.paywall.view.webview.PaywallMessage
 import com.superwall.sdk.paywall.view.webview.SWWebView
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessageHandler
 import com.superwall.sdk.paywall.view.webview.templating.models.JsonVariables
@@ -84,6 +88,8 @@ import com.superwall.sdk.store.transactions.TransactionManager
 import com.superwall.sdk.utilities.DateUtils
 import com.superwall.sdk.utilities.ErrorTracker
 import com.superwall.sdk.utilities.dateFormat
+import com.superwall.sdk.web.DeepLinkReferrer
+import com.superwall.sdk.web.WebPaywallRedeemer
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -130,7 +136,7 @@ class DependencyContainer(
     override var api: Api
     override var deviceHelper: DeviceHelper
     override lateinit var storage: LocalStorage
-    override var configManager: ConfigManager
+    override lateinit var configManager: ConfigManager
     override var identityManager: IdentityManager
     override var appLifecycleObserver: AppLifecycleObserver = AppLifecycleObserver()
     var appSessionManager: AppSessionManager
@@ -145,7 +151,7 @@ class DependencyContainer(
     val googleBillingWrapper: GoogleBillingWrapper
 
     var entitlements: Entitlements
-
+    lateinit var reedemer: WebPaywallRedeemer
     private val uiScope
         get() = mainScope()
     private val ioScope
@@ -236,6 +242,18 @@ class DependencyContainer(
                         json = json(),
                         customHttpUrlConnection = httpConnection,
                     ),
+                subscriptionService =
+                    SubscriptionService(
+                        host = api.subscription.host,
+                        version = Api.subscriptionsv1,
+                        factory = this,
+                        json =
+                            Json(from = json()) {
+                                ignoreUnknownKeys = true
+                                namingStrategy = null
+                            },
+                        customHttpUrlConnection = httpConnection,
+                    ),
                 collectorService =
                     CollectorService(
                         host = api.collector.host,
@@ -308,6 +326,51 @@ class DependencyContainer(
                     Superwall.instance.track(it)
                 },
                 entitlements = entitlements,
+                webPaywallRedeemer = { reedemer },
+            )
+
+        reedemer =
+            WebPaywallRedeemer(
+                context = context,
+                ioScope = ioScope,
+                deepLinkReferrer = DeepLinkReferrer({ context }, ioScope),
+                network = network,
+                storage = storage,
+                didRedeemLink = { result ->
+                    delegateAdapter.didRedeemLink(result)
+                },
+                maxAge = {
+                    configManager.config?.webToAppConfig?.entitlementsMaxAgeMs ?: 86400000L
+                },
+                internallySetSubscriptionStatus = {
+                    Superwall.instance.internallySetSubscriptionStatus(it)
+                },
+                isPaywallVisible = {
+                    Superwall.instance.isPaywallPresented
+                },
+                triggerRestoreInPaywall = {
+                    showWebRestoreSuccesful()
+                },
+                trackRestorationFailed = {
+                    trackRestorationFailure(it)
+                },
+                currentPaywallEntitlements = {
+                    Superwall.instance.paywallView
+                        ?.paywall
+                        ?.productIds
+                        ?.flatMap {
+                            entitlements.byProductId(it)
+                        }?.toSet() ?: emptySet()
+                },
+                willRedeemLink = {
+                    delegateAdapter.willRedeemLink()
+                },
+                getPaywallInfo = {
+                    Superwall.instance.paywallView?.info ?: PaywallInfo.empty()
+                },
+                isWebToAppEnabled = {
+                    isWebToAppEnabled()
+                },
             )
 
         eventsQueue =
@@ -369,6 +432,12 @@ class DependencyContainer(
                     Superwall.instance.dismiss(it, et)
                 },
                 ioScope = ioScope(),
+                showRestoreDialogForWeb = {
+                    showWebRestoreSuccesful()
+                },
+                entitlementsById = {
+                    entitlements.byProductId(it)
+                },
             )
 
         /**
@@ -503,6 +572,8 @@ class DependencyContainer(
 
     override fun makeCache(): PaywallViewCache = PaywallViewCache(context, makeViewStore(), activityProvider!!, deviceHelper)
 
+    override fun activePaywallId(): String? = paywallManager.currentView?.paywall?.identifier
+
     override fun makeDeviceInfo(): DeviceInfo =
         DeviceInfo(
             appInstalledAtString = deviceHelper.appInstalledAtString,
@@ -533,6 +604,10 @@ class DependencyContainer(
     override fun makeHasExternalPurchaseController(): Boolean = storeManager.purchaseController.hasExternalPurchaseController
 
     override fun makeHasInternalPurchaseController(): Boolean = storeManager.purchaseController.hasInternalPurchaseController
+
+    override fun isWebToAppEnabled(): Boolean = configManager.config?.featureFlags?.web2App ?: false
+
+    override fun restoreUrl(): String = configManager?.config?.webToAppConfig?.restoreAccesUrl ?: ""
 
     override suspend fun didUpdateAppSession(appSession: AppSession) {
     }
@@ -698,5 +773,48 @@ class DependencyContainer(
             _ioScope = IOScope()
         }
         return _ioScope!!
+    }
+
+    private fun showWebRestoreSuccesful() {
+        val paywallView: PaywallView? = Superwall.instance.paywallView
+
+        if (paywallView != null) {
+            ioScope.launch {
+                Superwall.instance.track(
+                    InternalSuperwallEvent.Restore(
+                        state = InternalSuperwallEvent.Restore.State.Complete,
+                        paywallInfo = paywallView.info,
+                    ),
+                )
+                paywallView.webView.messageHandler.handle(PaywallMessage.Restore)
+            }
+            if (makeSuperwallOptions().paywalls.automaticallyDismiss) {
+                ioScope.launch {
+                    Superwall.instance.dismiss()
+                }
+            }
+        }
+    }
+
+    private fun trackRestorationFailure(message: String) {
+        val paywallView: PaywallView? = Superwall.instance.paywallView
+        val options = makeSuperwallOptions()
+
+        if (paywallView != null) {
+            val trackedEvent =
+                InternalSuperwallEvent.Restore(
+                    InternalSuperwallEvent.Restore.State.Failure(message),
+                    paywallView.info,
+                )
+            ioScope.launch {
+                Superwall.instance.track(trackedEvent)
+            }
+            paywallView.webView.messageHandler.handle(PaywallMessage.RestoreFailed(message))
+            paywallView.showAlert(
+                title = options.paywalls.restoreFailed.title,
+                message = options.paywalls.restoreFailed.message,
+                closeActionTitle = options.paywalls.restoreFailed.closeButtonTitle,
+            )
+        }
     }
 }

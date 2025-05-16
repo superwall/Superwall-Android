@@ -1,6 +1,8 @@
 package com.example.superapp.test
 
 import android.app.Application
+import android.os.Build
+import androidx.test.InstrumentationRegistry.getTargetContext
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry.getInstrumentation
 import com.dropbox.dropshots.Dropshots
@@ -17,6 +19,7 @@ import com.superwall.sdk.Superwall
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.superapp.Keys
 import com.superwall.superapp.test.UITestHandler
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -30,6 +33,18 @@ class AlternativeSetupTest {
             resultValidator = ThresholdValidator(0.01f),
             imageComparator = CustomComparator(),
         )
+
+    @Before
+    fun grantPhonePermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            getInstrumentation().uiAutomation.executeShellCommand(
+                (
+                    "pm grant " + getTargetContext().packageName +
+                        " android.permission.WRITE_EXTERNAL_STORAGE"
+                ),
+            )
+        }
+    }
 
     @Test
     fun test_paywall_displays_on_session_start() =

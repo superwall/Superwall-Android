@@ -3,6 +3,7 @@ package com.superwall.sdk.store
 import com.superwall.sdk.billing.DecomposedProductIds
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
+import com.superwall.sdk.storage.LatestRedemptionResponse
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.StoredEntitlementsByProductId
 import com.superwall.sdk.storage.StoredSubscriptionStatus
@@ -22,6 +23,10 @@ class Entitlements(
     private val storage: Storage,
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Default),
 ) {
+    val web: Set<Entitlement>
+        get() =
+            storage.read(LatestRedemptionResponse)?.entitlements?.toSet() ?: emptySet()
+
     // MARK: - Private Properties
     private val _entitlementsByProduct = ConcurrentHashMap<String, Set<Entitlement>>()
 
@@ -38,29 +43,42 @@ class Entitlements(
         get() = _status.asStateFlow()
 
     // MARK: - Backing Fields
+
+    /**
+     * Internal backing variable that is set only via setSubscriptionStatus
+     */
+    private var backingActive: Set<Entitlement> = emptySet()
+
     private val _all = mutableSetOf<Entitlement>()
-    private val _active = mutableSetOf<Entitlement>()
-    private val _inactive = mutableSetOf<Entitlement>()
+    private val _activeDeviceEntitlements = mutableSetOf<Entitlement>()
+    private val _inactive = _all.subtract(backingActive).toMutableSet()
 
     // MARK: - Public Properties
+
+    internal var activeDeviceEntitlements: Set<Entitlement>
+        get() = _activeDeviceEntitlements
+        set(value) {
+            _activeDeviceEntitlements.clear()
+            _activeDeviceEntitlements.addAll(value)
+        }
 
     /**
      * All entitlements, regardless of whether they're active or not.
      */
     val all: Set<Entitlement>
-        get() = _all.toSet()
+        get() = _all.toSet() + _entitlementsByProduct.values.flatten() + web.toSet()
 
     /**
      * The active entitlements.
      */
     val active: Set<Entitlement>
-        get() = _active.toSet()
+        get() = backingActive
 
     /**
      * The inactive entitlements.
      */
     val inactive: Set<Entitlement>
-        get() = _inactive.toSet()
+        get() = _inactive.toSet() + all.minus(active)
 
     init {
         storage.read(StoredSubscriptionStatus)?.let {
@@ -86,22 +104,21 @@ class Entitlements(
                 if (value.entitlements.isEmpty()) {
                     setSubscriptionStatus(SubscriptionStatus.Inactive)
                 } else {
-                    _active.clear()
+                    backingActive = value.entitlements
                     _all.addAll(value.entitlements)
-                    _active.addAll(value.entitlements)
                     _inactive.removeAll(value.entitlements)
                     _status.value = value
                 }
             }
 
             is SubscriptionStatus.Inactive -> {
-                _active.clear()
+                _activeDeviceEntitlements.clear()
                 _inactive.clear()
                 _status.value = value
             }
 
             is SubscriptionStatus.Unknown -> {
-                _active.clear()
+                _activeDeviceEntitlements.clear()
                 _inactive.clear()
                 _status.value = value
             }
