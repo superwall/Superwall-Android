@@ -636,14 +636,25 @@ class Superwall(
             ioScope.launch {
                 track(InternalSuperwallEvent.DeepLink(uri = uri))
             }
-            dependencyContainer.reedemer.deepLinkReferrer.handleDeepLink(uri).onSuccess {
-                ioScope.launch {
-                    configurationStateListener.first { it is ConfigurationStatus.Configured }
-                    redeem(it)
+            val handledAsRedemption =
+                dependencyContainer.reedemer.deepLinkReferrer
+                    .handleDeepLink(uri)
+                    .onSuccess {
+                        ioScope.launch {
+                            configurationStateListener.first { it is ConfigurationStatus.Configured }
+                            redeem(it)
+                        }
+                        return Result.success(true)
+                    }.isSuccess
+
+            val result =
+                if (!handledAsRedemption) {
+                    dependencyContainer.debugManager.handle(deepLinkUrl = uri)
+                } else {
+                    handledAsRedemption
                 }
-                return Result.success(true)
-            }
-            dependencyContainer.debugManager.handle(deepLinkUrl = uri)
+
+            return Result.success(result)
         }.toResult()
 
     //endregion

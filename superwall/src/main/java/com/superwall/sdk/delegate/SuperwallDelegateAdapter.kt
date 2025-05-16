@@ -15,7 +15,7 @@ class SuperwallDelegateAdapter {
             ?: javaDelegate?.handleCustomPaywallAction(name)
     }
 
-    fun didRedeemCode(result: RedemptionResult) {
+    fun didRedeemLink(result: RedemptionResult) {
         kotlinDelegate?.didRedeemLink(result)
             ?: javaDelegate?.didRedeemLink(result)
     }

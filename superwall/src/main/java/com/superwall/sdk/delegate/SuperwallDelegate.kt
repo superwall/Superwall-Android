@@ -15,8 +15,6 @@ interface SuperwallDelegate {
 
     fun handleSuperwallEvent(eventInfo: SuperwallEventInfo) {}
 
-    fun didRedeemCode(result: RedemptionResult) {}
-
     fun handleCustomPaywallAction(withName: String) {}
 
     fun willDismissPaywall(withInfo: PaywallInfo) {}

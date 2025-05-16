@@ -337,7 +337,7 @@ class DependencyContainer(
                 network = network,
                 storage = storage,
                 didRedeemLink = { result ->
-                    delegateAdapter.didRedeemCode(result)
+                    delegateAdapter.didRedeemLink(result)
                 },
                 maxAge = {
                     configManager.config?.webToAppConfig?.entitlementsMaxAgeMs ?: 86400000L
@@ -363,12 +363,14 @@ class DependencyContainer(
                         }?.toSet() ?: emptySet()
                 },
                 willRedeemLink = {
-                    Superwall.instance.delegate?.willRedeemLink()
+                    delegateAdapter.willRedeemLink()
                 },
                 getPaywallInfo = {
                     Superwall.instance.paywallView?.info ?: PaywallInfo.empty()
                 },
-                isWebToAppEnabled = { isWebToAppEnabled() },
+                isWebToAppEnabled = {
+                    isWebToAppEnabled()
+                },
             )
 
         eventsQueue =
@@ -569,6 +571,8 @@ class DependencyContainer(
     }
 
     override fun makeCache(): PaywallViewCache = PaywallViewCache(context, makeViewStore(), activityProvider!!, deviceHelper)
+
+    override fun activePaywallId(): String? = paywallManager.currentView?.paywall?.identifier
 
     override fun makeDeviceInfo(): DeviceInfo =
         DeviceInfo(

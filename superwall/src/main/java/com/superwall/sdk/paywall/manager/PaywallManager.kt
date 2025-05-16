@@ -75,7 +75,7 @@ class PaywallManager(
         delegate: PaywallViewDelegateAdapter?,
     ): Either<PaywallView, Throwable> =
         paywallRequestManager
-            .getPaywall(request)
+            .getPaywall(request, isPreloading)
             .mapAsync {
                 val deviceInfo = factory.makeDeviceInfo()
                 val cacheKey =
