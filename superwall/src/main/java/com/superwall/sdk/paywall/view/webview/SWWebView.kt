@@ -19,6 +19,7 @@ import android.webkit.WebViewClient
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
+import com.superwall.sdk.config.options.PaywallOptions
 import com.superwall.sdk.game.dispatchKeyEvent
 import com.superwall.sdk.game.dispatchMotionEvent
 import com.superwall.sdk.logger.LogLevel
@@ -28,6 +29,7 @@ import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.MainScope
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.paywall.presentation.PaywallInfo
+import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessageHandler
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessageHandlerDelegate
 import kotlinx.coroutines.CoroutineScope
@@ -50,6 +52,7 @@ class SWWebView(
     context: Context,
     val messageHandler: PaywallMessageHandler,
     private val onFinishedLoading: ((url: String) -> Unit)? = null,
+    private val options: () -> PaywallOptions,
 ) : WebView(context) {
     var delegate: SWWebViewDelegate? = null
     private val mainScope = MainScope()
@@ -239,6 +242,7 @@ class SWWebView(
                                         is DefaultWebviewClient -> {
                                             loadUrl(lastLoadedUrl!!)
                                         }
+
                                         else -> {
                                             // NO-OP as it has internal fallback
                                         }
@@ -265,6 +269,9 @@ class SWWebView(
                             }
 
                             is WebviewClientEvent.OnPageFinished -> {
+                                if (options().optimisticLoading) {
+                                    delegate?.loadingState = PaywallLoadingState.Ready()
+                                }
                                 onFinishedLoading?.invoke(it.url)
                             }
 

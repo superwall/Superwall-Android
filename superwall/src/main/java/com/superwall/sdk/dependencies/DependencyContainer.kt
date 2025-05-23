@@ -529,6 +529,9 @@ class DependencyContainer(
                         SWWebView(
                             context = context,
                             messageHandler = messageHandler,
+                            options = {
+                                makeSuperwallOptions().paywalls
+                            },
                         )
 
                     val paywallView =

@@ -66,6 +66,9 @@ class PaywallOptions {
     //
     // **Note:** This feature is still in development and could change.
     var transactionBackgroundView: TransactionBackgroundView? = TransactionBackgroundView.SPINNER
+
+    // Hide shimmer optimistically
+    var optimisticLoading: Boolean = false
 }
 
 internal fun PaywallOptions.toMap() =

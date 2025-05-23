@@ -3,6 +3,7 @@ package com.superwall.sdk.paywall.presentation.get_paywall.builder
 import android.app.Activity
 import android.view.View
 import com.superwall.sdk.Superwall
+import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.paywall.presentation.get_paywall.getPaywall
 import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
 import com.superwall.sdk.paywall.view.LoadingView
@@ -11,7 +12,10 @@ import com.superwall.sdk.paywall.view.PaywallShimmerView
 import com.superwall.sdk.paywall.view.PaywallView
 import com.superwall.sdk.paywall.view.ShimmerView
 import com.superwall.sdk.paywall.view.delegate.PaywallViewCallback
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import java.lang.ref.WeakReference
+import kotlin.jvm.Throws
 
 /**
  * Builder class for creating a PaywallView. This is useful in case you want to present a paywall yourself
@@ -92,4 +96,45 @@ class PaywallBuilder(
                 newView.setupLoading(loading)
                 newView.beforeViewCreated()
             }
+
+    @JvmName("buildWithCallback")
+    fun build(
+        onSuccess: (PaywallView) -> Unit,
+        onError: (Throwable) -> Unit,
+    ) {
+        IOScope().launch {
+            Superwall.instance
+                .getPaywall(placement, params, paywallOverrides, delegate!!)
+                .onSuccess { newView ->
+                    newView.encapsulatingActivity = WeakReference(activity)
+                    val shimmer = shimmmerView ?: ShimmerView(activity!!)
+                    val loading = purchaseLoadingView ?: LoadingView(activity!!)
+                    newView.setupWith(shimmer, loading)
+                    newView.setupShimmer(shimmer)
+                    newView.setupLoading(loading)
+                    newView.beforeViewCreated()
+                    onSuccess(newView)
+                }.onFailure {
+                    onError(it)
+                }
+        }
+    }
+
+    @Throws
+    fun buildSync(): PaywallView {
+        return runBlocking {
+            Superwall.instance
+                .getPaywall(placement, params, paywallOverrides, delegate!!)
+                .onSuccess { newView ->
+                    newView.encapsulatingActivity = WeakReference(activity)
+                    val shimmer = shimmmerView ?: ShimmerView(activity!!)
+                    val loading = purchaseLoadingView ?: LoadingView(activity!!)
+                    newView.setupWith(shimmer, loading)
+                    newView.setupShimmer(shimmer)
+                    newView.setupLoading(loading)
+                    newView.beforeViewCreated()
+                    return@runBlocking newView
+                }.getOrThrow()
+        }
+    }
 }
