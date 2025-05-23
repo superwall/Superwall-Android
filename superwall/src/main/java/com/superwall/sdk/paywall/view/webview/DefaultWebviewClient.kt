@@ -37,6 +37,7 @@ internal open class DefaultWebviewClient(
         view: WebView,
         url: String,
     ) {
+        super.onPageFinished(view, url)
         ioScope.launch {
             webviewClientEvents.emit(WebviewClientEvent.OnPageFinished(url))
         }

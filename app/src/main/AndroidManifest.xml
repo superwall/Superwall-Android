@@ -52,6 +52,7 @@
                 <data android:scheme="superapp" />
             </intent-filter>
         </activity>
+        <activity android:name=".ComposeActivity" />
         <activity
             android:name="com.superwall.sdk.paywall.view.SuperwallPaywallActivity"
             android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar"

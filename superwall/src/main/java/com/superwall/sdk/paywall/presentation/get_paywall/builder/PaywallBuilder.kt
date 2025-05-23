@@ -12,6 +12,7 @@ import com.superwall.sdk.paywall.view.PaywallShimmerView
 import com.superwall.sdk.paywall.view.PaywallView
 import com.superwall.sdk.paywall.view.ShimmerView
 import com.superwall.sdk.paywall.view.delegate.PaywallViewCallback
+import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import java.lang.ref.WeakReference
@@ -103,20 +104,24 @@ class PaywallBuilder(
         onError: (Throwable) -> Unit,
     ) {
         IOScope().launch {
-            Superwall.instance
-                .getPaywall(placement, params, paywallOverrides, delegate!!)
-                .onSuccess { newView ->
-                    newView.encapsulatingActivity = WeakReference(activity)
-                    val shimmer = shimmmerView ?: ShimmerView(activity!!)
-                    val loading = purchaseLoadingView ?: LoadingView(activity!!)
-                    newView.setupWith(shimmer, loading)
-                    newView.setupShimmer(shimmer)
-                    newView.setupLoading(loading)
-                    newView.beforeViewCreated()
-                    onSuccess(newView)
-                }.onFailure {
-                    onError(it)
-                }
+            val res =
+                Superwall.instance
+                    .getPaywall(placement, params, paywallOverrides, delegate!!)
+            MainScope().launch {
+                res
+                    .onSuccess { newView ->
+                        newView.encapsulatingActivity = WeakReference(activity)
+                        val shimmer = shimmmerView ?: ShimmerView(activity!!)
+                        val loading = purchaseLoadingView ?: LoadingView(activity!!)
+                        newView.setupWith(shimmer, loading)
+                        newView.setupShimmer(shimmer)
+                        newView.setupLoading(loading)
+                        newView.beforeViewCreated()
+                        onSuccess(newView)
+                    }.onFailure {
+                        onError(it)
+                    }
+            }
         }
     }
 
