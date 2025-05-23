@@ -1,7 +1,6 @@
 package com.superwall.sdk.store.abstractions.transactions
 
 import com.superwall.sdk.models.serialization.DateSerializer
-import com.superwall.sdk.models.serialization.UUIDSerializer
 import com.superwall.sdk.storage.core_data.toNullableTypedMap
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -40,8 +39,8 @@ class StoreTransaction(
     @Serializable(with = DateSerializer::class)
     override val revocationDate: Date? get() = transaction.revocationDate
 
-    @Serializable(with = UUIDSerializer::class)
-    override val appAccountToken: UUID? get() = transaction.appAccountToken
+    override val appAccountToken: String? get() = transaction.appAccountToken
+
     override val purchaseToken: String
         get() = transaction.purchaseToken
 
