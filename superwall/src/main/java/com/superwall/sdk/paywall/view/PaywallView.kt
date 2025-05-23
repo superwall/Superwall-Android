@@ -777,7 +777,10 @@ class PaywallView(
 
     private fun recreateWebview() {
         removeView(webView)
-        _webView = SWWebView(context, webView.messageHandler)
+        _webView =
+            SWWebView(context, webView.messageHandler, options = {
+                factory.makeSuperwallOptions().paywalls
+            })
         addView(webView)
         webView.layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
         webView.messageHandler.handle(PaywallMessage.PaywallOpen)

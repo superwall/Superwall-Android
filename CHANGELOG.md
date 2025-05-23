@@ -2,6 +2,16 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.1.1
+
+## Enhancements
+
+- Add optimisticLoading paywall option that hides the shimmer when HTML is loaded
+- Prevent stopping the paywall handler listening with onDismiss when reason is None
+- Improve PaywallBuilder API for non-kotlin and non-coroutine users
+- Expose `deviceAttributes()` function to retrieve session device attributes 
+
+
 ## 2.1.0
 
 ## Enhancements

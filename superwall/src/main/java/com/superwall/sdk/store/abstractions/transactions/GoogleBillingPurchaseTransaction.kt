@@ -2,7 +2,6 @@ package com.superwall.sdk.store.abstractions.transactions
 
 import com.android.billingclient.api.Purchase
 import com.superwall.sdk.models.serialization.DateSerializer
-import com.superwall.sdk.models.serialization.UUIDSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
@@ -41,9 +40,8 @@ data class GoogleBillingPurchaseTransaction(
     @Serializable(with = DateSerializer::class)
     @SerialName("revocation_date")
     override val revocationDate: Date?,
-    @Serializable(with = UUIDSerializer::class)
     @SerialName("app_account_token")
-    override val appAccountToken: UUID?,
+    override val appAccountToken: String?,
     @SerialName("purchase_token")
     override val purchaseToken: String,
     override var payment: StorePayment,

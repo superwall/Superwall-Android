@@ -25,7 +25,7 @@ interface StoreTransactionType {
     val expirationDate: Date?
     val offerId: String?
     val revocationDate: Date?
-    val appAccountToken: UUID?
+    val appAccountToken: String?
     val purchaseToken: String
 }
 

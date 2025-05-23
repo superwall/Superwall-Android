@@ -287,6 +287,11 @@ class Superwall(
         get() = dependencyContainer.identityManager.userAttributes
 
     /**
+     * Properties stored about the device session, set internally by Superwall
+     * */
+    suspend fun deviceAttributes(): Map<String, Any?> = dependencyContainer.makeSessionDeviceAttributes()
+
+    /**
      * The current user's id.
      *
      * If you haven't called `Superwall.identify(userId:options:)`,

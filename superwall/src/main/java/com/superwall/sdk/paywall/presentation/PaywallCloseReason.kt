@@ -27,7 +27,7 @@ sealed class PaywallCloseReason {
     val stateShouldComplete: Boolean
         get() =
             when (this) {
-                is ForNextPaywall -> false
+                is ForNextPaywall, None -> false
                 else -> true
             }
 }

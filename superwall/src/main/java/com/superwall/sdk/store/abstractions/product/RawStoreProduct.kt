@@ -501,8 +501,7 @@ class RawStoreProduct(
                 .billingPeriod
 
         try {
-            SubscriptionPeriod.from(baseBillingPeriod).also {
-            }
+            SubscriptionPeriod.from(baseBillingPeriod)
         } catch (e: Throwable) {
             null
         }
