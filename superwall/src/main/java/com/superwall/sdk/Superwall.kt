@@ -165,8 +165,11 @@ class Superwall(
     var delegate: SuperwallDelegate?
         get() = dependencyContainer.delegateAdapter.kotlinDelegate
         set(newValue) {
-            dependencyContainer.delegateAdapter.kotlinDelegate = newValue
             ioScope.launch {
+                hasInitialized.first { true }
+                mainScope.launch {
+                    dependencyContainer.delegateAdapter.kotlinDelegate = newValue
+                }
                 track(dependencyContainer.makeConfigAttributes())
             }
         }
