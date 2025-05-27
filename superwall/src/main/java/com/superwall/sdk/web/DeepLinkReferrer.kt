@@ -23,7 +23,14 @@ class DeepLinkReferrer(
     context: () -> Context,
     private val scope: IOScope,
 ) : CheckForReferral {
-    private var referrerClient: InstallReferrerClient
+    private var referrerClient: InstallReferrerClient?
+        get() {
+            if (field?.isReady == true) {
+                return field
+            } else {
+                return null
+            }
+        }
 
     init {
         referrerClient = newBuilder(context()).build()
@@ -31,11 +38,11 @@ class DeepLinkReferrer(
     }
 
     private class ConnectionListener(
-        val finished: () -> Unit,
+        val finished: (responseCode: Int) -> Unit,
         val disconnected: () -> Unit,
     ) : InstallReferrerStateListener {
-        override fun onInstallReferrerSetupFinished(p0: Int) {
-            finished()
+        override fun onInstallReferrerSetupFinished(responseCode: Int) {
+            finished(responseCode)
         }
 
         override fun onInstallReferrerServiceDisconnected() {
@@ -44,43 +51,65 @@ class DeepLinkReferrer(
     }
 
     fun tryConnecting(timeout: Int = 0) {
-        val connect = {
-            referrerClient.startConnection(
-                ConnectionListener(
-                    finished = {
-                        referrerClient.installReferrer.installReferrer
-                    },
-                    disconnected = {
-                        tryConnecting(timeout + 1000)
-                    },
-                ),
-            )
-        }
-        if (timeout == 0) {
-            connect()
-        } else {
-            scope.launch {
-                withTimeout(timeout.milliseconds) {
-                    connect()
+        try {
+            val connect = {
+                referrerClient?.startConnection(
+                    ConnectionListener(
+                        finished = {
+                            when (it) {
+                                InstallReferrerClient.InstallReferrerResponse.OK -> {
+                                    referrerClient?.installReferrer?.installReferrer
+                                }
+
+                                else -> {
+                                    referrerClient?.endConnection()
+                                    referrerClient = null
+                                }
+                            }
+                        },
+                        disconnected = {
+                            tryConnecting(timeout + 1000)
+                        },
+                    ),
+                )
+            }
+            if (timeout == 0) {
+                connect()
+            } else {
+                scope.launch {
+                    withTimeout(timeout.milliseconds) {
+                        connect()
+                    }
                 }
+            }
+        } catch (e: Throwable) {
+            kotlin.runCatching {
+                referrerClient?.endConnection()
+                referrerClient = null
             }
         }
     }
 
     override suspend fun checkForReferral(): Result<String> =
-        withTimeoutOrNull(30.seconds) {
-            while (!referrerClient.isReady) {
-                // no-op
+        try {
+            withTimeoutOrNull(30.seconds) {
+                while (referrerClient?.isReady != true) {
+                    // no-op
+                }
+                referrerClient?.installReferrer?.installReferrer?.toString()
+            }.let {
+                val query = it?.getUrlParams() ?: emptyMap()
+                val code = query["code"]?.firstOrNull()
+                referrerClient?.endConnection()
+                referrerClient = null
+                if (code == null) {
+                    Result.failure(IllegalStateException("Play store cannot connect"))
+                } else {
+                    Result.success(code)
+                }
             }
-            referrerClient.installReferrer.installReferrer.toString()
-        }.let {
-            val query = it?.getUrlParams() ?: emptyMap()
-            val code = query["code"]?.firstOrNull()
-            if (code == null) {
-                Result.failure(IllegalStateException("Play store cannot connect"))
-            } else {
-                Result.success(code)
-            }
+        } catch (e: Throwable) {
+            Result.failure(e)
         }
 
     override fun handleDeepLink(url: Uri): Result<String> {

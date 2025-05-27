@@ -9,6 +9,7 @@ import android.webkit.WebView
 import androidx.test.platform.app.InstrumentationRegistry
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.SessionEventsManager
+import com.superwall.sdk.config.options.PaywallOptions
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.dependencies.VariablesFactory
 import com.superwall.sdk.misc.IOScope
@@ -98,7 +99,7 @@ class WebviewFallbackClientTest {
             val webview =
                 mainScope
                     .async {
-                        SWWebView(context, handler)
+                        SWWebView(context, handler, options = { PaywallOptions() })
                     }.await()
             Given("We have list of paywall URLS") {
                 When("we try to load one") {
@@ -144,7 +145,7 @@ class WebviewFallbackClientTest {
             val webview =
                 mainScope
                     .async {
-                        SWWebView(context, handler)
+                        SWWebView(context, handler, options = { PaywallOptions() })
                     }.await()
             Given("We have list of paywall URLS") {
                 When("we try to load one with timeout 0") {
@@ -191,7 +192,7 @@ class WebviewFallbackClientTest {
             val webview =
                 mainScope
                     .async {
-                        SWWebView(context, handler)
+                        SWWebView(context, handler, options = { PaywallOptions() })
                     }.await()
 
             Given("We have list of paywall URLS where the first one fails") {
@@ -251,7 +252,7 @@ class WebviewFallbackClientTest {
             val webview =
                 mainScope
                     .async {
-                        SWWebView(context, handler)
+                        SWWebView(context, handler, options = { PaywallOptions() })
                     }.await()
             Given("We have list of paywall URLS where the first two fail") {
                 When("we try to load the paywall") {
@@ -306,7 +307,7 @@ class WebviewFallbackClientTest {
             val webview =
                 mainScope
                     .async {
-                        SWWebView(context, handler)
+                        SWWebView(context, handler, options = { PaywallOptions() })
                     }.await()
             Given("We have list of paywall URLS where the first two fail") {
                 When("we try to load the paywall") {
@@ -362,7 +363,7 @@ class WebviewFallbackClientTest {
             val webview =
                 mainScope
                     .async {
-                        SWWebView(context, handler)
+                        SWWebView(context, handler, options = { PaywallOptions() })
                     }.await()
             Given("We have list of paywall URLS") {
                 When("we try to load them") {

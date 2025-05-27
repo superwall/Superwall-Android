@@ -19,6 +19,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -53,9 +54,13 @@ sealed class Offer {
 
 @Serializable(with = PlayStoreProductSerializer::class)
 data class PlayStoreProduct(
+    @SerialName("store")
     val store: Store = Store.PLAY_STORE,
+    @SerialName("product_identifier")
     val productIdentifier: String,
+    @SerialName("base_plan_identifier")
     val basePlanIdentifier: String,
+    @SerialName("offer")
     val offer: Offer,
 ) {
     val fullIdentifier: String
@@ -133,7 +138,9 @@ data class ProductItem(
     @SerialName("entitlements")
     val entitlements: Set<Entitlement>,
 ) {
+    @Serializable
     sealed class StoreProductType {
+        @Serializable
         data class PlayStore(
             val product: PlayStoreProduct,
         ) : StoreProductType()
@@ -160,6 +167,7 @@ object ProductItemSerializer : KSerializer<ProductItem> {
             buildJsonObject {
                 put("product", JsonPrimitive(value.name))
                 put("productId", JsonPrimitive(value.fullProductId))
+                put("store_product", encoder.json.encodeToJsonElement(value.type))
             }
         // Encode the JSON object
         jsonOutput.encodeJsonElement(jsonObject)

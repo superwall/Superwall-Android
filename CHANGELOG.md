@@ -2,6 +2,12 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+
+## 2.1.2
+
+## Fixes
+- Fix issue with deep link referrer throwing a DeadObjectException
+
 ## 2.1.1
 
 ## Enhancements

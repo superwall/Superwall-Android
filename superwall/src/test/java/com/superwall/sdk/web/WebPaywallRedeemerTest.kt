@@ -284,15 +284,10 @@ class WebPaywallRedeemerTest {
         runTest(testDispatcher) {
             Given("a WebPaywallRedeemer with successful web entitlements responses") {
                 val userEntitlements = listOf(Entitlement("user_entitlement"))
-                val deviceEntitlements = listOf(Entitlement("device_entitlement"))
 
                 coEvery {
                     network.webEntitlementsByUserId(any(), any())
                 } returns Either.Success(WebEntitlements(userEntitlements))
-
-                coEvery {
-                    network.webEntitlementsByDeviceID(any())
-                } returns Either.Success(WebEntitlements(deviceEntitlements))
 
                 redeemer =
                     WebPaywallRedeemer(
@@ -328,7 +323,7 @@ class WebPaywallRedeemerTest {
                     Then("it should combine both entitlements lists") {
                         assert(result is Either.Success)
                         val entitlements = (result as Either.Success).value
-                        assert(entitlements.containsAll(userEntitlements + deviceEntitlements))
+                        assert(entitlements.containsAll(userEntitlements))
                     }
                 }
             }
@@ -455,10 +450,6 @@ class WebPaywallRedeemerTest {
 
                 coEvery {
                     network.webEntitlementsByUserId(any(), any())
-                } returns Either.Failure(NetworkError.Unknown(Error("User entitlements failed")))
-
-                coEvery {
-                    network.webEntitlementsByDeviceID(any())
                 } returns Either.Success(WebEntitlements(listOf(webEntitlement)))
 
                 redeemer =
@@ -507,15 +498,10 @@ class WebPaywallRedeemerTest {
             Given("a WebPaywallRedeemer with overlapping entitlements from user and device") {
                 val commonEntitlement = Entitlement("common_entitlement")
                 val userEntitlements = listOf(commonEntitlement, Entitlement("user_specific"))
-                val deviceEntitlements = listOf(commonEntitlement, Entitlement("device_specific"))
 
                 coEvery {
                     network.webEntitlementsByUserId(any(), any())
                 } returns Either.Success(WebEntitlements(userEntitlements))
-
-                coEvery {
-                    network.webEntitlementsByDeviceID(any())
-                } returns Either.Success(WebEntitlements(deviceEntitlements))
 
                 redeemer =
                     WebPaywallRedeemer(
@@ -551,7 +537,7 @@ class WebPaywallRedeemerTest {
                     Then("it should return combined entitlements without duplicates") {
                         assert(result is Either.Success)
                         val entitlements = (result as Either.Success).value
-                        assert(entitlements.size == 3) // Should only have 3 unique entitlements
+                        assert(entitlements.size == 2) // Should only have 3 unique entitlements
                         assert(entitlements.count { it == commonEntitlement } == 1) // Should only have one copy of the common entitlement
                     }
                 }
