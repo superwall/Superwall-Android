@@ -1,5 +1,6 @@
 package com.superwall.sdk.paywall.presentation.rule_logic.cel
 
+import android.util.Log
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.dependencies.RuleAttributesFactory
 import com.superwall.sdk.logger.LogLevel
@@ -101,9 +102,11 @@ internal class SuperscriptEvaluator(
                 val result =
                     evaluateWithContext(ctx, hostContext)
 
+                Log.e("Evaluating sueprscript", expression)
                 val celResult = json.decodeFromString<CELResult>(result)
                 return@asyncWithTracking when (celResult) {
                     is CELResult.Err -> {
+                        Log.e("Evaluating sueprscript", "Failed evaluation with ${celResult.message}")
                         Logger.debug(
                             LogLevel.error,
                             LogScope.jsEvaluator,
@@ -123,8 +126,10 @@ internal class SuperscriptEvaluator(
                     }
 
                     is CELResult.Ok -> {
+                        Log.e("Evaluating sueprscript", "Result is $celResult")
                         if (celResult.value is PassableValue.BoolValue && celResult.value.value
                         ) {
+                            Log.e("Evaluating sueprscript", "matching $celResult")
                             rule.tryToMatchOccurrence(storage, true)
                         } else {
                             TriggerRuleOutcome.noMatch(
