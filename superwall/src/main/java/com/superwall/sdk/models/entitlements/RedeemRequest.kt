@@ -22,3 +22,12 @@ data class Redeemable(
     @SerialName("firstRedemption")
     val firstRedemption: Boolean? = false,
 )
+
+@Serializable
+data class TransactionReceipt(
+    @SerialName("jwsRepresentation")
+    val purchaseToken: String,
+) {
+    @SerialName("type")
+    val type: String = "Android"
+}

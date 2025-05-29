@@ -5,6 +5,7 @@ import com.superwall.sdk.models.assignment.Assignment
 import com.superwall.sdk.models.assignment.AssignmentPostback
 import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.models.entitlements.Redeemable
+import com.superwall.sdk.models.entitlements.TransactionReceipt
 import com.superwall.sdk.models.entitlements.WebEntitlements
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.events.EventsRequest
@@ -44,5 +45,6 @@ interface SuperwallAPI {
         userId: UserId?,
         aliasId: String?,
         vendorId: DeviceVendorId,
+        receipts: List<TransactionReceipt>,
     ): Either<WebRedemptionResponse, NetworkError>
 }

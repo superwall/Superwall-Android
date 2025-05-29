@@ -16,6 +16,7 @@ import com.superwall.sdk.misc.fold
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.Redeemable
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
+import com.superwall.sdk.models.entitlements.TransactionReceipt
 import com.superwall.sdk.models.internal.DeviceVendorId
 import com.superwall.sdk.models.internal.ErrorInfo
 import com.superwall.sdk.models.internal.RedemptionOwnership
@@ -66,6 +67,7 @@ class WebPaywallRedeemer(
     val getPaywallInfo: () -> PaywallInfo,
     val trackRestorationFailed: (message: String) -> Unit,
     val isWebToAppEnabled: () -> Boolean,
+    val receipts: suspend () -> List<TransactionReceipt>,
 ) {
     private var pollingJob: Job? = null
 
@@ -137,6 +139,7 @@ class WebPaywallRedeemer(
                     getUserId(),
                     getAliasId(),
                     getDeviceId(),
+                    receipts(),
                 ).fold(
                     onSuccess = {
                         storage.write(LatestRedemptionResponse, it)

@@ -34,6 +34,7 @@ import com.superwall.sdk.misc.MainScope
 import com.superwall.sdk.models.config.ComputedPropertyRequest
 import com.superwall.sdk.models.config.FeatureFlags
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
+import com.superwall.sdk.models.entitlements.TransactionReceipt
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.product.ProductVariable
@@ -370,6 +371,11 @@ class DependencyContainer(
                 },
                 isWebToAppEnabled = {
                     isWebToAppEnabled()
+                },
+                receipts = {
+                    googleBillingWrapper.queryAllPurchases().map {
+                        TransactionReceipt(it.purchaseToken)
+                    }
                 },
             )
 

@@ -11,6 +11,7 @@ import com.superwall.sdk.models.assignment.Assignment
 import com.superwall.sdk.models.assignment.AssignmentPostback
 import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.models.entitlements.Redeemable
+import com.superwall.sdk.models.entitlements.TransactionReceipt
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.events.EventsRequest
 import com.superwall.sdk.models.events.EventsResponse
@@ -112,6 +113,7 @@ open class Network(
         userId: UserId?,
         aliasId: String?,
         vendorId: DeviceVendorId,
+        receipts: List<TransactionReceipt>,
     ): Either<WebRedemptionResponse, NetworkError> =
         subscriptionService
             .redeemToken(codes, userId ?: aliasId?.let { UserId(it) }, aliasId, vendorId)
