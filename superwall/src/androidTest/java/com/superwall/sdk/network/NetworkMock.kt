@@ -4,11 +4,11 @@ import com.superwall.sdk.misc.Either
 import com.superwall.sdk.models.assignment.Assignment
 import com.superwall.sdk.models.assignment.AssignmentPostback
 import com.superwall.sdk.models.config.Config
+import com.superwall.sdk.models.enrichment.GeoInfo
 import com.superwall.sdk.models.entitlements.Redeemable
 import com.superwall.sdk.models.entitlements.WebEntitlements
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.events.EventsRequest
-import com.superwall.sdk.models.geo.GeoInfo
 import com.superwall.sdk.models.internal.DeviceVendorId
 import com.superwall.sdk.models.internal.UserId
 import com.superwall.sdk.models.internal.WebRedemptionResponse
@@ -55,7 +55,7 @@ class NetworkMock : SuperwallAPI {
         TODO("Not yet implemented")
     }
 
-    override suspend fun getGeoInfo(): Either<GeoInfo, NetworkError> {
+    override suspend fun getEnrichment(): Either<GeoInfo, NetworkError> {
         TODO("Not yet implemented")
     }
 

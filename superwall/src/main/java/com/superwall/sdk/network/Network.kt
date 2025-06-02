@@ -1,5 +1,6 @@
 package com.superwall.sdk.network
 
+import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.dependencies.ApiFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
@@ -7,15 +8,18 @@ import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.Either
 import com.superwall.sdk.misc.map
 import com.superwall.sdk.misc.onError
+import com.superwall.sdk.misc.onErrorAsync
+import com.superwall.sdk.misc.then
 import com.superwall.sdk.models.assignment.Assignment
 import com.superwall.sdk.models.assignment.AssignmentPostback
 import com.superwall.sdk.models.config.Config
+import com.superwall.sdk.models.enrichment.Enrichment
+import com.superwall.sdk.models.enrichment.EnrichmentRequest
 import com.superwall.sdk.models.entitlements.Redeemable
 import com.superwall.sdk.models.entitlements.TransactionReceipt
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.events.EventsRequest
 import com.superwall.sdk.models.events.EventsResponse
-import com.superwall.sdk.models.geo.GeoInfo
 import com.superwall.sdk.models.internal.DeviceVendorId
 import com.superwall.sdk.models.internal.UserId
 import com.superwall.sdk.models.internal.WebRedemptionResponse
@@ -23,11 +27,12 @@ import com.superwall.sdk.models.paywall.Paywall
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import java.util.UUID
+import kotlin.time.Duration
 
 open class Network(
     private val baseHostService: BaseHostService,
     private val collectorService: CollectorService,
-    private val geoService: GeoService,
+    private val enrichmentService: EnrichmentService,
     private val factory: ApiFactory,
     private val subscriptionService: SubscriptionService,
 ) : SuperwallAPI {
@@ -91,14 +96,26 @@ open class Network(
                 it.paywalls
             }.logError("/paywalls")
 
-    override suspend fun getGeoInfo(): Either<GeoInfo, NetworkError> {
+    override suspend fun getEnrichment(
+        enrichmentRequest: EnrichmentRequest,
+        maxRetry: Int,
+        timeout: Duration,
+    ): Either<Enrichment, NetworkError> {
         awaitUntilAppInForeground()
-
-        return geoService
-            .geo()
-            .map {
-                it.info
-            }.logError("/geo")
+        factory.track(InternalSuperwallEvent.EnrichmentLoad(InternalSuperwallEvent.EnrichmentLoad.State.Start))
+        return enrichmentService
+            .enrichment(enrichmentRequest, maxRetry, timeout)
+            .then {
+                factory.track(
+                    InternalSuperwallEvent.EnrichmentLoad(
+                        InternalSuperwallEvent.EnrichmentLoad.State.Complete(
+                            it,
+                        ),
+                    ),
+                )
+            }.onErrorAsync {
+                factory.track(InternalSuperwallEvent.EnrichmentLoad(InternalSuperwallEvent.EnrichmentLoad.State.Fail))
+            }.logError("/enrich")
     }
 
     override suspend fun getAssignments(): Either<List<Assignment>, NetworkError> =

@@ -54,12 +54,6 @@ data class DeviceTemplate(
     val appBuildString: String,
     val appBuildStringNumber: Int?,
     val interfaceStyleMode: String,
-    val ipRegion: String?,
-    val ipRegionCode: String?,
-    val ipCountry: String?,
-    val ipCity: String?,
-    val ipContinent: String?,
-    val ipTimezone: String?,
     @SerialName("capabilities")
     val capabilities: List<String>,
     @SerialName("capabilities_config")

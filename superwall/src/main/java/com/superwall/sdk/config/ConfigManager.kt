@@ -30,7 +30,7 @@ import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.storage.DisableVerboseEvents
 import com.superwall.sdk.storage.LatestConfig
-import com.superwall.sdk.storage.LatestGeoInfo
+import com.superwall.sdk.storage.LatestEnrichment
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.Entitlements
 import com.superwall.sdk.store.StoreManager
@@ -45,6 +45,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration.Companion.seconds
 
 // TODO: Re-enable those params
 open class ConfigManager(
@@ -66,7 +67,7 @@ open class ConfigManager(
         context.awaitUntilNetworkExists()
     },
 ) {
-    private val CACHE_LIMIT = 1000L
+    private val CACHE_LIMIT = 1.seconds
 
     interface Factory :
         RequestFactory,
@@ -119,7 +120,7 @@ open class ConfigManager(
         configState.update { ConfigState.Retrieving }
         val oldConfig = storage.read(LatestConfig)
         var isConfigFromCache = false
-        var isGeoFromCache = false
+        var isEnrichmentFromCache = false
 
         // If config is cached, get config from the network but timeout after 300ms
         // and default to the cached version. Then, refresh in the background.
@@ -171,28 +172,46 @@ open class ConfigManager(
                 }
             }
 
-        val geoDeferred =
+        val enrichmentDeferred =
             ioScope.async {
+                val cached = storage.read(LatestEnrichment)
                 if (config?.featureFlags?.enableConfigRefresh == true) {
-                    try {
-                        // If we have a cached config and refresh was enabled, try loading with
-                        // a timeout or load from cache
-                        withTimeout(CACHE_LIMIT) {
-                            deviceHelper
-                                .getGeoInfo()
-                                .then {
-                                    storage.write(LatestGeoInfo, it)
-                                }
-                        }
-                    } catch (e: Throwable) {
+                    // If we have a cached config and refresh was enabled, try loading with
+                    // a timeout or load from cache
+                    val res =
+                        deviceHelper
+                            .getEnrichment(0, CACHE_LIMIT)
+                            .then {
+                                storage.write(LatestEnrichment, it)
+                            }
+                    if (res.getSuccess() == null) {
                         // Loading timed out, we default to cached version
-                        storage.read(LatestGeoInfo)?.let {
-                            isGeoFromCache = true
+                        cached?.let {
+                            deviceHelper.setEnrichment(cached)
+                            isEnrichmentFromCache = true
                             Either.Success(it)
-                        } ?: Either.Failure(e)
+                        } ?: res
+                    } else {
+                        res
                     }
                 } else {
-                    deviceHelper.getGeoInfo()
+                    // If there's no cached enrichment and config refresh is disabled,
+                    // try to fetch with 1 sec timeout or fail.
+                    if (cached == null) {
+                        deviceHelper.getEnrichment(0, 1.seconds)
+                    } else {
+                        // Try fetching enrichment with 1 sec timeout. If it fails, fall
+                        // back to cached version.
+
+                        val res = deviceHelper.getEnrichment(0, 1.seconds)
+                        if (res.getSuccess() == null) {
+                            deviceHelper.setEnrichment(cached)
+                            isEnrichmentFromCache = true
+                            cached
+                        } else {
+                            res
+                        }
+                    }
                 }
             }
 
@@ -202,7 +221,7 @@ open class ConfigManager(
         val (result, _, attributes) =
             listOf(
                 configDeferred,
-                geoDeferred,
+                enrichmentDeferred,
                 attributesDeferred,
             ).awaitAll()
         ioScope.launch {
@@ -243,8 +262,8 @@ open class ConfigManager(
                 if (isConfigFromCache) {
                     ioScope.launch { refreshConfiguration() }
                 }
-                if (isGeoFromCache) {
-                    ioScope.launch { network.getGeoInfo() }
+                if (isEnrichmentFromCache) {
+                    ioScope.launch { deviceHelper.getEnrichment() }
                 }
             }.fold(
                 onSuccess =
@@ -387,6 +406,11 @@ open class ConfigManager(
         if (!oldConfig.featureFlags.enableConfigRefresh) {
             return
         }
+
+        val asyncEnrichment =
+            ioScope.launch {
+                deviceHelper.getEnrichment()
+            }
 
         val retryCount: AtomicInteger = AtomicInteger(0)
         val startTime = System.currentTimeMillis()

@@ -10,6 +10,7 @@ import com.superwall.sdk.config.options.toMap
 import com.superwall.sdk.dependencies.ComputedPropertyRequestsFactory
 import com.superwall.sdk.dependencies.FeatureFlagsFactory
 import com.superwall.sdk.dependencies.RuleAttributesFactory
+import com.superwall.sdk.models.enrichment.Enrichment
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.triggers.InternalTriggerResult
@@ -19,6 +20,7 @@ import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationReques
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.view.survey.SurveyPresentationResult
 import com.superwall.sdk.paywall.view.webview.WebviewError
+import com.superwall.sdk.storage.core_data.convertFromJsonElement
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
@@ -442,6 +444,8 @@ sealed class InternalSuperwallEvent(
         val model: StoreTransaction?,
         val source: TransactionSource,
         val isObserved: Boolean,
+        var demandScore: Int?,
+        var demandTier: String?,
     ) : TrackableSuperwallEvent {
         enum class TransactionSource(
             val raw: String,
@@ -549,6 +553,13 @@ sealed class InternalSuperwallEvent(
                     model?.toDictionary()?.let { transactionDict ->
                         eventParams.putAll(transactionDict)
                     }
+                    if (demandScore != null) {
+                        eventParams["attr_demandScore"] = demandScore
+                    }
+                    if (demandTier != null) {
+                        eventParams["attr_demandTier"] = demandTier
+                    }
+
                     return eventParams
                 }
 
@@ -949,7 +960,7 @@ sealed class InternalSuperwallEvent(
             )
     }
 
-    internal class Redemptions(
+    class Redemptions(
         val state: RedemptionState,
         val type: WebPaywallRedeemer.RedeemType,
     ) : InternalSuperwallEvent(
@@ -978,5 +989,47 @@ sealed class InternalSuperwallEvent(
             if (type.code != null) map["code"] = type.code!!
             return map.toMap()
         }
+    }
+
+    data class EnrichmentLoad(
+        val state: State,
+    ) : InternalSuperwallEvent(
+            when (state) {
+                is State.Complete ->
+                    SuperwallEvent.EnrichmentComplete(
+                        state.enrichment.user
+                            .toMap()
+                            .mapValues { it.value.convertFromJsonElement() },
+                        state.enrichment.device.mapValues { it.value.convertFromJsonElement() },
+                    )
+                State.Fail -> SuperwallEvent.EnrichmentFail
+                State.Start -> SuperwallEvent.EnrichmentStart
+            },
+        ) {
+        sealed class State {
+            object Start : State()
+
+            data class Complete(
+                val enrichment: Enrichment,
+            ) : State()
+
+            object Fail : State()
+        }
+
+        override val audienceFilterParams: Map<String, Any> = emptyMap()
+
+        override suspend fun getSuperwallParameters(): Map<String, Any> =
+            if (state is EnrichmentLoad.State.Complete) {
+                (
+                    state.enrichment.user.map {
+                        "user_${it.key}" to it.value
+                    } +
+                        state.enrichment.device.map {
+                            "device_${it.key}" to it.value
+                        }
+                ).toMap()
+            } else {
+                emptyMap<String, Any>()
+            }
     }
 }

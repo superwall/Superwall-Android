@@ -1,4 +1,4 @@
-package com.superwall.sdk.models.geo
+package com.superwall.sdk.models.enrichment
 
 import kotlinx.serialization.Serializable
 

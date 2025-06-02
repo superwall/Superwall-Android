@@ -1,5 +1,7 @@
 package com.superwall.sdk.misc
 
+import kotlin.time.Duration
+
 sealed class Either<out T, E : Throwable> {
     data class Success<T, E : Throwable>(
         val value: T,
@@ -63,6 +65,29 @@ fun <T, E : Throwable> Either<T, E>.onError(onError: (E) -> Unit): Either<T, E> 
             this
         }
     }
+
+suspend fun <T, E : Throwable> Either<T, E>.onErrorAsync(onError: suspend (E) -> Unit): Either<T, E> =
+    when (this) {
+        is Either.Success -> this
+        is Either.Failure -> {
+            onError(this.error)
+            this
+        }
+    }
+
+suspend fun <T, E : Throwable> eitherWithTimeout(
+    duration: Duration,
+    error: () -> E,
+    run: suspend () -> Either<T, E>,
+): Either<T, E> {
+    return try {
+        kotlinx.coroutines.withTimeout(duration) {
+            return@withTimeout run()
+        }
+    } catch (e: Throwable) {
+        Either.Failure(error())
+    }
+}
 
 fun <T, Out, E : Throwable> Either<T, E>.flatMap(transform: (T) -> Either<Out, E>): Either<Out, E> =
     when (this) {

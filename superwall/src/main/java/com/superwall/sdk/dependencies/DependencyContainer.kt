@@ -41,7 +41,7 @@ import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.network.Api
 import com.superwall.sdk.network.BaseHostService
 import com.superwall.sdk.network.CollectorService
-import com.superwall.sdk.network.GeoService
+import com.superwall.sdk.network.EnrichmentService
 import com.superwall.sdk.network.JsonFactory
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.network.RequestExecutor
@@ -263,9 +263,9 @@ class DependencyContainer(
                         json = json(),
                         customHttpUrlConnection = httpConnection,
                     ),
-                geoService =
-                    GeoService(
-                        host = api.geo.host,
+                enrichmentService =
+                    EnrichmentService(
+                        host = api.enrichment.host,
                         version = Api.version1,
                         factory = this,
                         customHttpUrlConnection = httpConnection,
