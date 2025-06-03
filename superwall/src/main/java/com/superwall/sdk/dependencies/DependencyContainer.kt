@@ -742,6 +742,8 @@ class DependencyContainer(
 
     override suspend fun activeProductIds(): List<String> = storeManager.receiptManager.purchases.toList()
 
+    override suspend fun makeIdentityManager(): IdentityManager = identityManager
+
     override fun makeTransactionVerifier(): GoogleBillingWrapper = googleBillingWrapper
 
     override fun makeSuperwallOptions(): SuperwallOptions = configManager.options

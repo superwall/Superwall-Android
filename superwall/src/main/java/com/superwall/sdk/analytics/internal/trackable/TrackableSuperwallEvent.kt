@@ -444,8 +444,8 @@ sealed class InternalSuperwallEvent(
         val model: StoreTransaction?,
         val source: TransactionSource,
         val isObserved: Boolean,
-        var demandScore: Int?,
-        var demandTier: String?,
+        var demandScore: Int? = null,
+        var demandTier: String? = null,
     ) : TrackableSuperwallEvent {
         enum class TransactionSource(
             val raw: String,

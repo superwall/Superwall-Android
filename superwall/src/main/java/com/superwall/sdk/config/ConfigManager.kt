@@ -263,7 +263,7 @@ open class ConfigManager(
                     ioScope.launch { refreshConfiguration() }
                 }
                 if (isEnrichmentFromCache) {
-                    ioScope.launch { deviceHelper.getEnrichment() }
+                    ioScope.launch { deviceHelper.getEnrichment(6, 1.seconds) }
                 }
             }.fold(
                 onSuccess =
@@ -407,10 +407,9 @@ open class ConfigManager(
             return
         }
 
-        val asyncEnrichment =
-            ioScope.launch {
-                deviceHelper.getEnrichment()
-            }
+        ioScope.launch {
+            deviceHelper.getEnrichment(0, 1.seconds)
+        }
 
         val retryCount: AtomicInteger = AtomicInteger(0)
         val startTime = System.currentTimeMillis()
