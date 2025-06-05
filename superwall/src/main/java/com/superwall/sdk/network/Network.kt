@@ -133,7 +133,7 @@ open class Network(
         receipts: List<TransactionReceipt>,
     ): Either<WebRedemptionResponse, NetworkError> =
         subscriptionService
-            .redeemToken(codes, userId ?: aliasId?.let { UserId(it) }, aliasId, vendorId)
+            .redeemToken(codes, userId, aliasId, vendorId, receipts)
             .logError("/redeem")
 
     override suspend fun webEntitlementsByUserId(

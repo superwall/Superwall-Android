@@ -13,6 +13,8 @@ data class RedeemRequest(
     val aliasId: String? = null,
     @SerialName("codes")
     val codes: List<Redeemable>,
+    @SerialName("receipts")
+    val receipts: List<TransactionReceipt>,
 )
 
 @Serializable

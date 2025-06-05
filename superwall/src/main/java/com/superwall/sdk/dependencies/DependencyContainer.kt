@@ -8,6 +8,9 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.ViewModelProvider
 import com.android.billingclient.api.Purchase
 import com.superwall.sdk.Superwall
+import com.superwall.sdk.analytics.ClassifierDataFactory
+import com.superwall.sdk.analytics.DefaultClassifierDataFactory
+import com.superwall.sdk.analytics.DeviceClassifier
 import com.superwall.sdk.analytics.SessionEventsManager
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
@@ -132,7 +135,8 @@ class DependencyContainer(
     PaywallPreload.Factory,
     ViewStoreFactory,
     SuperwallScopeFactory,
-    GoogleBillingWrapper.Factory {
+    GoogleBillingWrapper.Factory,
+    ClassifierDataFactory {
     var network: Network
     override var api: Api
     override var deviceHelper: DeviceHelper
@@ -292,6 +296,7 @@ class DependencyContainer(
                 storage = storage,
                 network = network,
                 factory = this,
+                classifier = DeviceClassifier(DefaultClassifierDataFactory { context }),
             )
 
         assignments =
@@ -828,4 +833,6 @@ class DependencyContainer(
             )
         }
     }
+
+    override fun context(): Context = context
 }

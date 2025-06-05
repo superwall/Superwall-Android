@@ -13,6 +13,8 @@ import android.provider.Settings
 import androidx.core.content.ContextCompat
 import com.superwall.sdk.BuildConfig
 import com.superwall.sdk.Superwall
+import com.superwall.sdk.analytics.DefaultClassifierDataFactory
+import com.superwall.sdk.analytics.DeviceClassifier
 import com.superwall.sdk.dependencies.IdentityInfoFactory
 import com.superwall.sdk.dependencies.IdentityManagerFactory
 import com.superwall.sdk.dependencies.LocaleIdentifierFactory
@@ -68,6 +70,7 @@ class DeviceHelper(
     val storage: LocalStorage,
     val network: SuperwallAPI,
     val factory: Factory,
+    private val classifier: DeviceClassifier = DeviceClassifier(DefaultClassifierDataFactory { context }),
 ) {
     interface Factory :
         IdentityInfoFactory,
@@ -534,6 +537,7 @@ class DeviceHelper(
                 platformWrapper = platformWrapper,
                 platformWrapperVersion = platformWrapperVersion,
                 appVersionPadded = appVersionPadded,
+                deviceTier = classifier.deviceTier().raw,
             )
         }.toResult()
             .map {

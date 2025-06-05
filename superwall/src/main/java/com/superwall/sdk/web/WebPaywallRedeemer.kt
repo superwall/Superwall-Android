@@ -311,6 +311,7 @@ class WebPaywallRedeemer(
             pollingJob =
                 (ioScope + Dispatchers.IO).launch {
                     while (true) {
+                        delay(maxAge)
                         checkForWebEntitlements(getUserId(), getDeviceId())
                             .fold(
                                 onFailure = {
@@ -335,7 +336,6 @@ class WebPaywallRedeemer(
                                     }
                                 },
                             )
-                        delay(maxAge)
                     }
                 }
         }
