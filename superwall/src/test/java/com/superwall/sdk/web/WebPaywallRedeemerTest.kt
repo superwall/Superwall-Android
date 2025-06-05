@@ -9,6 +9,7 @@ import com.superwall.sdk.misc.Either
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
+import com.superwall.sdk.models.entitlements.TransactionReceipt
 import com.superwall.sdk.models.entitlements.WebEntitlements
 import com.superwall.sdk.models.internal.DeviceVendorId
 import com.superwall.sdk.models.internal.ErrorInfo
@@ -132,6 +133,7 @@ class WebPaywallRedeemerTest {
                         any(),
                         any(),
                         any(),
+                        any(),
                     )
                 } returns Either.Success(response)
 
@@ -157,6 +159,7 @@ class WebPaywallRedeemerTest {
                         getPaywallInfo = { PaywallInfo.empty() },
                         trackRestorationFailed = {},
                         isWebToAppEnabled = { true },
+                        receipts = { listOf(TransactionReceipt("mock")) },
                     )
 
                 When("checking for referral") {
@@ -202,6 +205,7 @@ class WebPaywallRedeemerTest {
                         getPaywallInfo = { PaywallInfo.empty() },
                         trackRestorationFailed = {},
                         isWebToAppEnabled = { true },
+                        receipts = { listOf(TransactionReceipt("mock")) },
                     )
 
                 When("checking for referral") {
@@ -209,7 +213,7 @@ class WebPaywallRedeemerTest {
 
                     Then("it should not call redeem") {
                         coVerify(exactly = 0) {
-                            network.redeemToken(any(), any(), any(), any())
+                            network.redeemToken(any(), any(), any(), any(), any())
                         }
                     }
                 }
@@ -227,6 +231,7 @@ class WebPaywallRedeemerTest {
                 coEvery { deepLinkReferrer.checkForReferral() } returns Result.success(codes)
                 coEvery {
                     network.redeemToken(
+                        any(),
                         any(),
                         any(),
                         any(),
@@ -256,6 +261,7 @@ class WebPaywallRedeemerTest {
                         getPaywallInfo = { PaywallInfo.empty() },
                         trackRestorationFailed = {},
                         isWebToAppEnabled = { true },
+                        receipts = { listOf(TransactionReceipt("mock")) },
                     )
 
                 When("checking for referral") {
@@ -311,6 +317,7 @@ class WebPaywallRedeemerTest {
                         getPaywallInfo = { PaywallInfo.empty() },
                         trackRestorationFailed = {},
                         isWebToAppEnabled = { true },
+                        receipts = { listOf(TransactionReceipt("mock")) },
                     )
 
                 When("checking for web entitlements") {
@@ -363,6 +370,7 @@ class WebPaywallRedeemerTest {
                         getPaywallInfo = { PaywallInfo.empty() },
                         trackRestorationFailed = {},
                         isWebToAppEnabled = { true },
+                        receipts = { listOf(TransactionReceipt("mock")) },
                     )
 
                 When("checking for web entitlements") {
@@ -418,6 +426,7 @@ class WebPaywallRedeemerTest {
                         getPaywallInfo = { PaywallInfo.empty() },
                         trackRestorationFailed = {},
                         isWebToAppEnabled = { true },
+                        receipts = { listOf(TransactionReceipt("mock")) },
                     )
 
                 When("checking for web entitlements") {
@@ -445,7 +454,7 @@ class WebPaywallRedeemerTest {
                 } returns Result.success("code")
 
                 coEvery {
-                    network.redeemToken(any(), any(), any(), any())
+                    network.redeemToken(any(), any(), any(), any(), any())
                 } returns Either.Failure(NetworkError.Unknown(Error("Token redemption failed")))
 
                 coEvery {
@@ -474,6 +483,7 @@ class WebPaywallRedeemerTest {
                         getPaywallInfo = { PaywallInfo.empty() },
                         trackRestorationFailed = {},
                         isWebToAppEnabled = { true },
+                        receipts = { listOf(TransactionReceipt("mock")) },
                     )
 
                 When("checking for web entitlements") {
@@ -525,6 +535,7 @@ class WebPaywallRedeemerTest {
                         getPaywallInfo = { PaywallInfo.empty() },
                         trackRestorationFailed = {},
                         isWebToAppEnabled = { true },
+                        receipts = { listOf(TransactionReceipt("mock")) },
                     )
 
                 When("checking for web entitlements") {
@@ -631,6 +642,7 @@ class WebPaywallRedeemerTest {
                     getPaywallInfo = { PaywallInfo.empty() },
                     trackRestorationFailed = {},
                     isWebToAppEnabled = { true },
+                    receipts = { listOf(TransactionReceipt("mock")) },
                 )
 
             storage.write(LatestRedemptionResponse, response)

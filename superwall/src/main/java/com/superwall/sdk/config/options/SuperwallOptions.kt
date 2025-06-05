@@ -28,10 +28,23 @@ class SuperwallOptions {
             get() = "collector.$hostDomain"
 
         open val subscriptionHost: String
-            get() = "subscriptions-api.superwall.com"
+            get() =
+                if (this is Release) {
+                    "subscriptions-api.superwall.com"
+                } else {
+                    "subscriptions-api.superwall.dev"
+                }
 
         open val scheme: String
             get() = "https"
+
+        open val enrichmentHost: String
+            get() =
+                if (this is Release) {
+                    "enrichment-api.superwall.com"
+                } else {
+                    "enrichment-api.superwall.dev"
+                }
 
         open val port: Int?
             get() = null

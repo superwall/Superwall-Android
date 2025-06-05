@@ -8,6 +8,9 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.ViewModelProvider
 import com.android.billingclient.api.Purchase
 import com.superwall.sdk.Superwall
+import com.superwall.sdk.analytics.ClassifierDataFactory
+import com.superwall.sdk.analytics.DefaultClassifierDataFactory
+import com.superwall.sdk.analytics.DeviceClassifier
 import com.superwall.sdk.analytics.SessionEventsManager
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
@@ -34,13 +37,14 @@ import com.superwall.sdk.misc.MainScope
 import com.superwall.sdk.models.config.ComputedPropertyRequest
 import com.superwall.sdk.models.config.FeatureFlags
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
+import com.superwall.sdk.models.entitlements.TransactionReceipt
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.network.Api
 import com.superwall.sdk.network.BaseHostService
 import com.superwall.sdk.network.CollectorService
-import com.superwall.sdk.network.GeoService
+import com.superwall.sdk.network.EnrichmentService
 import com.superwall.sdk.network.JsonFactory
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.network.RequestExecutor
@@ -131,7 +135,8 @@ class DependencyContainer(
     PaywallPreload.Factory,
     ViewStoreFactory,
     SuperwallScopeFactory,
-    GoogleBillingWrapper.Factory {
+    GoogleBillingWrapper.Factory,
+    ClassifierDataFactory {
     var network: Network
     override var api: Api
     override var deviceHelper: DeviceHelper
@@ -262,9 +267,9 @@ class DependencyContainer(
                         json = json(),
                         customHttpUrlConnection = httpConnection,
                     ),
-                geoService =
-                    GeoService(
-                        host = api.geo.host,
+                enrichmentService =
+                    EnrichmentService(
+                        host = api.enrichment.host,
                         version = Api.version1,
                         factory = this,
                         customHttpUrlConnection = httpConnection,
@@ -291,6 +296,7 @@ class DependencyContainer(
                 storage = storage,
                 network = network,
                 factory = this,
+                classifier = DeviceClassifier(DefaultClassifierDataFactory { context }),
             )
 
         assignments =
@@ -370,6 +376,11 @@ class DependencyContainer(
                 },
                 isWebToAppEnabled = {
                     isWebToAppEnabled()
+                },
+                receipts = {
+                    googleBillingWrapper.queryAllPurchases().map {
+                        TransactionReceipt(it.purchaseToken)
+                    }
                 },
             )
 
@@ -736,6 +747,8 @@ class DependencyContainer(
 
     override suspend fun activeProductIds(): List<String> = storeManager.receiptManager.purchases.toList()
 
+    override suspend fun makeIdentityManager(): IdentityManager = identityManager
+
     override fun makeTransactionVerifier(): GoogleBillingWrapper = googleBillingWrapper
 
     override fun makeSuperwallOptions(): SuperwallOptions = configManager.options
@@ -820,4 +833,6 @@ class DependencyContainer(
             )
         }
     }
+
+    override fun context(): Context = context
 }

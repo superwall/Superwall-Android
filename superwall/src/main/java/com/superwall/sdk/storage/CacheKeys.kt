@@ -2,9 +2,9 @@ package com.superwall.sdk.storage
 
 import android.content.Context
 import com.superwall.sdk.models.config.Config
+import com.superwall.sdk.models.enrichment.Enrichment
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
-import com.superwall.sdk.models.geo.GeoInfo
 import com.superwall.sdk.models.internal.WebRedemptionResponse
 import com.superwall.sdk.models.serialization.AnySerializer
 import com.superwall.sdk.models.triggers.Experiment
@@ -283,13 +283,13 @@ internal object LatestConfig : Storable<Config> {
         get() = Config.serializer()
 }
 
-internal object LatestGeoInfo : Storable<GeoInfo> {
+internal object LatestEnrichment : Storable<Enrichment> {
     override val key: String
-        get() = "store.geoInfoCache"
+        get() = "store.enrichmentCache"
     override val directory: SearchPathDirectory
         get() = SearchPathDirectory.CACHE
-    override val serializer: KSerializer<GeoInfo>
-        get() = GeoInfo.serializer()
+    override val serializer: KSerializer<Enrichment>
+        get() = Enrichment.serializer()
 }
 
 internal object PurchasingProductdIds : Storable<Set<String>> {

@@ -861,7 +861,7 @@ class TransactionManager(
 
                 val paywallShowingFreeTrial = paywallView.paywall.isFreeTrialAvailable == true
                 val didStartFreeTrial = product.hasFreeTrial && paywallShowingFreeTrial
-
+                val deviceAttributes = factory.makeSessionDeviceAttributes()
                 val paywallInfo = paywallView.info
 
                 val trackedEvent =
@@ -872,6 +872,8 @@ class TransactionManager(
                         transaction,
                         source = TransactionSource.INTERNAL,
                         isObserved = false,
+                        demandScore = deviceAttributes["demandScore"] as? Int?,
+                        demandTier = deviceAttributes["demandTier"] as? String?,
                     )
                 track(trackedEvent)
                 eventsQueue.flushInternal()

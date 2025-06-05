@@ -6,11 +6,11 @@ import com.android.billingclient.api.Purchase
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.identity.IdentityInfo
-import com.superwall.sdk.models.geo.GeoInfo
+import com.superwall.sdk.models.enrichment.GeoInfo
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.storage.LastPaywallView
-import com.superwall.sdk.storage.LatestGeoInfo
+import com.superwall.sdk.storage.LatestEnrichment
 import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.storage.TotalPaywallViews
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
@@ -29,7 +29,7 @@ class TrackingLogicTest {
             every { didTrackFirstSeen } returns true
             every { read(LastPaywallView) } returns null
             every { read(TotalPaywallViews) } returns 0
-            every { read(LatestGeoInfo) } returns GeoInfo.stub()
+            every { read(LatestEnrichment) } returns GeoInfo.stub()
         }
     val network = mockk<Network>()
 

@@ -5,8 +5,9 @@ import Then
 import When
 import com.superwall.sdk.dependencies.ApiFactory
 import com.superwall.sdk.misc.Either
-import com.superwall.sdk.models.geo.GeoInfo
-import com.superwall.sdk.models.geo.GeoWrapper
+import com.superwall.sdk.models.enrichment.EnrichmentRequest
+import com.superwall.sdk.models.enrichment.GeoInfo
+import com.superwall.sdk.models.enrichment.GeoWrapper
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
 import io.mockk.*
 import kotlinx.coroutines.test.runTest
@@ -18,10 +19,10 @@ import org.junit.Before
 import org.junit.Test
 import kotlin.time.Duration.Companion.minutes
 
-class GeoServiceTest {
+class EnrichmentServiceTest {
     private lateinit var customHttpUrlConnection: CustomHttpUrlConnection
     private lateinit var apiFactory: ApiFactory
-    private lateinit var service: GeoService
+    private lateinit var service: EnrichmentService
     private lateinit var executor: RequestExecutor
 
     @Before
@@ -30,7 +31,7 @@ class GeoServiceTest {
         apiFactory = mockk()
         executor = mockk()
         service =
-            GeoService(
+            EnrichmentService(
                 host = "test.com",
                 version = "/v1/",
                 factory = apiFactory,
@@ -44,7 +45,7 @@ class GeoServiceTest {
     }
 
     @Test
-    fun test_geo_success() =
+    fun test_enrichment_success() =
         runTest(timeout = 5.minutes) {
             Given("a valid request for geo information") {
                 val mockResponse =
@@ -75,7 +76,7 @@ class GeoServiceTest {
                 coEvery { apiFactory.makeHeaders(any(), any()) } returns mapOf("Authorization" to "Bearer token")
 
                 When("requesting geo information") {
-                    val result = service.geo()
+                    val result = service.enrichment(EnrichmentRequest(emptyMap(), emptyMap()))
 
                     Then("the result should be a success with the expected geo information") {
                         assertTrue(result is Either.Success)
@@ -86,7 +87,7 @@ class GeoServiceTest {
         }
 
     @Test
-    fun test_geo_failure() =
+    fun test_enrichment_failure() =
         runTest(timeout = 5.minutes) {
             Given("a network error occurs") {
                 val error = NetworkError.Unknown()
@@ -94,7 +95,7 @@ class GeoServiceTest {
                 coEvery { apiFactory.makeHeaders(any(), any()) } returns mapOf("Authorization" to "Bearer token")
 
                 When("requesting geo information") {
-                    val result = service.geo()
+                    val result = service.enrichment(EnrichmentRequest(emptyMap(), emptyMap()))
 
                     Then("the result should be a failure") {
                         assertTrue(result is Either.Failure)

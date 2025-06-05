@@ -3,6 +3,7 @@ package com.superwall.sdk.network
 import com.superwall.sdk.dependencies.ApiFactory
 import com.superwall.sdk.models.entitlements.RedeemRequest
 import com.superwall.sdk.models.entitlements.Redeemable
+import com.superwall.sdk.models.entitlements.TransactionReceipt
 import com.superwall.sdk.models.entitlements.WebEntitlements
 import com.superwall.sdk.models.internal.DeviceVendorId
 import com.superwall.sdk.models.internal.UserId
@@ -34,6 +35,7 @@ class SubscriptionService(
         userId: UserId?,
         aliasId: String?,
         vendorId: DeviceVendorId,
+        transactionReceipt: List<TransactionReceipt>,
     ) = post<WebRedemptionResponse>(
         "redeem",
         retryCount = 0,
@@ -45,10 +47,9 @@ class SubscriptionService(
                         userId?.value,
                         aliasId,
                         codes,
+                        transactionReceipt,
                     ),
-                ).let {
-                    it
-                }.toByteArray(),
+                ).toByteArray(),
     )
 
     suspend fun webEntitlementsByUserId(

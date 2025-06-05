@@ -13,25 +13,35 @@ import android.provider.Settings
 import androidx.core.content.ContextCompat
 import com.superwall.sdk.BuildConfig
 import com.superwall.sdk.Superwall
+import com.superwall.sdk.analytics.DefaultClassifierDataFactory
+import com.superwall.sdk.analytics.DeviceClassifier
 import com.superwall.sdk.dependencies.IdentityInfoFactory
+import com.superwall.sdk.dependencies.IdentityManagerFactory
 import com.superwall.sdk.dependencies.LocaleIdentifierFactory
 import com.superwall.sdk.dependencies.StoreTransactionFactory
+import com.superwall.sdk.identity.setUserAttributes
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
+import com.superwall.sdk.misc.Either
+import com.superwall.sdk.misc.fold
 import com.superwall.sdk.misc.then
 import com.superwall.sdk.misc.toResult
 import com.superwall.sdk.models.config.ComputedPropertyRequest
+import com.superwall.sdk.models.enrichment.Enrichment
+import com.superwall.sdk.models.enrichment.EnrichmentRequest
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.events.EventData
-import com.superwall.sdk.models.geo.GeoInfo
 import com.superwall.sdk.network.JsonFactory
+import com.superwall.sdk.network.NetworkError
 import com.superwall.sdk.network.SuperwallAPI
 import com.superwall.sdk.paywall.view.webview.templating.models.DeviceTemplate
 import com.superwall.sdk.storage.LastPaywallView
-import com.superwall.sdk.storage.LatestGeoInfo
+import com.superwall.sdk.storage.LatestEnrichment
 import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.storage.TotalPaywallViews
+import com.superwall.sdk.storage.core_data.convertFromJsonElement
+import com.superwall.sdk.storage.core_data.convertToJsonElement
 import com.superwall.sdk.utilities.DateUtils
 import com.superwall.sdk.utilities.dateFormat
 import com.superwall.sdk.utilities.withErrorTracking
@@ -39,13 +49,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
-import org.threeten.bp.Duration
 import org.threeten.bp.Instant
 import java.text.SimpleDateFormat
 import java.util.Currency
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 
 enum class InterfaceStyle(
@@ -60,12 +70,14 @@ class DeviceHelper(
     val storage: LocalStorage,
     val network: SuperwallAPI,
     val factory: Factory,
+    private val classifier: DeviceClassifier = DeviceClassifier(DefaultClassifierDataFactory { context }),
 ) {
     interface Factory :
         IdentityInfoFactory,
         LocaleIdentifierFactory,
         JsonFactory,
-        StoreTransactionFactory
+        StoreTransactionFactory,
+        IdentityManagerFactory
 
     private val json =
         Json {
@@ -81,28 +93,36 @@ class DeviceHelper(
     fun daysSince(date: Date): Int {
         val fromDate = Instant.ofEpochMilli(date.time)
         val toDate = Instant.now()
-        val duration = Duration.between(fromDate, toDate)
+        val duration =
+            org.threeten.bp.Duration
+                .between(fromDate, toDate)
         return duration.toDays().toInt()
     }
 
     fun minutesSince(date: Date): Int {
         val fromDate = Instant.ofEpochMilli(date.time)
         val toDate = Instant.now()
-        val duration = Duration.between(fromDate, toDate)
+        val duration =
+            org.threeten.bp.Duration
+                .between(fromDate, toDate)
         return duration.toMinutes().toInt()
     }
 
     fun hoursSince(date: Date): Int {
         val fromDate = Instant.ofEpochMilli(date.time)
         val toDate = Instant.now()
-        val duration = Duration.between(fromDate, toDate)
+        val duration =
+            org.threeten.bp.Duration
+                .between(fromDate, toDate)
         return duration.toHours().toInt()
     }
 
     fun monthsSince(date: Date): Int {
         val fromDate = Instant.ofEpochMilli(date.time)
         val toDate = Instant.now()
-        val duration = Duration.between(fromDate, toDate)
+        val duration =
+            org.threeten.bp.Duration
+                .between(fromDate, toDate)
         return duration.toDays().toInt() / 30
     }
 
@@ -110,7 +130,9 @@ class DeviceHelper(
         get() {
             val fromDate = Instant.ofEpochMilli(appInstallDate.time)
             val toDate = Instant.now()
-            val duration = Duration.between(fromDate, toDate)
+            val duration =
+                org.threeten.bp.Duration
+                    .between(fromDate, toDate)
             return duration.toDays().toInt()
         }
 
@@ -118,7 +140,9 @@ class DeviceHelper(
         get() {
             val fromDate = Instant.ofEpochMilli(appInstallDate.time)
             val toDate = Instant.now()
-            val duration = Duration.between(fromDate, toDate)
+            val duration =
+                org.threeten.bp.Duration
+                    .between(fromDate, toDate)
             return duration.toMinutes().toInt()
         }
 
@@ -131,7 +155,9 @@ class DeviceHelper(
                 }
                     ?: return null
             val toDate = Instant.now()
-            val duration = Duration.between(fromDate, toDate)
+            val duration =
+                org.threeten.bp.Duration
+                    .between(fromDate, toDate)
             return duration.toDays().toInt()
         }
 
@@ -144,7 +170,9 @@ class DeviceHelper(
                 }
                     ?: return null
             val toDate = Instant.now()
-            val duration = Duration.between(fromDate, toDate)
+            val duration =
+                org.threeten.bp.Duration
+                    .between(fromDate, toDate)
             return duration.toMinutes().toInt()
         }
 
@@ -153,8 +181,8 @@ class DeviceHelper(
             return storage.read(TotalPaywallViews) ?: 0
         }
 
-    private val lastGeoInfo: MutableStateFlow<GeoInfo?> =
-        MutableStateFlow(storage.read(LatestGeoInfo))
+    private val lastEnrichment: MutableStateFlow<Enrichment?> =
+        MutableStateFlow(storage.read(LatestEnrichment))
 
     val locale: String
         get() {
@@ -179,6 +207,7 @@ class DeviceHelper(
     private val appVersionPadded: String
         get() = appVersion.asPadded()
 
+    private val enrichment: Enrichment? get() = lastEnrichment.value
     val osVersion: String
         get() = Build.VERSION.RELEASE ?: ""
 
@@ -426,7 +455,7 @@ class DeviceHelper(
             val geo =
                 try {
                     withTimeout(1.minutes) {
-                        lastGeoInfo.first { it != null }
+                        lastEnrichment.first { it != null }
                     }
                 } catch (e: Throwable) {
                     Logger.debug(
@@ -502,41 +531,72 @@ class DeviceHelper(
                 appBuildString = appBuildString,
                 appBuildStringNumber = appBuildString.toInt(),
                 interfaceStyleMode = if (interfaceStyleOverride == null) "automatic" else "manual",
-                ipRegion = geo?.region,
-                ipRegionCode = geo?.regionCode,
-                ipCountry = geo?.country,
-                ipCity = geo?.city,
-                ipContinent = geo?.continent,
-                ipTimezone = geo?.timezone,
                 capabilities = capabilities.map { it.name },
                 capabilitiesConfig =
                     capabilities.toJson(factory.json()),
                 platformWrapper = platformWrapper,
                 platformWrapperVersion = platformWrapperVersion,
                 appVersionPadded = appVersionPadded,
+                deviceTier = classifier.deviceTier().raw,
             )
-        }.toResult().fold(
-            onSuccess = { deviceTemplate ->
-                return@fold deviceTemplate.toDictionary(json)
-            },
-            onFailure = {
-                Logger.debug(
-                    logLevel = LogLevel.error,
-                    scope = LogScope.device,
-                    message = "Failed to get device template",
-                    error = it,
-                )
-                return@fold emptyMap()
-            },
-        )
+        }.toResult()
+            .map {
+                it.toDictionary(json)
+            }.map {
+                val enriched =
+                    (
+                        enrichment
+                            ?.device
+                            ?.filterValues { it != null }
+                            ?.mapValues { it.value.convertFromJsonElement() }
+                            as Map<String, Any>?
+                    )
+                        ?: emptyMap()
+                enriched.plus(it)
+            }.fold(
+                onSuccess = { deviceTemplate ->
+                    return@fold deviceTemplate
+                },
+                onFailure = {
+                    Logger.debug(
+                        logLevel = LogLevel.error,
+                        scope = LogScope.device,
+                        message = "Failed to get device template",
+                        error = it,
+                    )
+                    return@fold emptyMap()
+                },
+            )
     }
 
-    suspend fun getGeoInfo() =
-        network
-            .getGeoInfo()
-            .then {
-                lastGeoInfo.value = it
+    internal fun setEnrichment(enrichment: Enrichment) {
+        this.lastEnrichment.value = enrichment
+    }
+
+    suspend fun getEnrichment(
+        maxRetry: Int,
+        timeout: Duration,
+    ): Either<Enrichment, NetworkError> {
+        val userAttributes =
+            factory.makeIdentityManager().userAttributes.mapValues {
+                it.value.convertToJsonElement()
             }
+
+        val deviceAttributes =
+            getTemplateDevice().mapValues {
+                it.value.convertToJsonElement()
+            }
+        return network
+            .getEnrichment(EnrichmentRequest(userAttributes, deviceAttributes), maxRetry, timeout)
+            .then {
+                lastEnrichment.value = it
+            }.then {
+                storage.write(LatestEnrichment, it)
+                it.user.let {
+                    Superwall.instance.setUserAttributes(it)
+                }
+            }
+    }
 }
 
 private fun String.asPadded(): String {

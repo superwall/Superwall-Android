@@ -104,7 +104,13 @@ object PlayStoreProductSerializer : KSerializer<PlayStoreProduct> {
         val jsonDecoder = decoder as? JsonDecoder ?: throw SerializationException("This class can be loaded only by Json")
         val jsonObject = jsonDecoder.decodeJsonElement() as JsonObject
 
-        val store = Store.fromValue(jsonObject["store"]?.jsonPrimitive?.content ?: throw SerializationException("Store is missing"))
+        val store =
+            try {
+                Store.fromValue(jsonObject["store"]?.jsonPrimitive?.content ?: throw SerializationException("Store is missing"))
+            } catch (throwable: Throwable) {
+                // / Default to play store
+                Store.PLAY_STORE
+            }
         val productIdentifier =
             jsonObject["product_identifier"]?.jsonPrimitive?.content ?: throw SerializationException("product_identifier is missing")
         val basePlanIdentifier =
