@@ -10,6 +10,8 @@ sealed class NetworkError(
 
     class NotAuthenticated : NetworkError("Unauthorized.")
 
+    object Timeout : NetworkError("Timeout occured.")
+
     class Decoding(
         cause: Throwable? = null,
     ) : NetworkError("Decoding error ${cause?.message}", cause)

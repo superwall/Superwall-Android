@@ -1,10 +1,10 @@
 package com.superwall.sdk.paywall.presentation.rule_logic
 
-import android.util.Log
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.CELResult
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.ExecutionContext
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.PassableValue
 import com.superwall.supercel.HostContext
+import com.superwall.supercel.ResultCallback
 import com.superwall.supercel.evaluateWithContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -70,21 +70,29 @@ class CELTest {
             evaluateWithContext(
                 celState,
                 object : HostContext {
-                    override suspend fun computedProperty(
+                    override fun computedProperty(
                         name: String,
                         args: String,
-                    ): String =
-                        Json.encodeToString(
-                            PassableValue.UIntValue(0uL),
+                        callback: ResultCallback,
+                    ) {
+                        callback.onResult(
+                            Json.encodeToString(
+                                PassableValue.UIntValue(0uL),
+                            ),
                         )
+                    }
 
-                    override suspend fun deviceProperty(
+                    override fun deviceProperty(
                         name: String,
                         args: String,
-                    ): String =
-                        Json.encodeToString(
-                            PassableValue.UIntValue(0uL),
+                        callback: ResultCallback,
+                    ) {
+                        callback.onResult(
+                            Json.encodeToString(
+                                PassableValue.UIntValue(0uL),
+                            ),
                         )
+                    }
                 },
             )
         val result = json.decodeFromString<CELResult>(resultJSON)
@@ -128,21 +136,24 @@ class CELTest {
             evaluateWithContext(
                 celState,
                 object : HostContext {
-                    override suspend fun computedProperty(
+                    override fun computedProperty(
                         name: String,
                         args: String,
-                    ): String {
-                        Log.e("CELTest", "Computed property: $name, $args")
+                        callback: ResultCallback,
+                    ) {
                         val res = json.encodeToString(PassableValue.UIntValue(3uL) as PassableValue)
-                        return res
+                        callback.onResult(res)
+                        TODO("Not yet implemented")
                     }
 
-                    override suspend fun deviceProperty(
+                    override fun deviceProperty(
                         name: String,
                         args: String,
-                    ): String {
+                        callback: ResultCallback,
+                    ) {
                         val res = json.encodeToString(PassableValue.UIntValue(3uL) as PassableValue)
-                        return res
+                        callback.onResult(res)
+                        TODO("Not yet implemented")
                     }
                 },
             )

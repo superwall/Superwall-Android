@@ -456,6 +456,24 @@ sealed class SuperwallEvent {
             get() = SuperwallEvents.RedemptionStart.rawName
     }
 
+    object EnrichmentStart : SuperwallPlacement() {
+        override val rawName: String
+            get() = "enrichment_start"
+    }
+
+    object EnrichmentFail : SuperwallPlacement() {
+        override val rawName: String
+            get() = "enrichment_fail"
+    }
+
+    data class EnrichmentComplete(
+        val userEnrichment: Map<String, Any?>,
+        val deviceEnrichment: Map<String, Any?>,
+    ) : SuperwallPlacement() {
+        override val rawName: String
+            get() = "enrichment_complete"
+    }
+
     open val rawName: String
         get() = this.toString()
 

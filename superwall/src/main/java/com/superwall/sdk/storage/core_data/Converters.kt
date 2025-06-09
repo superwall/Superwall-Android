@@ -79,6 +79,7 @@ fun Any?.convertToJsonElement(): JsonElement =
         is Number -> JsonPrimitive(this)
         is Boolean -> JsonPrimitive(this)
         is List<*> -> JsonArray(this.map { it.convertToJsonElement() })
+        is Array<*> -> JsonArray(this.map { it.convertToJsonElement() })
         is Map<*, *> ->
             JsonObject(
                 this.entries.associate {

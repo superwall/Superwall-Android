@@ -21,6 +21,7 @@ import com.superwall.sdk.misc.into
 import com.superwall.sdk.misc.onError
 import com.superwall.sdk.misc.then
 import com.superwall.sdk.models.config.Config
+import com.superwall.sdk.models.enrichment.Enrichment
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.models.triggers.Trigger
@@ -30,7 +31,7 @@ import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.storage.DisableVerboseEvents
 import com.superwall.sdk.storage.LatestConfig
-import com.superwall.sdk.storage.LatestGeoInfo
+import com.superwall.sdk.storage.LatestEnrichment
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.Entitlements
 import com.superwall.sdk.store.StoreManager
@@ -45,6 +46,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration.Companion.seconds
 
 // TODO: Re-enable those params
 open class ConfigManager(
@@ -66,7 +68,7 @@ open class ConfigManager(
         context.awaitUntilNetworkExists()
     },
 ) {
-    private val CACHE_LIMIT = 1000L
+    private val CACHE_LIMIT = 1.seconds
 
     interface Factory :
         RequestFactory,
@@ -119,7 +121,7 @@ open class ConfigManager(
         configState.update { ConfigState.Retrieving }
         val oldConfig = storage.read(LatestConfig)
         var isConfigFromCache = false
-        var isGeoFromCache = false
+        var isEnrichmentFromCache = false
 
         // If config is cached, get config from the network but timeout after 300ms
         // and default to the cached version. Then, refresh in the background.
@@ -171,38 +173,42 @@ open class ConfigManager(
                 }
             }
 
-        val geoDeferred =
+        val enrichmentDeferred =
             ioScope.async {
+                val cached = storage.read(LatestEnrichment)
                 if (config?.featureFlags?.enableConfigRefresh == true) {
-                    try {
-                        // If we have a cached config and refresh was enabled, try loading with
-                        // a timeout or load from cache
-                        withTimeout(CACHE_LIMIT) {
-                            deviceHelper
-                                .getGeoInfo()
-                                .then {
-                                    storage.write(LatestGeoInfo, it)
-                                }
-                        }
-                    } catch (e: Throwable) {
+                    // If we have a cached config and refresh was enabled, try loading with
+                    // a timeout or load from cache
+                    val res =
+                        deviceHelper
+                            .getEnrichment(0, CACHE_LIMIT)
+                            .then {
+                                storage.write(LatestEnrichment, it)
+                            }
+                    if (res.getSuccess() == null) {
                         // Loading timed out, we default to cached version
-                        storage.read(LatestGeoInfo)?.let {
-                            isGeoFromCache = true
+                        cached?.let {
+                            deviceHelper.setEnrichment(cached)
+                            isEnrichmentFromCache = true
                             Either.Success(it)
-                        } ?: Either.Failure(e)
+                        } ?: res
+                    } else {
+                        res
                     }
                 } else {
-                    deviceHelper.getGeoInfo()
+                    // If there's no cached enrichment and config refresh is disabled,
+                    // try to fetch with 1 sec timeout or fail.
+                    deviceHelper.getEnrichment(0, 1.seconds)
                 }
             }
 
         val attributesDeferred = ioScope.async { factory.makeSessionDeviceAttributes() }
 
         // Await results from both operations
-        val (result, _, attributes) =
+        val (result, enriched, attributes) =
             listOf(
                 configDeferred,
-                geoDeferred,
+                enrichmentDeferred,
                 attributesDeferred,
             ).awaitAll()
         ioScope.launch {
@@ -210,6 +216,7 @@ open class ConfigManager(
             track(InternalSuperwallEvent.DeviceAttributes(attributes as HashMap<String, Any>))
         }
         val configResult = result as Either<Config, Throwable>
+        val enrichmentResult = enriched as Either<Enrichment, Throwable>
         configResult
             .then {
                 ioScope.launch {
@@ -243,8 +250,8 @@ open class ConfigManager(
                 if (isConfigFromCache) {
                     ioScope.launch { refreshConfiguration() }
                 }
-                if (isGeoFromCache) {
-                    ioScope.launch { network.getGeoInfo() }
+                if (isEnrichmentFromCache || enrichmentResult.getThrowable() != null) {
+                    ioScope.launch { deviceHelper.getEnrichment(6, 1.seconds) }
                 }
             }.fold(
                 onSuccess =
@@ -386,6 +393,10 @@ open class ConfigManager(
         // Ensure the config refresh feature flag is enabled
         if (!oldConfig.featureFlags.enableConfigRefresh) {
             return
+        }
+
+        ioScope.launch {
+            deviceHelper.getEnrichment(0, 1.seconds)
         }
 
         val retryCount: AtomicInteger = AtomicInteger(0)

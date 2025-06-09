@@ -6,7 +6,7 @@ data class Api(
     val hostDomain: String,
     val base: Base,
     val collector: Collector,
-    val geo: Geo,
+    val enrichment: Enrichment,
     val subscription: Subscriptions,
 ) {
     companion object {
@@ -19,7 +19,7 @@ data class Api(
         hostDomain = networkEnvironment.hostDomain,
         base = Base(networkEnvironment),
         collector = Collector(networkEnvironment),
-        geo = Geo(networkEnvironment),
+        enrichment = Enrichment(networkEnvironment),
         subscription = Subscriptions(networkEnvironment),
     )
 
@@ -47,11 +47,11 @@ data class Api(
             get() = networkEnvironment.collectorHost
     }
 
-    data class Geo(
+    data class Enrichment(
         private val networkEnvironment: SuperwallOptions.NetworkEnvironment,
     ) {
         val host: String
             //            get() = "10.0.2.2:9909"
-            get() = "geo-api.superwall.com"
+            get() = networkEnvironment.enrichmentHost
     }
 }

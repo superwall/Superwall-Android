@@ -59,12 +59,6 @@ class DeviceTemplateTest {
             appBuildString = "100",
             appBuildStringNumber = 100,
             interfaceStyleMode = "light",
-            ipRegion = "California",
-            ipRegionCode = "CA",
-            ipCountry = "United States",
-            ipCity = "San Francisco",
-            ipContinent = "North America",
-            ipTimezone = "America/Los_Angeles",
             capabilities = listOf("feature1", "feature2"),
             capabilitiesConfig = JsonObject(mapOf("key" to JsonPrimitive("value"))),
             platformWrapper = "native",
@@ -72,6 +66,7 @@ class DeviceTemplateTest {
             appVersionPadded = "001.000.000",
             activeProducts = listOf("product1", "product2"),
             subscriptionStatus = "ACTIVE",
+            deviceTier = "LOW",
         )
 
     @Test
@@ -139,12 +134,6 @@ class DeviceTemplateTest {
                 appBuildString = "100",
                 appBuildStringNumber = null,
                 interfaceStyleMode = "light",
-                ipRegion = null,
-                ipRegionCode = null,
-                ipCountry = null,
-                ipCity = null,
-                ipContinent = null,
-                ipTimezone = null,
                 capabilities = listOf(),
                 capabilitiesConfig = JsonObject(emptyMap()),
                 platformWrapper = "native",
@@ -152,6 +141,7 @@ class DeviceTemplateTest {
                 appVersionPadded = "001.000.000",
                 activeProducts = listOf(),
                 subscriptionStatus = "INACTIVE",
+                deviceTier = "HIGH",
             )
 
         val dictionary1 = template.toDictionary(json)
