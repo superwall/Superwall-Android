@@ -20,8 +20,8 @@ import com.superwall.sdk.models.assignment.Assignment
 import com.superwall.sdk.models.assignment.ConfirmableAssignment
 import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.models.config.RawFeatureFlag
+import com.superwall.sdk.models.enrichment.Enrichment
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
-import com.superwall.sdk.models.geo.GeoInfo
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.Trigger
 import com.superwall.sdk.models.triggers.TriggerRule
@@ -34,13 +34,14 @@ import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.storage.CONSTANT_API_KEY
 import com.superwall.sdk.storage.LatestConfig
-import com.superwall.sdk.storage.LatestGeoInfo
+import com.superwall.sdk.storage.LatestEnrichment
 import com.superwall.sdk.storage.LatestRedemptionResponse
 import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.StorageMock
 import com.superwall.sdk.storage.StoredEntitlementsByProductId
 import com.superwall.sdk.storage.StoredSubscriptionStatus
+import com.superwall.sdk.storage.core_data.convertToJsonElement
 import com.superwall.sdk.store.Entitlements
 import com.superwall.sdk.store.StoreManager
 import com.superwall.sdk.web.WebPaywallRedeemer
@@ -63,6 +64,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.JsonObject
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -121,6 +123,9 @@ class ConfigManagerTests {
             every { appVersion } returns "1.0"
             every { locale } returns "en-US"
             coEvery { getTemplateDevice() } returns emptyMap()
+            coEvery {
+                getEnrichment(any(), any())
+            } returns Either.Success(Enrichment.stub())
         }
 
     @Before
@@ -368,7 +373,13 @@ class ConfigManagerTests {
                             Either.Success<Config, NetworkError>(
                                 Config.stub(),
                             )
-                        coEvery { getGeoInfo() } returns Either.Success(mockk<GeoInfo>())
+                        coEvery {
+                            getEnrichment(
+                                any(),
+                                any(),
+                                any(),
+                            )
+                        } returns Either.Success(mockk<Enrichment>())
                     }
                 val context = InstrumentationRegistry.getInstrumentation().targetContext
                 val dependencyContainer =
@@ -442,7 +453,7 @@ class ConfigManagerTests {
                 val mockNetwork =
                     mockk<Network> {
                         coEvery { getConfig(any()) } returns Either.Failure(NetworkError.Unknown())
-                        coEvery { getGeoInfo() } returns Either.Success(mockk<GeoInfo>())
+                        coEvery { getEnrichment(any(), any(), any()) } returns Either.Success(mockk<Enrichment>())
                     }
                 val dependencyContainer =
                     DependencyContainer(context, null, null, activityProvider = null)
@@ -551,21 +562,21 @@ class ConfigManagerTests {
                 coEvery { localStorage.read(LatestRedemptionResponse) } returns null
                 coEvery { storage.read(LatestConfig) } returns cachedConfig
                 coEvery { storage.write(any(), any()) } just Runs
-                coEvery { storage.read(LatestGeoInfo) } returns GeoInfo.stub()
+                coEvery { storage.read(LatestEnrichment) } returns Enrichment.stub()
                 coEvery { mockNetwork.getConfig(any()) } coAnswers {
                     delay(1200)
                     Either.Success(newConfig)
                 }
-                coEvery { mockNetwork.getGeoInfo() } coAnswers {
+                coEvery { mockNetwork.getEnrichment(any(), any(), any()) } coAnswers {
                     delay(1200)
-                    Either.Success(GeoInfo.stub())
+                    Either.Success(Enrichment.stub())
                 }
 
                 coEvery {
-                    mockDeviceHelper.getGeoInfo()
+                    mockDeviceHelper.getEnrichment(any(), any())
                 } coAnswers {
                     delay(1200)
-                    Either.Success(GeoInfo.stub())
+                    Either.Success(Enrichment.stub())
                 }
 
                 val context = InstrumentationRegistry.getInstrumentation().targetContext
@@ -612,13 +623,13 @@ class ConfigManagerTests {
                 coEvery { storage.read(LatestRedemptionResponse) } returns null
                 coEvery { storage.read(LatestConfig) } returns null
                 coEvery { localStorage.read(LatestRedemptionResponse) } returns null
-                coEvery { localStorage.read(LatestGeoInfo) } returns null
-                coEvery { storage.read(LatestGeoInfo) } returns null
+                coEvery { localStorage.read(LatestEnrichment) } returns null
+                coEvery { storage.read(LatestEnrichment) } returns null
                 coEvery {
-                    mockDeviceHelper.getGeoInfo()
+                    mockDeviceHelper.getEnrichment(any(), any())
                 } returns Either.Failure(NetworkError.Unknown())
                 coEvery {
-                    mockNetwork.getGeoInfo()
+                    mockNetwork.getEnrichment(any(), any(), any())
                 } returns Either.Failure(NetworkError.Unknown())
                 coEvery { mockNetwork.getConfig(any()) } coAnswers {
                     delay(1200)
@@ -674,14 +685,14 @@ class ConfigManagerTests {
                 coEvery { localStorage.read(LatestRedemptionResponse) } returns null
                 coEvery { storage.read(LatestConfig) } returns cachedConfig
                 coEvery { mockNetwork.getConfig(any()) } returns Either.Failure(NetworkError.Unknown())
-                coEvery { localStorage.read(LatestGeoInfo) } returns null
-                coEvery { storage.read(LatestGeoInfo) } returns null
+                coEvery { localStorage.read(LatestEnrichment) } returns null
+                coEvery { storage.read(LatestEnrichment) } returns null
                 coEvery {
-                    mockNetwork.getGeoInfo()
+                    mockNetwork.getEnrichment(any(), any(), any())
                 } returns Either.Failure(NetworkError.Unknown())
 
                 coEvery {
-                    mockDeviceHelper.getGeoInfo()
+                    mockDeviceHelper.getEnrichment(any(), any())
                 } returns Either.Failure(NetworkError.Unknown())
 
                 coEvery { mockDeviceHelper.getTemplateDevice() } returns emptyMap()
@@ -747,15 +758,15 @@ class ConfigManagerTests {
                     Either.Success(newConfig)
                 }
 
-                coEvery { localStorage.read(LatestGeoInfo) } returns null
-                coEvery { storage.read(LatestGeoInfo) } returns null
+                coEvery { localStorage.read(LatestEnrichment) } returns null
+                coEvery { storage.read(LatestEnrichment) } returns null
                 coEvery {
-                    mockNetwork.getGeoInfo()
-                } returns Either.Success(GeoInfo.stub())
+                    mockNetwork.getEnrichment(any(), any(), any())
+                } returns Either.Success(Enrichment.stub())
 
                 coEvery {
-                    mockDeviceHelper.getGeoInfo()
-                } returns Either.Success(GeoInfo.stub())
+                    mockDeviceHelper.getEnrichment(any(), any())
+                } returns Either.Success(Enrichment.stub())
 
                 val context = InstrumentationRegistry.getInstrumentation().targetContext
 
@@ -802,16 +813,16 @@ class ConfigManagerTests {
                         rawFeatureFlags = listOf(RawFeatureFlag("enable_config_refresh_v2", true)),
                     )
                 val newConfig = Config.stub().copy(buildId = "not")
-                val cachedGeo = GeoInfo.stub().copy(country = "cachedCountry")
-                val newGeo = GeoInfo.stub().copy(country = "newCountry")
+                val cachedGeo = Enrichment.stub().copy()
+                val newGeo = Enrichment.stub().copy(device = JsonObject(mapOf("demandTier" to "gold".convertToJsonElement())))
 
                 coEvery { preload.preloadAllPaywalls(any(), any()) } just Runs
                 coEvery { storage.read(LatestRedemptionResponse) } returns null
                 coEvery { localStorage.read(LatestRedemptionResponse) } returns null
                 coEvery { storage.read(LatestConfig) } returns cachedConfig
-                coEvery { storage.read(LatestGeoInfo) } returns cachedGeo
+                coEvery { storage.read(LatestEnrichment) } returns cachedGeo
                 coEvery { storage.write(any(), any()) } just Runs
-                coEvery { localStorage.read(LatestGeoInfo) } returns cachedGeo
+                coEvery { localStorage.read(LatestEnrichment) } returns cachedGeo
                 every { manager.resetPaywallRequestCache() } just Runs
                 coEvery { preload.removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
                 var callCount = 0
@@ -824,7 +835,7 @@ class ConfigManagerTests {
                     }
                     Either.Success(newConfig)
                 }
-                coEvery { mockDeviceHelper.getGeoInfo() } coAnswers {
+                coEvery { mockDeviceHelper.getEnrichment(any(), any()) } coAnswers {
                     async(Dispatchers.IO) {
                         delay(5000)
                     }.await()

@@ -2,7 +2,10 @@ package com.superwall.sdk.dependencies
 
 import android.app.Activity
 import com.android.billingclient.api.Purchase
+import com.superwall.sdk.Superwall
+import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
+import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.billing.GoogleBillingWrapper
 import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.config.options.SuperwallOptions
@@ -47,6 +50,10 @@ interface ApiFactory : JsonFactory {
     var configManager: ConfigManager
     var identityManager: IdentityManager
     var appLifecycleObserver: AppLifecycleObserver
+
+    suspend fun track(event: Trackable) {
+        Superwall.instance.track(event)
+    }
 
     suspend fun makeHeaders(
         isForDebugging: Boolean,
@@ -96,6 +103,10 @@ interface RuleAttributesFactory {
 
 interface IdentityInfoFactory {
     suspend fun makeIdentityInfo(): IdentityInfo
+}
+
+interface IdentityManagerFactory {
+    suspend fun makeIdentityManager(): IdentityManager
 }
 
 interface LocaleIdentifierFactory {

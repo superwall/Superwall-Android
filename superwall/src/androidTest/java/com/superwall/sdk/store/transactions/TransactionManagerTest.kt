@@ -133,6 +133,7 @@ class TransactionManagerTest {
         mockk<TransactionManager.Factory> {
             every { isWebToAppEnabled() } returns false
             every { makeHasExternalPurchaseController() } returns false
+            coEvery { makeSessionDeviceAttributes() } returns hashMapOf()
             every { makeTransactionVerifier() } returns
                 mockk<GoogleBillingWrapper> {
                     coEvery { getLatestTransaction(any()) } returns

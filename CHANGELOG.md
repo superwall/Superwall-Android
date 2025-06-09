@@ -2,6 +2,17 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.2.1
+
+## Enhancements
+
+- Adds `demandScore` and `demandTier` to device attributes using an off-device advanced machine learning model. A user is assigned these based on a variety of factors to determine whether they're more or less likely to convert and can be used within audience filters.
+- Adds `deviceTier` to the device attributes using an on-device scoring system to place the device in a tier based on it's capabilities. This can be used in audience filters to display different paywalls based on the user's device capabilities. The value can be one of the following values `ultraLow`, `low`, `mid`, `high`, `ultra_high`, `unknown`. NOTE: This property is still experimental
+
+## Fix
+
+- Fixes potential issue in `web2app` with subscription being overriden by the polling due to extra API calls 
+
 ## 2.2.0
 
 ## Enhancements

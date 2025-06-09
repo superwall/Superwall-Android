@@ -54,12 +54,6 @@ data class DeviceTemplate(
     val appBuildString: String,
     val appBuildStringNumber: Int?,
     val interfaceStyleMode: String,
-    val ipRegion: String?,
-    val ipRegionCode: String?,
-    val ipCountry: String?,
-    val ipCity: String?,
-    val ipContinent: String?,
-    val ipTimezone: String?,
     @SerialName("capabilities")
     val capabilities: List<String>,
     @SerialName("capabilities_config")
@@ -68,6 +62,7 @@ data class DeviceTemplate(
     val platformWrapper: String,
     @SerialName("platform_wrapper_version")
     val platformWrapperVersion: String,
+    val deviceTier: String,
 ) {
     fun toDictionary(json: Json): Map<String, Any> {
         val jsonString = json.encodeToString(serializer(), this)
