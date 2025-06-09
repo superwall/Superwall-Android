@@ -21,6 +21,7 @@ import com.superwall.sdk.misc.into
 import com.superwall.sdk.misc.onError
 import com.superwall.sdk.misc.then
 import com.superwall.sdk.models.config.Config
+import com.superwall.sdk.models.enrichment.Enrichment
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.models.triggers.Trigger
@@ -197,28 +198,14 @@ open class ConfigManager(
                 } else {
                     // If there's no cached enrichment and config refresh is disabled,
                     // try to fetch with 1 sec timeout or fail.
-                    if (cached == null) {
-                        deviceHelper.getEnrichment(0, 1.seconds)
-                    } else {
-                        // Try fetching enrichment with 1 sec timeout. If it fails, fall
-                        // back to cached version.
-
-                        val res = deviceHelper.getEnrichment(0, 1.seconds)
-                        if (res.getSuccess() == null) {
-                            deviceHelper.setEnrichment(cached)
-                            isEnrichmentFromCache = true
-                            cached
-                        } else {
-                            res
-                        }
-                    }
+                    deviceHelper.getEnrichment(0, 1.seconds)
                 }
             }
 
         val attributesDeferred = ioScope.async { factory.makeSessionDeviceAttributes() }
 
         // Await results from both operations
-        val (result, _, attributes) =
+        val (result, enriched, attributes) =
             listOf(
                 configDeferred,
                 enrichmentDeferred,
@@ -229,6 +216,7 @@ open class ConfigManager(
             track(InternalSuperwallEvent.DeviceAttributes(attributes as HashMap<String, Any>))
         }
         val configResult = result as Either<Config, Throwable>
+        val enrichmentResult = enriched as Either<Enrichment, Throwable>
         configResult
             .then {
                 ioScope.launch {
@@ -262,7 +250,7 @@ open class ConfigManager(
                 if (isConfigFromCache) {
                     ioScope.launch { refreshConfiguration() }
                 }
-                if (isEnrichmentFromCache) {
+                if (isEnrichmentFromCache || enrichmentResult.getThrowable() != null) {
                     ioScope.launch { deviceHelper.getEnrichment(6, 1.seconds) }
                 }
             }.fold(
