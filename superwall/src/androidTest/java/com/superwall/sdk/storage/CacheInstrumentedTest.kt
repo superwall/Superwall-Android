@@ -92,8 +92,10 @@ class CacheInstrumentedTest {
             assert(updatedUserAttributes == testAttributes)
 
             // Test delete
-            cache.delete(UserAttributes)
-            val deletedUserAttributes = cache.read(UserAttributes)
+            runBlocking {
+                cache.delete(UserAttributes)
+            }
+            val deletedUserAttributes = runBlocking { cache.read(UserAttributes) }
             assert(deletedUserAttributes == null)
         }
 

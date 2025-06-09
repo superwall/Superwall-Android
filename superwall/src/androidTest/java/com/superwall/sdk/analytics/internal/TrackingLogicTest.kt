@@ -6,7 +6,8 @@ import com.android.billingclient.api.Purchase
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.identity.IdentityInfo
-import com.superwall.sdk.models.enrichment.GeoInfo
+import com.superwall.sdk.identity.IdentityManager
+import com.superwall.sdk.models.enrichment.Enrichment
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.storage.LastPaywallView
@@ -29,7 +30,7 @@ class TrackingLogicTest {
             every { didTrackFirstSeen } returns true
             every { read(LastPaywallView) } returns null
             every { read(TotalPaywallViews) } returns 0
-            every { read(LatestEnrichment) } returns GeoInfo.stub()
+            every { read(LatestEnrichment) } returns Enrichment.stub()
         }
     val network = mockk<Network>()
 
@@ -53,6 +54,8 @@ class TrackingLogicTest {
                                 override suspend fun makeStoreTransaction(transaction: Purchase): StoreTransaction = mockk()
 
                                 override suspend fun activeProductIds(): List<String> = emptyList()
+
+                                override suspend fun makeIdentityManager(): IdentityManager = mockk()
                             },
                     ),
                 ) {

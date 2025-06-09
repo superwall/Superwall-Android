@@ -20,7 +20,6 @@ import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.Ex
 import com.superwall.sdk.paywall.presentation.rule_logic.tryToMatchOccurrence
 import com.superwall.sdk.storage.core_data.CoreDataManager
 import com.superwall.sdk.utilities.trackError
-import com.superwall.sdk.utilities.withErrorTracking
 import com.superwall.supercel.HostContext
 import com.superwall.supercel.evaluateWithContext
 import kotlinx.serialization.encodeToString
@@ -109,13 +108,6 @@ internal class SuperscriptEvaluator(
                             LogScope.jsEvaluator,
                             "Superscript evaluation failed for expression $result: ${celResult.message}",
                         )
-                        withErrorTracking {
-                            throw IllegalStateException(
-                                "Superscript evaluation failed: ${celResult.message}." +
-                                    "Received: $result. " +
-                                    "Context: $ctx",
-                            )
-                        }
                         TriggerRuleOutcome.noMatch(
                             UnmatchedRule.Source.EXPRESSION,
                             rule.experiment.id,
