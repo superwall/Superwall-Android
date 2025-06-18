@@ -10,6 +10,7 @@ import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
+import android.util.Log
 import androidx.core.content.ContextCompat
 import com.superwall.sdk.BuildConfig
 import com.superwall.sdk.Superwall
@@ -46,8 +47,6 @@ import com.superwall.sdk.utilities.DateUtils
 import com.superwall.sdk.utilities.dateFormat
 import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
 import org.threeten.bp.Instant
 import java.text.SimpleDateFormat
@@ -56,7 +55,6 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.minutes
 
 enum class InterfaceStyle(
     val rawValue: String,
@@ -452,21 +450,7 @@ class DeviceHelper(
         return withErrorTracking {
             val identityInfo = factory.makeIdentityInfo()
             val aliases = listOf(identityInfo.aliasId)
-            val geo =
-                try {
-                    withTimeout(1.minutes) {
-                        lastEnrichment.first { it != null }
-                    }
-                } catch (e: Throwable) {
-                    Logger.debug(
-                        logLevel = LogLevel.error,
-                        scope = LogScope.device,
-                        message = "Failed to get geo info - timeout",
-                        info = emptyMap(),
-                        error = e,
-                    )
-                    null
-                }
+            val enriched = lastEnrichment.value
             val capabilities: List<Capability> =
                 listOf(
                     Capability.PaywallEventReceiver(),
@@ -586,11 +570,14 @@ class DeviceHelper(
             getTemplateDevice().mapValues {
                 it.value.convertToJsonElement()
             }
+        Log.e("configx", "Enrichment running")
         return network
             .getEnrichment(EnrichmentRequest(userAttributes, deviceAttributes), maxRetry, timeout)
             .then {
+                Log.e("configx", "Enrichment running - set value")
                 lastEnrichment.value = it
             }.then {
+                Log.e("configx", "Enrichment running - write")
                 storage.write(LatestEnrichment, it)
                 it.user.let {
                     Superwall.instance.setUserAttributes(it)

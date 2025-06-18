@@ -310,6 +310,13 @@ internal object LatestRedemptionResponse : Storable<WebRedemptionResponse> {
         get() = WebRedemptionResponse.serializer()
 }
 
+internal data class StoredWebArchive(
+    val payWallId: String,
+) : Storable<String> {
+    override val key: String = "store.webarchive.$payWallId"
+    override val directory: SearchPathDirectory = SearchPathDirectory.CACHE
+    override val serializer: KSerializer<String> = String.serializer()
+}
 //endregion
 
 // region Serializers

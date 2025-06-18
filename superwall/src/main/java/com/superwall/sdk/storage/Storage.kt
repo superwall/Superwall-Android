@@ -8,6 +8,13 @@ interface Storage {
         data: T,
     )
 
+    fun <T : Any> writeFile(
+        storable: Storable<T>,
+        data: String,
+    )
+
+    fun <T : Any> readFile(storable: Storable<T>): String?
+
     fun <T : Any> delete(storable: Storable<T>) {
     }
 

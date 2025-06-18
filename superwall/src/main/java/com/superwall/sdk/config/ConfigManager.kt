@@ -1,6 +1,7 @@
 package com.superwall.sdk.config
 
 import android.content.Context
+import android.util.Log
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.config.models.ConfigState
 import com.superwall.sdk.config.models.getConfig
@@ -22,12 +23,14 @@ import com.superwall.sdk.misc.onError
 import com.superwall.sdk.misc.then
 import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.models.enrichment.Enrichment
+import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.models.triggers.Trigger
 import com.superwall.sdk.network.SuperwallAPI
 import com.superwall.sdk.network.awaitUntilNetworkExists
 import com.superwall.sdk.network.device.DeviceHelper
+import com.superwall.sdk.paywall.archive.WebArchiveLibrary
 import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.storage.DisableVerboseEvents
 import com.superwall.sdk.storage.LatestConfig
@@ -38,6 +41,7 @@ import com.superwall.sdk.store.StoreManager
 import com.superwall.sdk.web.WebPaywallRedeemer
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.mapNotNull
@@ -67,6 +71,7 @@ open class ConfigManager(
     private val awaitUtilNetwork: suspend () -> Unit = {
         context.awaitUntilNetworkExists()
     },
+    private val webArchiveLibrary: WebArchiveLibrary,
 ) {
     private val CACHE_LIMIT = 1.seconds
 
@@ -137,32 +142,39 @@ open class ConfigManager(
                             withTimeout(CACHE_LIMIT) {
                                 network
                                     .getConfig {
+                                        Log.e("Configx", "Retry")
                                         // Emit retrying state
                                         configState.update { ConfigState.Retrying }
                                         configRetryCount.incrementAndGet()
                                         awaitUtilNetwork()
                                     }.into {
                                         if (it is Either.Failure) {
+                                            Log.e("Configx", "Fail")
                                             isConfigFromCache = true
                                             Either.Success(oldConfig)
                                         } else {
+                                            Log.e("Configx", "Success")
                                             it
                                         }
                                     }
                             }
                         } catch (e: Throwable) {
+                            e.printStackTrace()
                             // If fetching config fails, default to the cached version
                             // Note: Only a timeout exception is possible here
                             oldConfig?.let {
+                                Log.e("Configx", "Fail - load from cache")
                                 isConfigFromCache = true
                                 Either.Success(it)
                             } ?: Either.Failure(e)
                         }
                     } else {
+                        Log.e("Configx", "CRefresh disabled")
                         // If config refresh is disabled or there is no cache
                         // just fetch with a normal retry
                         network
                             .getConfig {
+                                Log.e("Configx", "retry")
                                 configState.update { ConfigState.Retrying }
                                 configRetryCount.incrementAndGet()
                                 context.awaitUntilNetworkExists()
@@ -177,6 +189,7 @@ open class ConfigManager(
             ioScope.async {
                 val cached = storage.read(LatestEnrichment)
                 if (config?.featureFlags?.enableConfigRefresh == true) {
+                    Log.e("Configx", "Using cached enrichment")
                     // If we have a cached config and refresh was enabled, try loading with
                     // a timeout or load from cache
                     val res =
@@ -198,11 +211,26 @@ open class ConfigManager(
                 } else {
                     // If there's no cached enrichment and config refresh is disabled,
                     // try to fetch with 1 sec timeout or fail.
-                    deviceHelper.getEnrichment(0, 1.seconds)
+                    val time = System.currentTimeMillis()
+                    Log.e("Configx", "Getting enrichment")
+                    try {
+                        withTimeout(1000) {
+                            val x = deviceHelper.getEnrichment(0, 1.seconds)
+
+                            Log.e("Configx", "Done enriching ${x.getSuccess()}, $time")
+                            return@withTimeout x
+                        }
+                    } catch (e: Throwable) {
+                        return@async Either.Failure(e)
+                    }
                 }
             }
 
-        val attributesDeferred = ioScope.async { factory.makeSessionDeviceAttributes() }
+        val attributesDeferred =
+            ioScope.async {
+                Log.e("Configx", "Fetching session attributes")
+                factory.makeSessionDeviceAttributes()
+            }
 
         // Await results from both operations
         val (result, enriched, attributes) =
@@ -211,10 +239,12 @@ open class ConfigManager(
                 enrichmentDeferred,
                 attributesDeferred,
             ).awaitAll()
+        Log.e("Configx", "Finished $result $enriched $attributes")
         ioScope.launch {
             @Suppress("UNCHECKED_CAST")
             track(InternalSuperwallEvent.DeviceAttributes(attributes as HashMap<String, Any>))
         }
+
         val configResult = result as Either<Config, Throwable>
         val enrichmentResult = enriched as Either<Enrichment, Throwable>
         configResult
@@ -256,7 +286,24 @@ open class ConfigManager(
             }.fold(
                 onSuccess =
                     {
-                        ioScope.launch { preloadPaywalls() }
+                        ioScope.launch {
+                            cachePaywallsFromManifest(
+                                it.paywalls.map {
+                                    it.copy(
+                                        presentation =
+                                            it.presentation.copy(
+                                                delay = 0,
+                                            ),
+                                    )
+                                },
+                            )
+
+                            launch {
+                                // Preload paywalls that do not need to be archived
+                                Log.e("PaywallTimer", "Started preloading")
+                                //     preloadPaywalls()
+                            }
+                        }
                     },
                 onFailure =
                     { e ->
@@ -282,6 +329,25 @@ open class ConfigManager(
         assignments.reset()
         assignments.choosePaywallVariants(config.triggers)
         ioScope.launch { preloadPaywalls() }
+    }
+
+    private suspend fun cachePaywallsFromManifest(paywalls: List<Paywall>) {
+        val time = System.currentTimeMillis()
+        val banned =
+            listOf("webflow.com", "webflow.io", "builder-templates", "apple.com", "templates.superwall.com", "interceptor.superwallapp.com")
+        paywalls
+            .distinctBy { it.identifier }
+            .filter {
+                !banned.any { url -> it.url.value.contains(url) }
+            }.map {
+                ioScope.async {
+                    Log.e("Arch", "Starting ${it.identifier}")
+                    webArchiveLibrary.downloadManifest(it.identifier, it.url.value, it.manifest)
+                    Log.e("Arch", "Ended ${it.identifier}")
+                }
+            }.awaitAll()
+
+        Log.e("PaywallTimer", "Ended caching manifests - ${System.currentTimeMillis() - time}")
     }
 
     suspend fun getAssignments() {

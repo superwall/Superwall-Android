@@ -1,5 +1,7 @@
 package com.superwall.sdk.network
 
+import android.net.Uri
+import android.util.Log
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.dependencies.ApiFactory
 import com.superwall.sdk.logger.LogLevel
@@ -35,6 +37,7 @@ open class Network(
     private val enrichmentService: EnrichmentService,
     private val factory: ApiFactory,
     private val subscriptionService: SubscriptionService,
+    private val archiveService: ArchiveService,
 ) : SuperwallAPI {
     override suspend fun sendEvents(events: EventsRequest): Either<Unit, NetworkError> =
         collectorService
@@ -60,6 +63,7 @@ open class Network(
             .config(
                 requestId,
             ).map { config ->
+                Log.e("Configx", "Got $config")
                 config.requestId = requestId
                 config
             }.logError("/static_config")
@@ -101,11 +105,15 @@ open class Network(
         maxRetry: Int,
         timeout: Duration,
     ): Either<Enrichment, NetworkError> {
+        Log.e("configx", "Enrichment running - awaiting")
         awaitUntilAppInForeground()
+        Log.e("configx", "Enrichment running - awaited")
         factory.track(InternalSuperwallEvent.EnrichmentLoad(InternalSuperwallEvent.EnrichmentLoad.State.Start))
+        Log.e("configx", "Enrichment running - track")
         return enrichmentService
             .enrichment(enrichmentRequest, maxRetry, timeout)
             .then {
+                Log.e("configx", "Enrichment running -track complete")
                 factory.track(
                     InternalSuperwallEvent.EnrichmentLoad(
                         InternalSuperwallEvent.EnrichmentLoad.State.Complete(
@@ -114,6 +122,8 @@ open class Network(
                     ),
                 )
             }.onErrorAsync {
+                it.printStackTrace()
+                Log.e("configx", "Enrichment running - fail")
                 factory.track(InternalSuperwallEvent.EnrichmentLoad(InternalSuperwallEvent.EnrichmentLoad.State.Fail))
             }.logError("/enrich")
     }
@@ -135,6 +145,14 @@ open class Network(
         subscriptionService
             .redeemToken(codes, userId, aliasId, vendorId, receipts)
             .logError("/redeem")
+
+    override suspend fun fetchRemoteFile(
+        url: Uri,
+        id: String,
+    ): Either<FileResponse, NetworkError> =
+        archiveService
+            .fetchRemoteFile(url)
+            .logError("$url")
 
     override suspend fun webEntitlementsByUserId(
         userId: UserId,

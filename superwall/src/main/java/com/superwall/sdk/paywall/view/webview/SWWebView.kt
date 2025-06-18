@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Color
 import android.net.Uri
 import android.os.Build
+import android.util.Log
 import android.view.GestureDetector
 import android.view.KeyEvent
 import android.view.MotionEvent
@@ -28,6 +29,8 @@ import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.MainScope
 import com.superwall.sdk.models.paywall.Paywall
+import com.superwall.sdk.paywall.archive.ArchiveWebClient
+import com.superwall.sdk.paywall.archive.models.DecompressedWebArchive
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessageHandler
@@ -35,6 +38,7 @@ import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessageHandlerDel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.launch
 import java.util.Date
@@ -92,8 +96,10 @@ class SWWebView(
         webSettings.setSupportZoom(false)
         webSettings.builtInZoomControls = false
         webSettings.displayZoomControls = false
-        webSettings.allowFileAccess = false
-        webSettings.allowContentAccess = false
+        webSettings.allowFileAccess = true
+        webSettings.allowFileAccessFromFileURLs = true
+        webSettings.allowUniversalAccessFromFileURLs = true
+        webSettings.allowContentAccess = true
         webSettings.textZoom = 100
         // Enable inline media playback, requires API level 17
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
@@ -102,6 +108,24 @@ class SWWebView(
 
         this.setBackgroundColor(Color.TRANSPARENT)
         this.webChromeClient = ChromeClient
+    }
+
+    internal fun loadFromArchive(archiveFile: DecompressedWebArchive) {
+        val client =
+            ArchiveWebClient(archiveFile, onError = {
+                it.let {
+                    throw IllegalStateException(it.description.toString() ?: "")
+                }
+            })
+        this.webViewClient = client
+        Log.e("PaywallTimer, webview", "Loading archive from client")
+        lastLoadedUrl = url
+        prepareWebview()
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            lastWebViewClient = client
+        }
+        listenToWebviewClientEvents(client)
+        super.loadUrl(transformUri(ArchiveWebClient.OVERRIDE_PATH))
     }
 
     internal fun loadPaywallWithFallbackUrl(paywall: Paywall) {
@@ -208,7 +232,9 @@ class SWWebView(
     private fun listenToWebviewClientEvents(client: DefaultWebviewClient) {
         ioScope.launch {
             client.webviewClientEvents
-                .takeWhile {
+                .onEach {
+                    Log.e("SWWebEvent", "$it")
+                }.takeWhile {
                     mainScope
                         .async {
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

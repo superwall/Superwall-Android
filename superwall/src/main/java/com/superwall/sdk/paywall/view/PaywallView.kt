@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
+import android.util.Log
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
@@ -35,6 +36,7 @@ import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.PaywallPresentationStyle
 import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
 import com.superwall.sdk.network.device.DeviceHelper
+import com.superwall.sdk.paywall.archive.models.DecompressedWebArchive
 import com.superwall.sdk.paywall.manager.PaywallCacheLogic
 import com.superwall.sdk.paywall.manager.PaywallViewCache
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
@@ -765,14 +767,43 @@ class PaywallView(
                 } else {
                     webView.settings.cacheMode = WebSettings.LOAD_DEFAULT
                 }
-                if (useMultipleUrls) {
-                    webView.loadPaywallWithFallbackUrl(paywall)
-                } else {
-                    webView.loadUrl(url.value)
+                Log.e("PaywallTimer", "Time to load")
+
+                when {
+                    factory.webArchive().checkIfArchived(paywall.identifier) -> {
+                        Log.e("PaywallTimer", "Checking if archived - true")
+                        loadFromArchive(factory.webArchive().loadArchive(paywall.identifier))
+                    }
+
+                    useMultipleUrls -> {
+                        Log.e("PaywallTimer", "Checking if archived - false, fallback loading")
+                        webView.loadPaywallWithFallbackUrl(paywall)
+                    }
+
+                    else -> {
+                        Log.e("PaywallTimer", "Checking if archived - false, default loading")
+                        webView.loadUrl(url.value)
+                    }
                 }
             }
             loadingState = PaywallLoadingState.LoadingURL()
         }
+    }
+
+    fun loadFromArchive(archive: Result<DecompressedWebArchive>) {
+        archive.fold(onSuccess = {
+            mainScope.launch {
+                webView.loadFromArchive(it)
+            }
+        }, onFailure = {
+            webView.loadUrl(paywall.url.value)
+            Logger.debug(
+                logLevel = LogLevel.error,
+                scope = LogScope.paywallView,
+                message = "Failed to load archive: ${it.localizedMessage}",
+                error = it,
+            )
+        })
     }
 
     private fun recreateWebview() {

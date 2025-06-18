@@ -617,6 +617,17 @@ class WebPaywallRedeemerTest {
                         saved = data as Any?
                     }
 
+                    override fun <T : Any> writeFile(
+                        storable: Storable<T>,
+                        data: String,
+                    ) {
+                        TODO("Not yet implemented")
+                    }
+
+                    override fun <T : Any> readFile(storable: Storable<T>): String? {
+                        TODO("Not yet implemented")
+                    }
+
                     override fun clean() {
                     }
                 }

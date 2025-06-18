@@ -64,7 +64,7 @@ data class Paywall(
                             "Unknown or unsupported presentation style: $presentationStyle",
                         )
                     },
-            delay = presentationDelay,
+            delay = 0,
         ),
     @SerialName("background_color_hex")
     val backgroundColorHex: String,
@@ -122,6 +122,8 @@ data class Paywall(
     var surveys: List<Survey> = emptyList(),
     @SerialName("is_scroll_enabled")
     val isScrollEnabled: Boolean? = true,
+    @SerialName("manifest")
+    val manifest: WebArchiveManifest? = null,
 ) : SerializableEntity {
     // Public getter for productItems
     var productItems: List<ProductItem>
@@ -266,6 +268,12 @@ data class Paywall(
                 cacheKey = "123",
                 buildId = "test",
                 isScrollEnabled = true,
+                manifest =
+                    WebArchiveManifest(
+                        WebArchiveManifest.Usage.NEVER,
+                        WebArchiveManifest.Document("", ""),
+                        emptyList(),
+                    ),
             )
     }
 }

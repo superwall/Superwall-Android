@@ -81,6 +81,9 @@ internal open class DefaultWebviewClient(
         request: WebResourceRequest?,
         error: WebResourceError,
     ) {
+        if (request?.url?.toString()?.contains("favicon.ico") == true) {
+            return
+        }
         ioScope.launch {
             if (request?.url?.toString()?.contains("runtime") == true) {
                 val (code, desc) =

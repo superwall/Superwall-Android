@@ -112,7 +112,9 @@ class Entitlements(
             }
 
             is SubscriptionStatus.Inactive -> {
+                val withoutActive = backingActive.subtract(_activeDeviceEntitlements)
                 _activeDeviceEntitlements.clear()
+                backingActive = withoutActive
                 _inactive.clear()
                 _status.value = value
             }
