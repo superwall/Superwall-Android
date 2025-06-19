@@ -205,12 +205,12 @@ open class ConfigManager(
         val attributesDeferred = ioScope.async { factory.makeSessionDeviceAttributes() }
 
         // Await results from both operations
-        val (result, enriched, attributes) =
+        val (result, enriched) =
             listOf(
                 configDeferred,
                 enrichmentDeferred,
-                attributesDeferred,
             ).awaitAll()
+        val attributes = attributesDeferred.await()
         ioScope.launch {
             @Suppress("UNCHECKED_CAST")
             track(InternalSuperwallEvent.DeviceAttributes(attributes as HashMap<String, Any>))
