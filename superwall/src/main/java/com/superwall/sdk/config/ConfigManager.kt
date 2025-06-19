@@ -342,6 +342,7 @@ open class ConfigManager(
             }.map {
                 ioScope.async {
                     Log.e("Arch", "Starting ${it.identifier}")
+                    delay(5000)
                     webArchiveLibrary.downloadManifest(it.identifier, it.url.value, it.manifest)
                     Log.e("Arch", "Ended ${it.identifier}")
                 }

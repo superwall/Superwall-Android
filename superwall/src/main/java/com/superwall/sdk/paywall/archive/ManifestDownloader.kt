@@ -1,6 +1,5 @@
 package com.superwall.sdk.paywall.archive
 
-import android.util.Log
 import androidx.core.net.toUri
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
@@ -92,18 +91,15 @@ class ManifestDownloader(
                 // Creates download tasks
                 xope.async {
                     with(resource) {
-                        Log.e("ArchiveClient", "Gettign ${resource.url.toUri()}")
                         network
                             .fetchRemoteFile(resource.url.toUri(), id)
                             .map {
-                                Log.e("ArchiveClient", "DL $url")
                                 ArchivePart.Resource(
                                     url = url.toString(),
                                     mimeType = mimeType,
                                     content = it.content,
                                 )
                             }.onError {
-                                Log.e("ArchiveClient", "No resource found for $url")
                                 Logger.debug(
                                     logLevel = LogLevel.debug,
                                     scope = LogScope.webarchive,

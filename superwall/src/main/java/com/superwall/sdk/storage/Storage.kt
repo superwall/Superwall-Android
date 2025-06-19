@@ -1,5 +1,7 @@
 package com.superwall.sdk.storage
 
+import java.io.FileOutputStream
+
 interface Storage {
     fun <T> read(storable: Storable<T>): T?
 
@@ -12,6 +14,8 @@ interface Storage {
         storable: Storable<T>,
         data: String,
     )
+
+    fun <T : Any> getFileStream(storable: Storable<T>): FileOutputStream
 
     fun <T : Any> readFile(storable: Storable<T>): String?
 

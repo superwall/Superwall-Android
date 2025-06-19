@@ -21,7 +21,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import java.lang.ref.WeakReference
 
 object Keys {
-    const val CONSTANT_API_KEY = "pk_3945ba4eca2392f731539a671b21a15fca36a50d9d927401"
+    const val CONSTANT_API_KEY = "pk_0ff90006c5c2078e1ce832bd2343ba2f806ca510a0a1696a"
     const val ANDROID_MAIN_SCREEN_API_KEY = "pk_d1f0959f70c761b1d55bb774a03e22b2b6ed290ce6561f85"
     const val UI_TEST_API_KEY = "pk_0ff90006c5c2078e1ce832bd2343ba2f806ca510a0a1696a"
     const val DEEP_LINK_OPEN_API_KEY = "pk_3faea4c721179218a245475ea9d378d1ecb9bf059411a0c0"

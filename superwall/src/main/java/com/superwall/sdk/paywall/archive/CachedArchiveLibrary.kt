@@ -2,6 +2,7 @@ package com.superwall.sdk.paywall.archive
 
 import android.util.Log
 import com.superwall.sdk.models.paywall.WebArchiveManifest
+import com.superwall.sdk.paywall.archive.models.ArchivePart
 import com.superwall.sdk.paywall.archive.models.DecompressedWebArchive
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.StoredWebArchive
@@ -47,12 +48,14 @@ class CachedArchiveLibrary(
                 ),
             )
         Log.e("DL", "Manifest done for $paywallId")
-        val mhtmlContent = archiveCompressor.compressToArchive(paywallUrl, archive)
         val storable = StoredWebArchive(paywallId)
-        storage.writeFile(
-            storable = storable,
-            data = mhtmlContent,
-        )
+
+        storage
+            .getFileStream(
+                storable = storable,
+            ).use {
+                archiveCompressor.compressToStream(paywallUrl, archive, it)
+            }
         archiveQueue.update {
             it.minus(paywallId)
         }
@@ -85,5 +88,27 @@ class CachedArchiveLibrary(
         archiveQueue.first {
             !it.contains(paywallId)
         }
+    }
+
+    fun getArchiveInputStream(
+        url: String,
+        parts: List<ArchivePart>,
+    ): java.io.InputStream {
+        val pipeIn = java.io.PipedInputStream()
+        val pipeOut = java.io.PipedOutputStream(pipeIn)
+        Thread {
+            try {
+                archiveCompressor.compressToStream(url, parts, pipeOut)
+            } catch (e: Throwable) {
+                // If an error occurs, close the pipe
+                pipeIn.close()
+            } finally {
+                pipeOut.close()
+            }
+        }.apply {
+            isDaemon = true
+            start()
+        }
+        return pipeIn
     }
 }

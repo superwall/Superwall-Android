@@ -229,6 +229,8 @@ open class LocalStorage(
         cache.writeFile(storable, data)
     }
 
+    override fun <T : Any> getFileStream(storable: Storable<T>) = cache.getFileStream(storable)
+
     override fun <T : Any> readFile(storable: Storable<T>): String? = cache.readFile(storable)
 
     //endregion

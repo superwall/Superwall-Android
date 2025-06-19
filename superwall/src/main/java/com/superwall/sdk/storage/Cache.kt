@@ -11,6 +11,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
+import java.io.FileOutputStream
 import kotlin.coroutines.CoroutineContext
 
 class Cache(
@@ -129,6 +130,8 @@ class Cache(
             false
         }
     }
+
+    fun <T : Any> getFileStream(storable: Storable<T>): FileOutputStream = storable.file(context).outputStream()
 
     //region Clean
 
