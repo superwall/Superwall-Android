@@ -2,6 +2,11 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.2.3
+
+## Fixes
+- Fix potential issue with device enrichment and attributes synchronisation causing a lock
+
 ## 2.2.2
 
 ## Enhancements

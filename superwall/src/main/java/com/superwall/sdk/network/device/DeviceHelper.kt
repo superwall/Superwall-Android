@@ -46,8 +46,6 @@ import com.superwall.sdk.utilities.DateUtils
 import com.superwall.sdk.utilities.dateFormat
 import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
 import org.threeten.bp.Instant
 import java.text.SimpleDateFormat
@@ -56,7 +54,6 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.minutes
 
 enum class InterfaceStyle(
     val rawValue: String,
@@ -452,21 +449,6 @@ class DeviceHelper(
         return withErrorTracking {
             val identityInfo = factory.makeIdentityInfo()
             val aliases = listOf(identityInfo.aliasId)
-            val geo =
-                try {
-                    withTimeout(1.minutes) {
-                        lastEnrichment.first { it != null }
-                    }
-                } catch (e: Throwable) {
-                    Logger.debug(
-                        logLevel = LogLevel.error,
-                        scope = LogScope.device,
-                        message = "Failed to get geo info - timeout",
-                        info = emptyMap(),
-                        error = e,
-                    )
-                    null
-                }
             val capabilities: List<Capability> =
                 listOf(
                     Capability.PaywallEventReceiver(),
