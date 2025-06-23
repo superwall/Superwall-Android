@@ -18,6 +18,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
+import java.io.FileInputStream
 import java.util.Date
 import kotlin.coroutines.CoroutineContext
 
@@ -232,6 +233,8 @@ open class LocalStorage(
     override fun <T : Any> getFileStream(storable: Storable<T>) = cache.getFileStream(storable)
 
     override fun <T : Any> readFile(storable: Storable<T>): String? = cache.readFile(storable)
+
+    override fun <T : Any> readFileStream(storable: Storable<T>): FileInputStream = cache.readFileStream(storable)
 
     //endregion
 }

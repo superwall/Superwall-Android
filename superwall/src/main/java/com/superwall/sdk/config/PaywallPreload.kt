@@ -1,14 +1,17 @@
 package com.superwall.sdk.config
 
 import android.content.Context
+import android.util.Log
 import com.superwall.sdk.dependencies.RequestFactory
 import com.superwall.sdk.dependencies.RuleAttributesFactory
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.launchWithTracking
 import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.models.paywall.CacheKey
+import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.PaywallIdentifier
 import com.superwall.sdk.models.triggers.Trigger
+import com.superwall.sdk.paywall.archive.WebArchiveLibrary
 import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.paywall.presentation.rule_logic.javascript.RuleEvaluator
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
@@ -25,6 +28,7 @@ class PaywallPreload(
     val storage: LocalStorage,
     val assignments: Assignments,
     val paywallManager: PaywallManager,
+    val webArchiveLibrary: WebArchiveLibrary,
 ) {
     interface Factory :
         RequestFactory,
@@ -57,7 +61,7 @@ class PaywallPreload(
                         unconfirmedAssignments = assignments.unconfirmedAssignments,
                         expressionEvaluator = expressionEvaluator,
                     )
-                preloadPaywalls(paywallIdentifiers = paywallIds)
+                preloadPaywalls(paywallIdentifiers = paywallIds, paywalls = config.paywalls.filter { it.identifier in paywallIds })
 
                 currentPreloadingTask = null
             }
@@ -74,18 +78,20 @@ class PaywallPreload(
                 config,
                 triggersToPreload.toSet(),
             )
-        preloadPaywalls(triggerPaywallIdentifiers)
+        preloadPaywalls(triggerPaywallIdentifiers, config.paywalls.filter { it.identifier in triggerPaywallIdentifiers })
     }
 
     // Preloads paywalls referenced by triggers.
-    private suspend fun preloadPaywalls(paywallIdentifiers: Set<String>) {
+    private suspend fun preloadPaywalls(
+        paywallIdentifiers: Set<String>,
+        paywalls: List<Paywall>,
+    ) {
         val webviewExists = webViewExists()
 
         if (webviewExists) {
             scope.launchWithTracking {
                 // List to hold all the Deferred objects
                 val tasks = mutableListOf<Deferred<Any>>()
-
                 for (identifier in paywallIdentifiers) {
                     val task =
                         async {
@@ -102,6 +108,7 @@ class PaywallPreload(
                                     isDebuggerLaunched = false,
                                     presentationSourceType = null,
                                 )
+
                             try {
                                 paywallManager.getPaywallView(
                                     request = request,
@@ -115,6 +122,11 @@ class PaywallPreload(
                         }
                     tasks.add(task)
                 }
+                tasks.add(
+                    scope.async {
+                        cachePaywallsFromManifest(paywalls.toSet())
+                    },
+                )
                 // Await all tasks
                 tasks.awaitAll()
             }
@@ -165,5 +177,29 @@ class PaywallPreload(
         changedIds.toSet().filterNotNull().forEach {
             paywallManager.removePaywallView(it)
         }
+    }
+
+    private suspend fun cachePaywallsFromManifest(paywalls: Set<Paywall>) {
+        val time = System.currentTimeMillis()
+        val banned =
+            listOf(
+                "webflow.com",
+                "webflow.io",
+                "builder-templates",
+                "apple.com",
+                "templates.superwall.com",
+                "interceptor.superwallapp.com",
+            )
+        paywalls
+            .distinctBy { it.identifier }
+            .filter {
+                !banned.any { url -> it.url.value.contains(url) }
+            }.map {
+                scope.async {
+                    webArchiveLibrary.downloadManifest(it.identifier, it.url.value, it.manifest)
+                }
+            }.awaitAll()
+
+        Log.e("PaywallTimer", "Ended caching manifests - ${System.currentTimeMillis() - time}")
     }
 }

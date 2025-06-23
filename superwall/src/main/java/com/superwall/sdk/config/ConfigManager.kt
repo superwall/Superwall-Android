@@ -41,7 +41,6 @@ import com.superwall.sdk.store.StoreManager
 import com.superwall.sdk.web.WebPaywallRedeemer
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.mapNotNull
@@ -287,22 +286,8 @@ open class ConfigManager(
                 onSuccess =
                     {
                         ioScope.launch {
-                            cachePaywallsFromManifest(
-                                it.paywalls.map {
-                                    it.copy(
-                                        presentation =
-                                            it.presentation.copy(
-                                                delay = 0,
-                                            ),
-                                    )
-                                },
-                            )
-
-                            launch {
-                                // Preload paywalls that do not need to be archived
-                                Log.e("PaywallTimer", "Started preloading")
-                                //     preloadPaywalls()
-                            }
+                            // Preload paywalls that do not need to be archived
+                            preloadPaywalls()
                         }
                     },
                 onFailure =
@@ -334,17 +319,14 @@ open class ConfigManager(
     private suspend fun cachePaywallsFromManifest(paywalls: List<Paywall>) {
         val time = System.currentTimeMillis()
         val banned =
-            listOf("webflow.com", "webflow.io", "builder-templates", "apple.com", "templates.superwall.com", "interceptor.superwallapp.com")
+            listOf("webflow.com", "webflow.io", "builder-templates", "apple.com")
         paywalls
             .distinctBy { it.identifier }
             .filter {
                 !banned.any { url -> it.url.value.contains(url) }
             }.map {
                 ioScope.async {
-                    Log.e("Arch", "Starting ${it.identifier}")
-                    delay(5000)
                     webArchiveLibrary.downloadManifest(it.identifier, it.url.value, it.manifest)
-                    Log.e("Arch", "Ended ${it.identifier}")
                 }
             }.awaitAll()
 

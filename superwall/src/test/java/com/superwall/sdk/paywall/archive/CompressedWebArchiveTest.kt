@@ -11,12 +11,12 @@ import org.junit.Test
 
 class CompressedWebArchiveTest {
     private lateinit var encoder: ArchiveEncoder
-    private lateinit var compressor: ArchiveCompressor
+    private lateinit var compressor: StringArchiveCompressor
 
     @Before
     fun setup() {
         encoder = mockk()
-        compressor = ArchiveCompressor(encoder)
+        compressor = StringArchiveCompressor(encoder)
     }
 
     @Test
@@ -119,8 +119,8 @@ class CompressedWebArchiveTest {
 
                 Then("output matches original parts") {
                     assert(decompressed.content.size == 2)
-                    val doc = decompressed.content.find { it is ArchivePart.Document } as? ArchivePart.Document
-                    val res = decompressed.content.find { it is ArchivePart.Resource } as? ArchivePart.Resource
+                    val doc = decompressed.content.find { it is ArchivePart.Document } as ArchivePart.Document
+                    val res = decompressed.content.find { it is ArchivePart.Resource } as ArchivePart.Resource
                     assert(doc != null)
                     assert(res != null)
                     assert(doc.url == document.url)
@@ -156,7 +156,7 @@ class CompressedWebArchiveTest {
 
                 Then("output contains only the document") {
                     assert(decompressed.content.size == 1)
-                    val doc = decompressed.content.first() as? ArchivePart.Document
+                    val doc = decompressed.content.first() as ArchivePart.Document
                     assert(doc != null)
                     assert(doc.url == document.url)
                     assert(doc.mimeType == document.mimeType)
@@ -197,8 +197,8 @@ class CompressedWebArchiveTest {
 
                 Then("content is decoded") {
                     assert(decompressed.content.size == 2)
-                    val doc = decompressed.content.find { it is ArchivePart.Document } as? ArchivePart.Document
-                    val res = decompressed.content.find { it is ArchivePart.Resource } as? ArchivePart.Resource
+                    val doc = decompressed.content.find { it is ArchivePart.Document } as ArchivePart.Document
+                    val res = decompressed.content.find { it is ArchivePart.Resource } as ArchivePart.Resource
                     assert(doc != null)
                     assert(res != null)
                     assert(doc.content.contentEquals(textContent))
@@ -319,6 +319,7 @@ class CompressedWebArchiveTest {
                 val (headers, content) = headerString.extractHeader()
 
                 Then("parses correctly") {
+                    println("$headers")
                     assert(headers["Content-Type"] == "text/html")
                     assert(headers["Content-Location"] == "https://example.com/index.html")
                     assert(headers["Content-Id"] == "<main>")
@@ -346,7 +347,7 @@ class CompressedWebArchiveTest {
                 Then("correct headers/content") {
                     assert(mimePart.contains("Content-Type: text/html"))
                     assert(mimePart.contains("Content-Location: https://example.com/index.html"))
-                    assert(mimePart.contains("Content-Id: <main>"))
+                    assert(mimePart.contains("Content-Id: ${document.contentId}"))
                     assert(mimePart.contains("ENCODED_DOC"))
                 }
             }
@@ -371,7 +372,7 @@ class CompressedWebArchiveTest {
                 Then("quoted-printable encoding") {
                     assert(mimePart.contains("Content-Type: text/css"))
                     assert(mimePart.contains("Content-Location: https://example.com/style.css"))
-                    assert(mimePart.contains("Content-Id: <resource>"))
+                    assert(mimePart.contains("Content-Id: ${resource.contentId}"))
                     assert(mimePart.contains("ENCODED_TEXT_RES"))
                     assert(mimePart.contains("Content-Transfer-Encoding: quoted-printable"))
                 }
@@ -397,11 +398,11 @@ class CompressedWebArchiveTest {
                 Then("base64 encoding") {
                     assert(mimePart.contains("Content-Type: image/png"))
                     assert(mimePart.contains("Content-Location: https://example.com/image.png"))
-                    assert(mimePart.contains("Content-Id: <resource>"))
+                    assert(mimePart.contains("Content-Id: ${resource.contentId}"))
                     assert(mimePart.contains("ENCODED_BINARY_RES"))
                     assert(mimePart.contains("Content-Transfer-Encoding: base64"))
                 }
             }
         }
     }
-} 
+}

@@ -793,6 +793,7 @@ class PaywallView(
     fun loadFromArchive(archive: Result<DecompressedWebArchive>) {
         archive.fold(onSuccess = {
             mainScope.launch {
+                Log.e("PaywallTimerX", "Starting load in webview")
                 webView.loadFromArchive(it)
             }
         }, onFailure = {

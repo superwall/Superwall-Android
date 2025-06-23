@@ -39,6 +39,8 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
+import java.io.FileInputStream
+import java.io.FileOutputStream
 
 class WebPaywallRedeemerTest {
     private val context: Context = mockk()
@@ -630,6 +632,12 @@ class WebPaywallRedeemerTest {
 
                     override fun clean() {
                     }
+
+                    override fun <T : Any> getFileStream(storable: Storable<T>): FileOutputStream {
+                        TODO("Not yet implemented")
+                    }
+
+                    override fun <T : Any> readFileStream(storable: Storable<T>): FileInputStream = super.readFileStream(storable)
                 }
             redeemer =
                 WebPaywallRedeemer(

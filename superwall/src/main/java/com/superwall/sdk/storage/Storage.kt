@@ -1,5 +1,6 @@
 package com.superwall.sdk.storage
 
+import java.io.FileInputStream
 import java.io.FileOutputStream
 
 interface Storage {
@@ -21,6 +22,8 @@ interface Storage {
 
     fun <T : Any> delete(storable: Storable<T>) {
     }
+
+    fun <T : Any> readFileStream(storable: Storable<T>): FileInputStream = throw NotImplementedError("")
 
     fun clean()
 }

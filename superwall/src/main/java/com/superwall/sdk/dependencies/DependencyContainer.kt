@@ -53,10 +53,11 @@ import com.superwall.sdk.network.SubscriptionService
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.network.device.DeviceInfo
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
-import com.superwall.sdk.paywall.archive.ArchiveCompressor
 import com.superwall.sdk.paywall.archive.Base64ArchiveEncoder
 import com.superwall.sdk.paywall.archive.CachedArchiveLibrary
 import com.superwall.sdk.paywall.archive.ManifestDownloader
+import com.superwall.sdk.paywall.archive.StreamArchiveCompressor
+import com.superwall.sdk.paywall.archive.StringArchiveCompressor
 import com.superwall.sdk.paywall.archive.WebArchiveLibrary
 import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.paywall.manager.PaywallViewCache
@@ -313,6 +314,14 @@ class DependencyContainer(
                 ioScope,
             )
 
+        archive =
+            CachedArchiveLibrary(
+                storage,
+                ManifestDownloader(IOScope(), network),
+                StringArchiveCompressor(Base64ArchiveEncoder()),
+                StreamArchiveCompressor(encoder = Base64ArchiveEncoder()),
+            )
+
         paywallPreload =
             PaywallPreload(
                 factory = this,
@@ -320,14 +329,9 @@ class DependencyContainer(
                 assignments = assignments,
                 paywallManager = paywallManager,
                 scope = ioScope,
+                webArchiveLibrary = archive,
             )
 
-        archive =
-            CachedArchiveLibrary(
-                storage,
-                ManifestDownloader(IOScope(), network),
-                ArchiveCompressor(Base64ArchiveEncoder()),
-            )
         configManager =
             ConfigManager(
                 context = context,

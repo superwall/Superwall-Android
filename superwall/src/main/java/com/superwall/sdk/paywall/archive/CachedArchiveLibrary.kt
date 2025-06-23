@@ -16,7 +16,8 @@ import kotlinx.coroutines.flow.update
 class CachedArchiveLibrary(
     private val storage: Storage,
     private val manifestDownloader: ManifestDownloader,
-    private val archiveCompressor: ArchiveCompressor,
+    private val archiveCompressor: StringArchiveCompressor,
+    private val streamArchiveCompressor: StreamArchiveCompressor,
 ) : WebArchiveLibrary {
     // Queue of paywallIds that are currently being downloaded
     private val archiveQueue = MutableStateFlow(listOf<String>())
@@ -54,7 +55,7 @@ class CachedArchiveLibrary(
             .getFileStream(
                 storable = storable,
             ).use {
-                archiveCompressor.compressToStream(paywallUrl, archive, it)
+                streamArchiveCompressor.compressToStream(paywallUrl, archive, it)
             }
         archiveQueue.update {
             it.minus(paywallId)
@@ -70,13 +71,19 @@ class CachedArchiveLibrary(
     // Load the archive from cache, if it does not exist, throw an exception
     override suspend fun loadArchive(paywallId: String): Result<DecompressedWebArchive> {
         // If doesn't exist, await until it's downloaded
+        Log.e("PaywallTimerX", "Checking for paywall")
         if (!checkIfArchived(paywallId)) {
+            Log.e("PaywallTimerX", "Checking if arhchived")
             awaitUntilQueueResolved(paywallId)
+            Log.e("PaywallTimerX", "Await until queue resolves itself")
         }
         val storeable = StoredWebArchive(paywallId)
+        Log.e("PaywallTimerX", "Reading file")
         val fromCache = storage.readFile(storeable)
+        Log.e("PaywallTimerX", "Decompressing file")
         return if (fromCache != null) {
             val decompressed = archiveCompressor.decompressArchive(fromCache)
+            Log.e("PaywallTimerX", "Decompressed")
             Result.success(decompressed)
         } else {
             Result.failure(NoSuchElementException("Paywall $paywallId does not exist in cache"))
@@ -98,7 +105,7 @@ class CachedArchiveLibrary(
         val pipeOut = java.io.PipedOutputStream(pipeIn)
         Thread {
             try {
-                archiveCompressor.compressToStream(url, parts, pipeOut)
+                streamArchiveCompressor.compressToStream(url, parts, pipeOut)
             } catch (e: Throwable) {
                 // If an error occurs, close the pipe
                 pipeIn.close()

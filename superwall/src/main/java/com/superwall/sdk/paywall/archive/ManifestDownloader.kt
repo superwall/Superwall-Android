@@ -87,7 +87,7 @@ class ManifestDownloader(
         val xope = IOScope(dispatcher)
         // Combine all resources into a list of deferred jobs
         val jobs =
-            (foundParts).map { resource ->
+            (foundParts).distinctBy { it.url }.map { resource ->
                 // Creates download tasks
                 xope.async {
                     with(resource) {
@@ -114,7 +114,7 @@ class ManifestDownloader(
             }
         val relativeUrlsOnly = (relativeParts + favicoUrl).map { it.url }
         val parts =
-            jobs.awaitAll().map {
+            jobs.chunked(5).flatMap { it.awaitAll() }.map {
                 if (relativeUrlsOnly.contains(it.url)) {
                     if (it.url.contains("favicon.ico")) {
                         "favicon.ico"

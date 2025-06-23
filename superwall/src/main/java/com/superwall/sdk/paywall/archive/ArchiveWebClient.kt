@@ -92,7 +92,6 @@ internal class ArchiveWebClient(
         // Since they can be relative paths, it checks via .contains
         val part =
             archiveFile.content.find { part ->
-                Log.e("ArchiveClientF", "Found part ${part.url} as ${part.mimeType}")
                 if (url.contains("index.html")) {
                     part is ArchivePart.Document
                 } else {
