@@ -21,6 +21,7 @@ plugins {
     alias(libs.plugins.serialization) // Maven publishing
     id("maven-publish")
     id("signing")
+    alias(libs.plugins.dokka)
 }
 
 version = "2.2.2"
