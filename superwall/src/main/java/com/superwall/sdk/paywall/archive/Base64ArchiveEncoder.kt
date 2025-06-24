@@ -2,7 +2,6 @@ package com.superwall.sdk.paywall.archive
 
 import android.util.Base64
 import android.util.Base64OutputStream
-import android.util.Log
 import java.io.OutputStream
 
 /**
@@ -29,7 +28,6 @@ class StreamingBase64ArchiveEncoder {
         try {
             Base64.decode(encoded, Base64.DEFAULT)
         } catch (t: Throwable) {
-            Log.e("ArchiveDecoder", "Bad Base64", t)
             ByteArray(0)
         }
 }
@@ -41,7 +39,6 @@ class Base64ArchiveEncoder : ArchiveEncoder {
                 return Base64.encodeToString(content, Base64.CRLF)
             } catch (e: Throwable) {
                 e.printStackTrace()
-                Log.e("Encoding broken", "Cant encode ${content.toString(Charsets.UTF_8)}")
                 "ICAgIA=="
             }
         } else {
@@ -52,17 +49,9 @@ class Base64ArchiveEncoder : ArchiveEncoder {
     // Decodes default B64
     override fun decodeDefault(string: String): ByteArray = Base64.decode(string, Base64.DEFAULT)
 
-    override fun decode(content: ByteArray): ByteArray {
-        if (content.size < 78) {
-            Log.e(
-                "ArchiveClient",
-                "Content size is ${content.size} - ${content.toString(Charsets.UTF_8)}",
-            )
-        }
-
-        return Base64.decode(
+    override fun decode(content: ByteArray): ByteArray =
+        Base64.decode(
             content,
             Base64.CRLF,
         )
-    }
 }

@@ -1,6 +1,5 @@
 package com.superwall.sdk.paywall.archive
 
-import android.util.Log
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
@@ -33,28 +32,13 @@ internal class ArchiveWebClient(
             .Builder()
             // Requests coming towards these paths will be intercepted
             .addPathHandler("/assets/") { uri ->
-                Log.e("ArchiveClientPathHlr", "Looking for $uri in assets")
                 val url = resolveUrlFromArchive(archive, uri)
-                Log.e(
-                    "ArchiveClientPathHlr",
-                    if (url?.statusCode == 200) "Found $uri" else "Not found $uri",
-                )
                 url
             }.addPathHandler("/runtime/") { uri ->
-                Log.e("ArchiveClientPathHlr", "Looking for $uri in assets")
                 val url = resolveUrlFromArchive(archive, uri)
-                Log.e(
-                    "ArchiveClientPathHlr",
-                    if (url?.statusCode == 200) "Found $uri" else "Not found $uri",
-                )
                 url
             }.addPathHandler("/") { uri ->
-                Log.e("ArchiveClientPathHlr", "Looking for $uri in assets")
                 val url = resolveUrlFromArchive(archive, uri)
-                Log.e(
-                    "ArchiveClientPathHlr",
-                    if (url?.statusCode == 200) "Found $uri" else "Not found $uri",
-                )
                 url
             }.build()
 
@@ -62,9 +46,7 @@ internal class ArchiveWebClient(
         view: WebView,
         request: WebResourceRequest,
     ): WebResourceResponse? {
-        Log.e("ArchiveClient", "Should intercept request to ${request.url}")
         val res = assetLoader.shouldInterceptRequest(request.url.toString().toUri())
-        Log.e("ArchiveClient", "Should intercept - Got a response ${res?.statusCode}")
         return res
     }
 
@@ -72,9 +54,7 @@ internal class ArchiveWebClient(
         view: WebView?,
         url: String,
     ): WebResourceResponse? {
-        Log.e("ArchiveClient", "OLD Should intercept request to $url")
         val res = assetLoader.shouldInterceptRequest(url.toUri())
-        Log.e("ArchiveClient", "OLD Should intercept: $res")
         return res
     }
 
@@ -87,7 +67,6 @@ internal class ArchiveWebClient(
         archiveFile: DecompressedWebArchive,
         url: String,
     ): WebResourceResponse {
-        Log.e("ArchiveClient", "Resolving $url")
         // Find the part that matches the requested url or the main document
         // Since they can be relative paths, it checks via .contains
         val part =
@@ -99,7 +78,6 @@ internal class ArchiveWebClient(
                 }
             }
         if (part == null) {
-            Log.e("ArchiveClient", "No part found for $url")
             Logger.debug(
                 logLevel = LogLevel.debug,
                 scope = LogScope.webarchive,
@@ -113,8 +91,6 @@ internal class ArchiveWebClient(
                 mutableMapOf(),
                 "".toByteArray().inputStream(),
             )
-        } else {
-            Log.e("ArchiveClient", "Part is not null")
         }
         val mimeType = part.mimeType
         return when (MimeType.fromString(mimeType).type) {

@@ -1,7 +1,7 @@
 package com.superwall.sdk.config
 
 import android.content.Context
-import android.util.Log
+import com.superwall.sdk.dependencies.OptionsFactory
 import com.superwall.sdk.dependencies.RequestFactory
 import com.superwall.sdk.dependencies.RuleAttributesFactory
 import com.superwall.sdk.misc.IOScope
@@ -30,7 +30,18 @@ class PaywallPreload(
     val paywallManager: PaywallManager,
     val webArchiveLibrary: WebArchiveLibrary,
 ) {
+    val ignoredArchiveUrls =
+        listOf(
+            "webflow.com",
+            "webflow.io",
+            "builder-templates",
+            "apple.com",
+            "templates.superwall.com",
+            "interceptor.superwallapp.com",
+        )
+
     interface Factory :
+        OptionsFactory,
         RequestFactory,
         RuleAttributesFactory,
         RuleEvaluator.Factory
@@ -61,7 +72,10 @@ class PaywallPreload(
                         unconfirmedAssignments = assignments.unconfirmedAssignments,
                         expressionEvaluator = expressionEvaluator,
                     )
-                preloadPaywalls(paywallIdentifiers = paywallIds, paywalls = config.paywalls.filter { it.identifier in paywallIds })
+                preloadPaywalls(
+                    paywallIdentifiers = paywallIds,
+                    paywalls = config.paywalls.filter { it.identifier in paywallIds },
+                )
 
                 currentPreloadingTask = null
             }
@@ -78,7 +92,10 @@ class PaywallPreload(
                 config,
                 triggersToPreload.toSet(),
             )
-        preloadPaywalls(triggerPaywallIdentifiers, config.paywalls.filter { it.identifier in triggerPaywallIdentifiers })
+        preloadPaywalls(
+            triggerPaywallIdentifiers,
+            config.paywalls.filter { it.identifier in triggerPaywallIdentifiers },
+        )
     }
 
     // Preloads paywalls referenced by triggers.
@@ -88,47 +105,64 @@ class PaywallPreload(
     ) {
         val webviewExists = webViewExists()
 
+        val paywalls =
+            paywalls
+                .filter { it.identifier in paywallIdentifiers }
+                .distinctBy { it.identifier }
+                .filter {
+                    !ignoredArchiveUrls.any { url -> it.url.value.contains(url) }
+                }
+
+        val shouldArchive = factory.makeSuperwallOptions().paywalls.shouldArchive
+        val shouldPreload = factory.makeSuperwallOptions().paywalls.shouldPreload
+
+        val identifiersToDownload =
+            if (shouldArchive) paywalls.map { it.identifier } else emptyList()
+
         if (webviewExists) {
             scope.launchWithTracking {
-                // List to hold all the Deferred objects
-                val tasks = mutableListOf<Deferred<Any>>()
-                for (identifier in paywallIdentifiers) {
-                    val task =
-                        async {
-                            // Your asynchronous operation
-                            val request =
-                                factory.makePaywallRequest(
-                                    eventData = null,
-                                    responseIdentifiers =
-                                        ResponseIdentifiers(
-                                            paywallId = identifier,
-                                            experiment = null,
-                                        ),
-                                    overrides = null,
-                                    isDebuggerLaunched = false,
-                                    presentationSourceType = null,
-                                )
-
-                            try {
-                                paywallManager.getPaywallView(
-                                    request = request,
-                                    isForPresentation = true,
-                                    isPreloading = true,
-                                    delegate = null,
-                                )
-                            } catch (e: Exception) {
-                                // Handle exception
-                            }
-                        }
-                    tasks.add(task)
-                }
-                tasks.add(
-                    scope.async {
+                // If archiving is enable, cache the available paywalls first
+                if (shouldArchive) {
+                    async {
                         cachePaywallsFromManifest(paywalls.toSet())
-                    },
-                )
-                // Await all tasks
-                tasks.awaitAll()
+                    }.await()
+                }
+                // If preloading is enabled, preload the paywalls after archiving them
+                if (shouldPreload) {
+                    val tasks = mutableListOf<Deferred<Any>>()
+                    for (identifier in paywallIdentifiers.filter { it !in identifiersToDownload }) {
+                        val task =
+                            async {
+                                // Your asynchronous operation
+                                val request =
+                                    factory.makePaywallRequest(
+                                        eventData = null,
+                                        responseIdentifiers =
+                                            ResponseIdentifiers(
+                                                paywallId = identifier,
+                                                experiment = null,
+                                            ),
+                                        overrides = null,
+                                        isDebuggerLaunched = false,
+                                        presentationSourceType = null,
+                                    )
+
+                                try {
+                                    paywallManager.getPaywallView(
+                                        request = request,
+                                        isForPresentation = true,
+                                        isPreloading = true,
+                                        delegate = null,
+                                    )
+                                } catch (e: Exception) {
+                                    // Handle exception
+                                }
+                            }
+                        tasks.add(task)
+                    }
+                    // Await all tasks
+                    tasks.awaitAll()
+                }
             }
         }
     }
@@ -180,26 +214,14 @@ class PaywallPreload(
     }
 
     private suspend fun cachePaywallsFromManifest(paywalls: Set<Paywall>) {
-        val time = System.currentTimeMillis()
-        val banned =
-            listOf(
-                "webflow.com",
-                "webflow.io",
-                "builder-templates",
-                "apple.com",
-                "templates.superwall.com",
-                "interceptor.superwallapp.com",
-            )
         paywalls
             .distinctBy { it.identifier }
             .filter {
-                !banned.any { url -> it.url.value.contains(url) }
+                !ignoredArchiveUrls.any { url -> it.url.value.contains(url) }
             }.map {
                 scope.async {
                     webArchiveLibrary.downloadManifest(it.identifier, it.url.value, it.manifest)
                 }
             }.awaitAll()
-
-        Log.e("PaywallTimer", "Ended caching manifests - ${System.currentTimeMillis() - time}")
     }
 }

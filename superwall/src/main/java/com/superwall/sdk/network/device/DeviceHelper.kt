@@ -10,7 +10,6 @@ import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
-import android.util.Log
 import androidx.core.content.ContextCompat
 import com.superwall.sdk.BuildConfig
 import com.superwall.sdk.Superwall
@@ -570,14 +569,11 @@ class DeviceHelper(
             getTemplateDevice().mapValues {
                 it.value.convertToJsonElement()
             }
-        Log.e("configx", "Enrichment running")
         return network
             .getEnrichment(EnrichmentRequest(userAttributes, deviceAttributes), maxRetry, timeout)
             .then {
-                Log.e("configx", "Enrichment running - set value")
                 lastEnrichment.value = it
             }.then {
-                Log.e("configx", "Enrichment running - write")
                 storage.write(LatestEnrichment, it)
                 it.user.let {
                     Superwall.instance.setUserAttributes(it)

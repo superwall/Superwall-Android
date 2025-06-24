@@ -21,7 +21,6 @@ plugins {
     alias(libs.plugins.serialization) // Maven publishing
     id("maven-publish")
     id("signing")
-    id("org.jetbrains.dokka")
 }
 
 version = "2.2.2"
@@ -196,7 +195,6 @@ dependencies {
     // Billing
     implementation(libs.billing)
     implementation(libs.supercel)
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     // Browser
     implementation(libs.browser)

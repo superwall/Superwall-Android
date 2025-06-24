@@ -4,7 +4,6 @@ import android.content.Context
 import android.graphics.Color
 import android.net.Uri
 import android.os.Build
-import android.util.Log
 import android.view.GestureDetector
 import android.view.KeyEvent
 import android.view.MotionEvent
@@ -38,7 +37,6 @@ import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessageHandlerDel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.launch
 import java.util.Date
@@ -118,7 +116,6 @@ class SWWebView(
                 }
             })
         this.webViewClient = client
-        Log.e("PaywallTimer, webview", "Loading archive from client")
         lastLoadedUrl = url
         prepareWebview()
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
@@ -232,9 +229,7 @@ class SWWebView(
     private fun listenToWebviewClientEvents(client: DefaultWebviewClient) {
         ioScope.launch {
             client.webviewClientEvents
-                .onEach {
-                    Log.e("SWWebEvent", "$it")
-                }.takeWhile {
+                .takeWhile {
                     mainScope
                         .async {
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

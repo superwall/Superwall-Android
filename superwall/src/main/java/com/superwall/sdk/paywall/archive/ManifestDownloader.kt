@@ -26,6 +26,9 @@ class ManifestDownloader(
     private val coroutineScope: CoroutineScope,
     private val network: Network,
 ) {
+    val dispatcher =
+        Executors.newFixedThreadPool(64).asCoroutineDispatcher()
+
     /*
        Downloads the archive parts for a given manifest,
        starting with the main document, then it's relative dependencies
@@ -82,8 +85,7 @@ class ManifestDownloader(
             )
 
         val foundParts = (absoluteParts + relativeParts + manifest.resources + favicoUrl).toSet()
-        val dispatcher =
-            Executors.newFixedThreadPool(32).asCoroutineDispatcher().limitedParallelism(10)
+
         val xope = IOScope(dispatcher)
         // Combine all resources into a list of deferred jobs
         val jobs =
@@ -107,23 +109,27 @@ class ManifestDownloader(
                                     error = it,
                                     info = mapOf("url" to url.toString()),
                                 )
-                                throw it
-                            }.getSuccess()!!
+                            }
                     }
                 }
             }
         val relativeUrlsOnly = (relativeParts + favicoUrl).map { it.url }
         val parts =
-            jobs.chunked(5).flatMap { it.awaitAll() }.map {
-                if (relativeUrlsOnly.contains(it.url)) {
-                    if (it.url.contains("favicon.ico")) {
-                        "favicon.ico"
+            jobs
+                .chunked(16)
+                .flatMap { it.awaitAll() }
+                .filter { it.getSuccess() != null }
+                .map { it.getSuccess()!! }
+                .map {
+                    if (relativeUrlsOnly.contains(it.url)) {
+                        if (it.url.contains("favicon.ico")) {
+                            "favicon.ico"
+                        }
+                        it.copy(url = it.url.removePrefix("https://${host.host}"))
+                    } else {
+                        it
                     }
-                    it.copy(url = it.url.removePrefix("https://${host.host}"))
-                } else {
-                    it
                 }
-            }
 
         return parts + documentPart
     }

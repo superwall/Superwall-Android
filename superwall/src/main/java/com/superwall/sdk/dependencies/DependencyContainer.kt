@@ -57,7 +57,6 @@ import com.superwall.sdk.paywall.archive.Base64ArchiveEncoder
 import com.superwall.sdk.paywall.archive.CachedArchiveLibrary
 import com.superwall.sdk.paywall.archive.ManifestDownloader
 import com.superwall.sdk.paywall.archive.StreamArchiveCompressor
-import com.superwall.sdk.paywall.archive.StringArchiveCompressor
 import com.superwall.sdk.paywall.archive.WebArchiveLibrary
 import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.paywall.manager.PaywallViewCache
@@ -318,7 +317,6 @@ class DependencyContainer(
             CachedArchiveLibrary(
                 storage,
                 ManifestDownloader(IOScope(), network),
-                StringArchiveCompressor(Base64ArchiveEncoder()),
                 StreamArchiveCompressor(encoder = Base64ArchiveEncoder()),
             )
 

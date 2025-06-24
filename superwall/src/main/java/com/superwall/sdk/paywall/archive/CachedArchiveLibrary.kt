@@ -1,8 +1,6 @@
 package com.superwall.sdk.paywall.archive
 
-import android.util.Log
 import com.superwall.sdk.models.paywall.WebArchiveManifest
-import com.superwall.sdk.paywall.archive.models.ArchivePart
 import com.superwall.sdk.paywall.archive.models.DecompressedWebArchive
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.StoredWebArchive
@@ -16,7 +14,6 @@ import kotlinx.coroutines.flow.update
 class CachedArchiveLibrary(
     private val storage: Storage,
     private val manifestDownloader: ManifestDownloader,
-    private val archiveCompressor: StringArchiveCompressor,
     private val streamArchiveCompressor: StreamArchiveCompressor,
 ) : WebArchiveLibrary {
     // Queue of paywallIds that are currently being downloaded
@@ -38,7 +35,6 @@ class CachedArchiveLibrary(
             it + paywallId
         }
 
-        Log.e("DL", "Manifest starting for $paywallId")
         val archive =
             manifestDownloader.downloadArchiveForManifest(
                 paywallId,
@@ -48,7 +44,6 @@ class CachedArchiveLibrary(
                     emptyList(),
                 ),
             )
-        Log.e("DL", "Manifest done for $paywallId")
         val storable = StoredWebArchive(paywallId)
 
         storage
@@ -71,19 +66,13 @@ class CachedArchiveLibrary(
     // Load the archive from cache, if it does not exist, throw an exception
     override suspend fun loadArchive(paywallId: String): Result<DecompressedWebArchive> {
         // If doesn't exist, await until it's downloaded
-        Log.e("PaywallTimerX", "Checking for paywall")
         if (!checkIfArchived(paywallId)) {
-            Log.e("PaywallTimerX", "Checking if arhchived")
             awaitUntilQueueResolved(paywallId)
-            Log.e("PaywallTimerX", "Await until queue resolves itself")
         }
         val storeable = StoredWebArchive(paywallId)
-        Log.e("PaywallTimerX", "Reading file")
-        val fromCache = storage.readFile(storeable)
-        Log.e("PaywallTimerX", "Decompressing file")
+        val fromCache = storage.readFileStream(storeable)
         return if (fromCache != null) {
-            val decompressed = archiveCompressor.decompressArchive(fromCache)
-            Log.e("PaywallTimerX", "Decompressed")
+            val decompressed = streamArchiveCompressor.decompressArchiveStream(fromCache)
             Result.success(decompressed)
         } else {
             Result.failure(NoSuchElementException("Paywall $paywallId does not exist in cache"))
@@ -95,27 +84,5 @@ class CachedArchiveLibrary(
         archiveQueue.first {
             !it.contains(paywallId)
         }
-    }
-
-    fun getArchiveInputStream(
-        url: String,
-        parts: List<ArchivePart>,
-    ): java.io.InputStream {
-        val pipeIn = java.io.PipedInputStream()
-        val pipeOut = java.io.PipedOutputStream(pipeIn)
-        Thread {
-            try {
-                streamArchiveCompressor.compressToStream(url, parts, pipeOut)
-            } catch (e: Throwable) {
-                // If an error occurs, close the pipe
-                pipeIn.close()
-            } finally {
-                pipeOut.close()
-            }
-        }.apply {
-            isDaemon = true
-            start()
-        }
-        return pipeIn
     }
 }

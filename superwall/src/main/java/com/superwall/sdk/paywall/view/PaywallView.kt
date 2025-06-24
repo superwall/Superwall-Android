@@ -6,7 +6,6 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
-import android.util.Log
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
@@ -767,21 +766,17 @@ class PaywallView(
                 } else {
                     webView.settings.cacheMode = WebSettings.LOAD_DEFAULT
                 }
-                Log.e("PaywallTimer", "Time to load")
 
                 when {
                     factory.webArchive().checkIfArchived(paywall.identifier) -> {
-                        Log.e("PaywallTimer", "Checking if archived - true")
                         loadFromArchive(factory.webArchive().loadArchive(paywall.identifier))
                     }
 
                     useMultipleUrls -> {
-                        Log.e("PaywallTimer", "Checking if archived - false, fallback loading")
                         webView.loadPaywallWithFallbackUrl(paywall)
                     }
 
                     else -> {
-                        Log.e("PaywallTimer", "Checking if archived - false, default loading")
                         webView.loadUrl(url.value)
                     }
                 }
@@ -793,7 +788,6 @@ class PaywallView(
     fun loadFromArchive(archive: Result<DecompressedWebArchive>) {
         archive.fold(onSuccess = {
             mainScope.launch {
-                Log.e("PaywallTimerX", "Starting load in webview")
                 webView.loadFromArchive(it)
             }
         }, onFailure = {

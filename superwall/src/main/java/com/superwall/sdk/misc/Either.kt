@@ -1,6 +1,5 @@
 package com.superwall.sdk.misc
 
-import android.util.Log
 import kotlin.time.Duration
 
 sealed class Either<out T, E : Throwable> {
@@ -83,12 +82,10 @@ suspend fun <T, E : Throwable> eitherWithTimeout(
 ): Either<T, E> {
     return try {
         kotlinx.coroutines.withTimeout(duration) {
-            Log.e("configx", "Enrichment running with timeout $duration")
             return@withTimeout run()
         }
     } catch (e: Throwable) {
         e.printStackTrace()
-        Log.e("configx", "Failed to fetch", e)
         Either.Failure(error(e))
     }
 }

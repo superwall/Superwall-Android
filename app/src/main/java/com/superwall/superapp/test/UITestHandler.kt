@@ -158,7 +158,7 @@ object UITestHandler {
                 Log.e("Registering event", "present_data")
                 Superwall.instance.identify(userId = "test0")
                 Superwall.instance.setUserAttributes(attributes = mapOf("first_name" to "Jack"))
-                Superwall.instance.register(placement = "test_duplicated")
+                Superwall.instance.register(placement = "present_data")
                 Log.e("Registering event", "done")
             },
         )

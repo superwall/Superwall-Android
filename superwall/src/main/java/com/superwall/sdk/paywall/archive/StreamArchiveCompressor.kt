@@ -1,6 +1,5 @@
 package com.superwall.sdk.paywall.archive
 
-import android.util.Log
 import com.superwall.sdk.paywall.archive.models.ArchiveKeys.CONTENT_ID
 import com.superwall.sdk.paywall.archive.models.ArchiveKeys.CONTENT_LOCATION
 import com.superwall.sdk.paywall.archive.models.ArchiveKeys.CONTENT_TRANSFER_ENCODING
@@ -57,14 +56,6 @@ class StreamArchiveCompressor(
         parts: List<ArchivePart>,
         out: OutputStream,
     ) {
-        val totalSize =
-            parts.foldRight(0.0) { i, e ->
-                i.getSizeInMbDouble() + e
-            }
-        Log.e("PartsSize", "Measuring parts - ${parts.size} - $totalSize mb")
-        parts.forEachIndexed { i, it ->
-            Log.e("PartsSize", "Measuring part $i - ${it.url} - ${it.getSizeInMB()} mb")
-        }
         val boundary = buildBoundary(parts)
         val boundaryBytes = (BOUNDARY_PREFIX + boundary).toByteArray(UTF8)
 
@@ -149,7 +140,7 @@ class StreamArchiveCompressor(
 
             val url = partHeaders["Content-Location"] ?: continue
             val mimeType = partHeaders["Content-Type"] ?: "application/octet-stream"
-            val cid = partHeaders["Content-ID"] ?: ""
+            val cid = partHeaders["Content-Id"] ?: ""
             val encoding = partHeaders["Content-Transfer-Encoding"]?.lowercase() ?: ""
 
             // --- Collect content until next boundary ---
@@ -165,9 +156,10 @@ class StreamArchiveCompressor(
 
             val raw = contentBuffer.toString()
             val content: ByteArray =
-                when {
-                    encoding == "base64" -> encoder.decodeDefault(raw.trim())
-                    else -> raw.toByteArray(Charsets.UTF_8) // might be binary-ish but works for text/html
+                try {
+                    encoder.decodeDefault(raw.trim())
+                } catch (e: Throwable) {
+                    raw.toByteArray(Charsets.UTF_8) // might be binary-ish but works for text/html
                 }
 
             val part =
