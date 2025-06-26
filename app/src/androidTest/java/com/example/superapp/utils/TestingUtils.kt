@@ -66,7 +66,7 @@ class ScreenshotTestFlow(
                 et.delayFor(300.milliseconds)
                 Log.e("Testing Flow", "Taking screenshot of $step")
                 assertSnapshot(
-                    "SW_$step",
+                    step,
                 )
                 Log.e("Testing Flow", "Taken screenshot of $step")
             },
