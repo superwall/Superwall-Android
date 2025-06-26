@@ -32,7 +32,7 @@ threetenbp_version = "1.6.8"
 uiautomator_version = "2.3.0"
 workRuntimeKtx_version = "2.9.0"
 serialization_version = "1.6.0"
-dropshot_version = "0.5.0"
+dropshot_version = "0.4.2"
 ksp = "2.0.21-1.0.27"
 install_referrer = "2.2"
 [libraries]
