@@ -201,6 +201,8 @@ class AutomaticPurchaseController(
                 .apply {
                     if (shouldPassIdToPlayStore && id != null) {
                         setObfuscatedAccountId(id)
+                    } else {
+                        setObfuscatedAccountId(Superwall.instance.externalAccountId)
                     }
                 }.setProductDetailsParamsList(listOf(productDetailsParams))
                 .build()

@@ -36,6 +36,7 @@ class IdentityManager(
     private val storage: LocalStorage,
     private val configManager: ConfigManager,
     private val ioScope: IOScope,
+    private val stringToSha: (String) -> String = { it },
 ) {
     private var _appUserId: String? = storage.read(AppUserId)
 
@@ -47,6 +48,16 @@ class IdentityManager(
 
     private var _aliasId: String =
         storage.read(AliasId) ?: IdentityLogic.generateAlias()
+
+    val externalAccountId: String
+        get() =
+            runBlocking(queue) {
+                if (configManager.options.passIdentifiersToPlayStore) {
+                    stringToSha(userId)
+                } else {
+                    userId
+                }
+            }
 
     val aliasId: String
         get() =
