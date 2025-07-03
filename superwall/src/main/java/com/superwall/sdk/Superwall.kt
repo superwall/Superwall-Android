@@ -14,6 +14,7 @@ import com.superwall.sdk.billing.toInternalResult
 import com.superwall.sdk.config.models.ConfigState
 import com.superwall.sdk.config.models.ConfigurationStatus
 import com.superwall.sdk.config.options.SuperwallOptions
+import com.superwall.sdk.deeplinks.DeepLinkRouter
 import com.superwall.sdk.delegate.InternalPurchaseResult
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
@@ -453,6 +454,20 @@ class Superwall(
                 )
             })
         }
+
+        /**
+         * Handles a deep link sent to your app to open a preview of your paywall.
+         *
+         * You can preview your paywall on-device before going live by utilizing paywall previews. This
+         * uses a deep link to render a preview of a paywall you've configured on the Superwall dashboard
+         * on your device. See [In-App Previews](https://docs.superwall.com/docs/in-app-paywall-previews)
+         * for more. Compared to [Superwall.instance.handleDeepLink], this method is safe to call pre-configure.
+         *
+         * @param uri The URL of the deep link.
+         * @return A `Boolean` that is `true` if the deep link was handled.
+         */
+
+        fun handleDeepLink(uri: Uri): Result<Boolean> = DeepLinkRouter.handleDeepLink(uri)
     }
 
     private lateinit var _dependencyContainer: DependencyContainer
@@ -635,6 +650,7 @@ class Superwall(
      *
      * @param uri The URL of the deep link.
      * @return A `Boolean` that is `true` if the deep link was handled.
+     * @deprecated Use the static method [Superwall.handleDeepLink] instead.
      */
     fun handleDeepLink(uri: Uri): Result<Boolean> =
         withErrorTracking<Boolean> {
