@@ -467,7 +467,6 @@ class Superwall(
          * @return A `Boolean` that is `true` if the deep link was handled.
          */
 
-        @JvmStatic
         fun handleDeepLink(uri: Uri): Result<Boolean> = DeepLinkRouter.handleDeepLink(uri)
     }
 

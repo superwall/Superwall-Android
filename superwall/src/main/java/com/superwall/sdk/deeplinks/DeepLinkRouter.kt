@@ -2,7 +2,6 @@ package com.superwall.sdk.deeplinks
 
 import android.net.Uri
 import com.superwall.sdk.Superwall
-import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.config.models.ConfigurationStatus
@@ -13,19 +12,25 @@ import com.superwall.sdk.utilities.withErrorTracking
 import com.superwall.sdk.web.WebPaywallRedeemer
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import java.util.concurrent.ConcurrentLinkedDeque
 
 class DeepLinkRouter(
     val redeemer: WebPaywallRedeemer,
     val ioScope: IOScope = IOScope(),
     val debugManager: DebugManager,
-    val track: (TrackableSuperwallEvent) -> Unit,
+    val track: suspend (TrackableSuperwallEvent) -> Unit,
 ) {
     companion object {
-        private var unhandledDeepLinks = mutableListOf<Uri>()
+        private var unhandledDeepLinks = ConcurrentLinkedDeque<Uri>()
 
         fun handleDeepLink(uri: Uri): Result<Boolean> =
             if (uri.redeemableCode.isSuccess || DebugManager.outcomeForDeepLink(uri).isSuccess) {
-                unhandledDeepLinks.add(uri)
+                if (Superwall.initialized && Superwall.instance.configurationState is ConfigurationStatus.Configured) {
+                    Superwall.instance.dependencyContainer.deepLinkRouter
+                        .handleDeepLink(uri)
+                } else {
+                    unhandledDeepLinks.add(uri)
+                }
                 Result.success(true)
             } else {
                 Result.failure(IllegalArgumentException("Not a superwall link"))
@@ -36,8 +41,10 @@ class DeepLinkRouter(
         ioScope.launch {
             Superwall.hasInitialized.first { it }
             Superwall.instance.configurationStateListener.first { it is ConfigurationStatus.Configured }
-            unhandledDeepLinks.forEach {
-                this@DeepLinkRouter.handleDeepLink(it)
+            while (unhandledDeepLinks.isNotEmpty()) {
+                val next = unhandledDeepLinks.pop()
+                this@DeepLinkRouter.handleDeepLink(next)
+                unhandledDeepLinks.remove(next)
             }
         }
     }

@@ -25,6 +25,7 @@ import com.superwall.sdk.config.PaywallPreload
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.debug.DebugManager
 import com.superwall.sdk.debug.DebugView
+import com.superwall.sdk.deeplinks.DeepLinkRouter
 import com.superwall.sdk.delegate.SuperwallDelegateAdapter
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.identity.IdentityInfo
@@ -182,6 +183,7 @@ class DependencyContainer(
     private val paywallPreload: PaywallPreload
 
     internal val errorTracker: ErrorTracker
+    internal val deepLinkRouter: DeepLinkRouter
 
     init {
         // For tracking when the app enters the background.
@@ -448,6 +450,16 @@ class DependencyContainer(
                 },
                 entitlementsById = {
                     entitlements.byProductId(it)
+                },
+            )
+
+        deepLinkRouter =
+            DeepLinkRouter(
+                reedemer,
+                ioScope,
+                debugManager,
+                {
+                    Superwall.instance.track(it)
                 },
             )
 
