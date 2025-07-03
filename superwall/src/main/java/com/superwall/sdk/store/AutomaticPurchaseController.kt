@@ -166,8 +166,8 @@ class AutomaticPurchaseController(
                 .also {
                     // Do not set empty offer token for one time products
                     // as Google play is not supporting it since June 12th 2024
-                    if (!isOneTime) {
-                        it.setOfferToken(offerToken ?: "")
+                    if (!isOneTime && offerToken!=null) {
+                        it.setOfferToken(offerToken)
                     }
                 }.build()
 

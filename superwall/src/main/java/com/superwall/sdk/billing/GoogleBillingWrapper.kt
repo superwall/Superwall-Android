@@ -419,10 +419,10 @@ class GoogleBillingWrapper(
 
                 BillingClient.BillingResponseCode.FEATURE_NOT_SUPPORTED,
                 BillingClient.BillingResponseCode.BILLING_UNAVAILABLE,
-                -> {
+                    -> {
                     val originalErrorMessage =
                         "DebugMessage: ${billingResult.debugMessage} " +
-                            "ErrorCode: ${billingResult.responseCode}."
+                                "ErrorCode: ${billingResult.responseCode}."
 
                     /**
                      * We check for cases when Google sends Google Play In-app Billing API version is less than 3
@@ -439,14 +439,14 @@ class GoogleBillingWrapper(
                         if (billingResult.debugMessage == IN_APP_BILLING_LESS_THAN_3_ERROR_MESSAGE) {
                             val message =
                                 "Billing is not available in this device. Make sure there's an " +
-                                    "account configured in Play Store. Reopen the Play Store or clean its caches if this " +
-                                    "keeps happening. " +
-                                    "Original error message: $originalErrorMessage"
+                                        "account configured in Play Store. Reopen the Play Store or clean its caches if this " +
+                                        "keeps happening. " +
+                                        "Original error message: $originalErrorMessage"
                             BillingError.BillingNotAvailable(message)
                         } else {
                             val message =
                                 "Billing is not available in this device. " +
-                                    "Original error message: $originalErrorMessage"
+                                        "Original error message: $originalErrorMessage"
                             BillingError.BillingNotAvailable(message)
                         }
 
@@ -466,7 +466,7 @@ class GoogleBillingWrapper(
                 BillingClient.BillingResponseCode.USER_CANCELED,
                 BillingClient.BillingResponseCode.SERVICE_DISCONNECTED,
                 BillingClient.BillingResponseCode.NETWORK_ERROR,
-                -> {
+                    -> {
                     Logger.debug(
                         LogLevel.error,
                         LogScope.productsManager,
@@ -478,7 +478,7 @@ class GoogleBillingWrapper(
                 BillingClient.BillingResponseCode.ITEM_UNAVAILABLE,
                 BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED,
                 BillingClient.BillingResponseCode.ITEM_NOT_OWNED,
-                -> {
+                    -> {
                     Logger.debug(
                         LogLevel.error,
                         LogScope.productsManager,
@@ -610,6 +610,27 @@ class GoogleBillingWrapper(
             )
         }
     }
+
+    internal suspend fun latestPurchase() = queryAllPurchases().sortedByDescending {
+        it.purchaseTime
+    }.map {
+        val product = awaitGetProducts(it.products.toSet()).first()
+        val millisSincePurchase = (System.currentTimeMillis() - it.purchaseTime)
+        val subPeriod = product.subscriptionPeriod?.toMillis() ?: 0
+        val isGracePeriod = it.purchaseState == Purchase.PurchaseState.PENDING &&
+                it.isAutoRenewing
+        val isExpired = it.purchaseState == Purchase.PurchaseState.PURCHASED
+                && !it.isAutoRenewing &&  millisSincePurchase > subPeriod
+        val isSubscribed = it.purchaseState == Purchase.PurchaseState.PURCHASED
+                && millisSincePurchase < subPeriod
+
+        mapOf(
+            "latestSubscriptionPeriodType" to product.subscriptionPeriod?.unit,
+            "latestSubscriptionState" to it.purchaseState,
+            "latestSubscriptionWillAutoRenew" to it.isAutoRenewing
+        )
+    }
+
 }
 
 fun Pair<BillingResult, List<Purchase>?>.toInternalResult(): List<InternalPurchaseResult> {

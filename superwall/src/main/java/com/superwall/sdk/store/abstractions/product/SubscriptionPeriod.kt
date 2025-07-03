@@ -24,6 +24,16 @@ data class SubscriptionPeriod(
                 Unit.year -> 365.0
             }
 
+    fun toMillis(): Long {
+        val days = when (unit) {
+            SubscriptionPeriod.Unit.day -> value
+            Unit.week -> value * 7
+            SubscriptionPeriod.Unit.month -> value * 30  // Approximation
+            SubscriptionPeriod.Unit.year -> value * 365 // Approximation
+        }
+        return days * 24L * 60 * 60 * 1000
+    }
+
     fun normalized(): SubscriptionPeriod =
         when (unit) {
             Unit.day ->
