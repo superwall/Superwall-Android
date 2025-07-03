@@ -301,6 +301,14 @@ class Superwall(
         get() = dependencyContainer.identityManager.userId
 
     /**
+     * The externalAccountId for the current user.
+     * Provided to Google Play billing upon purchase as a SHA256 of the userId.
+     * If `passIdentifiersToPlayStore` option is provided, this will be the userId.
+     */
+    val externalAccountId: String
+        get() = dependencyContainer.identityManager.externalAccountId
+
+    /**
      * Indicates whether the user is logged in to Superwall.
      *
      * If you have previously called `identify(userId:options:)`, this will

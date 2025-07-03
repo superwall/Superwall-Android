@@ -2,6 +2,13 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+
+## 2.2.4
+
+## Enhancements
+
+- Adds `externalAcountId`, provided to Google Play billing upon purchase as a SHA256 of the userId or the userId itself if `passIdentifiersToPlayStore` option is provided.
+
 ## 2.2.3
 
 ## Fixes
