@@ -199,11 +199,7 @@ class AutomaticPurchaseController(
             BillingFlowParams
                 .newBuilder()
                 .apply {
-                    if (shouldPassIdToPlayStore && id != null) {
-                        setObfuscatedAccountId(id)
-                    } else {
-                        setObfuscatedAccountId(Superwall.instance.externalAccountId)
-                    }
+                    setObfuscatedAccountId(Superwall.instance.externalAccountId)
                 }.setProductDetailsParamsList(listOf(productDetailsParams))
                 .build()
 

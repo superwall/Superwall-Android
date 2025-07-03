@@ -53,9 +53,9 @@ class IdentityManager(
         get() =
             runBlocking(queue) {
                 if (configManager.options.passIdentifiersToPlayStore) {
-                    stringToSha(userId)
-                } else {
                     userId
+                } else {
+                    stringToSha(userId)
                 }
             }
 
