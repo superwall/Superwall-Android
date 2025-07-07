@@ -80,21 +80,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         ) {
             // We force this in main scope in case the user started it from a non-main thread
             CoroutineScope(Dispatchers.Main).launch {
-                if (view.webView.parent == null) {
-                    view.webView.enableOffscreenRender()
-                    view.addView(view.webView)
-                }
-                val viewStorageViewModel = Superwall.instance.dependencyContainer.makeViewStore()
-                // If we started it directly and the view does not have shimmer and loading attached
-                // We set them up for this PaywallView
-                if (view.children.none { it is LoadingView || it is ShimmerView }) {
-                    val loading =
-                        (viewStorageViewModel.retrieveView(LoadingView.TAG) as LoadingView)
-
-                    val shimmer =
-                        (viewStorageViewModel.retrieveView(ShimmerView.TAG) as ShimmerView)
-                    view.setupWith(shimmer, loading)
-                }
+                view.prepareViewForDisplay(key)
                 val intent =
                     Intent(context, SuperwallPaywallActivity::class.java).apply {
                         putExtra(VIEW_KEY, key)
@@ -105,9 +91,27 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                         )
                         flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
                     }
-                viewStorageViewModel.storeView(key, view)
                 context.startActivity(intent)
             }
+        }
+
+        private fun PaywallView.prepareViewForDisplay(key: String) {
+            if (webView.parent == null) {
+                webView.enableOffscreenRender()
+                addView(webView)
+            }
+            val viewStorageViewModel = Superwall.instance.dependencyContainer.makeViewStore()
+            // If we started it directly and the view does not have shimmer and loading attached
+            // We set them up for this PaywallView
+            if (children.none { it is LoadingView || it is ShimmerView }) {
+                val loading =
+                    (viewStorageViewModel.retrieveView(LoadingView.TAG) as LoadingView)
+
+                val shimmer =
+                    (viewStorageViewModel.retrieveView(ShimmerView.TAG) as ShimmerView)
+                setupWith(shimmer, loading)
+            }
+            viewStorageViewModel.storeView(key, this)
         }
     }
 
@@ -151,9 +155,14 @@ class SuperwallPaywallActivity : AppCompatActivity() {
 
         requestWindowFeature(Window.FEATURE_NO_TITLE)
         super.onCreate(savedInstanceState)
-
-        val key = intent.getStringExtra(VIEW_KEY)
+        // Check savedInstanceState first (for activity recreation), then fallback to intent
+        val key = savedInstanceState?.getString(VIEW_KEY) ?: intent.getStringExtra(VIEW_KEY)
         if (key == null) {
+            Logger.debug(
+                LogLevel.error,
+                LogScope.paywallView,
+                "No view key found in savedInstanceState or intent, finishing activity",
+            )
             finish() // Close the activity if there's no key
             return
         }
@@ -172,9 +181,59 @@ class SuperwallPaywallActivity : AppCompatActivity() {
 
         val view =
             viewStorageViewModel.retrieveView(key) as? PaywallView ?: run {
+                Logger.debug(
+                    LogLevel.error,
+                    LogScope.paywallView,
+                    "PaywallView not found for key: $key. Activity may have been recreated after cleanup.",
+                )
                 finish() // Close the activity if the view associated with the key is not found
                 return
             }
+        val isRestoredButCleared = savedInstanceState != null && paywallView() == null
+        if (isRestoredButCleared) {
+            Logger.debug(
+                LogLevel.debug,
+                LogScope.paywallView,
+                "Activity restored but PaywallView cleared - recreating with available view",
+            )
+            // The view was cleared during cleanup but activity is being recreated
+            // Get the current paywall view from Superwall instance and recreate the activity
+            val currentPaywallView = Superwall.instance.paywallView
+            if (currentPaywallView != null) {
+                // Check if the view has been cleaned up (no child views)
+                if (currentPaywallView.childCount == 0) {
+                    Logger.debug(
+                        LogLevel.debug,
+                        LogScope.paywallView,
+                        "PaywallView was cleaned up, restoring child views",
+                    )
+                    // Restore the WebView and other child views
+                    restorePaywallViewAfterCleanup(currentPaywallView, key)
+                }
+
+                // Store the view again with the same key for this activity
+                viewStorageViewModel.storeView(key, currentPaywallView)
+                // Continue with normal activity setup using the restored view
+                setupActivityWithView(currentPaywallView, presentationStyle)
+                return
+            } else {
+                Logger.debug(
+                    LogLevel.error,
+                    LogScope.paywallView,
+                    "No PaywallView available in Superwall instance for recreation",
+                )
+                finish()
+                return
+            }
+        }
+
+        setupActivityWithView(view, presentationStyle)
+    }
+
+    private fun setupActivityWithView(
+        view: PaywallView,
+        presentationStyle: PaywallPresentationStyle?,
+    ) {
         window.decorView.setBackgroundColor(view.backgroundColor)
 
         val isBottomSheetStyle =
@@ -437,6 +496,14 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         }
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        // Save the view key so we can restore it on recreation
+        intent.getStringExtra(VIEW_KEY)?.let { key ->
+            outState.putString(VIEW_KEY, key)
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
 
@@ -470,6 +537,26 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         (paywallView() as? ActivityEncapsulatable)?.encapsulatingActivity = null
         // Clear the reference to the contentView
         contentView = null
+    }
+
+    private fun restorePaywallViewAfterCleanup(
+        paywallView: PaywallView,
+        key: String,
+    ) {
+        withErrorTracking {
+            paywallView.prepareViewForDisplay(key)
+            Logger.debug(
+                LogLevel.debug,
+                LogScope.paywallView,
+                "Successfully restored PaywallView child views after cleanup",
+            )
+        }.onError {
+            Logger.debug(
+                LogLevel.error,
+                LogScope.paywallView,
+                "Failed to restore PaywallView after cleanup: ${it.message}",
+            )
+        }
     }
 
     //region Notifications
