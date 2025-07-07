@@ -1,5 +1,8 @@
 package com.superwall.sdk.models.product
 
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.models.entitlements.Entitlement
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
@@ -78,7 +81,9 @@ object PlayStoreProductSerializer : KSerializer<PlayStoreProduct> {
         encoder: Encoder,
         value: PlayStoreProduct,
     ) {
-        val jsonEncoder = encoder as? JsonEncoder ?: throw SerializationException("This class can be saved only by Json")
+        val jsonEncoder =
+            encoder as? JsonEncoder
+                ?: throw SerializationException("This class can be saved only by Json")
         val jsonObj =
             buildJsonObject {
                 put("store", JsonPrimitive(value.store.name))
@@ -101,22 +106,34 @@ object PlayStoreProductSerializer : KSerializer<PlayStoreProduct> {
     }
 
     override fun deserialize(decoder: Decoder): PlayStoreProduct {
-        val jsonDecoder = decoder as? JsonDecoder ?: throw SerializationException("This class can be loaded only by Json")
+        val jsonDecoder =
+            decoder as? JsonDecoder
+                ?: throw SerializationException("This class can be loaded only by Json")
         val jsonObject = jsonDecoder.decodeJsonElement() as JsonObject
 
         val store =
             try {
-                Store.fromValue(jsonObject["store"]?.jsonPrimitive?.content ?: throw SerializationException("Store is missing"))
+                Store.fromValue(
+                    jsonObject["store"]?.jsonPrimitive?.content
+                        ?: throw SerializationException("Store is missing"),
+                )
             } catch (throwable: Throwable) {
                 // / Default to play store
                 Store.PLAY_STORE
             }
         val productIdentifier =
-            jsonObject["product_identifier"]?.jsonPrimitive?.content ?: throw SerializationException("product_identifier is missing")
+            jsonObject["product_identifier"]?.jsonPrimitive?.content
+                ?: jsonObject["product"]
+                    ?.jsonObject
+                    ?.get("product_identifier")
+                    ?.jsonPrimitive
+                    ?.content
+                ?: throw SerializationException("product_identifier is missing")
         val basePlanIdentifier =
-            jsonObject["base_plan_identifier"]?.jsonPrimitive?.content ?: throw SerializationException("base_plan_identifier is missing")
-        val offerJsonObject = jsonObject["offer"] as? JsonObject ?: throw SerializationException("Offer is missing")
-        val type = offerJsonObject["type"]?.jsonPrimitive?.content ?: throw SerializationException("Offer type is missing")
+            jsonObject["base_plan_identifier"]?.jsonPrimitive?.content ?: ""
+        val offerJsonObject =
+            jsonObject["offer"] as? JsonObject
+        val type = offerJsonObject?.get("type")?.jsonPrimitive?.content
 
         val offer =
             when (type) {
@@ -127,7 +144,15 @@ object PlayStoreProductSerializer : KSerializer<PlayStoreProduct> {
                             ?: throw SerializationException("offer_identifier is missing")
                     Offer.Specified(offerIdentifier = offerIdentifier)
                 }
-                else -> throw SerializationException("Unknown offer type")
+
+                else -> {
+                    Logger.debug(
+                        LogLevel.error,
+                        LogScope.configManager,
+                        "Unknown offer type for $productIdentifier, fallback to none",
+                    )
+                    Offer.Specified(offerIdentifier = "sw-none")
+                }
             }
 
         return PlayStoreProduct(store, productIdentifier, basePlanIdentifier, offer)
@@ -210,7 +235,8 @@ object ProductItemSerializer : KSerializer<ProductItem> {
 }
 
 object ProductItemsDeserializer : KSerializer<List<ProductItem>> {
-    override val descriptor: SerialDescriptor = listSerialDescriptor(ProductItem.serializer().descriptor)
+    override val descriptor: SerialDescriptor =
+        listSerialDescriptor(ProductItem.serializer().descriptor)
 
     override fun serialize(
         encoder: Encoder,
