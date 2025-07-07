@@ -51,12 +51,10 @@ class IdentityManager(
 
     val externalAccountId: String
         get() =
-            runBlocking(queue) {
-                if (configManager.options.passIdentifiersToPlayStore) {
-                    userId
-                } else {
-                    stringToSha(userId)
-                }
+            if (configManager.options.passIdentifiersToPlayStore) {
+                userId
+            } else {
+                stringToSha(userId)
             }
 
     val aliasId: String
