@@ -4,7 +4,6 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
-import android.net.Uri
 import android.os.Build
 import android.view.MotionEvent
 import android.view.View
@@ -13,6 +12,7 @@ import android.webkit.WebSettings
 import android.webkit.WebView.RENDERER_PRIORITY_IMPORTANT
 import android.widget.FrameLayout
 import androidx.browser.customtabs.CustomTabsIntent
+import androidx.core.net.toUri
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
@@ -177,10 +177,6 @@ class PaywallView(
     // / `true` if there's a survey to complete and the paywall is displayed in a modal style.
     private var didDisableSwipeForSurvey = false
 
-    // / Whether the survey was shown, not shown, or in a holdout. Defaults to not shown.
-    // TODO:
-//    private var surveyPresentationResult: SurveyPresentationResult = .noShow
-
     // / If the user match a rule with an occurrence, this needs to be saved on
     // / paywall presentation.
     private var unsavedOccurrence: TriggerRuleOccurrence? = null
@@ -300,14 +296,6 @@ class PaywallView(
         if (!presentationWillPrepare) {
             return
         }
-        // TODO: Add surveys
-//        if willShowSurvey {
-//            didDisableSwipeForSurvey = true
-//            presentationController?.delegate = self
-//            isModalInPresentation = true
-//        }
-//        addShimmerView(onPresent: true)
-
         callbackInvoked = false
         paywall.closeReason = PaywallCloseReason.None
 
@@ -379,13 +367,6 @@ class PaywallView(
         }
 
         GameControllerManager.shared.clearDelegate(this)
-
-//        if didDisableSwipeForSurvey {
-//            presentationController?.delegate = nil
-//            isModalInPresentation = false
-//            didDisableSwipeForSurvey = false
-//        }
-
         resetPresentationPreparations()
 
         paywallResult = null
@@ -796,7 +777,7 @@ class PaywallView(
             val parsedUrl = URI(url)
             val customTabsIntent = CustomTabsIntent.Builder().build()
             customTabsIntent.intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            customTabsIntent.launchUrl(context, Uri.parse(parsedUrl.toString()))
+            customTabsIntent.launchUrl(context, parsedUrl.toString().toUri())
             isBrowserViewPresented = true
         } catch (e: MalformedURLException) {
             Logger.debug(
@@ -816,7 +797,7 @@ class PaywallView(
     override fun presentBrowserExternal(url: String) {
         try {
             val parsedUrl = URI(url)
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(parsedUrl.toString()))
+            val intent = Intent(Intent.ACTION_VIEW, parsedUrl.toString().toUri())
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             context.startActivity(intent)
         } catch (e: MalformedURLException) {
@@ -835,8 +816,7 @@ class PaywallView(
     }
 
     override fun openDeepLink(url: String) {
-        // TODO add track paywall dismiss
-        var uri = Uri.parse(url)
+        var uri = url.toUri()
         eventDidOccur(PaywallWebEvent.OpenedDeepLink(uri))
         val context = encapsulatingActivity?.get()
         val deepLinkIntent = Intent(Intent.ACTION_VIEW, uri)
@@ -868,8 +848,6 @@ class PaywallView(
         // Check if the view already has a parent
         val parentViewGroup = this@PaywallView.parent as? ViewGroup
         parentViewGroup?.removeView(this@PaywallView)
-
-        // This would normally be in iOS view will appear, but there's not a similar paradigm
         cache?.activePaywallVcKey = cacheKey
     }
 
