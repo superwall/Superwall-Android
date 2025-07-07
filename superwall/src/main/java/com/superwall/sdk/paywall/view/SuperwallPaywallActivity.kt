@@ -545,8 +545,6 @@ class SuperwallPaywallActivity : AppCompatActivity() {
     ) {
         withErrorTracking {
             paywallView.prepareViewForDisplay(key)
-            // Re-add the WebView if it's not already present
-
             Logger.debug(
                 LogLevel.debug,
                 LogScope.paywallView,

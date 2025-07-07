@@ -9,6 +9,9 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 - Adds `externalAcountId`, provided to Google Play billing upon purchase as a SHA256 of the userId or the userId itself if `passIdentifiersToPlayStore` option is provided.
 
+## Fixes
+- Fixes issues with paywall destruction when activity performs a hot reload (i.e. during update)
+
 ## 2.2.3
 
 ## Fixes
