@@ -101,6 +101,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.ClassDiscriminatorMode
 import kotlinx.serialization.json.Json
 import java.lang.ref.WeakReference
+import java.security.MessageDigest
 import java.util.Date
 
 class DependencyContainer(
@@ -336,6 +337,19 @@ class DependencyContainer(
                 entitlements = entitlements,
                 webPaywallRedeemer = { reedemer },
             )
+        identityManager =
+            IdentityManager(
+                storage = storage,
+                deviceHelper = deviceHelper,
+                configManager = configManager,
+                ioScope = ioScope,
+                stringToSha = {
+                    val bytes = this.toString().toByteArray()
+                    val md = MessageDigest.getInstance("SHA-256")
+                    val digest = md.digest(bytes)
+                    digest.fold("", { str, it -> str + "%02x".format(it) })
+                },
+            )
 
         reedemer =
             WebPaywallRedeemer(
@@ -384,6 +398,9 @@ class DependencyContainer(
                         TransactionReceipt(it.purchaseToken)
                     }
                 },
+                getExternalAccountId = {
+                    identityManager.externalAccountId
+                },
             )
 
         eventsQueue =
@@ -393,14 +410,6 @@ class DependencyContainer(
                 network = network,
                 ioScope = ioScope(),
                 mainScope = mainScope(),
-            )
-
-        identityManager =
-            IdentityManager(
-                storage = storage,
-                deviceHelper = deviceHelper,
-                configManager = configManager,
-                ioScope = ioScope,
             )
 
         sessionEventsManager =

@@ -36,6 +36,7 @@ class SubscriptionService(
         aliasId: String?,
         vendorId: DeviceVendorId,
         transactionReceipt: List<TransactionReceipt>,
+        externalAccountId: String,
     ) = post<WebRedemptionResponse>(
         "redeem",
         retryCount = 0,
@@ -48,6 +49,7 @@ class SubscriptionService(
                         aliasId,
                         codes,
                         transactionReceipt,
+                        externalAccountId,
                     ),
                 ).toByteArray(),
     )

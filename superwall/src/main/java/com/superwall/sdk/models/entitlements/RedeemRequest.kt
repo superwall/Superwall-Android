@@ -15,6 +15,8 @@ data class RedeemRequest(
     val codes: List<Redeemable>,
     @SerialName("receipts")
     val receipts: List<TransactionReceipt>,
+    @SerialName("externalAccountId")
+    val externalAccountId: String,
 )
 
 @Serializable
