@@ -132,7 +132,7 @@ object UITestHandler {
                     1006,
                     "Try handling a VALID link with invalid code.",
                     test = { scope, events, _ ->
-                        Superwall.instance.handleDeepLink("superapp://superwall/redeem?code=redeem_testing123".toUri())?.let {
+                        Superwall.handleDeepLink("superapp://superwall/redeem?code=redeem_testing123".toUri())?.let {
                             Log.e("Output", "IS HANDLED: ${it.getOrThrow()}")
                         }
                     },
@@ -141,7 +141,7 @@ object UITestHandler {
                     1006,
                     "Try handling an INVALID link with invalid code.",
                     test = { scope, events, _ ->
-                        Superwall.instance.handleDeepLink("superapp://superwall/dontredeem?code=abcd".toUri())?.let {
+                        Superwall.handleDeepLink("superapp://superwall/dontredeem?code=abcd".toUri())?.let {
                             Log.e("Output", "IS HANDLED: ${it.getOrThrow()}")
                         }
                         Log.e("Registering event", "identify after ${Superwall.instance.userId}")
@@ -1091,7 +1091,7 @@ object UITestHandler {
                     Uri.parse(
                         "superapp://?superwall_debug=true&paywall_id=7872&token=sat_eyJhbGciOiJIUzI1NiJ9.eyJzY29wZXMiOlt7InNjb3BlIjoicGF5d2FsbF9wcmV2aWV3IiwiYXBwbGljYXRpb25JZCI6MTI3MH1dLCJpYXQiOjE2ODg2MjgxNTIsImV4cCI6NTA2NTI4Nzg3MiwiYXVkIjoicHduIiwiaXNzIjoicHduIiwic3ViIjoiNzAifQ.J0QNaycFlGY8ZQGBUwrySxkX43iPH2iV646EvJ5TvCg",
                     )
-                Superwall.instance.handleDeepLink(url)
+                Superwall.handleDeepLink(url)
             },
         )
     var test57Info =
@@ -1120,7 +1120,7 @@ object UITestHandler {
 
                 // Handle the URL
                 val url = Uri.parse("superapp://mydeepLink?isDeepLink=true")
-                val handled = Superwall.instance.handleDeepLink(url)
+                val handled = Superwall.handleDeepLink(url)
             },
         )
     var test58Info =
