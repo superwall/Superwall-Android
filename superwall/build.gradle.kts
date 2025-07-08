@@ -30,11 +30,11 @@ android {
     namespace = "com.superwall.sdk"
 
     defaultConfig {
-        minSdkVersion(22)
+        minSdkVersion(21)
         targetSdkVersion(33)
 
         aarMetadata {
-            minCompileSdk = 26
+            minCompileSdk = 21
         }
 
         ndk {
