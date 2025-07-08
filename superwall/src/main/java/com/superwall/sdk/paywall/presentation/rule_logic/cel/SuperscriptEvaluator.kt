@@ -7,11 +7,12 @@ import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.asyncWithTracking
-import com.superwall.sdk.models.config.ComputedPropertyRequest
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.triggers.TriggerRule
 import com.superwall.sdk.models.triggers.TriggerRuleOutcome
 import com.superwall.sdk.models.triggers.UnmatchedRule
+import com.superwall.sdk.paywall.presentation.rule_logic.cel.CELHostContext.ComputedProperties.availableComputedProperties
+import com.superwall.sdk.paywall.presentation.rule_logic.cel.CELHostContext.ComputedProperties.availableDeviceProperties
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.CELResult
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.ExecutionContext
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.PassableMap
@@ -45,22 +46,10 @@ internal class SuperscriptEvaluator(
     private val factory: RuleAttributesFactory,
     private val hostContext: HostContext =
         CELHostContext(
-            availableComputedProperties,
-            availableComputedProperties,
             json,
             storage,
         ),
 ) : ExpressionEvaluating {
-    private companion object {
-        private val availableComputedProperties =
-            mapOf(
-                "daysSince" to ComputedPropertyRequest.ComputedPropertyRequestType.DAYS_SINCE,
-                "minutesSince" to ComputedPropertyRequest.ComputedPropertyRequestType.MINUTES_SINCE,
-                "hoursSince" to ComputedPropertyRequest.ComputedPropertyRequestType.HOURS_SINCE,
-                "monthsSince" to ComputedPropertyRequest.ComputedPropertyRequestType.MONTHS_SINCE,
-            )
-    }
-
     class NotError(
         val string: String,
     ) : Throwable(string)
@@ -85,14 +74,14 @@ internal class SuperscriptEvaluator(
                         variables = PassableMap(map = userAttributes.value.toMap()),
                         expression = expression,
                         device =
-                            availableComputedProperties
-                                .mapValues {
-                                    listOf(PassableValue.StringValue("event_name"))
+                            availableDeviceProperties
+                                .map {
+                                    it to listOf(PassableValue.StringValue("event_name"))
                                 }.toMap(),
                         computed =
                             availableComputedProperties
-                                .mapValues {
-                                    listOf(PassableValue.StringValue("event_name"))
+                                .map {
+                                    it to listOf(PassableValue.StringValue("event_name"))
                                 }.toMap(),
                     )
 

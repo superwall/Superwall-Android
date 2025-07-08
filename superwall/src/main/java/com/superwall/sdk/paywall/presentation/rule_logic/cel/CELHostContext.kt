@@ -1,6 +1,8 @@
 package com.superwall.sdk.paywall.presentation.rule_logic.cel
 
 import com.superwall.sdk.models.config.ComputedPropertyRequest
+import com.superwall.sdk.models.triggers.RawInterval
+import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.PassableValue
 import com.superwall.sdk.storage.core_data.CoreDataManager
 import com.superwall.supercel.HostContext
@@ -10,18 +12,32 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 class CELHostContext(
-    private val availableComputedProperties: Map<String, ComputedPropertyRequest.ComputedPropertyRequestType>,
-    private val availableDeviceProperties: Map<String, ComputedPropertyRequest.ComputedPropertyRequestType>,
     private val json: Json,
     private val storage: CoreDataManager,
 ) : HostContext {
+    companion object ComputedProperties {
+        private val periodSinceFunctionProperties =
+            mapOf(
+                "daysSince" to ComputedPropertyRequest.ComputedPropertyRequestType.DAYS_SINCE,
+                "minutesSince" to ComputedPropertyRequest.ComputedPropertyRequestType.MINUTES_SINCE,
+                "hoursSince" to ComputedPropertyRequest.ComputedPropertyRequestType.HOURS_SINCE,
+                "monthsSince" to ComputedPropertyRequest.ComputedPropertyRequestType.MONTHS_SINCE,
+            )
+
+        val OCCURENCES_FOR_TRIGGER = "occurencesForTrigger"
+
+        val availableComputedProperties =
+            periodSinceFunctionProperties.keys.toList() + OCCURENCES_FOR_TRIGGER
+        val availableDeviceProperties = periodSinceFunctionProperties.keys
+    }
+
     override fun computedProperty(
         name: String,
         args: String,
         callback: ResultCallback,
     ) {
         val _args = json.decodeFromString<List<PassableValue>>(args)
-        if (!availableComputedProperties.containsKey(name)) {
+        if (!availableComputedProperties.contains(name)) {
             callback.onResult(
                 json.encodeToString(
                     PassableValue.BoolValue(false).toString(),
@@ -31,15 +47,28 @@ class CELHostContext(
 
         val res =
             runBlocking {
-                storage.getComputedPropertySinceEvent(
-                    null,
-                    ComputedPropertyRequest(
-                        availableComputedProperties[name]!!,
-                        (_args.first() as PassableValue.StringValue).value,
-                    ),
-                )
+                if (name == OCCURENCES_FOR_TRIGGER) {
+                    storage.countTriggerRuleOccurrences(
+                        TriggerRuleOccurrence(
+                            (args.first() as PassableValue.StringValue).value,
+                            Int.MAX_VALUE,
+                            rawInterval =
+                                RawInterval(
+                                    RawInterval.IntervalType.INFINITY,
+                                ),
+                        ),
+                    )
+                } else {
+                    storage.getComputedPropertySinceEvent(
+                        null,
+                        ComputedPropertyRequest(
+                            periodSinceFunctionProperties[name]!!,
+                            (_args.first() as PassableValue.StringValue).value,
+                        ),
+                    )
+                }
             }
-        callback.onResult(json.encodeToString(PassableValue.IntValue(res ?: 0).toString()))
+        callback.onResult(json.encodeToString(res?.toPassableValue() ?: PassableValue.NullValue))
     }
 
     // Temporary solution until CEL lib is updated
@@ -49,7 +78,7 @@ class CELHostContext(
         callback: ResultCallback,
     ) {
         val _args = json.decodeFromString<List<PassableValue>>(args)
-        if (!availableDeviceProperties.containsKey(name)) {
+        if (!availableDeviceProperties.contains(name)) {
             callback.onResult(
                 json.encodeToString(
                     PassableValue.BoolValue(false).toString(),
@@ -62,7 +91,7 @@ class CELHostContext(
                 storage.getComputedPropertySinceEvent(
                     null,
                     ComputedPropertyRequest(
-                        availableDeviceProperties[name]!!,
+                        periodSinceFunctionProperties[name]!!,
                         (_args.first() as PassableValue.StringValue).value,
                     ),
                 )
