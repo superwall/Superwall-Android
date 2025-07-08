@@ -458,6 +458,9 @@ class DependencyContainer(
                 entitlementsById = {
                     entitlements.byProductId(it)
                 },
+                refreshReceipt = {
+                    storeManager.refreshReceipt()
+                },
             )
 
         /**
@@ -844,4 +847,6 @@ class DependencyContainer(
     }
 
     override fun context(): Context = context
+
+    override fun experimentalProperties(): Map<String, Any> = storeManager.receiptManager.experimentalProperties()
 }

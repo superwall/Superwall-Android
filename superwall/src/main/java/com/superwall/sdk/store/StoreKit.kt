@@ -22,7 +22,7 @@ interface StoreKit {
         substituteProducts: Map<String, StoreProduct>? = null,
     ): Map<String, StoreProduct>
 
-    suspend fun refreshReceipt()
+    fun refreshReceipt()
 
     suspend fun loadPurchasedProducts()
 }

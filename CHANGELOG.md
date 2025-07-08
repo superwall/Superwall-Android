@@ -8,6 +8,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 ## Enhancements
 
 - Adds `externalAcountId`, provided to Google Play billing upon purchase as a SHA256 of the userId or the userId itself if `passIdentifiersToPlayStore` option is provided.
+-  Adds a `SuperwallOption` named `enableExperimentalDeviceVariables`. When set to true, this enables additional device-level variables: `latestSubscriptionPeriodType`, `latestSubscriptionState`, and `latestSubscriptionWillAutoRenew`. These properties provide information about the most recent Google Play subscription on the device and can be used in audience filters. Note that due to their experimental nature, they are subject to change in future updates.
 
 ## Fixes
 - Fixes issues with paywall destruction when activity performs a hot reload (i.e. during update)

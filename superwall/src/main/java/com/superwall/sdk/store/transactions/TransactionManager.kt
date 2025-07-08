@@ -70,6 +70,7 @@ class TransactionManager(
     },
     private val entitlementsById: (String) -> Set<Entitlement>,
     private val showRestoreDialogForWeb: suspend () -> Unit,
+    private val refreshReceipt: () -> Unit,
 ) {
     sealed class PurchaseSource {
         data class Internal(
@@ -176,6 +177,7 @@ class TransactionManager(
         val lastProduct = transactionsInProgress.entries.last()
         when (result) {
             is InternalPurchaseResult.Purchased -> {
+                refreshReceipt()
                 transactionsInProgress.remove(lastProduct.key)
                 val state = state as PurchasingObserverState.PurchaseResult
                 state.purchases?.forEach { purchase ->

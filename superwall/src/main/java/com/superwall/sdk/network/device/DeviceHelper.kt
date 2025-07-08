@@ -15,16 +15,17 @@ import com.superwall.sdk.BuildConfig
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.DefaultClassifierDataFactory
 import com.superwall.sdk.analytics.DeviceClassifier
+import com.superwall.sdk.dependencies.ExperimentalPropertiesFactory
 import com.superwall.sdk.dependencies.IdentityInfoFactory
 import com.superwall.sdk.dependencies.IdentityManagerFactory
 import com.superwall.sdk.dependencies.LocaleIdentifierFactory
+import com.superwall.sdk.dependencies.OptionsFactory
 import com.superwall.sdk.dependencies.StoreTransactionFactory
 import com.superwall.sdk.identity.setUserAttributes
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.Either
-import com.superwall.sdk.misc.fold
 import com.superwall.sdk.misc.then
 import com.superwall.sdk.misc.toResult
 import com.superwall.sdk.models.config.ComputedPropertyRequest
@@ -74,7 +75,9 @@ class DeviceHelper(
         LocaleIdentifierFactory,
         JsonFactory,
         StoreTransactionFactory,
-        IdentityManagerFactory
+        IdentityManagerFactory,
+        ExperimentalPropertiesFactory,
+        OptionsFactory
 
     private val json =
         Json {
@@ -534,7 +537,15 @@ class DeviceHelper(
                             as Map<String, Any>?
                     )
                         ?: emptyMap()
-                enriched.plus(it)
+                enriched
+                    .plus(it)
+                    .let {
+                        if (factory.makeSuperwallOptions().enableExperimentalDeviceVariables) {
+                            it.plus(latestExperimentalDeviceProperties())
+                        } else {
+                            it
+                        }
+                    }
             }.fold(
                 onSuccess = { deviceTemplate ->
                     return@fold deviceTemplate
@@ -554,6 +565,8 @@ class DeviceHelper(
     internal fun setEnrichment(enrichment: Enrichment) {
         this.lastEnrichment.value = enrichment
     }
+
+    fun latestExperimentalDeviceProperties(): Map<String, Any> = factory.experimentalProperties()
 
     suspend fun getEnrichment(
         maxRetry: Int,
