@@ -12,6 +12,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## Fixes
 - Fixes issues with paywall destruction when activity performs a hot reload (i.e. during update)
+- Fixes issue where the feature block would be triggered on non-gated paywalls when the app is minimised
 
 ## 2.2.3
 
