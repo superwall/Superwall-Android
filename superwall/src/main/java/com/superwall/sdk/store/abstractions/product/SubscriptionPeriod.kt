@@ -85,6 +85,7 @@ data class SubscriptionPeriod(
                         period.toTotalMonths().toInt(),
                         Unit.month,
                     )
+
                 period.years > 0 -> SubscriptionPeriod(period.years, Unit.year)
                 else -> null
             }?.normalized()
@@ -94,6 +95,12 @@ data class SubscriptionPeriod(
     private val roundingMode = RoundingMode.DOWN
     private val calculationScale = 7
     private val outputScale = 2
+
+    val toMillis: Long
+        get() {
+            val days = (this.value * this.daysPerUnit).toLong()
+            return days * 24 * 60 * 60 * 1000 // days → hours → minutes → seconds → milliseconds
+        }
 
     fun pricePerDay(price: BigDecimal): BigDecimal {
         val periodsPerDay: BigDecimal =

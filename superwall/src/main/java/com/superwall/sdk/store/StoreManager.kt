@@ -218,7 +218,7 @@ class StoreManager(
         )
     }
 
-    override suspend fun refreshReceipt() {
+    override fun refreshReceipt() {
         Logger.debug(
             logLevel = LogLevel.debug,
             scope = LogScope.storeKitManager, // Rename this scope to reflect Billing Manager

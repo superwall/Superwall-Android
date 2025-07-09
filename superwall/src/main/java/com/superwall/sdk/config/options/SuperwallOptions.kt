@@ -94,6 +94,9 @@ class SuperwallOptions {
     // Enables passing identifier to the Play Store as AccountId's. Defaults to `false`.
     var passIdentifiersToPlayStore: Boolean = false
 
+    // Enables experimental device variables. These are subject to change. Defaults to `false`.
+    var enableExperimentalDeviceVariables: Boolean = false
+
     // Configuration for printing to the console.
     class Logging {
         // Defines the minimum log level to print to the console. Defaults to `warn`.

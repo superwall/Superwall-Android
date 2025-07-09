@@ -47,7 +47,7 @@ class UITestInfo(
     val testCaseType: TestCaseType = TestCaseType.iOS,
     test: suspend Context.(testDispatcher: CoroutineScope, events: Flow<SuperwallEvent>, message: MutableSharedFlow<Any?>) -> Unit,
 ) {
-    private val events = MutableSharedFlow<SuperwallEvent?>(extraBufferCapacity = 50)
+    private val events = MutableSharedFlow<SuperwallEvent?>(extraBufferCapacity = 100, replay = 3)
     private val message = MutableSharedFlow<Any?>(extraBufferCapacity = 10, replay = 10)
 
     fun events() = events
