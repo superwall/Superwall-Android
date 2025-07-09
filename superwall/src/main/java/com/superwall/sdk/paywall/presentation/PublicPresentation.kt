@@ -146,7 +146,7 @@ private fun Superwall.internallyRegister(
                             is Declined -> {
                                 val closeReason = paywallInfo.closeReason
                                 val featureGating = paywallInfo.featureGatingBehavior
-                                if (closeReason != PaywallCloseReason.ForNextPaywall && featureGating == FeatureGatingBehavior.NonGated) {
+                                if (closeReason.stateShouldComplete && featureGating == FeatureGatingBehavior.NonGated) {
                                     completion?.invoke()
                                 }
                                 if (closeReason == PaywallCloseReason.WebViewFailedToLoad && featureGating == FeatureGatingBehavior.Gated) {

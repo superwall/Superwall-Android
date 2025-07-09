@@ -21,33 +21,45 @@ class DebugManager(
         @MainThread set
     var isDebuggerLaunched = false
 
-    fun handle(deepLinkUrl: Uri): Boolean {
-        val launchDebugger =
-            SWDebugManagerLogic.getQueryItemValue(
-                deepLinkUrl,
-                SWDebugManagerLogic.Parameter.SUPERWALL_DEBUG,
-            ) ?: return false
-        if (!launchDebugger.toBoolean()) return false
+    data class DeepLinkOutcome(
+        val debugKey: String,
+        val paywallId: String?,
+    )
 
-        val debugKey =
-            SWDebugManagerLogic.getQueryItemValue(
-                deepLinkUrl,
-                SWDebugManagerLogic.Parameter.TOKEN,
-            ) ?: return false
+    companion object {
+        fun outcomeForDeepLink(deepLinkUrl: Uri): Result<DeepLinkOutcome> {
+            val launchDebugger =
+                SWDebugManagerLogic.getQueryItemValue(
+                    deepLinkUrl,
+                    SWDebugManagerLogic.Parameter.SUPERWALL_DEBUG,
+                ) ?: return Result.failure(IllegalArgumentException("Not debug link"))
+            if (!launchDebugger.toBoolean()) return Result.failure(IllegalArgumentException("Not debug link"))
 
-        storage.debugKey = debugKey
+            val debugKey =
+                SWDebugManagerLogic.getQueryItemValue(
+                    deepLinkUrl,
+                    SWDebugManagerLogic.Parameter.TOKEN,
+                ) ?: return Result.failure(IllegalArgumentException("Not debug link"))
 
-        val paywallId =
-            SWDebugManagerLogic.getQueryItemValue(
-                deepLinkUrl,
-                SWDebugManagerLogic.Parameter.PAYWALL_ID,
-            )
+            val paywallId =
+                SWDebugManagerLogic.getQueryItemValue(
+                    deepLinkUrl,
+                    SWDebugManagerLogic.Parameter.PAYWALL_ID,
+                )
 
-        CoroutineScope(Dispatchers.IO).launch {
-            launchDebugger(paywallId)
+            return Result.success(DeepLinkOutcome(debugKey, paywallId))
         }
-        return true
     }
+
+    fun handle(deepLinkUrl: Uri): Boolean =
+        outcomeForDeepLink(deepLinkUrl)
+            .onSuccess {
+                storage.debugKey = it.debugKey
+            }.onSuccess {
+                CoroutineScope(Dispatchers.IO).launch {
+                    launchDebugger(it.paywallId)
+                }
+            }.isSuccess
 
     @MainThread
     suspend fun launchDebugger(paywallDatabaseId: String? = null) {
