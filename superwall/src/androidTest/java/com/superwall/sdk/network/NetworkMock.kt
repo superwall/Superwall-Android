@@ -84,6 +84,7 @@ class NetworkMock : SuperwallAPI {
         aliasId: String?,
         vendorId: DeviceVendorId,
         receipts: List<TransactionReceipt>,
+        externalAccountId: String,
     ): Either<WebRedemptionResponse, NetworkError> {
         TODO("Not yet implemented")
     }

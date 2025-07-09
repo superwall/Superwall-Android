@@ -18,7 +18,7 @@ internal open class DefaultWebviewClient(
     private val onWebViewCrash: (RenderProcessGoneDetail) -> Unit = { },
 ) : WebViewClient() {
     val webviewClientEvents: MutableSharedFlow<WebviewClientEvent> =
-        MutableSharedFlow(extraBufferCapacity = 10)
+        MutableSharedFlow(extraBufferCapacity = 10, replay = 2)
 
     override fun shouldOverrideUrlLoading(
         view: WebView?,

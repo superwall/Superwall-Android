@@ -5,6 +5,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.android.billingclient.api.Purchase
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
+import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.identity.IdentityInfo
 import com.superwall.sdk.identity.IdentityManager
 import com.superwall.sdk.models.enrichment.Enrichment
@@ -56,6 +57,10 @@ class TrackingLogicTest {
                                 override suspend fun activeProductIds(): List<String> = emptyList()
 
                                 override suspend fun makeIdentityManager(): IdentityManager = mockk()
+
+                                override fun experimentalProperties(): Map<String, Any> = emptyMap()
+
+                                override fun makeSuperwallOptions(): SuperwallOptions = SuperwallOptions()
                             },
                     ),
                 ) {

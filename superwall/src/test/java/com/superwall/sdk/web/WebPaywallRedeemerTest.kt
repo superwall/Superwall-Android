@@ -134,6 +134,7 @@ class WebPaywallRedeemerTest {
                         any(),
                         any(),
                         any(),
+                        any(),
                     )
                 } returns Either.Success(response)
 
@@ -160,6 +161,7 @@ class WebPaywallRedeemerTest {
                         trackRestorationFailed = {},
                         isWebToAppEnabled = { true },
                         receipts = { listOf(TransactionReceipt("mock")) },
+                        getExternalAccountId = { "" },
                     )
 
                 When("checking for referral") {
@@ -206,6 +208,7 @@ class WebPaywallRedeemerTest {
                         trackRestorationFailed = {},
                         isWebToAppEnabled = { true },
                         receipts = { listOf(TransactionReceipt("mock")) },
+                        getExternalAccountId = { "" },
                     )
 
                 When("checking for referral") {
@@ -213,7 +216,7 @@ class WebPaywallRedeemerTest {
 
                     Then("it should not call redeem") {
                         coVerify(exactly = 0) {
-                            network.redeemToken(any(), any(), any(), any(), any())
+                            network.redeemToken(any(), any(), any(), any(), any(), any())
                         }
                     }
                 }
@@ -231,6 +234,7 @@ class WebPaywallRedeemerTest {
                 coEvery { deepLinkReferrer.checkForReferral() } returns Result.success(codes)
                 coEvery {
                     network.redeemToken(
+                        any(),
                         any(),
                         any(),
                         any(),
@@ -262,6 +266,7 @@ class WebPaywallRedeemerTest {
                         trackRestorationFailed = {},
                         isWebToAppEnabled = { true },
                         receipts = { listOf(TransactionReceipt("mock")) },
+                        getExternalAccountId = { "" },
                     )
 
                 When("checking for referral") {
@@ -318,6 +323,7 @@ class WebPaywallRedeemerTest {
                         trackRestorationFailed = {},
                         isWebToAppEnabled = { true },
                         receipts = { listOf(TransactionReceipt("mock")) },
+                        getExternalAccountId = { "" },
                     )
 
                 When("checking for web entitlements") {
@@ -371,6 +377,7 @@ class WebPaywallRedeemerTest {
                         trackRestorationFailed = {},
                         isWebToAppEnabled = { true },
                         receipts = { listOf(TransactionReceipt("mock")) },
+                        getExternalAccountId = { "" },
                     )
 
                 When("checking for web entitlements") {
@@ -427,6 +434,7 @@ class WebPaywallRedeemerTest {
                         trackRestorationFailed = {},
                         isWebToAppEnabled = { true },
                         receipts = { listOf(TransactionReceipt("mock")) },
+                        getExternalAccountId = { "" },
                     )
 
                 When("checking for web entitlements") {
@@ -454,7 +462,7 @@ class WebPaywallRedeemerTest {
                 } returns Result.success("code")
 
                 coEvery {
-                    network.redeemToken(any(), any(), any(), any(), any())
+                    network.redeemToken(any(), any(), any(), any(), any(), any())
                 } returns Either.Failure(NetworkError.Unknown(Error("Token redemption failed")))
 
                 coEvery {
@@ -484,6 +492,7 @@ class WebPaywallRedeemerTest {
                         trackRestorationFailed = {},
                         isWebToAppEnabled = { true },
                         receipts = { listOf(TransactionReceipt("mock")) },
+                        getExternalAccountId = { "" },
                     )
 
                 When("checking for web entitlements") {
@@ -536,6 +545,7 @@ class WebPaywallRedeemerTest {
                         trackRestorationFailed = {},
                         isWebToAppEnabled = { true },
                         receipts = { listOf(TransactionReceipt("mock")) },
+                        getExternalAccountId = { "" },
                     )
 
                 When("checking for web entitlements") {
@@ -643,6 +653,7 @@ class WebPaywallRedeemerTest {
                     trackRestorationFailed = {},
                     isWebToAppEnabled = { true },
                     receipts = { listOf(TransactionReceipt("mock")) },
+                    getExternalAccountId = { "" },
                 )
 
             storage.write(LatestRedemptionResponse, response)
