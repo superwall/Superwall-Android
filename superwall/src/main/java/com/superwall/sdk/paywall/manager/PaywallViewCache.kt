@@ -110,7 +110,7 @@ class PaywallViewCache(
 
     fun removeAll() {
         CoroutineScope(singleThreadContext).launch {
-            store.keys().forEach { key ->
+            store.views.keys.forEach { key ->
                 if (key != _activePaywallVcKey) {
                     store.removeView(key)
                 }
