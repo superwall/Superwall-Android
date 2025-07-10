@@ -6,7 +6,6 @@ import java.util.Date
 plugins {
     alias(libs.plugins.androidLibrary)
     alias(libs.plugins.kotlinAndroid)
-    id("maven-publish")
     id("signing")
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.publisher)
@@ -59,12 +58,6 @@ android {
         compose = true
         buildConfig = true
     }
-
-    publishing {
-        singleVariant("release") {
-            withSourcesJar()
-        }
-    }
 }
 
 mavenPublishing {
@@ -97,7 +90,6 @@ mavenPublishing {
             developerConnection.set("scm:git:ssh://git@github.com/superwall/Superwall-Android.git")
         }
     }
-    publishToMavenCentral()
 }
 
 tasks.register("generateBuildInfo") {

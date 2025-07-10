@@ -19,7 +19,6 @@ plugins {
     kotlin("android")
     alias(libs.plugins.ksp)
     alias(libs.plugins.serialization) // Maven publishing
-    id("maven-publish")
     id("signing")
     alias(libs.plugins.publisher)
 }
@@ -89,12 +88,6 @@ android {
         resources.excludes += "META-INF/LICENSE.md"
         resources.excludes += "META-INF/LICENSE-notice.md"
     }
-
-    publishing {
-        singleVariant("release") {
-            withSourcesJar()
-        }
-    }
 }
 
 mavenPublishing {
@@ -127,9 +120,6 @@ mavenPublishing {
             developerConnection.set("scm:git:ssh://git@github.com/superwall/Superwall-Android.git")
         }
     }
-
-    signAllPublications()
-    publishToMavenCentral()
 }
 
 tasks.register("generateBuildInfo") {
