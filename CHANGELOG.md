@@ -8,6 +8,11 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 - Fixes an issue where entitlements would not be reset on time
 - Ensures `redeem` is only done on initial config not on config refresh
 
+## Enhancements
+
+- Adds `overrideProductsByName` property to allow globally overriding products on paywalls. This property accepts a map of product names to product identifiers (strings). Local overrides provided via `PaywallOverrides` take precedence over global overrides.
+- Adds `ProductOverride` sealed class to provide flexible product override handling with support for both product IDs and `StoreProduct` objects.
+
 ## 2.3.0
 
 ## Enhancements

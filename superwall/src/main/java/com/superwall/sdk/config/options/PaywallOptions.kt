@@ -60,6 +60,23 @@ class PaywallOptions {
         SPINNER,
     }
 
+    /**
+     * A map of product name to product identifier that allows you to override products on all paywalls.
+     *
+     * This is useful when you want to test different products on your paywalls or when you need to
+     * override products dynamically. The keys in this map correspond to the product name placeholders
+     * in your paywall (e.g., "primary", "secondary", "tertiary"), and the values are the product identifiers.
+     *
+     * Example:
+     * ```
+     * Superwall.instance.overrideProductsByName = mapOf(
+     *     "primary" to "com.example.premium_monthly",
+     *     "tertiary" to "com.example.premium_annual"
+     * )
+     * ```
+     */
+    var overrideProductsByName: Map<String, String> = emptyMap()
+
     // The view that appears behind Apple's payment sheet during a transaction. Defaults to `.spinner`.
     //
     // Set this to `null` to remove any background view during the transaction.
