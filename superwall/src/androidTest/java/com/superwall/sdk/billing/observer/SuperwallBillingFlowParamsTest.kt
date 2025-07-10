@@ -11,11 +11,12 @@ class SuperwallBillingFlowParamsTest {
     @Test
     fun test_builder_sets_all_parameters_correctly() {
         // Mock ProductDetails
-        val mockProductDetails = mockk<ProductDetails>()
+        val mockProductDetails = mockk<ProductDetails>(relaxed = true, relaxUnitFun = true)
         every { mockProductDetails.oneTimePurchaseOfferDetails } returns
             mockk {
-                every { zza() } returns "test_offer_token"
+                every { zzb() } returns "test_offer_token"
             }
+        every { mockProductDetails.subscriptionOfferDetails } returns mockk {}
         every { mockProductDetails.productType } returns "subs"
         every { mockProductDetails.zza() } returns "test_product_id"
 

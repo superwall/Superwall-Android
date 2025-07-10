@@ -68,6 +68,7 @@ class WebPaywallRedeemer(
     val trackRestorationFailed: (message: String) -> Unit,
     val isWebToAppEnabled: () -> Boolean,
     val receipts: suspend () -> List<TransactionReceipt>,
+    val getExternalAccountId: () -> String,
 ) {
     private var pollingJob: Job? = null
 
@@ -140,6 +141,7 @@ class WebPaywallRedeemer(
                     getAliasId(),
                     getDeviceId(),
                     receipts(),
+                    getExternalAccountId(),
                 ).fold(
                     onSuccess = {
                         storage.write(LatestRedemptionResponse, it)

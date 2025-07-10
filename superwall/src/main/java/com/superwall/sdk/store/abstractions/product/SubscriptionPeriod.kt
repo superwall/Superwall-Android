@@ -24,6 +24,17 @@ data class SubscriptionPeriod(
                 Unit.year -> 365.0
             }
 
+    fun toMillis(): Long {
+        val days =
+            when (unit) {
+                Unit.day -> value
+                Unit.week -> value * 7
+                Unit.month -> value * 30 // Approximation
+                Unit.year -> value * 365 // Approximation
+            }
+        return days * 24L * 60 * 60 * 1000
+    }
+
     fun normalized(): SubscriptionPeriod =
         when (unit) {
             Unit.day ->
@@ -74,6 +85,7 @@ data class SubscriptionPeriod(
                         period.toTotalMonths().toInt(),
                         Unit.month,
                     )
+
                 period.years > 0 -> SubscriptionPeriod(period.years, Unit.year)
                 else -> null
             }?.normalized()
@@ -84,13 +96,19 @@ data class SubscriptionPeriod(
     private val calculationScale = 7
     private val outputScale = 2
 
+    val toMillis: Long
+        get() {
+            val days = (this.value * this.daysPerUnit).toLong()
+            return days * 24 * 60 * 60 * 1000 // days → hours → minutes → seconds → milliseconds
+        }
+
     fun pricePerDay(price: BigDecimal): BigDecimal {
         val periodsPerDay: BigDecimal =
             when (this.unit) {
-                SubscriptionPeriod.Unit.day -> BigDecimal.ONE
-                SubscriptionPeriod.Unit.week -> BigDecimal(7)
-                SubscriptionPeriod.Unit.month -> BigDecimal(30)
-                SubscriptionPeriod.Unit.year -> BigDecimal(365)
+                Unit.day -> BigDecimal.ONE
+                Unit.week -> BigDecimal(7)
+                Unit.month -> BigDecimal(30)
+                Unit.year -> BigDecimal(365)
             } * BigDecimal(this.value)
 
         return price.divide(periodsPerDay, outputScale, roundingMode)
@@ -99,10 +117,10 @@ data class SubscriptionPeriod(
     fun pricePerWeek(price: BigDecimal): BigDecimal {
         val periodsPerWeek: BigDecimal =
             when (this.unit) {
-                SubscriptionPeriod.Unit.day -> BigDecimal.ONE.divide(BigDecimal(7), calculationScale, roundingMode)
-                SubscriptionPeriod.Unit.week -> BigDecimal.ONE
-                SubscriptionPeriod.Unit.month -> BigDecimal(4)
-                SubscriptionPeriod.Unit.year -> BigDecimal(52)
+                Unit.day -> BigDecimal.ONE.divide(BigDecimal(7), calculationScale, roundingMode)
+                Unit.week -> BigDecimal.ONE
+                Unit.month -> BigDecimal(4)
+                Unit.year -> BigDecimal(52)
             } * BigDecimal(this.value)
 
         return price.divide(periodsPerWeek, outputScale, roundingMode)
@@ -111,10 +129,10 @@ data class SubscriptionPeriod(
     fun pricePerMonth(price: BigDecimal): BigDecimal {
         val periodsPerMonth: BigDecimal =
             when (this.unit) {
-                SubscriptionPeriod.Unit.day -> BigDecimal.ONE.divide(BigDecimal(30), calculationScale, roundingMode)
-                SubscriptionPeriod.Unit.week -> BigDecimal.ONE.divide(BigDecimal(30.0 / 7.0), calculationScale, roundingMode)
-                SubscriptionPeriod.Unit.month -> BigDecimal.ONE
-                SubscriptionPeriod.Unit.year -> BigDecimal(12)
+                Unit.day -> BigDecimal.ONE.divide(BigDecimal(30), calculationScale, roundingMode)
+                Unit.week -> BigDecimal.ONE.divide(BigDecimal(30.0 / 7.0), calculationScale, roundingMode)
+                Unit.month -> BigDecimal.ONE
+                Unit.year -> BigDecimal(12)
             } * BigDecimal(this.value)
 
         return price.divide(periodsPerMonth, outputScale, roundingMode)
@@ -123,10 +141,10 @@ data class SubscriptionPeriod(
     fun pricePerYear(price: BigDecimal): BigDecimal {
         val periodsPerYear: BigDecimal =
             when (this.unit) {
-                SubscriptionPeriod.Unit.day -> BigDecimal.ONE.divide(BigDecimal(365), calculationScale, roundingMode)
-                SubscriptionPeriod.Unit.week -> BigDecimal.ONE.divide(BigDecimal(52), calculationScale, roundingMode)
-                SubscriptionPeriod.Unit.month -> BigDecimal.ONE.divide(BigDecimal(12), calculationScale, roundingMode)
-                SubscriptionPeriod.Unit.year -> BigDecimal.ONE
+                Unit.day -> BigDecimal.ONE.divide(BigDecimal(365), calculationScale, roundingMode)
+                Unit.week -> BigDecimal.ONE.divide(BigDecimal(52), calculationScale, roundingMode)
+                Unit.month -> BigDecimal.ONE.divide(BigDecimal(12), calculationScale, roundingMode)
+                Unit.year -> BigDecimal.ONE
             }.multiply(BigDecimal(this.value))
 
         return price.divide(periodsPerYear, outputScale, roundingMode)

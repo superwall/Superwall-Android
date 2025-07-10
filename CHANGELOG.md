@@ -2,6 +2,19 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.3.0
+
+## Enhancements
+
+- Deprecated `Superwall.instance.handleDeepLink` in favor of static `Superwall.handleDeepLink` to ensure links received before `configure` completion are handled properly
+- Adds `externalAcountId`, provided to Google Play billing upon purchase as a SHA256 of the userId or the userId itself if `passIdentifiersToPlayStore` option is provided.
+- Adds a `SuperwallOption` named `enableExperimentalDeviceVariables`. When set to true, this enables additional device-level variables: `latestSubscriptionPeriodType`, `latestSubscriptionState`, and `latestSubscriptionWillAutoRenew`. These properties provide information about the most recent Google Play subscription on the device and can be used in audience filters. Note that due to their experimental nature, they are subject to change in future updates.
+- Update `com.android.billingclient` to version 7.1.1 to align with Google's latest requirements
+
+## Fixes
+- Fixes issues with paywall destruction when activity performs a hot reload (i.e. during update)
+- Fixes issue where the feature block would be triggered on non-gated paywalls when the app is minimised
+
 ## 2.2.3
 
 ## Fixes

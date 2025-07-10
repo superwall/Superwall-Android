@@ -25,6 +25,7 @@ import com.superwall.sdk.config.PaywallPreload
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.debug.DebugManager
 import com.superwall.sdk.debug.DebugView
+import com.superwall.sdk.deeplinks.DeepLinkRouter
 import com.superwall.sdk.delegate.SuperwallDelegateAdapter
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.identity.IdentityInfo
@@ -100,6 +101,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.ClassDiscriminatorMode
 import kotlinx.serialization.json.Json
 import java.lang.ref.WeakReference
+import java.security.MessageDigest
 import java.util.Date
 
 class DependencyContainer(
@@ -182,6 +184,7 @@ class DependencyContainer(
     private val paywallPreload: PaywallPreload
 
     internal val errorTracker: ErrorTracker
+    internal val deepLinkRouter: DeepLinkRouter
 
     init {
         // For tracking when the app enters the background.
@@ -334,6 +337,19 @@ class DependencyContainer(
                 entitlements = entitlements,
                 webPaywallRedeemer = { reedemer },
             )
+        identityManager =
+            IdentityManager(
+                storage = storage,
+                deviceHelper = deviceHelper,
+                configManager = configManager,
+                ioScope = ioScope,
+                stringToSha = {
+                    val bytes = this.toString().toByteArray()
+                    val md = MessageDigest.getInstance("SHA-256")
+                    val digest = md.digest(bytes)
+                    digest.fold("", { str, it -> str + "%02x".format(it) })
+                },
+            )
 
         reedemer =
             WebPaywallRedeemer(
@@ -382,6 +398,9 @@ class DependencyContainer(
                         TransactionReceipt(it.purchaseToken)
                     }
                 },
+                getExternalAccountId = {
+                    identityManager.externalAccountId
+                },
             )
 
         eventsQueue =
@@ -391,14 +410,6 @@ class DependencyContainer(
                 network = network,
                 ioScope = ioScope(),
                 mainScope = mainScope(),
-            )
-
-        identityManager =
-            IdentityManager(
-                storage = storage,
-                deviceHelper = deviceHelper,
-                configManager = configManager,
-                ioScope = ioScope,
             )
 
         sessionEventsManager =
@@ -448,6 +459,19 @@ class DependencyContainer(
                 },
                 entitlementsById = {
                     entitlements.byProductId(it)
+                },
+                refreshReceipt = {
+                    storeManager.refreshReceipt()
+                },
+            )
+
+        deepLinkRouter =
+            DeepLinkRouter(
+                reedemer,
+                ioScope,
+                debugManager,
+                {
+                    Superwall.instance.track(it)
                 },
             )
 
@@ -835,4 +859,6 @@ class DependencyContainer(
     }
 
     override fun context(): Context = context
+
+    override fun experimentalProperties(): Map<String, Any> = storeManager.receiptManager.experimentalProperties()
 }

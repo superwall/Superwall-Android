@@ -15,8 +15,6 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import io.mockk.verify
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -88,7 +86,7 @@ class AssignmentsTest {
     @Test
     fun test_confirmAssignment() =
         runTest(timeout = 5.minutes) {
-            val assignments = Assignments(storage, network, ioScope = CoroutineScope(Dispatchers.IO))
+            val assignments = Assignments(storage, network, ioScope = this)
             coEvery { network.confirmAssignments(any()) } returns Either.Success(Unit)
 
             Given("We have a confirmable assignment") {

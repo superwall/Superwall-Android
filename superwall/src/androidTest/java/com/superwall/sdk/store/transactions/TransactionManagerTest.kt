@@ -182,6 +182,7 @@ class TransactionManagerTest {
             storage = storage,
             entitlementsById = entitlementsById,
             showRestoreDialogForWeb = showRestoreDialogForWeb,
+            refreshReceipt = {},
         )
     }
 

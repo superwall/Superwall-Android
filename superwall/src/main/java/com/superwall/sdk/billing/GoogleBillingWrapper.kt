@@ -6,6 +6,7 @@ import com.android.billingclient.api.BillingClient.ProductType
 import com.android.billingclient.api.BillingClientStateListener
 import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.Purchase
+import com.android.billingclient.api.Purchase.PurchaseState
 import com.android.billingclient.api.PurchasesUpdatedListener
 import com.android.billingclient.api.QueryPurchasesParams
 import com.superwall.sdk.delegate.InternalPurchaseResult
@@ -610,6 +611,32 @@ class GoogleBillingWrapper(
             )
         }
     }
+
+    internal suspend fun latestPurchase() =
+        queryAllPurchases()
+            .sortedByDescending {
+                it.purchaseTime
+            }.map {
+                val product = awaitGetProducts(it.products.toSet()).first()
+                val millisSincePurchase = (System.currentTimeMillis() - it.purchaseTime)
+                val subPeriod = product.subscriptionPeriod?.toMillis() ?: 0
+                val isGracePeriod =
+                    it.purchaseState == Purchase.PurchaseState.PENDING &&
+                        it.isAutoRenewing
+                val isExpired =
+                    it.purchaseState == Purchase.PurchaseState.PURCHASED &&
+                        !it.isAutoRenewing &&
+                        millisSincePurchase > subPeriod
+                val isSubscribed =
+                    it.purchaseState == Purchase.PurchaseState.PURCHASED &&
+                        millisSincePurchase < subPeriod
+
+                mapOf(
+                    "latestSubscriptionPeriodType" to product.subscriptionPeriod?.unit,
+                    "latestSubscriptionState" to it.purchaseState,
+                    "latestSubscriptionWillAutoRenew" to it.isAutoRenewing,
+                )
+            }
 }
 
 fun Pair<BillingResult, List<Purchase>?>.toInternalResult(): List<InternalPurchaseResult> {

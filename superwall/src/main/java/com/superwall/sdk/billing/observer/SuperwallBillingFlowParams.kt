@@ -107,27 +107,9 @@ class SuperwallBillingFlowParams private constructor(
                     builder.setOldPurchaseToken(purchaseToken)
                 }
 
-            @Deprecated("Use setOldPurchaseToken instead")
-            fun setOldSkuPurchaseToken(purchaseToken: String): SubscriptionUpdateParamsBuilder =
-                apply {
-                    builder.setOldSkuPurchaseToken(purchaseToken)
-                }
-
             fun setOriginalExternalTransactionId(externalTransactionId: String): SubscriptionUpdateParamsBuilder =
                 apply {
                     builder.setOriginalExternalTransactionId(externalTransactionId)
-                }
-
-            @Deprecated("Use setSubscriptionReplacementMode instead")
-            fun setReplaceProrationMode(replaceSkusProrationMode: Int): SubscriptionUpdateParamsBuilder =
-                apply {
-                    builder.setReplaceProrationMode(replaceSkusProrationMode)
-                }
-
-            @Deprecated("Use setSubscriptionReplacementMode instead")
-            fun setReplaceSkusProrationMode(replaceSkusProrationMode: Int): SubscriptionUpdateParamsBuilder =
-                apply {
-                    builder.setReplaceSkusProrationMode(replaceSkusProrationMode)
                 }
 
             fun setSubscriptionReplacementMode(subscriptionReplacementMode: Int): SubscriptionUpdateParamsBuilder =
