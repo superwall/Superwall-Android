@@ -1,8 +1,6 @@
 package com.superwall.sdk.paywall.presentation.rule_logic.cel
 
 import com.superwall.sdk.models.config.ComputedPropertyRequest
-import com.superwall.sdk.models.triggers.RawInterval
-import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.PassableValue
 import com.superwall.sdk.storage.core_data.CoreDataManager
 import com.superwall.supercel.HostContext
@@ -24,10 +22,10 @@ class CELHostContext(
                 "monthsSince" to ComputedPropertyRequest.ComputedPropertyRequestType.MONTHS_SINCE,
             )
 
-        val OCCURENCES_FOR_TRIGGER = "occurencesForTrigger"
-
         val availableComputedProperties =
-            periodSinceFunctionProperties.keys.toList() + OCCURENCES_FOR_TRIGGER
+            SuperscriptExposedFunction.Names.entries.map {
+                it.rawName
+            }
         val availableDeviceProperties = periodSinceFunctionProperties.keys
     }
 
@@ -43,29 +41,16 @@ class CELHostContext(
                     PassableValue.BoolValue(false).toString(),
                 ),
             )
+            return
         }
 
         val res =
             runBlocking {
-                if (name == OCCURENCES_FOR_TRIGGER) {
-                    storage.countTriggerRuleOccurrences(
-                        TriggerRuleOccurrence(
-                            (args.first() as PassableValue.StringValue).value,
-                            Int.MAX_VALUE,
-                            rawInterval =
-                                RawInterval(
-                                    RawInterval.IntervalType.INFINITY,
-                                ),
-                        ),
-                    )
-                } else {
-                    storage.getComputedPropertySinceEvent(
-                        null,
-                        ComputedPropertyRequest(
-                            periodSinceFunctionProperties[name]!!,
-                            (_args.first() as PassableValue.StringValue).value,
-                        ),
-                    )
+                val fn = SuperscriptExposedFunction.from(name, _args)
+                when (fn) {
+                    null -> null
+                    is TimeSince -> fn(storage)
+                    is SuperscriptExposedFunction.PlacementCount -> fn(storage)
                 }
             }
         callback.onResult(json.encodeToString(res?.toPassableValue() ?: PassableValue.NullValue))
@@ -84,6 +69,7 @@ class CELHostContext(
                     PassableValue.BoolValue(false).toString(),
                 ),
             )
+            return
         }
 
         val res =

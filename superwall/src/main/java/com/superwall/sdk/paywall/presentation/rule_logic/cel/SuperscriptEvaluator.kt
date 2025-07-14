@@ -74,20 +74,17 @@ internal class SuperscriptEvaluator(
                         variables = PassableMap(map = userAttributes.value.toMap()),
                         expression = expression,
                         device =
-                            availableDeviceProperties
-                                .map {
-                                    it to listOf(PassableValue.StringValue("event_name"))
-                                }.toMap(),
+                            availableDeviceProperties.associate {
+                                it to listOf(PassableValue.StringValue("event_name"))
+                            },
                         computed =
-                            availableComputedProperties
-                                .map {
-                                    it to listOf(PassableValue.StringValue("event_name"))
-                                }.toMap(),
+                            availableComputedProperties.associate {
+                                it to listOf(PassableValue.StringValue("event_name"))
+                            },
                     )
 
                 val ctx = json.encodeToString(executionContext)
-                val result =
-                    evaluateWithContext(ctx, hostContext)
+                val result = evaluateWithContext(ctx, hostContext)
 
                 val celResult = json.decodeFromString<CELResult>(result)
                 return@asyncWithTracking when (celResult) {
