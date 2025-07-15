@@ -231,6 +231,10 @@ open class ConfigManager(
                 }
             }.then(::processConfig)
             .then {
+                ioScope.launch {
+                    checkForWebEntitlements()
+                }
+            }.then {
                 if (options.paywalls.shouldPreload) {
                     val productIds = it.paywalls.flatMap { it.productIds }.toSet()
                     try {
@@ -325,7 +329,6 @@ open class ConfigManager(
         }
         ioScope.launch {
             storeManager.loadPurchasedProducts()
-            checkForWebEntitlements()
         }
     }
 

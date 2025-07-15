@@ -19,7 +19,9 @@ import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.paywall.presentation.PaywallInfo
+import com.superwall.sdk.paywall.presentation.internal.request.ProductOverride
 import com.superwall.sdk.store.StoreManager
+import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Deferred
@@ -254,9 +256,22 @@ class PaywallRequestManager(
         withContext(ioScope.coroutineContext) {
             var paywall = paywall
 
+            // Use local overrides if available, otherwise use global overrides
+            val substituteProducts =
+                request.overrides.products
+                    ?: run {
+                        val globalOverrides = Superwall.instance.overrideProductsByName
+                        if (globalOverrides.isNotEmpty()) {
+                            val productOverrides = globalOverrides.mapValues { ProductOverride.ById(it.value) }
+                            convertProductOverrides(productOverrides)
+                        } else {
+                            null
+                        }
+                    }
+
             val result =
                 storeManager.getProducts(
-                    substituteProducts = request.overrides.products,
+                    substituteProducts = substituteProducts,
                     paywall = paywall,
                     request = request,
                 )
@@ -317,5 +332,38 @@ class PaywallRequestManager(
 
     internal fun resetCache() {
         paywallsByHash.clear()
+    }
+
+    /**
+     * Converts productOverrides to the format expected by StoreManager.getProducts.
+     * This function handles ProductOverride.ByProduct objects by extracting the StoreProduct,
+     * and ignores ProductOverride.ById objects since they need to be resolved by the StoreManager.
+     */
+    private suspend fun convertProductOverrides(productOverrides: Map<String, ProductOverride>?): Map<String, StoreProduct>? {
+        if (productOverrides.isNullOrEmpty()) return null
+        val convertedProducts = mutableMapOf<String, StoreProduct?>()
+        val products =
+            storeManager.getProductsWithoutPaywall(
+                productOverrides.values
+                    .map {
+                        when (it) {
+                            is ProductOverride.ById -> it.productId
+                            is ProductOverride.ByProduct -> it.product.productIdentifier
+                        }
+                    }.toList(),
+            )
+        for ((name, override) in productOverrides) {
+            when (override) {
+                is ProductOverride.ByProduct -> {
+                    convertedProducts[name] = override.product
+                }
+                is ProductOverride.ById -> {
+                    val product = products[override.productId]
+                    convertedProducts[name] = product
+                }
+            }
+        }
+
+        return (convertedProducts.filterNot { it.value == null } as Map<String, StoreProduct>).ifEmpty { null }
     }
 }

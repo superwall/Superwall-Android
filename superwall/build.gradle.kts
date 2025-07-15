@@ -19,11 +19,11 @@ plugins {
     kotlin("android")
     alias(libs.plugins.ksp)
     alias(libs.plugins.serialization) // Maven publishing
-    id("maven-publish")
     id("signing")
+    alias(libs.plugins.publisher)
 }
 
-version = "2.3.0"
+version = "2.3.1"
 
 android {
     compileSdk = 35
@@ -88,91 +88,38 @@ android {
         resources.excludes += "META-INF/LICENSE.md"
         resources.excludes += "META-INF/LICENSE-notice.md"
     }
-
-    publishing {
-        singleVariant("release") {
-            withSourcesJar()
-        }
-    }
 }
 
-publishing {
-    publications {
-        register<MavenPublication>("release") {
-            groupId = "com.superwall.sdk"
-            artifactId = "superwall-android"
-            version = version
+mavenPublishing {
+    coordinates(group.toString(), "superwall-android", version.toString())
+    pom {
+        name.set("Superwall")
+        description.set("Remotely configure paywalls without shipping app updates")
+        inceptionYear.set("2020")
+        url.set("https://superwall.com")
 
-            pom {
-                name.set("Superwall")
-                description.set("Remotely configure paywalls without shipping app updates")
-                url.set("https://superwall.com")
-
-                licenses {
-                    license {
-                        name.set("MIT License")
-                        url.set("https://github.com/superwall/Superwall-Android?tab=MIT-1-ov-file#")
-                    }
-                }
-                developers {
-                    developer {
-                        id.set("yusuftor")
-                        name.set("Yusuf Tor")
-                        email.set("yusuf@superwall.com")
-                    }
-                }
-                scm {
-                    connection.set("scm:git:git@github.com:superwall/Superwall-Android.git")
-                    developerConnection.set("scm:git:ssh://github.com:superwall/Superwall-Android.git")
-                    url.set("scm:git:https://github.com/superwall/Superwall-Android.git")
-                }
-            }
-
-            afterEvaluate {
-                from(components["release"])
-            }
-        }
-    }
-
-    repositories {
-        mavenLocal()
-
-        // Allow us to publish to S3 if we have the credentials
-        // but also allow us to publish locally if we don't
-        val awsAccessKeyId: String? by extra
-        val awsSecretAccessKey: String? by extra
-        val sonatypeUsername: String? by extra
-        val sonatypePassword: String? by extra
-        if (awsAccessKeyId != null && awsSecretAccessKey != null) {
-            maven {
-                url = uri("s3://mvn.superwall.com/release")
-                credentials(AwsCredentials::class.java) {
-                    accessKey = awsAccessKeyId
-                    secretKey = awsSecretAccessKey
-                }
+        licenses {
+            license {
+                name.set("MIT License")
+                url.set("https://github.com/superwall/Superwall-Android?tab=MIT-1-ov-file#")
+                distribution.set("repo")
             }
         }
 
-        if (sonatypeUsername != null && sonatypePassword != null) {
-            maven {
-                url = uri("https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/")
-                credentials(PasswordCredentials::class.java) {
-                    username = sonatypeUsername
-                    password = sonatypePassword
-                }
+        developers {
+            developer {
+                id.set("yusuftor")
+                name.set("Yusuf Tor")
+                email.set("yusuf@superwall.com")
             }
         }
-    }
-}
 
-signing {
-    val signingKeyId: String? by extra
-    val signingPassword: String? by extra
-    val signingKey: String? by extra
-    if (signingKey != null && signingKeyId != null && signingPassword != null) {
-        useInMemoryPgpKeys(signingKeyId, signingKey, signingPassword)
+        scm {
+            url.set("https://github.com/superwall/Superwall-Android.git")
+            connection.set("scm:git:git://github.com/superwall/Superwall-Android.git")
+            developerConnection.set("scm:git:ssh://git@github.com/superwall/Superwall-Android.git")
+        }
     }
-    sign(publishing.publications["release"])
 }
 
 tasks.register("generateBuildInfo") {

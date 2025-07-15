@@ -15,6 +15,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -88,6 +89,7 @@ class AssignmentsTest {
         runTest(timeout = 5.minutes) {
             val assignments = Assignments(storage, network, ioScope = this)
             coEvery { network.confirmAssignments(any()) } returns Either.Success(Unit)
+            coEvery { network.confirmAssignments(any()) } returns Either.Success(Unit)
 
             Given("We have a confirmable assignment") {
                 val assignment =
@@ -103,7 +105,7 @@ class AssignmentsTest {
 
                 When("We confirm the assignment") {
                     assignments.confirmAssignment(assignment)
-
+                    advanceUntilIdle()
                     Then("The assignment should be confirmed and saved") {
                         verify { storage.getConfirmedAssignments() }
                         verify { storage.saveConfirmedAssignments(any()) }

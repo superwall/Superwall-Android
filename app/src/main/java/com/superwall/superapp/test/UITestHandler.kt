@@ -8,6 +8,7 @@ import androidx.core.net.toUri
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.superwall.SuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEvent.DeepLink
+import com.superwall.sdk.config.models.ConfigurationStatus
 import com.superwall.sdk.identity.identify
 import com.superwall.sdk.identity.setUserAttributes
 import com.superwall.sdk.misc.AlertControllerFactory
@@ -1016,6 +1017,8 @@ object UITestHandler {
             "Fetched config, subscribed, and not gated. The paywall should NOT show. You " +
                 "should NOT see !!! ERROR HANDLER !!! in the console and the alert SHOULD show.",
             test = { scope, events, message ->
+                Superwall.instance.configurationStateListener.first { it is ConfigurationStatus.Configured }
+                delay(1000)
                 executeRegisterFeatureClosureTest(
                     subscribed = true,
                     gated = false,
@@ -1029,6 +1032,8 @@ object UITestHandler {
             "Fetched config, subscribed, and gated. The paywall should NOT show. You should" +
                 " NOT see !!! ERROR HANDLER !!! in the console and the alert SHOULD show.",
             test = { scope, events, message ->
+                Superwall.instance.configurationStateListener.first { it is ConfigurationStatus.Configured }
+                delay(1000)
                 executeRegisterFeatureClosureTest(
                     subscribed = true,
                     gated = true,

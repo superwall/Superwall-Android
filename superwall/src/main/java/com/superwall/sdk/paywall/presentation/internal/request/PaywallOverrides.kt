@@ -14,6 +14,13 @@ data class PaywallOverrides(
     @Deprecated("This variable has been deprecated.", ReplaceWith("productsByName"))
     val products: PaywallProducts? = mapToPaywallProducts(productsByName)
 
+    /**
+     * Converts the productsByName map to a map of ProductOverride objects.
+     * This provides a consistent interface for handling both product objects and product IDs.
+     */
+    val productOverridesByName: Map<String, ProductOverride>
+        get() = productsByName.mapValues { ProductOverride.ByProduct(it.value) }
+
     // Secondary constructors
     @Deprecated("This constructor has been deprecated.", ReplaceWith("PaywallOverrides(productsByName)"))
     constructor(products: PaywallProducts?) : this(mapFromPaywallProducts(products))

@@ -6,12 +6,12 @@ import java.util.Date
 plugins {
     alias(libs.plugins.androidLibrary)
     alias(libs.plugins.kotlinAndroid)
-    id("maven-publish")
     id("signing")
     alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.publisher)
 }
 
-version = "2.3.0"
+version = "2.3.1"
 
 android {
     namespace = "com.superwall.sdk.composable"
@@ -58,85 +58,38 @@ android {
         compose = true
         buildConfig = true
     }
-
-    publishing {
-        singleVariant("release") {
-            withSourcesJar()
-        }
-    }
 }
 
-publishing {
-    publications {
-        register<MavenPublication>("release") {
-            groupId = "com.superwall.sdk"
-            artifactId = "superwall-compose"
-            version = version
+mavenPublishing {
+    coordinates(group.toString(), "superwall-compose", version.toString())
 
-            pom {
-                name.set("Superwall Compose")
-                description.set("Remotely configure paywalls without shipping app updates - Jetpack Compose support")
-                url.set("https://superwall.com")
+    pom {
+        name.set("Superwall Compose")
+        description.set("Remotely configure paywalls without shipping app updates - Jetpack Compose support")
+        inceptionYear.set("2020")
+        url.set("https://superwall.com")
 
-                licenses {
-                    license {
-                        name.set("MIT License")
-                        url.set("https://github.com/superwall/Superwall-Android?tab=MIT-1-ov-file#")
-                    }
-                }
-                developers {
-                    developer {
-                        id.set("ianrumac")
-                        name.set("Ian Rumac")
-                        email.set("ian@superwall.com")
-                    }
-                }
-                scm {
-                    connection.set("scm:git:git@github.com:superwall/Superwall-Android.git")
-                    developerConnection.set("scm:git:ssh://github.com:superwall/Superwall-Android.git")
-                    url.set("scm:git:https://github.com/superwall/Superwall-Android.git")
-                }
+        licenses {
+            license {
+                name.set("MIT License")
+                url.set("https://github.com/superwall/Superwall-Android?tab=MIT-1-ov-file#")
             }
+        }
 
-            afterEvaluate {
-                from(components["release"])
+        developers {
+            developer {
+                id.set("ianrumac")
+                name.set("Ian Rumac")
+                email.set("ian@superwall.com")
             }
+        }
+
+        scm {
+            url.set("https://github.com/superwall/Superwall-Android.git")
+            connection.set("scm:git:git://github.com/superwall/Superwall-Android.git")
+            developerConnection.set("scm:git:ssh://git@github.com/superwall/Superwall-Android.git")
         }
     }
-
-    repositories {
-        mavenLocal()
-
-        // Allow us to publish to S3 if we have the credentials
-        // but also allow us to publish locally if we don't
-        val awsAccessKeyId: String? by extra
-        val awsSecretAccessKey: String? by extra
-        val sonatypeUsername: String? by extra
-        val sonatypePassword: String? by extra
-        if (awsAccessKeyId != null && awsSecretAccessKey != null) {
-            maven {
-                url = uri("s3://mvn.superwall.com/release")
-                credentials(AwsCredentials::class.java) {
-                    accessKey = awsAccessKeyId
-                    secretKey = awsSecretAccessKey
-                }
-            }
-        }
-
-        if (sonatypeUsername != null && sonatypePassword != null) {
-            maven {
-                url = uri("https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/")
-                credentials(PasswordCredentials::class.java) {
-                    username = sonatypeUsername
-                    password = sonatypePassword
-                }
-            }
-        }
-    }
-}
-
-signing {
-    sign(publishing.publications["release"])
 }
 
 tasks.register("generateBuildInfo") {
