@@ -2,6 +2,12 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.3.1
+
+## Fixes
+- Fixes an issue where entitlements would not be reset on time
+- Ensures `redeem` is only done on initial config not on config refresh
+
 ## 2.3.0
 
 ## Enhancements
