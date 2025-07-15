@@ -260,10 +260,8 @@ class PaywallRequestManager(
             val substituteProducts =
                 request.overrides.products
                     ?: run {
-                        // Get global overrides from Superwall instance
                         val globalOverrides = Superwall.instance.overrideProductsByName
                         if (globalOverrides.isNotEmpty()) {
-                            // Convert global overrides (Map<String, String>) to ProductOverrides and then to StoreProducts
                             val productOverrides = globalOverrides.mapValues { ProductOverride.ById(it.value) }
                             convertProductOverrides(productOverrides)
                         } else {
@@ -343,16 +341,25 @@ class PaywallRequestManager(
      */
     private suspend fun convertProductOverrides(productOverrides: Map<String, ProductOverride>?): Map<String, StoreProduct>? {
         if (productOverrides.isNullOrEmpty()) return null
-
         val convertedProducts = mutableMapOf<String, StoreProduct?>()
-        val products = storeManager.getProductsWithoutPaywall(productOverrides.keys.toList())
+        val products =
+            storeManager.getProductsWithoutPaywall(
+                productOverrides.values
+                    .map {
+                        when (it) {
+                            is ProductOverride.ById -> it.productId
+                            is ProductOverride.ByProduct -> it.product.productIdentifier
+                        }
+                    }.toList(),
+            )
         for ((name, override) in productOverrides) {
             when (override) {
                 is ProductOverride.ByProduct -> {
                     convertedProducts[name] = override.product
                 }
                 is ProductOverride.ById -> {
-                    convertedProducts[name] = products[name]
+                    val product = products[override.productId]
+                    convertedProducts[name] = product
                 }
             }
         }
