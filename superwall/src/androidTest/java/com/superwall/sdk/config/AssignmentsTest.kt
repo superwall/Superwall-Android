@@ -89,6 +89,7 @@ class AssignmentsTest {
         runTest(timeout = 5.minutes) {
             val assignments = Assignments(storage, network, ioScope = this)
             coEvery { network.confirmAssignments(any()) } returns Either.Success(Unit)
+            coEvery { network.confirmAssignments(any()) } returns Either.Success(Unit)
 
             Given("We have a confirmable assignment") {
                 val assignment =
