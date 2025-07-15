@@ -47,12 +47,11 @@ class Entitlements(
     /**
      * Internal backing variable that is set only via setSubscriptionStatus
      */
-    private var backingActive: Set<Entitlement> = emptySet()
+    private var backingActive: MutableSet<Entitlement> = mutableSetOf()
 
     private val _all = mutableSetOf<Entitlement>()
     private val _activeDeviceEntitlements = mutableSetOf<Entitlement>()
     private val _inactive = _all.subtract(backingActive).toMutableSet()
-
     // MARK: - Public Properties
 
     internal var activeDeviceEntitlements: Set<Entitlement>
@@ -72,7 +71,7 @@ class Entitlements(
      * The active entitlements.
      */
     val active: Set<Entitlement>
-        get() = backingActive
+        get() = backingActive + _activeDeviceEntitlements + web
 
     /**
      * The inactive entitlements.
@@ -104,7 +103,7 @@ class Entitlements(
                 if (value.entitlements.isEmpty()) {
                     setSubscriptionStatus(SubscriptionStatus.Inactive)
                 } else {
-                    backingActive = value.entitlements
+                    backingActive.addAll(value.entitlements)
                     _all.addAll(value.entitlements)
                     _inactive.removeAll(value.entitlements)
                     _status.value = value
@@ -113,11 +112,13 @@ class Entitlements(
 
             is SubscriptionStatus.Inactive -> {
                 _activeDeviceEntitlements.clear()
+                backingActive.clear()
                 _inactive.clear()
                 _status.value = value
             }
 
             is SubscriptionStatus.Unknown -> {
+                backingActive.clear()
                 _activeDeviceEntitlements.clear()
                 _inactive.clear()
                 _status.value = value
