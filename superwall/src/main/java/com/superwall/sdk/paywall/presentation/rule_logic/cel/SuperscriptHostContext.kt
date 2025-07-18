@@ -9,9 +9,10 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-class CELHostContext(
+class SuperscriptHostContext(
     private val json: Json,
     private val storage: CoreDataManager,
+    private val callingPlacement: String?,
 ) : HostContext {
     companion object ComputedProperties {
         private val periodSinceFunctionProperties =
@@ -46,7 +47,7 @@ class CELHostContext(
 
         val res =
             runBlocking {
-                val fn = SuperscriptExposedFunction.from(name, _args)
+                val fn = SuperscriptExposedFunction.from(name, _args, callingPlacement)
                 when (fn) {
                     null -> null
                     is TimeSince -> fn(storage)

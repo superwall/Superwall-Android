@@ -11,8 +11,8 @@ import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.triggers.TriggerRule
 import com.superwall.sdk.models.triggers.TriggerRuleOutcome
 import com.superwall.sdk.models.triggers.UnmatchedRule
-import com.superwall.sdk.paywall.presentation.rule_logic.cel.CELHostContext.ComputedProperties.availableComputedProperties
-import com.superwall.sdk.paywall.presentation.rule_logic.cel.CELHostContext.ComputedProperties.availableDeviceProperties
+import com.superwall.sdk.paywall.presentation.rule_logic.cel.SuperscriptHostContext.ComputedProperties.availableComputedProperties
+import com.superwall.sdk.paywall.presentation.rule_logic.cel.SuperscriptHostContext.ComputedProperties.availableDeviceProperties
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.CELResult
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.ExecutionContext
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.PassableMap
@@ -44,11 +44,6 @@ internal class SuperscriptEvaluator(
     private val ioScope: IOScope,
     private val storage: CoreDataManager,
     private val factory: RuleAttributesFactory,
-    private val hostContext: HostContext =
-        CELHostContext(
-            json,
-            storage,
-        ),
 ) : ExpressionEvaluating {
     class NotError(
         val string: String,
@@ -61,13 +56,18 @@ internal class SuperscriptEvaluator(
         if (rule.expressionCEL == null) {
             return rule.tryToMatchOccurrence(storage, true)
         }
+        val hostContext: HostContext =
+            SuperscriptHostContext(
+                json,
+                storage,
+                eventData?.name,
+            )
 
         return ioScope
             .asyncWithTracking {
                 val factory = factory.makeRuleAttributes(eventData, rule.computedPropertyRequests)
                 val userAttributes = factory.toPassableValue()
-                val expression =
-                    rule.expressionCEL
+                val expression = rule.expressionCEL
 
                 val executionContext =
                     ExecutionContext(

@@ -29,7 +29,7 @@ import org.junit.Test
 class CELHostContextTest {
     private lateinit var json: Json
     private lateinit var storage: CoreDataManager
-    private lateinit var celHostContext: CELHostContext
+    private lateinit var superscriptHostContext: SuperscriptHostContext
 
     @OptIn(ExperimentalSerializationApi::class)
     @Before
@@ -42,7 +42,7 @@ class CELHostContextTest {
                 classDiscriminator = "type"
             }
         storage = mockk(relaxed = true)
-        celHostContext = CELHostContext(json, storage)
+        superscriptHostContext = SuperscriptHostContext(json, storage)
     }
 
     @Test
@@ -58,7 +58,7 @@ class CELHostContextTest {
                 coEvery { storage.getComputedPropertySinceEvent(null, capture(computedPropertyRequestSlot)) } returns daysSinceValue
 
                 When("computedProperty is called with daysSince function") {
-                    celHostContext.computedProperty("daysSince", args, callback)
+                    superscriptHostContext.computedProperty("daysSince", args, callback)
 
                     Then("it should query storage with correct parameters") {
                         coVerify {
@@ -98,7 +98,7 @@ class CELHostContextTest {
                 coEvery { storage.getComputedPropertySinceEvent(null, capture(computedPropertyRequestSlot)) } returns minutesSinceValue
 
                 When("computedProperty is called with minutesSince function") {
-                    celHostContext.computedProperty("minutesSince", args, callback)
+                    superscriptHostContext.computedProperty("minutesSince", args, callback)
 
                     Then("it should query storage with correct parameters") {
                         coVerify {
@@ -138,7 +138,7 @@ class CELHostContextTest {
                 coEvery { storage.getComputedPropertySinceEvent(null, capture(computedPropertyRequestSlot)) } returns hoursSinceValue
 
                 When("computedProperty is called with hoursSince function") {
-                    celHostContext.computedProperty("hoursSince", args, callback)
+                    superscriptHostContext.computedProperty("hoursSince", args, callback)
 
                     Then("it should query storage with correct parameters") {
                         coVerify {
@@ -178,7 +178,7 @@ class CELHostContextTest {
                 coEvery { storage.getComputedPropertySinceEvent(null, capture(computedPropertyRequestSlot)) } returns monthsSinceValue
 
                 When("computedProperty is called with monthsSince function") {
-                    celHostContext.computedProperty("monthsSince", args, callback)
+                    superscriptHostContext.computedProperty("monthsSince", args, callback)
 
                     Then("it should query storage with correct parameters") {
                         coVerify {
@@ -218,7 +218,7 @@ class CELHostContextTest {
                 coEvery { storage.countTriggerRuleOccurrences(capture(triggerRuleOccurrenceSlot)) } returns placementCount
 
                 When("computedProperty is called with placementsSinceInstall function") {
-                    celHostContext.computedProperty("placementsSinceInstall", args, callback)
+                    superscriptHostContext.computedProperty("placementsSinceInstall", args, callback)
 
                     Then("it should query storage with correct parameters") {
                         coVerify {
@@ -253,7 +253,7 @@ class CELHostContextTest {
                 coEvery { storage.countTriggerRuleOccurrences(capture(triggerRuleOccurrenceSlot)) } returns placementCount
 
                 When("computedProperty is called with placementsInDay function") {
-                    celHostContext.computedProperty("placementsInDay", args, callback)
+                    superscriptHostContext.computedProperty("placementsInDay", args, callback)
 
                     Then("it should query storage with correct parameters") {
                         coVerify {
@@ -289,7 +289,7 @@ class CELHostContextTest {
                 coEvery { storage.countTriggerRuleOccurrences(capture(triggerRuleOccurrenceSlot)) } returns placementCount
 
                 When("computedProperty is called with placementsInHour function") {
-                    celHostContext.computedProperty("placementsInHour", args, callback)
+                    superscriptHostContext.computedProperty("placementsInHour", args, callback)
 
                     Then("it should query storage with correct parameters") {
                         coVerify {
@@ -320,7 +320,7 @@ class CELHostContextTest {
                 val callback = mockk<ResultCallback>(relaxed = true)
 
                 When("computedProperty is called with unknown property name") {
-                    celHostContext.computedProperty("unknownProperty", args, callback)
+                    superscriptHostContext.computedProperty("unknownProperty", args, callback)
 
                     Then("it should return false without querying storage") {
                         val resultSlot = slot<String>()
@@ -349,7 +349,7 @@ class CELHostContextTest {
                 coEvery { storage.getComputedPropertySinceEvent(null, any()) } returns null
 
                 When("computedProperty is called with daysSince function") {
-                    celHostContext.computedProperty("daysSince", args, callback)
+                    superscriptHostContext.computedProperty("daysSince", args, callback)
 
                     Then("it should return NullValue") {
                         val resultSlot = slot<String>()
@@ -375,7 +375,7 @@ class CELHostContextTest {
                 coEvery { storage.getComputedPropertySinceEvent(null, capture(computedPropertyRequestSlot)) } returns daysSinceValue
 
                 When("deviceProperty is called with daysSince function") {
-                    celHostContext.deviceProperty("daysSince", args, callback)
+                    superscriptHostContext.deviceProperty("daysSince", args, callback)
 
                     Then("it should query storage with correct parameters") {
                         coVerify {
@@ -410,7 +410,7 @@ class CELHostContextTest {
                 val callback = mockk<ResultCallback>(relaxed = true)
 
                 When("deviceProperty is called with unknown property name") {
-                    celHostContext.deviceProperty("unknownProperty", args, callback)
+                    superscriptHostContext.deviceProperty("unknownProperty", args, callback)
 
                     Then("it should return false without querying storage") {
                         val resultSlot = slot<String>()
@@ -438,7 +438,7 @@ class CELHostContextTest {
                 coEvery { storage.getComputedPropertySinceEvent(null, any()) } returns null
 
                 When("deviceProperty is called with hoursSince function") {
-                    celHostContext.deviceProperty("hoursSince", args, callback)
+                    superscriptHostContext.deviceProperty("hoursSince", args, callback)
 
                     Then("it should return IntValue with 0") {
                         val resultSlot = slot<String>()
@@ -456,7 +456,7 @@ class CELHostContextTest {
         runTest {
             Given("the CELHostContext companion object") {
                 When("accessing availableComputedProperties") {
-                    val properties = CELHostContext.availableComputedProperties
+                    val properties = SuperscriptHostContext.availableComputedProperties
 
                     Then("it should contain all expected computed properties") {
                         assertTrue(properties.contains("daysSince"))
@@ -482,7 +482,7 @@ class CELHostContextTest {
         runTest {
             Given("the CELHostContext companion object") {
                 When("accessing availableDeviceProperties") {
-                    val properties = CELHostContext.availableDeviceProperties
+                    val properties = SuperscriptHostContext.availableDeviceProperties
 
                     Then("it should contain all expected device properties") {
                         assertTrue(properties.contains("daysSince"))
@@ -516,7 +516,7 @@ class CELHostContextTest {
                 coEvery { storage.getComputedPropertySinceEvent(null, any()) } returns daysSinceValue
 
                 When("computedProperty is called with multiple arguments") {
-                    celHostContext.computedProperty("daysSince", args, callback)
+                    superscriptHostContext.computedProperty("daysSince", args, callback)
 
                     Then("it should use the first argument as event name") {
                         val computedPropertyRequestSlot = slot<ComputedPropertyRequest>()
@@ -548,7 +548,7 @@ class CELHostContextTest {
                 coEvery { storage.countTriggerRuleOccurrences(any()) } returns 0
 
                 When("computedProperty is called with placementsSinceInstall function") {
-                    celHostContext.computedProperty("placementsSinceInstall", args, callback)
+                    superscriptHostContext.computedProperty("placementsSinceInstall", args, callback)
 
                     Then("it should return IntValue with 0") {
                         val resultSlot = slot<String>()
@@ -573,7 +573,7 @@ class CELHostContextTest {
                 coEvery { storage.countTriggerRuleOccurrences(any()) } returns placementCount
 
                 When("computedProperty is called with placementsSinceInstall function") {
-                    celHostContext.computedProperty("placementsSinceInstall", args, callback)
+                    superscriptHostContext.computedProperty("placementsSinceInstall", args, callback)
 
                     Then("it should return the correct IntValue") {
                         val resultSlot = slot<String>()
