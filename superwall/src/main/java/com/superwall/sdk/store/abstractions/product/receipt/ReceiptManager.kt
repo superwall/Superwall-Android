@@ -71,7 +71,10 @@ class ReceiptManager(
                 val product =
                     billing
                         .awaitGetProducts(productIds.toSet())
-                        .first()
+                        .firstOrNull()
+                if (product == null) {
+                    return@let emptyMap()
+                }
                 val duration = product.rawStoreProduct.subscriptionPeriod?.toMillis ?: 0
                 val state =
                     when {
@@ -123,5 +126,5 @@ class ReceiptManager(
 
     fun hasPurchasedProduct(productId: String): Boolean = _purchases.firstOrNull { it.productIdentifier == productId } != null
 
-    override fun experimentalProperties(): Map<String, Any> = experimentalProperties()
+    override fun experimentalProperties(): Map<String, Any> = latestSubscriptionState.value
 }
