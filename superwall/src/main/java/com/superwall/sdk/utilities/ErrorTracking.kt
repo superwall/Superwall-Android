@@ -122,11 +122,12 @@ internal fun Throwable.isFatal() =
 internal fun Superwall.trackError(e: Throwable) {
     try {
         dependencyContainer.errorTracker.trackError(e)
-    } catch (e: Exception) {
+    } catch (_e: Exception) {
+        e.printStackTrace()
         Logger.debug(
             com.superwall.sdk.logger.LogLevel.error,
             com.superwall.sdk.logger.LogScope.all,
-            "Error tracking failed for ${e.message}",
+            "Error tracking failed for ${e.message}. Cause ${_e.message}} ",
         )
     }
 }
