@@ -35,9 +35,7 @@ class PaywallViewCache(
     private val singleThreadContext = Dispatchers.IO
 
     val entries =
-        store.views.entries
-            .map { it.key to it.value }
-            .toMap()
+        store.views.entries.associate { it.key to it.value }
 
     fun getAllPaywallViews(): List<PaywallView> =
         runBlocking(singleThreadContext) {
@@ -110,7 +108,8 @@ class PaywallViewCache(
 
     fun removeAll() {
         CoroutineScope(singleThreadContext).launch {
-            store.views.keys.forEach { key ->
+            store.views.entries.forEach { it ->
+                val key = it.key
                 if (key != _activePaywallVcKey) {
                     store.removeView(key)
                 }

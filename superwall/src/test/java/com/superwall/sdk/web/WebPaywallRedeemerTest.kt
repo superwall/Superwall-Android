@@ -35,10 +35,14 @@ import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
+import kotlin.time.Duration.Companion.seconds
 
 class WebPaywallRedeemerTest {
     private val context: Context = mockk()
@@ -231,6 +235,7 @@ class WebPaywallRedeemerTest {
                 val exception = Exception("Token redemption failed")
                 // User has a normal entitlement
                 mutableEntitlements = mutableSetOf(normalEntitlement)
+                println(mutableEntitlements)
                 coEvery { deepLinkReferrer.checkForReferral() } returns Result.success(codes)
                 coEvery {
                     network.redeemToken(
@@ -242,11 +247,14 @@ class WebPaywallRedeemerTest {
                         any(),
                     )
                 } returns Either.Failure(NetworkError.Unknown(exception))
+                coEvery {
+                    network.webEntitlementsByUserId(any(), any())
+                } returns Either.Success(WebEntitlements(listOf()))
 
                 redeemer =
                     WebPaywallRedeemer(
                         context,
-                        IOScope(testDispatcher),
+                        IOScope(backgroundScope.coroutineContext),
                         deepLinkReferrer,
                         network,
                         storage,
@@ -270,8 +278,11 @@ class WebPaywallRedeemerTest {
                     )
 
                 When("checking for referral") {
-                    redeemer.checkForRefferal()
-
+                    // This is commented out as on init we already do the check
+                    // redeemer.checkForRefferal()
+                    async(Dispatchers.Default) {
+                        delay(1.seconds)
+                    }.await()
                     Then("it should not set entitlement status") {
                         assert(mutableEntitlements == setOf(normalEntitlement))
                         verify(exactly = 1) {

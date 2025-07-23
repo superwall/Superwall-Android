@@ -87,26 +87,14 @@ jobs:
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
-        SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
-        GPG_SIGNING_KEY_PASSPHRASE: ${{ secrets.GPG_SIGNING_KEY_PASSPHRASE }}
-        GPG_SIGNING_KEY_ID: ${{ secrets.GPG_SIGNING_KEY_ID }}
+        ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.ORG_GRADLE_PROJECT_mavenCentralUsername }}
+        ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.ORG_GRADLE_PROJECT_mavenCentralPassword }}
+        ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.ORG_GRADLE_PROJECT_signingInMemoryKeyPassword }}
+        ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.ORG_GRADLE_PROJECT_signingInMemoryKeyId }}
+        ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.ORG_GRADLE_PROJECT_signingInMemoryKey }}
       run: |
-        ./gradlew :superwall:publish \
-          -Paws_access_key_id=$AWS_ACCESS_KEY_ID \
-          -Paws_secret_access_key=$AWS_SECRET_ACCESS_KEY \
-          -PsonatypeUsername=$SONATYPE_USERNAME \
-          -PsonatypePassword=$SONATYPE_PASSWORD \
-          -Pgpg_signing_key_passphrase=$GPG_SIGNING_KEY_PASSPHRASE \
-          -Pgpg_signing_key_id=$GPG_SIGNING_KEY_ID
-        
-        ./gradlew :superwall-compose:publish \
-          -Paws_access_key_id=$AWS_ACCESS_KEY_ID \
-          -Paws_secret_access_key=$AWS_SECRET_ACCESS_KEY \
-          -PsonatypeUsername=$SONATYPE_USERNAME \
-          -PsonatypePassword=$SONATYPE_PASSWORD \
-          -Pgpg_signing_key_passphrase=$GPG_SIGNING_KEY_PASSPHRASE \
-          -Pgpg_signing_key_id=$GPG_SIGNING_KEY_ID
+        ./gradlew :superwall:publish
+        ./gradlew :superwall-compose:publish
 
     - name: Determine prerelease status
       id: prerelease
@@ -133,34 +121,6 @@ jobs:
           sudo git checkout -b release/${{steps.version.outputs.prop}}
           sudo git push -u origin release/${{steps.version.outputs.prop}}
         fi
-
-    - name: Run Autodowngrade Task
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-      run: |
-        if [ "${{ steps.check-tag.outputs.tag-exists }}" == "false" ]; then
-          ./gradlew downgradeAgpTaska
-        fi
-
-
-    - name: Deploy
-      if: steps.check-tag.outputs.tag-exists == 'false'
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.ORG_GRADLE_PROJECT_mavenCentralUsername }}
-        ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.ORG_GRADLE_PROJECT_mavenCentralPassword }}
-        ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.ORG_GRADLE_PROJECT_signingInMemoryKeyPassword }}
-        ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.ORG_GRADLE_PROJECT_signingInMemoryKeyId }}
-        ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.ORG_GRADLE_PROJECT_signingInMemoryKey }}
-      run: |
-        ./gradlew :superwall:publish \
-          -Paws_access_key_id=$AWS_ACCESS_KEY_ID \
-          -Paws_secret_access_key=$AWS_SECRET_ACCESS_KEY \
-          -PORG_GRADLE_PROJECT_mavenCentralUsername=ORG_GRADLE_PROJECT_mavenCentralUsername \
-          -PORG_GRADLE_PROJECT_mavenCentralPassword=$SONATYPE_PASSWORD \
-          -PORG_GRADLE_PROJECT_signingInMemoryKeyPassword=$ORG_GRADLE_PROJECT_signingInMemoryKeyPassword \
-          -PORG_GRADLE_PROJECT_signingInMemoryKeyId=$ORG_GRADLE_PROJECT_signingInMemoryKeyId \
-          -PORG_GRADLE_PROJECT_signingInMemoryKey=ORG_GRADLE_PROJECT_signingInMemoryKey
 
     - name: slack-send
       # Only notify on a new tag

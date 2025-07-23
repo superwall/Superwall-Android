@@ -10,13 +10,19 @@ import com.superwall.sdk.storage.LatestRedemptionResponse
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.StoredEntitlementsByProductId
 import com.superwall.sdk.storage.StoredSubscriptionStatus
+import io.mockk.Runs
 import io.mockk.every
+import io.mockk.just
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.time.Duration.Companion.seconds
 
 class EntitlementsTest {
     private val storage: Storage =
@@ -64,20 +70,27 @@ class EntitlementsTest {
                         Entitlement("entitlement1"),
                         Entitlement("entitlement2"),
                     )
+                every {
+                    storage.write(
+                        StoredSubscriptionStatus,
+                        SubscriptionStatus.Active(activeEntitlements),
+                    )
+                } just Runs
                 every { storage.read(StoredSubscriptionStatus) } returns null
                 every { storage.read(StoredEntitlementsByProductId) } returns null
-                entitlements = Entitlements(storage)
+                entitlements = Entitlements(storage, scope = backgroundScope)
 
                 When("setting active entitlement status") {
                     entitlements.setSubscriptionStatus(SubscriptionStatus.Active(activeEntitlements))
-
                     Then("it should update all collections correctly") {
                         assertEquals(activeEntitlements, entitlements.active)
                         assertEquals(activeEntitlements, entitlements.all)
                         assertTrue(entitlements.inactive.isEmpty())
                         assertTrue(entitlements.status.value is SubscriptionStatus.Active)
                     }
-
+                    async(Dispatchers.Default) {
+                        delay(1.seconds)
+                    }.await()
                     And("it should store the status") {
                         verify {
                             storage.write(

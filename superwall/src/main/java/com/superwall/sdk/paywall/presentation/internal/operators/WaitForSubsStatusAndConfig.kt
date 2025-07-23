@@ -91,6 +91,7 @@ internal suspend fun Superwall.waitForEntitlementsAndConfig(
                     // Check config again just in case
                     configState.configOrThrow()
                 } catch (e: Exception) {
+                    e.printStackTrace()
                     ioScope.launch {
                         val trackedEvent =
                             InternalSuperwallEvent.PresentationRequest(
@@ -127,13 +128,14 @@ internal suspend fun Superwall.waitForEntitlementsAndConfig(
             try {
                 configState.configOrThrow()
             } catch (e: Throwable) {
+                e.printStackTrace()
                 // If config completely dies, then throw an error
                 val error =
                     InternalPresentationLogic.presentationError(
                         domain = "SWKPresentationError",
                         code = 104,
                         title = "No Config",
-                        value = "Trying to present paywall without the Superwall config.",
+                        value = "Trying to present paywall without the Superwall config. Error: ${e.message}}",
                     )
                 val state = PaywallState.PresentationError(error)
                 paywallStatePublisher?.emit(state)

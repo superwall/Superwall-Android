@@ -58,6 +58,7 @@ class PaywallRequestManagerTest {
                 factory = factory,
                 ioScope = IOScope(ctx),
                 track = {},
+                getGlobalOverrides = { emptyMap() },
             )
     }
 
