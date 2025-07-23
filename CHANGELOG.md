@@ -2,12 +2,13 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
-
 ## 2.4.0
 
 ## Enhancements
-
 - Adds new properties to count placement occurrences in specific time: `placementsInHours`, `placementsInDay`, `placementsInWeek`, `placementsInMonth`, `placementsSinceInstall`
+
+## Fixes
+- Fixes an issue where a redemption could succeed but throw an error
 
 ## 2.3.1
 

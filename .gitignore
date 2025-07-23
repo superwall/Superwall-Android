@@ -13,4 +13,4 @@ private_key.pepk
 upload-keystore.jks
 .env
 **/google-services.json
-.claude/
+.claude

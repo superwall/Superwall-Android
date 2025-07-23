@@ -28,6 +28,7 @@ class SubscriptionService(
         Json(json) {
             namingStrategy = null
             explicitNulls = false
+            ignoreUnknownKeys = true
         }
 
     suspend fun redeemToken(
