@@ -2,6 +2,11 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.4.0
+
+## Enhancements
+- Increases superscript version to 1.0.2 with improved type and null safety
+
 ## 2.3.2
 
 ## Enhancements
