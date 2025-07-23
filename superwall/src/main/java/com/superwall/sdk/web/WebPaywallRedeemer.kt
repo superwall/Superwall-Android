@@ -222,7 +222,7 @@ class WebPaywallRedeemer(
                                 it.localizedMessage ?: it.message
                                     ?: "Redemption failed, error unknown"
                             Logger.debug(
-                                logLevel = LogLevel.debug,
+                                logLevel = LogLevel.error,
                                 scope = LogScope.webEntitlements,
                                 message = "Failed to redeem purchase token",
                                 info = mapOf("code" to redemption.code),
@@ -242,11 +242,6 @@ class WebPaywallRedeemer(
                                 trackRestorationFailed(errorMessage)
                             }
                         }
-                        Logger.debug(
-                            LogLevel.error,
-                            LogScope.webEntitlements,
-                            "Failed to redeem purchase token",
-                        )
                     },
                 )
             startPolling()
