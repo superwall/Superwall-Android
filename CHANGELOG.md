@@ -2,6 +2,11 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.4.0
+
+## Fixes
+- Fixes an issue where a redemption could succeed but throw an error
+
 ## 2.3.1
 
 ## Fixes

@@ -112,13 +112,14 @@ sealed class RedemptionResult {
         val identifier: PaywallIdentifier,
         @SerialName("placementName")
         val placementName: String,
-        // For “placementParams”, we treat TS’s “Record<string, any>” as a Map<String, JsonElement>.
         @SerialName("placementParams")
         val placementParams: Map<String, JsonElement>,
         @SerialName("variantId")
         val variantId: VariantId,
         @SerialName("experimentId")
         val experimentId: ExperimentId,
+        @SerialName("productIdentifier")
+        val productIdentifier: String? = null,
     )
 }
 
