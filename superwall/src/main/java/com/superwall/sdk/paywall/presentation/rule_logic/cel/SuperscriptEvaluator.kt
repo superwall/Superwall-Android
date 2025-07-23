@@ -7,11 +7,12 @@ import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.asyncWithTracking
-import com.superwall.sdk.models.config.ComputedPropertyRequest
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.triggers.TriggerRule
 import com.superwall.sdk.models.triggers.TriggerRuleOutcome
 import com.superwall.sdk.models.triggers.UnmatchedRule
+import com.superwall.sdk.paywall.presentation.rule_logic.cel.SuperscriptHostContext.ComputedProperties.availableComputedProperties
+import com.superwall.sdk.paywall.presentation.rule_logic.cel.SuperscriptHostContext.ComputedProperties.availableDeviceProperties
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.CELResult
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.ExecutionContext
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.PassableMap
@@ -20,7 +21,6 @@ import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.Ex
 import com.superwall.sdk.paywall.presentation.rule_logic.tryToMatchOccurrence
 import com.superwall.sdk.storage.core_data.CoreDataManager
 import com.superwall.sdk.utilities.trackError
-import com.superwall.supercel.HostContext
 import com.superwall.supercel.evaluateWithContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -43,24 +43,12 @@ internal class SuperscriptEvaluator(
     private val ioScope: IOScope,
     private val storage: CoreDataManager,
     private val factory: RuleAttributesFactory,
-    private val hostContext: HostContext =
-        CELHostContext(
-            availableComputedProperties,
-            availableComputedProperties,
+    private val hostContext: SuperscriptHostContext =
+        SuperscriptHostContext(
             json,
             storage,
         ),
 ) : ExpressionEvaluating {
-    private companion object {
-        private val availableComputedProperties =
-            mapOf(
-                "daysSince" to ComputedPropertyRequest.ComputedPropertyRequestType.DAYS_SINCE,
-                "minutesSince" to ComputedPropertyRequest.ComputedPropertyRequestType.MINUTES_SINCE,
-                "hoursSince" to ComputedPropertyRequest.ComputedPropertyRequestType.HOURS_SINCE,
-                "monthsSince" to ComputedPropertyRequest.ComputedPropertyRequestType.MONTHS_SINCE,
-            )
-    }
-
     class NotError(
         val string: String,
     ) : Throwable(string)
@@ -77,28 +65,24 @@ internal class SuperscriptEvaluator(
             .asyncWithTracking {
                 val factory = factory.makeRuleAttributes(eventData, rule.computedPropertyRequests)
                 val userAttributes = factory.toPassableValue()
-                val expression =
-                    rule.expressionCEL
+                val expression = rule.expressionCEL
 
                 val executionContext =
                     ExecutionContext(
                         variables = PassableMap(map = userAttributes.value.toMap()),
                         expression = expression,
                         device =
-                            availableComputedProperties
-                                .mapValues {
-                                    listOf(PassableValue.StringValue("event_name"))
-                                }.toMap(),
+                            availableDeviceProperties.associate {
+                                it to listOf(PassableValue.StringValue("event_name"))
+                            },
                         computed =
-                            availableComputedProperties
-                                .mapValues {
-                                    listOf(PassableValue.StringValue("event_name"))
-                                }.toMap(),
+                            availableComputedProperties.associate {
+                                it to listOf(PassableValue.StringValue("event_name"))
+                            },
                     )
 
                 val ctx = json.encodeToString(executionContext)
-                val result =
-                    evaluateWithContext(ctx, hostContext)
+                val result = evaluateWithContext(ctx, hostContext)
 
                 val celResult = json.decodeFromString<CELResult>(result)
                 return@asyncWithTracking when (celResult) {
@@ -171,6 +155,7 @@ internal fun Any.toPassableValue(): PassableValue =
             PassableValue.ListValue(
                 this.map { it?.toPassableValue() ?: PassableValue.NullValue },
             )
+
         is LinkedHashMap<*, *> -> {
             // Due to issues with Kotlin 2.0 compatibility we have to use this workaround
             val stringKeyMap =
@@ -178,24 +163,35 @@ internal fun Any.toPassableValue(): PassableValue =
                     .filterKeys { it is String }
                     .mapKeys { it.key as String }
             PassableValue.MapValue(
-                stringKeyMap.mapValues { it.value?.toPassableValue() ?: PassableValue.NullValue }.toMap(),
+                stringKeyMap
+                    .mapValues { it.value?.toPassableValue() ?: PassableValue.NullValue }
+                    .toMap(),
             )
         }
+
         is Map<*, *> -> {
             val stringKeyMap =
                 this
                     .filterKeys { it is String }
                     .mapKeys { it.key as String }
             PassableValue.MapValue(
-                stringKeyMap.mapValues { it.value?.toPassableValue() ?: PassableValue.NullValue }.toMap(),
+                stringKeyMap
+                    .mapValues { it.value?.toPassableValue() ?: PassableValue.NullValue }
+                    .toMap(),
             )
         }
+
         is JsonElement -> this.toPassableValue()
         is PassableValue -> this
         else -> {
             try {
                 val map = this as Map<*, *>
-                PassableValue.MapValue(map.map { it.key.toString() to (it.value?.toPassableValue() ?: PassableValue.NullValue) }.toMap())
+                PassableValue.MapValue(
+                    map
+                        .map {
+                            it.key.toString() to (it.value?.toPassableValue() ?: PassableValue.NullValue)
+                        }.toMap(),
+                )
             } catch (e: Exception) {
                 try {
                     val jsonElement = Json.encodeToJsonElement(this)
@@ -218,10 +214,12 @@ private fun JsonElement.toPassableValue(): PassableValue =
             PassableValue.MapValue(
                 this.mapValues { (_, value) -> value.toPassableValue() }.toMap(),
             )
+
         is JsonArray ->
             PassableValue.ListValue(
                 this.map { it.toPassableValue() },
             )
+
         is JsonPrimitive ->
             when {
                 this.isString -> PassableValue.StringValue(this.content)

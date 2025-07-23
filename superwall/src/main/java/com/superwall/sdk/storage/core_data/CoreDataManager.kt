@@ -181,4 +181,25 @@ class CoreDataManager(
             }
         }
     }
+
+    suspend fun countEventsByNameInPeriod(
+        name: String,
+        startDate: Date,
+        endDate: Date,
+    ): Int =
+        try {
+            superwallDatabase.managedEventDataDao().countEventsByNameInPeriod(
+                name = name,
+                startDate = startDate,
+                endDate = endDate,
+            )
+        } catch (error: Throwable) {
+            Logger.debug(
+                logLevel = LogLevel.error,
+                scope = LogScope.coreData,
+                message = "Error counting events by name in period from Room database.",
+                error = error,
+            )
+            0
+        }
 }

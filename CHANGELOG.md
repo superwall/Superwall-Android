@@ -4,6 +4,9 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## 2.4.0
 
+## Enhancements
+- Adds new properties to count placement occurrences in specific time: `placementsInHours`, `placementsInDay`, `placementsInWeek`, `placementsInMonth`, `placementsSinceInstall`
+
 ## Fixes
 - Fixes an issue where a redemption could succeed but throw an error
 
