@@ -42,6 +42,9 @@ class PaywallRequestManager(
     private val track: suspend (TrackableSuperwallEvent) -> Unit = {
         Superwall.instance.track(it)
     },
+    private val getGlobalOverrides: () -> Map<String, String> = {
+        Superwall.instance.overrideProductsByName
+    },
 ) {
     // Single thread context to make this class similar to an actor. All functions in this class
     // must execute with this context.
@@ -260,9 +263,10 @@ class PaywallRequestManager(
             val substituteProducts =
                 request.overrides.products
                     ?: run {
-                        val globalOverrides = Superwall.instance.overrideProductsByName
+                        val globalOverrides = getGlobalOverrides()
                         if (globalOverrides.isNotEmpty()) {
-                            val productOverrides = globalOverrides.mapValues { ProductOverride.ById(it.value) }
+                            val productOverrides =
+                                globalOverrides.mapValues { ProductOverride.ById(it.value) }
                             convertProductOverrides(productOverrides)
                         } else {
                             null
@@ -357,6 +361,7 @@ class PaywallRequestManager(
                 is ProductOverride.ByProduct -> {
                     convertedProducts[name] = override.product
                 }
+
                 is ProductOverride.ById -> {
                     val product = products[override.productId]
                     convertedProducts[name] = product

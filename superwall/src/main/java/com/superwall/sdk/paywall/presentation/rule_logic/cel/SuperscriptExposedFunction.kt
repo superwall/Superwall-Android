@@ -132,14 +132,14 @@ sealed interface TimeSince {
     val event: String
     val propertyRequest: ComputedPropertyRequestType
 
-    suspend operator fun invoke(storage: CoreDataManager): Int? =
+    suspend operator fun invoke(storage: CoreDataManager): Int =
         storage.getComputedPropertySinceEvent(
             null,
             ComputedPropertyRequest(
                 propertyRequest,
                 event,
             ),
-        )
+        ) ?: 0
 }
 
 sealed interface InPeriod {

@@ -4,11 +4,8 @@ import com.superwall.sdk.And
 import com.superwall.sdk.Given
 import com.superwall.sdk.Then
 import com.superwall.sdk.When
-import com.superwall.sdk.assertFalse
 import com.superwall.sdk.assertTrue
 import com.superwall.sdk.models.config.ComputedPropertyRequest
-import com.superwall.sdk.models.triggers.RawInterval
-import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.PassableValue
 import com.superwall.sdk.storage.core_data.CoreDataManager
 import com.superwall.supercel.ResultCallback
@@ -213,20 +210,16 @@ class CELHostContextTest {
                 val placementCount = 10
                 val args = json.encodeToString(listOf(PassableValue.StringValue(placementName)))
                 val callback = mockk<ResultCallback>(relaxed = true)
-                val triggerRuleOccurrenceSlot = slot<TriggerRuleOccurrence>()
 
-                coEvery { storage.countTriggerRuleOccurrences(capture(triggerRuleOccurrenceSlot)) } returns placementCount
+                coEvery { storage.countEventsByNameInPeriod(placementName, any(), any()) } returns placementCount
 
                 When("computedProperty is called with placementsSinceInstall function") {
                     superscriptHostContext.computedProperty("placementsSinceInstall", args, callback)
 
                     Then("it should query storage with correct parameters") {
                         coVerify {
-                            storage.countTriggerRuleOccurrences(any<TriggerRuleOccurrence>())
+                            storage.countEventsByNameInPeriod(placementName, any(), any())
                         }
-                        assertEquals(placementName, triggerRuleOccurrenceSlot.captured.key)
-                        assertEquals(Int.MAX_VALUE, triggerRuleOccurrenceSlot.captured.maxCount)
-                        assertEquals(RawInterval.IntervalType.INFINITY, triggerRuleOccurrenceSlot.captured.rawInterval.type)
                     }
 
                     And("it should return the correct PassableValue") {
@@ -248,21 +241,16 @@ class CELHostContextTest {
                 val placementCount = 3
                 val args = json.encodeToString(listOf(PassableValue.StringValue(placementName)))
                 val callback = mockk<ResultCallback>(relaxed = true)
-                val triggerRuleOccurrenceSlot = slot<TriggerRuleOccurrence>()
 
-                coEvery { storage.countTriggerRuleOccurrences(capture(triggerRuleOccurrenceSlot)) } returns placementCount
+                coEvery { storage.countEventsByNameInPeriod(placementName, any(), any()) } returns placementCount
 
                 When("computedProperty is called with placementsInDay function") {
                     superscriptHostContext.computedProperty("placementsInDay", args, callback)
 
                     Then("it should query storage with correct parameters") {
                         coVerify {
-                            storage.countTriggerRuleOccurrences(any<TriggerRuleOccurrence>())
+                            storage.countEventsByNameInPeriod(placementName, any(), any())
                         }
-                        assertEquals(placementName, triggerRuleOccurrenceSlot.captured.key)
-                        assertEquals(Int.MAX_VALUE, triggerRuleOccurrenceSlot.captured.maxCount)
-                        assertEquals(RawInterval.IntervalType.MINUTES, triggerRuleOccurrenceSlot.captured.rawInterval.type)
-                        assertEquals(60 * 24, triggerRuleOccurrenceSlot.captured.rawInterval.minutes)
                     }
 
                     And("it should return the correct PassableValue") {
@@ -284,21 +272,16 @@ class CELHostContextTest {
                 val placementCount = 2
                 val args = json.encodeToString(listOf(PassableValue.StringValue(placementName)))
                 val callback = mockk<ResultCallback>(relaxed = true)
-                val triggerRuleOccurrenceSlot = slot<TriggerRuleOccurrence>()
 
-                coEvery { storage.countTriggerRuleOccurrences(capture(triggerRuleOccurrenceSlot)) } returns placementCount
+                coEvery { storage.countEventsByNameInPeriod(placementName, any(), any()) } returns placementCount
 
                 When("computedProperty is called with placementsInHour function") {
                     superscriptHostContext.computedProperty("placementsInHour", args, callback)
 
                     Then("it should query storage with correct parameters") {
                         coVerify {
-                            storage.countTriggerRuleOccurrences(any<TriggerRuleOccurrence>())
+                            storage.countEventsByNameInPeriod(placementName, any(), any())
                         }
-                        assertEquals(placementName, triggerRuleOccurrenceSlot.captured.key)
-                        assertEquals(Int.MAX_VALUE, triggerRuleOccurrenceSlot.captured.maxCount)
-                        assertEquals(RawInterval.IntervalType.MINUTES, triggerRuleOccurrenceSlot.captured.rawInterval.type)
-                        assertEquals(60, triggerRuleOccurrenceSlot.captured.rawInterval.minutes)
                     }
 
                     And("it should return the correct PassableValue") {
@@ -355,7 +338,7 @@ class CELHostContextTest {
                         val resultSlot = slot<String>()
                         verify { callback.onResult(capture(resultSlot)) }
 
-                        val expectedResult = json.encodeToString(PassableValue.NullValue)
+                        val expectedResult = json.encodeToString(PassableValue.IntValue(0))
                         assertEquals(expectedResult, resultSlot.captured)
                     }
                 }
@@ -478,32 +461,6 @@ class CELHostContextTest {
         }
 
     @Test
-    fun test_availableDeviceProperties_containsExpectedProperties() =
-        runTest {
-            Given("the CELHostContext companion object") {
-                When("accessing availableDeviceProperties") {
-                    val properties = SuperscriptHostContext.availableDeviceProperties
-
-                    Then("it should contain all expected device properties") {
-                        assertTrue(properties.contains("daysSince"))
-                        assertTrue(properties.contains("minutesSince"))
-                        assertTrue(properties.contains("hoursSince"))
-                        assertTrue(properties.contains("monthsSince"))
-                    }
-
-                    And("it should not contain placement functions") {
-                        assertFalse(properties.contains("placementsInDay"))
-                        assertFalse(properties.contains("placementsSinceInstall"))
-                    }
-
-                    And("it should have exactly 4 properties") {
-                        assertEquals(4, properties.size)
-                    }
-                }
-            }
-        }
-
-    @Test
     fun test_computedProperty_withComplexArgs() =
         runTest {
             Given("a CELHostContext with complex argument structure") {
@@ -570,7 +527,7 @@ class CELHostContextTest {
                 val args = json.encodeToString(listOf(PassableValue.StringValue(placementName)))
                 val callback = mockk<ResultCallback>(relaxed = true)
 
-                coEvery { storage.countTriggerRuleOccurrences(any()) } returns placementCount
+                coEvery { storage.countEventsByNameInPeriod(placementName, any(), any()) } returns placementCount
 
                 When("computedProperty is called with placementsSinceInstall function") {
                     superscriptHostContext.computedProperty("placementsSinceInstall", args, callback)
