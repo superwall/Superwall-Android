@@ -13,6 +13,8 @@ import com.superwall.sdk.storage.StoredSubscriptionStatus
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -66,11 +68,11 @@ class EntitlementsTest {
                     )
                 every { storage.read(StoredSubscriptionStatus) } returns null
                 every { storage.read(StoredEntitlementsByProductId) } returns null
-                entitlements = Entitlements(storage)
+                entitlements = Entitlements(storage, CoroutineScope(this@runTest.coroutineContext))
 
                 When("setting active entitlement status") {
                     entitlements.setSubscriptionStatus(SubscriptionStatus.Active(activeEntitlements))
-
+                    advanceUntilIdle()
                     Then("it should update all collections correctly") {
                         assertEquals(activeEntitlements, entitlements.active)
                         assertEquals(activeEntitlements, entitlements.all)
