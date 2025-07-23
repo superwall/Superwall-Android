@@ -37,4 +37,17 @@ interface ManagedEventDataDao {
 
     @Query("DELETE FROM ManagedEventData")
     suspend fun deleteAll()
+
+    @Query(
+        """
+        SELECT COUNT(*) FROM ManagedEventData 
+        WHERE name = :name 
+        AND createdAt BETWEEN :startDate AND :endDate
+        """,
+    )
+    suspend fun countEventsByNameInPeriod(
+        name: String,
+        startDate: Date,
+        endDate: Date,
+    ): Int
 }
