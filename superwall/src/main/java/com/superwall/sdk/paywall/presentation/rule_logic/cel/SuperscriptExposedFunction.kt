@@ -55,7 +55,6 @@ sealed class SuperscriptExposedFunction {
     class PlacementCount(
         val event: String,
         val period: InPeriod.Period,
-        val callingPlacement: String? = null,
     ) : SuperscriptExposedFunction() {
         suspend operator fun invoke(storage: CoreDataManager): Int? {
             val now = Date()
@@ -76,18 +75,11 @@ sealed class SuperscriptExposedFunction {
                     }
                 }
 
-            return (
-                storage.countEventsByNameInPeriod(
-                    name = event,
-                    startDate = startDate,
-                    endDate = now,
-                ) +
-                    if (callingPlacement == event) {
-                        1
-                    } else {
-                        0
-                    }
-            ) // We add +1 to ensure the current event is also measured in this case
+            return storage.countEventsByNameInPeriod(
+                name = event,
+                startDate = startDate,
+                endDate = now,
+            )
         }
     }
 
@@ -95,7 +87,6 @@ sealed class SuperscriptExposedFunction {
         fun from(
             name: String,
             args: List<PassableValue>,
-            callingPlacement: String?,
         ) = when (name) {
             MINUTES_SINCE.rawName -> MinutesSince((args.first() as PassableValue.StringValue).value)
             HOURS_SINCE.rawName -> HoursSince((args.first() as PassableValue.StringValue).value)
@@ -105,28 +96,24 @@ sealed class SuperscriptExposedFunction {
                 PlacementCount(
                     event = (args.first() as PassableValue.StringValue).value,
                     HOUR,
-                    callingPlacement,
                 )
 
             PLACEMENTS_IN_DAY.rawName ->
                 PlacementCount(
                     event = (args.first() as PassableValue.StringValue).value,
                     DAY,
-                    callingPlacement,
                 )
 
             PLACEMENTS_IN_WEEK.rawName ->
                 PlacementCount(
                     event = (args.first() as PassableValue.StringValue).value,
                     WEEK,
-                    callingPlacement,
                 )
 
             PLACEMENTS_IN_MONTH.rawName ->
                 PlacementCount(
                     event = (args.first() as PassableValue.StringValue).value,
                     MONTH,
-                    callingPlacement,
                 )
 
             PLACEMENTS_SINCE_INSTALL.rawName,
@@ -134,7 +121,6 @@ sealed class SuperscriptExposedFunction {
                 PlacementCount(
                     event = (args.first() as PassableValue.StringValue).value,
                     period = INSTALL,
-                    callingPlacement,
                 )
 
             else -> null

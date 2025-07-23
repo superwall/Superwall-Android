@@ -1,6 +1,5 @@
 package com.superwall.sdk.paywall.presentation.rule_logic.cel
 
-import com.superwall.sdk.models.config.ComputedPropertyRequest
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.PassableValue
 import com.superwall.sdk.storage.core_data.CoreDataManager
 import com.superwall.supercel.HostContext
@@ -12,22 +11,13 @@ import kotlinx.serialization.json.Json
 class SuperscriptHostContext(
     private val json: Json,
     private val storage: CoreDataManager,
-    private val callingPlacement: String?,
 ) : HostContext {
     companion object ComputedProperties {
-        private val periodSinceFunctionProperties =
-            mapOf(
-                "daysSince" to ComputedPropertyRequest.ComputedPropertyRequestType.DAYS_SINCE,
-                "minutesSince" to ComputedPropertyRequest.ComputedPropertyRequestType.MINUTES_SINCE,
-                "hoursSince" to ComputedPropertyRequest.ComputedPropertyRequestType.HOURS_SINCE,
-                "monthsSince" to ComputedPropertyRequest.ComputedPropertyRequestType.MONTHS_SINCE,
-            )
-
         val availableComputedProperties =
             SuperscriptExposedFunction.Names.entries.map {
                 it.rawName
             }
-        val availableDeviceProperties = periodSinceFunctionProperties.keys
+        val availableDeviceProperties = availableComputedProperties
     }
 
     override fun computedProperty(
@@ -47,7 +37,7 @@ class SuperscriptHostContext(
 
         val res =
             runBlocking {
-                val fn = SuperscriptExposedFunction.from(name, _args, callingPlacement)
+                val fn = SuperscriptExposedFunction.from(name, _args)
                 when (fn) {
                     null -> null
                     is TimeSince -> fn(storage)
@@ -75,15 +65,13 @@ class SuperscriptHostContext(
 
         val res =
             runBlocking {
-                storage.getComputedPropertySinceEvent(
-                    null,
-                    ComputedPropertyRequest(
-                        periodSinceFunctionProperties[name]!!,
-                        (_args.first() as PassableValue.StringValue).value,
-                    ),
-                )
+                val fn = SuperscriptExposedFunction.from(name, _args)
+                when (fn) {
+                    null -> null
+                    is TimeSince -> fn(storage)
+                    is SuperscriptExposedFunction.PlacementCount -> fn(storage)
+                }
             }
-        val encoded = json.encodeToString(PassableValue.IntValue(res ?: 0))
-        callback.onResult(encoded)
+        callback.onResult(json.encodeToString(res?.toPassableValue() ?: PassableValue.NullValue))
     }
 }

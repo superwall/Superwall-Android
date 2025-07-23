@@ -21,7 +21,6 @@ import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.Ex
 import com.superwall.sdk.paywall.presentation.rule_logic.tryToMatchOccurrence
 import com.superwall.sdk.storage.core_data.CoreDataManager
 import com.superwall.sdk.utilities.trackError
-import com.superwall.supercel.HostContext
 import com.superwall.supercel.evaluateWithContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -44,6 +43,11 @@ internal class SuperscriptEvaluator(
     private val ioScope: IOScope,
     private val storage: CoreDataManager,
     private val factory: RuleAttributesFactory,
+    private val hostContext: SuperscriptHostContext =
+        SuperscriptHostContext(
+            json,
+            storage,
+        ),
 ) : ExpressionEvaluating {
     class NotError(
         val string: String,
@@ -56,12 +60,6 @@ internal class SuperscriptEvaluator(
         if (rule.expressionCEL == null) {
             return rule.tryToMatchOccurrence(storage, true)
         }
-        val hostContext: HostContext =
-            SuperscriptHostContext(
-                json,
-                storage,
-                eventData?.name,
-            )
 
         return ioScope
             .asyncWithTracking {
@@ -157,6 +155,7 @@ internal fun Any.toPassableValue(): PassableValue =
             PassableValue.ListValue(
                 this.map { it?.toPassableValue() ?: PassableValue.NullValue },
             )
+
         is LinkedHashMap<*, *> -> {
             // Due to issues with Kotlin 2.0 compatibility we have to use this workaround
             val stringKeyMap =
@@ -164,24 +163,35 @@ internal fun Any.toPassableValue(): PassableValue =
                     .filterKeys { it is String }
                     .mapKeys { it.key as String }
             PassableValue.MapValue(
-                stringKeyMap.mapValues { it.value?.toPassableValue() ?: PassableValue.NullValue }.toMap(),
+                stringKeyMap
+                    .mapValues { it.value?.toPassableValue() ?: PassableValue.NullValue }
+                    .toMap(),
             )
         }
+
         is Map<*, *> -> {
             val stringKeyMap =
                 this
                     .filterKeys { it is String }
                     .mapKeys { it.key as String }
             PassableValue.MapValue(
-                stringKeyMap.mapValues { it.value?.toPassableValue() ?: PassableValue.NullValue }.toMap(),
+                stringKeyMap
+                    .mapValues { it.value?.toPassableValue() ?: PassableValue.NullValue }
+                    .toMap(),
             )
         }
+
         is JsonElement -> this.toPassableValue()
         is PassableValue -> this
         else -> {
             try {
                 val map = this as Map<*, *>
-                PassableValue.MapValue(map.map { it.key.toString() to (it.value?.toPassableValue() ?: PassableValue.NullValue) }.toMap())
+                PassableValue.MapValue(
+                    map
+                        .map {
+                            it.key.toString() to (it.value?.toPassableValue() ?: PassableValue.NullValue)
+                        }.toMap(),
+                )
             } catch (e: Exception) {
                 try {
                     val jsonElement = Json.encodeToJsonElement(this)
@@ -204,10 +214,12 @@ private fun JsonElement.toPassableValue(): PassableValue =
             PassableValue.MapValue(
                 this.mapValues { (_, value) -> value.toPassableValue() }.toMap(),
             )
+
         is JsonArray ->
             PassableValue.ListValue(
                 this.map { it.toPassableValue() },
             )
+
         is JsonPrimitive ->
             when {
                 this.isString -> PassableValue.StringValue(this.content)
