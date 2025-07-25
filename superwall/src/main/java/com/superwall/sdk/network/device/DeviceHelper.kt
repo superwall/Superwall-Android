@@ -617,6 +617,7 @@ class DeviceHelper(
                 deviceTier = classifier.deviceTier().raw,
                 hasReviewed = hasReviewed,
                 kotlinVersion = kotlinVersion,
+                hasReviewed = hasReviewed,
             )
         }.toResult()
             .map {

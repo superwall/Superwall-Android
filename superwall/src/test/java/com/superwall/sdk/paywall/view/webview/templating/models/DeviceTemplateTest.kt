@@ -69,6 +69,7 @@ class DeviceTemplateTest {
             deviceTier = "LOW",
             hasReviewed = false,
             kotlinVersion = KotlinVersion.CURRENT.toString(),
+            hasReviewed = false,
         )
 
     @Test
@@ -146,6 +147,7 @@ class DeviceTemplateTest {
                 deviceTier = "HIGH",
                 hasReviewed = true,
                 kotlinVersion = KotlinVersion.CURRENT.toString(),
+                hasReviewed = true,
             )
 
         val dictionary1 = template.toDictionary(json)
