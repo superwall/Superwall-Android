@@ -120,6 +120,9 @@ class SuperwallPaywallActivity : AppCompatActivity() {
     private val isBottomSheetView
         get() = contentView is CoordinatorLayout && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
 
+    private val isDialogView
+        get() = contentView is androidx.constraintlayout.widget.ConstraintLayout && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+
     override fun setContentView(view: View) {
         super.setContentView(view)
         contentView = view
@@ -238,13 +241,16 @@ class SuperwallPaywallActivity : AppCompatActivity() {
 
         val isBottomSheetStyle =
             presentationStyle == PaywallPresentationStyle.DRAWER || presentationStyle == PaywallPresentationStyle.MODAL
+        val isDialogStyle = presentationStyle == PaywallPresentationStyle.DIALOG
 
         (view.parent as? ViewGroup)?.removeView(view)
         view.tag = ACTIVE_PAYWALL_TAG
         view.encapsulatingActivity = WeakReference(this)
-        // If it's a bottom sheet, we set activity as transparent and show the UI in a bottom sheet container
+        // If it's a bottom sheet or dialog, we set activity as transparent and show the UI in a container
         if (isBottomSheetStyle && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             setupBottomSheetLayout(view, presentationStyle == PaywallPresentationStyle.MODAL)
+        } else if (isDialogStyle && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            setupDialogLayout(view)
         } else {
             setContentView(view)
         }
@@ -333,6 +339,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             PaywallPresentationStyle.MODAL,
             PaywallPresentationStyle.NONE,
             PaywallPresentationStyle.DRAWER,
+            PaywallPresentationStyle.DIALOG,
             null,
             -> {
                 // Do nothing
@@ -351,6 +358,20 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         val container =
             activityView.findViewById<FrameLayout>(com.superwall.sdk.R.id.container)
         activityView.setOnClickListener { finish() }
+        container.addView(paywallView)
+        container.requestLayout()
+    }
+
+    private fun setupDialogLayout(paywallView: PaywallView) {
+        val activityView =
+            layoutInflater.inflate(com.superwall.sdk.R.layout.activity_dialog, null)
+        setContentView(activityView)
+        val container =
+            activityView.findViewById<FrameLayout>(com.superwall.sdk.R.id.container)
+        // Click outside dialog to dismiss
+        activityView.setOnClickListener { finish() }
+        // Prevent clicks on the container from propagating to the background
+        container.setOnClickListener { /* consume click */ }
         container.addView(paywallView)
         container.requestLayout()
     }
@@ -433,7 +454,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         paywallVc.beforeViewCreated()
     }
 
-    private fun setBottomSheetTransparency() {
+    private fun setTransparentBackground() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             setTranslucent(true)
             val colorFrom = Color.argb(0, 0, 0, 0)
@@ -467,11 +488,29 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         }
     }
 
+    private fun hideDialogAndFinish() {
+        val colorFrom = Color.argb(200, 0, 0, 0)
+        val colorTo = Color.argb(0, 0, 0, 0)
+
+        // Animate the background fade, similar to bottom sheet but faster
+        with(ValueAnimator.ofObject(ArgbEvaluator(), colorFrom, colorTo)) {
+            setDuration(200) // milliseconds - faster than bottom sheet
+            addUpdateListener { animator ->
+                val e = ((animator.animatedValue as Int) / colorFrom)
+                if (e < 0.1) {
+                    super.finish()
+                }
+                window.setBackgroundDrawable(ColorDrawable(animator.animatedValue as Int))
+            }
+            start()
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         val paywallVc = paywallView() ?: return
-        if (isBottomSheetView) {
-            setBottomSheetTransparency()
+        if (isBottomSheetView || isDialogView) {
+            setTransparentBackground()
         }
         paywallVc.onViewCreated()
         paywallVc.webView.requestFocus()
@@ -568,6 +607,10 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         if (isBottomSheetView) {
             mainScope.launch {
                 hideBottomSheetAndFinish()
+            }
+        } else if (isDialogView) {
+            mainScope.launch {
+                hideDialogAndFinish()
             }
         } else {
             super.finish()

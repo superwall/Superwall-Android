@@ -9,6 +9,7 @@ import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
+import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.*
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
 import com.superwall.sdk.billing.toInternalResult
 import com.superwall.sdk.config.models.ConfigState
@@ -47,7 +48,7 @@ import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.confirmAssignment
 import com.superwall.sdk.paywall.presentation.internal.dismiss
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
-import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
+import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult.*
 import com.superwall.sdk.paywall.view.PaywallView
 import com.superwall.sdk.paywall.view.SuperwallPaywallActivity
 import com.superwall.sdk.paywall.view.delegate.PaywallViewEventCallback
@@ -65,6 +66,7 @@ import com.superwall.sdk.store.PurchasingObserverState
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.transactions.TransactionManager
+import com.superwall.sdk.store.transactions.TransactionManager.PurchaseSource.*
 import com.superwall.sdk.utilities.withErrorTracking
 import com.superwall.sdk.web.WebPaywallRedeemer
 import kotlinx.coroutines.CoroutineScope
@@ -1080,7 +1082,7 @@ class Superwall(
                 is Closed -> {
                     dismiss(
                         paywallView,
-                        result = PaywallResult.Declined(),
+                        result = Declined(),
                         closeReason = PaywallCloseReason.ManualClose,
                     )
                 }
@@ -1094,7 +1096,7 @@ class Superwall(
                         launch {
                             try {
                                 dependencyContainer.transactionManager.purchase(
-                                    TransactionManager.PurchaseSource.Internal(
+                                    Internal(
                                         paywallEvent.productId,
                                         paywallView,
                                     ),
@@ -1128,7 +1130,7 @@ class Superwall(
 
                 is PaywallWebEvent.CustomPlacement -> {
                     track(
-                        InternalSuperwallEvent.CustomPlacement(
+                        CustomPlacement(
                             placementName = paywallEvent.name,
                             params =
                                 paywallEvent.params.let {
@@ -1141,6 +1143,33 @@ class Superwall(
                             paywallInfo = paywallView.info,
                         ),
                     )
+                }
+
+                PaywallWebEvent.RequestReview -> {
+                    // Trigger review request
+                    ioScope.launch {
+                        try {
+                            val reviewInfo = dependencyContainer.reviewManager.requestReviewFlow()
+                            val activity = dependencyContainer.activityProvider?.getCurrentActivity()
+                            if (activity != null) {
+                                dependencyContainer.reviewManager.launchReviewFlow(activity, reviewInfo)
+                                // Track successful review request
+                                val currentCount = dependencyContainer.deviceHelper.reviewRequestsTotal()
+                                track(
+                                    InternalSuperwallEvent.ReviewRequested(
+                                        count = currentCount + 1,
+                                    ),
+                                )
+                            }
+                        } catch (e: Exception) {
+                            Logger.debug(
+                                logLevel = LogLevel.error,
+                                scope = LogScope.paywallView,
+                                message = "Failed to request review",
+                                error = e,
+                            )
+                        }
+                    }
                 }
             }
         }

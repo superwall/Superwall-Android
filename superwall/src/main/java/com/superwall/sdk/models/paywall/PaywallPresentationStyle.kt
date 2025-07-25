@@ -24,4 +24,7 @@ enum class PaywallPresentationStyle(
 
     @SerialName("NONE")
     NONE("NONE"),
+
+    @SerialName("DIALOG")
+    DIALOG("DIALOG"),
 }

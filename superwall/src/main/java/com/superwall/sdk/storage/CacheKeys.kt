@@ -14,6 +14,7 @@ import com.superwall.sdk.utilities.DateUtils
 import com.superwall.sdk.utilities.ErrorTracking
 import com.superwall.sdk.utilities.dateFormat
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.Serializer
 import kotlinx.serialization.builtins.MapSerializer
@@ -310,6 +311,15 @@ internal object LatestRedemptionResponse : Storable<WebRedemptionResponse> {
         get() = WebRedemptionResponse.serializer()
 }
 
+object ReviewData : Storable<ReviewDataModel> {
+    override val key: String
+        get() = "store.reviewData"
+    override val directory: SearchPathDirectory
+        get() = SearchPathDirectory.USER_SPECIFIC_DOCUMENTS
+    override val serializer: KSerializer<ReviewDataModel>
+        get() = ReviewDataModel.serializer()
+}
+
 //endregion
 
 // region Serializers
@@ -337,6 +347,18 @@ object DateSerializer : KSerializer<Date> {
         return format.parse(dateString)
             ?: throw SerializationException("Invalid date format: $dateString")
     }
+}
+
+@Serializable
+data class ReviewDataModel(
+    val reviewed: Boolean = false,
+    val dateTimestamp: Long? = null,
+    val timesQueried: Int = 0,
+) {
+    val date: Date?
+        get() = dateTimestamp?.let { Date(it) }
+
+    fun withDate(date: Date?): ReviewDataModel = copy(dateTimestamp = date?.time)
 }
 
 // endregion

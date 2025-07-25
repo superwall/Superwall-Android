@@ -42,4 +42,7 @@ sealed class PaywallWebEvent {
         val name: String,
         val params: JSONObject,
     ) : PaywallWebEvent()
+
+    @SerialName("request_review")
+    object RequestReview : PaywallWebEvent()
 }

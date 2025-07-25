@@ -60,6 +60,8 @@ sealed class PaywallMessage {
     object PaywallOpen : PaywallMessage()
 
     object PaywallClose : PaywallMessage()
+
+    object RequestReview : PaywallMessage()
 }
 
 fun parseWrappedPaywallMessages(jsonString: String): WrappedPaywallMessages {
@@ -104,6 +106,8 @@ private fun parsePaywallMessage(json: JSONObject): PaywallMessage {
                 json.getString("name"),
                 json.getJSONObject("params"),
             )
+
+        "request_review" -> PaywallMessage.RequestReview
 
         else -> throw IllegalArgumentException("Unknown event name: $eventName")
     }

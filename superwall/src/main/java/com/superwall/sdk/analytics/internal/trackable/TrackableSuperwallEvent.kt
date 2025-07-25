@@ -1032,4 +1032,34 @@ sealed class InternalSuperwallEvent(
                 emptyMap<String, Any>()
             }
     }
+
+    class ReviewRequested(
+        val count: Int,
+        override var audienceFilterParams: HashMap<String, Any> = HashMap(),
+    ) : InternalSuperwallEvent(SuperwallEvent.ReviewRequested(count)) {
+        override suspend fun getSuperwallParameters(): HashMap<String, Any> =
+            hashMapOf(
+                "count" to count,
+            )
+    }
+
+    class ReviewGranted(
+        val count: Int,
+        override var audienceFilterParams: HashMap<String, Any> = HashMap(),
+    ) : InternalSuperwallEvent(SuperwallEvent.ReviewGranted(count)) {
+        override suspend fun getSuperwallParameters(): HashMap<String, Any> =
+            hashMapOf(
+                "count" to count,
+            )
+    }
+
+    class ReviewDenied(
+        val count: Int,
+        override var audienceFilterParams: HashMap<String, Any> = HashMap(),
+    ) : InternalSuperwallEvent(SuperwallEvent.ReviewDenied(count)) {
+        override suspend fun getSuperwallParameters(): HashMap<String, Any> =
+            hashMapOf(
+                "count" to count,
+            )
+    }
 }

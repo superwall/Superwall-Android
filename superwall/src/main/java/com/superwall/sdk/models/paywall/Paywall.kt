@@ -56,7 +56,8 @@ data class Paywall(
     var presentation: PaywallPresentationInfo =
         PaywallPresentationInfo(
             style =
-                PaywallPresentationStyle.entries.find { it.rawValue == presentationStyle.uppercase() }
+                PaywallPresentationStyle.DIALOG
+                    ?: PaywallPresentationStyle.entries.find { it.rawValue == presentationStyle.uppercase() }
                     ?: PaywallPresentationStyle.NONE.also {
                         Logger.debug(
                             LogLevel.warn,
