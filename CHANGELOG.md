@@ -2,6 +2,12 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.4.1
+
+## Fixes
+- Reduces noisy logging when product is missing an offer
+- Ensures that getting experimental properties works for consumable products
+
 ## 2.4.0
 
 ## Enhancements

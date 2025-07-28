@@ -113,8 +113,8 @@ class ReceiptManager(
             // Promo period with discounted price - without trial, is there more than one phase where
             // the price is cheaper?
             phasesWithoutTrial.size > 1 &&
-                phasesWithoutTrial.first().priceAmountMicros <
-                phasesWithoutTrial.last().priceAmountMicros -> LatestPeriodType.PROMOTIONAL
+                (phasesWithoutTrial.firstOrNull()?.priceAmountMicros ?: 0) <
+                (phasesWithoutTrial.lastOrNull()?.priceAmountMicros ?: 0) -> LatestPeriodType.PROMOTIONAL
 
             // Unknown state - we assume it is revoked
             purchase.purchaseState == Purchase.PurchaseState.UNSPECIFIED_STATE -> LatestPeriodType.REVOKED
