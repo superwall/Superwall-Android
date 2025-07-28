@@ -5,6 +5,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 ## 2.4.1
 
 ## Fixes
+- Google Play Billing integration with newer libraries (such as RC 9.*)
 - Reduces noisy logging when product is missing an offer
 - Ensures that getting experimental properties works for consumable products
 
