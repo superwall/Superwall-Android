@@ -2,6 +2,11 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.3.3
+
+## Fixes
+- Ensure properties are always properly serialized
+
 ## 2.3.2
 
 ## Enhancements

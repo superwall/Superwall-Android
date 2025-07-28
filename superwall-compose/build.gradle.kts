@@ -11,7 +11,7 @@ plugins {
     alias(libs.plugins.publisher)
 }
 
-version = "2.3.2"
+version = "2.3.3"
 
 android {
     namespace = "com.superwall.sdk.composable"
