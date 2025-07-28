@@ -474,6 +474,11 @@ sealed class SuperwallEvent {
             get() = "enrichment_complete"
     }
 
+    object CustomerInfoDidChange : SuperwallEvent() {
+        override val rawName: String
+            get() = SuperwallEvents.CustomerInfoDidChange.rawName
+    }
+
     open val rawName: String
         get() = this.toString()
 
