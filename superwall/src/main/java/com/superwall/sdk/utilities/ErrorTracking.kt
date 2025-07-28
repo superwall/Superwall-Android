@@ -123,7 +123,6 @@ internal fun Superwall.trackError(e: Throwable) {
     try {
         dependencyContainer.errorTracker.trackError(e)
     } catch (_e: Exception) {
-        e.printStackTrace()
         Logger.debug(
             com.superwall.sdk.logger.LogLevel.error,
             com.superwall.sdk.logger.LogScope.all,
@@ -136,7 +135,6 @@ internal inline fun <T> withErrorTracking(block: () -> T): Either<T, Throwable> 
     try {
         Either.Success(block())
     } catch (e: Throwable) {
-        e.printStackTrace()
         if (e.shouldLog()) {
             if (Superwall.initialized) {
                 Superwall.instance.trackError(e)
