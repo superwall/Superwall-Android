@@ -53,4 +53,5 @@ enum class SuperwallEvents(
     RedemptionStart("redemption_start"),
     RedemptionComplete("redemption_complete"),
     RedemptionFail("redemption_fail"),
+    CustomerInfoDidChange("customerInfo_didChange"),
 }

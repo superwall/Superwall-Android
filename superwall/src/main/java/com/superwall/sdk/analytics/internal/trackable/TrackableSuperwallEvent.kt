@@ -1032,4 +1032,15 @@ sealed class InternalSuperwallEvent(
                 emptyMap<String, Any>()
             }
     }
+
+    data class CustomerInfoDidChange(
+        override val audienceFilterParams: Map<String, Any>,
+    ) : TrackableSuperwallEvent {
+        override val superwallPlacement: SuperwallEvent = SuperwallEvent.CustomerInfoDidChange
+        override val rawName: String = SuperwallEvent.CustomerInfoDidChange.rawName
+
+        override val canImplicitlyTriggerPaywall: Boolean = false
+
+        override suspend fun getSuperwallParameters(): Map<String, Any> = emptyMap()
+    }
 }

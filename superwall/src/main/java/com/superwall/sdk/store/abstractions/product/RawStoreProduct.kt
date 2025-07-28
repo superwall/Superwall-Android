@@ -74,6 +74,9 @@ class RawStoreProduct(
         underlyingProductDetails.productId
     }
 
+    override val productType: String
+        get() = underlyingProductDetails.productType
+
     override val price by lazy {
         underlyingProductDetails.oneTimePurchaseOfferDetails?.let { offerDetails ->
             BigDecimal(offerDetails.priceAmountMicros).divide(BigDecimal(1_000_000), 2, RoundingMode.DOWN)
