@@ -512,6 +512,11 @@ sealed class SuperwallEvent {
             get() = "review_denied"
     }
 
+    object CustomerInfoDidChange : SuperwallEvent() {
+        override val rawName: String
+            get() = SuperwallEvents.CustomerInfoDidChange.rawName
+    }
+
     open val rawName: String
         get() = this.toString()
 
