@@ -136,6 +136,7 @@ internal inline fun <T> withErrorTracking(block: () -> T): Either<T, Throwable> 
     try {
         Either.Success(block())
     } catch (e: Throwable) {
+        e.printStackTrace()
         if (e.shouldLog()) {
             if (Superwall.initialized) {
                 Superwall.instance.trackError(e)

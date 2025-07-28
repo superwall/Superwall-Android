@@ -147,7 +147,7 @@ object PlayStoreProductSerializer : KSerializer<PlayStoreProduct> {
 
                 else -> {
                     Logger.debug(
-                        LogLevel.error,
+                        LogLevel.debug,
                         LogScope.configManager,
                         "Unknown offer type for $productIdentifier, fallback to none",
                     )
