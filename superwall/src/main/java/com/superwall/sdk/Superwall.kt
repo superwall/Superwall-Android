@@ -36,6 +36,7 @@ import com.superwall.sdk.misc.fold
 import com.superwall.sdk.misc.launchWithTracking
 import com.superwall.sdk.misc.toResult
 import com.superwall.sdk.models.assignment.ConfirmedAssignment
+import com.superwall.sdk.models.customer.CustomerInfo
 import com.superwall.sdk.models.attribution.AttributionProvider
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
@@ -65,6 +66,7 @@ import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedUR
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedUrlInChrome
 import com.superwall.sdk.storage.ReviewCount
 import com.superwall.sdk.storage.ReviewData
+import com.superwall.sdk.storage.LatestCustomerInfo
 import com.superwall.sdk.storage.StoredSubscriptionStatus
 import com.superwall.sdk.storage.core_data.convertFromJsonElement
 import com.superwall.sdk.store.Entitlements
@@ -86,9 +88,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.scan
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -200,6 +206,10 @@ class Superwall(
         set(value) {
             options.paywalls.overrideProductsByName = value
         }
+
+    internal val _customerInfo: MutableStateFlow<CustomerInfo> = MutableStateFlow(CustomerInfo.empty())
+
+    val customerInfo: StateFlow<CustomerInfo> get() = _customerInfo
 
     /**
      * Sets the Java delegate that handles Superwall lifecycle events.
@@ -556,6 +566,8 @@ class Superwall(
                 val cachedSubscriptionStatus =
                     dependencyContainer.storage.read(StoredSubscriptionStatus)
                         ?: SubscriptionStatus.Unknown
+                _customerInfo.value = dependencyContainer.storage.read(LatestCustomerInfo) ?: CustomerInfo.empty()
+
                 setSubscriptionStatus(cachedSubscriptionStatus)
 
                 addListeners()
@@ -605,6 +617,25 @@ class Superwall(
                     )
                     val event = InternalSuperwallEvent.SubscriptionStatusDidChange(newValue)
                     track(event)
+                }
+        }
+        ioScope.launchWithTracking {
+            _customerInfo
+                .asSharedFlow()
+                .distinctUntilChanged()
+                .drop(1)
+                .scan<CustomerInfo, Pair<CustomerInfo, CustomerInfo>?>(null) { previousPair, newStatus ->
+                    if (previousPair == null) {
+                        null
+                    } else {
+                        Pair(previousPair.second, newStatus)
+                    }
+                }.filterNotNull()
+                .collect {
+                    val (old, new) = it
+                    dependencyContainer.storage.write(LatestCustomerInfo, new)
+                    dependencyContainer.delegateAdapter.customerInfoDidChange(old, new)
+                    track(InternalSuperwallEvent.CustomerInfoDidChange(emptyMap()))
                 }
         }
     }

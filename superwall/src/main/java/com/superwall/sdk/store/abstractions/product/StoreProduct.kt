@@ -33,6 +33,9 @@ class StoreProduct(
     override val price: BigDecimal
         get() = rawStoreProduct.price
 
+    override val productType: String
+        get() = rawStoreProduct.productType
+
     override val localizedPrice: String
         get() = rawStoreProduct.localizedPrice
 
