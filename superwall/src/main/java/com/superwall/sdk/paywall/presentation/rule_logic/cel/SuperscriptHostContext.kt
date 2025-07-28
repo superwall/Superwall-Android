@@ -28,8 +28,8 @@ class SuperscriptHostContext(
         val _args = json.decodeFromString<List<PassableValue>>(args)
         if (!availableComputedProperties.contains(name)) {
             callback.onResult(
-                json.encodeToString(
-                    PassableValue.BoolValue(false).toString(),
+                json.encodeToString<PassableValue>(
+                    PassableValue.BoolValue(false),
                 ),
             )
             return
@@ -44,7 +44,7 @@ class SuperscriptHostContext(
                     is SuperscriptExposedFunction.PlacementCount -> fn(storage)
                 }
             }
-        callback.onResult(json.encodeToString(res?.toPassableValue() ?: PassableValue.NullValue))
+        callback.onResult(json.encodeToString<PassableValue>(res?.toPassableValue() ?: PassableValue.NullValue))
     }
 
     // Temporary solution until CEL lib is updated
@@ -56,8 +56,8 @@ class SuperscriptHostContext(
         val _args = json.decodeFromString<List<PassableValue>>(args)
         if (!availableDeviceProperties.contains(name)) {
             callback.onResult(
-                json.encodeToString(
-                    PassableValue.BoolValue(false).toString(),
+                json.encodeToString<PassableValue>(
+                    PassableValue.BoolValue(false),
                 ),
             )
             return
@@ -72,6 +72,6 @@ class SuperscriptHostContext(
                     is SuperscriptExposedFunction.PlacementCount -> fn(storage)
                 }
             }
-        callback.onResult(json.encodeToString(res?.toPassableValue() ?: PassableValue.NullValue))
+        callback.onResult(json.encodeToString<PassableValue>(res?.toPassableValue() ?: PassableValue.NullValue))
     }
 }

@@ -7,6 +7,11 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 ## Enhancements
 - Increases superscript version to 1.0.2 with improved type and null safety
 
+## 2.3.3
+
+## Fixes
+- Ensure properties are always properly serialized
+
 ## 2.3.2
 
 ## Enhancements
