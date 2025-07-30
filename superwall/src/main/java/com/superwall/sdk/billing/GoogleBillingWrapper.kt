@@ -37,7 +37,6 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
-import kotlin.math.min
 
 internal const val RECONNECT_TIMER_START_MILLISECONDS = 1L * 1000L
 internal const val RECONNECT_TIMER_MAX_TIME_MILLISECONDS = 16L * 1000L
@@ -145,11 +144,10 @@ class GoogleBillingWrapper(
                     BillingClient
                         .newBuilder(context)
                         .setListener(this@GoogleBillingWrapper)
+                        .enableAutoServiceReconnection()
                         .enablePendingPurchases(PendingPurchasesParams.newBuilder().enableOneTimeProducts().build())
                         .build()
             }
-
-            reconnectionAlreadyScheduled = false
 
             billingClient?.let {
                 if (!it.isReady) {
@@ -361,39 +359,8 @@ class GoogleBillingWrapper(
         request: (BillingError?) -> Unit,
     ) {
         serviceRequests.add(request to delayMilliseconds)
-        if (billingClient?.isReady == false) {
-            startConnectionOnMainThread()
-        } else {
+        if (billingClient?.isReady == true) {
             executePendingRequests()
-        }
-    }
-
-    /**
-     * Retries the billing service connection with exponential backoff, maxing out at the time
-     * specified by RECONNECT_TIMER_MAX_TIME_MILLISECONDS.
-     *
-     * This prevents ANRs, see https://github.com/android/play-billing-samples/issues/310
-     */
-    private fun retryBillingServiceConnectionWithExponentialBackoff() {
-        if (reconnectionAlreadyScheduled) {
-            Logger.debug(
-                LogLevel.error,
-                LogScope.productsManager,
-                "Billing client retry already scheduled.",
-            )
-        } else {
-            Logger.debug(
-                LogLevel.error,
-                LogScope.productsManager,
-                "Billing client disconnected, retrying in $reconnectMilliseconds milliseconds",
-            )
-            reconnectionAlreadyScheduled = true
-            startConnectionOnMainThread(reconnectMilliseconds)
-            reconnectMilliseconds =
-                min(
-                    reconnectMilliseconds * 2,
-                    RECONNECT_TIMER_MAX_TIME_MILLISECONDS,
-                )
         }
     }
 
@@ -474,7 +441,6 @@ class GoogleBillingWrapper(
                         LogScope.productsManager,
                         "Billing client error, retrying: ${billingResult.responseCode}",
                     )
-                    retryBillingServiceConnectionWithExponentialBackoff()
                 }
 
                 BillingClient.BillingResponseCode.ITEM_UNAVAILABLE,

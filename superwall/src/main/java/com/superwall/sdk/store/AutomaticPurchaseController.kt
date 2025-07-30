@@ -7,13 +7,12 @@ import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClientStateListener
 import com.android.billingclient.api.BillingFlowParams
 import com.android.billingclient.api.BillingResult
+import com.android.billingclient.api.PendingPurchasesParams
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.PurchasesUpdatedListener
 import com.android.billingclient.api.QueryPurchasesParams
 import com.superwall.sdk.Superwall
-import com.superwall.sdk.billing.RECONNECT_TIMER_MAX_TIME_MILLISECONDS
-import com.superwall.sdk.billing.RECONNECT_TIMER_START_MILLISECONDS
 import com.superwall.sdk.config.models.ConfigurationStatus
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
@@ -26,13 +25,9 @@ import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.store.abstractions.product.OfferType
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlin.math.min
 
 class AutomaticPurchaseController(
     var context: Context,
@@ -44,14 +39,12 @@ class AutomaticPurchaseController(
         BillingClient
             .newBuilder(context)
             .setListener(this)
-            .enablePendingPurchases()
+            .enableAutoServiceReconnection()
+            .enablePendingPurchases(PendingPurchasesParams.newBuilder().enableOneTimeProducts().build())
             .build()
 
     private val isConnected = MutableStateFlow(false)
     private val purchaseResults = MutableStateFlow<PurchaseResult?>(null)
-
-    // how long before the data source tries to reconnect to Google play
-    private var reconnectMilliseconds = RECONNECT_TIMER_START_MILLISECONDS
 
     //region Initialization
 
@@ -78,19 +71,8 @@ class AutomaticPurchaseController(
                             LogLevel.error,
                             LogScope.nativePurchaseController,
                             "ExternalNativePurchaseController billing client disconnected, " +
-                                "retrying in $reconnectMilliseconds milliseconds",
+                                "autoretrying.",
                         )
-
-                        CoroutineScope(Dispatchers.IO).launch {
-                            delay(reconnectMilliseconds)
-                            startConnection()
-                        }
-
-                        reconnectMilliseconds =
-                            min(
-                                reconnectMilliseconds * 2,
-                                RECONNECT_TIMER_MAX_TIME_MILLISECONDS,
-                            )
                     }
                 },
             )
