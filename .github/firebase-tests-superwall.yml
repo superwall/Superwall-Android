@@ -1,7 +1,6 @@
 android-pixel-7-superwall:
   type: instrumentation
   use-orchestrator: true
-  app: superwall/build/outputs/apk/debug/superwall-debug.apk
   test: superwall/build/outputs/apk/androidTest/debug/superwall-debug-androidTest.apk
   directories-to-pull: /sdcard/Download/
   device:
