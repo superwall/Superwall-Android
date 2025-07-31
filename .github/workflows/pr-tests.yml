@@ -37,8 +37,10 @@ jobs:
     - name: Change wrapper permissions
       run: chmod +x ./gradlew
 
-    - name: Build superwall test project
-      run: ./gradlew :superwall:assembleAndroidTest -DtestBuildType=debug
+    - name: Build app and superwall test project
+      run: |
+        ./gradlew :app:assembleDebug
+        ./gradlew :superwall:assembleAndroidTest -DtestBuildType=debug
 
     - name: Run tests on Firebase Test Lab
       uses: asadmansr/Firebase-Test-Lab-Action@v1.0
