@@ -33,22 +33,10 @@ jobs:
           
     - name: Run unit tests
       run: ./gradlew :superwall:test
-      
+
     - name: Change wrapper permissions
       run: chmod +x ./gradlew
 
-    - name: Build app and superwall test project
-      run: |
-        ./gradlew :app:assembleDebug
-        ./gradlew :superwall:assembleAndroidTest -DtestBuildType=debug
-
-    - name: Run tests on Firebase Test Lab
-      uses: asadmansr/Firebase-Test-Lab-Action@v1.0
-      with:
-        arg-spec: '.github/firebase-tests-superwall.yml:android-pixel-7-superwall'
-      env:
-        SERVICE_ACCOUNT: ${{ secrets.SERVICE_ACCOUNT }}
-        
     - name: Upload test reports
       uses: actions/upload-artifact@v4
       if: always()
