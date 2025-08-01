@@ -139,7 +139,7 @@ fun HomeScreen(
                     val billingClient =
                         BillingClient
                             .newBuilder(context)
-                            .enablePendingPurchases()
+                            .enablePendingPurchases(PendingPurchasesParams.newBuilder().enableOneTimeProducts().build())
                             .setListener { billingResult, purchases -> }
                             .build()
                     scope.launch(Dispatchers.IO) {
