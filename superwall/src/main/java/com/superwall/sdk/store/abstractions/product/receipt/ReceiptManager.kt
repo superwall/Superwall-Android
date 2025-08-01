@@ -61,9 +61,9 @@ class ReceiptManager(
     suspend fun lastSubscriptionProperties(): Map<String, Any> =
         billing
             .queryAllPurchases()
-            .maxBy {
+            .maxByOrNull {
                 it.purchaseTime
-            }.let {
+            }?.let {
                 val purchase = it
                 val timeSincePurchase = System.currentTimeMillis() - purchase.purchaseTime
                 val latestSubscriptionWillAutoRenew = it.isAutoRenewing
@@ -94,7 +94,7 @@ class ReceiptManager(
                     "latestSubscriptionWillAutoRenew" to latestSubscriptionWillAutoRenew,
                     "latestSubscriptionState" to state,
                 )
-            }
+            } ?: emptyMap()
 
     fun determineLatestPeriodType(
         purchase: Purchase,
@@ -105,6 +105,7 @@ class ReceiptManager(
                 ?.pricingPhases
                 ?.pricingPhaseList
                 ?.dropWhile { it.priceAmountMicros == 0L } ?: emptyList()
+
         // Heuristics
         return when {
             // If we are in a trial period, it is a trial
@@ -113,8 +114,8 @@ class ReceiptManager(
             // Promo period with discounted price - without trial, is there more than one phase where
             // the price is cheaper?
             phasesWithoutTrial.size > 1 &&
-                phasesWithoutTrial.first().priceAmountMicros <
-                phasesWithoutTrial.last().priceAmountMicros -> LatestPeriodType.PROMOTIONAL
+                (phasesWithoutTrial.firstOrNull()?.priceAmountMicros ?: 0) <
+                (phasesWithoutTrial.lastOrNull()?.priceAmountMicros ?: 0) -> LatestPeriodType.PROMOTIONAL
 
             // Unknown state - we assume it is revoked
             purchase.purchaseState == Purchase.PurchaseState.UNSPECIFIED_STATE -> LatestPeriodType.REVOKED

@@ -63,6 +63,7 @@ data class DeviceTemplate(
     @SerialName("platform_wrapper_version")
     val platformWrapperVersion: String,
     val deviceTier: String,
+    val kotlinVersion: String,
 ) {
     fun toDictionary(json: Json): Map<String, Any> {
         val jsonString = json.encodeToString(serializer(), this)

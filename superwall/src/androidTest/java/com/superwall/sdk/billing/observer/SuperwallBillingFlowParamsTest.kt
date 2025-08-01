@@ -14,7 +14,7 @@ class SuperwallBillingFlowParamsTest {
         val mockProductDetails = mockk<ProductDetails>(relaxed = true, relaxUnitFun = true)
         every { mockProductDetails.oneTimePurchaseOfferDetails } returns
             mockk {
-                every { zzb() } returns "test_offer_token"
+                every { this@mockk.offerToken } returns "test_offer_token"
             }
         every { mockProductDetails.subscriptionOfferDetails } returns mockk {}
         every { mockProductDetails.productType } returns "subs"

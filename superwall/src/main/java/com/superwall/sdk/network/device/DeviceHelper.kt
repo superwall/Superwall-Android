@@ -414,6 +414,14 @@ class DeviceHelper(
     val gitSha: String
         get() = BuildConfig.GIT_SHA
 
+    val kotlinVersion: String
+        get() =
+            try {
+                KotlinVersion.CURRENT.toString()
+            } catch (e: Throwable) {
+                "UNKNOWN"
+            }
+
     suspend fun getDeviceAttributes(
         sinceEvent: EventData?,
         computedPropertyRequests: List<ComputedPropertyRequest>,
@@ -523,6 +531,7 @@ class DeviceHelper(
                 platformWrapperVersion = platformWrapperVersion,
                 appVersionPadded = appVersionPadded,
                 deviceTier = classifier.deviceTier().raw,
+                kotlinVersion = kotlinVersion,
             )
         }.toResult()
             .map {

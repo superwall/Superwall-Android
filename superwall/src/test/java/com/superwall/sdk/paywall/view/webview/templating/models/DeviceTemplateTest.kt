@@ -67,6 +67,7 @@ class DeviceTemplateTest {
             activeProducts = listOf("product1", "product2"),
             subscriptionStatus = "ACTIVE",
             deviceTier = "LOW",
+            kotlinVersion = KotlinVersion.CURRENT.toString(),
         )
 
     @Test
@@ -142,6 +143,7 @@ class DeviceTemplateTest {
                 activeProducts = listOf(),
                 subscriptionStatus = "INACTIVE",
                 deviceTier = "HIGH",
+                kotlinVersion = KotlinVersion.CURRENT.toString(),
             )
 
         val dictionary1 = template.toDictionary(json)

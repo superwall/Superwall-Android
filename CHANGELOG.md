@@ -2,6 +2,24 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.5.0
+
+## Enhancements
+- Updates Google Play billing library to v8. Unfortunately, Google has broken backwards compatibility with previous versions, so if you're using the standalone library too ensure it is compatible with v8.
+- Adds kotlin version to device variables
+
+## Fixes
+- Reduces noisy logging when product is missing an offer
+- Ensures that getting experimental properties works for consumable products
+
+
+## 2.4.1
+
+## Fixes
+- Google Play Billing integration with newer libraries (such as RC 9.*)
+- Reduces noisy logging when product is missing an offer
+- Ensures that getting experimental properties works for consumable products
+
 ## 2.4.0
 
 ## Enhancements

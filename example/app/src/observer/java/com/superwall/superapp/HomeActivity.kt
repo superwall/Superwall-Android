@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingResult
+import com.android.billingclient.api.PendingPurchasesParams
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.billing.observer.SuperwallBillingFlowParams
 import com.superwall.sdk.billing.observer.launchBillingFlowWithSuperwall
@@ -139,7 +140,7 @@ fun HomeScreen(
                     val billingClient =
                         BillingClient
                             .newBuilder(context)
-                            .enablePendingPurchases()
+                            .enablePendingPurchases(PendingPurchasesParams.newBuilder().enableOneTimeProducts().build())
                             .setListener { billingResult, purchases -> }
                             .build()
                     scope.launch(Dispatchers.IO) {
