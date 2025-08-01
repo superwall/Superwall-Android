@@ -309,7 +309,7 @@ class CELHostContextTest {
                         val resultSlot = slot<String>()
                         verify { callback.onResult(capture(resultSlot)) }
 
-                        val expectedResult = json.encodeToString(PassableValue.BoolValue(false).toString())
+                        val expectedResult = json.encodeToString(PassableValue.BoolValue(false))
                         assertEquals(expectedResult, resultSlot.captured)
                     }
 
@@ -399,7 +399,7 @@ class CELHostContextTest {
                         val resultSlot = slot<String>()
                         verify { callback.onResult(capture(resultSlot)) }
 
-                        val expectedResult = json.encodeToString(PassableValue.BoolValue(false).toString())
+                        val expectedResult = json.encodeToString(PassableValue.BoolValue(false))
                         assertEquals(expectedResult, resultSlot.captured)
                     }
 

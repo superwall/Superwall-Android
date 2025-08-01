@@ -1,9 +1,9 @@
 package com.superwall.sdk.billing
 
 import com.android.billingclient.api.BillingClient
-import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.ProductDetailsResponseListener
 import com.android.billingclient.api.QueryProductDetailsParams
+import com.android.billingclient.api.QueryProductDetailsResult
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
@@ -27,7 +27,7 @@ internal class QueryProductDetailsUseCase(
     val onError: (BillingError) -> Unit,
     val withConnectedClient: (BillingClient.() -> Unit) -> Unit,
     executeRequestOnUIThread: ExecuteRequestOnUIThreadFunction,
-) : BillingClientUseCase<List<ProductDetails>>(useCaseParams, onError, executeRequestOnUIThread) {
+) : BillingClientUseCase<QueryProductDetailsResult>(useCaseParams, onError, executeRequestOnUIThread) {
     private fun log(msg: String) =
         Logger.debug(
             logLevel = LogLevel.debug,
@@ -59,15 +59,16 @@ internal class QueryProductDetailsUseCase(
      * Gets called after `processResult` sees a success status. Turns `ProductDetails` into
      * `StoreProduct`.
      */
-    override fun onOk(received: List<ProductDetails>) {
+    override fun onOk(received: QueryProductDetailsResult) {
+        val products = received.productDetailsList
         log("Products request finished for ${useCaseParams.subscriptionIds.joinToString()}")
-        log("Retrieved productDetailsList: ${received.joinToString { it.toString() }}")
-        received.takeUnless { it.isEmpty() }?.forEach {
+        log("Retrieved productDetailsList: ${products.joinToString { it.toString() }}")
+        products.takeUnless { it.isEmpty() }?.forEach {
             log("${it.productId} - $it")
         }
 
         val storeProducts =
-            received
+            products
                 .flatMap { productDetails ->
                     useCaseParams.decomposedProductIdsBySubscriptionId[productDetails.productId]?.map { productId ->
                         val rawStoreProduct =
