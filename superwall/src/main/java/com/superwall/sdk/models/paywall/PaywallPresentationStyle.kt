@@ -2,6 +2,8 @@ package com.superwall.sdk.models.paywall
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 @Serializable
 enum class PaywallPresentationStyle(
@@ -52,7 +54,10 @@ sealed class PaywallPresentationStyleExpanded(
     @Serializable
     @SerialName("DRAWER")
     data class Drawer(
+        @SerialName("height")
         val height: Double,
+        @SerialName("corner_radius")
+        val cornerRadius: Double,
     ) : PaywallPresentationStyleExpanded("DRAWER")
 
     @Serializable
@@ -61,35 +66,20 @@ sealed class PaywallPresentationStyleExpanded(
 
     @Serializable
     @SerialName("POPUP")
-    data object Popup : PaywallPresentationStyleExpanded("POPUP")
+    data class Popup(
+        @SerialName("height")
+        val height: Double,
+        @SerialName("width")
+        val width: Double,
+    ) : PaywallPresentationStyleExpanded("POPUP")
 
     // Helper methods for Android Intent serialization only
-    fun toIntentString(): String =
-        when (this) {
-            is Modal -> "MODAL"
-            is Fullscreen -> "FULLSCREEN"
-            is FullscreenNoAnimation -> "NO_ANIMATION"
-            is Push -> "PUSH"
-            is Drawer -> "DRAWER:$height"
-            is None -> "NONE"
-            is Popup -> "POPUP"
-        }
+    fun toIntentString(json: Json): String = json.encodeToString(this)
 
     companion object {
-        fun fromIntentString(value: String): PaywallPresentationStyleExpanded =
-            when {
-                value == "MODAL" -> Modal
-                value == "FULLSCREEN" -> Fullscreen
-                value == "NO_ANIMATION" -> FullscreenNoAnimation
-                value == "PUSH" -> Push
-                value.startsWith("DRAWER:") -> {
-                    val height = value.substringAfter("DRAWER:").toDoubleOrNull() ?: 50.0
-                    Drawer(height)
-                }
-                value == "DRAWER" -> Drawer(50.0) // Fallback
-                value == "NONE" -> None
-                value == "POPUP" -> Popup
-                else -> None
-            }
+        fun fromIntentString(
+            json: Json,
+            value: String,
+        ): PaywallPresentationStyleExpanded = json.decodeFromString(value)
     }
 }

@@ -12,6 +12,7 @@ import android.content.pm.PackageManager
 import android.content.res.Resources
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
 import android.view.View
@@ -47,6 +48,7 @@ import com.superwall.sdk.misc.onError
 import com.superwall.sdk.misc.readableOverlayColor
 import com.superwall.sdk.models.paywall.LocalNotification
 import com.superwall.sdk.models.paywall.PaywallPresentationStyleExpanded
+import com.superwall.sdk.network.JsonFactory
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.view.webview.SWWebView
@@ -84,7 +86,12 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                 val intent =
                     Intent(context, SuperwallPaywallActivity::class.java).apply {
                         putExtra(VIEW_KEY, key)
-                        putExtra(PRESENTATION_STYLE_KEY, presentationStyleOverride?.toIntentString())
+                        putExtra(
+                            PRESENTATION_STYLE_KEY,
+                            presentationStyleOverride?.toIntentString(
+                                JsonFactory.JSON_POLYMORPHIC,
+                            ),
+                        )
                         putExtra(
                             IS_LIGHT_BACKGROUND_KEY,
                             view.paywall.backgroundColor.isLightColor(),
@@ -106,9 +113,21 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             if (children.none { it is LoadingView || it is ShimmerView }) {
                 val loading =
                     (viewStorageViewModel.retrieveView(LoadingView.TAG) as LoadingView)
-
+                val style = paywall.presentation.style
                 val shimmer =
-                    (viewStorageViewModel.retrieveView(ShimmerView.TAG) as ShimmerView)
+                    if (style is PaywallPresentationStyleExpanded.Popup) {
+                        ShimmerView(this@prepareViewForDisplay.context).apply {
+                            updateLayoutParams {
+                                width =
+                                    ((style.width * Resources.getSystem().displayMetrics.widthPixels) / 100).toInt()
+                                height =
+                                    ((style.height * Resources.getSystem().displayMetrics.heightPixels) / 100).toInt()
+                            }
+                        }
+                    } else {
+                        (viewStorageViewModel.retrieveView(ShimmerView.TAG) as ShimmerView)
+                    }
+
                 setupWith(shimmer, loading)
             }
             viewStorageViewModel.storeView(key, this)
@@ -136,7 +155,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         AppCompatDelegate.setCompatVectorFromResourcesEnabled(true)
         val presentationStyle =
             intent.getStringExtra(PRESENTATION_STYLE_KEY)?.let {
-                PaywallPresentationStyleExpanded.fromIntentString(it)
+                PaywallPresentationStyleExpanded.fromIntentString(JsonFactory.JSON_POLYMORPHIC, it)
             }
 
         // Show content behind the status bar
@@ -357,16 +376,38 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         paywallView: PaywallView,
         isModal: Boolean,
         height: Double = 0.0,
+        cornerRadius: Double = 0.0,
     ) {
         val activityView =
             layoutInflater.inflate(com.superwall.sdk.R.layout.activity_bottom_sheet, null)
         setContentView(activityView)
-        initBottomSheetBehavior(isModal, height)
+        initBottomSheetBehavior(isModal, height, cornerRadius)
         val container =
             activityView.findViewById<FrameLayout>(com.superwall.sdk.R.id.container)
         activityView.setOnClickListener { finish() }
         container.addView(paywallView)
         container.requestLayout()
+        val radius =
+            cornerRadius.toFloat() * Resources.getSystem().displayMetrics.density // Convert dp to px
+
+        val drawable =
+            GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadii =
+                    floatArrayOf(
+                        radius,
+                        radius, // top-left
+                        radius,
+                        radius, // top-right
+                        0f,
+                        0f, // bottom-right
+                        0f,
+                        0f, // bottom-left
+                    )
+                setColor(Color.WHITE) // Set background color here
+            }
+
+        container.background = drawable
     }
 
     private fun setupPopupLayout(paywallView: PaywallView) {
@@ -387,6 +428,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
     private fun initBottomSheetBehavior(
         isModal: Boolean,
         height: Double,
+        cornerRadius: Double,
     ) {
         val content = contentView as ViewGroup
         val bottomSheetBehavior = BottomSheetBehavior.from(content.getChildAt(0))
