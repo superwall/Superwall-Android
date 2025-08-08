@@ -3,6 +3,7 @@ package com.superwall.sdk.models.entitlements
 import android.annotation.SuppressLint
 import com.superwall.sdk.store.abstractions.product.receipt.LatestPeriodType
 import com.superwall.sdk.store.abstractions.product.receipt.LatestSubscriptionState
+import kotlinx.serialization.Contextual
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.util.*
@@ -50,6 +51,7 @@ data class Entitlement(
      * This is `null` if there aren't any transactions that unlock this entitlement.
      */
     @SerialName("startsAt")
+    @Contextual
     val startsAt: Date? = null,
     /**
      * The date that the entitlement was last renewed.
@@ -60,6 +62,7 @@ data class Entitlement(
      *   - If the entitlement belongs to a non-renewing subscription or non-consumable product.
      */
     @SerialName("renewedAt")
+    @Contextual
     val renewedAt: Date? = null,
     /**
      * The expiry date of the last transaction that unlocked this entitlement.
@@ -68,6 +71,7 @@ data class Entitlement(
      * if a lifetime product unlocked this entitlement.
      */
     @SerialName("expiresAt")
+    @Contextual
     val expiresAt: Date? = null,
     /**
      * Indicates whether the entitlement is active for a lifetime due to the purchase of a non-consumable.
@@ -103,12 +107,14 @@ data class Entitlement(
     val offerType: LatestPeriodType? = null,
 ) {
     @Serializable
-    enum class Type {
+    enum class Type(
+        val raw: String,
+    ) {
         /**
          * An  Store product.
          */
         @SerialName("SERVICE_LEVEL")
-        SERVICE_LEVEL,
+        SERVICE_LEVEL("SERVICE_LEVEL"),
     }
 
     /**
