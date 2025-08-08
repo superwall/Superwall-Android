@@ -15,7 +15,6 @@ import com.superwall.sdk.BuildConfig
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.DefaultClassifierDataFactory
 import com.superwall.sdk.analytics.DeviceClassifier
-import com.superwall.sdk.dependencies.ExperimentalPropertiesFactory
 import com.superwall.sdk.dependencies.IdentityInfoFactory
 import com.superwall.sdk.dependencies.IdentityManagerFactory
 import com.superwall.sdk.dependencies.LocaleIdentifierFactory
@@ -80,7 +79,6 @@ class DeviceHelper(
         JsonFactory,
         StoreTransactionFactory,
         IdentityManagerFactory,
-        ExperimentalPropertiesFactory,
         OptionsFactory
 
     private val json =
@@ -591,13 +589,6 @@ class DeviceHelper(
                         ?: emptyMap()
                 enriched
                     .plus(it)
-                    .let {
-                        if (factory.makeSuperwallOptions().enableExperimentalDeviceVariables) {
-                            it.plus(latestExperimentalDeviceProperties())
-                        } else {
-                            it
-                        }
-                    }
             }.fold(
                 onSuccess = { deviceTemplate ->
                     return@fold deviceTemplate
@@ -617,8 +608,6 @@ class DeviceHelper(
     internal fun setEnrichment(enrichment: Enrichment) {
         this.lastEnrichment.value = enrichment
     }
-
-    fun latestExperimentalDeviceProperties(): Map<String, Any> = factory.experimentalProperties()
 
     suspend fun getEnrichment(
         maxRetry: Int,

@@ -5,7 +5,6 @@ import com.android.billingclient.api.BillingClient.ProductType
 import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.Purchase.PurchaseState
 import com.superwall.sdk.billing.Billing
-import com.superwall.sdk.dependencies.ExperimentalPropertiesFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
@@ -13,7 +12,6 @@ import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.models.customer.NonSubscriptionTransaction
 import com.superwall.sdk.models.customer.SubscriptionTransaction
 import com.superwall.sdk.models.entitlements.Entitlement
-import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.coordinator.ProductsFetcher
 import kotlinx.coroutines.*
@@ -41,7 +39,7 @@ class ReceiptManager(
     private val billing: Billing,
     private val ioScope: IOScope = IOScope(),
 //    private val receiptData: () -> ByteArray? = ReceiptLogic::getReceiptData
-) : ExperimentalPropertiesFactory {
+) {
     var latestSubscriptionStateValue: LatestSubscriptionState? = null
     var latestSubscriptionWillAutoRenew: Boolean? = null
     var latestSubscriptionPeriodType: LatestPeriodType? = null
@@ -57,17 +55,11 @@ class ReceiptManager(
     var purchasedSubscriptionGroupIds: Set<String>? = null
     private var _purchases: MutableSet<InAppPurchase> = mutableSetOf()
     private var receiptRefreshCompletion: ((Boolean) -> Unit)? = null
-    private val latestSubscriptionState: MutableStateFlow<Map<String, Any>> =
-        MutableStateFlow(emptyMap())
+    private val latestSubscriptionState: MutableStateFlow<LatestSubscriptionState> =
+        MutableStateFlow(LatestSubscriptionState.UNKNOWN)
 
     val purchases: Set<String>
         get() = _purchases.map { it.productIdentifier }.toSet()
-
-    init {
-        ioScope.launch {
-            latestSubscriptionState.value = lastSubscriptionProperties()
-        }
-    }
 
     @Suppress("RedundantSuspendModifier")
     suspend fun loadPurchasedProducts(): Set<StoreProduct>? =
@@ -105,6 +97,7 @@ class ReceiptManager(
                     Entitlement(
                         id = entitlement.id,
                         type = entitlement.type,
+                        productIds = allProductIds,
                     ),
                 )
             }
@@ -112,13 +105,11 @@ class ReceiptManager(
 
         // 1️⃣ FIRST PASS: collect purchases & receipts & build transaction data
         val allPurchases = billing.queryAllPurchases()
-        for (purchase in allPurchases) {
+        allPurchases.forEach { purchase ->
             val isActive = isTransactionActive(purchase)
             val products = billing.awaitGetProducts(purchase.products.toSet())
-
-            for (productId in purchase.products) {
+            purchase.products.forEach { productId ->
                 val product = products.find { it.fullIdentifier == productId }
-
                 if (product?.rawStoreProduct?.underlyingProductDetails?.productType == BillingClient.ProductType.INAPP) {
                     nonSubscriptions.add(
                         NonSubscriptionTransaction(
@@ -144,17 +135,18 @@ class ReceiptManager(
                         ),
                     )
                 }
-            }
-
-            // Get the entitlements for a purchased product
-            for (productId in purchase.products) {
                 val serverEntitlements = serverEntitlementsByProductId[productId]
                 if (serverEntitlements != null) {
                     // Map transactions and their product IDs to each entitlement
                     for (entitlement in serverEntitlements) {
-                        purchasesPerEntitlement.getOrPut(entitlement.id) { mutableListOf() }.add(purchase)
+                        purchasesPerEntitlement
+                            .getOrPut(entitlement.id) { mutableListOf() }
+                            .add(purchase)
                     }
                 }
+                purchases.add(
+                    InAppPurchase(productIdentifier = productId),
+                )
             }
 
             // Collect receipt for original transaction
@@ -167,17 +159,10 @@ class ReceiptManager(
                 )
                 originalTransactionIds.add(purchase.orderId ?: purchase.purchaseToken)
             }
-
-            // Record purchase
-            for (productId in purchase.products) {
-                purchases.add(
-                    InAppPurchase(productIdentifier = productId),
-                )
-            }
         }
 
         // 2️⃣ SECOND PASS: build entitlements with comprehensive state analysis
-        for ((entitlementId, purchaseList) in purchasesPerEntitlement) {
+        purchasesPerEntitlement.forEach { (entitlementId, purchaseList) ->
             val now = Date()
             var isActive = false
             var renewedAt: Date? = null
@@ -186,12 +171,14 @@ class ReceiptManager(
             var latestProductId: String? = null
 
             // Can't be done in the next loop
-            val startsAt = purchaseList.minByOrNull { it.purchaseTime }?.let { Date(it.purchaseTime) }
+            val startsAt =
+                purchaseList.minByOrNull { it.purchaseTime }?.let { Date(it.purchaseTime) }
 
             var isLifetime = false
             val lifetimePurchase =
                 purchaseList.find { purchase ->
-                    val products = runBlocking { billing.awaitGetProducts(purchase.products.toSet()) }
+                    val products =
+                        runBlocking { billing.awaitGetProducts(purchase.products.toSet()) }
                     val hasNonConsumable = products.any { it.productType == ProductType.INAPP }
                     hasNonConsumable && purchase.purchaseState != PurchaseState.PENDING
                 }
@@ -203,10 +190,11 @@ class ReceiptManager(
             }
 
             // Single scan of this entitlement's purchases
-            for (purchase in purchaseList) {
+            purchaseList.forEach { purchase ->
                 // Any non-revoked, unexpired
                 if (purchase.purchaseState != PurchaseState.PENDING) {
-                    val products = runBlocking { billing.awaitGetProducts(purchase.products.toSet()) }
+                    val products =
+                        runBlocking { billing.awaitGetProducts(purchase.products.toSet()) }
                     val hasActiveSubscription =
                         products.any { product ->
                             val expDate = calculateExpirationDate(purchase, product)
@@ -219,16 +207,15 @@ class ReceiptManager(
 
                 if (!isLifetime &&
                     (
-                        mostRecentRenewable == null ||
-                            mostRecentRenewable!!.purchaseTime < purchase.purchaseTime
+                        mostRecentRenewable == null || mostRecentRenewable.purchaseTime < purchase.purchaseTime
                     )
                 ) {
                     mostRecentRenewable = purchase
                 }
 
-                // Track renewal (simplified for Android)
+                // Track renewal
                 if (purchase.isAutoRenewing && purchase.purchaseState != PurchaseState.PENDING) {
-                    if (renewedAt == null || renewedAt!!.before(Date(purchase.purchaseTime))) {
+                    if (renewedAt == null || renewedAt.before(Date(purchase.purchaseTime))) {
                         renewedAt = Date(purchase.purchaseTime)
                     }
                 }
@@ -236,14 +223,13 @@ class ReceiptManager(
                 // Latest expiration for non-lifetime
                 if (!isLifetime && purchase.purchaseState != PurchaseState.PENDING) {
                     val products = runBlocking { billing.awaitGetProducts(purchase.products.toSet()) }
-                    for (product in products) {
-                        if (product.productType == ProductType.SUBS) {
-                            val exp = calculateExpirationDate(purchase, product)
-                            if (exp != null && (expiresAt == null || exp.after(expiresAt))) {
-                                expiresAt = exp
+                    expiresAt =
+                        products
+                            .filter { it.productType == ProductType.SUBS }
+                            .mapNotNull { calculateExpirationDate(purchase, it) }
+                            .maxByOrNull { d1 ->
+                                d1.time
                             }
-                        }
-                    }
                 }
             }
 
@@ -267,7 +253,8 @@ class ReceiptManager(
                 willRenew = mostRecentRenewable.isAutoRenewing
 
                 if (subscriptionTxnIndex != -1) {
-                    subscriptions[subscriptionTxnIndex] = subscriptions[subscriptionTxnIndex].copy(willRenew = willRenew)
+                    subscriptions[subscriptionTxnIndex] =
+                        subscriptions[subscriptionTxnIndex].copy(willRenew = willRenew)
                 }
 
                 if (enableExperimentalDeviceVariables) {
@@ -287,7 +274,8 @@ class ReceiptManager(
                     latestSubscriptionState.value = state
                 }
 
-                val products = runBlocking { billing.awaitGetProducts(mostRecentRenewable.products.toSet()) }
+                val products =
+                    runBlocking { billing.awaitGetProducts(mostRecentRenewable.products.toSet()) }
                 val product = products.firstOrNull()
                 if (product != null) {
                     offerType = determineLatestPeriodType(mostRecentRenewable, product)
@@ -299,7 +287,8 @@ class ReceiptManager(
 
             // Assemble and insert entitlements
             for (id in productIds) {
-                val existingEntitlements = entitlementsByProductId[id]?.toMutableSet() ?: mutableSetOf()
+                val existingEntitlements =
+                    entitlementsByProductId[id]?.toMutableSet() ?: mutableSetOf()
                 var existingType: Entitlement.Type = Entitlement.Type.SERVICE_LEVEL
 
                 // Remove existing entitlement with same ID, if any
@@ -357,7 +346,7 @@ class ReceiptManager(
         refreshReceipt()
     }
 
-    suspend fun lastSubscriptionProperties(): Map<String, Any> =
+    suspend fun lastSubscriptionProperties(): LatestSubscriptionState =
         billing
             .queryAllPurchases()
             .maxByOrNull {
@@ -365,7 +354,7 @@ class ReceiptManager(
             }?.let {
                 val purchase = it
                 val timeSincePurchase = System.currentTimeMillis() - purchase.purchaseTime
-                val latestSubscriptionWillAutoRenew = it.isAutoRenewing
+                val willRenew = it.isAutoRenewing
                 val productIds = purchase.products
                 val product =
                     billing
@@ -378,29 +367,21 @@ class ReceiptManager(
                 val state =
                     when {
                         purchase.purchaseState == PurchaseState.PENDING &&
-                            purchase.isAutoRenewing -> LatestSubscriptionState.GRACE_PERIOD
+                            willRenew -> LatestSubscriptionState.GRACE_PERIOD
 
                         purchase.purchaseState == PurchaseState.PURCHASED &&
                             timeSincePurchase > duration -> LatestSubscriptionState.EXPIRED
 
                         purchase.purchaseState == PurchaseState.PURCHASED &&
-                            purchase.isAutoRenewing &&
+                            willRenew &&
                             timeSincePurchase < duration -> LatestSubscriptionState.SUBSCRIBED
 
                         else -> {
-                            SubscriptionStatus.Unknown
+                            LatestSubscriptionState.UNKNOWN
                         }
                     }
-                mapOf(
-                    "latestSubscriptionPeriodType" to
-                        determineLatestPeriodType(
-                            purchase,
-                            product,
-                        ),
-                    "latestSubscriptionWillAutoRenew" to latestSubscriptionWillAutoRenew,
-                    "latestSubscriptionState" to state,
-                )
-            } ?: emptyMap()
+                state
+            }
 
     fun determineLatestPeriodType(
         purchase: Purchase,
@@ -415,7 +396,7 @@ class ReceiptManager(
         // Heuristics
         return when {
             // If we are in a trial period, it is a trial
-            productDetails.trialPeriodEndDate?.time ?: 0 > System.currentTimeMillis() -> LatestPeriodType.TRIAL
+            (productDetails.trialPeriodEndDate?.time ?: 0) > System.currentTimeMillis() -> LatestPeriodType.TRIAL
 
             // Promo period with discounted price - without trial, is there more than one phase where
             // the price is cheaper?
@@ -462,6 +443,7 @@ class ReceiptManager(
                 }
                 return false
             }
+
             PurchaseState.UNSPECIFIED_STATE -> return false
             else -> return false
         }
@@ -481,6 +463,7 @@ class ReceiptManager(
                     return Date(purchase.purchaseTime + periodMillis)
                 }
             }
+
             ProductType.INAPP -> {
                 // Non-consumable in-app purchases don't expire
                 return null
@@ -532,9 +515,8 @@ class ReceiptManager(
 
     suspend fun isEligibleForIntroOffer(storeProduct: StoreProduct): Boolean {
         // Check if user has never purchased this subscription before
-        val hasExistingPurchase = _purchases.any { it.productIdentifier == storeProduct.productIdentifier }
+        val hasExistingPurchase =
+            _purchases.any { it.productIdentifier == storeProduct.productIdentifier }
         return !hasExistingPurchase
     }
-
-    override fun experimentalProperties(): Map<String, Any> = latestSubscriptionState.value
 }
