@@ -2,6 +2,12 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+
+## 2.5.1
+
+## Enhancements
+- Improves subscribed user experience in cases with slow configuration 
+
 ## 2.5.0
 
 ## Enhancements
