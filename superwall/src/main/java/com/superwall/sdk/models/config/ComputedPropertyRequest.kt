@@ -35,6 +35,22 @@ data class ComputedPropertyRequest(
 
         @SerialName("YEARS_SINCE")
         YEARS_SINCE("YEARS_SINCE"),
+
+        @SerialName("PLACEMENTS_IN_DAY")
+        PLACEMENTS_IN_DAY("PLACEMENTS_IN_DAY"),
+
+        @SerialName("PLACEMENTS_IN_HOUR")
+        PLACEMENTS_IN_HOUR("PLACEMENTS_IN_HOUR"),
+
+        @SerialName("PLACEMENTS_IN_WEEK")
+        PLACEMENTS_IN_WEEK("PLACEMENTS_IN_WEEK"),
+
+        @SerialName("PLACEMENTS_IN_MONTH")
+        PLACEMENTS_IN_MONTH("PLACEMENTS_IN_MONTH"),
+
+        @SerialName("PLACEMENTS_SINCE_INSTALL")
+        PLACEMENTS_SINCE_INSTALL("PLACEMENTS_SINCE_INSTALL"),
+
         ;
 
         val prefix: String
@@ -45,6 +61,11 @@ data class ComputedPropertyRequest(
                     DAYS_SINCE -> "daysSince_"
                     MONTHS_SINCE -> "monthsSince_"
                     YEARS_SINCE -> "yearsSince_"
+                    PLACEMENTS_IN_DAY -> "placementsInDay"
+                    PLACEMENTS_IN_HOUR -> "placementsInHour"
+                    PLACEMENTS_IN_WEEK -> "placementsInWeek"
+                    PLACEMENTS_IN_MONTH -> "placementsInMonth"
+                    PLACEMENTS_SINCE_INSTALL -> "placementsSinceInstall"
                 }
 
         val calendarComponent: Int
@@ -55,6 +76,11 @@ data class ComputedPropertyRequest(
                     DAYS_SINCE -> Calendar.DAY_OF_MONTH
                     MONTHS_SINCE -> Calendar.MONTH
                     YEARS_SINCE -> Calendar.YEAR
+                    PLACEMENTS_IN_DAY -> Calendar.DAY_OF_MONTH
+                    PLACEMENTS_IN_HOUR -> Calendar.HOUR_OF_DAY
+                    PLACEMENTS_IN_WEEK -> Calendar.WEEK_OF_YEAR
+                    PLACEMENTS_IN_MONTH -> Calendar.MONTH
+                    PLACEMENTS_SINCE_INSTALL -> Calendar.YEAR
                 }
 
         fun dateComponent(components: Map<Int, Int>): Int? =
@@ -64,6 +90,11 @@ data class ComputedPropertyRequest(
                 DAYS_SINCE -> components[Calendar.DAY_OF_MONTH]
                 MONTHS_SINCE -> components[Calendar.MONTH]
                 YEARS_SINCE -> components[Calendar.YEAR]
+                PLACEMENTS_IN_DAY -> components[Calendar.DAY_OF_MONTH]
+                PLACEMENTS_IN_HOUR -> components[Calendar.HOUR_OF_DAY]
+                PLACEMENTS_IN_WEEK -> components[Calendar.WEEK_OF_YEAR]
+                PLACEMENTS_IN_MONTH -> components[Calendar.MONTH]
+                PLACEMENTS_SINCE_INSTALL -> components[Calendar.YEAR]
             }
     }
 
