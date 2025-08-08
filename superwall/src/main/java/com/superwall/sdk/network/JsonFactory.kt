@@ -19,10 +19,8 @@ interface JsonFactory {
                 namingStrategy = JsonNamingStrategy.SnakeCase
                 serializersModule =
                     SerializersModule {
-                        contextual(Date::class, DateSerializer)
-                        serializersModuleOf(
-                            LocalNotificationTypeSerializer,
-                        )
+                        contextual(Date::class, DateSerializer),
+                            LocalNotificationTypeSerializer
                     }
             }
 
