@@ -187,10 +187,6 @@ interface StoreTransactionFactory {
     suspend fun activeProductIds(): List<String>
 }
 
-interface ExperimentalPropertiesFactory {
-    fun experimentalProperties(): Map<String, Any>
-}
-
 interface OptionsFactory {
     fun makeSuperwallOptions(): SuperwallOptions
 }
