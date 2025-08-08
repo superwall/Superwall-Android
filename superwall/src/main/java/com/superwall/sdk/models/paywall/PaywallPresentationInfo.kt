@@ -8,7 +8,7 @@ import kotlinx.serialization.Serializable
 data class PaywallPresentationInfo(
     // The presentation style of the paywall
     @SerialName("style")
-    val style: PaywallPresentationStyle,
+    val style: PaywallPresentationStyleExpanded,
     // The delay in milliseconds before switching from the loading view to
     // the paywall view.
     @SerialName("delay")

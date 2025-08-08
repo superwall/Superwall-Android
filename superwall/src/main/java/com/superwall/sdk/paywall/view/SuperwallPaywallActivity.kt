@@ -46,7 +46,7 @@ import com.superwall.sdk.misc.isLightColor
 import com.superwall.sdk.misc.onError
 import com.superwall.sdk.misc.readableOverlayColor
 import com.superwall.sdk.models.paywall.LocalNotification
-import com.superwall.sdk.models.paywall.PaywallPresentationStyle
+import com.superwall.sdk.models.paywall.PaywallPresentationStyleExpanded
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.view.webview.SWWebView
@@ -76,7 +76,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             context: Context,
             view: PaywallView,
             key: String = UUID.randomUUID().toString(),
-            presentationStyleOverride: PaywallPresentationStyle? = null,
+            presentationStyleOverride: PaywallPresentationStyleExpanded? = null,
         ) {
             // We force this in main scope in case the user started it from a non-main thread
             CoroutineScope(Dispatchers.Main).launch {
@@ -84,7 +84,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                 val intent =
                     Intent(context, SuperwallPaywallActivity::class.java).apply {
                         putExtra(VIEW_KEY, key)
-                        putExtra(PRESENTATION_STYLE_KEY, presentationStyleOverride)
+                        putExtra(PRESENTATION_STYLE_KEY, presentationStyleOverride?.toIntentString())
                         putExtra(
                             IS_LIGHT_BACKGROUND_KEY,
                             view.paywall.backgroundColor.isLightColor(),
@@ -120,7 +120,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
     private val isBottomSheetView
         get() = contentView is CoordinatorLayout && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
 
-    private val isDialogView
+    private val isPopupView
         get() = contentView is androidx.constraintlayout.widget.ConstraintLayout && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
 
     override fun setContentView(view: View) {
@@ -135,7 +135,9 @@ class SuperwallPaywallActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         AppCompatDelegate.setCompatVectorFromResourcesEnabled(true)
         val presentationStyle =
-            intent.getSerializableExtra(PRESENTATION_STYLE_KEY) as? PaywallPresentationStyle
+            intent.getStringExtra(PRESENTATION_STYLE_KEY)?.let {
+                PaywallPresentationStyleExpanded.fromIntentString(it)
+            }
 
         // Show content behind the status bar
         window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
@@ -235,22 +237,26 @@ class SuperwallPaywallActivity : AppCompatActivity() {
 
     private fun setupActivityWithView(
         view: PaywallView,
-        presentationStyle: PaywallPresentationStyle?,
+        presentationStyle: PaywallPresentationStyleExpanded?,
     ) {
         window.decorView.setBackgroundColor(view.backgroundColor)
 
         val isBottomSheetStyle =
-            presentationStyle == PaywallPresentationStyle.DRAWER || presentationStyle == PaywallPresentationStyle.MODAL
-        val isDialogStyle = presentationStyle == PaywallPresentationStyle.DIALOG
+            presentationStyle is PaywallPresentationStyleExpanded.Drawer || presentationStyle is PaywallPresentationStyleExpanded.Modal
+        val isPopupStyle = presentationStyle is PaywallPresentationStyleExpanded.Popup
 
         (view.parent as? ViewGroup)?.removeView(view)
         view.tag = ACTIVE_PAYWALL_TAG
         view.encapsulatingActivity = WeakReference(this)
         // If it's a bottom sheet or dialog, we set activity as transparent and show the UI in a container
         if (isBottomSheetStyle && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            setupBottomSheetLayout(view, presentationStyle == PaywallPresentationStyle.MODAL)
-        } else if (isDialogStyle && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            setupDialogLayout(view)
+            setupBottomSheetLayout(
+                view,
+                presentationStyle is PaywallPresentationStyleExpanded.Modal,
+                if (presentationStyle is PaywallPresentationStyleExpanded.Drawer) presentationStyle.height else 0.0,
+            )
+        } else if (isPopupStyle && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            setupPopupLayout(view)
         } else {
             setContentView(view)
         }
@@ -274,7 +280,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         window.navigationBarColor = view.backgroundColor
         // TODO: handle animation and style from `presentationStyleOverride`
         when (presentationStyle) {
-            PaywallPresentationStyle.PUSH -> {
+            is PaywallPresentationStyleExpanded.Push -> {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                     overrideActivityTransition(
                         OVERRIDE_TRANSITION_OPEN,
@@ -289,7 +295,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                 }
             }
 
-            PaywallPresentationStyle.FULLSCREEN -> {
+            is PaywallPresentationStyleExpanded.Fullscreen -> {
                 WindowCompat.setDecorFitsSystemWindows(window, true)
 
                 // Set the navigation bar color to the paywall background color
@@ -316,7 +322,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                 }
             }
 
-            PaywallPresentationStyle.FULLSCREEN_NO_ANIMATION -> {
+            is PaywallPresentationStyleExpanded.FullscreenNoAnimation -> {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                     overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, 0, 0)
                     overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, 0, 0)
@@ -336,10 +342,10 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                 )
             }
 
-            PaywallPresentationStyle.MODAL,
-            PaywallPresentationStyle.NONE,
-            PaywallPresentationStyle.DRAWER,
-            PaywallPresentationStyle.DIALOG,
+            is PaywallPresentationStyleExpanded.Modal,
+            is PaywallPresentationStyleExpanded.None,
+            is PaywallPresentationStyleExpanded.Drawer,
+            is PaywallPresentationStyleExpanded.Popup,
             null,
             -> {
                 // Do nothing
@@ -350,11 +356,12 @@ class SuperwallPaywallActivity : AppCompatActivity() {
     private fun setupBottomSheetLayout(
         paywallView: PaywallView,
         isModal: Boolean,
+        height: Double = 0.0,
     ) {
         val activityView =
             layoutInflater.inflate(com.superwall.sdk.R.layout.activity_bottom_sheet, null)
         setContentView(activityView)
-        initBottomSheetBehavior(isModal)
+        initBottomSheetBehavior(isModal, height)
         val container =
             activityView.findViewById<FrameLayout>(com.superwall.sdk.R.id.container)
         activityView.setOnClickListener { finish() }
@@ -362,14 +369,13 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         container.requestLayout()
     }
 
-    private fun setupDialogLayout(paywallView: PaywallView) {
+    private fun setupPopupLayout(paywallView: PaywallView) {
         val activityView =
-            layoutInflater.inflate(com.superwall.sdk.R.layout.activity_dialog, null)
+            layoutInflater.inflate(com.superwall.sdk.R.layout.activity_popup, null)
         setContentView(activityView)
         val container =
             activityView.findViewById<FrameLayout>(com.superwall.sdk.R.id.container)
-        // Click outside dialog to dismiss
-        activityView.setOnClickListener { finish() }
+        // Click outside popup to dismiss
         // Prevent clicks on the container from propagating to the background
         container.setOnClickListener { /* consume click */ }
         container.addView(paywallView)
@@ -378,11 +384,14 @@ class SuperwallPaywallActivity : AppCompatActivity() {
 
     private var bottomSheetCallback: BottomSheetCallback? = null
 
-    private fun initBottomSheetBehavior(isModal: Boolean) {
+    private fun initBottomSheetBehavior(
+        isModal: Boolean,
+        height: Double,
+    ) {
         val content = contentView as ViewGroup
         val bottomSheetBehavior = BottomSheetBehavior.from(content.getChildAt(0))
         if (!isModal) {
-            bottomSheetBehavior.halfExpandedRatio = 0.7f
+            bottomSheetBehavior.halfExpandedRatio = height.toFloat()
             // Expanded by default
             bottomSheetBehavior.state = BottomSheetBehavior.STATE_HALF_EXPANDED
         } else {
@@ -488,7 +497,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         }
     }
 
-    private fun hideDialogAndFinish() {
+    private fun hidePopupAndFinish() {
         val colorFrom = Color.argb(200, 0, 0, 0)
         val colorTo = Color.argb(0, 0, 0, 0)
 
@@ -509,7 +518,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         val paywallVc = paywallView() ?: return
-        if (isBottomSheetView || isDialogView) {
+        if (isBottomSheetView || isPopupView) {
             setTransparentBackground()
         }
         paywallVc.onViewCreated()
@@ -608,9 +617,9 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             mainScope.launch {
                 hideBottomSheetAndFinish()
             }
-        } else if (isDialogView) {
+        } else if (isPopupView) {
             mainScope.launch {
-                hideDialogAndFinish()
+                hidePopupAndFinish()
             }
         } else {
             super.finish()

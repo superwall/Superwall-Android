@@ -3,7 +3,6 @@ package com.superwall.sdk.paywall.view.webview.messaging
 import TemplateLogic
 import android.net.Uri
 import android.util.Base64
-import android.util.Log
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import com.superwall.sdk.Superwall
@@ -378,7 +377,6 @@ class PaywallMessageHandler(
     }
 
     private fun handleCustomEvent(customEvent: String) {
-        Log.e("RVCSX", "Got event $customEvent")
         detectHiddenPaywallEvent(
             "custom",
             mapOf("custom_event" to customEvent),
@@ -390,12 +388,10 @@ class PaywallMessageHandler(
         name: String,
         params: JSONObject,
     ) {
-        Log.e("RVCSX", "Requesting placement $name")
         delegate?.eventDidOccur(PaywallWebEvent.CustomPlacement(name, params))
     }
 
     private fun handleRequestReview() {
-        Log.e("RVCSX", "Requesting review")
         hapticFeedback()
         delegate?.eventDidOccur(PaywallWebEvent.RequestReview)
     }
