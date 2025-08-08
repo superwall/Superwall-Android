@@ -38,9 +38,7 @@ class ReceiptManager(
     private var delegate: ProductsFetcher?,
     private val billing: Billing,
     private val ioScope: IOScope = IOScope(),
-//    private val receiptData: () -> ByteArray? = ReceiptLogic::getReceiptData
 ) {
-    var latestSubscriptionStateValue: LatestSubscriptionState? = null
     var latestSubscriptionWillAutoRenew: Boolean? = null
     var latestSubscriptionPeriodType: LatestPeriodType? = null
     var transactionReceipts: MutableList<TransactionReceipt> = mutableListOf()
@@ -52,9 +50,7 @@ class ReceiptManager(
         val subscriptions: List<SubscriptionTransaction>,
     )
 
-    var purchasedSubscriptionGroupIds: Set<String>? = null
     private var _purchases: MutableSet<InAppPurchase> = mutableSetOf()
-    private var receiptRefreshCompletion: ((Boolean) -> Unit)? = null
     private val latestSubscriptionState: MutableStateFlow<LatestSubscriptionState> =
         MutableStateFlow(LatestSubscriptionState.UNKNOWN)
 
@@ -501,16 +497,6 @@ class ReceiptManager(
 
             else -> LatestSubscriptionState.EXPIRED
         }
-    }
-
-    suspend fun loadIntroOfferEligibility(storeProducts: Set<StoreProduct>) {
-        // Android doesn't have a direct equivalent to iOS intro offer eligibility
-        // This would need to be implemented based on purchase history analysis
-        Logger.debug(
-            logLevel = LogLevel.debug,
-            scope = LogScope.receipts,
-            message = "loadIntroOfferEligibility called for ${storeProducts.size} products",
-        )
     }
 
     suspend fun isEligibleForIntroOffer(storeProduct: StoreProduct): Boolean {

@@ -1,5 +1,6 @@
 package com.superwall.sdk.network
 
+import com.superwall.sdk.models.paywall.LocalNotificationTypeSerializer
 import com.superwall.sdk.models.serialization.DateSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNamingStrategy
@@ -15,6 +16,7 @@ interface JsonFactory {
             namingStrategy = JsonNamingStrategy.SnakeCase
             serializersModule =
                 SerializersModule {
+                    LocalNotificationTypeSerializer
                     contextual(Date::class, DateSerializer)
                 }
         }
