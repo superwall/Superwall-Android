@@ -22,6 +22,7 @@ import com.superwall.sdk.misc.onError
 import com.superwall.sdk.misc.then
 import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.models.enrichment.Enrichment
+import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.models.triggers.Trigger
@@ -46,6 +47,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 // TODO: Re-enable those params
@@ -68,8 +70,6 @@ open class ConfigManager(
         context.awaitUntilNetworkExists()
     },
 ) {
-    private val CACHE_LIMIT = 1.seconds
-
     interface Factory :
         RequestFactory,
         DeviceInfoFactory,
@@ -120,6 +120,8 @@ open class ConfigManager(
     private suspend fun fetchConfig() {
         configState.update { ConfigState.Retrieving }
         val oldConfig = storage.read(LatestConfig)
+        val status = entitlements.status.value
+        val CACHE_LIMIT = if (status is SubscriptionStatus.Active) 500.milliseconds else 1.seconds
         var isConfigFromCache = false
         var isEnrichmentFromCache = false
 
