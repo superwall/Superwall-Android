@@ -10,7 +10,7 @@ import com.superwall.sdk.models.config.FeatureGatingBehavior
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.LocalNotification
 import com.superwall.sdk.models.paywall.PaywallPresentationInfo
-import com.superwall.sdk.models.paywall.PaywallPresentationStyleExpanded
+import com.superwall.sdk.models.paywall.PaywallPresentationStyle
 import com.superwall.sdk.models.paywall.PaywallURL
 import com.superwall.sdk.models.product.ProductItem
 import com.superwall.sdk.models.triggers.Experiment
@@ -321,7 +321,7 @@ data class PaywallInfo(
                 localNotifications = emptyList(),
                 computedPropertyRequests = emptyList(),
                 surveys = emptyList(),
-                presentation = PaywallPresentationInfo(PaywallPresentationStyleExpanded.None, 0),
+                presentation = PaywallPresentationInfo(PaywallPresentationStyle.None, 0),
                 buildId = "",
                 cacheKey = "",
                 isScrollEnabled = true,

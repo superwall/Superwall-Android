@@ -47,7 +47,7 @@ import com.superwall.sdk.misc.isLightColor
 import com.superwall.sdk.misc.onError
 import com.superwall.sdk.misc.readableOverlayColor
 import com.superwall.sdk.models.paywall.LocalNotification
-import com.superwall.sdk.models.paywall.PaywallPresentationStyleExpanded
+import com.superwall.sdk.models.paywall.PaywallPresentationStyle
 import com.superwall.sdk.network.JsonFactory
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
@@ -78,7 +78,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             context: Context,
             view: PaywallView,
             key: String = UUID.randomUUID().toString(),
-            presentationStyleOverride: PaywallPresentationStyleExpanded? = null,
+            presentationStyleOverride: PaywallPresentationStyle? = null,
         ) {
             // We force this in main scope in case the user started it from a non-main thread
             CoroutineScope(Dispatchers.Main).launch {
@@ -115,7 +115,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                     (viewStorageViewModel.retrieveView(LoadingView.TAG) as LoadingView)
                 val style = paywall.presentation.style
                 val shimmer =
-                    if (style is PaywallPresentationStyleExpanded.Popup) {
+                    if (style is PaywallPresentationStyle.Popup) {
                         ShimmerView(this@prepareViewForDisplay.context).apply {
                             updateLayoutParams {
                                 width =
@@ -155,7 +155,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         AppCompatDelegate.setCompatVectorFromResourcesEnabled(true)
         val presentationStyle =
             intent.getStringExtra(PRESENTATION_STYLE_KEY)?.let {
-                PaywallPresentationStyleExpanded.fromIntentString(JsonFactory.JSON_POLYMORPHIC, it)
+                PaywallPresentationStyle.fromIntentString(JsonFactory.JSON_POLYMORPHIC, it)
             }
 
         // Show content behind the status bar
@@ -256,13 +256,13 @@ class SuperwallPaywallActivity : AppCompatActivity() {
 
     private fun setupActivityWithView(
         view: PaywallView,
-        presentationStyle: PaywallPresentationStyleExpanded?,
+        presentationStyle: PaywallPresentationStyle?,
     ) {
         window.decorView.setBackgroundColor(view.backgroundColor)
 
         val isBottomSheetStyle =
-            presentationStyle is PaywallPresentationStyleExpanded.Drawer || presentationStyle is PaywallPresentationStyleExpanded.Modal
-        val isPopupStyle = presentationStyle is PaywallPresentationStyleExpanded.Popup
+            presentationStyle is PaywallPresentationStyle.Drawer || presentationStyle is PaywallPresentationStyle.Modal
+        val isPopupStyle = presentationStyle is PaywallPresentationStyle.Popup
 
         (view.parent as? ViewGroup)?.removeView(view)
         view.tag = ACTIVE_PAYWALL_TAG
@@ -271,8 +271,8 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         if (isBottomSheetStyle && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             setupBottomSheetLayout(
                 view,
-                presentationStyle is PaywallPresentationStyleExpanded.Modal,
-                if (presentationStyle is PaywallPresentationStyleExpanded.Drawer) presentationStyle.height else 0.0,
+                presentationStyle is PaywallPresentationStyle.Modal,
+                if (presentationStyle is PaywallPresentationStyle.Drawer) presentationStyle.height else 0.0,
             )
         } else if (isPopupStyle && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             setupPopupLayout(view)
@@ -299,7 +299,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         window.navigationBarColor = view.backgroundColor
         // TODO: handle animation and style from `presentationStyleOverride`
         when (presentationStyle) {
-            is PaywallPresentationStyleExpanded.Push -> {
+            is PaywallPresentationStyle.Push -> {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                     overrideActivityTransition(
                         OVERRIDE_TRANSITION_OPEN,
@@ -314,7 +314,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                 }
             }
 
-            is PaywallPresentationStyleExpanded.Fullscreen -> {
+            is PaywallPresentationStyle.Fullscreen -> {
                 WindowCompat.setDecorFitsSystemWindows(window, true)
 
                 // Set the navigation bar color to the paywall background color
@@ -341,7 +341,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                 }
             }
 
-            is PaywallPresentationStyleExpanded.FullscreenNoAnimation -> {
+            is PaywallPresentationStyle.FullscreenNoAnimation -> {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                     overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, 0, 0)
                     overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, 0, 0)
@@ -361,10 +361,10 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                 )
             }
 
-            is PaywallPresentationStyleExpanded.Modal,
-            is PaywallPresentationStyleExpanded.None,
-            is PaywallPresentationStyleExpanded.Drawer,
-            is PaywallPresentationStyleExpanded.Popup,
+            is PaywallPresentationStyle.Modal,
+            is PaywallPresentationStyle.None,
+            is PaywallPresentationStyle.Drawer,
+            is PaywallPresentationStyle.Popup,
             null,
             -> {
                 // Do nothing

@@ -49,7 +49,7 @@ data class Paywall(
     @SerialName("presentation_style_v2")
     private val presentationStyle: String?,
     @SerialName("presentation_style_v3")
-    private val expandedPresentationStyle: PaywallPresentationStyleExpanded?,
+    private val expandedPresentationStyle: PaywallPresentationStyle?,
     @SerialName("presentation_delay")
     private val presentationDelay: Long,
     @SerialName("presentation_condition")
@@ -59,7 +59,7 @@ data class Paywall(
         PaywallPresentationInfo(
             style =
                 expandedPresentationStyle
-                    ?: PaywallPresentationStyleExpanded.None.also {
+                    ?: PaywallPresentationStyle.None.also {
                         Logger.debug(
                             LogLevel.warn,
                             LogScope.paywallPresentation,
@@ -238,11 +238,11 @@ data class Paywall(
                 htmlSubstitutions = "",
                 presentation =
                     PaywallPresentationInfo(
-                        PaywallPresentationStyleExpanded.Modal,
+                        PaywallPresentationStyle.Modal,
                         300,
                     ),
-                expandedPresentationStyle = PaywallPresentationStyleExpanded.Modal,
-                presentationStyle = PaywallPresentationStyle.MODAL.rawValue,
+                expandedPresentationStyle = PaywallPresentationStyle.Modal,
+                presentationStyle = LegacyPaywallPresentationStyle.MODAL.rawValue,
                 presentationCondition = "CHECK_USER_SUBSCRIPTION",
                 backgroundColorHex = "000000",
                 darkBackgroundColorHex = null,

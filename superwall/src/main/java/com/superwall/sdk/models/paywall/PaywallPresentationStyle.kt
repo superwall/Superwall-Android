@@ -6,50 +6,24 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 @Serializable
-enum class PaywallPresentationStyle(
-    val rawValue: String,
-) {
-    @SerialName("MODAL")
-    MODAL("MODAL"),
-
-    @SerialName("FULLSCREEN")
-    FULLSCREEN("FULLSCREEN"),
-
-    @SerialName("NO_ANIMATION")
-    FULLSCREEN_NO_ANIMATION("NO_ANIMATION"),
-
-    @SerialName("PUSH")
-    PUSH("PUSH"),
-
-    @SerialName("DRAWER")
-    DRAWER("DRAWER"),
-
-    @SerialName("NONE")
-    NONE("NONE"),
-
-    @SerialName("DIALOG")
-    DIALOG("DIALOG"),
-}
-
-@Serializable
-sealed class PaywallPresentationStyleExpanded(
+sealed class PaywallPresentationStyle(
     val rawValue: String,
 ) {
     @Serializable
     @SerialName("MODAL")
-    data object Modal : PaywallPresentationStyleExpanded("MODAL")
+    data object Modal : PaywallPresentationStyle("MODAL")
 
     @Serializable
     @SerialName("FULLSCREEN")
-    data object Fullscreen : PaywallPresentationStyleExpanded("FULLSCREEN")
+    data object Fullscreen : PaywallPresentationStyle("FULLSCREEN")
 
     @Serializable
     @SerialName("NO_ANIMATION")
-    data object FullscreenNoAnimation : PaywallPresentationStyleExpanded("NO_ANIMATION")
+    data object FullscreenNoAnimation : PaywallPresentationStyle("NO_ANIMATION")
 
     @Serializable
     @SerialName("PUSH")
-    data object Push : PaywallPresentationStyleExpanded("PUSH")
+    data object Push : PaywallPresentationStyle("PUSH")
 
     @Serializable
     @SerialName("DRAWER")
@@ -58,11 +32,11 @@ sealed class PaywallPresentationStyleExpanded(
         val height: Double,
         @SerialName("corner_radius")
         val cornerRadius: Double,
-    ) : PaywallPresentationStyleExpanded("DRAWER")
+    ) : PaywallPresentationStyle("DRAWER")
 
     @Serializable
     @SerialName("NONE")
-    data object None : PaywallPresentationStyleExpanded("NONE")
+    data object None : PaywallPresentationStyle("NONE")
 
     @Serializable
     @SerialName("POPUP")
@@ -71,15 +45,36 @@ sealed class PaywallPresentationStyleExpanded(
         val height: Double,
         @SerialName("width")
         val width: Double,
-    ) : PaywallPresentationStyleExpanded("POPUP")
+    ) : PaywallPresentationStyle("POPUP")
 
     // Helper methods for Android Intent serialization only
     fun toIntentString(json: Json): String = json.encodeToString(this)
 
     companion object {
+        @Deprecated("Use PaywallPresentationStyle.Modal instead", ReplaceWith("PaywallPresentationStyle.Modal"))
+        val MODAL = PaywallPresentationStyle.Modal
+
+        @Deprecated("Use PaywallPresentationStyle.Fullscreen instead", ReplaceWith("PaywallPresentationStyle.Fullscreen"))
+        val FULLSCREEN = PaywallPresentationStyle.Fullscreen
+
+        @Deprecated(
+            "Use PaywallPresentationStyle.FullscreenNoAnimation instead",
+            ReplaceWith("PaywallPresentationStyle.FullscreenNoAnimation"),
+        )
+        val FULLSCREEN_NO_ANIMATION = PaywallPresentationStyle.FullscreenNoAnimation
+
+        @Deprecated("Use PaywallPresentationStyle.Push instead", ReplaceWith("PaywallPresentationStyle.Push"))
+        val PUSH = PaywallPresentationStyle.Push
+
+        @Deprecated("Use PaywallPresentationStyle.Drawer instead", ReplaceWith("PaywallPresentationStyle.Drawer"))
+        val DRAWER = PaywallPresentationStyle.Drawer
+
+        @Deprecated("Use PaywallPresentationStyle.None instead", ReplaceWith("PaywallPresentationStyle.None"))
+        val NONE = PaywallPresentationStyle.None
+
         fun fromIntentString(
             json: Json,
             value: String,
-        ): PaywallPresentationStyleExpanded = json.decodeFromString(value)
+        ): PaywallPresentationStyle = json.decodeFromString(value)
     }
 }

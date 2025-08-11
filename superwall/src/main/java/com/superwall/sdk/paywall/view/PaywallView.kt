@@ -32,7 +32,7 @@ import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.MainScope
 import com.superwall.sdk.misc.toResult
 import com.superwall.sdk.models.paywall.Paywall
-import com.superwall.sdk.models.paywall.PaywallPresentationStyleExpanded
+import com.superwall.sdk.models.paywall.PaywallPresentationStyle
 import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.paywall.manager.PaywallCacheLogic
@@ -114,7 +114,7 @@ class PaywallView(
     //region Presentation properties
 
     // / The presentation style for the paywall.
-    private var presentationStyle: PaywallPresentationStyleExpanded
+    private var presentationStyle: PaywallPresentationStyle
 
     private var shimmerView: PaywallShimmerView? = null
 
@@ -254,7 +254,7 @@ class PaywallView(
         presenter: Activity,
         request: PresentationRequest,
         unsavedOccurrence: TriggerRuleOccurrence?,
-        presentationStyleOverride: PaywallPresentationStyleExpanded?,
+        presentationStyleOverride: PaywallPresentationStyle?,
         paywallStatePublisher: MutableSharedFlow<PaywallState>,
         completion: (Boolean) -> Unit,
     ) {
@@ -267,7 +267,7 @@ class PaywallView(
             setupShimmer(it)
         }
         set(request, paywallStatePublisher, unsavedOccurrence)
-        if (presentationStyleOverride != null && presentationStyleOverride !is PaywallPresentationStyleExpanded.None) {
+        if (presentationStyleOverride != null && presentationStyleOverride !is PaywallPresentationStyle.None) {
             presentationStyle = presentationStyleOverride
         } else {
             presentationStyle = paywall.presentation.style
