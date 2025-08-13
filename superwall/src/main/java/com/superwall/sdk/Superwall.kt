@@ -317,6 +317,36 @@ class Superwall(
     suspend fun deviceAttributes(): Map<String, Any?> = dependencyContainer.makeSessionDeviceAttributes()
 
     /**
+     * Attribution properties to be included in redemption requests.
+     */
+    private var _attributionProps: Map<String, Any> = emptyMap()
+
+    /**
+     * Gets the current attribution properties.
+     */
+    val attributionProps: Map<String, Any>
+        get() = _attributionProps
+
+    /**
+     * Sets attribution properties to be included in redemption requests.
+     * These properties will be passed to the RedeemRequest when redeeming codes.
+     * If redemption is not yet completed, it will include these properties in the existing request.
+     * If redemption is completed, it will trigger a new redemption with these properties.
+     *
+     * @param attributionProps A map of attribution properties to include in redemption requests.
+     */
+    fun setAttributionProps(attributionProps: Map<String, Any>) {
+        withErrorTracking {
+            _attributionProps = attributionProps
+
+            // Check if there's an ongoing redemption or if we need to trigger a new one
+            ioScope.launch {
+                dependencyContainer.reedemer.redeem(WebPaywallRedeemer.RedeemType.Existing)
+            }
+        }
+    }
+
+    /**
      * The current user's id.
      *
      * If you haven't called `Superwall.identify(userId:options:)`,

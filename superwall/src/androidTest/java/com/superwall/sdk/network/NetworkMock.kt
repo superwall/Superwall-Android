@@ -15,6 +15,7 @@ import com.superwall.sdk.models.internal.DeviceVendorId
 import com.superwall.sdk.models.internal.UserId
 import com.superwall.sdk.models.internal.WebRedemptionResponse
 import com.superwall.sdk.models.paywall.Paywall
+import kotlinx.serialization.json.JsonElement
 import kotlin.time.Duration
 
 class NetworkMock : SuperwallAPI {
@@ -85,6 +86,7 @@ class NetworkMock : SuperwallAPI {
         vendorId: DeviceVendorId,
         receipts: List<TransactionReceipt>,
         externalAccountId: String,
+        attributionProps: Map<String, JsonElement>?,
     ): Either<WebRedemptionResponse, NetworkError> {
         TODO("Not yet implemented")
     }

@@ -1,6 +1,6 @@
 package com.superwall.sdk.network
 
-class RequestResult(
+data class RequestResult(
     val requestId: String,
     val responseCode: Int,
     val responseMessage: String,

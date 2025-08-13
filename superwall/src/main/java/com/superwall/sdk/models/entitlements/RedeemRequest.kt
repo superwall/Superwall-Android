@@ -2,6 +2,7 @@ package com.superwall.sdk.models.entitlements
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 
 @Serializable
 data class RedeemRequest(
@@ -17,6 +18,8 @@ data class RedeemRequest(
     val receipts: List<TransactionReceipt>,
     @SerialName("externalAccountId")
     val externalAccountId: String,
+    @SerialName("attributionProps")
+    val attributionProps: Map<String, JsonElement>? = null,
 )
 
 @Serializable
@@ -31,6 +34,8 @@ data class Redeemable(
 data class TransactionReceipt(
     @SerialName("jwsRepresentation")
     val purchaseToken: String,
+    @SerialName("orderId")
+    val orderId: String? = null,
 ) {
     @SerialName("type")
     val type: String = "Android"

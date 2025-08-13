@@ -33,6 +33,11 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.plus
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 class WebPaywallRedeemer(
     val context: Context,
@@ -69,8 +74,33 @@ class WebPaywallRedeemer(
     val isWebToAppEnabled: () -> Boolean,
     val receipts: suspend () -> List<TransactionReceipt>,
     val getExternalAccountId: () -> String,
+    val getAttributionProps: () -> Map<String, Any> = { Superwall.instance.attributionProps },
 ) {
     private var pollingJob: Job? = null
+
+    private fun convertToJsonElement(value: Any?): JsonElement? =
+        when (value) {
+            null -> null
+            is String -> JsonPrimitive(value)
+            is Number -> JsonPrimitive(value)
+            is Boolean -> JsonPrimitive(value)
+            is Map<*, *> ->
+                buildJsonObject {
+                    value.forEach { (k, v) ->
+                        if (k is String && v != null) {
+                            val jsonElement = convertToJsonElement(v)
+                            if (jsonElement != null) {
+                                put(k, jsonElement)
+                            }
+                        }
+                    }
+                }
+            is Collection<*> ->
+                JsonArray(
+                    value.mapNotNull { convertToJsonElement(it) },
+                )
+            else -> JsonPrimitive(value.toString())
+        }
 
     init {
         ioScope.launch {
@@ -142,6 +172,12 @@ class WebPaywallRedeemer(
                     getDeviceId(),
                     receipts(),
                     getExternalAccountId(),
+                    getAttributionProps().takeIf { it.isNotEmpty() }?.let { props ->
+                        props
+                            .mapValues { (_, value) -> convertToJsonElement(value) }
+                            .filterValues { it != null }
+                            .mapValues { (_, value) -> value!! }
+                    },
                 ).fold(
                     onSuccess = {
                         storage.write(LatestRedemptionResponse, it)

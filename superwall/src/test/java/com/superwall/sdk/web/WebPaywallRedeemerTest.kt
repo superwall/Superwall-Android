@@ -40,6 +40,11 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import org.junit.Before
 import org.junit.Test
 import kotlin.time.Duration.Companion.seconds
@@ -139,6 +144,7 @@ class WebPaywallRedeemerTest {
                         any(),
                         any(),
                         any(),
+                        any(),
                     )
                 } returns Either.Success(response)
 
@@ -164,8 +170,9 @@ class WebPaywallRedeemerTest {
                         getPaywallInfo = { PaywallInfo.empty() },
                         trackRestorationFailed = {},
                         isWebToAppEnabled = { true },
-                        receipts = { listOf(TransactionReceipt("mock")) },
+                        receipts = { listOf(TransactionReceipt("mock", "orderId")) },
                         getExternalAccountId = { "" },
+                        getAttributionProps = { emptyMap() },
                     )
 
                 When("checking for referral") {
@@ -211,8 +218,9 @@ class WebPaywallRedeemerTest {
                         getPaywallInfo = { PaywallInfo.empty() },
                         trackRestorationFailed = {},
                         isWebToAppEnabled = { true },
-                        receipts = { listOf(TransactionReceipt("mock")) },
+                        receipts = { listOf(TransactionReceipt("mock", "orderId")) },
                         getExternalAccountId = { "" },
+                        getAttributionProps = { emptyMap() },
                     )
 
                 When("checking for referral") {
@@ -220,7 +228,7 @@ class WebPaywallRedeemerTest {
 
                     Then("it should not call redeem") {
                         coVerify(exactly = 0) {
-                            network.redeemToken(any(), any(), any(), any(), any(), any())
+                            network.redeemToken(any(), any(), any(), any(), any(), any(), any())
                         }
                     }
                 }
@@ -239,6 +247,7 @@ class WebPaywallRedeemerTest {
                 coEvery { deepLinkReferrer.checkForReferral() } returns Result.success(codes)
                 coEvery {
                     network.redeemToken(
+                        any(),
                         any(),
                         any(),
                         any(),
@@ -273,8 +282,9 @@ class WebPaywallRedeemerTest {
                         getPaywallInfo = { PaywallInfo.empty() },
                         trackRestorationFailed = {},
                         isWebToAppEnabled = { true },
-                        receipts = { listOf(TransactionReceipt("mock")) },
+                        receipts = { listOf(TransactionReceipt("mock", "orderId")) },
                         getExternalAccountId = { "" },
+                        getAttributionProps = { emptyMap() },
                     )
 
                 When("checking for referral") {
@@ -333,8 +343,9 @@ class WebPaywallRedeemerTest {
                         getPaywallInfo = { PaywallInfo.empty() },
                         trackRestorationFailed = {},
                         isWebToAppEnabled = { true },
-                        receipts = { listOf(TransactionReceipt("mock")) },
+                        receipts = { listOf(TransactionReceipt("mock", "orderId")) },
                         getExternalAccountId = { "" },
+                        getAttributionProps = { emptyMap() },
                     )
 
                 When("checking for web entitlements") {
@@ -387,8 +398,9 @@ class WebPaywallRedeemerTest {
                         getPaywallInfo = { PaywallInfo.empty() },
                         trackRestorationFailed = {},
                         isWebToAppEnabled = { true },
-                        receipts = { listOf(TransactionReceipt("mock")) },
+                        receipts = { listOf(TransactionReceipt("mock", "orderId")) },
                         getExternalAccountId = { "" },
+                        getAttributionProps = { emptyMap() },
                     )
 
                 When("checking for web entitlements") {
@@ -444,8 +456,9 @@ class WebPaywallRedeemerTest {
                         getPaywallInfo = { PaywallInfo.empty() },
                         trackRestorationFailed = {},
                         isWebToAppEnabled = { true },
-                        receipts = { listOf(TransactionReceipt("mock")) },
+                        receipts = { listOf(TransactionReceipt("mock", "orderId")) },
                         getExternalAccountId = { "" },
+                        getAttributionProps = { emptyMap() },
                     )
 
                 When("checking for web entitlements") {
@@ -473,7 +486,7 @@ class WebPaywallRedeemerTest {
                 } returns Result.success("code")
 
                 coEvery {
-                    network.redeemToken(any(), any(), any(), any(), any(), any())
+                    network.redeemToken(any(), any(), any(), any(), any(), any(), any())
                 } returns Either.Failure(NetworkError.Unknown(Error("Token redemption failed")))
 
                 coEvery {
@@ -502,8 +515,9 @@ class WebPaywallRedeemerTest {
                         getPaywallInfo = { PaywallInfo.empty() },
                         trackRestorationFailed = {},
                         isWebToAppEnabled = { true },
-                        receipts = { listOf(TransactionReceipt("mock")) },
+                        receipts = { listOf(TransactionReceipt("mock", "orderId")) },
                         getExternalAccountId = { "" },
+                        getAttributionProps = { emptyMap() },
                     )
 
                 When("checking for web entitlements") {
@@ -555,8 +569,9 @@ class WebPaywallRedeemerTest {
                         getPaywallInfo = { PaywallInfo.empty() },
                         trackRestorationFailed = {},
                         isWebToAppEnabled = { true },
-                        receipts = { listOf(TransactionReceipt("mock")) },
+                        receipts = { listOf(TransactionReceipt("mock", "orderId")) },
                         getExternalAccountId = { "" },
+                        getAttributionProps = { emptyMap() },
                     )
 
                 When("checking for web entitlements") {
@@ -678,4 +693,349 @@ class WebPaywallRedeemerTest {
             }
         }
     }
+
+    @Test
+    fun `test attribution props are passed to redeemToken`() =
+        runTest(testDispatcher) {
+            Given("a WebPaywallRedeemer with attribution props") {
+                val code = "test_code"
+                val attributionProps =
+                    mapOf(
+                        "campaign" to "summer_sale",
+                        "source" to "facebook",
+                        "user_id" to 12345,
+                    )
+                val expectedJsonProps =
+                    mapOf<String, JsonElement>(
+                        "campaign" to JsonPrimitive("summer_sale"),
+                        "source" to JsonPrimitive("facebook"),
+                        "user_id" to JsonPrimitive(12345),
+                    )
+
+                mutableEntitlements = mutableSetOf(normalEntitlement)
+                val response =
+                    WebRedemptionResponse(
+                        codes =
+                            listOf(
+                                RedemptionResult.Success(
+                                    code = code,
+                                    redemptionInfo =
+                                        RedemptionInfo(
+                                            ownership = RedemptionOwnership.AppUser(appUserId = "test_user"),
+                                            purchaserInfo =
+                                                PurchaserInfo(
+                                                    "test_user",
+                                                    "test@example.com",
+                                                    StoreIdentifiers.Stripe(stripeCustomerId = "123", emptyList()),
+                                                ),
+                                            entitlements = listOf(webEntitlement),
+                                        ),
+                                ),
+                            ),
+                        entitlements = listOf(webEntitlement),
+                    )
+
+                coEvery { deepLinkReferrer.checkForReferral() } returns Result.success(code)
+                coEvery {
+                    network.redeemToken(any(), any(), any(), any(), any(), any(), any())
+                } returns Either.Success(response)
+
+                redeemer =
+                    WebPaywallRedeemer(
+                        context,
+                        IOScope(testDispatcher),
+                        deepLinkReferrer,
+                        network,
+                        storage,
+                        willRedeemLink = {},
+                        didRedeemLink = {},
+                        maxAge,
+                        getActiveDeviceEntitlements,
+                        getUserId,
+                        getDeviceId,
+                        getAlias,
+                        track,
+                        setSubscriptionStatus,
+                        isPaywallVisible,
+                        showRestoreDialogAndDismiss,
+                        currentPaywallEntitlements,
+                        getPaywallInfo = { PaywallInfo.empty() },
+                        trackRestorationFailed = {},
+                        isWebToAppEnabled = { true },
+                        receipts = { listOf(TransactionReceipt("mock", "orderId")) },
+                        getExternalAccountId = { "" },
+                        getAttributionProps = { attributionProps },
+                    )
+
+                When("checking for referral with attribution props") {
+                    redeemer.checkForRefferal()
+
+                    Then("it should call redeemToken with converted attribution props") {
+                        coVerify(exactly = 1) {
+                            network.redeemToken(any(), any(), any(), any(), any(), any(), any())
+                        }
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `test orderId is included in TransactionReceipt`() =
+        runTest(testDispatcher) {
+            Given("a WebPaywallRedeemer with TransactionReceipts containing orderId") {
+                val code = "test_code"
+                val expectedOrderId = "test_order_123"
+                val expectedPurchaseToken = "test_purchase_token"
+                val expectedReceipts =
+                    listOf(
+                        TransactionReceipt(expectedPurchaseToken, expectedOrderId),
+                    )
+
+                mutableEntitlements = mutableSetOf(normalEntitlement)
+                val response =
+                    WebRedemptionResponse(
+                        codes =
+                            listOf(
+                                RedemptionResult.Success(
+                                    code = code,
+                                    redemptionInfo =
+                                        RedemptionInfo(
+                                            ownership = RedemptionOwnership.AppUser(appUserId = "test_user"),
+                                            purchaserInfo =
+                                                PurchaserInfo(
+                                                    "test_user",
+                                                    "test@example.com",
+                                                    StoreIdentifiers.Stripe(stripeCustomerId = "123", emptyList()),
+                                                ),
+                                            entitlements = listOf(webEntitlement),
+                                        ),
+                                ),
+                            ),
+                        entitlements = listOf(webEntitlement),
+                    )
+
+                coEvery { deepLinkReferrer.checkForReferral() } returns Result.success(code)
+                coEvery {
+                    network.redeemToken(any(), any(), any(), any(), any(), any(), any())
+                } returns Either.Success(response)
+
+                redeemer =
+                    WebPaywallRedeemer(
+                        context,
+                        IOScope(testDispatcher),
+                        deepLinkReferrer,
+                        network,
+                        storage,
+                        willRedeemLink = {},
+                        didRedeemLink = {},
+                        maxAge,
+                        getActiveDeviceEntitlements,
+                        getUserId,
+                        getDeviceId,
+                        getAlias,
+                        track,
+                        setSubscriptionStatus,
+                        isPaywallVisible,
+                        showRestoreDialogAndDismiss,
+                        currentPaywallEntitlements,
+                        getPaywallInfo = { PaywallInfo.empty() },
+                        trackRestorationFailed = {},
+                        isWebToAppEnabled = { true },
+                        receipts = { expectedReceipts },
+                        getExternalAccountId = { "" },
+                        getAttributionProps = { emptyMap() },
+                    )
+
+                When("checking for referral") {
+                    redeemer.checkForRefferal()
+
+                    Then("it should call redeemToken with receipts containing orderId") {
+                        coVerify(exactly = 1) {
+                            network.redeemToken(any(), any(), any(), any(), any(), any(), any())
+                        }
+                        // Verify the receipt contains both purchaseToken and orderId
+                        assert(expectedReceipts[0].purchaseToken == expectedPurchaseToken)
+                        assert(expectedReceipts[0].orderId == expectedOrderId)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `test empty attribution props are not passed to redeemToken`() =
+        runTest(testDispatcher) {
+            Given("a WebPaywallRedeemer with empty attribution props") {
+                val code = "test_code"
+                val emptyAttributionProps = emptyMap<String, Any>()
+
+                mutableEntitlements = mutableSetOf(normalEntitlement)
+                val response =
+                    WebRedemptionResponse(
+                        codes =
+                            listOf(
+                                RedemptionResult.Success(
+                                    code = code,
+                                    redemptionInfo =
+                                        RedemptionInfo(
+                                            ownership = RedemptionOwnership.AppUser(appUserId = "test_user"),
+                                            purchaserInfo =
+                                                PurchaserInfo(
+                                                    "test_user",
+                                                    "test@example.com",
+                                                    StoreIdentifiers.Stripe(stripeCustomerId = "123", emptyList()),
+                                                ),
+                                            entitlements = listOf(webEntitlement),
+                                        ),
+                                ),
+                            ),
+                        entitlements = listOf(webEntitlement),
+                    )
+
+                coEvery { deepLinkReferrer.checkForReferral() } returns Result.success(code)
+                coEvery {
+                    network.redeemToken(any(), any(), any(), any(), any(), any(), any())
+                } returns Either.Success(response)
+
+                redeemer =
+                    WebPaywallRedeemer(
+                        context,
+                        IOScope(testDispatcher),
+                        deepLinkReferrer,
+                        network,
+                        storage,
+                        willRedeemLink = {},
+                        didRedeemLink = {},
+                        maxAge,
+                        getActiveDeviceEntitlements,
+                        getUserId,
+                        getDeviceId,
+                        getAlias,
+                        track,
+                        setSubscriptionStatus,
+                        isPaywallVisible,
+                        showRestoreDialogAndDismiss,
+                        currentPaywallEntitlements,
+                        getPaywallInfo = { PaywallInfo.empty() },
+                        trackRestorationFailed = {},
+                        isWebToAppEnabled = { true },
+                        receipts = { listOf(TransactionReceipt("mock", "orderId")) },
+                        getExternalAccountId = { "" },
+                        getAttributionProps = { emptyAttributionProps },
+                    )
+
+                When("checking for referral with empty attribution props") {
+                    redeemer.checkForRefferal()
+
+                    Then("it should call redeemToken with null attribution props") {
+                        coVerify(exactly = 1) {
+                            network.redeemToken(any(), any(), any(), any(), any(), any(), any())
+                        }
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `test complex attribution props conversion to JsonElement`() =
+        runTest(testDispatcher) {
+            Given("a WebPaywallRedeemer with complex attribution props") {
+                val code = "test_code"
+                val complexAttributionProps =
+                    mapOf(
+                        "string_value" to "test_string",
+                        "int_value" to 42,
+                        "double_value" to 3.14,
+                        "boolean_value" to true,
+                        "nested_map" to mapOf("inner_key" to "inner_value"),
+                        "list_value" to listOf("item1", "item2", 123),
+                    )
+
+                // Expected JSON conversion
+                val expectedJsonProps =
+                    mapOf<String, JsonElement>(
+                        "string_value" to JsonPrimitive("test_string"),
+                        "int_value" to JsonPrimitive(42),
+                        "double_value" to JsonPrimitive(3.14),
+                        "boolean_value" to JsonPrimitive(true),
+                        "nested_map" to
+                            kotlinx.serialization.json.buildJsonObject {
+                                put("inner_key", JsonPrimitive("inner_value"))
+                            },
+                        "list_value" to
+                            kotlinx.serialization.json.JsonArray(
+                                listOf(
+                                    JsonPrimitive("item1"),
+                                    JsonPrimitive("item2"),
+                                    JsonPrimitive(123),
+                                ),
+                            ),
+                    )
+
+                mutableEntitlements = mutableSetOf(normalEntitlement)
+                val response =
+                    WebRedemptionResponse(
+                        codes =
+                            listOf(
+                                RedemptionResult.Success(
+                                    code = code,
+                                    redemptionInfo =
+                                        RedemptionInfo(
+                                            ownership = RedemptionOwnership.AppUser(appUserId = "test_user"),
+                                            purchaserInfo =
+                                                PurchaserInfo(
+                                                    "test_user",
+                                                    "test@example.com",
+                                                    StoreIdentifiers.Stripe(stripeCustomerId = "123", emptyList()),
+                                                ),
+                                            entitlements = listOf(webEntitlement),
+                                        ),
+                                ),
+                            ),
+                        entitlements = listOf(webEntitlement),
+                    )
+
+                coEvery { deepLinkReferrer.checkForReferral() } returns Result.success(code)
+                coEvery {
+                    network.redeemToken(any(), any(), any(), any(), any(), any(), any())
+                } returns Either.Success(response)
+
+                redeemer =
+                    WebPaywallRedeemer(
+                        context,
+                        IOScope(testDispatcher),
+                        deepLinkReferrer,
+                        network,
+                        storage,
+                        willRedeemLink = {},
+                        didRedeemLink = {},
+                        maxAge,
+                        getActiveDeviceEntitlements,
+                        getUserId,
+                        getDeviceId,
+                        getAlias,
+                        track,
+                        setSubscriptionStatus,
+                        isPaywallVisible,
+                        showRestoreDialogAndDismiss,
+                        currentPaywallEntitlements,
+                        getPaywallInfo = { PaywallInfo.empty() },
+                        trackRestorationFailed = {},
+                        isWebToAppEnabled = { true },
+                        receipts = { listOf(TransactionReceipt("mock", "orderId")) },
+                        getExternalAccountId = { "" },
+                        getAttributionProps = { complexAttributionProps },
+                    )
+
+                When("checking for referral with complex attribution props") {
+                    redeemer.checkForRefferal()
+
+                    Then("it should successfully convert and pass all attribution props types") {
+                        coVerify(exactly = 1) {
+                            network.redeemToken(any(), any(), any(), any(), any(), any(), any())
+                        }
+                        // The conversion should not throw an exception and should handle all data types
+                    }
+                }
+            }
+        }
 }

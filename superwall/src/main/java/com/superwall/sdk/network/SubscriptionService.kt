@@ -11,6 +11,7 @@ import com.superwall.sdk.models.internal.WebRedemptionResponse
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
 
 class SubscriptionService(
     override val host: String,
@@ -38,6 +39,7 @@ class SubscriptionService(
         vendorId: DeviceVendorId,
         transactionReceipt: List<TransactionReceipt>,
         externalAccountId: String,
+        attributionProps: Map<String, JsonElement>?,
     ) = post<WebRedemptionResponse>(
         "redeem",
         retryCount = 0,
@@ -51,6 +53,7 @@ class SubscriptionService(
                         codes,
                         transactionReceipt,
                         externalAccountId,
+                        attributionProps,
                     ),
                 ).toByteArray(),
     )
