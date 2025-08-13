@@ -167,6 +167,23 @@ object UserAttributes : Storable<
         get() = MapSerializer(String.serializer(), AnySerializer)
 }
 
+object AttributionProps : Storable<
+    Map<
+        String,
+        @kotlinx.serialization.Serializable(with = AnySerializer::class)
+        Any,
+    >,
+> {
+    override val key: String
+        get() = "store.attributionProps"
+
+    override val directory: SearchPathDirectory
+        get() = SearchPathDirectory.USER_SPECIFIC_DOCUMENTS
+
+    override val serializer: KSerializer<Map<String, Any>>
+        get() = MapSerializer(String.serializer(), AnySerializer)
+}
+
 object Transactions : Storable<StoreTransaction> {
     override val key: String
         get() = "store.transactions.v2"

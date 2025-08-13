@@ -61,6 +61,7 @@ import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.Initiate
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedDeepLink
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedURL
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedUrlInChrome
+import com.superwall.sdk.storage.AttributionProps
 import com.superwall.sdk.storage.StoredSubscriptionStatus
 import com.superwall.sdk.store.Entitlements
 import com.superwall.sdk.store.PurchasingObserverState
@@ -339,6 +340,9 @@ class Superwall(
         withErrorTracking {
             _attributionProps = attributionProps
 
+            // Persist attribution props to storage
+            dependencyContainer.storage.write(AttributionProps, attributionProps)
+
             // Check if there's an ongoing redemption or if we need to trigger a new one
             ioScope.launch {
                 dependencyContainer.reedemer.redeem(WebPaywallRedeemer.RedeemType.Existing)
@@ -564,6 +568,9 @@ class Superwall(
                     dependencyContainer.storage.read(StoredSubscriptionStatus)
                         ?: SubscriptionStatus.Unknown
                 setSubscriptionStatus(cachedSubscriptionStatus)
+
+                // Load stored attribution props
+                _attributionProps = dependencyContainer.storage.read(AttributionProps) ?: emptyMap()
 
                 addListeners()
 
