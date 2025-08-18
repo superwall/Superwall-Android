@@ -167,21 +167,20 @@ object UserAttributes : Storable<
         get() = MapSerializer(String.serializer(), AnySerializer)
 }
 
-object AttributionProps : Storable<
-    Map<
-        String,
-        @kotlinx.serialization.Serializable(with = AnySerializer::class)
-        Any,
-    >,
-> {
+object IntegrationIdentifiers : Storable<Map<com.superwall.sdk.models.attribution.AttributionProvider, String>> {
     override val key: String
-        get() = "store.attributionProps"
+        get() = "store.integrationIdentifiers"
 
     override val directory: SearchPathDirectory
         get() = SearchPathDirectory.USER_SPECIFIC_DOCUMENTS
 
-    override val serializer: KSerializer<Map<String, Any>>
-        get() = MapSerializer(String.serializer(), AnySerializer)
+    override val serializer: KSerializer<Map<com.superwall.sdk.models.attribution.AttributionProvider, String>>
+        get() =
+            MapSerializer(
+                com.superwall.sdk.models.attribution.AttributionProvider
+                    .serializer(),
+                String.serializer(),
+            )
 }
 
 object Transactions : Storable<StoreTransaction> {

@@ -37,7 +37,6 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
 
 class WebPaywallRedeemer(
     val context: Context,
@@ -74,7 +73,7 @@ class WebPaywallRedeemer(
     val isWebToAppEnabled: () -> Boolean,
     val receipts: suspend () -> List<TransactionReceipt>,
     val getExternalAccountId: () -> String,
-    val getAttributionProps: () -> Map<String, Any> = { Superwall.instance.attributionProps },
+    val getIntegrationProps: () -> Map<String, Any> = { Superwall.instance.integrationIdentifiers },
 ) {
     private var pollingJob: Job? = null
 
@@ -172,7 +171,7 @@ class WebPaywallRedeemer(
                     getDeviceId(),
                     receipts(),
                     getExternalAccountId(),
-                    getAttributionProps().takeIf { it.isNotEmpty() }?.let { props ->
+                    getIntegrationProps().takeIf { it.isNotEmpty() }?.let { props ->
                         props
                             .mapValues { (_, value) -> convertToJsonElement(value) }
                             .filterValues { it != null }

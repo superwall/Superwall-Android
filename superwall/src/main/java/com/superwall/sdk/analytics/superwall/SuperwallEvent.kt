@@ -79,6 +79,14 @@ sealed class SuperwallEvent {
             get() = "device_attributes"
     }
 
+    // / When attribution props are set or updated.
+    data class AttributionProps(
+        val audienceFilterParams: Map<String, Any>,
+    ) : SuperwallEvent() {
+        override val rawName: String
+            get() = "attribution_props"
+    }
+
     // / When the user's subscription status changes.
     class SubscriptionStatusDidChange : SuperwallEvent() {
         override val rawName: String

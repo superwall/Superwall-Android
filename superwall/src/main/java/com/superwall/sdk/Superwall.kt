@@ -36,6 +36,7 @@ import com.superwall.sdk.misc.fold
 import com.superwall.sdk.misc.launchWithTracking
 import com.superwall.sdk.misc.toResult
 import com.superwall.sdk.models.assignment.ConfirmedAssignment
+import com.superwall.sdk.models.attribution.AttributionProvider
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.events.EventData
@@ -61,7 +62,6 @@ import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.Initiate
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedDeepLink
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedURL
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedUrlInChrome
-import com.superwall.sdk.storage.AttributionProps
 import com.superwall.sdk.storage.StoredSubscriptionStatus
 import com.superwall.sdk.store.Entitlements
 import com.superwall.sdk.store.PurchasingObserverState
@@ -318,30 +318,34 @@ class Superwall(
     suspend fun deviceAttributes(): Map<String, Any?> = dependencyContainer.makeSessionDeviceAttributes()
 
     /**
-     * Attribution properties to be included in redemption requests.
+     * Backing field for integration identifiers.
      */
-    private var _attributionProps: Map<String, Any> = emptyMap()
+    private var _integrationIdentifiers: Map<AttributionProvider, String> = emptyMap()
 
     /**
-     * Gets the current attribution properties.
+     * Gets the current itegration identifiers as a map.
      */
-    val attributionProps: Map<String, Any>
-        get() = _attributionProps
+    val integrationIdentifiers: Map<String, Any>
+        get() =
+            _integrationIdentifiers
+                .map { (provider, id) ->
+                    provider.rawName to id
+                }.toMap()
 
     /**
-     * Sets attribution properties to be included in redemption requests.
-     * These properties will be passed to the RedeemRequest when redeeming codes.
-     * If redemption is not yet completed, it will include these properties in the existing request.
-     * If redemption is completed, it will trigger a new redemption with these properties.
+     * Sets integration identifiers for this user.
+     * The identifiers will be passed to Superwall backend.
+     * If redemption is not yet completed, it will include these identifiers in the existing request.
+     * If redemption is completed, it will trigger a new redemption with these identifiers.
      *
-     * @param attributionProps A map of attribution properties to include in redemption requests.
+     * @param integrationIdentifiers A map of attribution providers to their respective IDs.
      */
-    fun setAttributionProps(attributionProps: Map<String, Any>) {
+    fun setIntegrationIdentifiers(integrationIdentifiers: Map<AttributionProvider, String>) {
         withErrorTracking {
-            _attributionProps = attributionProps
+            _integrationIdentifiers = integrationIdentifiers
 
-            // Persist attribution props to storage
-            dependencyContainer.storage.write(AttributionProps, attributionProps)
+            // Persist integration identifiers to storage
+            dependencyContainer.storage.write(com.superwall.sdk.storage.IntegrationIdentifiers, integrationIdentifiers)
 
             // Check if there's an ongoing redemption or if we need to trigger a new one
             ioScope.launch {
@@ -569,8 +573,8 @@ class Superwall(
                         ?: SubscriptionStatus.Unknown
                 setSubscriptionStatus(cachedSubscriptionStatus)
 
-                // Load stored attribution props
-                _attributionProps = dependencyContainer.storage.read(AttributionProps) ?: emptyMap()
+                // Load stored integration identifiers
+                _integrationIdentifiers = dependencyContainer.storage.read(com.superwall.sdk.storage.IntegrationIdentifiers) ?: emptyMap()
 
                 addListeners()
 

@@ -172,7 +172,7 @@ class WebPaywallRedeemerTest {
                         isWebToAppEnabled = { true },
                         receipts = { listOf(TransactionReceipt("mock", "orderId")) },
                         getExternalAccountId = { "" },
-                        getAttributionProps = { emptyMap() },
+                        getIntegrationProps = { emptyMap() },
                     )
 
                 When("checking for referral") {
@@ -220,7 +220,7 @@ class WebPaywallRedeemerTest {
                         isWebToAppEnabled = { true },
                         receipts = { listOf(TransactionReceipt("mock", "orderId")) },
                         getExternalAccountId = { "" },
-                        getAttributionProps = { emptyMap() },
+                        getIntegrationProps = { emptyMap() },
                     )
 
                 When("checking for referral") {
@@ -284,7 +284,7 @@ class WebPaywallRedeemerTest {
                         isWebToAppEnabled = { true },
                         receipts = { listOf(TransactionReceipt("mock", "orderId")) },
                         getExternalAccountId = { "" },
-                        getAttributionProps = { emptyMap() },
+                        getIntegrationProps = { emptyMap() },
                     )
 
                 When("checking for referral") {
@@ -345,7 +345,7 @@ class WebPaywallRedeemerTest {
                         isWebToAppEnabled = { true },
                         receipts = { listOf(TransactionReceipt("mock", "orderId")) },
                         getExternalAccountId = { "" },
-                        getAttributionProps = { emptyMap() },
+                        getIntegrationProps = { emptyMap() },
                     )
 
                 When("checking for web entitlements") {
@@ -400,7 +400,7 @@ class WebPaywallRedeemerTest {
                         isWebToAppEnabled = { true },
                         receipts = { listOf(TransactionReceipt("mock", "orderId")) },
                         getExternalAccountId = { "" },
-                        getAttributionProps = { emptyMap() },
+                        getIntegrationProps = { emptyMap() },
                     )
 
                 When("checking for web entitlements") {
@@ -458,7 +458,7 @@ class WebPaywallRedeemerTest {
                         isWebToAppEnabled = { true },
                         receipts = { listOf(TransactionReceipt("mock", "orderId")) },
                         getExternalAccountId = { "" },
-                        getAttributionProps = { emptyMap() },
+                        getIntegrationProps = { emptyMap() },
                     )
 
                 When("checking for web entitlements") {
@@ -517,7 +517,7 @@ class WebPaywallRedeemerTest {
                         isWebToAppEnabled = { true },
                         receipts = { listOf(TransactionReceipt("mock", "orderId")) },
                         getExternalAccountId = { "" },
-                        getAttributionProps = { emptyMap() },
+                        getIntegrationProps = { emptyMap() },
                     )
 
                 When("checking for web entitlements") {
@@ -571,7 +571,7 @@ class WebPaywallRedeemerTest {
                         isWebToAppEnabled = { true },
                         receipts = { listOf(TransactionReceipt("mock", "orderId")) },
                         getExternalAccountId = { "" },
-                        getAttributionProps = { emptyMap() },
+                        getIntegrationProps = { emptyMap() },
                     )
 
                 When("checking for web entitlements") {
@@ -764,7 +764,7 @@ class WebPaywallRedeemerTest {
                         isWebToAppEnabled = { true },
                         receipts = { listOf(TransactionReceipt("mock", "orderId")) },
                         getExternalAccountId = { "" },
-                        getAttributionProps = { attributionProps },
+                        getIntegrationProps = { attributionProps },
                     )
 
                 When("checking for referral with attribution props") {
@@ -843,7 +843,7 @@ class WebPaywallRedeemerTest {
                         isWebToAppEnabled = { true },
                         receipts = { expectedReceipts },
                         getExternalAccountId = { "" },
-                        getAttributionProps = { emptyMap() },
+                        getIntegrationProps = { emptyMap() },
                     )
 
                 When("checking for referral") {
@@ -920,7 +920,7 @@ class WebPaywallRedeemerTest {
                         isWebToAppEnabled = { true },
                         receipts = { listOf(TransactionReceipt("mock", "orderId")) },
                         getExternalAccountId = { "" },
-                        getAttributionProps = { emptyAttributionProps },
+                        getIntegrationProps = { emptyAttributionProps },
                     )
 
                 When("checking for referral with empty attribution props") {
@@ -1023,7 +1023,7 @@ class WebPaywallRedeemerTest {
                         isWebToAppEnabled = { true },
                         receipts = { listOf(TransactionReceipt("mock", "orderId")) },
                         getExternalAccountId = { "" },
-                        getAttributionProps = { complexAttributionProps },
+                        getIntegrationProps = { complexAttributionProps },
                     )
 
                 When("checking for referral with complex attribution props") {

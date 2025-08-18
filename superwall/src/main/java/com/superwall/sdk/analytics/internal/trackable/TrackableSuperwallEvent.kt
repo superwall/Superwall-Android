@@ -307,6 +307,12 @@ sealed class InternalSuperwallEvent(
         override suspend fun getSuperwallParameters(): HashMap<String, Any> = deviceAttributes
     }
 
+    class AttributionProps(
+        override var audienceFilterParams: HashMap<String, Any> = HashMap(),
+    ) : InternalSuperwallEvent(SuperwallEvent.AttributionProps(audienceFilterParams = audienceFilterParams)) {
+        override suspend fun getSuperwallParameters(): HashMap<String, Any> = HashMap()
+    }
+
     class TriggerFire(
         val triggerResult: InternalTriggerResult,
         val triggerName: String,
