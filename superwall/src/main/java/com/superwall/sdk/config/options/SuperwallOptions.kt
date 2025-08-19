@@ -67,7 +67,7 @@ class SuperwallOptions {
     // **WARNING:**: Determines which network environment your SDK should use.
     // Defaults to `.release`.  You should under no circumstance change this unless you
     // received the go-ahead from the Superwall team.
-    var networkEnvironment: NetworkEnvironment = NetworkEnvironment.Release()
+    var networkEnvironment: NetworkEnvironment = NetworkEnvironment.Developer()
 
     // Enables the sending of non-Superwall tracked events and properties back to the Superwall servers.
     // Defaults to `true`.
@@ -108,6 +108,8 @@ class SuperwallOptions {
 
     // The log scope and level to print to the console.
     var logging: Logging = Logging()
+
+    var useMockReviews: Boolean = false
 }
 
 internal fun SuperwallOptions.NetworkEnvironment.toMap(): Map<String, Any> =

@@ -470,7 +470,7 @@ class DependencyContainer(
             )
 
         reviewManager =
-            if (true) {
+            if (options.useMockReviews) {
                 MockReviewManager(context)
             } else {
                 ReviewManagerImpl(context, isDebug = {

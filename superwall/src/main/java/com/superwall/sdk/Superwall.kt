@@ -2,6 +2,7 @@ package com.superwall.sdk
 
 import android.app.Application
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import androidx.work.WorkManager
 import com.android.billingclient.api.BillingResult
@@ -1145,22 +1146,45 @@ class Superwall(
                     )
                 }
 
-                PaywallWebEvent.RequestReview -> {
+                is PaywallWebEvent.RequestReview -> {
                     // Trigger review request
                     ioScope.launch {
                         try {
-                            val reviewInfo = dependencyContainer.reviewManager.requestReviewFlow()
-                            val activity = dependencyContainer.activityProvider?.getCurrentActivity()
-                            if (activity != null) {
-                                dependencyContainer.reviewManager.launchReviewFlow(activity, reviewInfo)
-                                // Track successful review request
-                                val currentCount = dependencyContainer.deviceHelper.reviewRequestsTotal()
-                                track(
-                                    InternalSuperwallEvent.ReviewRequested(
-                                        count = currentCount + 1,
-                                    ),
-                                )
+                            when (paywallEvent.type) {
+                                PaywallWebEvent.RequestReview.Type.INAPP -> {
+                                    val reviewInfo =
+                                        dependencyContainer.reviewManager.requestReviewFlow()
+                                    val activity =
+                                        dependencyContainer.activityProvider?.getCurrentActivity()
+                                    if (activity != null) {
+                                        dependencyContainer.reviewManager.launchReviewFlow(
+                                            activity,
+                                            reviewInfo,
+                                        )
+                                        // Track successful review request
+                                        val currentCount =
+                                            dependencyContainer.deviceHelper.reviewRequestsTotal()
+                                        track(
+                                            ReviewRequested(
+                                                count = currentCount + 1,
+                                                type = paywallEvent.type.rawValue,
+                                            ),
+                                        )
+                                    }
+                                }
+                                else -> {
+                                    val packageName = dependencyContainer.deviceHelper.urlScheme
+                                    val url = "https://play.google.com/store/apps/details?id=$packageName"
+                                    (activityProvider?.getCurrentActivity() ?: paywallView.encapsulatingActivity?.get())?.startActivity(
+                                        Intent(Intent.ACTION_VIEW, Uri.parse(url)),
+                                    )
+                                }
                             }
+                            dismiss(
+                                paywallView,
+                                result = Declined(),
+                                closeReason = PaywallCloseReason.SystemLogic,
+                            )
                         } catch (e: Exception) {
                             Logger.debug(
                                 logLevel = LogLevel.error,

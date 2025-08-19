@@ -117,12 +117,11 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                 val shimmer =
                     if (style is PaywallPresentationStyle.Popup) {
                         ShimmerView(this@prepareViewForDisplay.context).apply {
-                            updateLayoutParams {
-                                width =
-                                    ((style.width * Resources.getSystem().displayMetrics.widthPixels) / 100).toInt()
-                                height =
-                                    ((style.height * Resources.getSystem().displayMetrics.heightPixels) / 100).toInt()
-                            }
+                            layoutParams =
+                                FrameLayout.LayoutParams(
+                                    ((style.width * Resources.getSystem().displayMetrics.widthPixels) / 100).toInt(),
+                                    ((style.height * Resources.getSystem().displayMetrics.heightPixels) / 100).toInt(),
+                                )
                         }
                     } else {
                         (viewStorageViewModel.retrieveView(ShimmerView.TAG) as ShimmerView)
@@ -273,9 +272,15 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                 view,
                 presentationStyle is PaywallPresentationStyle.Modal,
                 if (presentationStyle is PaywallPresentationStyle.Drawer) presentationStyle.height else 0.0,
+                if (presentationStyle is PaywallPresentationStyle.Drawer) presentationStyle.cornerRadius else 0.0,
             )
         } else if (isPopupStyle && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            setupPopupLayout(view)
+            setupPopupLayout(
+                view,
+                presentationStyle.height,
+                presentationStyle.width,
+                presentationStyle.cornerRadius,
+            )
         } else {
             setContentView(view)
         }
@@ -381,7 +386,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         val activityView =
             layoutInflater.inflate(com.superwall.sdk.R.layout.activity_bottom_sheet, null)
         setContentView(activityView)
-        initBottomSheetBehavior(isModal, height, cornerRadius)
+        initBottomSheetBehavior(isModal, height)
         val container =
             activityView.findViewById<FrameLayout>(com.superwall.sdk.R.id.container)
         activityView.setOnClickListener { finish() }
@@ -391,33 +396,49 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             cornerRadius.toFloat() * Resources.getSystem().displayMetrics.density // Convert dp to px
 
         val drawable =
-            GradientDrawable().apply {
-                shape = GradientDrawable.RECTANGLE
-                cornerRadii =
-                    floatArrayOf(
-                        radius,
-                        radius, // top-left
-                        radius,
-                        radius, // top-right
-                        0f,
-                        0f, // bottom-right
-                        0f,
-                        0f, // bottom-left
-                    )
-                setColor(Color.WHITE) // Set background color here
-            }
+            roundedBackground(radius)
 
         container.background = drawable
     }
 
-    private fun setupPopupLayout(paywallView: PaywallView) {
+    private fun roundedBackground(radius: Float) =
+        GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadii =
+                floatArrayOf(
+                    radius,
+                    radius, // top-left
+                    radius,
+                    radius, // top-right
+                    radius,
+                    radius, // top-left
+                    radius,
+                    radius, // top-right
+                )
+        }
+
+    private fun setupPopupLayout(
+        paywallView: PaywallView,
+        height: Double = 0.0,
+        width: Double = 0.0,
+        cornerRadius: Double = 0.0,
+    ) {
         val activityView =
             layoutInflater.inflate(com.superwall.sdk.R.layout.activity_popup, null)
         setContentView(activityView)
         val container =
             activityView.findViewById<FrameLayout>(com.superwall.sdk.R.id.container)
-        // Click outside popup to dismiss
-        // Prevent clicks on the container from propagating to the background
+
+        paywallView.layoutParams =
+            FrameLayout.LayoutParams(
+                ((width * Resources.getSystem().displayMetrics.widthPixels) / 100).toInt(),
+                ((height * Resources.getSystem().displayMetrics.heightPixels) / 100).toInt(),
+            )
+        val radius =
+            cornerRadius.toFloat() * Resources.getSystem().displayMetrics.density // Convert dp to px
+
+        container.background = roundedBackground(radius)
+
         container.setOnClickListener { /* consume click */ }
         container.addView(paywallView)
         container.requestLayout()
@@ -428,7 +449,6 @@ class SuperwallPaywallActivity : AppCompatActivity() {
     private fun initBottomSheetBehavior(
         isModal: Boolean,
         height: Double,
-        cornerRadius: Double,
     ) {
         val content = contentView as ViewGroup
         val bottomSheetBehavior = BottomSheetBehavior.from(content.getChildAt(0))

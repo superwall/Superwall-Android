@@ -242,7 +242,7 @@ data class Paywall(
                         300,
                     ),
                 expandedPresentationStyle = PaywallPresentationStyle.Modal,
-                presentationStyle = LegacyPaywallPresentationStyle.MODAL.rawValue,
+                presentationStyle = "MODAL",
                 presentationCondition = "CHECK_USER_SUBSCRIPTION",
                 backgroundColorHex = "000000",
                 darkBackgroundColorHex = null,

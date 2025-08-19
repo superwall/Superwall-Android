@@ -1,6 +1,5 @@
 package com.superwall.sdk.paywall.presentation.internal.request
 
-import com.superwall.sdk.models.paywall.LegacyPaywallPresentationStyle
 import com.superwall.sdk.models.paywall.PaywallPresentationStyle
 import com.superwall.sdk.models.paywall.PaywallProducts
 import com.superwall.sdk.store.abstractions.product.StoreProduct
@@ -12,17 +11,6 @@ data class PaywallOverrides(
     val ignoreSubscriptionStatus: Boolean = false,
     val presentationStyle: PaywallPresentationStyle = PaywallPresentationStyle.None,
 ) {
-    @Deprecated("Use new constructor with PaywallPresentationStyleExpanded instead.")
-    constructor(
-        productsByName: Map<String, StoreProduct> = emptyMap(),
-        ignoreSubscriptionStatus: Boolean = false,
-        presentationStyle: LegacyPaywallPresentationStyle,
-    ) : this(
-        productsByName,
-        ignoreSubscriptionStatus,
-        PaywallPresentationStyle.fromLegacy(presentationStyle),
-    )
-
     @Deprecated("This variable has been deprecated.", ReplaceWith("productsByName"))
     val products: PaywallProducts? = mapToPaywallProducts(productsByName)
 

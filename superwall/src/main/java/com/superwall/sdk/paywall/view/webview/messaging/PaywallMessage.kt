@@ -61,7 +61,16 @@ sealed class PaywallMessage {
 
     object PaywallClose : PaywallMessage()
 
-    object RequestReview : PaywallMessage()
+    data class RequestReview(
+        val type: Type,
+    ) : PaywallMessage() {
+        enum class Type(
+            val rawName: String,
+        ) {
+            INAPP("in-app"),
+            EXTERNAL("external"),
+        }
+    }
 }
 
 fun parseWrappedPaywallMessages(jsonString: String): WrappedPaywallMessages {
@@ -107,8 +116,16 @@ private fun parsePaywallMessage(json: JSONObject): PaywallMessage {
                 json.getJSONObject("params"),
             )
 
-        "request_review" -> PaywallMessage.RequestReview
-
-        else -> throw IllegalArgumentException("Unknown event name: $eventName")
+        "request_store_review" ->
+            PaywallMessage.RequestReview(
+                when (json.getString("review_type")) {
+                    "external" -> PaywallMessage.RequestReview.Type.EXTERNAL
+                    "in-app" -> PaywallMessage.RequestReview.Type.INAPP
+                    else -> PaywallMessage.RequestReview.Type.INAPP
+                },
+            )
+        else -> {
+            throw IllegalArgumentException("Unknown event name: $eventName")
+        }
     }
 }

@@ -44,5 +44,17 @@ sealed class PaywallWebEvent {
     ) : PaywallWebEvent()
 
     @SerialName("request_review")
-    object RequestReview : PaywallWebEvent()
+    data class RequestReview(
+        val type: Type,
+    ) : PaywallWebEvent() {
+        enum class Type(
+            val rawValue: String,
+        ) {
+            @SerialName("in-app")
+            INAPP("in-app"),
+
+            @SerialName("external")
+            EXTERNAL("external"),
+        }
+    }
 }

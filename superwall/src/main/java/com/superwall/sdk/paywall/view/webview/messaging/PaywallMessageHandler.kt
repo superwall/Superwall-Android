@@ -168,19 +168,14 @@ class PaywallMessageHandler(
                 }
             }
 
-            is PaywallMessage.Custom ->
-                if (message.data == "review") {
-                    handleRequestReview()
-                } else {
-                    handleCustomEvent(message.data)
-                }
+            is PaywallMessage.Custom -> handleCustomEvent(message.data)
             is PaywallMessage.CustomPlacement -> handleCustomPlacement(message.name, message.params)
             is PaywallMessage.RestoreFailed ->
                 ioScope.launch {
                     pass(SuperwallEvents.RestoreFail.rawName, paywall)
                 }
 
-            is PaywallMessage.RequestReview -> handleRequestReview()
+            is PaywallMessage.RequestReview -> handleRequestReview(message)
 
             else -> {
                 Logger.debug(
@@ -391,9 +386,17 @@ class PaywallMessageHandler(
         delegate?.eventDidOccur(PaywallWebEvent.CustomPlacement(name, params))
     }
 
-    private fun handleRequestReview() {
+    private fun handleRequestReview(request: PaywallMessage.RequestReview) {
         hapticFeedback()
-        delegate?.eventDidOccur(PaywallWebEvent.RequestReview)
+        delegate?.eventDidOccur(
+            PaywallWebEvent.RequestReview(
+                when (request.type) {
+                    PaywallMessage.RequestReview.Type.EXTERNAL -> PaywallWebEvent.RequestReview.Type.EXTERNAL
+
+                    else -> PaywallWebEvent.RequestReview.Type.INAPP
+                },
+            ),
+        )
     }
 
     private fun detectHiddenPaywallEvent(

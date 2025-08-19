@@ -2,12 +2,14 @@ package com.superwall.sdk.models.paywall
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 @Serializable
 sealed class PaywallPresentationStyle(
-    val rawValue: String,
+    @Transient
+    val rawValue: String = "",
 ) {
     @Serializable
     @SerialName("MODAL")
@@ -45,6 +47,8 @@ sealed class PaywallPresentationStyle(
         val height: Double,
         @SerialName("width")
         val width: Double,
+        @SerialName("corner_radius")
+        val cornerRadius: Double,
     ) : PaywallPresentationStyle("POPUP")
 
     // Helper methods for Android Intent serialization only
