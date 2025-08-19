@@ -159,6 +159,9 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.install.referrer)
 
+    // Google Play Review
+    implementation(libs.play.review.ktx)
+
     // Test
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

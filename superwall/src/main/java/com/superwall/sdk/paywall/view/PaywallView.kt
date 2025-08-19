@@ -267,7 +267,7 @@ class PaywallView(
             setupShimmer(it)
         }
         set(request, paywallStatePublisher, unsavedOccurrence)
-        if (presentationStyleOverride != null && presentationStyleOverride != PaywallPresentationStyle.NONE) {
+        if (presentationStyleOverride != null && presentationStyleOverride !is PaywallPresentationStyle.None) {
             presentationStyle = presentationStyleOverride
         } else {
             presentationStyle = paywall.presentation.style

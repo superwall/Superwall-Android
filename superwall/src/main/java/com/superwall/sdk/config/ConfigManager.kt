@@ -178,7 +178,7 @@ open class ConfigManager(
         val enrichmentDeferred =
             ioScope.async {
                 val cached = storage.read(LatestEnrichment)
-                if (config?.featureFlags?.enableConfigRefresh == true) {
+                if (oldConfig?.featureFlags?.enableConfigRefresh == true) {
                     // If we have a cached config and refresh was enabled, try loading with
                     // a timeout or load from cache
                     val res =

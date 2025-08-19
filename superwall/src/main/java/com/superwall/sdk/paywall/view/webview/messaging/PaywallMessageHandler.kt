@@ -175,6 +175,8 @@ class PaywallMessageHandler(
                     pass(SuperwallEvents.RestoreFail.rawName, paywall)
                 }
 
+            is PaywallMessage.RequestReview -> handleRequestReview(message)
+
             else -> {
                 Logger.debug(
                     LogLevel.error,
@@ -382,6 +384,19 @@ class PaywallMessageHandler(
         params: JSONObject,
     ) {
         delegate?.eventDidOccur(PaywallWebEvent.CustomPlacement(name, params))
+    }
+
+    private fun handleRequestReview(request: PaywallMessage.RequestReview) {
+        hapticFeedback()
+        delegate?.eventDidOccur(
+            PaywallWebEvent.RequestReview(
+                when (request.type) {
+                    PaywallMessage.RequestReview.Type.EXTERNAL -> PaywallWebEvent.RequestReview.Type.EXTERNAL
+
+                    else -> PaywallWebEvent.RequestReview.Type.INAPP
+                },
+            ),
+        )
     }
 
     private fun detectHiddenPaywallEvent(

@@ -81,6 +81,9 @@ import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessageHandler
 import com.superwall.sdk.paywall.view.webview.templating.models.JsonVariables
 import com.superwall.sdk.paywall.view.webview.templating.models.Variables
 import com.superwall.sdk.paywall.view.webview.webViewExists
+import com.superwall.sdk.review.MockReviewManager
+import com.superwall.sdk.review.ReviewManager
+import com.superwall.sdk.review.ReviewManagerImpl
 import com.superwall.sdk.storage.EventsQueue
 import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.store.AutomaticPurchaseController
@@ -156,6 +159,7 @@ class DependencyContainer(
     var storeManager: StoreManager
     val transactionManager: TransactionManager
     val googleBillingWrapper: GoogleBillingWrapper
+    internal val reviewManager: ReviewManager
 
     var entitlements: Entitlements
     lateinit var reedemer: WebPaywallRedeemer
@@ -464,6 +468,15 @@ class DependencyContainer(
                     storeManager.refreshReceipt()
                 },
             )
+
+        reviewManager =
+            if (options.useMockReviews) {
+                MockReviewManager(context)
+            } else {
+                ReviewManagerImpl(context, isDebug = {
+                    makeIsSandbox()
+                })
+            }
 
         deepLinkRouter =
             DeepLinkRouter(

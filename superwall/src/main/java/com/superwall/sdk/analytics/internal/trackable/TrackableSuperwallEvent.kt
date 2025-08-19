@@ -1032,4 +1032,17 @@ sealed class InternalSuperwallEvent(
                 emptyMap<String, Any>()
             }
     }
+
+    class ReviewRequested(
+        val count: Int,
+        val type: String,
+    ) : InternalSuperwallEvent(SuperwallEvent.ReviewRequested(count)) {
+        override val audienceFilterParams: Map<String, Any> = emptyMap()
+
+        override suspend fun getSuperwallParameters(): HashMap<String, Any> =
+            hashMapOf(
+                "count" to count,
+                "type" to type,
+            )
+    }
 }

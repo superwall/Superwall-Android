@@ -67,6 +67,7 @@ class DeviceTemplateTest {
             activeProducts = listOf("product1", "product2"),
             subscriptionStatus = "ACTIVE",
             deviceTier = "LOW",
+            hasReviewed = false,
             kotlinVersion = KotlinVersion.CURRENT.toString(),
         )
 
@@ -143,6 +144,7 @@ class DeviceTemplateTest {
                 activeProducts = listOf(),
                 subscriptionStatus = "INACTIVE",
                 deviceTier = "HIGH",
+                hasReviewed = true,
                 kotlinVersion = KotlinVersion.CURRENT.toString(),
             )
 

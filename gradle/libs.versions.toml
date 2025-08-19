@@ -36,7 +36,7 @@ dropshot_version = "0.4.2"
 ksp = "2.0.21-1.0.27"
 install_referrer = "2.2"
 publisher_version = "0.33.0"
-
+play_review = "2.0.2"
 [libraries]
 
 # SQL
@@ -78,6 +78,9 @@ uiautomator = { module = "androidx.test.uiautomator:uiautomator", version.ref = 
 work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "workRuntimeKtx_version" }
 lifecycle-process = { module = "androidx.lifecycle:lifecycle-process", version.ref = "lifecycleProcessVersion" }
 install_referrer = { module = "com.android.installreferrer:installreferrer", version.ref = "install_referrer"}
+play_review_ktx = { module = "com.google.android.play:review", version.ref="play_review"}
+reviewplay_review_ktx = { module = "com.google.android.play:review-ktx", version.ref="play_review"}
+
 # Coroutines
 kotlinx_coroutines_core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx_coroutines_core_version" }
 kotlinx-coroutines-guava = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-guava", version.ref = "kotlinxCoroutinesGuavaVersion" }

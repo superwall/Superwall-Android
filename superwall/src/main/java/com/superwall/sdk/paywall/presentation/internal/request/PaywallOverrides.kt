@@ -9,7 +9,7 @@ import com.superwall.sdk.store.abstractions.product.StoreProduct
 data class PaywallOverrides(
     val productsByName: Map<String, StoreProduct> = emptyMap(),
     val ignoreSubscriptionStatus: Boolean = false,
-    val presentationStyle: PaywallPresentationStyle = PaywallPresentationStyle.NONE,
+    val presentationStyle: PaywallPresentationStyle = PaywallPresentationStyle.None,
 ) {
     @Deprecated("This variable has been deprecated.", ReplaceWith("productsByName"))
     val products: PaywallProducts? = mapToPaywallProducts(productsByName)
@@ -22,10 +22,16 @@ data class PaywallOverrides(
         get() = productsByName.mapValues { ProductOverride.ByProduct(it.value) }
 
     // Secondary constructors
-    @Deprecated("This constructor has been deprecated.", ReplaceWith("PaywallOverrides(productsByName)"))
+    @Deprecated(
+        "This constructor has been deprecated.",
+        ReplaceWith("PaywallOverrides(productsByName)"),
+    )
     constructor(products: PaywallProducts?) : this(mapFromPaywallProducts(products))
 
-    @Deprecated("This constructor has been deprecated.", ReplaceWith("PaywallOverrides(productsByName, ignoreSubscriptionStatus)"))
+    @Deprecated(
+        "This constructor has been deprecated.",
+        ReplaceWith("PaywallOverrides(productsByName, ignoreSubscriptionStatus)"),
+    )
     constructor(products: PaywallProducts?, ignoreSubscriptionStatus: Boolean) : this(
         mapFromPaywallProducts(products),
         ignoreSubscriptionStatus,

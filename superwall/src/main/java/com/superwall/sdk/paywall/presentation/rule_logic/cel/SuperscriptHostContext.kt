@@ -42,6 +42,8 @@ class SuperscriptHostContext(
                     null -> null
                     is TimeSince -> fn(storage)
                     is SuperscriptExposedFunction.PlacementCount -> fn(storage)
+                    is SuperscriptExposedFunction.ReviewRequestCount -> fn(storage)
+                    is SuperscriptExposedFunction.RequestReview -> fn(storage)
                 }
             }
         callback.onResult(json.encodeToString<PassableValue>(res?.toPassableValue() ?: PassableValue.NullValue))
@@ -70,6 +72,8 @@ class SuperscriptHostContext(
                     null -> null
                     is TimeSince -> fn(storage)
                     is SuperscriptExposedFunction.PlacementCount -> fn(storage)
+                    is SuperscriptExposedFunction.ReviewRequestCount -> fn(storage)
+                    is SuperscriptExposedFunction.RequestReview -> fn(storage)
                 }
             }
         callback.onResult(json.encodeToString<PassableValue>(res?.toPassableValue() ?: PassableValue.NullValue))

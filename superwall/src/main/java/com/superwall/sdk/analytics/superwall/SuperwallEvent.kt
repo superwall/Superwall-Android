@@ -474,6 +474,27 @@ sealed class SuperwallEvent {
             get() = "enrichment_complete"
     }
 
+    data class ReviewRequested(
+        val count: Int,
+    ) : SuperwallEvent() {
+        override val rawName: String
+            get() = "review_requested"
+    }
+
+    data class ReviewGranted(
+        val count: Int,
+    ) : SuperwallEvent() {
+        override val rawName: String
+            get() = "review_granted"
+    }
+
+    data class ReviewDenied(
+        val count: Int,
+    ) : SuperwallEvent() {
+        override val rawName: String
+            get() = "review_denied"
+    }
+
     open val rawName: String
         get() = this.toString()
 
