@@ -167,6 +167,22 @@ object UserAttributes : Storable<
         get() = MapSerializer(String.serializer(), AnySerializer)
 }
 
+object IntegrationAttributes : Storable<Map<com.superwall.sdk.models.attribution.AttributionProvider, String>> {
+    override val key: String
+        get() = "store.integrationAttributes"
+
+    override val directory: SearchPathDirectory
+        get() = SearchPathDirectory.USER_SPECIFIC_DOCUMENTS
+
+    override val serializer: KSerializer<Map<com.superwall.sdk.models.attribution.AttributionProvider, String>>
+        get() =
+            MapSerializer(
+                com.superwall.sdk.models.attribution.AttributionProvider
+                    .serializer(),
+                String.serializer(),
+            )
+}
+
 object Transactions : Storable<StoreTransaction> {
     override val key: String
         get() = "store.transactions.v2"

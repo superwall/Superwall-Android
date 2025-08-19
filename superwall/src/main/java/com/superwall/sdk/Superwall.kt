@@ -36,6 +36,7 @@ import com.superwall.sdk.misc.fold
 import com.superwall.sdk.misc.launchWithTracking
 import com.superwall.sdk.misc.toResult
 import com.superwall.sdk.models.assignment.ConfirmedAssignment
+import com.superwall.sdk.models.attribution.AttributionProvider
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.events.EventData
@@ -317,6 +318,39 @@ class Superwall(
     suspend fun deviceAttributes(): Map<String, Any?> = dependencyContainer.makeSessionDeviceAttributes()
 
     /**
+     * Backing field for integration identifiers.
+     */
+    private var _integrationAttributes: Map<AttributionProvider, String> = emptyMap()
+
+    /**
+     * Gets the current itegration identifiers as a map.
+     */
+    val integrationAttributes: Map<String, Any>
+        get() =
+            _integrationAttributes
+                .map { (provider, id) ->
+                    provider.rawName to id
+                }.toMap()
+
+    /**
+     * Sets 3rd party integration identifiers for this user.
+     * The identifiers will be passed to Superwall backend.
+     *
+     * @param attributes A map of attribution providers to their respective IDs.
+     */
+    fun setIntegrationAttributes(attributes: Map<AttributionProvider, String>) {
+        withErrorTracking {
+            _integrationAttributes = attributes
+
+            dependencyContainer.storage.write(com.superwall.sdk.storage.IntegrationAttributes, attributes)
+            ioScope.launch {
+                track(IntegrationAttributes(attributes.mapKeys { it.key.rawName }))
+                dependencyContainer.reedemer.redeem(WebPaywallRedeemer.RedeemType.Existing)
+            }
+        }
+    }
+
+    /**
      * The current user's id.
      *
      * If you haven't called `Superwall.identify(userId:options:)`,
@@ -534,6 +568,9 @@ class Superwall(
                     dependencyContainer.storage.read(StoredSubscriptionStatus)
                         ?: SubscriptionStatus.Unknown
                 setSubscriptionStatus(cachedSubscriptionStatus)
+
+                // Load stored integration identifiers
+                _integrationAttributes = dependencyContainer.storage.read(com.superwall.sdk.storage.IntegrationAttributes) ?: emptyMap()
 
                 addListeners()
 

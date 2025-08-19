@@ -399,7 +399,7 @@ class DependencyContainer(
                 },
                 receipts = {
                     googleBillingWrapper.queryAllPurchases().map {
-                        TransactionReceipt(it.purchaseToken)
+                        TransactionReceipt(it.purchaseToken, it.orderId)
                     }
                 },
                 getExternalAccountId = {

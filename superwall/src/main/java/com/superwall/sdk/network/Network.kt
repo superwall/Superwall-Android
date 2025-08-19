@@ -26,6 +26,7 @@ import com.superwall.sdk.models.internal.WebRedemptionResponse
 import com.superwall.sdk.models.paywall.Paywall
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
+import kotlinx.serialization.json.JsonElement
 import java.util.UUID
 import kotlin.time.Duration
 
@@ -132,9 +133,10 @@ open class Network(
         vendorId: DeviceVendorId,
         receipts: List<TransactionReceipt>,
         externalAccountId: String,
+        attributionProps: Map<String, JsonElement>?,
     ): Either<WebRedemptionResponse, NetworkError> =
         subscriptionService
-            .redeemToken(codes, userId, aliasId, vendorId, receipts, externalAccountId)
+            .redeemToken(codes, userId, aliasId, vendorId, receipts, externalAccountId, attributionProps)
             .logError("/redeem")
 
     override suspend fun webEntitlementsByUserId(
