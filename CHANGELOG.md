@@ -5,7 +5,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 ## 2.5.2
 
 ## Enhancements
-- Adds `Superwall.instance.setIntegrationIdentifiers` method enabling you to set integration identifiers for the users from different platforms (Adjust, Mixpanel, Meta, etc.)
+- Adds `Superwall.instance.setIntegrationAttributes` method enabling you to set integration identifiers for the users from different platforms (Adjust, Mixpanel, Meta, etc.)
 
 ## 2.5.1
 

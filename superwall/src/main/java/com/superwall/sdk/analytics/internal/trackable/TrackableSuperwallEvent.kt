@@ -307,9 +307,11 @@ sealed class InternalSuperwallEvent(
         override suspend fun getSuperwallParameters(): HashMap<String, Any> = deviceAttributes
     }
 
-    class AttributionProps(
-        override var audienceFilterParams: HashMap<String, Any> = HashMap(),
-    ) : InternalSuperwallEvent(SuperwallEvent.AttributionProps(audienceFilterParams = audienceFilterParams)) {
+    class IntegrationAttributes(
+        var params: Map<String, Any>,
+    ) : InternalSuperwallEvent(SuperwallEvent.IntegrationProps(audienceFilterParams = params)) {
+        override var audienceFilterParams: HashMap<String, Any> = HashMap(params)
+
         override suspend fun getSuperwallParameters(): HashMap<String, Any> = HashMap()
     }
 

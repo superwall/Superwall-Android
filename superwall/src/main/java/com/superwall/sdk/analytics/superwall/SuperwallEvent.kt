@@ -80,7 +80,7 @@ sealed class SuperwallEvent {
     }
 
     // / When attribution props are set or updated.
-    data class AttributionProps(
+    data class IntegrationProps(
         val audienceFilterParams: Map<String, Any>,
     ) : SuperwallEvent() {
         override val rawName: String

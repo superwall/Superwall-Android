@@ -18,8 +18,8 @@ data class RedeemRequest(
     val receipts: List<TransactionReceipt>,
     @SerialName("externalAccountId")
     val externalAccountId: String,
-    @SerialName("attributionProps")
-    val attributionProps: Map<String, JsonElement>? = null,
+    @SerialName("metadata")
+    val metadata: Map<String, JsonElement>? = null,
 )
 
 @Serializable

@@ -167,9 +167,9 @@ object UserAttributes : Storable<
         get() = MapSerializer(String.serializer(), AnySerializer)
 }
 
-object IntegrationIdentifiers : Storable<Map<com.superwall.sdk.models.attribution.AttributionProvider, String>> {
+object IntegrationAttributes : Storable<Map<com.superwall.sdk.models.attribution.AttributionProvider, String>> {
     override val key: String
-        get() = "store.integrationIdentifiers"
+        get() = "store.integrationAttributes"
 
     override val directory: SearchPathDirectory
         get() = SearchPathDirectory.USER_SPECIFIC_DOCUMENTS

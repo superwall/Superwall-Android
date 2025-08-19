@@ -320,35 +320,31 @@ class Superwall(
     /**
      * Backing field for integration identifiers.
      */
-    private var _integrationIdentifiers: Map<AttributionProvider, String> = emptyMap()
+    private var _integrationAttributes: Map<AttributionProvider, String> = emptyMap()
 
     /**
      * Gets the current itegration identifiers as a map.
      */
-    val integrationIdentifiers: Map<String, Any>
+    val integrationAttributes: Map<String, Any>
         get() =
-            _integrationIdentifiers
+            _integrationAttributes
                 .map { (provider, id) ->
                     provider.rawName to id
                 }.toMap()
 
     /**
-     * Sets integration identifiers for this user.
+     * Sets 3rd party integration identifiers for this user.
      * The identifiers will be passed to Superwall backend.
-     * If redemption is not yet completed, it will include these identifiers in the existing request.
-     * If redemption is completed, it will trigger a new redemption with these identifiers.
      *
-     * @param integrationIdentifiers A map of attribution providers to their respective IDs.
+     * @param attributes A map of attribution providers to their respective IDs.
      */
-    fun setIntegrationIdentifiers(integrationIdentifiers: Map<AttributionProvider, String>) {
+    fun setIntegrationAttributes(attributes: Map<AttributionProvider, String>) {
         withErrorTracking {
-            _integrationIdentifiers = integrationIdentifiers
+            _integrationAttributes = attributes
 
-            // Persist integration identifiers to storage
-            dependencyContainer.storage.write(com.superwall.sdk.storage.IntegrationIdentifiers, integrationIdentifiers)
-
-            // Check if there's an ongoing redemption or if we need to trigger a new one
+            dependencyContainer.storage.write(com.superwall.sdk.storage.IntegrationAttributes, attributes)
             ioScope.launch {
+                track(IntegrationAttributes(attributes.mapKeys { it.key.rawName }))
                 dependencyContainer.reedemer.redeem(WebPaywallRedeemer.RedeemType.Existing)
             }
         }
@@ -574,7 +570,7 @@ class Superwall(
                 setSubscriptionStatus(cachedSubscriptionStatus)
 
                 // Load stored integration identifiers
-                _integrationIdentifiers = dependencyContainer.storage.read(com.superwall.sdk.storage.IntegrationIdentifiers) ?: emptyMap()
+                _integrationAttributes = dependencyContainer.storage.read(com.superwall.sdk.storage.IntegrationAttributes) ?: emptyMap()
 
                 addListeners()
 

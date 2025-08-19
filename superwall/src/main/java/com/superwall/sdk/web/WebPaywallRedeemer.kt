@@ -73,7 +73,7 @@ class WebPaywallRedeemer(
     val isWebToAppEnabled: () -> Boolean,
     val receipts: suspend () -> List<TransactionReceipt>,
     val getExternalAccountId: () -> String,
-    val getIntegrationProps: () -> Map<String, Any> = { Superwall.instance.integrationIdentifiers },
+    val getIntegrationProps: () -> Map<String, Any> = { Superwall.instance.integrationAttributes },
 ) {
     private var pollingJob: Job? = null
 

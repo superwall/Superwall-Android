@@ -56,5 +56,5 @@ enum class SuperwallEvents(
     ReviewRequested("review_requested"),
     ReviewGranted("review_granted"),
     ReviewDenied("review_denied"),
-    AttributionProps("attribution_props"),
+    IntegrationAttributes("integration_attributes"),
 }

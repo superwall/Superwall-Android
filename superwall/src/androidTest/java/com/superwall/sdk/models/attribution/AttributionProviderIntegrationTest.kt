@@ -60,11 +60,11 @@ class AttributionProviderIntegrationTest {
                             AttributionProvider.CUSTOM to "custom_id_xyz",
                         )
 
-                    Superwall.instance.setIntegrationIdentifiers(attributionIdentifiers)
+                    Superwall.instance.setIntegrationAttributes(attributionIdentifiers)
                 }
 
                 Then("the attribution properties should be available via attributionProps") {
-                    val attributionProps = Superwall.instance.integrationIdentifiers
+                    val attributionProps = Superwall.instance.integrationAttributes
 
                     assertEquals("meta_user_123", attributionProps["meta"])
                     assertEquals("amp_user_456", attributionProps["amplitude"])
@@ -107,12 +107,12 @@ class AttributionProviderIntegrationTest {
                             AttributionProvider.GOOGLE_ADS to "gclid_test_123",
                         )
 
-                    Superwall.instance.setIntegrationIdentifiers(attributionIdentifiers)
+                    Superwall.instance.setIntegrationAttributes(attributionIdentifiers)
                     delay(100) // Allow processing
                 }
 
                 Then("the attribution props should be available and correctly formatted") {
-                    val attributionProps = Superwall.instance.integrationIdentifiers
+                    val attributionProps = Superwall.instance.integrationAttributes
 
                     assertEquals("meta_user_123", attributionProps["meta"])
                     assertEquals("amp_user_456", attributionProps["amplitude"])
@@ -121,7 +121,7 @@ class AttributionProviderIntegrationTest {
 
                     And("the attribution props should persist") {
                         delay(100)
-                        val propsAgain = Superwall.instance.integrationIdentifiers
+                        val propsAgain = Superwall.instance.integrationAttributes
                         assertEquals(attributionProps, propsAgain)
                     }
                 }
@@ -149,7 +149,7 @@ class AttributionProviderIntegrationTest {
                 delay(1000)
 
                 When("we check attribution properties") {
-                    val attributionProps = Superwall.instance.integrationIdentifiers
+                    val attributionProps = Superwall.instance.integrationAttributes
 
                     Then("attribution properties should be empty") {
                         assertTrue("Attribution props should be empty", attributionProps.isEmpty())
@@ -203,12 +203,12 @@ class AttributionProviderIntegrationTest {
                             AttributionProvider.CUSTOMERIO_ID to "customerio_test_jkl",
                         )
 
-                    Superwall.instance.setIntegrationIdentifiers(attributionIdentifiers)
+                    Superwall.instance.setIntegrationAttributes(attributionIdentifiers)
                     delay(100)
                 }
 
                 Then("all new attribution providers should be correctly converted") {
-                    val attributionProps = Superwall.instance.integrationIdentifiers
+                    val attributionProps = Superwall.instance.integrationAttributes
 
                     assertEquals("adjust_test_123", attributionProps["adjustId"])
                     assertEquals("amp_device_test_456", attributionProps["amplitudeDeviceId"])
