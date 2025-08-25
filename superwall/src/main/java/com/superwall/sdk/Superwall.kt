@@ -1232,6 +1232,9 @@ class Superwall(
                         }
                     }
                 }
+                is PaywallWebEvent.RequestPermission -> {
+                    dependencyContainer.userPermissions.requestPermission()
+                }
             }
         }
     }

@@ -43,10 +43,12 @@ internal class SuperscriptEvaluator(
     private val ioScope: IOScope,
     private val storage: CoreDataManager,
     private val factory: RuleAttributesFactory,
+    private val dependencyContainer: com.superwall.sdk.dependencies.DependencyContainer? = null,
     private val hostContext: SuperscriptHostContext =
         SuperscriptHostContext(
             json,
             storage,
+            dependencyContainer,
         ),
 ) : ExpressionEvaluating {
     class NotError(

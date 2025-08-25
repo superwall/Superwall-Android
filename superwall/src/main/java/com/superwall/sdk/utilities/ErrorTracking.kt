@@ -121,6 +121,7 @@ internal fun Throwable.isFatal() =
 
 internal fun Superwall.trackError(e: Throwable) {
     try {
+        e.printStackTrace()
         dependencyContainer.errorTracker.trackError(e)
     } catch (_e: Exception) {
         Logger.debug(
