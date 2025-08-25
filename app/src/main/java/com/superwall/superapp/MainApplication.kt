@@ -74,7 +74,7 @@ class MainApplication :
     fun configureWithAutomaticInitialization() {
         Superwall.configure(
             this,
-            "pk_3945ba4eca2392f731539a671b21a15fca36a50d9d927401",
+            Keys.CONSTANT_API_KEY,
             options =
                 SuperwallOptions().apply {
                     logging.level = LogLevel.info

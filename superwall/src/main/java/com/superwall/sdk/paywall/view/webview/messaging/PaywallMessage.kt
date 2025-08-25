@@ -4,6 +4,7 @@ import android.net.Uri
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
+import com.superwall.sdk.permissions.CommonPermission
 import org.json.JSONObject
 import java.net.URI
 
@@ -71,6 +72,17 @@ sealed class PaywallMessage {
             EXTERNAL("external"),
         }
     }
+
+    data class EvalSuperscript(
+        val id: String,
+        val await: Boolean,
+        val expression: String,
+        val state: String,
+    ) : PaywallMessage()
+
+    data class RequestPermission(
+        val permission: CommonPermission,
+    ) : PaywallMessage()
 }
 
 fun parseWrappedPaywallMessages(jsonString: String): WrappedPaywallMessages {
@@ -124,8 +136,18 @@ private fun parsePaywallMessage(json: JSONObject): PaywallMessage {
                     else -> PaywallMessage.RequestReview.Type.INAPP
                 },
             )
-        else -> {
-            throw IllegalArgumentException("Unknown event name: $eventName")
-        }
+        "eval_superscript" ->
+            PaywallMessage.EvalSuperscript(
+                id = json.getString("id"),
+                await = json.getBoolean("await"),
+                expression = json.getString("expression"),
+                state = json.getString("state"),
+            )
+        "request_permission" ->
+            CommonPermission.fromRaw(json.getString("type"))?.let {
+                PaywallMessage.RequestPermission(it)
+            } ?: throw NullPointerException()
+
+        else -> throw IllegalArgumentException("Unknown event name: $eventName")
     }
 }

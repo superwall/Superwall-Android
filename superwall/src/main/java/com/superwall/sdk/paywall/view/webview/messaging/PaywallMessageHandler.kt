@@ -15,13 +15,18 @@ import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.MainScope
+import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
+import com.superwall.sdk.models.triggers.TriggerRule
+import com.superwall.sdk.models.triggers.TriggerRuleOutcome
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
+import com.superwall.sdk.paywall.presentation.rule_logic.javascript.RuleEvaluator
 import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 import com.superwall.sdk.paywall.view.webview.PaywallMessage
 import com.superwall.sdk.paywall.view.webview.WrappedPaywallMessages
 import com.superwall.sdk.paywall.view.webview.parseWrappedPaywallMessages
+import com.superwall.sdk.permissions.UserPermissions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -55,6 +60,8 @@ interface PaywallMessageHandlerDelegate {
 class PaywallMessageHandler(
     private val sessionEventsManager: SessionEventsManager,
     private val factory: VariablesFactory,
+    private val ruleEvaluatorFactory: RuleEvaluator.Factory,
+    private val userPermissions: UserPermissions,
     private val mainScope: MainScope,
     private val ioScope: CoroutineScope,
     private val json: Json = Json { encodeDefaults = true },
@@ -176,6 +183,10 @@ class PaywallMessageHandler(
                 }
 
             is PaywallMessage.RequestReview -> handleRequestReview(message)
+
+            is PaywallMessage.EvalSuperscript -> handleEvalSuperscript(message)
+
+            is PaywallMessage.RequestPermission -> handleRequestPermission(message)
 
             else -> {
                 Logger.debug(
@@ -386,6 +397,25 @@ class PaywallMessageHandler(
         delegate?.eventDidOccur(PaywallWebEvent.CustomPlacement(name, params))
     }
 
+    private fun handleRequestPermission(request: PaywallMessage.RequestPermission) {
+        val requestor =
+            Superwall.instance.paywallView
+                ?.encapsulatingActivity
+                ?.get()
+        if (requestor != null) {
+            ioScope.launch {
+                userPermissions.requestPermission(
+                    requestor,
+                    request.permission,
+                    {
+                        // Postback here
+                    },
+                )
+            }
+        }
+        delegate?.eventDidOccur(PaywallWebEvent.RequestPermission(request.permission))
+    }
+
     private fun handleRequestReview(request: PaywallMessage.RequestReview) {
         hapticFeedback()
         delegate?.eventDidOccur(
@@ -440,5 +470,120 @@ class PaywallMessageHandler(
         // Replace this with your platform-specific implementation for haptic feedback
         // Android doesn't have a direct equivalent to UIImpactFeedbackGenerator
         // TODO: Implement haptic feedback
+    }
+
+    private fun handleEvalSuperscript(message: PaywallMessage.EvalSuperscript) {
+        ioScope.launch {
+            try {
+                // If await is false, send immediate response before evaluation
+                if (!message.await) {
+                    val immediateResponse =
+                        mapOf(
+                            "id" to message.id,
+                            "result" to null,
+                        )
+                    val jsonResponse = json.encodeToString(immediateResponse)
+                    val base64Response =
+                        Base64.encodeToString(
+                            jsonResponse.toByteArray(StandardCharsets.UTF_8),
+                            Base64.NO_WRAP,
+                        )
+                    passMessageToWebView(base64String = base64Response)
+                }
+
+                // Create EventData from state parameter
+                val eventData =
+                    if (message.state.isNotEmpty()) {
+                        try {
+                            val stateJson = JSONObject(message.state)
+                            val parameters = mutableMapOf<String, Any>()
+                            stateJson.keys().forEach { key ->
+                                parameters[key] = stateJson.get(key)
+                            }
+                            EventData(
+                                name = "eval_superscript",
+                                parameters = parameters,
+                                createdAt = Date(),
+                            )
+                        } catch (e: Exception) {
+                            EventData(
+                                name = "eval_superscript",
+                                parameters = emptyMap(),
+                                createdAt = Date(),
+                            )
+                        }
+                    } else {
+                        EventData(
+                            name = "eval_superscript",
+                            parameters = emptyMap(),
+                            createdAt = Date(),
+                        )
+                    }
+
+                // Create TriggerRule with the expression
+                val triggerRule =
+                    TriggerRule(
+                        experimentId = "eval_superscript",
+                        experimentGroupId = "eval_superscript",
+                        variants = emptyList(),
+                        expressionCEL = message.expression,
+                        preload =
+                            TriggerRule.TriggerPreload(
+                                behavior = com.superwall.sdk.models.triggers.TriggerPreloadBehavior.NEVER,
+                            ),
+                    )
+
+                // Get the evaluator and evaluate the expression
+                val context = delegate?.webView?.context ?: return@launch
+                val evaluator = ruleEvaluatorFactory.provideRuleEvaluator(context)
+                val outcome = evaluator.evaluateExpression(triggerRule, eventData)
+
+                // Prepare result based on evaluation outcome
+                val resultValue =
+                    when (outcome) {
+                        is TriggerRuleOutcome.Match -> true
+                        is TriggerRuleOutcome.NoMatch -> false
+                    }
+
+                // Send result back to WebView if await is true
+                if (message.await) {
+                    val response =
+                        mapOf(
+                            "id" to message.id,
+                            "result" to resultValue,
+                        )
+                    val jsonResponse = json.encodeToString(response)
+                    val base64Response =
+                        Base64.encodeToString(
+                            jsonResponse.toByteArray(StandardCharsets.UTF_8),
+                            Base64.NO_WRAP,
+                        )
+                    passMessageToWebView(base64String = base64Response)
+                }
+            } catch (e: Exception) {
+                Logger.debug(
+                    LogLevel.error,
+                    LogScope.superwallCore,
+                    "Error evaluating superscript expression: ${e.message}",
+                    error = e,
+                )
+
+                // Send error response if await is true
+                if (message.await) {
+                    val errorResponse =
+                        mapOf(
+                            "id" to message.id,
+                            "error" to e.message,
+                        )
+                    val jsonResponse = json.encodeToString(errorResponse)
+                    val base64Response =
+                        Base64.encodeToString(
+                            jsonResponse.toByteArray(StandardCharsets.UTF_8),
+                            Base64.NO_WRAP,
+                        )
+                    passMessageToWebView(base64String = base64Response)
+                }
+            }
+        }
     }
 }

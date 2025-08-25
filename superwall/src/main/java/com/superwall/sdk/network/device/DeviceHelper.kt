@@ -615,7 +615,6 @@ class DeviceHelper(
                 platformWrapperVersion = platformWrapperVersion,
                 appVersionPadded = appVersionPadded,
                 deviceTier = classifier.deviceTier().raw,
-                hasReviewed = hasReviewed,
                 kotlinVersion = kotlinVersion,
                 hasReviewed = hasReviewed,
             )

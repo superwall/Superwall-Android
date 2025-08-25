@@ -63,7 +63,6 @@ data class DeviceTemplate(
     @SerialName("platform_wrapper_version")
     val platformWrapperVersion: String,
     val deviceTier: String,
-    val hasReviewed: Boolean,
     val kotlinVersion: String,
     val hasReviewed: Boolean,
 ) {

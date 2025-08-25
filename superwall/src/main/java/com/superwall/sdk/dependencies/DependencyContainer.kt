@@ -81,6 +81,8 @@ import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessageHandler
 import com.superwall.sdk.paywall.view.webview.templating.models.JsonVariables
 import com.superwall.sdk.paywall.view.webview.templating.models.Variables
 import com.superwall.sdk.paywall.view.webview.webViewExists
+import com.superwall.sdk.permissions.UserPermissions
+import com.superwall.sdk.permissions.UserPermissionsImpl
 import com.superwall.sdk.review.MockReviewManager
 import com.superwall.sdk.review.ReviewManager
 import com.superwall.sdk.review.ReviewManagerImpl
@@ -160,6 +162,7 @@ class DependencyContainer(
     val transactionManager: TransactionManager
     val googleBillingWrapper: GoogleBillingWrapper
     internal val reviewManager: ReviewManager
+    internal val userPermissions: UserPermissions
 
     var entitlements: Entitlements
     lateinit var reedemer: WebPaywallRedeemer
@@ -180,6 +183,7 @@ class DependencyContainer(
                     storage = storage.coreDataManager,
                     factory = this,
                     ioScope = ioScope,
+                    dependencyContainer = this,
                 ),
         )
     }
@@ -478,6 +482,8 @@ class DependencyContainer(
                 })
             }
 
+        userPermissions = UserPermissionsImpl(context)
+
         deepLinkRouter =
             DeepLinkRouter(
                 reedemer,
@@ -565,7 +571,9 @@ class DependencyContainer(
             PaywallMessageHandler(
                 sessionEventsManager = sessionEventsManager,
                 factory = this@DependencyContainer,
+                ruleEvaluatorFactory = this@DependencyContainer,
                 ioScope = ioScope,
+                userPermissions = userPermissions,
                 json = paywallJson,
                 mainScope = mainScope(),
             )

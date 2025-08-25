@@ -1,6 +1,7 @@
 package com.superwall.sdk.paywall.view.webview.messaging
 
 import android.net.Uri
+import com.superwall.sdk.permissions.CommonPermission
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.json.JSONObject
@@ -41,6 +42,11 @@ sealed class PaywallWebEvent {
     data class CustomPlacement(
         val name: String,
         val params: JSONObject,
+    ) : PaywallWebEvent()
+
+    @SerialName("request_permission")
+    data class RequestPermission(
+        val permission: CommonPermission,
     ) : PaywallWebEvent()
 
     @SerialName("request_review")

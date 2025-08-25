@@ -29,6 +29,8 @@ sealed class SuperscriptExposedFunction {
         REVIEW_REQUESTS_IN_YEAR("reviewRequestsInYear"),
         REVIEW_REQUESTS_TOTAL("reviewRequestsTotal"),
         REQUEST_REVIEW("requestReview"),
+        HAS_PERMISSION("hasPermission"),
+        REQUEST_PERMISSION("requestPermission"),
     }
 
     class MinutesSince(
@@ -129,6 +131,26 @@ sealed class SuperscriptExposedFunction {
         }
     }
 
+    class HasPermission(
+        val permission: String,
+    ) : SuperscriptExposedFunction() {
+        suspend operator fun invoke(storage: CoreDataManager): Boolean {
+            // This will be handled by the SuperscriptHostContext
+            // For now, return false as default
+            return false
+        }
+    }
+
+    class RequestPermission(
+        val permission: String,
+    ) : SuperscriptExposedFunction() {
+        suspend operator fun invoke(storage: CoreDataManager): Boolean {
+            // This will be handled by the SuperscriptHostContext
+            // For now, return false as default
+            return false
+        }
+    }
+
     companion object {
         fun from(
             name: String,
@@ -190,6 +212,16 @@ sealed class SuperscriptExposedFunction {
             REQUEST_REVIEW.rawName ->
                 RequestReview
 
+            HAS_PERMISSION.rawName ->
+                HasPermission(
+                    permission = (args.first() as PassableValue.StringValue).value,
+                )
+
+            REQUEST_PERMISSION.rawName ->
+                RequestPermission(
+                    permission = (args.first() as PassableValue.StringValue).value,
+                )
+
             else -> null
         }
     }
@@ -200,13 +232,14 @@ sealed interface TimeSince {
     val propertyRequest: ComputedPropertyRequestType
 
     suspend operator fun invoke(storage: CoreDataManager): Int =
-        storage.getComputedPropertySinceEvent(
-            null,
-            ComputedPropertyRequest(
-                propertyRequest,
-                event,
-            ),
-        ) ?: 0
+        storage
+            .getComputedPropertySinceEvent(
+                null,
+                ComputedPropertyRequest(
+                    propertyRequest,
+                    event,
+                ),
+            ) ?: 0
 }
 
 sealed interface InPeriod {
