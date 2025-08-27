@@ -4,10 +4,13 @@ import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.view.PaywallView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.lang.ref.WeakReference
 
 class PaywallViewDelegateAdapter(
-    val kotlinDelegate: PaywallViewCallback?,
+    kotlinDelegate: PaywallViewCallback?,
 ) {
+    val kotlinDelegate = WeakReference(kotlinDelegate)
+
     val hasJavaDelegate: Boolean
         get() = false
 
@@ -16,6 +19,6 @@ class PaywallViewDelegateAdapter(
         result: PaywallResult,
         shouldDismiss: Boolean,
     ) = withContext(Dispatchers.Main) {
-        kotlinDelegate?.onFinished(paywall, result, shouldDismiss)
+        kotlinDelegate?.get()?.onFinished(paywall, result, shouldDismiss)
     }
 }
