@@ -46,8 +46,8 @@ android {
 
 dependencies {
     // Local Superwall SDK
-    implementation("com.superwall.sdk:superwall-android:2.5.0")
-    implementation("com.superwall.sdk:superwall-compose:2.5.0")
+    implementation(project(":superwall"))
+    implementation(project(":superwall-compose"))
 
     // Core Android dependencies
     implementation(libs.core.ktx)
