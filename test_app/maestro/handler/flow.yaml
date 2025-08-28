@@ -1,5 +1,6 @@
 appId: com.superwall.superapp
 ---
+- runFlow: "../login.yaml"
 - launchApp: com.superwall.superapp
 - tapOn: "Configuration test"
 - tapOn: "Just configure"
@@ -10,6 +11,8 @@ appId: com.superwall.superapp
 
 # Test non-gated paywall
 - tapOn: "Test Non-Gated Paywall"
+- waitForAnimationToEnd:
+    timeout: 1000
 - assertVisible: "Continue"
 - runFlow: "../util/back.yaml"
 
@@ -27,6 +30,8 @@ appId: com.superwall.superapp
 
 # Test gated paywall
 - tapOn: "Test Gated Paywall"
+- waitForAnimationToEnd:
+    timeout: 1000
 - assertVisible: "Continue"
 - runFlow: "../util/back.yaml"
 

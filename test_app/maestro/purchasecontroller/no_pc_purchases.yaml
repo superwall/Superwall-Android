@@ -1,5 +1,6 @@
 appId: com.superwall.superapp
 ---
+- runFlow: "../login.yaml"
 # Launch app and navigate to Purchase Controller Test
 - launchApp: com.superwall.superapp
 - tapOn: "Purchase Controller Test"
@@ -11,6 +12,8 @@ appId: com.superwall.superapp
     text: "Trigger Paywall"
     waitToSettleTimeoutMs: 1000
     optional: true
+- waitForAnimationToEnd:
+    timeout: 1000
 - tapOn: "Continue"
 
 # Handle terms agreement if visible
@@ -20,7 +23,8 @@ appId: com.superwall.superapp
     commands:
       - tapOn: "Agree"
 
-
+- waitForAnimationToEnd:
+    timeout: 1000
 # If approve card is pre-selected, switch to decline card
 - runFlow:
     when:

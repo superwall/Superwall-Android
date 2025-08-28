@@ -11,9 +11,13 @@ env:
 - tapOn:
     text: Sign in
     waitToSettleTimeoutMs: 500
+- waitForAnimationToEnd:
+    timeout: 1000
 - tapOn:
     text: Email or phone
     waitToSettleTimeoutMs: 500
+- waitForAnimationToEnd:
+    timeout: 1000
 - inputText: ${TEST_USER}
 - tapOn:
     text: Next
