@@ -21,6 +21,11 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
         
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v3
       
@@ -41,9 +46,7 @@ jobs:
       run: ./gradlew :test_app:buildForMaestro -Psdk-version=${{ matrix.sdk-version }} -Penv=dev
 
     - name: Install DeviceCloud CLI
-      run: |
-        curl -fsSL https://get.devicecloud.dev | bash
-        echo "$HOME/.dcd/bin" >> $GITHUB_PATH
+      run: npm install -g @devicecloud.dev/dcd
 
     - name: Run tests on DeviceCloud with Google Play
       run: |
@@ -52,7 +55,7 @@ jobs:
           --flows test_app/maestro/ \
           --google-play \
           --android-device pixel-7 \
-          --android-api-level 33 \
+          --android-api-level 35 \
           --name "SDK-${{ matrix.sdk-version }}-tests" \
           -q \
           -e TEST_USER=${{ secrets.TEST_USER }} \
