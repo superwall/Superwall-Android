@@ -1,4 +1,7 @@
 appId: com.superwall.superapp
+env:
+  TEST_USER : ${TEST_USER}
+  TEST_PW: ${TEST_PW}
 ---
 - assertVisible: Play Store
 - tapOn:

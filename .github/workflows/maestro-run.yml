@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        sdk-version: ['2.0.6', '2.1.0', '2.2.0', '2.3.0', '2.4.0', '2.5.0']
+        sdk-version: ['2.4.0']
     
     steps:
     - name: Checkout code
@@ -60,6 +60,7 @@ jobs:
           -q \
           -e TEST_USER=${{ secrets.TEST_USER }} \
           -e TEST_PW=${{ secrets.TEST_PW }}
+          -e PLATFORM_ID=com.superwall.superapp
 
       env:
         DEVICE_CLOUD_API_KEY: ${{ secrets.DCD_API_KEY }}

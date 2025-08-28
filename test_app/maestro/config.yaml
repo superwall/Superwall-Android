@@ -1,0 +1,27 @@
+appId: com.superwall.superapp
+env:
+  PLATFORM_ID: com.superwall.superapp
+  TEST_USER: ${TEST_USER}
+  TEST_PW: ${TEST_PW}
+
+flows:
+  - login.yaml
+  - flow.yaml
+  - delegate/*
+  - handler/*
+  - purchasecontroller/*
+
+# config.yaml
+executionOrder:
+  continueOnFailure: false # default is true
+  flowsOrder:
+    - login
+    # Main flow tests
+    - flow
+    # Delegate tests
+    - delegate/flow
+    # Handler tests
+    - handler/flow
+    # Purchase controller tests
+    - purchasecontroller/no_pc_purchases
+    - purchasecontroller/test_pc_purchases

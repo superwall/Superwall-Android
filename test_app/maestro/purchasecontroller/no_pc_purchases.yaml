@@ -1,7 +1,7 @@
 appId: com.superwall.superapp
 ---
 # Launch app and navigate to Purchase Controller Test
-- launchApp: ${PLATFORM_ID}
+- launchApp: com.superwall.superapp
 - tapOn: "Purchase Controller Test"
 
 # Configure with Purchase Controller and trigger paywall

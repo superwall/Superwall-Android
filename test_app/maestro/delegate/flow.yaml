@@ -1,7 +1,7 @@
 appId: com.superwall.superapp
 ---
 # Initialize the app and configure
-- launchApp: ${PLATFORM_ID}
+- launchApp: com.superwall.superapp
 - tapOn: "Configuration test"
 - tapOn: "Just configure"
 - tapOn: "OK"
