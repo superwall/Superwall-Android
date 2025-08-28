@@ -81,14 +81,73 @@ tasks.register("runMaestroTests") {
     description =
         "Build and run all Maestro tests for Android. Usage: ./gradlew runMaestroTests -Penv=[release|dev|custom] -Pendpoint=[custom_endpoint] -Psdk-version=[version]"
 
-    dependsOn("assembleDebug")
+    dependsOn("buildForMaestro")
+
+    doLast {
+        val env = project.findProperty("env")?.toString() ?: "release"
+        val customEndpoint = project.findProperty("endpoint")?.toString()
+
+        val appId = "com.superwall.superapp"
+        val apkPath =
+            layout.buildDirectory
+                .file("outputs/apk/debug/test_app-debug.apk")
+                .get()
+                .asFile.absolutePath
+
+        // Install APK
+        exec {
+            commandLine("adb", "install", "-r", apkPath)
+        }
+
+        // Prepare environment variables for maestro
+        val maestroEnvVars =
+            mutableListOf(
+                "PLATFORM_ID=$appId",
+                "ENV=$env",
+            )
+
+        if (env == "custom" && customEndpoint != null) {
+            maestroEnvVars.add("CUSTOM_ENDPOINT=$customEndpoint")
+        }
+
+        // Run Maestro tests
+        val testFiles =
+            listOf(
+                "maestro/handler/flow.yaml",
+                "maestro/flow.yaml",
+                "maestro/delegate/flow.yaml",
+                "maestro/purchasecontroller/test_pc_purchases.yaml",
+                "maestro/purchasecontroller/no_pc_purchases.yaml",
+            )
+
+        testFiles.forEach { testFile ->
+            println("Running Maestro test: $testFile")
+            val maestroCommand = mutableListOf("maestro", "test")
+            maestroEnvVars.forEach { envVar ->
+                maestroCommand.addAll(listOf("-e", envVar))
+            }
+            maestroCommand.add(testFile)
+
+            exec {
+                commandLine(maestroCommand)
+                workingDir = projectDir
+            }
+        }
+
+        println("All Maestro tests completed successfully!")
+    }
+}
+
+tasks.register("buildForMaestro") {
+    group = "build"
+    description = "Build APK with environment and SDK version configuration for Maestro tests"
 
     doLast {
         val env = project.findProperty("env")?.toString() ?: "release"
         val customEndpoint = project.findProperty("endpoint")?.toString()
         val sdkVersion = project.findProperty("sdk-version")?.toString()
 
-        println("Running Maestro tests with configuration:")
+        println("Building test app with configuration:")
         println("  Environment: $env")
         if (env == "custom" && customEndpoint != null) {
             println("  Custom endpoint: $customEndpoint")
@@ -167,8 +226,6 @@ tasks.register("runMaestroTests") {
         }
 
         // Update build config fields for environment configuration
-
-        // Replace the build config fields with more precise regex
         buildContent =
             buildContent.replace(
                 Regex("buildConfigField\\(\"String\", \"SUPERWALL_ENV\", \"[^\"]*\"\\)"),
@@ -198,68 +255,25 @@ tasks.register("runMaestroTests") {
                 }
             }
 
-            // Rebuild with new configuration
+            // Build with new configuration
+            exec {
+                commandLine("./gradlew", ":test_app:assembleDebug")
+                workingDir = projectDir.parentFile
+            }
+
+            // Restore original build.gradle.kts
+            println("Restoring original build.gradle.kts...")
+            buildFile.writeText(originalBuildContent)
+            println("Restored original build.gradle.kts")
+        } else {
+            // No modifications needed, just build normally
             exec {
                 commandLine("./gradlew", ":test_app:assembleDebug")
                 workingDir = projectDir.parentFile
             }
         }
 
-        val appId = "com.superwall.superapp"
-        val apkPath =
-            layout.buildDirectory
-                .file("outputs/apk/debug/test_app-debug.apk")
-                .get()
-                .asFile.absolutePath
-
-        // Install APK
-        exec {
-            commandLine("adb", "install", "-r", apkPath)
-        }
-
-        // Prepare environment variables for maestro
-        val maestroEnvVars =
-            mutableListOf(
-                "PLATFORM_ID=$appId",
-                "ENV=$env",
-            )
-
-        if (env == "custom" && customEndpoint != null) {
-            maestroEnvVars.add("CUSTOM_ENDPOINT=$customEndpoint")
-        }
-
-        // Run Maestro tests
-        val testFiles =
-            listOf(
-                "maestro/handler/flow.yaml",
-                "maestro/flow.yaml",
-                "maestro/delegate/flow.yaml",
-                "maestro/purchasecontroller/test_pc_purchases.yaml",
-                "maestro/purchasecontroller/no_pc_purchases.yaml",
-            )
-
-        testFiles.forEach { testFile ->
-            println("Running Maestro test: $testFile")
-            val maestroCommand = mutableListOf("maestro", "test")
-            maestroEnvVars.forEach { envVar ->
-                maestroCommand.addAll(listOf("-e", envVar))
-            }
-            maestroCommand.add(testFile)
-
-            exec {
-                commandLine(maestroCommand)
-                workingDir = projectDir
-            }
-        }
-
-        // Restore original build.gradle.kts if it was modified
-        if (buildFileModified) {
-            println("Restoring original build.gradle.kts...")
-            buildFile.writeText(originalBuildContent)
-            println("Restored original build.gradle.kts")
-        }
-
-        println("All Maestro tests completed successfully!")
+        println("Build completed successfully!")
     }
 }
 

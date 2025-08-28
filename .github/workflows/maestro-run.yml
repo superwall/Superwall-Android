@@ -1,8 +1,7 @@
 name: Run Maestro tests
 
 on:
-  pull_request:
-    branches: [ develop ]
+  workflow_dispatch:
 
 jobs:
   test:
@@ -38,7 +37,7 @@ jobs:
       run: chmod +x ./gradlew
 
     - name: Build test app
-      run: ./gradlew :test_app:assembleDebug -Psdk-version=${{ matrix.sdk-version }} -Penv=dev
+      run: ./gradlew :test_app:buildForMaestro -Psdk-version=${{ matrix.sdk-version }} -Penv=dev
 
     - name: Install DeviceCloud CLI
       run: |
