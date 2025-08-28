@@ -1,6 +1,7 @@
 appId: com.superwall.superapp
 
 flows:
+  - login.yaml
   # Main flow tests
   - flow.yaml
   

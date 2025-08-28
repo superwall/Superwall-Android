@@ -1,5 +1,6 @@
 appId: com.superwall.superapp
 ---
+
 - launchApp: ${PLATFORM_ID}
 - tapOn: "Configuration test"
 - tapOn: "Configure with dialog shown + no PC"

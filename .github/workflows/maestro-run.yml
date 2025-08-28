@@ -53,9 +53,12 @@ jobs:
           --google-play \
           --android-device pixel-7 \
           --android-api-level 33 \
-          --name "SDK-${{ matrix.sdk-version }}-tests"
+          --name "SDK-${{ matrix.sdk-version }}-tests" \
+          -e TEST_USER=${{ secrets.TEST_USER }} \
+          -e TEST_PW=${{ secrets.TEST_PW }}
+
       env:
-        DCD_API_KEY: ${{ secrets.DCD_API_KEY }}
+        DEVICE_CLOUD_API_KEY: ${{ secrets.DCD_API_KEY }}
 
     - name: Upload test reports
       uses: actions/upload-artifact@v4
