@@ -1,7 +1,9 @@
 appId: com.superwall.superapp
 ---
 # Initialize the app and configure
-- runFlow: "../login.yaml"
+- runFlow:
+    file: "../login.yaml"
+    optional: true
 - launchApp: com.superwall.superapp
 - tapOn: "Configuration test"
 - tapOn: "Just configure"
@@ -82,7 +84,7 @@ appId: com.superwall.superapp
     commands:
       - back
 
-- tapOn: "Custom Action"
+- tapOn: "CUSTOM ACTION"
 - waitForAnimationToEnd:
     timeout: 1000
 - runFlow: "../util/back.yaml"
