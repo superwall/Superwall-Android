@@ -26,15 +26,15 @@ plugins {
 version = "2.5.1"
 
 android {
-    compileSdk = 35
+    compileSdk = 36
     namespace = "com.superwall.sdk"
 
     defaultConfig {
-        minSdkVersion(22)
+        minSdkVersion(21)
         targetSdkVersion(33)
 
         aarMetadata {
-            minCompileSdk = 26
+            minCompileSdk = 21
         }
 
         ndk {
@@ -161,6 +161,7 @@ dependencies {
 
     // Google Play Review
     implementation(libs.play.review.ktx)
+    implementation("androidx.browser:browser:1.5.0")
 
     // Test
     testImplementation(libs.junit)

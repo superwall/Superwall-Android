@@ -3,6 +3,7 @@ package com.superwall.sdk.paywall.view.webview.messaging
 import TemplateLogic
 import android.net.Uri
 import android.util.Base64
+import android.util.Log
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import com.superwall.sdk.Superwall
@@ -50,6 +51,8 @@ interface PaywallMessageHandlerDelegate {
     fun presentBrowserInApp(url: String)
 
     fun presentBrowserExternal(url: String)
+
+    fun openWebCheckout(url: String)
 }
 
 class PaywallMessageHandler(
@@ -346,8 +349,14 @@ class PaywallMessageHandler(
             mapOf("url" to url),
         )
         hapticFeedback()
-        delegate?.eventDidOccur(PaywallWebEvent.OpenedUrlInChrome(url))
-        delegate?.presentBrowserExternal(url.toString())
+
+        if (url.toString().contains("checkout.stripe.com")) {
+            Log.e("WC", "Opening web checkout")
+            delegate?.openWebCheckout(url.toString())
+        } else {
+            delegate?.eventDidOccur(PaywallWebEvent.OpenedUrlInChrome(url))
+            delegate?.presentBrowserExternal(url.toString())
+        }
     }
 
     private fun openDeepLink(url: Uri) {

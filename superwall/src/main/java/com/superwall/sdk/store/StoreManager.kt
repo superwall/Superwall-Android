@@ -50,7 +50,7 @@ class StoreManager(
             )
 
         val productAttributes =
-            paywall.productItems.mapNotNull { productItem ->
+            paywall.playStoreProducts.mapNotNull { productItem ->
                 output.productsByFullId[productItem.fullProductId]?.let { storeProduct ->
                     ProductVariable(
                         name = productItem.name,

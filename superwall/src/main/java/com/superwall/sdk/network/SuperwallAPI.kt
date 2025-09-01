@@ -15,6 +15,7 @@ import com.superwall.sdk.models.internal.DeviceVendorId
 import com.superwall.sdk.models.internal.UserId
 import com.superwall.sdk.models.internal.WebRedemptionResponse
 import com.superwall.sdk.models.paywall.Paywall
+import com.superwall.sdk.models.transactions.CheckoutStatusResponse
 import kotlinx.serialization.json.JsonElement
 import kotlin.time.Duration
 
@@ -56,4 +57,6 @@ interface SuperwallAPI {
         externalAccountId: String,
         attributionProps: Map<String, JsonElement>?,
     ): Either<WebRedemptionResponse, NetworkError>
+
+    suspend fun checkoutStatus(id: String): Either<CheckoutStatusResponse, NetworkError>
 }

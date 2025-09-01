@@ -1,5 +1,6 @@
 package com.superwall.sdk.models.paywall
 
+import android.annotation.SuppressLint
 import android.graphics.Color
 import com.superwall.sdk.config.models.OnDeviceCaching
 import com.superwall.sdk.config.models.Survey
@@ -10,6 +11,7 @@ import com.superwall.sdk.models.SerializableEntity
 import com.superwall.sdk.models.config.ComputedPropertyRequest
 import com.superwall.sdk.models.config.FeatureGatingBehavior
 import com.superwall.sdk.models.events.EventData
+import com.superwall.sdk.models.product.CrossplatformProduct
 import com.superwall.sdk.models.product.ProductItem
 import com.superwall.sdk.models.product.ProductItemsDeserializer
 import com.superwall.sdk.models.product.ProductVariable
@@ -34,6 +36,7 @@ data class Paywalls(
     val paywalls: List<Paywall>,
 ) : SerializableEntity
 
+@SuppressLint("UnsafeOptInUsageError")
 @Serializable
 data class Paywall(
     @SerialName("id")
@@ -78,6 +81,8 @@ data class Paywall(
     @Serializable(with = ProductItemsDeserializer::class)
     @SerialName("products_v2")
     private var _productItems: List<ProductItem>,
+    @SerialName("products_v3")
+    private var _productItemsV3: List<CrossplatformProduct> = emptyList(),
     @kotlinx.serialization.Transient()
     var productIds: List<String> = arrayListOf(),
     @kotlinx.serialization.Transient()
@@ -125,6 +130,12 @@ data class Paywall(
     @SerialName("is_scroll_enabled")
     val isScrollEnabled: Boolean? = true,
 ) : SerializableEntity {
+    val playStoreProducts: List<CrossplatformProduct>
+        get() = _productItemsV3.filter { it.storeProduct is CrossplatformProduct.StoreProduct.PlayStore }
+
+    val stripeProducts: List<CrossplatformProduct>
+        get() = _productItemsV3.filter { it.storeProduct is CrossplatformProduct.StoreProduct.Stripe }
+
     // Public getter for productItems
     var productItems: List<ProductItem>
         get() = _productItems
@@ -269,6 +280,7 @@ data class Paywall(
                 cacheKey = "123",
                 buildId = "test",
                 isScrollEnabled = true,
+                _productItemsV3 = emptyList(),
             )
     }
 }
