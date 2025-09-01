@@ -7,6 +7,7 @@ import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.UserInitiatedEvent
 import com.superwall.sdk.misc.SerialTaskManager
 import com.superwall.sdk.misc.fold
+import com.superwall.sdk.misc.onError
 import com.superwall.sdk.models.config.FeatureGatingBehavior
 import com.superwall.sdk.paywall.presentation.internal.InternalPresentationLogic
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
@@ -48,7 +49,11 @@ internal suspend fun dismissPaywall(params: DismissParams) {
                 params.dismissAction(view, params.result, params.closeReason) {
                     completionSignal.complete(Unit)
                 }
-            } ?: completionSignal.complete(Unit)
+            } ?: run {
+                completionSignal.complete(Unit)
+            }
+        }.onError {
+            it.printStackTrace()
         }
 
         completionSignal.await()

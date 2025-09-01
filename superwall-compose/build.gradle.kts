@@ -16,7 +16,7 @@ version = "2.5.8"
 
 android {
     namespace = "com.superwall.sdk.composable"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         minSdk = 22

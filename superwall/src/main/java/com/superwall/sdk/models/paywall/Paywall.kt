@@ -1,6 +1,8 @@
 package com.superwall.sdk.models.paywall
 
+import android.annotation.SuppressLint
 import android.graphics.Color
+import com.superwall.sdk.billing.StoreProductType
 import com.superwall.sdk.config.models.OnDeviceCaching
 import com.superwall.sdk.config.models.Survey
 import com.superwall.sdk.logger.LogLevel
@@ -10,7 +12,11 @@ import com.superwall.sdk.models.SerializableEntity
 import com.superwall.sdk.models.config.ComputedPropertyRequest
 import com.superwall.sdk.models.config.FeatureGatingBehavior
 import com.superwall.sdk.models.events.EventData
+import com.superwall.sdk.models.product.CrossplatformProduct
+import com.superwall.sdk.models.product.Offer.*
+import com.superwall.sdk.models.product.PlayStoreProduct
 import com.superwall.sdk.models.product.ProductItem
+import com.superwall.sdk.models.product.ProductItem.StoreProductType.*
 import com.superwall.sdk.models.product.ProductItemsDeserializer
 import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.models.serialization.DateSerializer
@@ -34,6 +40,7 @@ data class Paywalls(
     val paywalls: List<Paywall>,
 ) : SerializableEntity
 
+@SuppressLint("UnsafeOptInUsageError")
 @Serializable
 data class Paywall(
     @SerialName("id")
@@ -78,6 +85,8 @@ data class Paywall(
     @Serializable(with = ProductItemsDeserializer::class)
     @SerialName("products_v2")
     private var _productItems: List<ProductItem>,
+    @SerialName("products_v3")
+    private var _productItemsV3: List<CrossplatformProduct> = emptyList(),
     @kotlinx.serialization.Transient()
     var productIds: List<String> = arrayListOf(),
     @kotlinx.serialization.Transient()
@@ -127,14 +136,67 @@ data class Paywall(
     @SerialName("reroute_back_button")
     val rerouteBackButton: ToggleMode? = null,
 ) : SerializableEntity {
+    val playStoreProducts: List<CrossplatformProduct>
+        get() =
+            if (_productItemsV3.isEmpty() && productItems.isNotEmpty()) {
+                productItems.map {
+                    val type = it.type as ProductItem.StoreProductType.PlayStore
+                    CrossplatformProduct(
+                        it.fullProductId,
+                        CrossplatformProduct.StoreProduct.PlayStore(
+                            type.product.productIdentifier,
+                            type.product.basePlanIdentifier,
+                            type.product.offer,
+                        ),
+                        it.entitlements.toList(),
+                        it.name,
+                    )
+                }
+            } else {
+                _productItemsV3.filter { it.storeProduct is CrossplatformProduct.StoreProduct.PlayStore }
+            }
+
+    val stripeProducts: List<CrossplatformProduct>
+        get() = _productItemsV3.filter { it.storeProduct is CrossplatformProduct.StoreProduct.Stripe }
+
     // Public getter for productItems
     var productItems: List<ProductItem>
-        get() = _productItems
+        get() =
+            _productItems.ifEmpty {
+                _productItemsV3.map {
+                    val id = it.fullProductId.split(":")
+                    ProductItem(
+                        it.name,
+                        when (it.storeProduct) {
+                            is PlayStoreProduct ->
+                                PlayStore(
+                                    PlayStoreProduct(
+                                        productIdentifier = id[0],
+                                        basePlanIdentifier = id[1],
+                                        offer =
+                                            when (val identifier = id.getOrNull(2)) {
+                                                null -> Automatic()
+                                                "sw-auto" -> Automatic()
+                                                else -> Specified(offerIdentifier = identifier)
+                                            },
+                                    ),
+                                )
+
+                            is CrossplatformProduct.StoreProduct.AppStore -> TODO()
+                            is CrossplatformProduct.StoreProduct.Other -> TODO()
+                            is CrossplatformProduct.StoreProduct.PlayStore -> TODO()
+                            is CrossplatformProduct.StoreProduct.Stripe -> TODO()
+                        },
+                        entitlements = it.entitlements.toSet(),
+                    )
+                }
+            }
         set(value) {
             _productItems = value
             // Automatically update related properties when productItems is set
             productIds = value.map { it.fullProductId }
-            _products = value // Assuming makeProducts is a function that generates products based on product items
+            _products =
+                value // Assuming makeProducts is a function that generates products based on product items
         }
 
     // Public getter for products to allow access but not direct modification
@@ -272,6 +334,7 @@ data class Paywall(
                 buildId = "test",
                 isScrollEnabled = true,
                 rerouteBackButton = ToggleMode.DISABLED,
+                _productItemsV3 = emptyList(),
             )
     }
 

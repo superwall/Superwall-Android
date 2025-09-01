@@ -86,7 +86,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.update
@@ -728,32 +727,7 @@ class Superwall(
      * @return A `Boolean` that is `true` if the deep link was handled.
      * @deprecated Use the static method [Superwall.handleDeepLink] instead.
      */
-    fun handleDeepLink(uri: Uri): Result<Boolean> =
-        withErrorTracking<Boolean> {
-            ioScope.launch {
-                track(InternalSuperwallEvent.DeepLink(uri = URI.create(uri.toString())))
-            }
-            val handledAsRedemption =
-                dependencyContainer.reedemer.deepLinkReferrer
-                    .handleDeepLink(uri)
-                    .onSuccess {
-                        ioScope.launch {
-                            configurationStateListener.first { it is ConfigurationStatus.Configured }
-                            redeem(it)
-                        }
-                        return Result.success(true)
-                    }.isSuccess
-
-            val result =
-                if (!handledAsRedemption) {
-                    dependencyContainer.debugManager.handle(deepLinkUrl = uri)
-                } else {
-                    handledAsRedemption
-                }
-
-            return Result.success(result)
-        }.toResult()
-
+    fun handleDeepLink(uri: Uri): Result<Boolean> = DeepLinkRouter.handleDeepLink(uri)
     //endregion
 
     //region Preloading
