@@ -8,6 +8,9 @@ import com.superwall.sdk.models.entitlements.WebEntitlements
 import com.superwall.sdk.models.internal.DeviceVendorId
 import com.superwall.sdk.models.internal.UserId
 import com.superwall.sdk.models.internal.WebRedemptionResponse
+import com.superwall.sdk.models.transactions.CheckoutId
+import com.superwall.sdk.models.transactions.CheckoutStatusRequest
+import com.superwall.sdk.models.transactions.CheckoutStatusResponse
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -70,5 +73,11 @@ class SubscriptionService(
         get<WebEntitlements>(
             "users/${deviceId.value}/entitlements",
             queryItems = listOf(URLQueryItem("deviceId", deviceId.value)),
+        )
+
+    suspend fun checkoutStatus(checkoutId: CheckoutId) =
+        post<CheckoutStatusResponse>(
+            "checkout/status",
+            body = json.encodeToString(CheckoutStatusRequest(checkoutId)).toByteArray(),
         )
 }

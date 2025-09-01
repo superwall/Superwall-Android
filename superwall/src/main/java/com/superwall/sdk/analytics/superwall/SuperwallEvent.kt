@@ -9,6 +9,7 @@ import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationReques
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatusReason
 import com.superwall.sdk.paywall.view.webview.WebviewError
 import com.superwall.sdk.store.abstractions.product.StoreProduct
+import com.superwall.sdk.store.abstractions.product.StoreProductType
 import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
 import com.superwall.sdk.store.transactions.RestoreType
 import com.superwall.sdk.store.transactions.TransactionError
@@ -154,7 +155,7 @@ sealed class SuperwallEvent {
 
     // / When the payment sheet is displayed to the user.
     data class TransactionStart(
-        val product: StoreProduct,
+        val product: StoreProductType,
         val paywallInfo: PaywallInfo,
     ) : SuperwallEvent() {
         override val rawName: String
@@ -174,7 +175,7 @@ sealed class SuperwallEvent {
 
     // / When the user cancels a transaction.
     data class TransactionAbandon(
-        val product: StoreProduct,
+        val product: StoreProductType,
         val paywallInfo: PaywallInfo,
     ) : SuperwallEvent() {
         override val rawName: String
@@ -189,7 +190,7 @@ sealed class SuperwallEvent {
 //    data class TransactionComplete(val transaction: StoreTransaction?, val product: StoreProduct, val paywallInfo: PaywallInfo) : SuperwallEvent()
     data class TransactionComplete(
         val transaction: StoreTransactionType?,
-        val product: StoreProduct,
+        val product: StoreProductType,
         val paywallInfo: PaywallInfo,
     ) : SuperwallEvent() {
         override val rawName: String

@@ -1,6 +1,7 @@
 package com.superwall.sdk.paywall.view.webview
 
 import android.net.Uri
+import android.util.Log
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
@@ -61,6 +62,14 @@ sealed class PaywallMessage {
 
     object PaywallClose : PaywallMessage()
 
+    object TransactionStart : PaywallMessage()
+
+    object TransactionComplete : PaywallMessage()
+
+    data class InitiateWebCheckout(
+        val checkoutId: String,
+    ) : PaywallMessage()
+
     data class RequestReview(
         val type: Type,
     ) : PaywallMessage() {
@@ -95,7 +104,7 @@ fun parseWrappedPaywallMessages(jsonString: String): WrappedPaywallMessages {
 
 private fun parsePaywallMessage(json: JSONObject): PaywallMessage {
     val eventName = json.getString("event_name")
-
+    Log.e("PWM", "$json")
     return when (eventName) {
         "ping" -> PaywallMessage.OnReady(json.getString("version"))
         "close" -> PaywallMessage.Close
@@ -123,6 +132,10 @@ private fun parsePaywallMessage(json: JSONObject): PaywallMessage {
                     "in-app" -> PaywallMessage.RequestReview.Type.INAPP
                     else -> PaywallMessage.RequestReview.Type.INAPP
                 },
+            )
+        "initiate_web_checkout" ->
+            PaywallMessage.InitiateWebCheckout(
+                json.getString("checkout_context_id"),
             )
         else -> {
             throw IllegalArgumentException("Unknown event name: $eventName")

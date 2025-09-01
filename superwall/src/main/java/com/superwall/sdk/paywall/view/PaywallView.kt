@@ -1,17 +1,26 @@
 package com.superwall.sdk.paywall.view
 
 import android.app.Activity
+import android.app.Activity.RESULT_OK
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.os.Build
+import android.util.Log
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebSettings
 import android.webkit.WebView.RENDERER_PRIORITY_IMPORTANT
 import android.widget.FrameLayout
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContract
+import androidx.activity.result.registerForActivityResult
+import androidx.appcompat.app.AppCompatActivity
 import androidx.browser.customtabs.CustomTabsIntent
+import androidx.browser.customtabs.CustomTabsIntent.COLOR_SCHEME_DARK
+import androidx.browser.customtabs.CustomTabsIntent.COLOR_SCHEME_LIGHT
+import androidx.browser.customtabs.CustomTabsIntent.SHARE_STATE_OFF
 import androidx.core.net.toUri
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
@@ -31,6 +40,7 @@ import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.AlertControllerFactory
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.MainScope
+import com.superwall.sdk.misc.isDarkColor
 import com.superwall.sdk.misc.toResult
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.PaywallPresentationStyle
@@ -59,6 +69,7 @@ import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessageHandlerDel
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent
 import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.utilities.withErrorTracking
+import com.superwall.sdk.web.WebPaywallRedeemer
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
@@ -83,6 +94,7 @@ class PaywallView(
     webView: SWWebView,
     private val cache: PaywallViewCache?,
     private val useMultipleUrls: Boolean,
+    private val redeemer: WebPaywallRedeemer,
 ) : FrameLayout(context),
     PaywallMessageHandlerDelegate,
     SWWebViewDelegate,
@@ -568,6 +580,14 @@ class PaywallView(
         }
     }
 
+    private fun startWebCheckoutSession(id: String) {
+        webView.messageHandler.handle(PaywallMessage.TransactionStart)
+        loadingState = PaywallLoadingState.LoadingPurchase()
+        ioScope.launch {
+            // redeemer.startCheckoutSession()
+        }
+    }
+
     private fun trackShimmerStart() {
         val trackedEvent =
             InternalSuperwallEvent.ShimmerLoad(
@@ -843,6 +863,59 @@ class PaywallView(
         val context = encapsulatingActivity?.get()
         val deepLinkIntent = Intent(Intent.ACTION_VIEW, uri)
         context?.startActivity(deepLinkIntent)
+    }
+
+    private var latestUri: String? = ""
+    private var activityResultLauncher: ActivityResultLauncher<String>? = null
+
+    internal fun registerIntent() {
+        activityResultLauncher =
+            (encapsulatingActivity?.get() as? AppCompatActivity)?.registerForActivityResult(
+                object : ActivityResultContract<String, Int>() {
+                    override fun createIntent(
+                        context: Context,
+                        input: String,
+                    ): Intent {
+                        val height = context.resources.displayMetrics.heightPixels * 0.9
+                        val customTabsIntent =
+                            CustomTabsIntent
+                                .Builder()
+                                .setColorScheme(if (paywall.backgroundColor.isDarkColor()) COLOR_SCHEME_DARK else COLOR_SCHEME_LIGHT)
+                                .setDownloadButtonEnabled(false)
+                                .setBookmarksButtonEnabled(false)
+                                .setShareState(CustomTabsIntent.SHARE_STATE_OFF)
+                                .setInstantAppsEnabled(false)
+                                .setUrlBarHidingEnabled(true)
+                                .setBackgroundInteractionEnabled(false)
+                                .setInitialActivityHeightPx(
+                                    height.toInt(),
+                                    CustomTabsIntent.ACTIVITY_HEIGHT_ADJUSTABLE,
+                                ).build()
+                                .intent
+                        customTabsIntent.setData(input.toUri())
+                        return customTabsIntent
+                    }
+
+                    override fun parseResult(
+                        resultCode: Int,
+                        intent: Intent?,
+                    ): Int = resultCode
+                },
+            ) { statusCode ->
+                if (statusCode == RESULT_OK) {
+                    Log.e("Got result ", "Status OK $statusCode")
+                } else {
+                    ioScope.launch {
+                    }
+                    Log.e("Got result ", "Status CANCEL $statusCode")
+                }
+
+                // Handle result (statusCode will usually be RESULT_OK/RESULT_CANCELED)
+            }
+    }
+
+    override fun openWebCheckout(url: String) {
+        activityResultLauncher?.launch(url)
     }
 
     //region GameController
