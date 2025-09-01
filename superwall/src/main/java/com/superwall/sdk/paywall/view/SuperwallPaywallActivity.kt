@@ -6,6 +6,7 @@ import android.animation.ArgbEvaluator
 import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
 import android.app.Activity
+import android.app.ComponentCaller
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
@@ -148,7 +149,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
     private val isPopupView
         get() = contentView is androidx.constraintlayout.widget.ConstraintLayout && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
 
-    override fun setContentView(view: View) {
+    override fun setContentView(view: View?) {
         super.setContentView(view)
         contentView = view
     }
@@ -260,11 +261,22 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         setupActivityWithView(view, presentationStyle)
     }
 
+    override fun onNewIntent(
+        intent: Intent,
+        caller: ComponentCaller,
+    ) {
+        super.onNewIntent(intent, caller)
+        intent.data?.let {
+            Superwall.handleDeepLink(it)
+        }
+    }
+
     private fun setupActivityWithView(
         view: PaywallView,
         presentationStyle: PaywallPresentationStyle?,
     ) {
         window.decorView.setBackgroundColor(view.backgroundColor)
+        view.registerIntent(this, this)
 
         val isBottomSheetStyle =
             presentationStyle is PaywallPresentationStyle.Drawer || presentationStyle is PaywallPresentationStyle.Modal
@@ -291,7 +303,6 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         } else {
             setContentView(view)
         }
-
         onBackPressedDispatcher.addCallback(
             this,
             object : OnBackPressedCallback(true) {
@@ -313,7 +324,6 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                 }
             },
         )
-
         try {
             supportActionBar?.hide()
         } catch (e: Throwable) {

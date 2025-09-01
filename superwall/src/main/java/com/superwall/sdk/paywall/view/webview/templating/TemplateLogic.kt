@@ -7,7 +7,7 @@ import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.paywall.view.webview.templating.models.ExperimentTemplate
 import com.superwall.sdk.paywall.view.webview.templating.models.FreeTrialTemplate
 import com.superwall.sdk.paywall.view.webview.templating.models.JsonVariables
-import com.superwall.sdk.paywall.view_controller.web_view.templating.models.ProductTemplate
+import com.superwall.sdk.paywall.view.webview.templating.models.ProductTemplate
 import kotlinx.serialization.json.Json
 
 object TemplateLogic {
@@ -18,6 +18,7 @@ object TemplateLogic {
         factory: VariablesFactory,
         encodeToBase64: (String) -> String,
     ): String {
+        val products = (paywall.playStoreProducts.plus(paywall.stripeProducts))
         val productsTemplate =
             ProductTemplate(
                 eventName = "products",

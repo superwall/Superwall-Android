@@ -50,6 +50,8 @@ interface PaywallMessageHandlerDelegate : PaywallStateDelegate {
         code: String,
         resultCallback: ((String?) -> Unit)?,
     )
+
+    fun presentPaymentSheet(url: String)
 }
 
 class PaywallMessageHandler(
@@ -143,8 +145,15 @@ class PaywallMessageHandler(
                 messageHandler?.eventDidOccur(PaywallWebEvent.Closed)
             }
 
-            is PaywallMessage.OpenUrl -> openUrl(message.url)
-            is PaywallMessage.OpenUrlInBrowser -> openUrlInBrowser(message.url)
+            is PaywallMessage.OpenUrl ->
+                openUrl(
+                    message.url,
+                    message.browserType == PaywallMessage.OpenUrl.BrowserType.PAYMENT_SHEET,
+                )
+
+            is PaywallMessage.OpenUrlInBrowser ->
+                openUrlInBrowser(message.url)
+
             is PaywallMessage.OpenDeepLink -> openDeepLink(message.url.toString())
             is PaywallMessage.Restore -> restorePurchases()
             is PaywallMessage.Purchase -> purchaseProduct(withId = message.productId)
@@ -177,6 +186,18 @@ class PaywallMessageHandler(
                 }
 
             is PaywallMessage.RequestReview -> handleRequestReview(message)
+
+            is PaywallMessage.TransactionStart -> {
+                ioScope.launch {
+                    pass(eventName = SuperwallEvents.TransactionStart.rawName, paywall = paywall)
+                }
+            }
+
+            is PaywallMessage.TransactionComplete -> {
+                ioScope.launch {
+                    pass(eventName = SuperwallEvents.TransactionComplete.rawName, paywall = paywall)
+                }
+            }
 
             else -> {
                 Logger.debug(
@@ -343,14 +364,21 @@ class PaywallMessageHandler(
         }
     }
 
-    private fun openUrl(url: URI) {
+    private fun openUrl(
+        url: URI,
+        isPaymentSheet: Boolean,
+    ) {
         detectHiddenPaywallEvent(
             "openUrl",
             mapOf("url" to url.toString()),
         )
         hapticFeedback()
         messageHandler?.eventDidOccur(PaywallWebEvent.OpenedURL(url))
-        messageHandler?.presentBrowserInApp(url.toString())
+        if (isPaymentSheet) {
+            messageHandler?.presentPaymentSheet(url.toString())
+        } else {
+            messageHandler?.presentBrowserInApp(url.toString())
+        }
     }
 
     private fun openUrlInBrowser(url: URI) {

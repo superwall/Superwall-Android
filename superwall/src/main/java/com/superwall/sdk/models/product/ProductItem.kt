@@ -159,6 +159,8 @@ object PlayStoreProductSerializer : KSerializer<PlayStoreProduct> {
     }
 }
 
+sealed interface TemplatingProduct
+
 @Serializable(with = ProductItemSerializer::class)
 data class ProductItem(
     // Note: This is used only by paywall as a reference to the object. Otherwise, it is empty.
@@ -168,7 +170,7 @@ data class ProductItem(
     val type: StoreProductType,
     @SerialName("entitlements")
     val entitlements: Set<Entitlement>,
-) {
+) : TemplatingProduct {
     @Serializable
     sealed class StoreProductType {
         @Serializable

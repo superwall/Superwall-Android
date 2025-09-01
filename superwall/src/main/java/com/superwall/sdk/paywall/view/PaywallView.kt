@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
+import android.graphics.Color.*
 import android.os.Build
 import android.view.MotionEvent
 import android.view.View
@@ -11,8 +12,18 @@ import android.view.ViewGroup
 import android.webkit.WebSettings
 import android.webkit.WebView.RENDERER_PRIORITY_IMPORTANT
 import android.widget.FrameLayout
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.ActivityResultRegistryOwner
+import androidx.activity.result.contract.ActivityResultContract
+import androidx.appcompat.content.res.AppCompatResources
 import androidx.browser.customtabs.CustomTabsIntent
+import androidx.browser.customtabs.CustomTabsIntent.COLOR_SCHEME_LIGHT
+import androidx.browser.customtabs.CustomTabsIntent.OPEN_IN_BROWSER_STATE_OFF
+import androidx.core.graphics.drawable.DrawableCompat
+import androidx.core.graphics.drawable.toBitmap
 import androidx.core.net.toUri
+import androidx.lifecycle.LifecycleOwner
+import com.superwall.sdk.R
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
@@ -20,6 +31,7 @@ import com.superwall.sdk.analytics.superwall.SuperwallEvents
 import com.superwall.sdk.config.models.OnDeviceCaching
 import com.superwall.sdk.config.options.PaywallOptions
 import com.superwall.sdk.dependencies.AttributesFactory
+import com.superwall.sdk.dependencies.DeviceHelperFactory
 import com.superwall.sdk.dependencies.EnrichmentFactory
 import com.superwall.sdk.dependencies.OptionsFactory
 import com.superwall.sdk.dependencies.TriggerFactory
@@ -50,6 +62,7 @@ import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 import com.superwall.sdk.paywall.view.delegate.PaywallViewDelegateAdapter
 import com.superwall.sdk.paywall.view.delegate.PaywallViewEventCallback
 import com.superwall.sdk.paywall.view.survey.SurveyManager
+import com.superwall.sdk.paywall.view.webview.CustomTabsHelper
 import com.superwall.sdk.paywall.view.webview.PaywallMessage
 import com.superwall.sdk.paywall.view.webview.SWWebView
 import com.superwall.sdk.paywall.view.webview.SWWebViewDelegate
@@ -59,6 +72,7 @@ import com.superwall.sdk.paywall.view.webview.messaging.PaywallStateDelegate
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent
 import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.utilities.withErrorTracking
+import com.superwall.sdk.web.WebPaywallRedeemer
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -90,6 +104,7 @@ class PaywallView(
     private val cache: PaywallViewCache?,
     private val useMultipleUrls: Boolean,
     val controller: PaywallController,
+    private val redeemer: WebPaywallRedeemer,
 ) : FrameLayout(context),
     PaywallMessageHandlerDelegate,
     SWWebViewDelegate,
@@ -128,6 +143,7 @@ class PaywallView(
     interface Factory :
         TriggerFactory,
         OptionsFactory,
+        DeviceHelperFactory,
         AttributesFactory,
         EnrichmentFactory
     //region Public properties
@@ -463,6 +479,12 @@ class PaywallView(
             }
         }
 
+        if (isPaymentSheetPresented) {
+            beforeOnDestroy()
+            cleanup()
+            isPaymentSheetPresented = false
+        }
+
         SurveyManager.presentSurveyIfAvailable(
             state.paywall.surveys,
             paywallResult = result,
@@ -497,6 +519,13 @@ class PaywallView(
         if (loadingState is PaywallLoadingState.Unknown) {
             loadWebView()
         }
+    }
+
+    fun registerPaymentSheetLauncher(
+        lifecycleOwner: LifecycleOwner,
+        registryOwner: ActivityResultRegistryOwner,
+    ) {
+        registerIntent(lifecycleOwner, registryOwner)
     }
 
     // Lets the view know that presentation has finished.
@@ -567,7 +596,6 @@ class PaywallView(
     private fun dismiss(presentationIsAnimated: Boolean) {
         // TODO: SW-2162 Implement animation support
         // https://linear.app/superwall/issue/SW-2162/%5Bandroid%5D-%5Bv1%5D-get-animated-presentation-working
-
         encapsulatingActivity?.get()?.finish()
     }
 
@@ -797,7 +825,27 @@ class PaywallView(
 
 //endregion
 
-//region Deep linking
+    //region Deep linking
+    internal var isPaymentSheetPresented = false
+
+    override fun presentPaymentSheet(url: String) {
+        try {
+            isPaymentSheetPresented = true
+            presentCheckoutBottomSheet(url)
+        } catch (e: MalformedURLException) {
+            Logger.debug(
+                logLevel = LogLevel.debug,
+                scope = LogScope.paywallView,
+                message = "Invalid URL provided for \"Open In-App URL\" click behavior.",
+            )
+        } catch (e: Throwable) {
+            Logger.debug(
+                logLevel = LogLevel.debug,
+                scope = LogScope.paywallView,
+                message = "Exception thrown for \"Open In-App URL\" click behavior.",
+            )
+        }
+    }
 
     override fun presentBrowserInApp(url: String) {
         try {
@@ -818,6 +866,24 @@ class PaywallView(
                 scope = LogScope.paywallView,
                 message = "Exception thrown for \"Open In-App URL\" click behavior.",
             )
+        }
+    }
+
+    private fun presentCheckoutBottomSheet(url: String) {
+        Logger.debug(
+            logLevel = LogLevel.debug,
+            scope = LogScope.paywallView,
+            message = "Opening checkout URL in Chrome Custom Tab: $url",
+        )
+
+        // Launch Chrome Custom Tab using activity result launcher
+        activityResultLauncher?.launch(url) ?: run {
+            Logger.debug(
+                logLevel = LogLevel.error,
+                scope = LogScope.paywallView,
+                message = "Activity result launcher not initialized - cannot present Chrome Custom Tab",
+            )
+            isPaymentSheetPresented = false
         }
     }
 
@@ -898,6 +964,80 @@ class PaywallView(
 
     internal fun destroyWebview() {
         webView.destroy()
+    }
+
+    private var activityResultLauncher: ActivityResultLauncher<String>? = null
+
+    internal fun registerIntent(
+        lifecycleOwner: LifecycleOwner,
+        registryOwner: ActivityResultRegistryOwner,
+    ) {
+        activityResultLauncher =
+            registryOwner.activityResultRegistry.register(
+                "checkoutSheet",
+                lifecycleOwner,
+                object : ActivityResultContract<String, Int>() {
+                    override fun createIntent(
+                        context: Context,
+                        input: String,
+                    ): Intent {
+                        val height = context.resources.displayMetrics.heightPixels * 0.9
+                        val customTabsIntent =
+                            CustomTabsIntent
+                                .Builder()
+                                .setColorScheme(COLOR_SCHEME_LIGHT)
+                                .setDownloadButtonEnabled(false)
+                                .apply {
+                                    when (val style = state.presentationStyle) {
+                                        is PaywallPresentationStyle.Drawer -> {
+                                            setToolbarCornerRadiusDp(style.cornerRadius.toInt())
+                                        }
+
+                                        is PaywallPresentationStyle.Popup -> {
+                                            setToolbarCornerRadiusDp(style.cornerRadius.toInt())
+                                        }
+
+                                        else -> {} // NOOP
+                                    }
+                                }.setShowTitle(true)
+                                .setBookmarksButtonEnabled(false)
+                                .setShareState(CustomTabsIntent.SHARE_STATE_OFF)
+                                .setInstantAppsEnabled(true)
+                                .setSendToExternalDefaultHandlerEnabled(true)
+                                .setOpenInBrowserButtonState(OPEN_IN_BROWSER_STATE_OFF)
+                                .setCloseButtonIcon(
+                                    AppCompatResources
+                                        .getDrawable(context, R.drawable.none)!!
+                                        .mutate()
+                                        .let {
+                                            DrawableCompat.setTint(it, TRANSPARENT)
+                                            it.toBitmap()
+                                        },
+                                ).setUrlBarHidingEnabled(true)
+                                .setInitialActivityHeightPx(
+                                    height.toInt(),
+                                    CustomTabsIntent.ACTIVITY_HEIGHT_ADJUSTABLE,
+                                ).build()
+                                .intent
+                        customTabsIntent.setPackage(CustomTabsHelper.getPackageNameToUse(context))
+                        customTabsIntent.setData(input.toUri())
+                        return customTabsIntent
+                    }
+
+                    override fun parseResult(
+                        resultCode: Int,
+                        intent: Intent?,
+                    ): Int = resultCode
+                },
+            ) { statusCode ->
+                // Handle Chrome Custom Tab closure
+                Logger.debug(
+                    logLevel = LogLevel.debug,
+                    scope = LogScope.paywallView,
+                    message = "Chrome Custom Tab closed with status code: $statusCode",
+                )
+                controller.updateState(PaywallViewState.Updates.SetBrowserPresented(false))
+            }
     }
 
 //endregion

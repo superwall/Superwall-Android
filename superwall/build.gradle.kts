@@ -26,15 +26,15 @@ plugins {
 version = "2.5.6"
 
 android {
-    compileSdk = 35
+    compileSdk = 36
     namespace = "com.superwall.sdk"
 
     defaultConfig {
-        minSdkVersion(22)
+        minSdkVersion(21)
         targetSdkVersion(33)
 
         aarMetadata {
-            minCompileSdk = 26
+            minCompileSdk = 21
         }
 
         ndk {
@@ -139,6 +139,9 @@ dependencies {
     ksp(libs.room.compiler)
     implementation(libs.kotlinx.coroutines.guava)
     implementation(libs.threetenbp)
+    implementation(libs.lifecycle.runtime.ktx)
+    implementation(libs.activity)
+    implementation(libs.activity.ktx)
     // Billing
     implementation(libs.billing)
     implementation(libs.supercel)
@@ -161,10 +164,6 @@ dependencies {
 
     // Google Play Review
     implementation(libs.play.review.ktx)
-
-    // Google Ads identifiers
-    implementation(libs.play.services.appset)
-    implementation(libs.play.services.ads.identifier)
 
     // Test
     testImplementation(libs.junit)

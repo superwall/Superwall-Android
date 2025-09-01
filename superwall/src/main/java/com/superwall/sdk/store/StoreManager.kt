@@ -50,7 +50,7 @@ class StoreManager(
             )
 
         val productAttributes =
-            paywall.productItems.mapNotNull { productItem ->
+            paywall.playStoreProducts.mapNotNull { productItem ->
                 output.productsByFullId[productItem.fullProductId]?.let { storeProduct ->
                     ProductVariable(
                         name = productItem.name,
@@ -59,7 +59,17 @@ class StoreManager(
                 }
             }
 
-        return productAttributes
+        val stripeProducts =
+            paywall.stripeProducts.mapNotNull {
+                output.productsByFullId[it.fullProductId]?.let { stripeProduct ->
+                    ProductVariable(
+                        name = it.name,
+                        attributes = stripeProduct.attributes,
+                    )
+                }
+            }
+
+        return productAttributes + stripeProducts
     }
 
     override suspend fun getProductsWithoutPaywall(

@@ -6,6 +6,9 @@ import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.config.models.ConfigurationStatus
 import com.superwall.sdk.debug.DebugManager
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.toResult
 import com.superwall.sdk.utilities.withErrorTracking
@@ -31,8 +34,18 @@ class DeepLinkRouter(
                 } else {
                     unhandledDeepLinks.add(uri)
                 }
+                Logger.debug(
+                    LogLevel.info,
+                    LogScope.deepLinks,
+                    "Superwall handling provided deep link",
+                )
                 Result.success(true)
             } else {
+                Logger.debug(
+                    LogLevel.info,
+                    LogScope.deepLinks,
+                    "Superwall not handling the provided deep link",
+                )
                 Result.failure(IllegalArgumentException("Not a superwall link"))
             }
     }
@@ -79,7 +92,7 @@ internal val Uri.redeemableCode: Result<String>
         val failure =
             Result.failure<String>(UnsupportedOperationException("Link not valid for redemption"))
         return if (host?.contains("superwall") == true && lastPathSegment.equals("redeem")) {
-            getQueryParameter("code")?.let {
+            (getQueryParameter("code") ?: getQueryParameter("codes"))?.let {
                 Result.success(it)
             } ?: failure
         } else {

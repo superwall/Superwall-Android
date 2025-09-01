@@ -5,6 +5,7 @@ import com.superwall.sdk.analytics.internal.TrackingLogic
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.UserInitiatedEvent
 import com.superwall.sdk.misc.fold
+import com.superwall.sdk.misc.onError
 import com.superwall.sdk.models.config.FeatureGatingBehavior
 import com.superwall.sdk.paywall.presentation.internal.InternalPresentationLogic
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
@@ -38,7 +39,11 @@ suspend fun Superwall.dismiss() =
                 dismiss(paywallView = it, result = PaywallResult.Declined()) {
                     completionSignal.complete(Unit)
                 }
-            } ?: completionSignal.complete(Unit)
+            } ?: run {
+                completionSignal.complete(Unit)
+            }
+        }.onError {
+            it.printStackTrace()
         }
 
         completionSignal.await()
