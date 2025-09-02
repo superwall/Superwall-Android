@@ -466,6 +466,7 @@ sealed class InternalSuperwallEvent(
         var demandScore: Int? = null,
         var demandTier: String? = null,
         var userAttributes: Map<String, Any>? = null,
+        var store: String = "PLAY_STORE",
     ) : TrackableSuperwallEvent {
         enum class TransactionSource(
             val raw: String,
@@ -579,6 +580,8 @@ sealed class InternalSuperwallEvent(
                     if (demandTier != null) {
                         eventParams["attr_demandTier"] = demandTier
                     }
+                    eventParams["store"] = store
+                    eventParams["source"] = source.raw
                     if (state is State.Complete) {
                         eventParams["user_attributes"] = userAttributes
                     }

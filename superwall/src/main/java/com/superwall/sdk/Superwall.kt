@@ -326,11 +326,6 @@ class Superwall(
         get() =
             dependencyContainer.attributionManager.integrationAttributes
 
-    fun checkout() =
-        mainScope.launch {
-            dependencyContainer.reedemer.startCheckoutSession()
-        }
-
     /**
      * Sets 3rd party integration identifiers for this user.
      * The identifiers will be passed to Superwall backend.
