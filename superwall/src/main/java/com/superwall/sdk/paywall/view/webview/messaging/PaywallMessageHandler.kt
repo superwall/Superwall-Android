@@ -3,7 +3,6 @@ package com.superwall.sdk.paywall.view.webview.messaging
 import TemplateLogic
 import android.net.Uri
 import android.util.Base64
-import android.util.Log
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import com.superwall.sdk.Superwall
@@ -19,6 +18,7 @@ import com.superwall.sdk.misc.MainScope
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
+import com.superwall.sdk.paywall.view.WebCheckoutSession
 import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 import com.superwall.sdk.paywall.view.webview.PaywallMessage
 import com.superwall.sdk.paywall.view.webview.WrappedPaywallMessages
@@ -52,7 +52,7 @@ interface PaywallMessageHandlerDelegate {
 
     fun presentBrowserExternal(url: String)
 
-    fun openWebCheckout(url: String)
+    fun initiateWebCheckout(webCheckoutSession: WebCheckoutSession)
 }
 
 class PaywallMessageHandler(
@@ -179,6 +179,19 @@ class PaywallMessageHandler(
                 }
 
             is PaywallMessage.RequestReview -> handleRequestReview(message)
+            is PaywallMessage.InitiateWebCheckout -> {
+                delegate?.initiateWebCheckout(
+                    WebCheckoutSession(
+                        message.checkoutId,
+                        message.productIdentifier,
+                        message.paywallIdentifier,
+                        message.experimentVariantId,
+                        message.presentedByEventName,
+                        message.store,
+                    ),
+                )
+                delegate?.eventDidOccur(PaywallWebEvent.InitiatePurchase(message.productIdentifier))
+            }
 
             else -> {
                 Logger.debug(
@@ -349,14 +362,8 @@ class PaywallMessageHandler(
             mapOf("url" to url),
         )
         hapticFeedback()
-
-        if (url.toString().contains("checkout.stripe.com")) {
-            Log.e("WC", "Opening web checkout")
-            delegate?.openWebCheckout(url.toString())
-        } else {
-            delegate?.eventDidOccur(PaywallWebEvent.OpenedUrlInChrome(url))
-            delegate?.presentBrowserExternal(url.toString())
-        }
+        delegate?.eventDidOccur(PaywallWebEvent.OpenedUrlInChrome(url))
+        delegate?.presentBrowserExternal(url.toString())
     }
 
     private fun openDeepLink(url: Uri) {

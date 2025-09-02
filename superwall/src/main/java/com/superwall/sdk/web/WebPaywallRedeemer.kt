@@ -27,6 +27,8 @@ import com.superwall.sdk.models.internal.RedemptionOwnership
 import com.superwall.sdk.models.internal.RedemptionOwnershipType
 import com.superwall.sdk.models.internal.RedemptionResult
 import com.superwall.sdk.models.internal.UserId
+import com.superwall.sdk.models.product.StripeProductType
+import com.superwall.sdk.models.transactions.CheckoutId
 import com.superwall.sdk.models.transactions.CheckoutStatus
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.network.NetworkError
@@ -38,13 +40,15 @@ import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.plus
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
-import kotlin.time.Duration.Companion.seconds
 
 class WebPaywallRedeemer(
     val context: Context,
@@ -84,6 +88,10 @@ class WebPaywallRedeemer(
     val getIntegrationProps: () -> Map<String, Any> = { Superwall.instance.integrationAttributes },
 ) {
     private var pollingJob: Job? = null
+    private var checkoutSessionState: MutableStateFlow<CheckoutId?> = MutableStateFlow(null)
+
+    val isCheckoutInProgress: Boolean
+        get() = checkoutSessionState.value != null
 
     private fun convertToJsonElement(value: Any?): JsonElement? =
         when (value) {
@@ -151,8 +159,7 @@ class WebPaywallRedeemer(
         if (!isWebToAppEnabled()) {
             return
         } else {
-            Log.e("Poller", "Web")
-            delay(10.seconds)
+            //     delay(10.seconds)
             // We want to keep track of the codes that have been retrieved by the user
             val latestResponse = storage.read(LatestRedemptionResponse)
             val allCodes = latestResponse?.allCodes?.toMutableList() ?: mutableListOf()
@@ -291,7 +298,6 @@ class WebPaywallRedeemer(
                         }
                     },
                 )
-            Log.e("Poller", "Gonna poll")
             startPolling()
         }
     }
@@ -388,11 +394,12 @@ class WebPaywallRedeemer(
         }
     }
 
-    suspend fun startCheckoutSession(
+    fun startCheckoutSession(
         id: String,
-        callback: (PaywallMessage) -> Unit,
+        callback: (PaywallMessage, StripeProductType, List<String>) -> Unit,
     ) {
-        val status =
+        checkoutSessionState.update { id }
+        ioScope.launch {
             retrying(maxRetryCount = 6, isRetryingCallback = null, operation = {
                 network
                     .checkoutStatus(id)
@@ -426,10 +433,16 @@ class WebPaywallRedeemer(
                             }
 
                             is CheckoutStatus.Completed -> {
-                                callback(PaywallMessage.TransactionComplete)
+                                callback(PaywallMessage.TransactionComplete, status.product, status.redemptionCodes)
                             }
                         }
                     }
             })
+                .onError {
+                    checkoutSessionState.update { null }
+                }.then {
+                    checkoutSessionState.update { null }
+                }
+        }
     }
 }

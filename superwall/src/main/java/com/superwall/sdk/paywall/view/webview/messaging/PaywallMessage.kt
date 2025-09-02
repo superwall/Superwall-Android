@@ -68,6 +68,11 @@ sealed class PaywallMessage {
 
     data class InitiateWebCheckout(
         val checkoutId: String,
+        val productIdentifier: String,
+        val paywallIdentifier: String,
+        val experimentVariantId: Int,
+        val presentedByEventName: String,
+        val store: String,
     ) : PaywallMessage()
 
     data class RequestReview(
@@ -136,6 +141,11 @@ private fun parsePaywallMessage(json: JSONObject): PaywallMessage {
         "initiate_web_checkout" ->
             PaywallMessage.InitiateWebCheckout(
                 json.getString("checkout_context_id"),
+                json.getString("product_identifier"),
+                json.getString("paywall_identifier"),
+                json.getString("experiment_variant_id").toIntOrNull() ?: 0,
+                json.getString("presented_by_event_name"),
+                json.getString("store"),
             )
         else -> {
             throw IllegalArgumentException("Unknown event name: $eventName")

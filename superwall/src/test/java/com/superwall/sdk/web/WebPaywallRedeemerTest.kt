@@ -22,9 +22,14 @@ import com.superwall.sdk.models.internal.StoreIdentifiers
 import com.superwall.sdk.models.internal.UserId
 import com.superwall.sdk.models.internal.VendorId
 import com.superwall.sdk.models.internal.WebRedemptionResponse
+import com.superwall.sdk.models.product.StripeProductType
+import com.superwall.sdk.models.transactions.AbandonedCheckout
+import com.superwall.sdk.models.transactions.CheckoutStatus
+import com.superwall.sdk.models.transactions.CheckoutStatusResponse
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.network.NetworkError
 import com.superwall.sdk.paywall.presentation.PaywallInfo
+import com.superwall.sdk.paywall.view.webview.PaywallMessage
 import com.superwall.sdk.storage.LatestRedemptionResponse
 import com.superwall.sdk.storage.Storable
 import com.superwall.sdk.storage.Storage
@@ -47,6 +52,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.junit.Before
 import org.junit.Test
+import java.math.BigDecimal
 import kotlin.time.Duration.Companion.seconds
 
 class WebPaywallRedeemerTest {
@@ -64,6 +70,7 @@ class WebPaywallRedeemerTest {
 
     private val deepLinkReferrer: CheckForReferral = mockk()
     private val testDispatcher = StandardTestDispatcher()
+    private val testScheduler = testDispatcher.scheduler
 
     private val setEntitlementStatus: (List<Entitlement>) -> Unit = {
         mutableEntitlements += it.toSet()
@@ -123,7 +130,10 @@ class WebPaywallRedeemerTest {
                                                 PurchaserInfo(
                                                     getUserId().value,
                                                     "email",
-                                                    StoreIdentifiers.Stripe(stripeCustomerId = "123", emptyList()),
+                                                    StoreIdentifiers.Stripe(
+                                                        stripeCustomerId = "123",
+                                                        emptyList(),
+                                                    ),
                                                 ),
                                             entitlements = listOf(webEntitlement),
                                         ),
@@ -726,7 +736,10 @@ class WebPaywallRedeemerTest {
                                                 PurchaserInfo(
                                                     "test_user",
                                                     "test@example.com",
-                                                    StoreIdentifiers.Stripe(stripeCustomerId = "123", emptyList()),
+                                                    StoreIdentifiers.Stripe(
+                                                        stripeCustomerId = "123",
+                                                        emptyList(),
+                                                    ),
                                                 ),
                                             entitlements = listOf(webEntitlement),
                                         ),
@@ -805,7 +818,10 @@ class WebPaywallRedeemerTest {
                                                 PurchaserInfo(
                                                     "test_user",
                                                     "test@example.com",
-                                                    StoreIdentifiers.Stripe(stripeCustomerId = "123", emptyList()),
+                                                    StoreIdentifiers.Stripe(
+                                                        stripeCustomerId = "123",
+                                                        emptyList(),
+                                                    ),
                                                 ),
                                             entitlements = listOf(webEntitlement),
                                         ),
@@ -882,7 +898,10 @@ class WebPaywallRedeemerTest {
                                                 PurchaserInfo(
                                                     "test_user",
                                                     "test@example.com",
-                                                    StoreIdentifiers.Stripe(stripeCustomerId = "123", emptyList()),
+                                                    StoreIdentifiers.Stripe(
+                                                        stripeCustomerId = "123",
+                                                        emptyList(),
+                                                    ),
                                                 ),
                                             entitlements = listOf(webEntitlement),
                                         ),
@@ -985,7 +1004,10 @@ class WebPaywallRedeemerTest {
                                                 PurchaserInfo(
                                                     "test_user",
                                                     "test@example.com",
-                                                    StoreIdentifiers.Stripe(stripeCustomerId = "123", emptyList()),
+                                                    StoreIdentifiers.Stripe(
+                                                        stripeCustomerId = "123",
+                                                        emptyList(),
+                                                    ),
                                                 ),
                                             entitlements = listOf(webEntitlement),
                                         ),
@@ -1034,6 +1056,381 @@ class WebPaywallRedeemerTest {
                             network.redeemToken(any(), any(), any(), any(), any(), any(), any())
                         }
                         // The conversion should not throw an exception and should handle all data types
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `test startCheckoutSession with pending status retries until completion`() =
+        runTest(testDispatcher) {
+            Given("a WebPaywallRedeemer with checkout session that transitions from pending to completed") {
+                val checkoutId = "checkout_123"
+                val redemptionCodes = listOf("code1", "code2")
+                val stripeProduct =
+                    StripeProductType(
+                        id = "test_product",
+                        price = BigDecimal("9.99"),
+                        localizedPrice = "$9.99",
+                        currencyCode = "USD",
+                        currencySymbol = "$",
+                        priceLocale = StripeProductType.PriceLocale("", "", "", ""),
+                        stripeSubscriptionPeriod = null,
+                        subscriptionIntroOffer = null,
+                        entitlements = emptyList(),
+                    )
+
+                var callCount = 0
+                coEvery { network.checkoutStatus(checkoutId) } answers {
+                    callCount++
+                    if (callCount < 3) {
+                        Either.Success(CheckoutStatusResponse(CheckoutStatus.Pending))
+                    } else {
+                        Either.Success(
+                            CheckoutStatusResponse(
+                                CheckoutStatus.Completed(
+                                    redemptionCodes,
+                                    stripeProduct,
+                                ),
+                            ),
+                        )
+                    }
+                }
+
+                val messageCallback =
+                    mockk<(PaywallMessage, StripeProductType, List<String>) -> Unit>(relaxed = true)
+
+                redeemer =
+                    WebPaywallRedeemer(
+                        context,
+                        IOScope(testDispatcher),
+                        deepLinkReferrer,
+                        network,
+                        storage,
+                        willRedeemLink = {},
+                        didRedeemLink = {},
+                        maxAge,
+                        getActiveDeviceEntitlements,
+                        getUserId,
+                        getDeviceId,
+                        getAlias,
+                        track,
+                        setSubscriptionStatus,
+                        isPaywallVisible,
+                        showRestoreDialogAndDismiss,
+                        currentPaywallEntitlements,
+                        getPaywallInfo = { PaywallInfo.empty() },
+                        trackRestorationFailed = {},
+                        isWebToAppEnabled = { true },
+                        receipts = { listOf(TransactionReceipt("mock", "orderId")) },
+                        getExternalAccountId = { "" },
+                        getIntegrationProps = { emptyMap() },
+                    )
+
+                When("starting checkout session") {
+                    redeemer.startCheckoutSession(checkoutId, messageCallback)
+                    testScheduler.advanceUntilIdle() // Let all coroutines complete
+
+                    Then("it should retry until completion and call callback") {
+                        coVerify(atLeast = 3) { network.checkoutStatus(checkoutId) }
+                        verify {
+                            messageCallback(
+                                PaywallMessage.TransactionComplete,
+                                stripeProduct,
+                                redemptionCodes,
+                            )
+                        }
+                        assert(!redeemer.isCheckoutInProgress)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `test startCheckoutSession with abandoned status tracks abandonment`() =
+        runTest(testDispatcher) {
+            Given("a WebPaywallRedeemer with checkout session that gets abandoned") {
+                val checkoutId = "checkout_456"
+                val stripeProduct =
+                    StripeProductType(
+                        id = "test_product",
+                        price = BigDecimal("9.99"),
+                        localizedPrice = "$9.99",
+                        currencyCode = "USD",
+                        currencySymbol = "$",
+                        priceLocale = StripeProductType.PriceLocale("", "", "", ""),
+                        stripeSubscriptionPeriod = null,
+                        subscriptionIntroOffer = null,
+                        entitlements = emptyList(),
+                    )
+                val abandonedCheckout =
+                    AbandonedCheckout(
+                        paywallId = "paywall_123",
+                        variantId = "variant_456",
+                        presentedByEventName = "register",
+                        stripeProduct = stripeProduct,
+                    )
+
+                coEvery { network.checkoutStatus(checkoutId) } returns
+                    Either.Success(
+                        CheckoutStatusResponse(
+                            CheckoutStatus.Abandoned(
+                                abandonedCheckout,
+                            ),
+                        ),
+                    )
+
+                val messageCallback =
+                    mockk<(PaywallMessage, StripeProductType, List<String>) -> Unit>(relaxed = true)
+                val mockTrack: (Trackable) -> Unit = mockk(relaxed = true)
+
+                redeemer =
+                    WebPaywallRedeemer(
+                        context,
+                        IOScope(testDispatcher),
+                        deepLinkReferrer,
+                        network,
+                        storage,
+                        willRedeemLink = {},
+                        didRedeemLink = {},
+                        maxAge,
+                        getActiveDeviceEntitlements,
+                        getUserId,
+                        getDeviceId,
+                        getAlias,
+                        mockTrack,
+                        setSubscriptionStatus,
+                        isPaywallVisible,
+                        showRestoreDialogAndDismiss,
+                        currentPaywallEntitlements,
+                        getPaywallInfo = { PaywallInfo.empty() },
+                        trackRestorationFailed = {},
+                        isWebToAppEnabled = { true },
+                        receipts = { listOf(TransactionReceipt("mock", "orderId")) },
+                        getExternalAccountId = { "" },
+                        getIntegrationProps = { emptyMap() },
+                    )
+
+                When("starting checkout session that gets abandoned") {
+                    redeemer.startCheckoutSession(checkoutId, messageCallback)
+                    testScheduler.advanceUntilIdle() // Let all coroutines complete
+
+                    Then("it should track abandonment and clear checkout state") {
+                        coVerify(exactly = 1) { network.checkoutStatus(checkoutId) }
+                        verify { mockTrack(any()) }
+                        verify(exactly = 0) {
+                            messageCallback(
+                                PaywallMessage.TransactionComplete,
+                                stripeProduct,
+                                emptyList(),
+                            )
+                        }
+                        assert(!redeemer.isCheckoutInProgress)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `test startCheckoutSession with network error retries and eventually fails`() =
+        runTest(testDispatcher) {
+            Given("a WebPaywallRedeemer with failing network requests") {
+                val checkoutId = "checkout_789"
+                coEvery { network.checkoutStatus(checkoutId) } returns
+                    Either.Failure(NetworkError.Unknown(Exception("Network error")))
+
+                val messageCallback =
+                    mockk<(PaywallMessage, StripeProductType, List<String>) -> Unit>(relaxed = true)
+
+                redeemer =
+                    WebPaywallRedeemer(
+                        context,
+                        IOScope(testDispatcher),
+                        deepLinkReferrer,
+                        network,
+                        storage,
+                        willRedeemLink = {},
+                        didRedeemLink = {},
+                        maxAge,
+                        getActiveDeviceEntitlements,
+                        getUserId,
+                        getDeviceId,
+                        getAlias,
+                        track,
+                        setSubscriptionStatus,
+                        isPaywallVisible,
+                        showRestoreDialogAndDismiss,
+                        currentPaywallEntitlements,
+                        getPaywallInfo = { PaywallInfo.empty() },
+                        trackRestorationFailed = {},
+                        isWebToAppEnabled = { true },
+                        receipts = { listOf(TransactionReceipt("mock", "orderId")) },
+                        getExternalAccountId = { "" },
+                        getIntegrationProps = { emptyMap() },
+                    )
+
+                When("starting checkout session with network errors") {
+                    redeemer.startCheckoutSession(checkoutId, messageCallback)
+                    testScheduler.advanceUntilIdle() // Let all coroutines complete
+
+                    Then("it should retry 6 times and eventually clear checkout state") {
+                        coVerify(exactly = 7) { network.checkoutStatus(checkoutId) }
+                        verify(exactly = 0) {
+                            messageCallback(
+                                PaywallMessage.TransactionComplete,
+                                any(),
+                                any(),
+                            )
+                        }
+                        assert(!redeemer.isCheckoutInProgress)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `test startCheckoutSession state management - isCheckoutInProgress`() =
+        runTest(testDispatcher) {
+            Given("a WebPaywallRedeemer with checkout session") {
+                val checkoutId = "checkout_state_test"
+                val stripeProduct =
+                    StripeProductType(
+                        id = "state_product",
+                        price = BigDecimal("5.99"),
+                        localizedPrice = "$5.99",
+                        currencyCode = "USD",
+                        currencySymbol = "$",
+                        priceLocale = StripeProductType.PriceLocale("", "", "", ""),
+                        stripeSubscriptionPeriod = null,
+                        subscriptionIntroOffer = null,
+                        entitlements = emptyList(),
+                    )
+
+                coEvery { network.checkoutStatus(checkoutId) } returns
+                    Either.Success(
+                        CheckoutStatusResponse(
+                            CheckoutStatus.Completed(
+                                listOf("test_code"),
+                                stripeProduct,
+                            ),
+                        ),
+                    )
+
+                val messageCallback = mockk<(PaywallMessage, StripeProductType, List<String>) -> Unit>(relaxed = true)
+
+                redeemer =
+                    WebPaywallRedeemer(
+                        context,
+                        IOScope(testDispatcher),
+                        deepLinkReferrer,
+                        network,
+                        storage,
+                        willRedeemLink = {},
+                        didRedeemLink = {},
+                        maxAge,
+                        getActiveDeviceEntitlements,
+                        getUserId,
+                        getDeviceId,
+                        getAlias,
+                        track,
+                        setSubscriptionStatus,
+                        isPaywallVisible,
+                        showRestoreDialogAndDismiss,
+                        currentPaywallEntitlements,
+                        getPaywallInfo = { PaywallInfo.empty() },
+                        trackRestorationFailed = {},
+                        isWebToAppEnabled = { true },
+                        receipts = { listOf(TransactionReceipt("mock", "orderId")) },
+                        getExternalAccountId = { "" },
+                        getIntegrationProps = { emptyMap() },
+                    )
+
+                When("starting checkout session") {
+                    assert(!redeemer.isCheckoutInProgress) // Initially false
+
+                    redeemer.startCheckoutSession(checkoutId, messageCallback)
+                    testScheduler.advanceUntilIdle() // Let all coroutines complete
+
+                    Then("isCheckoutInProgress should be false after completion") {
+                        assert(!redeemer.isCheckoutInProgress)
+                        verify(exactly = 1) {
+                            messageCallback(
+                                PaywallMessage.TransactionComplete,
+                                any(),
+                                any(),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `test startCheckoutSession with immediate completion`() =
+        runTest(testDispatcher) {
+            Given("a WebPaywallRedeemer with checkout session that completes immediately") {
+                val checkoutId = "checkout_immediate"
+                val redemptionCodes = listOf("immediate_code")
+                val stripeProduct =
+                    StripeProductType(
+                        id = "immediate_product",
+                        price = BigDecimal("19.99"),
+                        localizedPrice = "$19.99",
+                        currencyCode = "USD",
+                        currencySymbol = "$",
+                        priceLocale = StripeProductType.PriceLocale("", "", "", ""),
+                        stripeSubscriptionPeriod = null,
+                        subscriptionIntroOffer = null,
+                        entitlements = emptyList(),
+                    )
+
+                coEvery { network.checkoutStatus(checkoutId) } returns
+                    Either.Success(
+                        CheckoutStatusResponse(
+                            CheckoutStatus.Completed(
+                                redemptionCodes,
+                                stripeProduct,
+                            ),
+                        ),
+                    )
+
+                val messageCallback = mockk<(PaywallMessage, StripeProductType, List<String>) -> Unit>(relaxed = true)
+
+                redeemer =
+                    WebPaywallRedeemer(
+                        context,
+                        IOScope(testDispatcher),
+                        deepLinkReferrer,
+                        network,
+                        storage,
+                        willRedeemLink = {},
+                        didRedeemLink = {},
+                        maxAge,
+                        getActiveDeviceEntitlements,
+                        getUserId,
+                        getDeviceId,
+                        getAlias,
+                        track,
+                        setSubscriptionStatus,
+                        isPaywallVisible,
+                        showRestoreDialogAndDismiss,
+                        currentPaywallEntitlements,
+                        getPaywallInfo = { PaywallInfo.empty() },
+                        trackRestorationFailed = {},
+                        isWebToAppEnabled = { true },
+                        receipts = { listOf(TransactionReceipt("mock", "orderId")) },
+                        getExternalAccountId = { "" },
+                        getIntegrationProps = { emptyMap() },
+                    )
+
+                When("starting checkout session that completes immediately") {
+                    redeemer.startCheckoutSession(checkoutId, messageCallback)
+                    testScheduler.advanceUntilIdle() // Let all coroutines complete
+
+                    Then("it should call callback only once and clear state") {
+                        coVerify(exactly = 1) { network.checkoutStatus(checkoutId) }
+                        verify(exactly = 1) { messageCallback(PaywallMessage.TransactionComplete, stripeProduct, redemptionCodes) }
+                        assert(!redeemer.isCheckoutInProgress)
                     }
                 }
             }

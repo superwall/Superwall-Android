@@ -1,12 +1,11 @@
 package com.superwall.sdk.paywall.view
 
 import android.app.Activity
-import android.app.Activity.RESULT_OK
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
+import android.graphics.Color
 import android.os.Build
-import android.util.Log
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
@@ -17,17 +16,22 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContract
 import androidx.activity.result.registerForActivityResult
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.content.res.AppCompatResources
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.browser.customtabs.CustomTabsIntent.COLOR_SCHEME_DARK
 import androidx.browser.customtabs.CustomTabsIntent.COLOR_SCHEME_LIGHT
 import androidx.browser.customtabs.CustomTabsIntent.SHARE_STATE_OFF
+import androidx.core.graphics.drawable.DrawableCompat
+import androidx.core.graphics.drawable.toBitmap
 import androidx.core.net.toUri
+import com.superwall.sdk.R
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEvents
 import com.superwall.sdk.config.models.OnDeviceCaching
 import com.superwall.sdk.config.options.PaywallOptions
+import com.superwall.sdk.dependencies.DeviceHelperFactory
 import com.superwall.sdk.dependencies.OptionsFactory
 import com.superwall.sdk.dependencies.TriggerFactory
 import com.superwall.sdk.game.GameControllerDelegate
@@ -41,8 +45,10 @@ import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.MainScope
 import com.superwall.sdk.misc.isDarkColor
 import com.superwall.sdk.misc.toResult
+import com.superwall.sdk.models.paywall.LocalNotificationType
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.PaywallPresentationStyle
+import com.superwall.sdk.models.product.StripeProductType.SubscriptionIntroductoryOffer
 import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.paywall.manager.PaywallCacheLogic
@@ -66,6 +72,7 @@ import com.superwall.sdk.paywall.view.webview.SWWebViewDelegate
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessageHandlerDelegate
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent
 import com.superwall.sdk.storage.LocalStorage
+import com.superwall.sdk.store.transactions.notifications.NotificationScheduler
 import com.superwall.sdk.utilities.withErrorTracking
 import com.superwall.sdk.web.WebPaywallRedeemer
 import kotlinx.coroutines.delay
@@ -111,7 +118,8 @@ class PaywallView(
 
     interface Factory :
         TriggerFactory,
-        OptionsFactory
+        OptionsFactory,
+        DeviceHelperFactory
     //region Public properties
 
     // MUST be set prior to presentation
@@ -794,11 +802,15 @@ class PaywallView(
 
     override fun presentBrowserInApp(url: String) {
         try {
-            val parsedUrl = URI(url)
-            val customTabsIntent = CustomTabsIntent.Builder().build()
-            customTabsIntent.intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            customTabsIntent.launchUrl(context, parsedUrl.toString().toUri())
-            isBrowserViewPresented = true
+            if (redeemer.isCheckoutInProgress) {
+                activityResultLauncher?.launch(url)
+            } else {
+                val parsedUrl = URI(url)
+                val customTabsIntent = CustomTabsIntent.Builder().build()
+                customTabsIntent.intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                customTabsIntent.launchUrl(context, parsedUrl.toString().toUri())
+                isBrowserViewPresented = true
+            }
         } catch (e: MalformedURLException) {
             Logger.debug(
                 logLevel = LogLevel.debug,
@@ -811,6 +823,28 @@ class PaywallView(
                 scope = LogScope.paywallView,
                 message = "Exception thrown for \"Open In-App URL\" click behavior.",
             )
+        }
+    }
+
+    private var latestWebCheckoutSession: WebCheckoutSession? = null
+
+    override fun initiateWebCheckout(session: WebCheckoutSession) {
+        webView.messageHandler.handle(PaywallMessage.TransactionStart)
+        redeemer.startCheckoutSession(session.checkoutId) { message, product, codes ->
+            val act = encapsulatingActivity?.get() ?: context as Activity
+            val intent = act.intent
+            intent?.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+            act.startActivity(intent)
+            webView.messageHandler.handle(PaywallMessage.TransactionComplete)
+            product.subscriptionIntroOffer?.let {
+                if (it.paymentMethod == SubscriptionIntroductoryOffer.PaymentMethod.freeTrial) {
+                    val notifications =
+                        info.localNotifications.filter {
+                            it.type == LocalNotificationType.TrialStarted
+                        }
+                    NotificationScheduler.scheduleNotifications(notifications, factory, context)
+                }
+            }
         }
     }
 
@@ -860,10 +894,26 @@ class PaywallView(
                                 .Builder()
                                 .setColorScheme(if (paywall.backgroundColor.isDarkColor()) COLOR_SCHEME_DARK else COLOR_SCHEME_LIGHT)
                                 .setDownloadButtonEnabled(false)
+                                .apply {
+                                    when (val style = presentationStyle) {
+                                        is PaywallPresentationStyle.Drawer -> {
+                                            setToolbarCornerRadiusDp(style.cornerRadius.toInt())
+                                        }
+                                        is PaywallPresentationStyle.Popup -> {
+                                            setToolbarCornerRadiusDp(style.cornerRadius.toInt())
+                                        }
+                                        else -> {} // NOOP
+                                    }
+                                }.setShowTitle(false)
                                 .setBookmarksButtonEnabled(false)
                                 .setShareState(CustomTabsIntent.SHARE_STATE_OFF)
                                 .setInstantAppsEnabled(false)
-                                .setUrlBarHidingEnabled(true)
+                                .setCloseButtonIcon(
+                                    AppCompatResources.getDrawable(context, R.drawable.none)!!.mutate().let {
+                                        DrawableCompat.setTint(it, Color.TRANSPARENT)
+                                        it.toBitmap()
+                                    },
+                                ).setUrlBarHidingEnabled(true)
                                 .setBackgroundInteractionEnabled(false)
                                 .setInitialActivityHeightPx(
                                     height.toInt(),
@@ -880,20 +930,8 @@ class PaywallView(
                     ): Int = resultCode
                 },
             ) { statusCode ->
-                if (statusCode == RESULT_OK) {
-                    Log.e("Got result ", "Status OK $statusCode")
-                } else {
-                    ioScope.launch {
-                    }
-                    Log.e("Got result ", "Status CANCEL $statusCode")
-                }
-
-                // Handle result (statusCode will usually be RESULT_OK/RESULT_CANCELED)
+                // Ignored, We automatically handle result via checkout status
             }
-    }
-
-    override fun openWebCheckout(url: String) {
-        activityResultLauncher?.launch(url)
     }
 
     //region GameController
