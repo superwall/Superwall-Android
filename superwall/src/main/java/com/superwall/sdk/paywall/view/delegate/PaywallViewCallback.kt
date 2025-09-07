@@ -20,13 +20,13 @@ fun interface PaywallViewEventCallback {
 }
 
 sealed class PaywallLoadingState {
-    class Unknown : PaywallLoadingState()
+    object Unknown : PaywallLoadingState()
 
-    class LoadingPurchase : PaywallLoadingState()
+    object LoadingPurchase : PaywallLoadingState()
 
-    class LoadingURL : PaywallLoadingState()
+    object LoadingURL : PaywallLoadingState()
 
-    class ManualLoading : PaywallLoadingState()
+    object ManualLoading : PaywallLoadingState()
 
-    class Ready : PaywallLoadingState()
+    object Ready : PaywallLoadingState()
 }

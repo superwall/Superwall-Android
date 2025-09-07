@@ -92,11 +92,15 @@ sealed class InternalSuperwallEvent(
         override val audienceFilterParams: Map<String, Any>
             get() {
                 val output = paywallInfo.audienceFilterParams()
-                return output +
-                    mapOf(
-                        "survey_selected_option_title" to selectedOption.title,
-                        "survey_custom_response" to customResponse,
-                    ).filter { (_, value) -> value != null } as MutableMap<String, Any>
+                return (
+                    output +
+                        mapOf(
+                            "survey_selected_option_title" to selectedOption.title,
+                            "survey_custom_response" to customResponse,
+                        ).map { (key, value) -> if (value != null) key to value else null }
+                            .filterNotNull()
+                            .toMap()
+                )
             }
 
         override suspend fun getSuperwallParameters(): Map<String, Any> {
@@ -254,8 +258,7 @@ sealed class InternalSuperwallEvent(
                 is State.Fail -> return params
                 is State.Complete -> return HashMap(
                     state.paywallInfo
-                        .eventParams(otherParams = params)
-                        .filterValues { it != null } as Map<String, Any>,
+                        .eventParams(otherParams = params),
                 )
             }
         }
@@ -928,7 +931,9 @@ sealed class InternalSuperwallEvent(
                 "paywall_id" to paywallId,
                 "preloading_enabled" to preloadingEnabled,
                 "visible_duration" to visibleDuration,
-            ).filter { it.value != null }.toMap() as Map<String, Any>
+            ).map { (key, value) -> if (value != null) key to value else null }
+                .filterNotNull()
+                .toMap()
 
         override val canImplicitlyTriggerPaywall: Boolean = false
     }

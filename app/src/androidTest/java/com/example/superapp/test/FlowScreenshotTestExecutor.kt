@@ -102,8 +102,7 @@ class FlowScreenshotTestExecutor {
                     mainScope
                         .async {
                             Superwall.instance.paywallView
-                                ?.webView
-                                ?.scrollBy(0, 300) ?: kotlin.run {
+                                ?.scrollBy(300) ?: kotlin.run {
                                 throw IllegalStateException("No view found")
                             }
                         }.await()
@@ -113,8 +112,7 @@ class FlowScreenshotTestExecutor {
                     mainScope
                         .async {
                             Superwall.instance.paywallView
-                                ?.webView
-                                ?.scrollTo(0, 0) ?: kotlin.run {
+                                ?.scrollTo(0) ?: kotlin.run {
                                 throw IllegalStateException("No view found")
                             }
                         }.await()

@@ -142,7 +142,11 @@ class PaywallPreload(
         val oldPaywalls = oldConfig.paywalls
         val newPaywalls = newConfig.paywalls
 
-        val presentedPaywallId = paywallManager.currentView?.paywall?.identifier
+        val presentedPaywallId =
+            paywallManager.currentView
+                ?.state
+                ?.paywall
+                ?.identifier
         val oldPaywallCacheIds: Map<PaywallIdentifier, CacheKey> =
             oldPaywalls
                 .map { it.identifier to it.cacheKey }
