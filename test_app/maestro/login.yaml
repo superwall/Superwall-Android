@@ -24,6 +24,11 @@ env:
     waitToSettleTimeoutMs: 1000
 - waitForAnimationToEnd:
     timeout: 1000
+- extendedWaitUntil: # This is just to add a 2 second delay so focus is properly taken
+   visible: randText
+   optional: true
+   timeout: 2000
+
 - inputText:
     text: ${TEST_PW}
     waitToSettleTimeoutMs: 1000
