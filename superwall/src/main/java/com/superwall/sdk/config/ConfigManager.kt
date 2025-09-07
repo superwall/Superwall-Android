@@ -50,7 +50,6 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
-// TODO: Re-enable those params
 open class ConfigManager(
     private val context: Context,
     private val storeManager: StoreManager,

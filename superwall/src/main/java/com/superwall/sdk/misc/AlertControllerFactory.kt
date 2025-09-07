@@ -4,6 +4,15 @@ import android.app.AlertDialog
 import android.content.Context
 
 object AlertControllerFactory {
+    data class AlertProps(
+        val title: String? = null,
+        val message: String? = null,
+        val actionTitle: String? = null,
+        val closeActionTitle: String = "Done",
+        val action: (() -> Unit)? = null,
+        val onClose: (() -> Unit)? = null,
+    )
+
     fun make(
         context: Context,
         title: String? = null,

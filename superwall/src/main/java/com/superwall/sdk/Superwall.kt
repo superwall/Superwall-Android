@@ -52,6 +52,7 @@ import com.superwall.sdk.paywall.presentation.internal.dismiss
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult.*
 import com.superwall.sdk.paywall.view.PaywallView
+import com.superwall.sdk.paywall.view.PaywallViewState
 import com.superwall.sdk.paywall.view.SuperwallPaywallActivity
 import com.superwall.sdk.paywall.view.delegate.PaywallViewEventCallback
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent
@@ -635,7 +636,7 @@ class Superwall(
         ioScope.launchWithTracking {
             val paywallView =
                 dependencyContainer.paywallManager.currentView ?: return@launchWithTracking
-            paywallView.togglePaywallSpinner(isHidden)
+            paywallView.updateState(PaywallViewState.Updates.ToggleSpinner(isHidden))
         }
     }
 
@@ -1136,7 +1137,7 @@ class Superwall(
                                 dependencyContainer.transactionManager.purchase(
                                     Internal(
                                         paywallEvent.productId,
-                                        paywallView,
+                                        paywallView.controller.state,
                                     ),
                                 )
                             } finally {
