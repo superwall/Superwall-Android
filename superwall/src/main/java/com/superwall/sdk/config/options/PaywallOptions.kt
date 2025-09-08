@@ -1,5 +1,8 @@
 package com.superwall.sdk.config.options
 
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+
 // Options for configuring the appearance and behavior of paywalls.
 class PaywallOptions {
     // Determines whether the paywall should use haptic feedback. Defaults to true.
@@ -86,6 +89,10 @@ class PaywallOptions {
 
     // Hide shimmer optimistically
     var optimisticLoading: Boolean = false
+
+    // How long until a paywall timeout is invoked.
+    // If not using fallback loading, settings this will trigger a paywall timeout instead of retrying.
+    var timeoutAfter: Duration = 0.milliseconds
 }
 
 internal fun PaywallOptions.toMap() =

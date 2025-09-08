@@ -196,6 +196,10 @@ interface OptionsFactory {
     fun makeSuperwallOptions(): SuperwallOptions
 }
 
+interface AttributesFactory {
+    fun getCurrentUserAttributes(): Map<String, Any>
+}
+
 interface TriggerFactory {
     suspend fun makeTriggers(): Set<String>
 }

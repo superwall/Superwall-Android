@@ -19,6 +19,7 @@ import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEvents
 import com.superwall.sdk.config.models.OnDeviceCaching
 import com.superwall.sdk.config.options.PaywallOptions
+import com.superwall.sdk.dependencies.AttributesFactory
 import com.superwall.sdk.dependencies.OptionsFactory
 import com.superwall.sdk.dependencies.TriggerFactory
 import com.superwall.sdk.game.GameControllerDelegate
@@ -99,7 +100,8 @@ class PaywallView(
 
     interface Factory :
         TriggerFactory,
-        OptionsFactory
+        OptionsFactory,
+        AttributesFactory
     //region Public properties
 
     // MUST be set prior to presentation
@@ -508,7 +510,11 @@ class PaywallView(
     private suspend fun trackOpen() {
         storage.trackPaywallOpen()
         webView.messageHandler.handle(PaywallMessage.PaywallOpen)
-        val trackedEvent = InternalSuperwallEvent.PaywallOpen(info)
+        val trackedEvent =
+            InternalSuperwallEvent.PaywallOpen(
+                info,
+                factory.getCurrentUserAttributes(),
+            )
         Superwall.instance.track(trackedEvent)
     }
 

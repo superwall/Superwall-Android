@@ -400,13 +400,20 @@ sealed class InternalSuperwallEvent(
 
     class PaywallOpen(
         val paywallInfo: PaywallInfo,
+        val userAttributes: Map<String, Any>,
     ) : InternalSuperwallEvent(SuperwallEvent.PaywallOpen(paywallInfo = paywallInfo)) {
         override val audienceFilterParams: Map<String, Any>
             get() {
                 return paywallInfo.audienceFilterParams()
             }
 
-        override suspend fun getSuperwallParameters(): HashMap<String, Any> = HashMap(paywallInfo.eventParams())
+        override suspend fun getSuperwallParameters(): HashMap<String, Any> =
+            HashMap(
+                paywallInfo.eventParams() +
+                    mapOf(
+                        "user_attributes" to userAttributes,
+                    ),
+            )
     }
 
     class PaywallClose(
@@ -454,6 +461,7 @@ sealed class InternalSuperwallEvent(
         val isObserved: Boolean,
         var demandScore: Int? = null,
         var demandTier: String? = null,
+        var userAttributes: Map<String, Any>? = null,
     ) : TrackableSuperwallEvent {
         enum class TransactionSource(
             val raw: String,
@@ -566,6 +574,9 @@ sealed class InternalSuperwallEvent(
                     }
                     if (demandTier != null) {
                         eventParams["attr_demandTier"] = demandTier
+                    }
+                    if (state is State.Complete) {
+                        eventParams["user_attributes"] = userAttributes
                     }
 
                     return eventParams
@@ -1010,6 +1021,7 @@ sealed class InternalSuperwallEvent(
                             .mapValues { it.value.convertFromJsonElement() },
                         state.enrichment.device.mapValues { it.value.convertFromJsonElement() },
                     )
+
                 State.Fail -> SuperwallEvent.EnrichmentFail
                 State.Start -> SuperwallEvent.EnrichmentStart
             },
