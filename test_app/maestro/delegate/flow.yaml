@@ -23,7 +23,7 @@ appId: com.superwall.superapp
     optional: true
     timeout: 2000
 
-- assertVisible: "OpenDL"
+- assertVisible: "Open DL"
 - runFlow: "../util/back.yaml"
 
 
