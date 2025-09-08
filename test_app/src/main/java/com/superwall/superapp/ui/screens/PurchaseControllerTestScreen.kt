@@ -12,6 +12,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.config.options.SuperwallOptions
+import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.misc.ActivityProvider
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.paywall.presentation.register
@@ -32,7 +33,7 @@ fun PurchaseControllerTestScreen(navController: NavController) {
 
     val purchaseController = remember { TestingPurchaseController() }
     val apiKey = "pk_6d16c4c892b1e792490ab8bfe831f1ad96e7c18aee7a5257" // Android key
-
+    var purchaseEnabled by remember { mutableStateOf(purchaseController.purchasesEnabled) }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -110,11 +111,15 @@ fun PurchaseControllerTestScreen(navController: NavController) {
 
                 ElevatedButton(
                     onClick = {
-                        purchaseController.purchasesEnabled = !purchaseController.purchasesEnabled
+                        val currentlyEnabled =
+                            purchaseController.purchasesEnabled
+
+                        purchaseController.purchasesEnabled = !currentlyEnabled
+                        purchaseEnabled = !currentlyEnabled
                     },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text(if (purchaseController.purchasesEnabled) "Disable purchases" else "Enable purchases")
+                    Text(if (purchaseEnabled) "Disable purchases" else "Enable purchases")
                 }
 
                 ElevatedButton(
@@ -190,6 +195,7 @@ private suspend fun configureWithPC(
     val application = context.applicationContext as Application
     val options =
         SuperwallOptions().apply {
+            logging.level = LogLevel.debug
             networkEnvironment = getNetworkEnvironment()
         }
     val activityProvider =
@@ -216,6 +222,7 @@ private suspend fun configureWithoutPC(
     val application = context.applicationContext as Application
     val options =
         SuperwallOptions().apply {
+            logging.level = LogLevel.debug
             networkEnvironment = getNetworkEnvironment()
         }
     val activityProvider =

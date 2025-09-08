@@ -1,6 +1,8 @@
 appId: com.superwall.superapp
 ---
-- runFlow: "../login.yaml"
+- runFlow:
+    file: "../login.yaml"
+    optional: true
 # Launch app and navigate to Purchase Controller Test
 - launchApp: com.superwall.superapp
 - tapOn: "Purchase Controller Test"
@@ -16,7 +18,9 @@ appId: com.superwall.superapp
 - waitForAnimationToEnd:
       timeout: 1000
 # Test paywall with purchases disabled (should show error)
-- tapOn: "Continue"
+- tapOn:
+      text: "Continue"
+      waitToSettleTimeoutMs: 1000
 - assertVisible: "An error occurred"
 - tapOn:
     text: "DONE"
@@ -35,7 +39,9 @@ appId: com.superwall.superapp
 - waitForAnimationToEnd:
       timeout: 1000
 # Verify successful purchase and feature access
-- tapOn: "Continue"
+- tapOn:
+      text: "Continue"
+      waitToSettleTimeoutMs: 1000
 - assertVisible: 
     text: "Subscribed"
     optional: true

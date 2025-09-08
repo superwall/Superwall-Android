@@ -22,7 +22,6 @@ appId: com.superwall.superapp
     visible: randText
     optional: true
     timeout: 2000
-
 - assertVisible: "Open DL"
 - runFlow: "../util/back.yaml"
 
