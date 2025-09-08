@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.superwall.sdk.Superwall
@@ -24,7 +25,7 @@ fun DelegateTestScreen(navController: NavController) {
     var showDialog by remember { mutableStateOf(false) }
     var dialogTitle by remember { mutableStateOf("") }
     var dialogContent by remember { mutableStateOf<@Composable () -> Unit>({}) }
-
+    val subscriptionStatus by Superwall.instance.subscriptionStatus.collectAsState()
     val testDelegate = remember { TestDelegate() }
 
     Scaffold(
@@ -48,6 +49,16 @@ fun DelegateTestScreen(navController: NavController) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            Text(
+                color = Color.White,
+                text = "Subscription status is ${
+                    when (subscriptionStatus){
+                        is SubscriptionStatus.Active -> "Active"
+                        SubscriptionStatus.Inactive -> "Inactve"
+                        SubscriptionStatus.Unknown -> "Unknown"
+                    }
+                }",
+            )
             ElevatedButton(
                 onClick = {
                     Superwall.instance.delegate = testDelegate
@@ -117,6 +128,18 @@ fun DelegateTestScreen(navController: NavController) {
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text("Change Subscription Status")
+            }
+
+            ElevatedButton(
+                onClick = {
+                    scope.launch {
+                        val status = SubscriptionStatus.Inactive
+                        Superwall.instance.setSubscriptionStatus(status)
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Set Status Inactive")
             }
 
             ElevatedButton(

@@ -13,8 +13,15 @@ appId: com.superwall.superapp
 # Navigate to Delegate Test screen
 - tapOn: "Delegate Test"
 
+- runFlow:
+    when:
+      visible: 'Subscription Status is Active'
+    commands:
+      - tapOn: 'Set Status Inactive'
+
 # Set up delegate and test basic paywall flow
 - tapOn: "Set Test Delegate"
+
 - tapOn: "Show Paywall"
 - waitForAnimationToEnd:
     timeout: 4000
@@ -23,7 +30,7 @@ appId: com.superwall.superapp
     optional: true
     timeout: 3000
 - assertVisible:
-      text: "Continue"
+      text: "CONTINUE"
 - runFlow: "../util/back.yaml"
 
 
