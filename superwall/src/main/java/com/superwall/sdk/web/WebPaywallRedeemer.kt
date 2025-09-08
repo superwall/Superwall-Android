@@ -1,6 +1,7 @@
 package com.superwall.sdk.web
 
 import android.content.Context
+import android.util.Log
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
@@ -13,6 +14,9 @@ import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.asEither
 import com.superwall.sdk.misc.fold
+import com.superwall.sdk.misc.onError
+import com.superwall.sdk.misc.retrying
+import com.superwall.sdk.misc.then
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.Redeemable
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
@@ -23,14 +27,22 @@ import com.superwall.sdk.models.internal.RedemptionOwnership
 import com.superwall.sdk.models.internal.RedemptionOwnershipType
 import com.superwall.sdk.models.internal.RedemptionResult
 import com.superwall.sdk.models.internal.UserId
+import com.superwall.sdk.models.product.StripeProductType
+import com.superwall.sdk.models.transactions.CheckoutId
+import com.superwall.sdk.models.transactions.CheckoutStatus
 import com.superwall.sdk.network.Network
+import com.superwall.sdk.network.NetworkError
 import com.superwall.sdk.paywall.presentation.PaywallInfo
+import com.superwall.sdk.paywall.view.webview.PaywallMessage
 import com.superwall.sdk.storage.LatestRedemptionResponse
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.plus
 import kotlinx.serialization.json.JsonArray
@@ -76,6 +88,10 @@ class WebPaywallRedeemer(
     val getIntegrationProps: () -> Map<String, Any> = { Superwall.instance.integrationAttributes },
 ) {
     private var pollingJob: Job? = null
+    private var checkoutSessionState: MutableStateFlow<CheckoutId?> = MutableStateFlow(null)
+
+    val isCheckoutInProgress: Boolean
+        get() = checkoutSessionState.value != null
 
     private fun convertToJsonElement(value: Any?): JsonElement? =
         when (value) {
@@ -94,10 +110,12 @@ class WebPaywallRedeemer(
                         }
                     }
                 }
+
             is Collection<*> ->
                 JsonArray(
                     value.mapNotNull { convertToJsonElement(it) },
                 )
+
             else -> JsonPrimitive(value.toString())
         }
 
@@ -141,6 +159,7 @@ class WebPaywallRedeemer(
         if (!isWebToAppEnabled()) {
             return
         } else {
+            //     delay(10.seconds)
             // We want to keep track of the codes that have been retrieved by the user
             val latestResponse = storage.read(LatestRedemptionResponse)
             val allCodes = latestResponse?.allCodes?.toMutableList() ?: mutableListOf()
@@ -339,11 +358,12 @@ class WebPaywallRedeemer(
 
     private fun startPolling(maxAge: Long = maxAge()) {
         if (isWebToAppEnabled()) {
+            Log.e("Poller", "Going to pol")
             pollingJob?.cancel()
             pollingJob =
                 (ioScope + Dispatchers.IO).launch {
                     while (true) {
-                        delay(maxAge)
+                        Log.e("Poller", "Ping")
                         checkForWebEntitlements(getUserId(), getDeviceId())
                             .fold(
                                 onFailure = {
@@ -368,7 +388,60 @@ class WebPaywallRedeemer(
                                     }
                                 },
                             )
+                        delay(maxAge)
                     }
+                }
+        }
+    }
+
+    fun startCheckoutSession(
+        id: String,
+        callback: (PaywallMessage, StripeProductType, List<String>) -> Unit,
+    ) {
+        checkoutSessionState.update { id }
+        ioScope.launch {
+            retrying(maxRetryCount = 6, isRetryingCallback = null, operation = {
+                network
+                    .checkoutStatus(id)
+                    .onError {
+                        Logger.debug(
+                            LogLevel.error,
+                            LogScope.webEntitlements,
+                            "Failed to receive checkout status - ${it.message} - ${it.stackTraceToString()}",
+                            error = it,
+                        )
+                    }.then { it ->
+                        when (val status = it.status) {
+                            is CheckoutStatus.Pending -> {
+                                throw NetworkError.Unknown()
+                            }
+
+                            is CheckoutStatus.Abandoned -> {
+                                track(
+                                    InternalSuperwallEvent.Transaction(
+                                        state =
+                                            InternalSuperwallEvent.Transaction.State.Abandon(
+                                                status.abandonedCheckout.stripeProduct,
+                                            ),
+                                        paywallInfo = getPaywallInfo(),
+                                        product = status.abandonedCheckout.stripeProduct,
+                                        model = null,
+                                        source = InternalSuperwallEvent.Transaction.TransactionSource.INTERNAL,
+                                        isObserved = false,
+                                    ),
+                                )
+                            }
+
+                            is CheckoutStatus.Completed -> {
+                                callback(PaywallMessage.TransactionComplete, status.product, status.redemptionCodes)
+                            }
+                        }
+                    }
+            })
+                .onError {
+                    checkoutSessionState.update { null }
+                }.then {
+                    checkoutSessionState.update { null }
                 }
         }
     }

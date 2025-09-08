@@ -22,6 +22,7 @@ import com.superwall.sdk.paywall.view.survey.SurveyPresentationResult
 import com.superwall.sdk.paywall.view.webview.WebviewError
 import com.superwall.sdk.storage.core_data.convertFromJsonElement
 import com.superwall.sdk.store.abstractions.product.StoreProduct
+import com.superwall.sdk.store.abstractions.product.StoreProductType
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
 import com.superwall.sdk.store.transactions.RestoreType
@@ -448,12 +449,13 @@ sealed class InternalSuperwallEvent(
     class Transaction(
         val state: State,
         val paywallInfo: PaywallInfo,
-        val product: StoreProduct?,
+        val product: StoreProductType?,
         val model: StoreTransaction?,
         val source: TransactionSource,
         val isObserved: Boolean,
         var demandScore: Int? = null,
         var demandTier: String? = null,
+        var store: String = "PLAY_STORE",
     ) : TrackableSuperwallEvent {
         enum class TransactionSource(
             val raw: String,
@@ -465,7 +467,7 @@ sealed class InternalSuperwallEvent(
 
         sealed class State {
             class Start(
-                val product: StoreProduct,
+                val product: StoreProductType,
             ) : State()
 
             class Fail(
@@ -473,11 +475,11 @@ sealed class InternalSuperwallEvent(
             ) : State()
 
             class Abandon(
-                val product: StoreProduct,
+                val product: StoreProductType,
             ) : State()
 
             class Complete(
-                val product: StoreProduct,
+                val product: StoreProductType,
                 val transaction: StoreTransactionType?,
             ) : State()
 
@@ -567,6 +569,8 @@ sealed class InternalSuperwallEvent(
                     if (demandTier != null) {
                         eventParams["attr_demandTier"] = demandTier
                     }
+                    eventParams["store"] = store
+                    eventParams["source"] = source.raw
 
                     return eventParams
                 }
@@ -1005,10 +1009,8 @@ sealed class InternalSuperwallEvent(
             when (state) {
                 is State.Complete ->
                     SuperwallEvent.EnrichmentComplete(
-                        state.enrichment.user
-                            .toMap()
-                            .mapValues { it.value.convertFromJsonElement() },
-                        state.enrichment.device.mapValues { it.value.convertFromJsonElement() },
+                        state.enrichment.user,
+                        state.enrichment.device,
                     )
                 State.Fail -> SuperwallEvent.EnrichmentFail
                 State.Start -> SuperwallEvent.EnrichmentStart

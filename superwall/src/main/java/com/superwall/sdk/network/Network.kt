@@ -151,6 +151,11 @@ open class Network(
             .webEntitlementsByDeviceId(deviceId)
             .logError("/redeem")
 
+    override suspend fun checkoutStatus(id: String) =
+        subscriptionService
+            .checkoutStatus(id)
+            .logError("/checkoutStatus")
+
     private suspend fun awaitUntilAppInForeground() {
         // Wait until the app is not in the background.
         factory.appLifecycleObserver

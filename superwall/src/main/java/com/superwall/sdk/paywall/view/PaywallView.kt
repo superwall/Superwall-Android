@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
+import android.graphics.Color
 import android.os.Build
 import android.view.MotionEvent
 import android.view.View
@@ -11,14 +12,26 @@ import android.view.ViewGroup
 import android.webkit.WebSettings
 import android.webkit.WebView.RENDERER_PRIORITY_IMPORTANT
 import android.widget.FrameLayout
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContract
+import androidx.activity.result.registerForActivityResult
+import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.content.res.AppCompatResources
 import androidx.browser.customtabs.CustomTabsIntent
+import androidx.browser.customtabs.CustomTabsIntent.COLOR_SCHEME_DARK
+import androidx.browser.customtabs.CustomTabsIntent.COLOR_SCHEME_LIGHT
+import androidx.browser.customtabs.CustomTabsIntent.SHARE_STATE_OFF
+import androidx.core.graphics.drawable.DrawableCompat
+import androidx.core.graphics.drawable.toBitmap
 import androidx.core.net.toUri
+import com.superwall.sdk.R
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEvents
 import com.superwall.sdk.config.models.OnDeviceCaching
 import com.superwall.sdk.config.options.PaywallOptions
+import com.superwall.sdk.dependencies.DeviceHelperFactory
 import com.superwall.sdk.dependencies.OptionsFactory
 import com.superwall.sdk.dependencies.TriggerFactory
 import com.superwall.sdk.game.GameControllerDelegate
@@ -30,9 +43,12 @@ import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.AlertControllerFactory
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.MainScope
+import com.superwall.sdk.misc.isDarkColor
 import com.superwall.sdk.misc.toResult
+import com.superwall.sdk.models.paywall.LocalNotificationType
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.PaywallPresentationStyle
+import com.superwall.sdk.models.product.StripeProductType.SubscriptionIntroductoryOffer
 import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.paywall.manager.PaywallCacheLogic
@@ -56,7 +72,9 @@ import com.superwall.sdk.paywall.view.webview.SWWebViewDelegate
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessageHandlerDelegate
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent
 import com.superwall.sdk.storage.LocalStorage
+import com.superwall.sdk.store.transactions.notifications.NotificationScheduler
 import com.superwall.sdk.utilities.withErrorTracking
+import com.superwall.sdk.web.WebPaywallRedeemer
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
@@ -81,6 +99,7 @@ class PaywallView(
     webView: SWWebView,
     private val cache: PaywallViewCache?,
     private val useMultipleUrls: Boolean,
+    private val redeemer: WebPaywallRedeemer,
 ) : FrameLayout(context),
     PaywallMessageHandlerDelegate,
     SWWebViewDelegate,
@@ -99,7 +118,8 @@ class PaywallView(
 
     interface Factory :
         TriggerFactory,
-        OptionsFactory
+        OptionsFactory,
+        DeviceHelperFactory
     //region Public properties
 
     // MUST be set prior to presentation
@@ -561,6 +581,14 @@ class PaywallView(
         }
     }
 
+    private fun startWebCheckoutSession(id: String) {
+        webView.messageHandler.handle(PaywallMessage.TransactionStart)
+        loadingState = PaywallLoadingState.LoadingPurchase()
+        ioScope.launch {
+            // redeemer.startCheckoutSession()
+        }
+    }
+
     private fun trackShimmerStart() {
         val trackedEvent =
             InternalSuperwallEvent.ShimmerLoad(
@@ -774,11 +802,15 @@ class PaywallView(
 
     override fun presentBrowserInApp(url: String) {
         try {
-            val parsedUrl = URI(url)
-            val customTabsIntent = CustomTabsIntent.Builder().build()
-            customTabsIntent.intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            customTabsIntent.launchUrl(context, parsedUrl.toString().toUri())
-            isBrowserViewPresented = true
+            if (redeemer.isCheckoutInProgress) {
+                activityResultLauncher?.launch(url)
+            } else {
+                val parsedUrl = URI(url)
+                val customTabsIntent = CustomTabsIntent.Builder().build()
+                customTabsIntent.intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                customTabsIntent.launchUrl(context, parsedUrl.toString().toUri())
+                isBrowserViewPresented = true
+            }
         } catch (e: MalformedURLException) {
             Logger.debug(
                 logLevel = LogLevel.debug,
@@ -791,6 +823,28 @@ class PaywallView(
                 scope = LogScope.paywallView,
                 message = "Exception thrown for \"Open In-App URL\" click behavior.",
             )
+        }
+    }
+
+    private var latestWebCheckoutSession: WebCheckoutSession? = null
+
+    override fun initiateWebCheckout(webCheckoutSession: WebCheckoutSession) {
+        webView.messageHandler.handle(PaywallMessage.TransactionStart)
+        redeemer.startCheckoutSession(webCheckoutSession.checkoutId) { message, product, codes ->
+            val act = encapsulatingActivity?.get() ?: context as Activity
+            val intent = act.intent
+            intent?.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+            act.startActivity(intent)
+            webView.messageHandler.handle(PaywallMessage.TransactionComplete)
+            product.subscriptionIntroOffer?.let {
+                if (it.paymentMethod == SubscriptionIntroductoryOffer.PaymentMethod.freeTrial) {
+                    val notifications =
+                        info.localNotifications.filter {
+                            it.type == LocalNotificationType.TrialStarted
+                        }
+                    NotificationScheduler.scheduleNotifications(notifications, factory, context)
+                }
+            }
         }
     }
 
@@ -821,6 +875,63 @@ class PaywallView(
         val context = encapsulatingActivity?.get()
         val deepLinkIntent = Intent(Intent.ACTION_VIEW, uri)
         context?.startActivity(deepLinkIntent)
+    }
+
+    private var latestUri: String? = ""
+    private var activityResultLauncher: ActivityResultLauncher<String>? = null
+
+    internal fun registerIntent() {
+        activityResultLauncher =
+            (encapsulatingActivity?.get() as? AppCompatActivity)?.registerForActivityResult(
+                object : ActivityResultContract<String, Int>() {
+                    override fun createIntent(
+                        context: Context,
+                        input: String,
+                    ): Intent {
+                        val height = context.resources.displayMetrics.heightPixels * 0.9
+                        val customTabsIntent =
+                            CustomTabsIntent
+                                .Builder()
+                                .setColorScheme(if (paywall.backgroundColor.isDarkColor()) COLOR_SCHEME_DARK else COLOR_SCHEME_LIGHT)
+                                .setDownloadButtonEnabled(false)
+                                .apply {
+                                    when (val style = presentationStyle) {
+                                        is PaywallPresentationStyle.Drawer -> {
+                                            setToolbarCornerRadiusDp(style.cornerRadius.toInt())
+                                        }
+                                        is PaywallPresentationStyle.Popup -> {
+                                            setToolbarCornerRadiusDp(style.cornerRadius.toInt())
+                                        }
+                                        else -> {} // NOOP
+                                    }
+                                }.setShowTitle(false)
+                                .setBookmarksButtonEnabled(false)
+                                .setShareState(CustomTabsIntent.SHARE_STATE_OFF)
+                                .setInstantAppsEnabled(false)
+                                .setCloseButtonIcon(
+                                    AppCompatResources.getDrawable(context, R.drawable.none)!!.mutate().let {
+                                        DrawableCompat.setTint(it, Color.TRANSPARENT)
+                                        it.toBitmap()
+                                    },
+                                ).setUrlBarHidingEnabled(true)
+                                .setBackgroundInteractionEnabled(false)
+                                .setInitialActivityHeightPx(
+                                    height.toInt(),
+                                    CustomTabsIntent.ACTIVITY_HEIGHT_ADJUSTABLE,
+                                ).build()
+                                .intent
+                        customTabsIntent.setData(input.toUri())
+                        return customTabsIntent
+                    }
+
+                    override fun parseResult(
+                        resultCode: Int,
+                        intent: Intent?,
+                    ): Int = resultCode
+                },
+            ) { statusCode ->
+                // Ignored, We automatically handle result via checkout status
+            }
     }
 
     //region GameController

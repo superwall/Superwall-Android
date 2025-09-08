@@ -18,6 +18,7 @@ import com.superwall.sdk.misc.MainScope
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
+import com.superwall.sdk.paywall.view.WebCheckoutSession
 import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 import com.superwall.sdk.paywall.view.webview.PaywallMessage
 import com.superwall.sdk.paywall.view.webview.WrappedPaywallMessages
@@ -50,6 +51,8 @@ interface PaywallMessageHandlerDelegate {
     fun presentBrowserInApp(url: String)
 
     fun presentBrowserExternal(url: String)
+
+    fun initiateWebCheckout(webCheckoutSession: WebCheckoutSession)
 }
 
 class PaywallMessageHandler(
@@ -176,7 +179,29 @@ class PaywallMessageHandler(
                 }
 
             is PaywallMessage.RequestReview -> handleRequestReview(message)
-
+            is PaywallMessage.InitiateWebCheckout -> {
+                delegate?.initiateWebCheckout(
+                    WebCheckoutSession(
+                        message.checkoutId,
+                        message.productIdentifier,
+                        message.paywallIdentifier,
+                        message.experimentVariantId,
+                        message.presentedByEventName,
+                        message.store,
+                    ),
+                )
+                delegate?.eventDidOccur(PaywallWebEvent.InitiatePurchase(message.productIdentifier))
+            }
+            is PaywallMessage.TransactionStart -> {
+                ioScope.launch {
+                    pass(eventName = SuperwallEvents.TransactionStart.rawName, paywall = paywall)
+                }
+            }
+            is PaywallMessage.TransactionComplete -> {
+                ioScope.launch {
+                    pass(eventName = SuperwallEvents.TransactionComplete.rawName, paywall = paywall)
+                }
+            }
             else -> {
                 Logger.debug(
                     LogLevel.error,
