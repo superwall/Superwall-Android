@@ -21,7 +21,7 @@ typealias CheckoutId = String
 
 @Serializable
 data class CheckoutStatusRequest(
-    @SerialName("checkoutId")
+    @SerialName("checkout_id")
     val id: CheckoutId,
 )
 

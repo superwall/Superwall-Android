@@ -1023,10 +1023,8 @@ sealed class InternalSuperwallEvent(
             when (state) {
                 is State.Complete ->
                     SuperwallEvent.EnrichmentComplete(
-                        state.enrichment.user
-                            .toMap()
-                            .mapValues { it.value.convertFromJsonElement() },
-                        state.enrichment.device.mapValues { it.value.convertFromJsonElement() },
+                        state.enrichment.user,
+                        state.enrichment.device,
                     )
 
                 State.Fail -> SuperwallEvent.EnrichmentFail

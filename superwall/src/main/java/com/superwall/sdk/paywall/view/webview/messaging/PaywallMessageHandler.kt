@@ -192,7 +192,16 @@ class PaywallMessageHandler(
                 )
                 delegate?.eventDidOccur(PaywallWebEvent.InitiatePurchase(message.productIdentifier))
             }
-
+            is PaywallMessage.TransactionStart -> {
+                ioScope.launch {
+                    pass(eventName = SuperwallEvents.TransactionStart.rawName, paywall = paywall)
+                }
+            }
+            is PaywallMessage.TransactionComplete -> {
+                ioScope.launch {
+                    pass(eventName = SuperwallEvents.TransactionComplete.rawName, paywall = paywall)
+                }
+            }
             else -> {
                 Logger.debug(
                     LogLevel.error,

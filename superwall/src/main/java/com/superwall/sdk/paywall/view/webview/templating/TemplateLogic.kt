@@ -20,7 +20,7 @@ object TemplateLogic {
         val productsTemplate =
             ProductTemplate(
                 eventName = "products",
-                products = paywall.playStoreProducts,
+                products = paywall.playStoreProducts.plus(paywall.stripeProducts),
             )
 
         val variablesTemplate =

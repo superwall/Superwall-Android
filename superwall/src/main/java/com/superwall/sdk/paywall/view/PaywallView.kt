@@ -850,9 +850,9 @@ class PaywallView(
 
     private var latestWebCheckoutSession: WebCheckoutSession? = null
 
-    override fun initiateWebCheckout(session: WebCheckoutSession) {
+    override fun initiateWebCheckout(webCheckoutSession: WebCheckoutSession) {
         webView.messageHandler.handle(PaywallMessage.TransactionStart)
-        redeemer.startCheckoutSession(session.checkoutId) { message, product, codes ->
+        redeemer.startCheckoutSession(webCheckoutSession.checkoutId) { message, product, codes ->
             val act = encapsulatingActivity?.get() ?: context as Activity
             val intent = act.intent
             intent?.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)

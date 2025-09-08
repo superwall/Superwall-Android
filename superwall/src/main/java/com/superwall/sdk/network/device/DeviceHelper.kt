@@ -569,13 +569,8 @@ class DeviceHelper(
                 it.toDictionary(json)
             }.map {
                 val enriched =
-                    (
                         enrichment
                             ?.device
-                            ?.filterValues { it != null }
-                            ?.mapValues { it.value.convertFromJsonElement() }
-                            as Map<String, Any>?
-                    )
                         ?: emptyMap()
                 enriched
                     .plus(it)
@@ -628,8 +623,12 @@ class DeviceHelper(
             }.then {
                 storage.write(LatestEnrichment, it)
                 it.user.let {
-                    Superwall.instance.setUserAttributes(it)
+                    Superwall.instance.setUserAttributes(it.toMap())
                 }
+                it.device.let {
+                    Superwall.instance.setUserAttributes(it.toMap())
+                }
+
             }
     }
 }
