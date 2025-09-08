@@ -47,7 +47,21 @@ appId: com.superwall.superapp
       - tapOn: "Continue"
       - tapOn: "Test card, always declines"
       - tapOn: "Test card, always approves"
-      - tapOn: "Subscribe"
+      - tapOn:
+          text: "Subscribe"
+          waitToSettleTimeoutMs: 1000
+      - waitForAnimationToEnd:
+          timeout: 1000
+      - tapOn:
+          text: "No, thanks"
+          optional: true
+          waitToSettleTimeoutMs: 1000
+      - tapOn:
+          text: "OK"
+          optional: true
+          waitToSettleTimeoutMs: 1000
+      - waitForAnimationToEnd:
+          timeout: 1000
       - assertVisible: "Subscribed"
       - assertVisible: "Feature triggered"
       - tapOn: "OK"
