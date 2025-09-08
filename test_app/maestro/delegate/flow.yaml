@@ -85,6 +85,10 @@ appId: com.superwall.superapp
 - tapOn: "Open URL"
 - waitForAnimationToEnd:
     timeout: 3000
+- extendedWaitUntil: # This is just to add a 2 second delay so focus is properly taken
+    visible: randText
+    optional: true
+    timeout: 3000
 - runFlow:
     when:
       platform: iOS
@@ -94,7 +98,7 @@ appId: com.superwall.superapp
     when:
       platform: Android
     commands:
-      - back
+      - runFlow: "../util/back.yaml"
 
 - tapOn: "CUSTOM ACTION"
 - waitForAnimationToEnd:

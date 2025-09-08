@@ -57,7 +57,7 @@ jobs:
           --android-device pixel-7 \
           --android-api-level 35 \
           --name "SDK-${{ matrix.sdk-version }}-tests" \
-          --retry 3\
+          --retry 1\
           -q \
           -e TEST_USER=${{ secrets.TEST_USER }} \
           -e TEST_PW=${{ secrets.TEST_PW }}
