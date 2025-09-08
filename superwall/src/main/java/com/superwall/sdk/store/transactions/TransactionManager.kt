@@ -14,6 +14,7 @@ import com.superwall.sdk.delegate.InternalPurchaseResult
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
+import com.superwall.sdk.dependencies.AttributesFactory
 import com.superwall.sdk.dependencies.CacheFactory
 import com.superwall.sdk.dependencies.DeviceHelperFactory
 import com.superwall.sdk.dependencies.HasExternalPurchaseControllerFactory
@@ -96,7 +97,8 @@ class TransactionManager(
         CacheFactory,
         HasExternalPurchaseControllerFactory,
         HasInternalPurchaseControllerFactory,
-        WebToAppFactory
+        WebToAppFactory,
+        AttributesFactory
 
     private var lastPaywallView: PaywallView? = null
 
@@ -876,6 +878,7 @@ class TransactionManager(
                         isObserved = false,
                         demandScore = deviceAttributes["demandScore"] as? Int?,
                         demandTier = deviceAttributes["demandTier"] as? String?,
+                        userAttributes = factory.getCurrentUserAttributes(),
                     )
                 track(trackedEvent)
                 eventsQueue.flushInternal()
@@ -921,6 +924,7 @@ class TransactionManager(
                         transaction,
                         source = TransactionSource.EXTERNAL,
                         isObserved = isObserved,
+                        userAttributes = factory.getCurrentUserAttributes(),
                     )
                 track(trackedEvent)
                 eventsQueue.flushInternal()
