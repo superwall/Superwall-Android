@@ -8,6 +8,8 @@ import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.models.paywall.PaywallURL
+import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.PassableValue
+import com.superwall.sdk.paywall.presentation.rule_logic.cel.toPassableValue
 import com.superwall.sdk.paywall.view.PaywallView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -15,10 +17,27 @@ import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.double
+import kotlinx.serialization.json.doubleOrNull
+import kotlinx.serialization.json.int
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.long
+import kotlinx.serialization.json.longOrNull
 import org.threeten.bp.LocalDateTime
 import org.threeten.bp.ZoneOffset
 import java.net.URI
 import java.util.*
+import kotlin.collections.component1
+import kotlin.collections.component2
+import kotlin.collections.map
+import kotlin.collections.mapValues
 
 sealed class TrackingLogic {
     sealed class ImplicitTriggerOutcome {
