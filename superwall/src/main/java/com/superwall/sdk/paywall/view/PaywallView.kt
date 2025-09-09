@@ -43,6 +43,7 @@ import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.get_presentation_result.internallyGetPresentationResult
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.operators.storePresentationObjects
+import com.superwall.sdk.paywall.presentation.internal.state.PaywallErrors
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.paywall.presentation.result.PresentationResult
@@ -743,6 +744,17 @@ class PaywallView(
                             }",
                 )
                 recreateWebview()
+            }
+            if (factory.makeSuperwallOptions().paywalls.timeoutAfter != null) {
+                webView.onTimeout = {
+                    ioScope.launch {
+                        paywallStatePublisher?.emit(
+                            PaywallState.PresentationError(
+                                PaywallErrors.Timeout(it.toString()),
+                            ),
+                        )
+                    }
+                }
             }
 
             webView.scrollEnabled = paywall.isScrollEnabled ?: true

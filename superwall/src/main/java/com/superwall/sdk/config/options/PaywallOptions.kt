@@ -1,7 +1,6 @@
 package com.superwall.sdk.config.options
 
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 
 // Options for configuring the appearance and behavior of paywalls.
 class PaywallOptions {
@@ -92,7 +91,7 @@ class PaywallOptions {
 
     // How long until a paywall timeout is invoked.
     // If not using fallback loading, settings this will trigger a paywall timeout instead of retrying.
-    var timeoutAfter: Duration = 0.milliseconds
+    var timeoutAfter: Duration? = null
 }
 
 internal fun PaywallOptions.toMap() =

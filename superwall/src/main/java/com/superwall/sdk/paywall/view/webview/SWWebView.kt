@@ -35,6 +35,7 @@ import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessageHandlerDel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.launch
 import java.util.Date
@@ -73,6 +74,8 @@ class SWWebView(
             "WebView crashed: $it",
         )
     }
+
+    var onTimeout: ((WebviewError) -> Unit)? = null
 
     private companion object ChromeClient : WebChromeClient() {
         override fun onConsoleMessage(consoleMessage: ConsoleMessage): Boolean {
@@ -179,7 +182,6 @@ class SWWebView(
         }
 
         listenToWebviewClientEvents(client)
-
         super.loadUrl(transformUri(url))
     }
 
@@ -207,6 +209,17 @@ class SWWebView(
 
     private fun listenToWebviewClientEvents(client: DefaultWebviewClient) {
         ioScope.launch {
+            val timeout = options().timeoutAfter
+            if (timeout != null) {
+                ioScope.launch {
+                    delay(timeout)
+                    if (delegate?.loadingState !is PaywallLoadingState.Ready) {
+                        trackPaywallError(WebviewError.Timeout, listOfNotNull(lastLoadedUrl))
+                        onTimeout?.invoke(WebviewError.Timeout)
+                    }
+                }
+            }
+
             client.webviewClientEvents
                 .takeWhile {
                     mainScope
@@ -234,6 +247,7 @@ class SWWebView(
                                             e.urls
 
                                         is WebviewError.AllUrlsFailed -> e.urls
+                                        is WebviewError.Timeout -> listOfNotNull(lastLoadedUrl)
                                     },
                                 )
                                 if (lastLoadedUrl != null) {
@@ -264,6 +278,7 @@ class SWWebView(
                                             e.urls.first()
 
                                         is WebviewError.AllUrlsFailed -> e.urls.first()
+                                        is WebviewError.Timeout -> lastLoadedUrl ?: ""
                                     },
                                 )
                             }
