@@ -55,7 +55,7 @@ jobs:
           --flows test_app/maestro/ \
           --google-play \
           --android-device pixel-6 \
-          --android-api-level 34 \
+          --android-api-level 35 \
           --name "SDK-${{ matrix.sdk-version }}-tests" \
           --retry 1\
           -q \
