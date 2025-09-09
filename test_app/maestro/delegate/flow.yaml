@@ -99,7 +99,20 @@ name: delegate
       platform: Android
     commands:
       - runFlow: "../util/back.yaml"
+- extendedWaitUntil: # This is just to add a 2 second delay so focus is properly taken
+    visible: randText
+    optional: true
+    timeout: 3000
+- runFlow:
+    when:
+      notVisible: "CUSTOM ACTION"
+    commands:
+      - runFlow: "../util/back.yaml"
 
+- extendedWaitUntil: # This is just to add a 2 second delay so focus is properly taken
+    visible: randText
+    optional: true
+    timeout: 1000
 - tapOn: "CUSTOM ACTION"
 - waitForAnimationToEnd:
     timeout: 1000
