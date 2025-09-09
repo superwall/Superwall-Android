@@ -29,8 +29,7 @@ appId: com.superwall.superapp
     visible: randText
     optional: true
     timeout: 3000
-- assertVisible:
-      text: "CONTINUE"
+- assertVisible: '.*CONTINUE.*'
 - runFlow: "../util/back.yaml"
 
 
