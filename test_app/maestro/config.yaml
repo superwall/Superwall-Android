@@ -11,9 +11,9 @@ flows:
   - purchasecontroller/*
 executionOrder:
   flowsOrder:
-    - flow
-    - delegate/flow
-    - handler/flow
-    - purchasecontroller/no_pc_purchases
-    - purchasecontroller/test_pc_purchases
+    - config
+    - delegate
+    - handler
+    - pc_test
+    - no_pc_test
 

@@ -1,4 +1,5 @@
 appId: com.superwall.superapp
+name: handler
 ---
 - runFlow: "../login.yaml"
 - launchApp: com.superwall.superapp

@@ -1,4 +1,5 @@
 appId: com.superwall.superapp
+name: pc_test
 ---
 - runFlow:
     file: "../login.yaml"

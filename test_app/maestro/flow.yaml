@@ -1,4 +1,5 @@
 appId: com.superwall.superapp
+name: config
 ---
 - launchApp: com.superwall.superapp
 - tapOn: "Configuration test"
