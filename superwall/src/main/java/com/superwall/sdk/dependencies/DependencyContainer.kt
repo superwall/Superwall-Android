@@ -874,4 +874,6 @@ class DependencyContainer(
     override fun context(): Context = context
 
     override fun experimentalProperties(): Map<String, Any> = storeManager.receiptManager.experimentalProperties()
+
+    override fun getCurrentUserAttributes(): Map<String, Any> = identityManager.userAttributes
 }

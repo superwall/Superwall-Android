@@ -6,6 +6,13 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## Enhancements
 - Adds `Superwall.instance.setIntegrationAttributes` method enabling you to set integration identifiers for the users from different platforms (Adjust, Mixpanel, Meta, etc.)
+- Adds `Superwall.instance.showAlert` method enabling you to easily show an alert over the current paywall
+- Adds `PaywallOptions.timeoutAfter` to easily control timeout of paywalls when not using fallback loading
+- Adds user attributes to `TransactionComplete` and `PaywallOpen` events
+- Adds device ID to device attributes
+
+## 
+
 
 ## 2.5.1
 

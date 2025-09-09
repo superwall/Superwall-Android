@@ -6,6 +6,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
+import java.util.UUID
 
 class DeviceTemplateTest {
     val json =
@@ -21,6 +22,7 @@ class DeviceTemplateTest {
             appUserId = "user123",
             aliases = listOf("alias1", "alias2"),
             vendorId = "vendor123",
+            deviceId = "\$SuperwallDevice:${UUID.nameUUIDFromBytes("vendor123".encodeToByteArray())}",
             appVersion = "1.0.0",
             osVersion = "13",
             deviceModel = "Pixel 6",
@@ -98,6 +100,7 @@ class DeviceTemplateTest {
                 appUserId = "user123",
                 aliases = listOf(),
                 vendorId = "vendor123",
+                deviceId = "\$SuperwallDevice:${UUID.nameUUIDFromBytes("vendor123".encodeToByteArray())}",
                 appVersion = "1.0.0",
                 osVersion = "13",
                 deviceModel = "Pixel 6",

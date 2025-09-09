@@ -19,6 +19,7 @@ import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEvents
 import com.superwall.sdk.config.models.OnDeviceCaching
 import com.superwall.sdk.config.options.PaywallOptions
+import com.superwall.sdk.dependencies.AttributesFactory
 import com.superwall.sdk.dependencies.OptionsFactory
 import com.superwall.sdk.dependencies.TriggerFactory
 import com.superwall.sdk.game.GameControllerDelegate
@@ -42,6 +43,7 @@ import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.get_presentation_result.internallyGetPresentationResult
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.operators.storePresentationObjects
+import com.superwall.sdk.paywall.presentation.internal.state.PaywallErrors
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.paywall.presentation.result.PresentationResult
@@ -99,7 +101,8 @@ class PaywallView(
 
     interface Factory :
         TriggerFactory,
-        OptionsFactory
+        OptionsFactory,
+        AttributesFactory
     //region Public properties
 
     // MUST be set prior to presentation
@@ -508,7 +511,11 @@ class PaywallView(
     private suspend fun trackOpen() {
         storage.trackPaywallOpen()
         webView.messageHandler.handle(PaywallMessage.PaywallOpen)
-        val trackedEvent = InternalSuperwallEvent.PaywallOpen(info)
+        val trackedEvent =
+            InternalSuperwallEvent.PaywallOpen(
+                info,
+                factory.getCurrentUserAttributes(),
+            )
         Superwall.instance.track(trackedEvent)
     }
 
@@ -737,6 +744,17 @@ class PaywallView(
                             }",
                 )
                 recreateWebview()
+            }
+            if (factory.makeSuperwallOptions().paywalls.timeoutAfter != null) {
+                webView.onTimeout = {
+                    ioScope.launch {
+                        paywallStatePublisher?.emit(
+                            PaywallState.PresentationError(
+                                PaywallErrors.Timeout(it.toString()),
+                            ),
+                        )
+                    }
+                }
             }
 
             webView.scrollEnabled = paywall.isScrollEnabled ?: true

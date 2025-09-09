@@ -9,12 +9,14 @@ import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.models.paywall.PaywallURL
 import com.superwall.sdk.paywall.view.PaywallView
+import com.superwall.sdk.storage.core_data.convertFromJsonElement
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
 import org.threeten.bp.LocalDateTime
 import org.threeten.bp.ZoneOffset
 import java.net.URI
@@ -143,6 +145,7 @@ sealed class TrackingLogic {
                     is Map<*, *> -> value.mapValues { clean(it.value) }.filterValues { it != null }.toMap()
                     is String -> value
                     is Int, is Float, is Double, is Long, is Boolean -> value
+                    is JsonElement -> value.convertFromJsonElement()
                     else -> {
                         try {
                             Json.encodeToString(value)
@@ -157,7 +160,7 @@ sealed class TrackingLogic {
                         }
                     }
                 }
-            } ?: null
+            }
 
         @Throws(Exception::class)
         fun checkNotSuperwallEvent(event: String) {

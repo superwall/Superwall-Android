@@ -75,6 +75,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -89,6 +90,7 @@ import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.Date
+import kotlin.time.Duration.Companion.milliseconds
 
 class Superwall(
     context: Context,
@@ -338,15 +340,27 @@ class Superwall(
      *
      * @param attributes A map of attribution providers to their respective IDs.
      */
-    fun setIntegrationAttributes(attributes: Map<AttributionProvider, String>) {
-        withErrorTracking {
-            _integrationAttributes = attributes
+    var lastIntegrationJob: Job? = null
 
-            dependencyContainer.storage.write(com.superwall.sdk.storage.IntegrationAttributes, attributes)
-            ioScope.launch {
-                track(IntegrationAttributes(attributes.mapKeys { it.key.rawName }))
-                dependencyContainer.reedemer.redeem(WebPaywallRedeemer.RedeemType.Existing)
-            }
+    fun setIntegrationAttributes(attributes: Map<AttributionProvider, String>) {
+        if (lastIntegrationJob != null) {
+            runCatching { lastIntegrationJob?.cancel() }
+            lastIntegrationJob =
+                ioScope.launch {
+                    delay(500.milliseconds)
+                    withErrorTracking {
+                        _integrationAttributes = attributes
+
+                        dependencyContainer.storage.write(
+                            com.superwall.sdk.storage.IntegrationAttributes,
+                            attributes,
+                        )
+                        ioScope.launch {
+                            track(IntegrationAttributes(attributes.mapKeys { it.key.rawName }))
+                            dependencyContainer.reedemer.redeem(WebPaywallRedeemer.RedeemType.Existing)
+                        }
+                    }
+                }
         }
     }
 
@@ -570,7 +584,9 @@ class Superwall(
                 setSubscriptionStatus(cachedSubscriptionStatus)
 
                 // Load stored integration identifiers
-                _integrationAttributes = dependencyContainer.storage.read(com.superwall.sdk.storage.IntegrationAttributes) ?: emptyMap()
+                _integrationAttributes =
+                    dependencyContainer.storage.read(com.superwall.sdk.storage.IntegrationAttributes)
+                        ?: emptyMap()
 
                 addListeners()
 
@@ -679,6 +695,27 @@ class Superwall(
         }
     }
 
+    /**
+     * Shows an alert with provided properties over the paywall UI.
+     * Will only show if the current paywall exists/is presented.
+     * */
+    fun showAlert(
+        title: String? = null,
+        message: String? = null,
+        actionTitle: String? = null,
+        closeActionTitle: String = "Done",
+        action: (() -> Unit)? = null,
+        onClose: (() -> Unit)? = null,
+    ) {
+        paywallView?.showAlert(
+            title,
+            message,
+            actionTitle,
+            closeActionTitle,
+            action,
+            onClose,
+        )
+    }
     // MARK: - Reset
 
     /**
@@ -1209,10 +1246,15 @@ class Superwall(
                                         )
                                     }
                                 }
+
                                 else -> {
                                     val packageName = dependencyContainer.deviceHelper.urlScheme
-                                    val url = "https://play.google.com/store/apps/details?id=$packageName"
-                                    (activityProvider?.getCurrentActivity() ?: paywallView.encapsulatingActivity?.get())?.startActivity(
+                                    val url =
+                                        "https://play.google.com/store/apps/details?id=$packageName"
+                                    (
+                                        activityProvider?.getCurrentActivity()
+                                            ?: paywallView.encapsulatingActivity?.get()
+                                    )?.startActivity(
                                         Intent(Intent.ACTION_VIEW, Uri.parse(url)),
                                     )
                                 }

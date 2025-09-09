@@ -33,6 +33,8 @@ import com.superwall.sdk.models.enrichment.Enrichment
 import com.superwall.sdk.models.enrichment.EnrichmentRequest
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.events.EventData
+import com.superwall.sdk.models.internal.DeviceVendorId
+import com.superwall.sdk.models.internal.VendorId
 import com.superwall.sdk.network.JsonFactory
 import com.superwall.sdk.network.NetworkError
 import com.superwall.sdk.network.SuperwallAPI
@@ -304,6 +306,9 @@ class DeviceHelper(
     val vendorId: String
         get() = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
 
+    val deviceId: String
+        get() = DeviceVendorId(VendorId(vendorId)).value
+
     var platformWrapper: String = ""
     var platformWrapperVersion: String = ""
 
@@ -557,6 +562,7 @@ class DeviceHelper(
                 appUserId = identityInfo.appUserId ?: "",
                 aliases = aliases,
                 vendorId = vendorId,
+                deviceId = deviceId,
                 appVersion = appVersion,
                 osVersion = osVersion,
                 deviceModel = model,

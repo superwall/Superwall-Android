@@ -13,6 +13,7 @@ data class DeviceTemplate(
     val appUserId: String,
     val aliases: List<String>,
     val vendorId: String,
+    val deviceId: String,
     val appVersion: String,
     val appVersionPadded: String,
     val osVersion: String,
