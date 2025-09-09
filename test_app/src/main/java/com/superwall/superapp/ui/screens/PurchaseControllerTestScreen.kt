@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -35,6 +36,7 @@ fun PurchaseControllerTestScreen(navController: NavController) {
     val apiKey = "pk_6d16c4c892b1e792490ab8bfe831f1ad96e7c18aee7a5257" // Android key
     var purchaseEnabled by remember { mutableStateOf(purchaseController.purchasesEnabled) }
     Scaffold(
+        containerColor = Color.White,
         topBar = {
             TopAppBar(
                 title = { Text("Mock PC Test") },
@@ -88,65 +90,89 @@ fun PurchaseControllerTestScreen(navController: NavController) {
             }
 
             if (isConfigured) {
-                ElevatedButton(
-                    onClick = {
-                        scope.launch {
-                            try {
-                                // Trigger paywall
-                                Superwall.instance.register(
-                                    placement = "campaign_trigger",
-                                    feature = {
-                                        showFeatureDialog = true
-                                    },
-                                )
-                            } catch (e: Exception) {
-                                showErrorDialog = true
+                Column {
+                    val status by Superwall.instance.subscriptionStatus.collectAsState()
+                    Text(
+                        color = Color.Black,
+                        text = "Subscription status is ${
+                            when (status){
+                                is SubscriptionStatus.Active -> "Active"
+                                SubscriptionStatus.Inactive -> "Inactve"
+                                SubscriptionStatus.Unknown -> "Unknown"
                             }
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text("Trigger Paywall")
-                }
+                        }",
+                    )
+                    ElevatedButton(
+                        onClick = {
+                            scope.launch {
+                                try {
+                                    // Trigger paywall
+                                    Superwall.instance.register(
+                                        placement = "campaign_trigger",
+                                        feature = {
+                                            showFeatureDialog = true
+                                        },
+                                    )
+                                } catch (e: Exception) {
+                                    showErrorDialog = true
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Trigger Paywall")
+                    }
+                    ElevatedButton(
+                        onClick = {
+                            scope.launch {
+                                val status = SubscriptionStatus.Inactive
+                                Superwall.instance.setSubscriptionStatus(status)
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Set Status Inactive")
+                    }
 
-                ElevatedButton(
-                    onClick = {
-                        val currentlyEnabled =
-                            purchaseController.purchasesEnabled
+                    ElevatedButton(
+                        onClick = {
+                            val currentlyEnabled =
+                                purchaseController.purchasesEnabled
 
-                        purchaseController.purchasesEnabled = !currentlyEnabled
-                        purchaseEnabled = !currentlyEnabled
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(if (purchaseEnabled) "Disable purchases" else "Enable purchases")
-                }
+                            purchaseController.purchasesEnabled = !currentlyEnabled
+                            purchaseEnabled = !currentlyEnabled
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(if (purchaseEnabled) "Disable purchases" else "Enable purchases")
+                    }
 
-                ElevatedButton(
-                    onClick = {
-                        purchaseController.restoreEnabled = !purchaseController.restoreEnabled
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(if (purchaseController.restoreEnabled) "Disable restore" else "Enable restore")
-                }
+                    ElevatedButton(
+                        onClick = {
+                            purchaseController.restoreEnabled = !purchaseController.restoreEnabled
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(if (purchaseController.restoreEnabled) "Disable restore" else "Enable restore")
+                    }
 
-                ElevatedButton(
-                    onClick = {
-                        scope.launch {
-                            val status = SubscriptionStatus.Inactive
-                            Superwall.instance.setSubscriptionStatus(status)
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text("Reset status")
+                    ElevatedButton(
+                        onClick = {
+                            scope.launch {
+                                val status = SubscriptionStatus.Inactive
+                                Superwall.instance.setSubscriptionStatus(status)
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Reset status")
+                    }
                 }
             }
         }
     }
 
-    // Dialogs
+// Dialogs
     if (showFeatureDialog) {
         AlertDialog(
             onDismissRequest = { showFeatureDialog = false },
@@ -265,6 +291,7 @@ private fun getNetworkEnvironment(): SuperwallOptions.NetworkEnvironment {
                 SuperwallOptions.NetworkEnvironment.Release()
             }
         }
+
         else -> SuperwallOptions.NetworkEnvironment.Release()
     }
 }

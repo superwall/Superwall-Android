@@ -29,6 +29,7 @@ fun DelegateTestScreen(navController: NavController) {
     val testDelegate = remember { TestDelegate() }
 
     Scaffold(
+        containerColor = Color.White,
         topBar = {
             TopAppBar(
                 title = { Text("Delegate Test") },
@@ -50,7 +51,7 @@ fun DelegateTestScreen(navController: NavController) {
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
-                color = Color.White,
+                color = Color.Black,
                 text = "Subscription status is ${
                     when (subscriptionStatus){
                         is SubscriptionStatus.Active -> "Active"
