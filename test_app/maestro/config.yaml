@@ -9,3 +9,11 @@ flows:
   - delegate/*
   - handler/*
   - purchasecontroller/*
+executionOrder:
+  flowsOrder:
+    - flow
+    - delegate/flow
+    - handler/flow
+    - purchasecontroller/no_pc_purchases
+    - purchasecontroller/test_pc_purchases
+
