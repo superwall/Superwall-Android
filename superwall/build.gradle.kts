@@ -162,6 +162,10 @@ dependencies {
     // Google Play Review
     implementation(libs.play.review.ktx)
 
+    // Google Ads identifiers
+    implementation(libs.play.services.appset)
+    implementation(libs.play.services.ads.identifier)
+
     // Test
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
