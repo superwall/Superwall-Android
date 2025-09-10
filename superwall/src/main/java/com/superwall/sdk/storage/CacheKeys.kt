@@ -328,13 +328,13 @@ internal object LatestRedemptionResponse : Storable<WebRedemptionResponse> {
         get() = WebRedemptionResponse.serializer()
 }
 
-object ReviewData : Storable<ReviewDataModel> {
+object ReviewData : Storable<ReviewCount> {
     override val key: String
         get() = "store.reviewData"
     override val directory: SearchPathDirectory
         get() = SearchPathDirectory.USER_SPECIFIC_DOCUMENTS
-    override val serializer: KSerializer<ReviewDataModel>
-        get() = ReviewDataModel.serializer()
+    override val serializer: KSerializer<ReviewCount>
+        get() = ReviewCount.serializer()
 }
 
 //endregion
@@ -367,7 +367,7 @@ object DateSerializer : KSerializer<Date> {
 }
 
 @Serializable
-data class ReviewDataModel(
+data class ReviewCount(
     @SerialName("times_queried")
     val timesQueried: Int = 0,
     val timestamp: Long = Date().toInstant().toEpochMilli(),

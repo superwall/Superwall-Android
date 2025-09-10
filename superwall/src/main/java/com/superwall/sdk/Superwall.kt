@@ -63,7 +63,7 @@ import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedDe
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedURL
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedUrlInChrome
 import com.superwall.sdk.storage.ReviewData
-import com.superwall.sdk.storage.ReviewDataModel
+import com.superwall.sdk.storage.ReviewCount
 import com.superwall.sdk.storage.StoredSubscriptionStatus
 import com.superwall.sdk.store.Entitlements
 import com.superwall.sdk.store.PurchasingObserverState
@@ -77,7 +77,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.BufferOverflow
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -92,7 +91,6 @@ import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.Date
-import kotlin.time.Duration.Companion.milliseconds
 
 class Superwall(
     context: Context,
@@ -322,19 +320,11 @@ class Superwall(
     suspend fun deviceAttributes(): Map<String, Any?> = dependencyContainer.makeSessionDeviceAttributes()
 
     /**
-     * Backing field for integration identifiers.
+     * Gets the current integration identifiers as a map.
      */
-    private var _integrationAttributes: Map<AttributionProvider, String> = emptyMap()
-
-    /**
-     * Gets the current itegration identifiers as a map.
-     */
-    val integrationAttributes: Map<String, Any>
+    val integrationAttributes: Map<String, String>
         get() =
-            _integrationAttributes
-                .map { (provider, id) ->
-                    provider.rawName to id
-                }.toMap()
+            dependencyContainer.attributionManager.integrationAttributes
 
     /**
      * Sets 3rd party integration identifiers for this user.
@@ -342,28 +332,9 @@ class Superwall(
      *
      * @param attributes A map of attribution providers to their respective IDs.
      */
-    var lastIntegrationJob: Job? = null
 
     fun setIntegrationAttributes(attributes: Map<AttributionProvider, String>) {
-        if (lastIntegrationJob != null) {
-            runCatching { lastIntegrationJob?.cancel() }
-            lastIntegrationJob =
-                ioScope.launch {
-                    delay(500.milliseconds)
-                    withErrorTracking {
-                        _integrationAttributes = attributes
-
-                        dependencyContainer.storage.write(
-                            com.superwall.sdk.storage.IntegrationAttributes,
-                            attributes,
-                        )
-                        ioScope.launch {
-                            track(IntegrationAttributes(attributes.mapKeys { it.key.rawName }))
-                            dependencyContainer.reedemer.redeem(WebPaywallRedeemer.RedeemType.Existing)
-                        }
-                    }
-                }
-        }
+        dependencyContainer.attributionManager.setIntegrationAttributes(attributes)
     }
 
     /**
@@ -584,11 +555,6 @@ class Superwall(
                     dependencyContainer.storage.read(StoredSubscriptionStatus)
                         ?: SubscriptionStatus.Unknown
                 setSubscriptionStatus(cachedSubscriptionStatus)
-
-                // Load stored integration identifiers
-                _integrationAttributes =
-                    dependencyContainer.storage.read(com.superwall.sdk.storage.IntegrationAttributes)
-                        ?: emptyMap()
 
                 addListeners()
 
@@ -1242,7 +1208,7 @@ class Superwall(
                                             dependencyContainer.deviceHelper.reviewRequestsTotal()
                                         dependencyContainer.storage.write(
                                             ReviewData,
-                                            ReviewDataModel(
+                                            ReviewCount(
                                                 (currentCount + 1),
                                             ),
                                         )

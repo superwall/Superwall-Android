@@ -9,6 +9,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.config.options.SuperwallOptions
+import com.superwall.sdk.delayFor
 import com.superwall.sdk.storage.CONSTANT_API_KEY
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
@@ -18,6 +19,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
 @RunWith(AndroidJUnit4::class)
 class AttributionProviderIntegrationTest {
@@ -61,6 +63,7 @@ class AttributionProviderIntegrationTest {
                         )
 
                     Superwall.instance.setIntegrationAttributes(attributionIdentifiers)
+                    delayFor(1.seconds)
                 }
 
                 Then("the attribution properties should be available via attributionProps") {
@@ -108,7 +111,7 @@ class AttributionProviderIntegrationTest {
                         )
 
                     Superwall.instance.setIntegrationAttributes(attributionIdentifiers)
-                    delay(100) // Allow processing
+                    delayFor(1.seconds) // Allow processing
                 }
 
                 Then("the attribution props should be available and correctly formatted") {
@@ -204,7 +207,7 @@ class AttributionProviderIntegrationTest {
                         )
 
                     Superwall.instance.setIntegrationAttributes(attributionIdentifiers)
-                    delay(100)
+                    delayFor(1.seconds)
                 }
 
                 Then("all new attribution providers should be correctly converted") {

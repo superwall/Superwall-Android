@@ -1,6 +1,7 @@
 package com.superwall.sdk.analytics.internal
 
 import android.app.Application
+import android.util.Log
 import androidx.test.platform.app.InstrumentationRegistry
 import com.android.billingclient.api.Purchase
 import com.superwall.sdk.Superwall
@@ -14,6 +15,8 @@ import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.storage.LastPaywallView
 import com.superwall.sdk.storage.LatestEnrichment
 import com.superwall.sdk.storage.LocalStorage
+import com.superwall.sdk.storage.ReviewData
+import com.superwall.sdk.storage.ReviewCount
 import com.superwall.sdk.storage.TotalPaywallViews
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import io.mockk.every
@@ -32,6 +35,7 @@ class TrackingLogicTest {
             every { read(LastPaywallView) } returns null
             every { read(TotalPaywallViews) } returns 0
             every { read(LatestEnrichment) } returns Enrichment.stub()
+            every { read(ReviewData) } returns ReviewCount(0)
         }
     val network = mockk<Network>()
 
@@ -69,6 +73,7 @@ class TrackingLogicTest {
             val attributes = deviceHelper.getTemplateDevice()
             val event = InternalSuperwallEvent.DeviceAttributes(HashMap(attributes))
             val res = TrackingLogic.processParameters(event, "appSessionId")
+
             assert(
                 lazyMessage = { "Lists should be cleaned" },
                 value = res.audienceFilterParams.none { it.value is List<*> },

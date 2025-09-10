@@ -1,5 +1,7 @@
 package com.superwall.sdk.models.attribution
 
+import com.google.android.gms.ads.identifier.AdvertisingIdClient
+import com.superwall.sdk.Superwall
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -104,5 +106,6 @@ enum class AttributionProvider(
     GOOGLE_ADS("google_ads"),
 
     @SerialName("custom")
-    CUSTOM("custom"),
+    CUSTOM("custom");
+
 }
