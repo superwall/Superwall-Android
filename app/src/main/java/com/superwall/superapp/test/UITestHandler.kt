@@ -1901,5 +1901,6 @@ object UITestHandler {
             UITestHandler.testAndroid102Info,
             UITestHandler.testAndroid103Info,
             UITestHandler.testAndroid104Info,
+            UITestHandler.testAndroid105Info,
         )
 }

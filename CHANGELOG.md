@@ -5,6 +5,11 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 ## 2.5.2
 
 ## Enhancements
+- Adds ability to specify a custom height and corner radius for the drawer presentation style.
+- Adds ability to display a `Popup` presentation style
+- Adds ability to request reviews from paywall actions, including:
+  - Value `device.reviewRequestCount` that returns total request counts
+  - Method `device.reviewRequestsInHour|Day|Week|Year|reviewRequestsSinceInstall` computed methods for granular targeting
 - Adds `Superwall.instance.setIntegrationAttributes` method enabling you to set integration identifiers for the users from different platforms (Adjust, Mixpanel, Meta, etc.)
 - Adds `Superwall.instance.showAlert` method enabling you to easily show an alert over the current paywall
 - Adds `PaywallOptions.timeoutAfter` to easily control timeout of paywalls when not using fallback loading

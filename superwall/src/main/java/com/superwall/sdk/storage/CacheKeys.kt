@@ -14,6 +14,7 @@ import com.superwall.sdk.utilities.DateUtils
 import com.superwall.sdk.utilities.ErrorTracking
 import com.superwall.sdk.utilities.dateFormat
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.Serializer
@@ -367,14 +368,12 @@ object DateSerializer : KSerializer<Date> {
 
 @Serializable
 data class ReviewDataModel(
-    val reviewed: Boolean = false,
-    val dateTimestamp: Long? = null,
+    @SerialName("times_queried")
     val timesQueried: Int = 0,
+    val timestamp: Long = Date().toInstant().toEpochMilli(),
 ) {
     val date: Date?
-        get() = dateTimestamp?.let { Date(it) }
-
-    fun withDate(date: Date?): ReviewDataModel = copy(dateTimestamp = date?.time)
+        get() = timestamp?.let { Date(it) }
 }
 
 // endregion

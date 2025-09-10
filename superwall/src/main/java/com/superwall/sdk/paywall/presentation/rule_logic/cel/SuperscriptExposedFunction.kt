@@ -27,7 +27,7 @@ sealed class SuperscriptExposedFunction {
         REVIEW_REQUESTS_IN_WEEK("reviewRequestsInWeek"),
         REVIEW_REQUESTS_IN_MONTH("reviewRequestsInMonth"),
         REVIEW_REQUESTS_IN_YEAR("reviewRequestsInYear"),
-        REVIEW_REQUESTS_TOTAL("reviewRequestsTotal"),
+        REVIEW_REQUESTS_TOTAL("reviewRequestsSinceInstall"),
         REQUEST_REVIEW("requestReview"),
     }
 

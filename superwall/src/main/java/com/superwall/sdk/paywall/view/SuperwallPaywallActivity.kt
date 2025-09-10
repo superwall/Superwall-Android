@@ -1,7 +1,9 @@
 package com.superwall.sdk.paywall.view
 
 import android.Manifest
+import android.animation.AnimatorSet
 import android.animation.ArgbEvaluator
+import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
 import android.app.Activity
 import android.app.NotificationChannel
@@ -20,6 +22,7 @@ import android.view.ViewGroup
 import android.view.Window
 import android.view.WindowInsetsController
 import android.view.WindowManager
+import android.view.animation.OvershootInterpolator
 import android.widget.FrameLayout
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.SystemBarStyle
@@ -73,6 +76,8 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         private const val PRESENTATION_STYLE_KEY = "presentationStyleKey"
         private const val IS_LIGHT_BACKGROUND_KEY = "isLightBackgroundKey"
         private const val ACTIVE_PAYWALL_TAG = "active_paywall"
+
+        private const val DEFAULT_DELAY = 300L
 
         fun startWithView(
             context: Context,
@@ -369,10 +374,19 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             is PaywallPresentationStyle.Modal,
             is PaywallPresentationStyle.None,
             is PaywallPresentationStyle.Drawer,
-            is PaywallPresentationStyle.Popup,
             null,
             -> {
                 // Do nothing
+            }
+
+            is PaywallPresentationStyle.Popup -> {
+                // Disable activity transitions for popup - we handle animation ourselves
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, 0, 0)
+                    overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, 0, 0)
+                } else {
+                    overridePendingTransition(0, 0)
+                }
             }
         }
     }
@@ -442,6 +456,23 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         container.setOnClickListener { /* consume click */ }
         container.addView(paywallView)
         container.requestLayout()
+
+        // Animate popup entrance: scale and fade in from center
+        container.scaleX = 0f
+        container.scaleY = 0f
+        container.alpha = 0f
+
+        val scaleX = ObjectAnimator.ofFloat(container, "scaleX", 0f, 1f)
+        val scaleY = ObjectAnimator.ofFloat(container, "scaleY", 0f, 1f)
+        val fadeIn = ObjectAnimator.ofFloat(container, "alpha", 0f, 1f)
+
+        val animatorSet =
+            AnimatorSet().apply {
+                playTogether(scaleX, scaleY, fadeIn)
+                duration = paywallView()?.paywall?.presentation?.delay ?: DEFAULT_DELAY
+                interpolator = OvershootInterpolator(1.1f)
+            }
+        animatorSet.start()
     }
 
     private var bottomSheetCallback: BottomSheetCallback? = null
@@ -547,7 +578,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
 
         // First animate the background dim, then call finish on the view
         with(ValueAnimator.ofObject(ArgbEvaluator(), colorFrom, colorTo)) {
-            setDuration(300) // milliseconds
+            setDuration(DEFAULT_DELAY) // milliseconds
             addUpdateListener { animator ->
                 val e = ((animator.animatedValue as Int) / colorFrom)
                 if (e < 0.1) {
@@ -560,21 +591,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
     }
 
     private fun hidePopupAndFinish() {
-        val colorFrom = Color.argb(200, 0, 0, 0)
-        val colorTo = Color.argb(0, 0, 0, 0)
-
-        // Animate the background fade, similar to bottom sheet but faster
-        with(ValueAnimator.ofObject(ArgbEvaluator(), colorFrom, colorTo)) {
-            setDuration(200) // milliseconds - faster than bottom sheet
-            addUpdateListener { animator ->
-                val e = ((animator.animatedValue as Int) / colorFrom)
-                if (e < 0.1) {
-                    super.finish()
-                }
-                window.setBackgroundDrawable(ColorDrawable(animator.animatedValue as Int))
-            }
-            start()
-        }
+        super.finish()
     }
 
     override fun onResume() {

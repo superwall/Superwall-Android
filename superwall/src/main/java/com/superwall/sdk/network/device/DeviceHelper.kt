@@ -186,73 +186,13 @@ class DeviceHelper(
             return storage.read(TotalPaywallViews) ?: 0
         }
 
-    val reviewData: ReviewDataModel
+    private val reviewData: ReviewDataModel
         get() {
             return storage.read(ReviewData) ?: ReviewDataModel()
         }
 
-    val hasReviewed: Boolean
-        get() = reviewData.reviewed
-
-    suspend fun reviewRequestsInHour(): Int {
-        val calendar = Calendar.getInstance()
-        calendar.add(Calendar.HOUR_OF_DAY, -1)
-        val startDate = calendar.time
-        val endDate = Date()
-        return storage.coreDataManager.countEventsByNameInPeriod(
-            name = "review_requested",
-            startDate = startDate,
-            endDate = endDate,
-        )
-    }
-
-    suspend fun reviewRequestsInDay(): Int {
-        val calendar = Calendar.getInstance()
-        calendar.add(Calendar.DAY_OF_MONTH, -1)
-        val startDate = calendar.time
-        val endDate = Date()
-        return storage.coreDataManager.countEventsByNameInPeriod(
-            name = "review_requested",
-            startDate = startDate,
-            endDate = endDate,
-        )
-    }
-
-    suspend fun reviewRequestsInWeek(): Int {
-        val calendar = Calendar.getInstance()
-        calendar.add(Calendar.WEEK_OF_YEAR, -1)
-        val startDate = calendar.time
-        val endDate = Date()
-        return storage.coreDataManager.countEventsByNameInPeriod(
-            name = "review_requested",
-            startDate = startDate,
-            endDate = endDate,
-        )
-    }
-
-    suspend fun reviewRequestsInMonth(): Int {
-        val calendar = Calendar.getInstance()
-        calendar.add(Calendar.MONTH, -1)
-        val startDate = calendar.time
-        val endDate = Date()
-        return storage.coreDataManager.countEventsByNameInPeriod(
-            name = "review_requested",
-            startDate = startDate,
-            endDate = endDate,
-        )
-    }
-
-    suspend fun reviewRequestsInYear(): Int {
-        val calendar = Calendar.getInstance()
-        calendar.add(Calendar.YEAR, -1)
-        val startDate = calendar.time
-        val endDate = Date()
-        return storage.coreDataManager.countEventsByNameInPeriod(
-            name = "review_requested",
-            startDate = startDate,
-            endDate = endDate,
-        )
-    }
+    val reviewRequestCount: Int
+        get() = reviewData.timesQueried
 
     suspend fun reviewRequestsTotal(): Int {
         // Use a very old date as the start date to get all records
@@ -621,7 +561,7 @@ class DeviceHelper(
                 platformWrapperVersion = platformWrapperVersion,
                 appVersionPadded = appVersionPadded,
                 deviceTier = classifier.deviceTier().raw,
-                hasReviewed = hasReviewed,
+                reviewRequestCount = reviewRequestCount,
                 kotlinVersion = kotlinVersion,
             )
         }.toResult()
