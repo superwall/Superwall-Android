@@ -1,7 +1,6 @@
 package com.superwall.sdk.analytics.internal
 
 import android.app.Application
-import android.util.Log
 import androidx.test.platform.app.InstrumentationRegistry
 import com.android.billingclient.api.Purchase
 import com.superwall.sdk.Superwall
@@ -15,8 +14,8 @@ import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.storage.LastPaywallView
 import com.superwall.sdk.storage.LatestEnrichment
 import com.superwall.sdk.storage.LocalStorage
-import com.superwall.sdk.storage.ReviewData
 import com.superwall.sdk.storage.ReviewCount
+import com.superwall.sdk.storage.ReviewData
 import com.superwall.sdk.storage.TotalPaywallViews
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import io.mockk.every

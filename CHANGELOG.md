@@ -13,8 +13,14 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 - Adds `Superwall.instance.setIntegrationAttributes` method enabling you to set integration identifiers for the users from different platforms (Adjust, Mixpanel, Meta, etc.)
 - Adds `Superwall.instance.showAlert` method enabling you to easily show an alert over the current paywall
 - Adds `PaywallOptions.timeoutAfter` to easily control timeout of paywalls when not using fallback loading
+- Adds `Superwall.instance.setIntegrationAttributes` and `Superwall.instance.integrationAttributes` to set integration identifiers (i.e. Mixpanel, Appsflyer, etc)
 - Adds user attributes to `TransactionComplete` and `PaywallOpen` events
 - Adds device ID to device attributes
+
+## Fixes
+
+- Fixes memory leak issues in `PaywallBuilder` would keep the paywall view alive in some cases
+- Fixes issue where some events would be missing properties
 
 ## 
 

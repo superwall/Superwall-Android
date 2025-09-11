@@ -73,7 +73,10 @@ class WebPaywallRedeemer(
     val isWebToAppEnabled: () -> Boolean,
     val receipts: suspend () -> List<TransactionReceipt>,
     val getExternalAccountId: () -> String,
-    val getIntegrationProps: () -> Map<String, Any> = { Superwall.instance.dependencyContainer.attributionManager.getFullAttributionIds() },
+    val getIntegrationProps: () -> Map<String, Any> = {
+        Superwall.instance.dependencyContainer.attributionManager
+            .getFullAttributionIds()
+    },
 ) {
     private var pollingJob: Job? = null
 
@@ -197,9 +200,9 @@ class WebPaywallRedeemer(
                                     info =
                                         mapOf(
                                             "code" to (
-                                                    (redemption as? RedeemType.Code)?.code
-                                                        ?: ""
-                                                    ),
+                                                (redemption as? RedeemType.Code)?.code
+                                                    ?: ""
+                                            ),
                                         ),
                                 )
 
@@ -257,7 +260,7 @@ class WebPaywallRedeemer(
                         if (redemption is RedeemType.Code) {
                             val errorMessage =
                                 it.localizedMessage ?: it.message
-                                ?: "Redemption failed, error unknown"
+                                    ?: "Redemption failed, error unknown"
                             Logger.debug(
                                 logLevel = LogLevel.error,
                                 scope = LogScope.webEntitlements,

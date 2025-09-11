@@ -10,7 +10,6 @@ import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
-import android.util.Log
 import androidx.core.content.ContextCompat
 import com.superwall.sdk.BuildConfig
 import com.superwall.sdk.Superwall
@@ -43,8 +42,8 @@ import com.superwall.sdk.paywall.view.webview.templating.models.DeviceTemplate
 import com.superwall.sdk.storage.LastPaywallView
 import com.superwall.sdk.storage.LatestEnrichment
 import com.superwall.sdk.storage.LocalStorage
-import com.superwall.sdk.storage.ReviewData
 import com.superwall.sdk.storage.ReviewCount
+import com.superwall.sdk.storage.ReviewData
 import com.superwall.sdk.storage.TotalPaywallViews
 import com.superwall.sdk.storage.core_data.convertFromJsonElement
 import com.superwall.sdk.storage.core_data.convertToJsonElement

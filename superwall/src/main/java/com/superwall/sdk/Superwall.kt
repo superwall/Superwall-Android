@@ -62,8 +62,8 @@ import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.Initiate
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedDeepLink
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedURL
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedUrlInChrome
-import com.superwall.sdk.storage.ReviewData
 import com.superwall.sdk.storage.ReviewCount
+import com.superwall.sdk.storage.ReviewData
 import com.superwall.sdk.storage.StoredSubscriptionStatus
 import com.superwall.sdk.store.Entitlements
 import com.superwall.sdk.store.PurchasingObserverState

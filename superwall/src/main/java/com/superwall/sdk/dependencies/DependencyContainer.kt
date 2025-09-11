@@ -491,13 +491,14 @@ class DependencyContainer(
                 },
             )
 
-        attributionManager = AttributionManager(storage, {
-            track(it)
-        }, ioScope = ioScope, redeemAfterSetting = {
-            ioScope.launch {
-                reedemer.redeem(WebPaywallRedeemer.RedeemType.Existing)
-            }
-        }, vendorId = { VendorId(deviceHelper.vendorId) })
+        attributionManager =
+            AttributionManager(storage, {
+                track(it)
+            }, ioScope = ioScope, redeemAfterSetting = {
+                ioScope.launch {
+                    reedemer.redeem(WebPaywallRedeemer.RedeemType.Existing)
+                }
+            }, vendorId = { VendorId(deviceHelper.vendorId) })
 
         /**
          * This loads the webview libraries in the background thread, giving us 100-200ms less lag
@@ -555,8 +556,8 @@ class DependencyContainer(
                 "X-Low-Power-Mode" to deviceHelper.isLowPowerModeEnabled.toString(),
                 "X-Is-Sandbox" to deviceHelper.isSandbox.toString(),
                 "X-Entitlement-Status" to
-                        Superwall.instance.entitlements.status.value
-                            .toString(),
+                    Superwall.instance.entitlements.status.value
+                        .toString(),
                 "Content-Type" to "application/json",
                 "X-Current-Time" to dateFormat(DateUtils.ISO_MILLIS).format(Date()),
                 "X-Static-Config-Build-Id" to (configManager.config?.buildId ?: ""),
@@ -632,8 +633,7 @@ class DependencyContainer(
         return view
     }
 
-    override fun makeCache(): PaywallViewCache =
-        PaywallViewCache(context, makeViewStore(), activityProvider!!, deviceHelper)
+    override fun makeCache(): PaywallViewCache = PaywallViewCache(context, makeViewStore(), activityProvider!!, deviceHelper)
 
     override fun activePaywallId(): String? = paywallManager.currentView?.paywall?.identifier
 
@@ -664,11 +664,9 @@ class DependencyContainer(
             audienceFilterParams = HashMap(identityManager.userAttributes),
         )
 
-    override fun makeHasExternalPurchaseController(): Boolean =
-        storeManager.purchaseController.hasExternalPurchaseController
+    override fun makeHasExternalPurchaseController(): Boolean = storeManager.purchaseController.hasExternalPurchaseController
 
-    override fun makeHasInternalPurchaseController(): Boolean =
-        storeManager.purchaseController.hasInternalPurchaseController
+    override fun makeHasInternalPurchaseController(): Boolean = storeManager.purchaseController.hasInternalPurchaseController
 
     override fun isWebToAppEnabled(): Boolean = configManager.config?.featureFlags?.web2App ?: false
 
@@ -758,8 +756,7 @@ class DependencyContainer(
 
     override fun makeFeatureFlags(): FeatureFlags? = configManager.config?.featureFlags
 
-    override fun makeComputedPropertyRequests(): List<ComputedPropertyRequest> =
-        configManager.config?.allComputedProperties ?: emptyList()
+    override fun makeComputedPropertyRequests(): List<ComputedPropertyRequest> = configManager.config?.allComputedProperties ?: emptyList()
 
     override suspend fun makeIdentityInfo(): IdentityInfo =
         IdentityInfo(
@@ -797,8 +794,7 @@ class DependencyContainer(
             appSessionId = appSessionManager.appSession.id,
         )
 
-    override suspend fun activeProductIds(): List<String> =
-        storeManager.receiptManager.purchases.toList()
+    override suspend fun activeProductIds(): List<String> = storeManager.receiptManager.purchases.toList()
 
     override suspend fun makeIdentityManager(): IdentityManager = identityManager
 
@@ -825,8 +821,7 @@ class DependencyContainer(
         get() = ViewModelFactory()
     private val vmProvider = ViewModelProvider(storeOwner, vmFactory)
 
-    override fun makeViewStore(): ViewStorageViewModel =
-        vmProvider[ViewStorageViewModel::class.java]
+    override fun makeViewStore(): ViewStorageViewModel = vmProvider[ViewStorageViewModel::class.java]
 
     private var _mainScope: MainScope? = null
     private var _ioScope: IOScope? = null
@@ -890,8 +885,7 @@ class DependencyContainer(
 
     override fun context(): Context = context
 
-    override fun experimentalProperties(): Map<String, Any> =
-        storeManager.receiptManager.experimentalProperties()
+    override fun experimentalProperties(): Map<String, Any> = storeManager.receiptManager.experimentalProperties()
 
     override fun getCurrentUserAttributes(): Map<String, Any> = identityManager.userAttributes
 }

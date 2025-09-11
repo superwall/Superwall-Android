@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
 import com.superwall.sdk.Superwall
+import com.superwall.superapp.debug.SuperwallDebugActivity
 import com.superwall.superapp.test.UITestActivity
 import com.superwall.superapp.test.WebTestActivity
 import java.lang.ref.WeakReference
@@ -97,6 +98,12 @@ class MainActivity : AppCompatActivity() {
 //                delay(1000)
 //                Superwall.instance.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_BUTTON_A))
 //            }
+        }
+
+        val superwallDebugButton: Button = findViewById(R.id.superwallDebug)
+        superwallDebugButton.setOnClickListener {
+            val intent = Intent(this, SuperwallDebugActivity::class.java)
+            startActivity(intent)
         }
     }
 

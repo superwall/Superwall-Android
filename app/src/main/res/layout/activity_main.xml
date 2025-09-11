@@ -101,6 +101,17 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/devicePropertiesTest" />
 
+    <Button
+        android:id="@+id/superwallDebug"
+        android:layout_width="wrap_content"
+        android:visibility="gone"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:text="Superwall Debug"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/webTests" />
+
 
 
 
