@@ -2,7 +2,7 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
-## 2.5.2
+## 2.5.3
 
 ## Enhancements
 - Adds ability to specify a custom height and corner radius for the drawer presentation style.
@@ -21,9 +21,6 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 - Fixes memory leak issues in `PaywallBuilder` would keep the paywall view alive in some cases
 - Fixes issue where some events would be missing properties
-
-## 
-
 
 ## 2.5.1
 
