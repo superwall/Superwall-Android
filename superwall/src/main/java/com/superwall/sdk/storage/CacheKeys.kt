@@ -370,7 +370,7 @@ object DateSerializer : KSerializer<Date> {
 data class ReviewCount(
     @SerialName("times_queried")
     val timesQueried: Int = 0,
-    val timestamp: Long = Date().toInstant().toEpochMilli(),
+    val timestamp: Long = Date().time,
 ) {
     val date: Date?
         get() = timestamp?.let { Date(it) }
