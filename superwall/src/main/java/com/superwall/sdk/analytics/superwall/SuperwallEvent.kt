@@ -79,6 +79,14 @@ sealed class SuperwallEvent {
             get() = "device_attributes"
     }
 
+    // / When attribution props are set or updated.
+    data class IntegrationProps(
+        val audienceFilterParams: Map<String, Any>,
+    ) : SuperwallEvent() {
+        override val rawName: String
+            get() = "attribution_props"
+    }
+
     // / When the user's subscription status changes.
     class SubscriptionStatusDidChange : SuperwallEvent() {
         override val rawName: String
@@ -472,6 +480,27 @@ sealed class SuperwallEvent {
     ) : SuperwallPlacement() {
         override val rawName: String
             get() = "enrichment_complete"
+    }
+
+    data class ReviewRequested(
+        val count: Int,
+    ) : SuperwallEvent() {
+        override val rawName: String
+            get() = "review_requested"
+    }
+
+    data class ReviewGranted(
+        val count: Int,
+    ) : SuperwallEvent() {
+        override val rawName: String
+            get() = "review_granted"
+    }
+
+    data class ReviewDenied(
+        val count: Int,
+    ) : SuperwallEvent() {
+        override val rawName: String
+            get() = "review_denied"
     }
 
     open val rawName: String

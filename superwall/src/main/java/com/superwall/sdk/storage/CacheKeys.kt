@@ -14,6 +14,8 @@ import com.superwall.sdk.utilities.DateUtils
 import com.superwall.sdk.utilities.ErrorTracking
 import com.superwall.sdk.utilities.dateFormat
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.Serializer
 import kotlinx.serialization.builtins.MapSerializer
@@ -166,6 +168,22 @@ object UserAttributes : Storable<
         get() = MapSerializer(String.serializer(), AnySerializer)
 }
 
+object IntegrationAttributes : Storable<Map<com.superwall.sdk.models.attribution.AttributionProvider, String>> {
+    override val key: String
+        get() = "store.integrationAttributes"
+
+    override val directory: SearchPathDirectory
+        get() = SearchPathDirectory.USER_SPECIFIC_DOCUMENTS
+
+    override val serializer: KSerializer<Map<com.superwall.sdk.models.attribution.AttributionProvider, String>>
+        get() =
+            MapSerializer(
+                com.superwall.sdk.models.attribution.AttributionProvider
+                    .serializer(),
+                String.serializer(),
+            )
+}
+
 object Transactions : Storable<StoreTransaction> {
     override val key: String
         get() = "store.transactions.v2"
@@ -310,6 +328,15 @@ internal object LatestRedemptionResponse : Storable<WebRedemptionResponse> {
         get() = WebRedemptionResponse.serializer()
 }
 
+object ReviewData : Storable<ReviewCount> {
+    override val key: String
+        get() = "store.reviewData"
+    override val directory: SearchPathDirectory
+        get() = SearchPathDirectory.USER_SPECIFIC_DOCUMENTS
+    override val serializer: KSerializer<ReviewCount>
+        get() = ReviewCount.serializer()
+}
+
 //endregion
 
 // region Serializers
@@ -337,6 +364,16 @@ object DateSerializer : KSerializer<Date> {
         return format.parse(dateString)
             ?: throw SerializationException("Invalid date format: $dateString")
     }
+}
+
+@Serializable
+data class ReviewCount(
+    @SerialName("times_queried")
+    val timesQueried: Int = 0,
+    val timestamp: Long = Date().time,
+) {
+    val date: Date?
+        get() = timestamp?.let { Date(it) }
 }
 
 // endregion

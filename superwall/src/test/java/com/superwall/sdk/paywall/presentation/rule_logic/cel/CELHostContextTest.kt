@@ -454,7 +454,7 @@ class CELHostContextTest {
                     }
 
                     And("it should have exactly 9 properties") {
-                        assertEquals(9, properties.size)
+                        assertEquals(16, properties.size)
                     }
                 }
             }

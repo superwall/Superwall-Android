@@ -9,7 +9,6 @@
         android:layout_height="match_parent"
         android:layout_gravity="bottom"
         android:id="@+id/container"
-        android:background="@drawable/rounded_shape"
         android:clipToOutline="true"
         app:behavior_hideable="true"
         app:layout_behavior="com.google.android.material.bottomsheet.BottomSheetBehavior">

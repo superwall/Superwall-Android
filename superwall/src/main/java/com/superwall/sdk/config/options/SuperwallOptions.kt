@@ -108,6 +108,8 @@ class SuperwallOptions {
 
     // The log scope and level to print to the console.
     var logging: Logging = Logging()
+
+    var useMockReviews: Boolean = false
 }
 
 internal fun SuperwallOptions.NetworkEnvironment.toMap(): Map<String, Any> =

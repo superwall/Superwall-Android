@@ -23,7 +23,7 @@ plugins {
     alias(libs.plugins.publisher)
 }
 
-version = "2.5.1"
+version = "2.5.3"
 
 android {
     compileSdk = 35
@@ -158,6 +158,13 @@ dependencies {
     // Serialization
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.install.referrer)
+
+    // Google Play Review
+    implementation(libs.play.review.ktx)
+
+    // Google Ads identifiers
+    implementation(libs.play.services.appset)
+    implementation(libs.play.services.ads.identifier)
 
     // Test
     testImplementation(libs.junit)

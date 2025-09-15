@@ -13,6 +13,7 @@ data class DeviceTemplate(
     val appUserId: String,
     val aliases: List<String>,
     val vendorId: String,
+    val deviceId: String,
     val appVersion: String,
     val appVersionPadded: String,
     val osVersion: String,
@@ -63,6 +64,7 @@ data class DeviceTemplate(
     @SerialName("platform_wrapper_version")
     val platformWrapperVersion: String,
     val deviceTier: String,
+    val reviewRequestCount: Int,
     val kotlinVersion: String,
 ) {
     fun toDictionary(json: Json): Map<String, Any> {

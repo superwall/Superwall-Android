@@ -1799,6 +1799,26 @@ object UITestHandler {
             },
         )
 
+    var testAndroid104Info =
+        UITestInfo(
+            103,
+            "Test review with SuperwallOptions.useMockReview = true. When show review is tapped, a review prompt should show.",
+            testCaseType = TestCaseType.Android,
+            test = { scope, events, _ ->
+                Superwall.instance.register("review_test")
+            },
+        )
+
+    var testAndroid105Info =
+        UITestInfo(
+            103,
+            "Test review with SuperwallOptions.useMockReview = true. When show external review is tapped, the play store should open.",
+            testCaseType = TestCaseType.Android,
+            test = { scope, events, _ ->
+                Superwall.instance.register("review_test")
+            },
+        )
+
     val tests =
         listOf<UITestInfo>(
             UITestHandler.test0Info,
@@ -1880,5 +1900,7 @@ object UITestHandler {
             UITestHandler.testAndroid101Info,
             UITestHandler.testAndroid102Info,
             UITestHandler.testAndroid103Info,
+            UITestHandler.testAndroid104Info,
+            UITestHandler.testAndroid105Info,
         )
 }

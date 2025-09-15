@@ -53,4 +53,8 @@ enum class SuperwallEvents(
     RedemptionStart("redemption_start"),
     RedemptionComplete("redemption_complete"),
     RedemptionFail("redemption_fail"),
+    ReviewRequested("review_requested"),
+    ReviewGranted("review_granted"),
+    ReviewDenied("review_denied"),
+    IntegrationAttributes("integration_attributes"),
 }

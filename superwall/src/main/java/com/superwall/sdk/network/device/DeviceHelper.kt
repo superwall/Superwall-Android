@@ -33,6 +33,8 @@ import com.superwall.sdk.models.enrichment.Enrichment
 import com.superwall.sdk.models.enrichment.EnrichmentRequest
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.events.EventData
+import com.superwall.sdk.models.internal.DeviceVendorId
+import com.superwall.sdk.models.internal.VendorId
 import com.superwall.sdk.network.JsonFactory
 import com.superwall.sdk.network.NetworkError
 import com.superwall.sdk.network.SuperwallAPI
@@ -40,6 +42,8 @@ import com.superwall.sdk.paywall.view.webview.templating.models.DeviceTemplate
 import com.superwall.sdk.storage.LastPaywallView
 import com.superwall.sdk.storage.LatestEnrichment
 import com.superwall.sdk.storage.LocalStorage
+import com.superwall.sdk.storage.ReviewCount
+import com.superwall.sdk.storage.ReviewData
 import com.superwall.sdk.storage.TotalPaywallViews
 import com.superwall.sdk.storage.core_data.convertFromJsonElement
 import com.superwall.sdk.storage.core_data.convertToJsonElement
@@ -50,6 +54,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.serialization.json.Json
 import org.threeten.bp.Instant
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Currency
 import java.util.Date
 import java.util.Locale
@@ -181,6 +186,27 @@ class DeviceHelper(
             return storage.read(TotalPaywallViews) ?: 0
         }
 
+    private val reviewData: ReviewCount
+        get() {
+            return storage.read(ReviewData) ?: ReviewCount()
+        }
+
+    val reviewRequestCount: Int
+        get() = reviewData.timesQueried
+
+    suspend fun reviewRequestsTotal(): Int {
+        // Use a very old date as the start date to get all records
+        val calendar = Calendar.getInstance()
+        calendar.set(Calendar.YEAR, 2000)
+        val startDate = calendar.time
+        val endDate = Date()
+        return storage.coreDataManager.countEventsByNameInPeriod(
+            name = "review_requested",
+            startDate = startDate,
+            endDate = endDate,
+        )
+    }
+
     private val lastEnrichment: MutableStateFlow<Enrichment?> =
         MutableStateFlow(storage.read(LatestEnrichment))
 
@@ -219,6 +245,9 @@ class DeviceHelper(
 
     val vendorId: String
         get() = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
+
+    val deviceId: String
+        get() = DeviceVendorId(VendorId(vendorId)).value
 
     var platformWrapper: String = ""
     var platformWrapperVersion: String = ""
@@ -473,6 +502,7 @@ class DeviceHelper(
                 appUserId = identityInfo.appUserId ?: "",
                 aliases = aliases,
                 vendorId = vendorId,
+                deviceId = deviceId,
                 appVersion = appVersion,
                 osVersion = osVersion,
                 deviceModel = model,
@@ -531,6 +561,7 @@ class DeviceHelper(
                 platformWrapperVersion = platformWrapperVersion,
                 appVersionPadded = appVersionPadded,
                 deviceTier = classifier.deviceTier().raw,
+                reviewRequestCount = reviewRequestCount,
                 kotlinVersion = kotlinVersion,
             )
         }.toResult()

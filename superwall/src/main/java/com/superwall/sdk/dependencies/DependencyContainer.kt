@@ -8,6 +8,7 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.ViewModelProvider
 import com.android.billingclient.api.Purchase
 import com.superwall.sdk.Superwall
+import com.superwall.sdk.analytics.AttributionManager
 import com.superwall.sdk.analytics.ClassifierDataFactory
 import com.superwall.sdk.analytics.DefaultClassifierDataFactory
 import com.superwall.sdk.analytics.DeviceClassifier
@@ -40,6 +41,7 @@ import com.superwall.sdk.models.config.FeatureFlags
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.entitlements.TransactionReceipt
 import com.superwall.sdk.models.events.EventData
+import com.superwall.sdk.models.internal.VendorId
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.network.Api
@@ -81,6 +83,9 @@ import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessageHandler
 import com.superwall.sdk.paywall.view.webview.templating.models.JsonVariables
 import com.superwall.sdk.paywall.view.webview.templating.models.Variables
 import com.superwall.sdk.paywall.view.webview.webViewExists
+import com.superwall.sdk.review.MockReviewManager
+import com.superwall.sdk.review.ReviewManager
+import com.superwall.sdk.review.ReviewManagerImpl
 import com.superwall.sdk.storage.EventsQueue
 import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.store.AutomaticPurchaseController
@@ -156,6 +161,7 @@ class DependencyContainer(
     var storeManager: StoreManager
     val transactionManager: TransactionManager
     val googleBillingWrapper: GoogleBillingWrapper
+    internal val reviewManager: ReviewManager
 
     var entitlements: Entitlements
     lateinit var reedemer: WebPaywallRedeemer
@@ -185,6 +191,7 @@ class DependencyContainer(
 
     internal val errorTracker: ErrorTracker
     internal val deepLinkRouter: DeepLinkRouter
+    internal val attributionManager: AttributionManager
 
     init {
         // For tracking when the app enters the background.
@@ -395,7 +402,7 @@ class DependencyContainer(
                 },
                 receipts = {
                     googleBillingWrapper.queryAllPurchases().map {
-                        TransactionReceipt(it.purchaseToken)
+                        TransactionReceipt(it.purchaseToken, it.orderId)
                     }
                 },
                 getExternalAccountId = {
@@ -465,15 +472,33 @@ class DependencyContainer(
                 },
             )
 
+        reviewManager =
+            if (options.useMockReviews) {
+                MockReviewManager(context)
+            } else {
+                ReviewManagerImpl(context, isDebug = {
+                    makeIsSandbox()
+                })
+            }
+
         deepLinkRouter =
             DeepLinkRouter(
                 reedemer,
                 ioScope,
                 debugManager,
                 {
-                    Superwall.instance.track(it)
+                    track(it)
                 },
             )
+
+        attributionManager =
+            AttributionManager(storage, {
+                track(it)
+            }, ioScope = ioScope, redeemAfterSetting = {
+                ioScope.launch {
+                    reedemer.redeem(WebPaywallRedeemer.RedeemType.Existing)
+                }
+            }, vendorId = { VendorId(deviceHelper.vendorId) })
 
         /**
          * This loads the webview libraries in the background thread, giving us 100-200ms less lag
@@ -861,4 +886,6 @@ class DependencyContainer(
     override fun context(): Context = context
 
     override fun experimentalProperties(): Map<String, Any> = storeManager.receiptManager.experimentalProperties()
+
+    override fun getCurrentUserAttributes(): Map<String, Any> = identityManager.userAttributes
 }

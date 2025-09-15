@@ -321,7 +321,7 @@ data class PaywallInfo(
                 localNotifications = emptyList(),
                 computedPropertyRequests = emptyList(),
                 surveys = emptyList(),
-                presentation = PaywallPresentationInfo(PaywallPresentationStyle.NONE, 0),
+                presentation = PaywallPresentationInfo(PaywallPresentationStyle.None, 0),
                 buildId = "",
                 cacheKey = "",
                 isScrollEnabled = true,

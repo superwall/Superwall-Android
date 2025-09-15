@@ -7,6 +7,8 @@ kotlinxCoroutinesGuavaVersion = "1.9.0"
 leakcanaryAndroidVersion = "2.14"
 lifecycleProcessVersion = "2.8.1"
 orchestratorVersion = "1.5.0"
+playServicesAdsIdentifierVersion = "18.2.0"
+playServicesAppsetVersion = "16.1.0"
 revenue_cat_version = "9.1.2"
 compose_version = "2024.12.01"
 kotlinx_serialization_json_version = "1.7.2"
@@ -36,7 +38,8 @@ dropshot_version = "0.4.2"
 ksp = "2.0.21-1.0.27"
 install_referrer = "2.2"
 publisher_version = "0.33.0"
-
+play_review = "2.0.2"
+ads_identifier = "1.0.0-alpha5"
 [libraries]
 
 # SQL
@@ -44,6 +47,8 @@ publisher_version = "0.33.0"
 jna = { module = "net.java.dev.jna:jna", version.ref = "jna_version" }
 leakcanary-android = { module = "com.squareup.leakcanary:leakcanary-android", version.ref = "leakcanaryAndroidVersion" }
 orchestrator = { module = "androidx.test:orchestrator", version.ref = "orchestratorVersion" }
+play-services-ads-identifier = { module = "com.google.android.gms:play-services-ads-identifier", version.ref = "playServicesAdsIdentifierVersion" }
+play-services-appset = { module = "com.google.android.gms:play-services-appset", version.ref = "playServicesAppsetVersion" }
 room-compiler = { module = "androidx.room:room-compiler", version.ref = "room_runtime_version" }
 room-ktx = { module = "androidx.room:room-ktx", version.ref = "room_runtime_version" }
 room-runtime = { module = "androidx.room:room-runtime", version.ref = "room_runtime_version" }
@@ -78,6 +83,9 @@ uiautomator = { module = "androidx.test.uiautomator:uiautomator", version.ref = 
 work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "workRuntimeKtx_version" }
 lifecycle-process = { module = "androidx.lifecycle:lifecycle-process", version.ref = "lifecycleProcessVersion" }
 install_referrer = { module = "com.android.installreferrer:installreferrer", version.ref = "install_referrer"}
+play_review_ktx = { module = "com.google.android.play:review", version.ref="play_review"}
+reviewplay_review_ktx = { module = "com.google.android.play:review-ktx", version.ref="play_review"}
+ads_identifiers = { module = "androidx.ads:ads-identifier", version.ref="ads_identifier"}
 # Coroutines
 kotlinx_coroutines_core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx_coroutines_core_version" }
 kotlinx-coroutines-guava = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-guava", version.ref = "kotlinxCoroutinesGuavaVersion" }

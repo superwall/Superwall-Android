@@ -53,6 +53,9 @@
             </intent-filter>
         </activity>
         <activity android:name=".ComposeActivity" />
+        <activity 
+            android:name=".debug.SuperwallDebugActivity"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
         <activity
             android:name="com.superwall.sdk.paywall.view.SuperwallPaywallActivity"
             android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar"
@@ -73,7 +76,6 @@
                 <data android:scheme="superapp" android:host="superwall"  />
             </intent-filter>
         </activity>
-
     </application>
 </manifest>
 

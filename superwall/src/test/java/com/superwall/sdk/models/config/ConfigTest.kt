@@ -433,6 +433,9 @@ class ConfigTest {
     "presentation_delay": 0,
     "presentation_style": "NO_ANIMATION",
     "presentation_style_v2": "NO_ANIMATION",
+    "presentation_style_v3":  {
+      "type": "NO_ANIMATION"
+    },
     "launch_option": "EXPLICIT",
     "dismissal_option": "NORMAL",
     "background_color_hex": "#000000"

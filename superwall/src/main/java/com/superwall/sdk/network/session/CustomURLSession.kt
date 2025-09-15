@@ -55,7 +55,7 @@ class CustomHttpUrlConnection(
                                 "request" to it.toString(),
                                 "api_key" to it.authHeader(),
                                 "url" to (requestData.url?.toString() ?: "unknown"),
-                                "message" to "Unable to decode response to type ${Response::class.simpleName}",
+                                "message" to "Unable to decode response to type ${Response::class.simpleName} - ${e.message}",
                                 "info" to it.responseMessage,
                                 "request_duration" to it.duration,
                             ),

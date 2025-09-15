@@ -25,6 +25,10 @@ sealed class WebviewError {
         override fun toString(): String = "The network failed with error code: $code - $description - $url ."
     }
 
+    object Timeout : WebviewError() {
+        override fun toString(): String = "Paywall loading reached specified timeout"
+    }
+
     data class MaxAttemptsReached(
         val urls: List<String>,
     ) : WebviewError() {

@@ -25,8 +25,12 @@ import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.util.Date
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 interface PaywallRequestManagerDepFactory :
     DeviceInfoFactory,
@@ -72,7 +76,7 @@ class PaywallRequestManager(
                         joinedSubstituteProductIds = joinedSubstituteProductIds,
                     )
 
-                var paywall = paywallsByHash[requestHash]
+                var paywall: Paywall? = paywallsByHash[requestHash]
                 if (paywall != null &&
                     !request.isDebuggerLaunched
                 ) {
@@ -85,34 +89,64 @@ class PaywallRequestManager(
 
                 val existingTask = activeTasks[requestHash]
                 if (existingTask != null) {
-                    paywall = existingTask.await()
-                    if (!(isPreloading && paywall.identifier == factory.activePaywallId())) {
-                        paywall = updatePaywall(paywall, request)
-                    }
-                    return@withContext paywall
-                }
-
-                val deferredTask = CompletableDeferred<Paywall>()
-                activeTasks[requestHash] = deferredTask
-
-                getRawPaywall(request, isPreloading)
-                    .then {
-                        val finalPaywall =
-                            addProducts(it, request)
-                        saveRequestHash(requestHash, finalPaywall, request.isDebuggerLaunched)
-
-                        deferredTask.complete(finalPaywall)
-                    }.onError {
+                    try {
+                        paywall = existingTask.await()
+                        if (!(isPreloading && paywall.identifier == factory.activePaywallId())) {
+                            paywall = updatePaywall(paywall, request)
+                        }
+                        return@withContext paywall
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        // Clean up cancelled task and continue with new request
                         activeTasks.remove(requestHash)
-                        deferredTask.completeExceptionally(it)
+                        // Don't rethrow, let it continue to create a new task
                     }
-
-                paywall = deferredTask.await()
-                if (!(isPreloading && paywall.identifier == factory.activePaywallId())) {
-                    paywall = updatePaywall(paywall, request)
                 }
 
-                return@withContext paywall
+                // Use suspendCancellableCoroutine to ensure proper cleanup
+                paywall =
+                    suspendCancellableCoroutine { continuation ->
+                        val deferredTask = CompletableDeferred<Paywall>()
+                        activeTasks[requestHash] = deferredTask
+
+                        // Set up cancellation handler to clean up activeTasks
+                        continuation.invokeOnCancellation {
+                            activeTasks.remove(requestHash)
+                            deferredTask.cancel()
+                        }
+
+                        // Launch coroutine to handle async operations
+                        ioScope.launch {
+                            try {
+                                val rawPaywallResult = getRawPaywall(request, isPreloading)
+                                rawPaywallResult
+                                    .then {
+                                        val finalPaywall = addProducts(it, request)
+                                        saveRequestHash(requestHash, finalPaywall, request.isDebuggerLaunched)
+
+                                        // Complete both the deferred task and the continuation
+                                        deferredTask.complete(finalPaywall)
+                                        continuation.resume(finalPaywall)
+                                    }.onError { error ->
+                                        activeTasks.remove(requestHash)
+                                        deferredTask.completeExceptionally(error)
+                                        continuation.resumeWithException(error)
+                                    }
+                            } catch (error: Throwable) {
+                                activeTasks.remove(requestHash)
+                                deferredTask.completeExceptionally(error)
+                                continuation.resumeWithException(error)
+                            }
+                        }
+                    }
+
+                // At this point paywall should not be null, but let's handle it safely
+                val finalPaywall = paywall ?: throw IllegalStateException("Paywall should not be null")
+
+                return@withContext if (!(isPreloading && finalPaywall.identifier == factory.activePaywallId())) {
+                    updatePaywall(finalPaywall, request)
+                } else {
+                    finalPaywall
+                }
             }
         }
 

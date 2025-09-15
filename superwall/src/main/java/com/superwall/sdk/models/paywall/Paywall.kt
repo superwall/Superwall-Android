@@ -47,7 +47,9 @@ data class Paywall(
     @SerialName("paywalljs_event")
     val htmlSubstitutions: String,
     @SerialName("presentation_style_v2")
-    private val presentationStyle: String,
+    private val presentationStyle: String?,
+    @SerialName("presentation_style_v3")
+    private val expandedPresentationStyle: PaywallPresentationStyle?,
     @SerialName("presentation_delay")
     private val presentationDelay: Long,
     @SerialName("presentation_condition")
@@ -56,8 +58,8 @@ data class Paywall(
     var presentation: PaywallPresentationInfo =
         PaywallPresentationInfo(
             style =
-                PaywallPresentationStyle.entries.find { it.rawValue == presentationStyle.uppercase() }
-                    ?: PaywallPresentationStyle.NONE.also {
+                expandedPresentationStyle
+                    ?: PaywallPresentationStyle.None.also {
                         Logger.debug(
                             LogLevel.warn,
                             LogScope.paywallPresentation,
@@ -236,9 +238,10 @@ data class Paywall(
                 htmlSubstitutions = "",
                 presentation =
                     PaywallPresentationInfo(
-                        PaywallPresentationStyle.MODAL,
+                        PaywallPresentationStyle.Modal,
                         300,
                     ),
+                expandedPresentationStyle = PaywallPresentationStyle.Modal,
                 presentationStyle = "MODAL",
                 presentationCondition = "CHECK_USER_SUBSCRIPTION",
                 backgroundColorHex = "000000",

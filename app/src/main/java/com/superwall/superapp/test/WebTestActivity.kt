@@ -3,7 +3,6 @@ package com.superwall.superapp.test
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -54,12 +53,7 @@ fun WebUITestTable() {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
-    val mainTextColor =
-        if (isSystemInDarkTheme()) {
-            Color.White // Set the color for dark mode
-        } else {
-            Color.Black // Set the color for light mode
-        }
+    val mainTextColor = Color.Black // Set the color for light mode
 
     val tests =
         remember {

@@ -37,6 +37,7 @@ import com.superwall.sdk.paywall.view.ViewStorage
 import com.superwall.sdk.paywall.view.delegate.PaywallViewDelegateAdapter
 import com.superwall.sdk.paywall.view.webview.templating.models.JsonVariables
 import com.superwall.sdk.storage.LocalStorage
+import com.superwall.sdk.storage.core_data.CoreDataManager
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import kotlinx.coroutines.flow.StateFlow
 
@@ -195,6 +196,10 @@ interface OptionsFactory {
     fun makeSuperwallOptions(): SuperwallOptions
 }
 
+interface AttributesFactory {
+    fun getCurrentUserAttributes(): Map<String, Any>
+}
+
 interface TriggerFactory {
     suspend fun makeTriggers(): Set<String>
 }
@@ -207,4 +212,8 @@ interface SuperwallScopeFactory {
     fun mainScope(): MainScope
 
     fun ioScope(): IOScope
+}
+
+interface CoreDataManagerFactory {
+    fun makeCoreDataManager(): CoreDataManager
 }

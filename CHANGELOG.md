@@ -2,6 +2,25 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.5.3
+
+## Enhancements
+- Adds ability to specify a custom height and corner radius for the drawer presentation style.
+- Adds ability to display a `Popup` presentation style
+- Adds ability to request reviews from paywall actions, including:
+  - Value `device.reviewRequestCount` that returns total request counts
+  - Method `device.reviewRequestsInHour|Day|Week|Year|reviewRequestsSinceInstall` computed methods for granular targeting
+- Adds `Superwall.instance.setIntegrationAttributes` method enabling you to set integration identifiers for the users from different platforms (Adjust, Mixpanel, Meta, etc.)
+- Adds `Superwall.instance.showAlert` method enabling you to easily show an alert over the current paywall
+- Adds `PaywallOptions.timeoutAfter` to easily control timeout of paywalls when not using fallback loading
+- Adds `Superwall.instance.setIntegrationAttributes` and `Superwall.instance.integrationAttributes` to set integration identifiers (i.e. Mixpanel, Appsflyer, etc)
+- Adds user attributes to `TransactionComplete` and `PaywallOpen` events
+- Adds device ID to device attributes
+
+## Fixes
+
+- Fixes memory leak issues in `PaywallBuilder` would keep the paywall view alive in some cases
+- Fixes issue where some events would be missing properties
 
 ## 2.5.1
 
