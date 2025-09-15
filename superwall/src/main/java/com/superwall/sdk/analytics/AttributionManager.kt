@@ -17,7 +17,6 @@ import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.future.asCompletableFuture
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.launch
 import kotlin.collections.map
@@ -88,7 +87,7 @@ class AttributionManager(
             ioScope.launch {
                 delay(500.milliseconds)
                 appSetId = Tasks.await(idTask).id
-                advertiserIdJob?.asCompletableFuture()?.await()
+                advertiserIdJob?.join()
                 withErrorTracking {
                     _integrationAttributes = attributes
 
