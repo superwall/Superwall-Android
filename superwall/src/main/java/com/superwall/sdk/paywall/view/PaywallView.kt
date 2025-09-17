@@ -582,6 +582,10 @@ class PaywallView(
         }
     }
 
+    fun onThemeChanged() {
+        webView.messageHandler.handle(PaywallMessage.TemplateParamsAndUserAttributes)
+    }
+
     private fun showShimmerView() {
         shimmerView?.let {
             mainScope.launch {
