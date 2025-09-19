@@ -3,6 +3,7 @@ package com.superwall.sdk.dependencies
 import android.app.Activity
 import android.app.Application
 import android.content.Context
+import android.util.Base64
 import android.webkit.WebSettings
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.ViewModelProvider
@@ -107,6 +108,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.ClassDiscriminatorMode
 import kotlinx.serialization.json.Json
 import java.lang.ref.WeakReference
+import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.util.Date
 
@@ -602,12 +604,15 @@ class DependencyContainer(
                 ioScope = ioScope,
                 json = paywallJson,
                 mainScope = mainScope(),
+                encodeToB64 = {
+                    Base64.encodeToString(it.toByteArray(StandardCharsets.UTF_8), Base64.NO_WRAP)
+                },
             )
 
         val state =
             PaywallViewState(
                 paywall = paywall,
-                deviceHelper = deviceHelper,
+                locale = deviceHelper.locale,
             )
         val controller = PaywallView.PaywallController(state)
         val paywallView =
@@ -638,7 +643,7 @@ class DependencyContainer(
                             controller = controller,
                         )
                     webView.delegate = paywallView
-                    messageHandler.delegate = paywallView
+                    messageHandler.messageHandler = paywallView
                     paywallView
                 }.await()
 

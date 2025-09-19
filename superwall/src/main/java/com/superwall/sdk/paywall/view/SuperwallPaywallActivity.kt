@@ -480,7 +480,11 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         val animatorSet =
             AnimatorSet().apply {
                 playTogether(scaleX, scaleY, fadeIn)
-                duration = paywallView()?.paywall?.presentation?.delay ?: DEFAULT_DELAY
+                duration = paywallView()
+                    ?.state
+                    ?.paywall
+                    ?.presentation
+                    ?.delay ?: DEFAULT_DELAY
                 interpolator = OvershootInterpolator(1.1f)
             }
         animatorSet.start()

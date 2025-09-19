@@ -680,7 +680,7 @@ class PaywallView(
     //region State
 
     internal fun loadingStateDidChange() {
-        if (state.isActive) {
+        if (state.isPresented) {
             mainScope.launch {
                 when (loadingState) {
                     is PaywallLoadingState.Unknown -> {

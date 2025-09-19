@@ -219,7 +219,7 @@ class SWWebView(
             if (timeout != null) {
                 ioScope.launch {
                     delay(timeout)
-                    if (delegate?.loadingState !is PaywallLoadingState.Ready) {
+                    if (delegate?.state?.loadingState !is PaywallLoadingState.Ready) {
                         trackPaywallError(WebviewError.Timeout, listOfNotNull(lastLoadedUrl))
                         onTimeout?.invoke(WebviewError.Timeout)
                     }

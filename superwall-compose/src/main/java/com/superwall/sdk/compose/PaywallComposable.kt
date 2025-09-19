@@ -99,7 +99,7 @@ fun PaywallComposable(
                 AndroidView(
                     modifier = modifier,
                     update = {
-                        if (themeChanged && it.isActive) {
+                        if (themeChanged && it.state.isPresented) {
                             it.onThemeChanged()
                         }
                     },

@@ -3,7 +3,6 @@ package com.superwall.sdk.paywall.view
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.PaywallPresentationStyle
 import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
-import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.paywall.manager.PaywallCacheLogic
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.PaywallInfo
@@ -17,7 +16,7 @@ import java.util.Date
 
 data class PaywallViewState(
     val paywall: Paywall,
-    val deviceHelper: DeviceHelper,
+    val locale: String,
     val request: PresentationRequest? = null,
     val presentationStyle: PaywallPresentationStyle = paywall.presentation.style,
     val paywallStatePublisher: MutableSharedFlow<PaywallState>? = null,
@@ -44,11 +43,7 @@ data class PaywallViewState(
     val info: PaywallInfo
         get() = paywall.getInfo(request?.presentationInfo?.eventData)
 
-    // / Determines whether the paywall is presented or not.
-    val isActive: Boolean
-        get() = isPresented
-
-    internal val cacheKey: String = PaywallCacheLogic.key(paywall.identifier, deviceHelper.locale)
+    internal val cacheKey: String = PaywallCacheLogic.key(paywall.identifier, locale)
 
     override fun toString(): String =
         """PaywallViewState(
@@ -56,7 +51,6 @@ data class PaywallViewState(
             |  presentationStyle: $presentationStyle
             |  loadingState: $loadingState
             |  isPresented: $isPresented
-            |  isActive: $isActive
             |  presentationWillPrepare: $presentationWillPrepare
             |  presentationDidFinishPrepare: $presentationDidFinishPrepare
             |  callbackInvoked: $callbackInvoked
