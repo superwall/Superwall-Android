@@ -125,12 +125,11 @@ class SimpleScreenshotTestExecutor {
                         .async {
                             // We scroll a bit to display the button
                             Superwall.instance.paywallView
-                                ?.webView
                                 ?.apply {
                                     // Disable the scrollbar for the test
                                     // so its not visible in screenshots
                                     isVerticalScrollBarEnabled = false
-                                    scrollTo(0, 300)
+                                    scrollTo(300)
                                 }
                         }.await()
                     // We delay a bit to ensure the button is visible
@@ -139,9 +138,8 @@ class SimpleScreenshotTestExecutor {
                     mainScope
                         .async {
                             Superwall.instance.paywallView
-                                ?.webView
                                 ?.apply {
-                                    scrollTo(0, 0)
+                                    scrollTo(0)
                                 }
                         }.await()
                     // We delay a bit to ensure scroll has finished

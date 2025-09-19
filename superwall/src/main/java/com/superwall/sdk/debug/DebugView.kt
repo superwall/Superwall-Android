@@ -50,6 +50,7 @@ import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.paywall.request.PaywallRequestManager
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
 import com.superwall.sdk.paywall.view.ActivityEncapsulatable
+import com.superwall.sdk.paywall.view.PaywallViewState
 import com.superwall.sdk.store.StoreManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -607,7 +608,7 @@ class DebugView(
                 )
         }
 
-        paywallVc.interceptTouchEvents = true
+        paywallVc.updateState(PaywallViewState.Updates.SetInterceptTouchEvents(true))
 
         val constraints =
             ConstraintSet().apply {

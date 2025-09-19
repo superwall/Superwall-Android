@@ -50,7 +50,7 @@ class PaywallManager(
     fun resetCache() {
         factory.mainScope().launchWithTracking {
             for (view in cache.getAllPaywallViews()) {
-                view.webView.destroy()
+                view.destroyWebview()
                 val inactivePaywalls =
                     cache.entries
                         .filter {
@@ -59,8 +59,8 @@ class PaywallManager(
                         }.values
                         .map { it as PaywallView }
                 for (paywallView in inactivePaywalls) {
-                    if (paywallView.paywall.identifier != cache.activePaywallVcKey) {
-                        paywallView.webView.destroy()
+                    if (paywallView.state.paywall.identifier != cache.activePaywallVcKey) {
+                        paywallView.destroyWebview()
                     }
                 }
                 cache.removeAll()
@@ -88,7 +88,7 @@ class PaywallManager(
                     cache.getPaywallView(cacheKey)?.let { view ->
                         if (!isPreloading) {
                             view.callback = delegate
-                            view.paywall.update(it)
+                            view.state.paywall.update(it)
                         }
                         return@mapAsync view
                     }

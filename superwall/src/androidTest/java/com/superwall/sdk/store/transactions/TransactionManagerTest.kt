@@ -19,6 +19,7 @@ import com.superwall.sdk.delegate.InternalPurchaseResult
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
 import com.superwall.sdk.misc.ActivityProvider
+import com.superwall.sdk.misc.AlertControllerFactory.AlertProps
 import com.superwall.sdk.misc.AppLifecycleObserver
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.models.entitlements.Entitlement
@@ -30,7 +31,7 @@ import com.superwall.sdk.models.product.ProductItem
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.view.PaywallView
-import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
+import com.superwall.sdk.paywall.view.PaywallViewState
 import com.superwall.sdk.storage.EventsQueue
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.InternalPurchaseController
@@ -107,8 +108,11 @@ class TransactionManagerTest {
         }
     private val paywallView =
         mockk<PaywallView>(relaxUnitFun = true) {
-            every { info } returns pwInfo
-            every { paywall } returns mockedPaywall
+            every { state } returns
+                mockk {
+                    every { info } returns pwInfo
+                    every { paywall } returns mockedPaywall
+                }
         }
 
     private var purchaseController = mockk<InternalPurchaseController>()
@@ -155,10 +159,15 @@ class TransactionManagerTest {
     }
     private var showRestoreDialogForWeb = {}
 
+    private var mockShowAlert = mockk<(AlertProps) -> Unit>(relaxed = true)
+    private var mockUpdateState = mockk<(String, PaywallViewState.Updates) -> Unit>(relaxed = true)
+
     fun TestScope.manager(
         trManagerFactory: TransactionManager.Factory = transactionManagerFactory,
         track: (TrackableSuperwallEvent) -> Unit = {},
-        dismiss: (paywallView: PaywallView, result: PaywallResult) -> Unit = { _, _ -> },
+        dismiss: (paywallId: String, result: PaywallResult) -> Unit = { _, _ -> },
+        showAlert: (AlertProps) -> Unit = mockShowAlert,
+        updateState: (cacheKey: String, update: PaywallViewState.Updates) -> Unit = mockUpdateState,
         subscriptionStatus: () -> SubscriptionStatus = {
             SubscriptionStatus.Active(entitlements)
         },
@@ -176,6 +185,8 @@ class TransactionManagerTest {
             subscriptionStatus = subscriptionStatus,
             track = { track(it) },
             dismiss = { i, e -> dismiss(i, e) },
+            showAlert = { showAlert(it) },
+            updateState = { cacheKey, update -> updateState(cacheKey, update) },
             eventsQueue = eventsQueue,
             factory = trManagerFactory,
             ioScope = IOScope(this.coroutineContext),
@@ -196,7 +207,7 @@ class TransactionManagerTest {
                         transactionManager.purchase(
                             TransactionManager.PurchaseSource.Internal(
                                 "product1",
-                                paywallView,
+                                paywallView.state,
                             ),
                         )
                     Then("The purchase fails") {
@@ -218,7 +229,7 @@ class TransactionManagerTest {
                         transactionManager.purchase(
                             TransactionManager.PurchaseSource.Internal(
                                 "product1",
-                                paywallView,
+                                paywallView.state,
                             ),
                         )
                     Then("The purchase fails") {
@@ -270,7 +281,7 @@ class TransactionManagerTest {
                         transactionManager.purchase(
                             TransactionManager.PurchaseSource.Internal(
                                 "product1",
-                                paywallView,
+                                paywallView.state,
                             ),
                         )
                     Then("The purchase is successful") {
@@ -416,8 +427,8 @@ class TransactionManagerTest {
                         options = {
                             paywalls.automaticallyDismiss = true
                         },
-                        dismiss = { view, res ->
-                            assert(view == paywallView)
+                        dismiss = { paywallId, res ->
+                            assert(paywallId == paywallView.state.cacheKey)
                             assert(res is PaywallResult.Restored)
                         },
                     )
@@ -504,19 +515,14 @@ class TransactionManagerTest {
                         transactionManager.purchase(
                             TransactionManager.PurchaseSource.Internal(
                                 "product1",
-                                paywallView,
+                                paywallView.state,
                             ),
                         )
                     Then("The purchase fails and an alert is shown") {
                         assert(result is PurchaseResult.Failed)
                         coVerify {
-                            paywallView.showAlert(
+                            mockShowAlert.invoke(
                                 any(),
-                                any(),
-                                any(),
-                                any(),
-                                isNull(),
-                                isNull(),
                             )
                         }
                         advanceUntilIdle()
@@ -562,19 +568,14 @@ class TransactionManagerTest {
                         transactionManager.purchase(
                             TransactionManager.PurchaseSource.Internal(
                                 "product1",
-                                paywallView,
+                                paywallView.state,
                             ),
                         )
                     Then("The purchase fails and no alert is shown") {
                         assert(result is PurchaseResult.Failed)
                         coVerify(exactly = 0) {
-                            paywallView.showAlert(
+                            mockShowAlert.invoke(
                                 any(),
-                                any(),
-                                any(),
-                                any(),
-                                isNull(),
-                                isNull(),
                             )
                         }
                         And("Verify failure event") {
@@ -614,12 +615,12 @@ class TransactionManagerTest {
                         transactionManager.purchase(
                             TransactionManager.PurchaseSource.Internal(
                                 "product1",
-                                paywallView,
+                                paywallView.state,
                             ),
                         )
                     Then("The purchase is pending") {
                         assert(result is PurchaseResult.Pending)
-                        coVerify { paywallView.showAlert(any(), any()) }
+                        coVerify { mockShowAlert.invoke(any()) }
                         And("Verify pending event") {
                             val pendingEvent =
                                 events.value
@@ -659,16 +660,16 @@ class TransactionManagerTest {
                         transactionManager.purchase(
                             TransactionManager.PurchaseSource.Internal(
                                 "product1",
-                                paywallView,
+                                paywallView.state,
                             ),
                         )
                     Then("The purchase is pending") {
                         assert(result is PurchaseResult.Cancelled)
                         verify {
-                            paywallView setProperty "loadingState" value
-                                any(
-                                    PaywallLoadingState.Ready::class,
-                                )
+                            mockUpdateState.invoke(
+                                any(),
+                                any<PaywallViewState.Updates.SetLoadingState>(),
+                            )
                         }
                         And("Verify pending event") {
                             val pendingEvent =
@@ -710,10 +711,10 @@ class TransactionManagerTest {
                     Then("The purchase is cancelled") {
                         assert(result is PurchaseResult.Cancelled)
                         verify(exactly = 0) {
-                            paywallView setProperty "loadingState" value
-                                any(
-                                    PaywallLoadingState.Ready::class,
-                                )
+                            mockUpdateState.invoke(
+                                any(),
+                                any<PaywallViewState.Updates.SetLoadingState>(),
+                            )
                         }
                         And("Verify pending event") {
                             val pendingEvent =
@@ -810,13 +811,8 @@ class TransactionManagerTest {
                     Then("The restoration fails") {
                         assert(result is RestorationResult.Failed)
                         coVerify {
-                            paywallView.showAlert(
+                            mockShowAlert.invoke(
                                 any(),
-                                any(),
-                                any(),
-                                any(),
-                                isNull(),
-                                isNull(),
                             )
                         }
                         And("Verify restoration events") {
@@ -851,13 +847,8 @@ class TransactionManagerTest {
                     Then("The restoration fails because subscription is inactive") {
                         assert(result is RestorationResult.Restored)
                         coVerify {
-                            paywallView.showAlert(
+                            mockShowAlert.invoke(
                                 any(),
-                                any(),
-                                any(),
-                                any(),
-                                isNull(),
-                                isNull(),
                             )
                         }
                         And("Verify restoration events") {
@@ -952,7 +943,7 @@ class TransactionManagerTest {
                         transactionManager.purchase(
                             TransactionManager.PurchaseSource.Internal(
                                 "product1",
-                                paywallView,
+                                paywallView.state,
                             ),
                         )
                     Then("The purchase is successful") {
@@ -1045,7 +1036,7 @@ class TransactionManagerTest {
                         transactionManager.purchase(
                             TransactionManager.PurchaseSource.Internal(
                                 "product1",
-                                paywallView,
+                                paywallView.state,
                             ),
                         )
                     Then("The purchase is successful") {
