@@ -45,7 +45,6 @@ import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.storage.ReviewCount
 import com.superwall.sdk.storage.ReviewData
 import com.superwall.sdk.storage.TotalPaywallViews
-import com.superwall.sdk.storage.core_data.convertFromJsonElement
 import com.superwall.sdk.storage.core_data.convertToJsonElement
 import com.superwall.sdk.utilities.DateUtils
 import com.superwall.sdk.utilities.dateFormat
@@ -569,8 +568,8 @@ class DeviceHelper(
                 it.toDictionary(json)
             }.map {
                 val enriched =
-                        enrichment
-                            ?.device
+                    enrichment
+                        ?.device
                         ?: emptyMap()
                 enriched
                     .plus(it)
@@ -628,7 +627,6 @@ class DeviceHelper(
                 it.device.let {
                     Superwall.instance.setUserAttributes(it.toMap())
                 }
-
             }
     }
 }

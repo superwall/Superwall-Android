@@ -14,9 +14,6 @@ import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.asEither
 import com.superwall.sdk.misc.fold
-import com.superwall.sdk.misc.onError
-import com.superwall.sdk.misc.retrying
-import com.superwall.sdk.misc.then
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.Redeemable
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
@@ -27,22 +24,15 @@ import com.superwall.sdk.models.internal.RedemptionOwnership
 import com.superwall.sdk.models.internal.RedemptionOwnershipType
 import com.superwall.sdk.models.internal.RedemptionResult
 import com.superwall.sdk.models.internal.UserId
-import com.superwall.sdk.models.product.StripeProductType
-import com.superwall.sdk.models.transactions.CheckoutId
-import com.superwall.sdk.models.transactions.CheckoutStatus
 import com.superwall.sdk.network.Network
-import com.superwall.sdk.network.NetworkError
 import com.superwall.sdk.paywall.presentation.PaywallInfo
-import com.superwall.sdk.paywall.view.webview.PaywallMessage
 import com.superwall.sdk.storage.LatestRedemptionResponse
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.plus
 import kotlinx.serialization.json.JsonArray
@@ -91,10 +81,6 @@ class WebPaywallRedeemer(
     },
 ) {
     private var pollingJob: Job? = null
-    private var checkoutSessionState: MutableStateFlow<CheckoutId?> = MutableStateFlow(null)
-
-    val isCheckoutInProgress: Boolean
-        get() = checkoutSessionState.value != null
 
     private fun convertToJsonElement(value: Any?): JsonElement? =
         when (value) {
@@ -393,58 +379,6 @@ class WebPaywallRedeemer(
                             )
                         delay(maxAge)
                     }
-                }
-        }
-    }
-
-    fun startCheckoutSession(
-        id: String,
-        callback: (PaywallMessage, StripeProductType, List<String>) -> Unit,
-    ) {
-        checkoutSessionState.update { id }
-        ioScope.launch {
-            retrying(maxRetryCount = 6, isRetryingCallback = null, operation = {
-                network
-                    .checkoutStatus(id)
-                    .onError {
-                        Logger.debug(
-                            LogLevel.error,
-                            LogScope.webEntitlements,
-                            "Failed to receive checkout status - ${it.message} - ${it.stackTraceToString()}",
-                            error = it,
-                        )
-                    }.then { it ->
-                        when (val status = it.status) {
-                            is CheckoutStatus.Pending -> {
-                                throw NetworkError.Unknown()
-                            }
-
-                            is CheckoutStatus.Abandoned -> {
-                                track(
-                                    InternalSuperwallEvent.Transaction(
-                                        state =
-                                            InternalSuperwallEvent.Transaction.State.Abandon(
-                                                status.abandonedCheckout.stripeProduct,
-                                            ),
-                                        paywallInfo = getPaywallInfo(),
-                                        product = status.abandonedCheckout.stripeProduct,
-                                        model = null,
-                                        source = InternalSuperwallEvent.Transaction.TransactionSource.INTERNAL,
-                                        isObserved = false,
-                                    ),
-                                )
-                            }
-
-                            is CheckoutStatus.Completed -> {
-                                callback(PaywallMessage.TransactionComplete, status.product, status.redemptionCodes)
-                            }
-                        }
-                    }
-            })
-                .onError {
-                    checkoutSessionState.update { null }
-                }.then {
-                    checkoutSessionState.update { null }
                 }
         }
     }

@@ -46,10 +46,8 @@ import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.MainScope
 import com.superwall.sdk.misc.isDarkColor
 import com.superwall.sdk.misc.toResult
-import com.superwall.sdk.models.paywall.LocalNotificationType
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.PaywallPresentationStyle
-import com.superwall.sdk.models.product.StripeProductType.SubscriptionIntroductoryOffer
 import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.paywall.manager.PaywallCacheLogic
@@ -74,7 +72,6 @@ import com.superwall.sdk.paywall.view.webview.SWWebViewDelegate
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessageHandlerDelegate
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent
 import com.superwall.sdk.storage.LocalStorage
-import com.superwall.sdk.store.transactions.notifications.NotificationScheduler
 import com.superwall.sdk.utilities.withErrorTracking
 import com.superwall.sdk.web.WebPaywallRedeemer
 import kotlinx.coroutines.delay
@@ -589,11 +586,7 @@ class PaywallView(
     }
 
     private fun startWebCheckoutSession(id: String) {
-        webView.messageHandler.handle(PaywallMessage.TransactionStart)
         loadingState = PaywallLoadingState.LoadingPurchase()
-        ioScope.launch {
-            // redeemer.startCheckoutSession()
-        }
     }
 
     private fun trackShimmerStart() {
@@ -822,9 +815,11 @@ class PaywallView(
 
 //region Deep linking
 
+    var isCheckoutInProgress = false
+
     override fun presentBrowserInApp(url: String) {
         try {
-            if (redeemer.isCheckoutInProgress) {
+            if (isCheckoutInProgress) {
                 activityResultLauncher?.launch(url)
             } else {
                 val parsedUrl = URI(url)
@@ -852,22 +847,11 @@ class PaywallView(
 
     override fun initiateWebCheckout(webCheckoutSession: WebCheckoutSession) {
         webView.messageHandler.handle(PaywallMessage.TransactionStart)
-        redeemer.startCheckoutSession(webCheckoutSession.checkoutId) { message, product, codes ->
-            val act = encapsulatingActivity?.get() ?: context as Activity
-            val intent = act.intent
-            intent?.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
-            act.startActivity(intent)
-            webView.messageHandler.handle(PaywallMessage.TransactionComplete)
-            product.subscriptionIntroOffer?.let {
-                if (it.paymentMethod == SubscriptionIntroductoryOffer.PaymentMethod.freeTrial) {
-                    val notifications =
-                        info.localNotifications.filter {
-                            it.type == LocalNotificationType.TrialStarted
-                        }
-                    NotificationScheduler.scheduleNotifications(notifications, factory, context)
-                }
-            }
-        }
+        isCheckoutInProgress = true
+        val act = encapsulatingActivity?.get() ?: context as Activity
+        val intent = act.intent
+        intent?.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+        act.startActivity(intent)
     }
 
     override fun presentBrowserExternal(url: String) {
@@ -921,9 +905,11 @@ class PaywallView(
                                         is PaywallPresentationStyle.Drawer -> {
                                             setToolbarCornerRadiusDp(style.cornerRadius.toInt())
                                         }
+
                                         is PaywallPresentationStyle.Popup -> {
                                             setToolbarCornerRadiusDp(style.cornerRadius.toInt())
                                         }
+
                                         else -> {} // NOOP
                                     }
                                 }.setShowTitle(false)
@@ -931,10 +917,13 @@ class PaywallView(
                                 .setShareState(CustomTabsIntent.SHARE_STATE_OFF)
                                 .setInstantAppsEnabled(false)
                                 .setCloseButtonIcon(
-                                    AppCompatResources.getDrawable(context, R.drawable.none)!!.mutate().let {
-                                        DrawableCompat.setTint(it, Color.TRANSPARENT)
-                                        it.toBitmap()
-                                    },
+                                    AppCompatResources
+                                        .getDrawable(context, R.drawable.none)!!
+                                        .mutate()
+                                        .let {
+                                            DrawableCompat.setTint(it, Color.TRANSPARENT)
+                                            it.toBitmap()
+                                        },
                                 ).setUrlBarHidingEnabled(true)
                                 .setBackgroundInteractionEnabled(false)
                                 .setInitialActivityHeightPx(

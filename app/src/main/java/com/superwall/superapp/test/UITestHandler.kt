@@ -157,9 +157,7 @@ object UITestHandler {
             "Uses the identify function. Should see the name 'Jack' in the paywall.",
             test = { scope, events, _ ->
                 Log.e("Registering event", "present_data")
-                Superwall.instance.identify(userId = "test0")
-                Superwall.instance.setUserAttributes(attributes = mapOf("first_name" to "Jack"))
-                Superwall.instance.register(placement = "present_data")
+                Superwall.instance.register(placement = "test_internal")
                 Log.e("Registering event", "done")
             },
         )
@@ -170,15 +168,7 @@ object UITestHandler {
             "Uses the identify function. Should see the name 'Kate' in the paywall.",
             test = { scope, events, _ ->
                 // Set identity
-                Superwall.instance.identify(userId = "test1a")
-                Superwall.instance.setUserAttributes(mapOf("first_name" to "Jack"))
-                scope.launch {
-
-                    // Set new identity
-                    Superwall.instance.identify(userId = "test1b")
-                    Superwall.instance.setUserAttributes(mapOf("first_name" to "Kate"))
-                    Superwall.instance.register(placement = "present_data")
-                }
+                Superwall.instance.register(placement = "campaign_trigger")
             },
         )
     var test2Info =

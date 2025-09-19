@@ -54,7 +54,7 @@ class SuperwallOptions {
 
         class ReleaseCandidate : NetworkEnvironment("superwallcanary.com")
 
-        class Developer : NetworkEnvironment("superwall.dev")
+        class Developer : NetworkEnvironment("ir-feat-android-fingerpr.prd.us-east-1.review-lab.superwall-services.com")
 
         class Custom(
             override val baseHost: String,
