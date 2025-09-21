@@ -2,6 +2,12 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.5.4
+
+## Enhancements
+- `PaywallComposable` now reapplies theme on system change and `PaywallView` now exposes an `onThemeChanged()` method
+- `DeepLink` event now exposes query params
+
 ## 2.5.3
 
 ## Enhancements

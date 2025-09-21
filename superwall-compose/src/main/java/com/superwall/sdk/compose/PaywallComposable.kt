@@ -3,6 +3,7 @@ package com.superwall.sdk.compose
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,8 +12,11 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -53,6 +57,24 @@ fun PaywallComposable(
     val errorState = remember { mutableStateOf<Throwable?>(null) }
     val context = LocalContext.current.findNearestActivity()
 
+    @Composable
+    fun rememberThemeChanged(): Boolean {
+        val isDark = isSystemInDarkTheme()
+
+        var lastTheme by rememberSaveable { mutableStateOf(isDark) }
+        var hasChanged by remember { mutableStateOf(false) }
+
+        LaunchedEffect(isDark) {
+            if (isDark != lastTheme) {
+                hasChanged = true
+                lastTheme = isDark
+            } else {
+                hasChanged = false
+            }
+        }
+
+        return hasChanged
+    }
     LaunchedEffect(Unit) {
         PaywallBuilder(placement)
             .params(params)
@@ -73,8 +95,14 @@ fun PaywallComposable(
                 LaunchedEffect(viewToRender) {
                     viewToRender.onViewCreated()
                 }
+                val themeChanged = rememberThemeChanged()
                 AndroidView(
                     modifier = modifier,
+                    update = {
+                        if (themeChanged && it.isActive) {
+                            it.onThemeChanged()
+                        }
+                    },
                     factory = { context ->
                         viewToRender
                     },

@@ -135,9 +135,8 @@ sealed class InternalSuperwallEvent(
 
     class DeepLink(
         val uri: Uri,
-        override var audienceFilterParams: HashMap<String, Any> = extractQueryParameters(uri),
     ) : InternalSuperwallEvent(SuperwallEvent.DeepLink(uri)) {
-        override suspend fun getSuperwallParameters(): HashMap<String, Any> =
+        private fun extractedParams(): HashMap<String, Any> =
             hashMapOf(
                 "url" to uri.toString(),
                 "path" to (uri.path ?: ""),
@@ -147,6 +146,10 @@ sealed class InternalSuperwallEvent(
                 "query" to (uri.query ?: ""),
                 "fragment" to (uri.fragment ?: ""),
             )
+
+        override suspend fun getSuperwallParameters(): HashMap<String, Any> = extractedParams()
+
+        override var audienceFilterParams: HashMap<String, Any> = HashMap(extractQueryParameters(uri).plus(extractedParams()))
 
         companion object {
             private fun extractQueryParameters(uri: Uri): HashMap<String, Any> {
@@ -309,7 +312,7 @@ sealed class InternalSuperwallEvent(
 
     class IntegrationAttributes(
         var params: Map<String, Any>,
-    ) : InternalSuperwallEvent(SuperwallEvent.IntegrationProps(audienceFilterParams = params)) {
+    ) : InternalSuperwallEvent(SuperwallEvent.IntegrationAttributes(audienceFilterParams = params)) {
         override var audienceFilterParams: HashMap<String, Any> = HashMap(params)
 
         override suspend fun getSuperwallParameters(): HashMap<String, Any> = HashMap()
