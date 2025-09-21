@@ -80,11 +80,19 @@ sealed class SuperwallEvent {
     }
 
     // / When attribution props are set or updated.
+    data class IntegrationAttributes(
+        val audienceFilterParams: Map<String, Any>,
+    ) : SuperwallEvent() {
+        override val rawName: String
+            get() = "integration_attributes"
+    }
+
+    @Deprecated("Use IntegrationAttributes instead")
     data class IntegrationProps(
         val audienceFilterParams: Map<String, Any>,
     ) : SuperwallEvent() {
         override val rawName: String
-            get() = "attribution_props"
+            get() = "integration_attributes"
     }
 
     // / When the user's subscription status changes.

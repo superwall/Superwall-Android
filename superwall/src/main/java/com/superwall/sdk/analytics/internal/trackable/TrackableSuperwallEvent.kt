@@ -312,7 +312,7 @@ sealed class InternalSuperwallEvent(
 
     class IntegrationAttributes(
         var params: Map<String, Any>,
-    ) : InternalSuperwallEvent(SuperwallEvent.IntegrationProps(audienceFilterParams = params)) {
+    ) : InternalSuperwallEvent(SuperwallEvent.IntegrationAttributes(audienceFilterParams = params)) {
         override var audienceFilterParams: HashMap<String, Any> = HashMap(params)
 
         override suspend fun getSuperwallParameters(): HashMap<String, Any> = HashMap()
