@@ -83,7 +83,7 @@ class PaywallMessageHandler(
     fun postMessage(message: String) {
         // Print out the message to the console using Log.d
         Logger.debug(
-            LogLevel.debug,
+            LogLevel.error,
             LogScope.superwallCore,
             "SWWebViewInterface: $message",
         )
@@ -115,13 +115,13 @@ class PaywallMessageHandler(
 
     fun handle(message: PaywallMessage) {
         Logger.debug(
-            LogLevel.debug,
+            LogLevel.error,
             LogScope.superwallCore,
             "!! PaywallMessageHandler: Handling message: $message ${delegate?.paywall}, delegeate: $delegate",
         )
         val paywall = delegate?.paywall ?: return
         Logger.debug(
-            LogLevel.debug,
+            LogLevel.error,
             LogScope.superwallCore,
             "!! PaywallMessageHandler: Paywall: $paywall, delegeate: $delegate",
         )
@@ -138,6 +138,22 @@ class PaywallMessageHandler(
                     "!! PaywallMessageHandler: Ready !!",
                 )
                 ioScope.launch { didLoadWebView(paywall, loadedAt) }
+               /* ioScope.launch {
+                    delay(3.seconds)
+                    mainScope.launch {
+                        handle(
+                            PaywallMessage.InitiateWebCheckout(
+                                "asfadsgasdg",
+                                "pasrasdfasdfads",
+                                "apsdasdfasd",
+                                3,
+                                "asdasdas",
+                                ""
+                            )
+                        )
+                        handle(PaywallMessage.OpenUrl(URI.create("https://checkout.stripe.com/c/pay/cs_test_a1mvvVTldd6bcBgit92EdkLYI2JwMgmbZ3j4IMMNcdhvkb6NUTrVxI61QU#fidkdWxOYHwnPyd1blpxYHZxWkBhQHJvN1Z1bWxyQ0BNYWhdVm1GdW11aicpJ2N3amhWYHdzYHcnP3F3cGApJ2dkZm5id2pwa2FGamlqdyc%2FJyZjY2NjY2MnKSdpZHxqcHFRfHVgJz8ndmxrYmlgWmxxYGgnKSdga2RnaWBVaWRmYG1qaWFgd3YnP3F3cGB4JSUl")))
+                    }
+            }*/
             }
 
             is PaywallMessage.Close -> {
@@ -192,16 +208,19 @@ class PaywallMessageHandler(
                 )
                 delegate?.eventDidOccur(PaywallWebEvent.InitiatePurchase(message.productIdentifier))
             }
+
             is PaywallMessage.TransactionStart -> {
                 ioScope.launch {
                     pass(eventName = SuperwallEvents.TransactionStart.rawName, paywall = paywall)
                 }
             }
+
             is PaywallMessage.TransactionComplete -> {
                 ioScope.launch {
                     pass(eventName = SuperwallEvents.TransactionComplete.rawName, paywall = paywall)
                 }
             }
+
             else -> {
                 Logger.debug(
                     LogLevel.error,

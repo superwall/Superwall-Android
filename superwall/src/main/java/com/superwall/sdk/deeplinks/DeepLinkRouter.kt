@@ -79,7 +79,7 @@ internal val Uri.redeemableCode: Result<String>
         val failure =
             Result.failure<String>(UnsupportedOperationException("Link not valid for redemption"))
         return if (host?.contains("superwall") == true && lastPathSegment.equals("redeem")) {
-            getQueryParameter("code")?.let {
+            (getQueryParameter("code") ?: getQueryParameter("codes"))?.let {
                 Result.success(it)
             } ?: failure
         } else {

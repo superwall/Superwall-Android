@@ -39,15 +39,7 @@ object UITestHandler {
                     1000,
                     "Purchase an entitlement from the web and redeem it as anonymous user. Paywall wont show if redemption succeeded.",
                     test = { scope, events, _ ->
-                        Log.e("Registering event", "show_if_web_failed")
-                        Log.e(
-                            "Entitlements are",
-                            Superwall.instance.entitlements.active
-                                .map {
-                                    "${it.id}"
-                                }.joinToString(separator = ", "),
-                        )
-                        Superwall.instance.register(placement = "show_if_web_failed")
+                        Superwall.instance.register(placement = "internal_purchase")
                     },
                 ),
                 UITestInfo(
@@ -157,7 +149,7 @@ object UITestHandler {
             "Uses the identify function. Should see the name 'Jack' in the paywall.",
             test = { scope, events, _ ->
                 Log.e("Registering event", "present_data")
-                Superwall.instance.register(placement = "test_internal")
+                Superwall.instance.register(placement = "test2")
                 Log.e("Registering event", "done")
             },
         )

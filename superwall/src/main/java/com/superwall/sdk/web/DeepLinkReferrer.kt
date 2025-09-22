@@ -2,6 +2,7 @@ package com.superwall.sdk.web
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import com.android.installreferrer.api.InstallReferrerClient
 import com.android.installreferrer.api.InstallReferrerClient.newBuilder
 import com.android.installreferrer.api.InstallReferrerStateListener
@@ -113,7 +114,13 @@ class DeepLinkReferrer(
             Result.failure(e)
         }
 
-    override fun handleDeepLink(url: Uri): Result<String> = url.redeemableCode
+    override fun handleDeepLink(url: Uri): Result<String> =
+        url.redeemableCode
+            .onSuccess {
+                Log.e("Code", "Received code $url")
+            }.onFailure {
+                it.printStackTrace()
+            }
 
     private fun String.getUrlParams(): Map<String, List<String>> {
         val urlParts = split("\\?".toRegex()).filter(String::isNotEmpty)

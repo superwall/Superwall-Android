@@ -93,6 +93,7 @@ fun parseWrappedPaywallMessages(jsonString: String): WrappedPaywallMessages {
         LogScope.superwallCore,
         "SWWebViewInterface $jsonString",
     )
+    Log.e("PWM", "Full: $jsonString")
     val jsonObject = JSONObject(jsonString)
     val version = jsonObject.optInt("version", 1)
     val payloadJson = jsonObject.getJSONObject("payload")

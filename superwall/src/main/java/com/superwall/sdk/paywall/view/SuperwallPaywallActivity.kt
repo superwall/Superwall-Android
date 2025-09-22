@@ -546,7 +546,6 @@ class SuperwallPaywallActivity : AppCompatActivity() {
     }
 
     override fun onStart() {
-        paywallView()?.registerIntent()
         super.onStart()
         val paywallVc = paywallView() ?: return
 

@@ -89,10 +89,11 @@ class SWWebView(
 
     internal fun prepareWebview() {
         addJavascriptInterface(messageHandler, "SWAndroid")
-
+        setWebContentsDebuggingEnabled(true)
         val webSettings = this.settings
         webSettings.javaScriptEnabled = true
         webSettings.setSupportZoom(false)
+        webSettings
         webSettings.builtInZoomControls = false
         webSettings.displayZoomControls = false
         webSettings.allowFileAccess = false
@@ -102,7 +103,6 @@ class SWWebView(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
             webSettings.mediaPlaybackRequiresUserGesture = false
         }
-
         this.setBackgroundColor(Color.TRANSPARENT)
         this.webChromeClient = ChromeClient
     }
