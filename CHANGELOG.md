@@ -2,6 +2,12 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.5.5
+
+## Enhancements
+
+- Expose `signature` on `StoreTransaction`
+
 ## 2.5.4
 
 ## Enhancements
