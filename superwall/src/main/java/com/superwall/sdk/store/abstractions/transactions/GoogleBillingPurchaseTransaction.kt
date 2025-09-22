@@ -45,6 +45,7 @@ data class GoogleBillingPurchaseTransaction(
     @SerialName("purchase_token")
     override val purchaseToken: String,
     override var payment: StorePayment,
+    override val signature: String?,
 ) : StoreTransactionType {
     constructor(transaction: Purchase) : this(
         underlyingSK2Transaction = transaction,
@@ -63,5 +64,6 @@ data class GoogleBillingPurchaseTransaction(
         appAccountToken = null, // Replace with correct mapping
         payment = StorePayment(transaction), // Replace with correct mapping
         purchaseToken = transaction.purchaseToken,
+        signature = transaction.signature,
     )
 }

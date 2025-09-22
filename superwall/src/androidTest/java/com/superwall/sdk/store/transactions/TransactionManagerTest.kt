@@ -147,6 +147,7 @@ class TransactionManagerTest {
                 }
             every { makeHasExternalPurchaseController() } returns false
             every { makeSuperwallOptions() } returns SuperwallOptions()
+            every { getCurrentUserAttributes() } returns emptyMap()
         }
 
     private var storage = mockk<Storage>(relaxUnitFun = true)
