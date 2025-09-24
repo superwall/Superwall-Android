@@ -103,6 +103,9 @@ enum class AttributionProvider(
     @SerialName("google_ads")
     GOOGLE_ADS("google_ads"),
 
+    @SerialName("google_app_set_id")
+    GOOGLE_APP_SET("google_app_set_id"),
+
     @SerialName("custom")
     CUSTOM("custom"),
 }
