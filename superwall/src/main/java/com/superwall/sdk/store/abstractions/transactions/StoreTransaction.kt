@@ -44,6 +44,9 @@ class StoreTransaction(
     override val purchaseToken: String
         get() = transaction.purchaseToken
 
+    override val signature: String?
+        get() = transaction.underlyingSK2Transaction?.signature
+
 //    fun toDictionary(): Map<String, Any> {
 //        val json = Json { encodeDefaults = true }
 //        val jsonString = json.encodeToString(this)

@@ -27,6 +27,8 @@ interface StoreTransactionType {
     val revocationDate: Date?
     val appAccountToken: String?
     val purchaseToken: String
+
+    val signature: String?
 }
 
 // Custom serializer

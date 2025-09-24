@@ -2,6 +2,16 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.5.5
+
+## Enhancements
+- Expose `signature` on `StoreTransaction`
+
+## Fixes
+- ⚠️ Important - in the recent versions we have added usage of Google AppSetId and AdID to enable automatic attribution with Google's ad networks.
+- Due to issues with Google's detection of the usage, they have been removed temporarily and will be added back once the issue is resolved.
+- As an alternative, you can set those attribution identifiers using `AttributionProvider.GOOGLE_APP_SET | AttributionProvider.GOOGLE_ADS`
+
 ## 2.5.4
 
 ## Enhancements
