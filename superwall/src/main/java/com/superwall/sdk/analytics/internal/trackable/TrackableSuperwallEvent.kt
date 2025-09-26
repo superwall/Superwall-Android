@@ -135,18 +135,9 @@ sealed class InternalSuperwallEvent(
 
     class DeepLink(
         val uri: Uri,
-        override var audienceFilterParams: HashMap<String, Any> = extractQueryParameters(uri),
+        override var audienceFilterParams: HashMap<String, Any> = buildAudienceFilterParams(uri),
     ) : InternalSuperwallEvent(SuperwallEvent.DeepLink(uri)) {
-        override suspend fun getSuperwallParameters(): HashMap<String, Any> =
-            hashMapOf(
-                "url" to uri.toString(),
-                "path" to (uri.path ?: ""),
-                "pathExtension" to (uri.lastPathSegment?.substringAfterLast('.') ?: ""),
-                "lastPathComponent" to (uri.lastPathSegment ?: ""),
-                "host" to (uri.host ?: ""),
-                "query" to (uri.query ?: ""),
-                "fragment" to (uri.fragment ?: ""),
-            )
+        override suspend fun getSuperwallParameters(): HashMap<String, Any> = superwallParamsFrom(uri)
 
         companion object {
             private fun extractQueryParameters(uri: Uri): HashMap<String, Any> {
@@ -174,6 +165,28 @@ sealed class InternalSuperwallEvent(
                     }
                 }
                 return queryStrings
+            }
+
+            private fun superwallParamsFrom(uri: Uri): HashMap<String, Any> =
+                hashMapOf(
+                    "url" to uri.toString(),
+                    "path" to (uri.path ?: ""),
+                    "pathExtension" to (uri.lastPathSegment?.substringAfterLast('.') ?: ""),
+                    "lastPathComponent" to (uri.lastPathSegment ?: ""),
+                    "host" to (uri.host ?: ""),
+                    "query" to (uri.query ?: ""),
+                    "fragment" to (uri.fragment ?: ""),
+                )
+
+            private fun buildAudienceFilterParams(uri: Uri): HashMap<String, Any> {
+                val queryParams = extractQueryParameters(uri)
+                val swParams = superwallParamsFrom(uri)
+                swParams.forEach { (key, value) ->
+                    if (!queryParams.containsKey(key)) {
+                        queryParams[key] = value
+                    }
+                }
+                return queryParams
             }
         }
     }
