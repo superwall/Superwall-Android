@@ -1,7 +1,6 @@
 package com.superwall.sdk.paywall.view.webview
 
 import android.net.Uri
-import android.util.Log
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
@@ -34,7 +33,14 @@ sealed class PaywallMessage {
 
     data class OpenUrl(
         val url: URI,
-    ) : PaywallMessage()
+        var browserType: BrowserType?,
+    ) : PaywallMessage() {
+        enum class BrowserType(
+            val rawName: String,
+        ) {
+            PAYMENT_SHEET("payment_sheet"),
+        }
+    }
 
     data class OpenUrlInBrowser(
         val url: URI,
@@ -66,15 +72,6 @@ sealed class PaywallMessage {
 
     object TransactionComplete : PaywallMessage()
 
-    data class InitiateWebCheckout(
-        val checkoutId: String,
-        val productIdentifier: String,
-        val paywallIdentifier: String,
-        val experimentVariantId: Int,
-        val presentedByEventName: String,
-        val store: String,
-    ) : PaywallMessage()
-
     data class RequestReview(
         val type: Type,
     ) : PaywallMessage() {
@@ -93,7 +90,6 @@ fun parseWrappedPaywallMessages(jsonString: String): WrappedPaywallMessages {
         LogScope.superwallCore,
         "SWWebViewInterface $jsonString",
     )
-    Log.e("PWM", "Full: $jsonString")
     val jsonObject = JSONObject(jsonString)
     val version = jsonObject.optInt("version", 1)
     val payloadJson = jsonObject.getJSONObject("payload")
@@ -110,12 +106,27 @@ fun parseWrappedPaywallMessages(jsonString: String): WrappedPaywallMessages {
 
 private fun parsePaywallMessage(json: JSONObject): PaywallMessage {
     val eventName = json.getString("event_name")
-    Log.e("PWM", "$json")
     return when (eventName) {
         "ping" -> PaywallMessage.OnReady(json.getString("version"))
         "close" -> PaywallMessage.Close
         "restore" -> PaywallMessage.Restore
-        "open_url" -> PaywallMessage.OpenUrl(URI(json.getString("url")))
+        "open_url" ->
+            PaywallMessage.OpenUrl(
+                URI(json.getString("url")),
+                json.isNull("browser_type").let {
+                    if (it) {
+                        null
+                    } else {
+                        json.getString("browser_type")?.let {
+                            when (it) {
+                                PaywallMessage.OpenUrl.BrowserType.PAYMENT_SHEET.rawName -> PaywallMessage.OpenUrl.BrowserType.PAYMENT_SHEET
+                                else -> null
+                            }
+                        }
+                    }
+                },
+            )
+
         "open_url_external" -> PaywallMessage.OpenUrlInBrowser(URI(json.getString("url")))
         "open_deep_link" -> PaywallMessage.OpenDeepLink(Uri.parse(json.getString("link")))
         "purchase" ->
@@ -139,15 +150,7 @@ private fun parsePaywallMessage(json: JSONObject): PaywallMessage {
                     else -> PaywallMessage.RequestReview.Type.INAPP
                 },
             )
-        "initiate_web_checkout" ->
-            PaywallMessage.InitiateWebCheckout(
-                json.getString("checkout_context_id"),
-                json.getString("product_identifier"),
-                json.getString("paywall_identifier"),
-                json.getString("experiment_variant_id").toIntOrNull() ?: 0,
-                json.getString("presented_by_event_name"),
-                json.getString("store"),
-            )
+
         else -> {
             throw IllegalArgumentException("Unknown event name: $eventName")
         }

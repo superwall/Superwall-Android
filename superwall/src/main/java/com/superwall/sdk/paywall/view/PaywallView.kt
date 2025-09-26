@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
+import android.graphics.Color.*
 import android.os.Build
 import android.view.MotionEvent
 import android.view.View
@@ -11,16 +12,25 @@ import android.view.ViewGroup
 import android.webkit.WebSettings
 import android.webkit.WebView.RENDERER_PRIORITY_IMPORTANT
 import android.widget.FrameLayout
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContract
+import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.content.res.AppCompatResources
 import androidx.browser.customtabs.CustomTabsIntent
+import androidx.browser.customtabs.CustomTabsIntent.COLOR_SCHEME_DARK
+import androidx.browser.customtabs.CustomTabsIntent.COLOR_SCHEME_LIGHT
+import androidx.core.graphics.drawable.DrawableCompat
+import androidx.core.graphics.drawable.toBitmap
 import androidx.core.net.toUri
+import com.superwall.sdk.R
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEvents
 import com.superwall.sdk.config.models.OnDeviceCaching
 import com.superwall.sdk.config.options.PaywallOptions
-import com.superwall.sdk.dependencies.DeviceHelperFactory
 import com.superwall.sdk.dependencies.AttributesFactory
+import com.superwall.sdk.dependencies.DeviceHelperFactory
 import com.superwall.sdk.dependencies.OptionsFactory
 import com.superwall.sdk.dependencies.TriggerFactory
 import com.superwall.sdk.game.GameControllerDelegate
@@ -32,7 +42,9 @@ import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.AlertControllerFactory
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.MainScope
+import com.superwall.sdk.misc.isDarkColor
 import com.superwall.sdk.misc.toResult
+import com.superwall.sdk.models.config.WebToAppConfig
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.PaywallPresentationStyle
 import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
@@ -480,6 +492,7 @@ class PaywallView(
         if (loadingState is PaywallLoadingState.Unknown) {
             loadWebView()
         }
+        //    registerIntent()
     }
 
     // Lets the view know that presentation has finished.
@@ -806,20 +819,32 @@ class PaywallView(
 
 //region Deep linking
 
-    var isCheckoutInProgress = false
+    override fun presentPaymentSheet(url: String) {
+        try {
+            presentCheckoutBottomSheet(url)
+        } catch (e: MalformedURLException) {
+            Logger.debug(
+                logLevel = LogLevel.debug,
+                scope = LogScope.paywallView,
+                message = "Invalid URL provided for \"Open In-App URL\" click behavior.",
+            )
+        } catch (e: Throwable) {
+            Logger.debug(
+                logLevel = LogLevel.debug,
+                scope = LogScope.paywallView,
+                message = "Exception thrown for \"Open In-App URL\" click behavior.",
+            )
+        }
+    }
 
     override fun presentBrowserInApp(url: String) {
         try {
-            if (isCheckoutInProgress) {
-                // Use bottom sheet checkout instead of Custom Tabs
-                presentCheckoutBottomSheet(url)
-            } else {
-                val parsedUrl = URI(url)
-                val customTabsIntent = CustomTabsIntent.Builder().build()
-                customTabsIntent.intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                customTabsIntent.launchUrl(context, parsedUrl.toString().toUri())
-                isBrowserViewPresented = true
-            }
+            // Use bottom sheet checkout instead of Custom Tabs
+            val parsedUrl = URI(url)
+            val customTabsIntent = CustomTabsIntent.Builder().build()
+            customTabsIntent.intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            customTabsIntent.launchUrl(context, parsedUrl.toString().toUri())
+            isBrowserViewPresented = true
         } catch (e: MalformedURLException) {
             Logger.debug(
                 logLevel = LogLevel.debug,
@@ -845,40 +870,35 @@ class PaywallView(
                 )
                 return
             }
+        mainScope.launch {
+            checkoutWebView =
+                CheckoutWebView(
+                    context = activity,
+                    onFinishedLoading = { loadedUrl ->
+                        Logger.debug(
+                            logLevel = LogLevel.debug,
+                            scope = LogScope.paywallView,
+                            message = "Checkout webview finished loading: $loadedUrl",
+                        )
+                    },
+                    onDismiss = {
+                        checkoutWebView = null
+                        isBrowserViewPresented = false
+                        Logger.debug(
+                            logLevel = LogLevel.debug,
+                            scope = LogScope.paywallView,
+                            message = "Checkout bottom sheet dismissed",
+                        )
+                    },
+                    config = {
+                        Superwall.instance.dependencyContainer.configManager.config
+                            ?.webToAppConfig ?: WebToAppConfig()
+                    },
+                )
 
-        checkoutWebView =
-            CheckoutWebView(
-                context = activity,
-                onFinishedLoading = { loadedUrl ->
-                    Logger.debug(
-                        logLevel = LogLevel.debug,
-                        scope = LogScope.paywallView,
-                        message = "Checkout webview finished loading: $loadedUrl",
-                    )
-                },
-                onDismiss = {
-                    checkoutWebView = null
-                    isCheckoutInProgress = false
-                    isBrowserViewPresented = false
-                    Logger.debug(
-                        logLevel = LogLevel.debug,
-                        scope = LogScope.paywallView,
-                        message = "Checkout bottom sheet dismissed",
-                    )
-                },
-            )
-
-        checkoutWebView?.presentAsBottomSheet(activity, url)
-        isBrowserViewPresented = true
-    }
-
-    private var latestWebCheckoutSession: WebCheckoutSession? = null
-
-    override fun initiateWebCheckout(webCheckoutSession: WebCheckoutSession) {
-        webView.messageHandler.handle(PaywallMessage.TransactionStart)
-        isCheckoutInProgress = true
-        latestWebCheckoutSession = webCheckoutSession
-        // Note: The checkout will be presented when presentBrowserInApp is called with the checkout URL
+            checkoutWebView?.presentAsBottomSheet(activity, url)
+            isBrowserViewPresented = true
+        }
     }
 
     override fun presentBrowserExternal(url: String) {
@@ -946,6 +966,68 @@ class PaywallView(
         (parent as? ViewGroup)?.removeAllViews()
         removeAllViews()
         detachAllViewsFromParent()
+    }
+
+    private var latestUri: String? = ""
+    private var activityResultLauncher: ActivityResultLauncher<String>? = null
+
+    internal fun registerIntent() {
+        activityResultLauncher =
+            (encapsulatingActivity?.get() as? AppCompatActivity)?.registerForActivityResult(
+                object : ActivityResultContract<String, Int>() {
+                    override fun createIntent(
+                        context: Context,
+                        input: String,
+                    ): Intent {
+                        val height = context.resources.displayMetrics.heightPixels * 0.9
+                        val customTabsIntent =
+                            CustomTabsIntent
+                                .Builder()
+                                .setColorScheme(if (paywall.backgroundColor.isDarkColor()) COLOR_SCHEME_DARK else COLOR_SCHEME_LIGHT)
+                                .setDownloadButtonEnabled(false)
+                                .apply {
+                                    when (val style = presentationStyle) {
+                                        is PaywallPresentationStyle.Drawer -> {
+                                            setToolbarCornerRadiusDp(style.cornerRadius.toInt())
+                                        }
+
+                                        is PaywallPresentationStyle.Popup -> {
+                                            setToolbarCornerRadiusDp(style.cornerRadius.toInt())
+                                        }
+
+                                        else -> {} // NOOP
+                                    }
+                                }.setShowTitle(false)
+                                .setBookmarksButtonEnabled(false)
+                                .setShareState(CustomTabsIntent.SHARE_STATE_OFF)
+                                .setInstantAppsEnabled(false)
+                                .setCloseButtonIcon(
+                                    AppCompatResources
+                                        .getDrawable(context, R.drawable.none)!!
+                                        .mutate()
+                                        .let {
+                                            DrawableCompat.setTint(it, TRANSPARENT)
+                                            it.toBitmap()
+                                        },
+                                ).setUrlBarHidingEnabled(true)
+                                .setBackgroundInteractionEnabled(false)
+                                .setInitialActivityHeightPx(
+                                    height.toInt(),
+                                    CustomTabsIntent.ACTIVITY_HEIGHT_ADJUSTABLE,
+                                ).build()
+                                .intent
+                        customTabsIntent.setData(input.toUri())
+                        return customTabsIntent
+                    }
+
+                    override fun parseResult(
+                        resultCode: Int,
+                        intent: Intent?,
+                    ): Int = resultCode
+                },
+            ) { statusCode ->
+                // Ignored, We automatically handle result via checkout status
+            }
     }
 
 //endregion

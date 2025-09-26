@@ -1,7 +1,6 @@
 package com.superwall.sdk.web
 
 import android.content.Context
-import android.util.Log
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
@@ -363,12 +362,10 @@ class WebPaywallRedeemer(
 
     private fun startPolling(maxAge: Long = maxAge()) {
         if (isWebToAppEnabled()) {
-            Log.e("Poller", "Going to pol")
             pollingJob?.cancel()
             pollingJob =
                 (ioScope + Dispatchers.IO).launch {
                     while (true) {
-                        Log.e("Poller", "Ping")
                         checkForWebEntitlements(getUserId(), getDeviceId())
                             .fold(
                                 onFailure = {

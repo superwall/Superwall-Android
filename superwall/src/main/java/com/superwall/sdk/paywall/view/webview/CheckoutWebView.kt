@@ -22,6 +22,7 @@ import android.webkit.WebViewClient
 import android.widget.FrameLayout
 import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.core.graphics.toColorInt
+import androidx.core.net.toUri
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetBehavior.BottomSheetCallback
 import com.superwall.sdk.R
@@ -31,11 +32,15 @@ import com.superwall.sdk.game.dispatchMotionEvent
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
+import com.superwall.sdk.misc.IOScope
+import com.superwall.sdk.models.config.WebToAppConfig
+import kotlinx.coroutines.launch
 
 class CheckoutWebView(
     context: Context,
     private val onFinishedLoading: ((url: String) -> Unit)? = null,
     private val onDismiss: (() -> Unit)? = null,
+    private val config: () -> WebToAppConfig,
 ) : WebView(context) {
     var onScrollChangeListener: OnScrollChangeListener? = null
     var onRenderProcessCrashed: ((RenderProcessGoneDetail) -> Unit) = {
@@ -49,6 +54,7 @@ class CheckoutWebView(
     private var bottomSheetContainer: CoordinatorLayout? = null
     private var bottomSheetFrame: FrameLayout? = null
     private var bottomSheetBehavior: BottomSheetBehavior<FrameLayout>? = null
+    private var currentWebViewScroll = 0
 
     private companion object ChromeClient : WebChromeClient() {
         override fun onConsoleMessage(consoleMessage: ConsoleMessage): Boolean {
@@ -131,6 +137,23 @@ class CheckoutWebView(
 
         this.webViewClient =
             object : WebViewClient() {
+                override fun shouldOverrideUrlLoading(
+                    view: WebView?,
+                    url: String?,
+                ): Boolean {
+                    val uri = url?.toUri()
+                    val schema = uri?.scheme
+                    if (config().urlSchema == schema && uri != null) {
+                        IOScope().launch {
+                            Superwall.instance.handleDeepLink(
+                                uri,
+                            )
+                        }
+                        return true
+                    } else {
+                        return super.shouldOverrideUrlLoading(view, url)
+                    }
+                }
             }
 
         loadUrl(url)
@@ -223,6 +246,14 @@ class CheckoutWebView(
                             newState: Int,
                         ) {
                             when (newState) {
+                                BottomSheetBehavior.STATE_DRAGGING -> {
+                                    // If WebView has content to scroll up, don't allow dragging
+                                    if (currentWebViewScroll > 0) {
+                                        bottomSheetBehavior?.state =
+                                            BottomSheetBehavior.STATE_EXPANDED
+                                    }
+                                }
+
                                 BottomSheetBehavior.STATE_HIDDEN -> {
                                     dismissBottomSheet()
                                     onDismiss?.invoke()
@@ -240,6 +271,19 @@ class CheckoutWebView(
                 )
             }
         }
+
+        // Track WebView scroll to determine when to allow bottom sheet dragging
+        onScrollChangeListener =
+            object : OnScrollChangeListener {
+                override fun onScrollChanged(
+                    currentHorizontalScroll: Int,
+                    currentVerticalScroll: Int,
+                    oldHorizontalScroll: Int,
+                    oldcurrentVerticalScroll: Int,
+                ) {
+                    currentWebViewScroll = currentVerticalScroll
+                }
+            }
     }
 
     fun dismissBottomSheet() {

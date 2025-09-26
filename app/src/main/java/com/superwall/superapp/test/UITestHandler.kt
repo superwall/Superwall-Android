@@ -39,7 +39,15 @@ object UITestHandler {
                     1000,
                     "Purchase an entitlement from the web and redeem it as anonymous user. Paywall wont show if redemption succeeded.",
                     test = { scope, events, _ ->
-                        Superwall.instance.register(placement = "internal_purchase")
+                        Log.e("Registering event", "show_if_web_failed")
+                        Log.e(
+                            "Entitlements are",
+                            Superwall.instance.entitlements.active
+                                .map {
+                                    "${it.id}"
+                                }.joinToString(separator = ", "),
+                        )
+                        Superwall.instance.register(placement = "show_if_web_failed")
                     },
                 ),
                 UITestInfo(
@@ -149,7 +157,9 @@ object UITestHandler {
             "Uses the identify function. Should see the name 'Jack' in the paywall.",
             test = { scope, events, _ ->
                 Log.e("Registering event", "present_data")
-                Superwall.instance.register(placement = "test2")
+                Superwall.instance.identify(userId = "test0")
+                Superwall.instance.setUserAttributes(attributes = mapOf("first_name" to "Jack"))
+                Superwall.instance.register(placement = "present_data")
                 Log.e("Registering event", "done")
             },
         )
@@ -160,7 +170,15 @@ object UITestHandler {
             "Uses the identify function. Should see the name 'Kate' in the paywall.",
             test = { scope, events, _ ->
                 // Set identity
-                Superwall.instance.register(placement = "campaign_trigger")
+                Superwall.instance.identify(userId = "test1a")
+                Superwall.instance.setUserAttributes(mapOf("first_name" to "Jack"))
+                scope.launch {
+
+                    // Set new identity
+                    Superwall.instance.identify(userId = "test1b")
+                    Superwall.instance.setUserAttributes(mapOf("first_name" to "Kate"))
+                    Superwall.instance.register(placement = "present_data")
+                }
             },
         )
     var test2Info =

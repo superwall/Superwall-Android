@@ -18,7 +18,6 @@ import com.superwall.sdk.misc.MainScope
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
-import com.superwall.sdk.paywall.view.WebCheckoutSession
 import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 import com.superwall.sdk.paywall.view.webview.PaywallMessage
 import com.superwall.sdk.paywall.view.webview.WrappedPaywallMessages
@@ -52,7 +51,7 @@ interface PaywallMessageHandlerDelegate {
 
     fun presentBrowserExternal(url: String)
 
-    fun initiateWebCheckout(webCheckoutSession: WebCheckoutSession)
+    fun presentPaymentSheet(url: String)
 }
 
 class PaywallMessageHandler(
@@ -138,22 +137,6 @@ class PaywallMessageHandler(
                     "!! PaywallMessageHandler: Ready !!",
                 )
                 ioScope.launch { didLoadWebView(paywall, loadedAt) }
-               /* ioScope.launch {
-                    delay(3.seconds)
-                    mainScope.launch {
-                        handle(
-                            PaywallMessage.InitiateWebCheckout(
-                                "asfadsgasdg",
-                                "pasrasdfasdfads",
-                                "apsdasdfasd",
-                                3,
-                                "asdasdas",
-                                ""
-                            )
-                        )
-                        handle(PaywallMessage.OpenUrl(URI.create("https://checkout.stripe.com/c/pay/cs_test_a1mvvVTldd6bcBgit92EdkLYI2JwMgmbZ3j4IMMNcdhvkb6NUTrVxI61QU#fidkdWxOYHwnPyd1blpxYHZxWkBhQHJvN1Z1bWxyQ0BNYWhdVm1GdW11aicpJ2N3amhWYHdzYHcnP3F3cGApJ2dkZm5id2pwa2FGamlqdyc%2FJyZjY2NjY2MnKSdpZHxqcHFRfHVgJz8ndmxrYmlgWmxxYGgnKSdga2RnaWBVaWRmYG1qaWFgd3YnP3F3cGB4JSUl")))
-                    }
-            }*/
             }
 
             is PaywallMessage.Close -> {
@@ -161,8 +144,15 @@ class PaywallMessageHandler(
                 delegate?.eventDidOccur(PaywallWebEvent.Closed)
             }
 
-            is PaywallMessage.OpenUrl -> openUrl(message.url)
-            is PaywallMessage.OpenUrlInBrowser -> openUrlInBrowser(message.url)
+            is PaywallMessage.OpenUrl ->
+                openUrl(
+                    message.url,
+                    message.browserType == PaywallMessage.OpenUrl.BrowserType.PAYMENT_SHEET,
+                )
+
+            is PaywallMessage.OpenUrlInBrowser ->
+                openUrlInBrowser(message.url)
+
             is PaywallMessage.OpenDeepLink -> openDeepLink(Uri.parse(message.url.toString()))
             is PaywallMessage.Restore -> restorePurchases()
             is PaywallMessage.Purchase -> purchaseProduct(withId = message.productId)
@@ -195,19 +185,6 @@ class PaywallMessageHandler(
                 }
 
             is PaywallMessage.RequestReview -> handleRequestReview(message)
-            is PaywallMessage.InitiateWebCheckout -> {
-                delegate?.initiateWebCheckout(
-                    WebCheckoutSession(
-                        message.checkoutId,
-                        message.productIdentifier,
-                        message.paywallIdentifier,
-                        message.experimentVariantId,
-                        message.presentedByEventName,
-                        message.store,
-                    ),
-                )
-                delegate?.eventDidOccur(PaywallWebEvent.InitiatePurchase(message.productIdentifier))
-            }
 
             is PaywallMessage.TransactionStart -> {
                 ioScope.launch {
@@ -374,14 +351,21 @@ class PaywallMessageHandler(
         }
     }
 
-    private fun openUrl(url: URI) {
+    private fun openUrl(
+        url: URI,
+        isPaymentSheet: Boolean,
+    ) {
         detectHiddenPaywallEvent(
             "openUrl",
             mapOf("url" to url.toString()),
         )
         hapticFeedback()
         delegate?.eventDidOccur(PaywallWebEvent.OpenedURL(url))
-        delegate?.presentBrowserInApp(url.toString())
+        if (isPaymentSheet) {
+            delegate?.presentPaymentSheet(url.toString())
+        } else {
+            delegate?.presentBrowserInApp(url.toString())
+        }
     }
 
     private fun openUrlInBrowser(url: URI) {
