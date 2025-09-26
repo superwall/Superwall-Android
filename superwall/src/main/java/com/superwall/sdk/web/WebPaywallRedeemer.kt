@@ -25,12 +25,14 @@ import com.superwall.sdk.models.internal.RedemptionResult
 import com.superwall.sdk.models.internal.UserId
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.paywall.presentation.PaywallInfo
+import com.superwall.sdk.paywall.presentation.dismiss
 import com.superwall.sdk.storage.LatestRedemptionResponse
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.plus
 import kotlinx.serialization.json.JsonArray
@@ -76,6 +78,11 @@ class WebPaywallRedeemer(
     val getIntegrationProps: () -> Map<String, Any> = {
         Superwall.instance.dependencyContainer.attributionManager
             .getFullAttributionIds()
+    },
+    val closePaywallIfExists: () -> Unit = {
+        ioScope.launch {
+            Superwall.instance.dismiss()
+        }
     },
 ) {
     private var pollingJob: Job? = null
@@ -146,6 +153,17 @@ class WebPaywallRedeemer(
         if (!isWebToAppEnabled()) {
             return
         } else {
+            //     delay(10.seconds)
+            Logger.debug(
+                LogLevel.error,
+                LogScope.webEntitlements,
+                "Starting redemption of type ${
+                    when (redemption){
+                        is RedeemType.Existing -> "Existing"
+                        is RedeemType.Code -> "Code: ${redemption.code}"
+                    }
+                }",
+            )
             // We want to keep track of the codes that have been retrieved by the user
             val latestResponse = storage.read(LatestRedemptionResponse)
             val allCodes = latestResponse?.allCodes?.toMutableList() ?: mutableListOf()
@@ -239,7 +257,7 @@ class WebPaywallRedeemer(
                                 // NO-OP
                             }
                         }
-
+                        closePaywallIfExists()
                         internallySetSubscriptionStatus(SubscriptionStatus.Active(it.entitlements.toSet() + getActiveDeviceEntitlements()))
                         if (redemption is RedeemType.Code) {
                             val res = it.codes.first { it.code == redemption.code }
@@ -348,7 +366,6 @@ class WebPaywallRedeemer(
             pollingJob =
                 (ioScope + Dispatchers.IO).launch {
                     while (true) {
-                        delay(maxAge)
                         checkForWebEntitlements(getUserId(), getDeviceId())
                             .fold(
                                 onFailure = {
@@ -373,6 +390,7 @@ class WebPaywallRedeemer(
                                     }
                                 },
                             )
+                        delay(maxAge)
                     }
                 }
         }

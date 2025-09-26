@@ -146,7 +146,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
     private val isPopupView
         get() = contentView is androidx.constraintlayout.widget.ConstraintLayout && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
 
-    override fun setContentView(view: View) {
+    override fun setContentView(view: View?) {
         super.setContentView(view)
         contentView = view
     }

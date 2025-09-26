@@ -608,6 +608,7 @@ class DependencyContainer(
                             useMultipleUrls =
                                 configManager.config?.featureFlags?.enableMultiplePaywallUrls
                                     ?: false,
+                            redeemer = reedemer,
                         )
                     webView.delegate = paywallView
                     messageHandler.delegate = paywallView

@@ -50,6 +50,8 @@ interface PaywallMessageHandlerDelegate {
     fun presentBrowserInApp(url: String)
 
     fun presentBrowserExternal(url: String)
+
+    fun presentPaymentSheet(url: String)
 }
 
 class PaywallMessageHandler(
@@ -80,7 +82,7 @@ class PaywallMessageHandler(
     fun postMessage(message: String) {
         // Print out the message to the console using Log.d
         Logger.debug(
-            LogLevel.debug,
+            LogLevel.error,
             LogScope.superwallCore,
             "SWWebViewInterface: $message",
         )
@@ -112,13 +114,13 @@ class PaywallMessageHandler(
 
     fun handle(message: PaywallMessage) {
         Logger.debug(
-            LogLevel.debug,
+            LogLevel.error,
             LogScope.superwallCore,
             "!! PaywallMessageHandler: Handling message: $message ${delegate?.paywall}, delegeate: $delegate",
         )
         val paywall = delegate?.paywall ?: return
         Logger.debug(
-            LogLevel.debug,
+            LogLevel.error,
             LogScope.superwallCore,
             "!! PaywallMessageHandler: Paywall: $paywall, delegeate: $delegate",
         )
@@ -142,8 +144,15 @@ class PaywallMessageHandler(
                 delegate?.eventDidOccur(PaywallWebEvent.Closed)
             }
 
-            is PaywallMessage.OpenUrl -> openUrl(message.url)
-            is PaywallMessage.OpenUrlInBrowser -> openUrlInBrowser(message.url)
+            is PaywallMessage.OpenUrl ->
+                openUrl(
+                    message.url,
+                    message.browserType == PaywallMessage.OpenUrl.BrowserType.PAYMENT_SHEET,
+                )
+
+            is PaywallMessage.OpenUrlInBrowser ->
+                openUrlInBrowser(message.url)
+
             is PaywallMessage.OpenDeepLink -> openDeepLink(Uri.parse(message.url.toString()))
             is PaywallMessage.Restore -> restorePurchases()
             is PaywallMessage.Purchase -> purchaseProduct(withId = message.productId)
@@ -176,6 +185,18 @@ class PaywallMessageHandler(
                 }
 
             is PaywallMessage.RequestReview -> handleRequestReview(message)
+
+            is PaywallMessage.TransactionStart -> {
+                ioScope.launch {
+                    pass(eventName = SuperwallEvents.TransactionStart.rawName, paywall = paywall)
+                }
+            }
+
+            is PaywallMessage.TransactionComplete -> {
+                ioScope.launch {
+                    pass(eventName = SuperwallEvents.TransactionComplete.rawName, paywall = paywall)
+                }
+            }
 
             else -> {
                 Logger.debug(
@@ -330,14 +351,21 @@ class PaywallMessageHandler(
         }
     }
 
-    private fun openUrl(url: URI) {
+    private fun openUrl(
+        url: URI,
+        isPaymentSheet: Boolean,
+    ) {
         detectHiddenPaywallEvent(
             "openUrl",
             mapOf("url" to url.toString()),
         )
         hapticFeedback()
         delegate?.eventDidOccur(PaywallWebEvent.OpenedURL(url))
-        delegate?.presentBrowserInApp(url.toString())
+        if (isPaymentSheet) {
+            delegate?.presentPaymentSheet(url.toString())
+        } else {
+            delegate?.presentBrowserInApp(url.toString())
+        }
     }
 
     private fun openUrlInBrowser(url: URI) {

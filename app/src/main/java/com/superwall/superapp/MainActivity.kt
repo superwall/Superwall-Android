@@ -2,6 +2,7 @@ package com.superwall.superapp
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
 import com.superwall.sdk.Superwall
@@ -137,6 +138,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun respondToDeepLinks() {
         intent?.data?.let { uri ->
+            Log.e("Deeplink", "Handling deeplinks")
             Superwall.instance.handleDeepLink(uri)
         }
     }
