@@ -124,6 +124,8 @@ data class Paywall(
     var surveys: List<Survey> = emptyList(),
     @SerialName("is_scroll_enabled")
     val isScrollEnabled: Boolean? = true,
+    @SerialName("reroute_back_button")
+    val rerouteBackButton: ToggleMode,
 ) : SerializableEntity {
     // Public getter for productItems
     var productItems: List<ProductItem>
@@ -270,5 +272,14 @@ data class Paywall(
                 buildId = "test",
                 isScrollEnabled = true,
             )
+    }
+
+    @Serializable
+    enum class ToggleMode {
+        @SerialName("ENABLED")
+        ENABLED,
+
+        @SerialName("DISABLED")
+        DISABLED,
     }
 }
