@@ -54,9 +54,27 @@ sealed class RedemptionResult {
 
                         else -> listOf()
                     }
+                else -> listOf()
+            }
+
+    val paddleSubscriptionIds: List<String?>
+        get() =
+            when (this) {
+                is RedemptionResult.Success ->
+                    when (this.redemptionInfo.purchaserInfo?.storeIdentifiers) {
+                        is StoreIdentifiers.Paddle -> {
+                            this.redemptionInfo.purchaserInfo
+                                ?.storeIdentifiers
+                                ?.paddleSubscriptionIds ?: listOf()
+                        }
+                        else -> listOf()
+                    }
 
                 else -> listOf()
             }
+
+    val subscriptionIds: List<String?>
+        get() = stripeSubscriptionId + paddleSubscriptionIds
 
     // Represents that a redemption was successful
     @Serializable(with = DirectSuccessSerializer::class)
@@ -173,6 +191,15 @@ sealed class StoreIdentifiers {
         @SerialName("stripeSubscriptionIds")
         val subscriptionIds: List<String>,
     ) : StoreIdentifiers()
+
+    @Serializable
+    @SerialName("PADDLE")
+    data class Paddle(
+        @SerialName("paddleCustomerId")
+        val paddleCustomerId: String,
+        @SerialName("paddleSubscriptionId")
+        val paddleSubscriptionIds: List<String>,
+    )
 
     @Serializable
     @SerialName("UNKNOWN")

@@ -2,6 +2,12 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+
+## 2.5.6
+
+## Enhancements
+- Add support for redeeming web entitlements with Paddle
+
 ## 2.5.5
 
 ## Enhancements
