@@ -295,15 +295,15 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             this,
             object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
-                    val shouldRunDismiss =
+                    val shouldConsumeDismiss =
                         if (paywallView()?.paywall?.rerouteBackButton == Paywall.ToggleMode.ENABLED) {
                             Superwall.instance.options.paywalls.onBackPressed
                                 ?.let { it(paywallView()?.info) }
-                                ?: true
+                                ?: false
                         } else {
-                            true
+                            false
                         }
-                    if (shouldRunDismiss) {
+                    if (!shouldConsumeDismiss) {
                         view.dismiss(
                             result = PaywallResult.Declined(),
                             closeReason = PaywallCloseReason.ManualClose,
