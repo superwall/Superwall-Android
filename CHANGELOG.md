@@ -7,6 +7,9 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## Enhancements
 - Add support for redeeming web entitlements with Paddle
+ 
+## Fixes
+- Fix binary .so file regression to ensure 16kb page size compatibility
 
 ## 2.5.5
 
