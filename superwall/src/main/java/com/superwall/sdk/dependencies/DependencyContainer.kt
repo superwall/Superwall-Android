@@ -601,6 +601,11 @@ class DependencyContainer(
         val messageHandler =
             PaywallMessageHandler(
                 factory = this@DependencyContainer,
+                options = this,
+                getView = { Superwall.instance.paywallView },
+                track = {
+                    Superwall.instance.track(it)
+                },
                 ioScope = ioScope,
                 json = paywallJson,
                 mainScope = mainScope(),

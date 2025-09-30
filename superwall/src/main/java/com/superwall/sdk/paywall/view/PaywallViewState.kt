@@ -69,6 +69,25 @@ data class PaywallViewState(
     sealed class Updates(
         val transform: (PaywallViewState) -> PaywallViewState,
     ) {
+        class MergePaywall(
+            val from: Paywall,
+        ) : Updates({ state ->
+                val base = state.paywall
+                val merged =
+                    base.copy(
+                        _productItems = from.productItems,
+                        productVariables = from.productVariables,
+                        swProductVariablesTemplate = from.swProductVariablesTemplate,
+                        isFreeTrialAvailable = from.isFreeTrialAvailable,
+                        productsLoadingInfo = from.productsLoadingInfo,
+                        presentationSourceType = from.presentationSourceType,
+                        experiment = from.experiment,
+                    )
+                // Update productItems via setter to also refresh related fields.
+                merged.productItems = from.productItems
+                state.copy(paywall = merged)
+            })
+
         class SetRequest(
             val req: PresentationRequest,
             val publisher: MutableSharedFlow<PaywallState>?,
@@ -97,13 +116,21 @@ data class PaywallViewState(
             })
 
         object PresentationWillBegin : Updates({ state ->
-            state.paywall.closeReason = PaywallCloseReason.None
-            state.copy(callbackInvoked = false)
+            state.copy(
+                paywall = state.paywall.copy(closeReason = PaywallCloseReason.None),
+                callbackInvoked = false,
+            )
         })
 
         object ShimmerStarted : Updates({ state ->
-            state.paywall.shimmerLoadingInfo.startAt = Date()
-            state.copy(presentationWillPrepare = false)
+            state.copy(
+                paywall =
+                    state.paywall.copy(
+                        shimmerLoadingInfo =
+                            state.paywall.shimmerLoadingInfo.copy(startAt = Date()),
+                    ),
+                presentationWillPrepare = false,
+            )
         })
 
         object ResetPresentationPreparations : Updates({ state ->
@@ -118,8 +145,8 @@ data class PaywallViewState(
             val closeReason: PaywallCloseReason,
             val completion: (() -> Unit)?,
         ) : Updates({ state ->
-                state.paywall.closeReason = closeReason
                 state.copy(
+                    paywall = state.paywall.copy(closeReason = closeReason),
                     dismissCompletionBlock = completion,
                     paywallResult = result,
                 )
@@ -160,23 +187,44 @@ data class PaywallViewState(
         })
 
         object ShimmerEnded : Updates({ state ->
-            state.paywall.shimmerLoadingInfo.endAt = Date()
-            state
+            state.copy(
+                paywall =
+                    state.paywall.copy(
+                        shimmerLoadingInfo =
+                            state.paywall.shimmerLoadingInfo.copy(endAt = Date()),
+                    ),
+            )
         })
 
         object WebLoadingStarted : Updates({ state ->
-            if (state.paywall.webviewLoadingInfo.startAt == null) {
-                state.paywall.webviewLoadingInfo.startAt = Date()
-            }
-            state
+            val current = state.paywall.webviewLoadingInfo
+            val updated = if (current.startAt == null) current.copy(startAt = Date()) else current
+            state.copy(paywall = state.paywall.copy(webviewLoadingInfo = updated))
         })
 
         object WebLoadingFailed : Updates({ state ->
-            if (state.paywall.webviewLoadingInfo.failAt == null) {
-                state.paywall.webviewLoadingInfo.failAt = Date()
-            }
-            state
+            val current = state.paywall.webviewLoadingInfo
+            val updated = if (current.failAt == null) current.copy(failAt = Date()) else current
+            state.copy(paywall = state.paywall.copy(webviewLoadingInfo = updated))
         })
+
+        class WebLoadingEnded(
+            val endAt: Date,
+        ) : Updates({ state ->
+                state.copy(
+                    paywall =
+                        state.paywall.copy(
+                            webviewLoadingInfo =
+                                state.paywall.webviewLoadingInfo.copy(endAt = endAt),
+                        ),
+                )
+            })
+
+        class SetPaywallJsVersion(
+            val version: String?,
+        ) : Updates({ state ->
+                state.copy(paywall = state.paywall.copy(paywalljsVersion = version))
+            })
 
         class SetInterceptTouchEvents(
             val intercept: Boolean,

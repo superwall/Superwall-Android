@@ -1,6 +1,5 @@
 package com.superwall.sdk.paywall.view.webview
 
-import android.net.Uri
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
@@ -40,7 +39,7 @@ sealed class PaywallMessage {
     ) : PaywallMessage()
 
     data class OpenDeepLink(
-        val url: Uri,
+        val url: URI,
     ) : PaywallMessage()
 
     data class Purchase(
@@ -105,7 +104,7 @@ private fun parsePaywallMessage(json: JSONObject): PaywallMessage {
         "restore" -> PaywallMessage.Restore
         "open_url" -> PaywallMessage.OpenUrl(URI(json.getString("url")))
         "open_url_external" -> PaywallMessage.OpenUrlInBrowser(URI(json.getString("url")))
-        "open_deep_link" -> PaywallMessage.OpenDeepLink(Uri.parse(json.getString("link")))
+        "open_deep_link" -> PaywallMessage.OpenDeepLink(URI(json.getString("link")))
         "purchase" ->
             PaywallMessage.Purchase(
                 json.getString("product"),

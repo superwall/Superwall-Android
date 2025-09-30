@@ -388,6 +388,7 @@ class PaywallView(
         closeReason: PaywallCloseReason,
         completion: (() -> Unit)? = null,
     ) {
+        stateListener?.cancel()
         controller.updateState(
             PaywallViewState.Updates.InitiateDismiss(
                 result,

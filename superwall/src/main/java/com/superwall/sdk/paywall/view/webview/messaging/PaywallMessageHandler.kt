@@ -1,18 +1,19 @@
 package com.superwall.sdk.paywall.view.webview.messaging
 
 import TemplateLogic
-import android.net.Uri
 import android.webkit.JavascriptInterface
-import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
+import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEvents
+import com.superwall.sdk.dependencies.OptionsFactory
 import com.superwall.sdk.dependencies.VariablesFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.MainScope
 import com.superwall.sdk.models.paywall.Paywall
+import com.superwall.sdk.paywall.view.PaywallView
 import com.superwall.sdk.paywall.view.PaywallViewState
 import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 import com.superwall.sdk.paywall.view.webview.PaywallMessage
@@ -53,6 +54,9 @@ interface PaywallMessageHandlerDelegate : PaywallStateDelegate {
 
 class PaywallMessageHandler(
     private val factory: VariablesFactory,
+    private val options: OptionsFactory,
+    private val track: suspend (TrackableSuperwallEvent) -> Unit,
+    private val getView: () -> PaywallView?,
     private val mainScope: MainScope,
     private val ioScope: CoroutineScope,
     private val json: Json = Json { encodeDefaults = true },
@@ -122,7 +126,9 @@ class PaywallMessageHandler(
                 ioScope.launch { passTemplatesToWebView(paywall) }
 
             is PaywallMessage.OnReady -> {
-                messageHandler?.state?.paywall?.paywalljsVersion = message.paywallJsVersion
+                messageHandler?.updateState(
+                    PaywallViewState.Updates.SetPaywallJsVersion(message.paywallJsVersion),
+                )
                 val loadedAt = Date()
                 Logger.debug(
                     LogLevel.debug,
@@ -139,7 +145,7 @@ class PaywallMessageHandler(
 
             is PaywallMessage.OpenUrl -> openUrl(message.url)
             is PaywallMessage.OpenUrlInBrowser -> openUrlInBrowser(message.url)
-            is PaywallMessage.OpenDeepLink -> openDeepLink(Uri.parse(message.url.toString()))
+            is PaywallMessage.OpenDeepLink -> openDeepLink(message.url.toString())
             is PaywallMessage.Restore -> restorePurchases()
             is PaywallMessage.Purchase -> purchaseProduct(withId = message.productId)
             is PaywallMessage.PaywallOpen -> {
@@ -254,7 +260,7 @@ class PaywallMessageHandler(
         ioScope.launch {
             val delegate = this@PaywallMessageHandler.messageHandler
             if (delegate != null) {
-                delegate.state.paywall.webviewLoadingInfo.endAt = loadedAt
+                delegate.updateState(PaywallViewState.Updates.WebLoadingEnded(loadedAt))
 
                 val paywallInfo = delegate.state.info
                 val trackedEvent =
@@ -262,7 +268,7 @@ class PaywallMessageHandler(
                         state = InternalSuperwallEvent.PaywallWebviewLoad.State.Complete(),
                         paywallInfo = paywallInfo,
                     )
-                Superwall.instance.track(trackedEvent)
+                track(trackedEvent)
             }
         }
 
@@ -357,13 +363,13 @@ class PaywallMessageHandler(
         messageHandler?.presentBrowserExternal(url.toString())
     }
 
-    private fun openDeepLink(url: Uri) {
+    private fun openDeepLink(url: String) {
         detectHiddenPaywallEvent(
             "openDeepLink",
             mapOf("url" to url),
         )
         hapticFeedback()
-        messageHandler?.openDeepLink(url.toString())
+        messageHandler?.openDeepLink(url)
     }
 
     private fun restorePurchases() {
@@ -414,7 +420,7 @@ class PaywallMessageHandler(
             return
         }
 
-        val paywallDebugDescription = Superwall.instance.paywallView.toString()
+        val paywallDebugDescription = getView().toString()
 
         var info: MutableMap<String, Any> =
             mutableMapOf(
@@ -435,8 +441,9 @@ class PaywallMessageHandler(
     }
 
     private fun hapticFeedback() {
-        val isHapticFeedbackEnabled = Superwall.instance.options.paywalls.isHapticFeedbackEnabled
-        val isGameControllerEnabled = Superwall.instance.options.isGameControllerEnabled
+        val options = options.makeSuperwallOptions()
+        val isHapticFeedbackEnabled = options.paywalls.isHapticFeedbackEnabled
+        val isGameControllerEnabled = options.isGameControllerEnabled
 
         if (isHapticFeedbackEnabled == false || isGameControllerEnabled == true) {
             return

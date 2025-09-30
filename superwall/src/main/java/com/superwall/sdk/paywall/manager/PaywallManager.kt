@@ -11,6 +11,7 @@ import com.superwall.sdk.models.paywall.PaywallIdentifier
 import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.paywall.request.PaywallRequestManager
 import com.superwall.sdk.paywall.view.PaywallView
+import com.superwall.sdk.paywall.view.PaywallViewState
 import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 import com.superwall.sdk.paywall.view.delegate.PaywallViewDelegateAdapter
 
@@ -88,7 +89,7 @@ class PaywallManager(
                     cache.getPaywallView(cacheKey)?.let { view ->
                         if (!isPreloading) {
                             view.callback = delegate
-                            view.state.paywall.update(it)
+                            view.updateState(PaywallViewState.Updates.MergePaywall(it))
                         }
                         return@mapAsync view
                     }
