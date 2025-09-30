@@ -146,6 +146,9 @@ class PaywallView(
     // / Whether the survey was shown, not shown, or in a holdout. Defaults to not shown.
     private var surveyPresentationResult: SurveyPresentationResult = SurveyPresentationResult.NOSHOW
 
+    // / Prevents multiple simultaneous dismiss calls
+    private var isDismissing = false
+
     //endregion
 
     // region State properties
@@ -407,14 +410,25 @@ class PaywallView(
                             isImplicit = true,
                         )
                     }.toResult()
-                val paywallPresenterEvent = info.presentedByEventWithName
+                val presentingPlacement = info.presentedByEventWithName
                 val presentedByPaywallDecline =
-                    paywallPresenterEvent == SuperwallEvents.PaywallDecline.rawName
+                    presentingPlacement == SuperwallEvents.PaywallDecline.rawName
+                val presentedByTransactionAbandon =
+                    presentingPlacement == SuperwallEvents.TransactionAbandon.rawName
+                val presentedByTransactionFail =
+                    presentingPlacement == SuperwallEvents.TransactionFail.rawName
 
-                Superwall.instance.track(trackedEvent)
+                Superwall.instance.track(trackedEvent).getOrNull()
                 val capturedResult = presentationResult.getOrNull()
-                if (capturedResult != null && capturedResult is PresentationResult.Paywall && !presentedByPaywallDecline) {
-                    // Logic here, similar to the Swift one
+                if (capturedResult != null &&
+                    capturedResult is PresentationResult.Paywall &&
+                    !presentedByPaywallDecline &&
+                    !presentedByTransactionAbandon &&
+                    !presentedByTransactionFail
+                ) {
+                    // If a paywall_decline trigger is active and the current paywall wasn't presented
+                    // by paywall_decline, transaction_abandon, or transaction_fail, it lands here so
+                    // as not to dismiss the paywall. track() will do that before presenting the next paywall.
                     return
                 }
             }
@@ -427,12 +441,11 @@ class PaywallView(
                     shouldDismiss = true,
                 )
             } ?: run {
-                // TODO: Add presentationIsAnimated here
                 dismiss(presentationIsAnimated = false)
             }
         }
 
-        val dismiss = {
+        val finalDismiss = {
             ioScope.launch {
                 dismissView()
             }
@@ -444,7 +457,7 @@ class PaywallView(
             paywallCloseReason = closeReason,
             activity =
                 encapsulatingActivity?.get() ?: run {
-                    dismiss()
+                    finalDismiss()
                     return
                 },
             paywallView = this,
@@ -455,7 +468,7 @@ class PaywallView(
             factory = factory,
         ) { res ->
             this.surveyPresentationResult = res
-            dismiss()
+            finalDismiss()
         }
     }
 

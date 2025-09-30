@@ -21,11 +21,9 @@ import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.paywall.presentation.result.PresentationResult
 import com.superwall.sdk.storage.DisableVerboseEvents
 import com.superwall.sdk.utilities.withErrorTracking
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import java.util.Date
@@ -100,12 +98,10 @@ suspend fun Superwall.track(event: Trackable): Result<TrackingResult> {
         dependencyContainer.storage.coreDataManager.saveEventData(eventData)
 
         if (event.canImplicitlyTriggerPaywall) {
-            CoroutineScope(Dispatchers.IO).launch {
-                Superwall.instance.handleImplicitTrigger(
-                    event = event,
-                    eventData = eventData,
-                )
-            }
+            Superwall.instance.handleImplicitTrigger(
+                event = event,
+                eventData = eventData,
+            )
         }
 
         return@withErrorTracking TrackingResult(
