@@ -8,6 +8,10 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 - Add support for rerouting back button if enabled in paywall settings
   - Handled by `SuperwallOptions.PaywallOptions.onBackPressed`, which enables you to consume the back press or let the SDK consume it
+- Add support for redeeming web entitlements with Paddle
+ 
+## Fixes
+- Fix binary .so file regression to ensure 16kb page size compatibility
 
 ## 2.5.5
 
