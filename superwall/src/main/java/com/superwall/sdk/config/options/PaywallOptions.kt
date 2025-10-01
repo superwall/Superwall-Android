@@ -1,5 +1,6 @@
 package com.superwall.sdk.config.options
 
+import com.superwall.sdk.paywall.presentation.PaywallInfo
 import kotlin.time.Duration
 
 // Options for configuring the appearance and behavior of paywalls.
@@ -92,6 +93,11 @@ class PaywallOptions {
     // How long until a paywall timeout is invoked.
     // If not using fallback loading, settings this will trigger a paywall timeout instead of retrying.
     var timeoutAfter: Duration? = null
+
+    // This will be invoked when reroute_back_button is enabled in Paywall settings
+    // You can use this to react to back button presses with custom logic
+    // Return true if the dismiss has been consumed, false if you prefer to fallback to SKD logic
+    var onBackPressed: ((PaywallInfo?) -> Boolean)? = null
 }
 
 internal fun PaywallOptions.toMap() =

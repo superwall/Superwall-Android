@@ -50,6 +50,7 @@ import com.superwall.sdk.misc.isLightColor
 import com.superwall.sdk.misc.onError
 import com.superwall.sdk.misc.readableOverlayColor
 import com.superwall.sdk.models.paywall.LocalNotification
+import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.PaywallPresentationStyle
 import com.superwall.sdk.network.JsonFactory
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
@@ -295,10 +296,20 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             this,
             object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
-                    view.dismiss(
-                        result = PaywallResult.Declined(),
-                        closeReason = PaywallCloseReason.ManualClose,
-                    )
+                    val shouldConsumeDismiss =
+                        if (paywallView()?.paywall?.rerouteBackButton == Paywall.ToggleMode.ENABLED) {
+                            Superwall.instance.options.paywalls.onBackPressed
+                                ?.let { it(paywallView()?.info) }
+                                ?: false
+                        } else {
+                            false
+                        }
+                    if (!shouldConsumeDismiss) {
+                        view.dismiss(
+                            result = PaywallResult.Declined(),
+                            closeReason = PaywallCloseReason.ManualClose,
+                        )
+                    }
                 }
             },
         )
