@@ -4,14 +4,23 @@ import com.superwall.sdk.Given
 import com.superwall.sdk.Then
 import com.superwall.sdk.When
 import com.superwall.sdk.assertTrue
+import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
+import com.superwall.sdk.models.paywall.PaywallPresentationStyle
 import com.superwall.sdk.models.product.Offer
 import com.superwall.sdk.models.product.PlayStoreProduct
 import com.superwall.sdk.models.product.ProductItem
 import com.superwall.sdk.models.product.Store
+import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
+import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
+import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
+import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
+import com.superwall.sdk.paywall.view.survey.SurveyPresentationResult
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotSame
 import org.junit.Test
@@ -19,6 +28,26 @@ import java.util.Date
 
 class PaywallViewStateTest {
     private fun makeState(paywall: Paywall = Paywall.stub()): PaywallViewState = PaywallViewState(paywall = paywall, locale = "en-US")
+
+    private fun makeRequest(): PresentationRequest {
+        val info =
+            PresentationInfo.ExplicitTrigger(
+                EventData(name = "evt", parameters = emptyMap(), createdAt = java.util.Date()),
+            )
+        val flags =
+            PresentationRequest.Flags(
+                isDebuggerLaunched = false,
+                entitlements = MutableStateFlow(null),
+                isPaywallPresented = false,
+                type = PresentationRequestType.Presentation,
+            )
+        return PresentationRequest(
+            presentationInfo = info,
+            presenter = null,
+            paywallOverrides = null,
+            flags = flags,
+        )
+    }
 
     @Test
     fun presentationWillBegin_setsCloseReasonWithoutMutatingOriginal() {
@@ -285,6 +314,214 @@ class PaywallViewStateTest {
 
                 Then("loadingState remains LoadingURL") {
                     assertEquals(PaywallLoadingState.LoadingURL, hidden.loadingState)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun setPresentationConfig_applies_override_and_completion() {
+        Given("a state and a completion") {
+            val state = makeState()
+            var completed = false
+            val completion: (Boolean) -> Unit = { completed = it }
+
+            When("SetPresentationConfig is applied with override") {
+                val style = PaywallPresentationStyle.Modal
+                val newState = PaywallViewState.Updates.SetPresentationConfig(style, completion).transform(state)
+
+                Then("presentation style is overridden and completion stored") {
+                    assertEquals(style, newState.presentationStyle)
+                    assertTrue(newState.viewCreatedCompletion != null)
+                    newState.viewCreatedCompletion?.invoke(true)
+                    assertTrue(completed)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun setPresentationConfig_ignores_none_override() {
+        Given("a state with paywall style and None override") {
+            val paywall = Paywall.stub()
+            val state = makeState(paywall)
+
+            When("SetPresentationConfig is applied with None") {
+                val newState = PaywallViewState.Updates.SetPresentationConfig(PaywallPresentationStyle.None, null).transform(state)
+
+                Then("presentation style remains paywall's style") {
+                    assertEquals(paywall.presentation.style, newState.presentationStyle)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun clearStatePublisher_sets_null() {
+        Given("a state with a non-null publisher") {
+            val state = makeState().copy(paywallStatePublisher = MutableSharedFlow())
+
+            When("ClearStatePublisher is applied") {
+                val newState = PaywallViewState.Updates.ClearStatePublisher.transform(state)
+
+                Then("publisher becomes null") {
+                    assertEquals(null, newState.paywallStatePublisher)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun setInterceptTouchEvents_toggles_flag() {
+        Given("a default state") {
+            val state = makeState()
+
+            When("SetInterceptTouchEvents(true) is applied") {
+                val s1 = PaywallViewState.Updates.SetInterceptTouchEvents(true).transform(state)
+                Then("interceptTouchEvents is true") { assertEquals(true, s1.interceptTouchEvents) }
+
+                When("SetInterceptTouchEvents(false) is applied") {
+                    val s2 = PaywallViewState.Updates.SetInterceptTouchEvents(false).transform(s1)
+                    Then("interceptTouchEvents is false") { assertEquals(false, s2.interceptTouchEvents) }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun setBrowserPresented_toggles_flag() {
+        Given("a default state") {
+            val state = makeState()
+
+            When("SetBrowserPresented(true) then false are applied") {
+                val s1 = PaywallViewState.Updates.SetBrowserPresented(true).transform(state)
+                val s2 = PaywallViewState.Updates.SetBrowserPresented(false).transform(s1)
+
+                Then("flag reflects last update") {
+                    assertEquals(false, s2.isBrowserViewPresented)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun cleanupAfterDestroy_invokes_completion_and_resets_fields() {
+        Given("a state with dismiss completion and result set") {
+            var invoked = false
+            val completion = { invoked = true }
+            val state =
+                makeState().copy(
+                    dismissCompletionBlock = completion,
+                    paywallResult = PaywallResult.Declined(),
+                    isPresented = true,
+                )
+
+            When("CleanupAfterDestroy is applied") {
+                val newState = PaywallViewState.Updates.CleanupAfterDestroy.transform(state)
+
+                Then("completion called and fields reset") {
+                    assertTrue(invoked)
+                    assertEquals(null, newState.paywallResult)
+                    assertEquals(false, newState.isPresented)
+                    assertEquals(null, newState.dismissCompletionBlock)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun toggleSpinner_from_loadingPurchase_to_ready() {
+        Given("a state in LoadingPurchase") {
+            val state = PaywallViewState.Updates.SetLoadingState(PaywallLoadingState.LoadingPurchase).transform(makeState())
+
+            When("ToggleSpinner(hidden = true) is applied") {
+                val newState = PaywallViewState.Updates.ToggleSpinner(hidden = true).transform(state)
+
+                Then("loadingState becomes Ready") {
+                    assertEquals(PaywallLoadingState.Ready, newState.loadingState)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun resetPresentationPreparations_resets_flags() {
+        Given("a state with preparations done") {
+            val state = makeState().copy(presentationWillPrepare = false, presentationDidFinishPrepare = true)
+
+            When("ResetPresentationPreparations is applied") {
+                val newState = PaywallViewState.Updates.ResetPresentationPreparations.transform(state)
+
+                Then("flags reset to initial values") {
+                    assertEquals(true, newState.presentationWillPrepare)
+                    assertEquals(false, newState.presentationDidFinishPrepare)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun setPresentedAndFinished_sets_flags_true() {
+        Given("a default state") {
+            val state = makeState()
+
+            When("SetPresentedAndFinished is applied") {
+                val newState = PaywallViewState.Updates.SetPresentedAndFinished.transform(state)
+
+                Then("flags are true") {
+                    assertEquals(true, newState.isPresented)
+                    assertEquals(true, newState.presentationDidFinishPrepare)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun clearViewCreatedCompletion_clears_callback() {
+        Given("a state with viewCreatedCompletion set") {
+            val state = makeState().copy(viewCreatedCompletion = { })
+
+            When("ClearViewCreatedCompletion is applied") {
+                val newState = PaywallViewState.Updates.ClearViewCreatedCompletion.transform(state)
+
+                Then("callback is cleared") {
+                    assertEquals(null, newState.viewCreatedCompletion)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun setRequest_sets_request_publisher_and_occurrence() {
+        Given("a default state") {
+            val state = makeState()
+            val req = makeRequest()
+            val publisher = MutableSharedFlow<com.superwall.sdk.paywall.presentation.internal.state.PaywallState>()
+            val occurrence = TriggerRuleOccurrence.stub()
+
+            When("SetRequest is applied") {
+                val newState = PaywallViewState.Updates.SetRequest(req, publisher, occurrence).transform(state)
+
+                Then("all fields are set and same instance preserved") {
+                    org.junit.Assert.assertSame(req, newState.request)
+                    org.junit.Assert.assertSame(publisher, newState.paywallStatePublisher)
+                    assertEquals(occurrence, newState.unsavedOccurrence)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun updateSurveyState_sets_result() {
+        Given("a default state") {
+            val state = makeState()
+
+            When("UpdateSurveyState is applied") {
+                val res = SurveyPresentationResult.SHOW
+                val newState = PaywallViewState.Updates.UpdateSurveyState(res).transform(state)
+
+                Then("surveyPresentationResult equals res") {
+                    assertEquals(res, newState.surveyPresentationResult)
                 }
             }
         }

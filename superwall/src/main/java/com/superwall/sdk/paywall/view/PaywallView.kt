@@ -189,6 +189,23 @@ class PaywallView(
 
     private var stateListener: Job? = null
 
+    private fun stopStateListener() {
+        stateListener?.cancel()
+        stateListener = null
+    }
+
+    private fun startStateListener() {
+        // Ensure any previous listener is cancelled before starting a new one
+        stopStateListener()
+        stateListener =
+            ioScope.launch {
+                controller.currentState
+                    .map { it.loadingState }
+                    .distinctUntilChanged { old, new -> old::class == new::class }
+                    .collectLatest { loadingStateDidChange() }
+            }
+    }
+
     init {
         id = View.generateViewId()
         setBackgroundColor(backgroundColor)
@@ -269,18 +286,7 @@ class PaywallView(
             state.cacheKey,
             state.presentationStyle,
         )
-        stateListener =
-            ioScope.launch {
-                controller.currentState
-                    .map {
-                        it.loadingState
-                    }.distinctUntilChanged { old, new ->
-                        val same = old::class == new::class
-                        same
-                    }.collectLatest {
-                        loadingStateDidChange()
-                    }
-            }
+        startStateListener()
     }
 
     override fun updateState(update: PaywallViewState.Updates) {
@@ -342,6 +348,9 @@ class PaywallView(
             return
         }
 
+        // Ensure we stop listening to state changes when being destroyed
+        stopStateListener()
+
         ioScope.launch {
             trackClose()
         }
@@ -388,7 +397,6 @@ class PaywallView(
         closeReason: PaywallCloseReason,
         completion: (() -> Unit)? = null,
     ) {
-        stateListener?.cancel()
         controller.updateState(
             PaywallViewState.Updates.InitiateDismiss(
                 result,
@@ -444,6 +452,7 @@ class PaywallView(
             } ?: run {
                 dismiss(presentationIsAnimated = false)
             }
+            stopStateListener()
         }
 
         val finalDismiss = {
@@ -833,9 +842,7 @@ class PaywallView(
         code: String,
         resultCallback: ((String?) -> Unit)?,
     ) {
-        webView.evaluateJavascript(code) {
-            resultCallback?.invoke(code)
-        }
+        webView.evaluateJavascript(code, resultCallback)
     }
 
     override fun openDeepLink(url: String) {
@@ -881,6 +888,8 @@ class PaywallView(
         (parent as? ViewGroup)?.removeAllViews()
         removeAllViews()
         detachAllViewsFromParent()
+        // Cancel any active state listener to avoid leaks
+        stopStateListener()
     }
 
     internal fun destroyWebview() {

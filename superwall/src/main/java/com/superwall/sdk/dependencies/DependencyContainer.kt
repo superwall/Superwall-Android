@@ -461,12 +461,12 @@ class DependencyContainer(
                 track = {
                     Superwall.instance.track(it)
                 },
-                dismiss = { it, et ->
-                    val paywallExists = (makeViewStore().retrieveView(it) as PaywallView?)
-                    if (paywallExists == null) {
+                dismiss = { key, result ->
+                    val paywallView = resolvePaywallViewForKey(makeViewStore(), Superwall.instance.paywallView, key)
+                    if (paywallView == null) {
                         return@TransactionManager
                     }
-                    Superwall.instance.dismiss(paywallExists, et)
+                    Superwall.instance.dismiss(paywallView, result)
                 },
                 ioScope = ioScope(),
                 showRestoreDialogForWeb = {
@@ -489,11 +489,11 @@ class DependencyContainer(
                     )
                 },
                 updateState = { key, state ->
-                    val paywallExists = (makeViewStore().retrieveView(key) as PaywallView?)
-                    if (paywallExists == null) {
+                    val paywallView = resolvePaywallViewForKey(makeViewStore(), Superwall.instance.paywallView, key)
+                    if (paywallView == null) {
                         return@TransactionManager
                     }
-                    paywallExists.updateState(state)
+                    paywallView.updateState(state)
                 },
             )
 
