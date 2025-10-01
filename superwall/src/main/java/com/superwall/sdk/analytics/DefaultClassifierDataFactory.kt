@@ -10,6 +10,7 @@ import android.os.Build
 import android.util.DisplayMetrics
 import android.view.WindowInsets
 import android.view.WindowManager
+import androidx.core.content.ContextCompat
 import androidx.core.content.ContextCompat.getSystemService
 import kotlin.math.pow
 import kotlin.math.sqrt
@@ -68,7 +69,7 @@ interface ClassifierDataFactory {
             return windowMetrics.bounds.width()
         } else {
             val displayMetrics = DisplayMetrics()
-            windowManager.defaultDisplay.getMetrics(displayMetrics)
+            ContextCompat.getDisplayOrDefault(context()).getMetrics(displayMetrics)
             return displayMetrics.widthPixels
         }
     }
@@ -82,16 +83,14 @@ interface ClassifierDataFactory {
             return windowMetrics.bounds.height()
         } else {
             val displayMetrics = DisplayMetrics()
-            windowManager.defaultDisplay.getMetrics(displayMetrics)
+            ContextCompat.getDisplayOrDefault(context()).getMetrics(displayMetrics)
             return displayMetrics.heightPixels
         }
     }
 
     fun getScreenSize(): Double {
         val point = Point()
-        windowManager.defaultDisplay.getRealSize(
-            point,
-        )
+        ContextCompat.getDisplayOrDefault(context()).getRealSize(point)
         val displayMetrics: DisplayMetrics = context().resources.displayMetrics
         val width = point.x
         val height = point.y

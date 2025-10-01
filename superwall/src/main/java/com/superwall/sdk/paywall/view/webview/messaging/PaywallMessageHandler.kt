@@ -1,26 +1,23 @@
 package com.superwall.sdk.paywall.view.webview.messaging
 
 import TemplateLogic
-import android.net.Uri
-import android.util.Base64
 import android.webkit.JavascriptInterface
-import android.webkit.WebView
-import com.superwall.sdk.Superwall
-import com.superwall.sdk.analytics.SessionEventsManager
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
+import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEvents
+import com.superwall.sdk.dependencies.OptionsFactory
 import com.superwall.sdk.dependencies.VariablesFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.MainScope
 import com.superwall.sdk.models.paywall.Paywall
-import com.superwall.sdk.paywall.presentation.PaywallInfo
-import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
+import com.superwall.sdk.paywall.view.PaywallView
+import com.superwall.sdk.paywall.view.PaywallViewState
 import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 import com.superwall.sdk.paywall.view.webview.PaywallMessage
-import com.superwall.sdk.paywall.view.webview.WrappedPaywallMessages
+import com.superwall.sdk.paywall.view.webview.SendPaywallMessages
 import com.superwall.sdk.paywall.view.webview.parseWrappedPaywallMessages
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -30,19 +27,17 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.json.JSONObject
 import java.net.URI
-import java.nio.charset.StandardCharsets
 import java.util.Date
 import java.util.LinkedList
 import java.util.Queue
 
-interface PaywallMessageHandlerDelegate {
-    val request: PresentationRequest?
-    var paywall: Paywall
-    val info: PaywallInfo
-    val webView: WebView
-    var loadingState: PaywallLoadingState
-    val isActive: Boolean
+interface PaywallStateDelegate {
+    val state: PaywallViewState
 
+    fun updateState(update: PaywallViewState.Updates)
+}
+
+interface PaywallMessageHandlerDelegate : PaywallStateDelegate {
     fun eventDidOccur(paywallWebEvent: PaywallWebEvent)
 
     fun openDeepLink(url: String)
@@ -50,15 +45,23 @@ interface PaywallMessageHandlerDelegate {
     fun presentBrowserInApp(url: String)
 
     fun presentBrowserExternal(url: String)
+
+    fun evaluate(
+        code: String,
+        resultCallback: ((String?) -> Unit)?,
+    )
 }
 
 class PaywallMessageHandler(
-    private val sessionEventsManager: SessionEventsManager,
     private val factory: VariablesFactory,
+    private val options: OptionsFactory,
+    private val track: suspend (TrackableSuperwallEvent) -> Unit,
+    private val getView: () -> PaywallView?,
     private val mainScope: MainScope,
     private val ioScope: CoroutineScope,
     private val json: Json = Json { encodeDefaults = true },
-) {
+    private val encodeToB64: (String) -> String,
+) : SendPaywallMessages {
     private companion object {
         val selectionString =
             """var css = '*{-webkit-touch-callout:none;-webkit-user-select:none} .w-webflow-badge { display: none !important; }';
@@ -73,7 +76,7 @@ class PaywallMessageHandler(
                         head.appendChild(meta);"""
     }
 
-    var delegate: PaywallMessageHandlerDelegate? = null
+    var messageHandler: PaywallMessageHandlerDelegate? = null
     private val queue: Queue<PaywallMessage> = LinkedList()
 
     @JavascriptInterface
@@ -86,48 +89,46 @@ class PaywallMessageHandler(
         )
 
         // Attempt to parse the message to json
-        // and print out the version number
-        val wrappedPaywallMessages: WrappedPaywallMessages
-        try {
-            wrappedPaywallMessages = parseWrappedPaywallMessages(message)
-        } catch (e: Throwable) {
-            Logger.debug(
-                LogLevel.debug,
-                LogScope.superwallCore,
-                "SWWebViewInterface: Error parsing message - $e",
-            )
-            return
-        }
-
-        // Loop through the messages and print out the event name
-        for (paywallMessage in wrappedPaywallMessages.payload.messages) {
-            Logger.debug(
-                LogLevel.debug,
-                LogScope.superwallCore,
-                "SWWebViewInterface: ${paywallMessage.javaClass.simpleName}",
-            )
-            handle(paywallMessage)
-        }
+        parseWrappedPaywallMessages(message)
+            .fold({
+                for (paywallMessage in it.payload.messages) {
+                    Logger.debug(
+                        LogLevel.debug,
+                        LogScope.superwallCore,
+                        "SWWebViewInterface: ${paywallMessage.javaClass.simpleName}",
+                    )
+                    handle(paywallMessage)
+                }
+            }, {
+                Logger.debug(
+                    LogLevel.debug,
+                    LogScope.superwallCore,
+                    "SWWebViewInterface: Error parsing message - $it",
+                )
+                return@fold
+            })
     }
 
-    fun handle(message: PaywallMessage) {
+    override fun handle(message: PaywallMessage) {
         Logger.debug(
             LogLevel.debug,
             LogScope.superwallCore,
-            "!! PaywallMessageHandler: Handling message: $message ${delegate?.paywall}, delegeate: $delegate",
+            "!! PaywallMessageHandler: Handling message: $message ${messageHandler?.state?.paywall}, delegeate: $messageHandler",
         )
-        val paywall = delegate?.paywall ?: return
+        val paywall = messageHandler?.state?.paywall ?: return
         Logger.debug(
             LogLevel.debug,
             LogScope.superwallCore,
-            "!! PaywallMessageHandler: Paywall: $paywall, delegeate: $delegate",
+            "!! PaywallMessageHandler: Paywall: $paywall, delegeate: $messageHandler",
         )
         when (message) {
             is PaywallMessage.TemplateParamsAndUserAttributes ->
                 ioScope.launch { passTemplatesToWebView(paywall) }
 
             is PaywallMessage.OnReady -> {
-                delegate?.paywall?.paywalljsVersion = message.paywallJsVersion
+                messageHandler?.updateState(
+                    PaywallViewState.Updates.SetPaywallJsVersion(message.paywallJsVersion),
+                )
                 val loadedAt = Date()
                 Logger.debug(
                     LogLevel.debug,
@@ -139,16 +140,16 @@ class PaywallMessageHandler(
 
             is PaywallMessage.Close -> {
                 hapticFeedback()
-                delegate?.eventDidOccur(PaywallWebEvent.Closed)
+                messageHandler?.eventDidOccur(PaywallWebEvent.Closed)
             }
 
             is PaywallMessage.OpenUrl -> openUrl(message.url)
             is PaywallMessage.OpenUrlInBrowser -> openUrlInBrowser(message.url)
-            is PaywallMessage.OpenDeepLink -> openDeepLink(Uri.parse(message.url.toString()))
+            is PaywallMessage.OpenDeepLink -> openDeepLink(message.url.toString())
             is PaywallMessage.Restore -> restorePurchases()
             is PaywallMessage.Purchase -> purchaseProduct(withId = message.productId)
             is PaywallMessage.PaywallOpen -> {
-                if (delegate?.paywall?.paywalljsVersion == null) {
+                if (messageHandler?.state?.paywall?.paywalljsVersion == null) {
                     queue.offer(message)
                 } else {
                     ioScope.launch {
@@ -158,7 +159,7 @@ class PaywallMessageHandler(
             }
 
             is PaywallMessage.PaywallClose -> {
-                if (delegate?.paywall?.paywalljsVersion == null) {
+                if (messageHandler?.state?.paywall?.paywalljsVersion == null) {
                     queue.offer(message)
                 } else {
                     ioScope.launch {
@@ -187,6 +188,7 @@ class PaywallMessageHandler(
         }
     }
 
+    // Serialize the event to JSON and pass as B64 encoded string
     private suspend fun pass(
         eventName: String,
         paywall: Paywall,
@@ -200,24 +202,25 @@ class PaywallMessageHandler(
                 ),
             )
         val jsonString = json.encodeToString(eventList)
-
-        // Encode the JSON string to Base64
-        val base64Event =
-            Base64.encodeToString(jsonString.toByteArray(StandardCharsets.UTF_8), Base64.NO_WRAP)
-
-        passMessageToWebView(base64String = base64Event)
+        passMessageToWebView(base64String = encodeToB64(jsonString))
     }
 
     // Passes the templated variables and params to the webview.
     // This is called every paywall open incase variables like user attributes have changed.
     private suspend fun passTemplatesToWebView(paywall: Paywall) {
-        val eventData = delegate?.request?.presentationInfo?.eventData
+        val eventData =
+            messageHandler
+                ?.state
+                ?.request
+                ?.presentationInfo
+                ?.eventData
         val templates =
             TemplateLogic.getBase64EncodedTemplates(
                 paywall = paywall,
                 event = eventData,
                 factory = factory,
                 json = json,
+                encodeToBase64 = encodeToB64,
             )
         passMessageToWebView(base64String = templates)
     }
@@ -235,7 +238,7 @@ class PaywallMessageHandler(
         )
 
         withContext(Dispatchers.Main) {
-            delegate?.webView?.evaluateJavascript(templateScript) { error ->
+            messageHandler?.evaluate(templateScript) { error ->
                 if (error != null) {
                     Logger.debug(
                         logLevel = LogLevel.error,
@@ -255,17 +258,17 @@ class PaywallMessageHandler(
         loadedAt: Date,
     ) {
         ioScope.launch {
-            val delegate = this@PaywallMessageHandler.delegate
+            val delegate = this@PaywallMessageHandler.messageHandler
             if (delegate != null) {
-                delegate.paywall.webviewLoadingInfo.endAt = loadedAt
+                delegate.updateState(PaywallViewState.Updates.WebLoadingEnded(loadedAt))
 
-                val paywallInfo = delegate.info
+                val paywallInfo = delegate.state.info
                 val trackedEvent =
                     InternalSuperwallEvent.PaywallWebviewLoad(
                         state = InternalSuperwallEvent.PaywallWebviewLoad.State.Complete(),
                         paywallInfo = paywallInfo,
                     )
-                Superwall.instance.track(trackedEvent)
+                track(trackedEvent)
             }
         }
 
@@ -276,13 +279,19 @@ class PaywallMessageHandler(
         )
 
         val htmlSubstitutions = paywall.htmlSubstitutions
-        val eventData = delegate?.request?.presentationInfo?.eventData
+        val eventData =
+            messageHandler
+                ?.state
+                ?.request
+                ?.presentationInfo
+                ?.eventData
         val templates =
             TemplateLogic.getBase64EncodedTemplates(
                 paywall = paywall,
                 event = eventData,
                 factory = factory,
                 json = json,
+                encodeToBase64 = encodeToB64,
             )
         val scriptSrc = """
       window.paywall.accept64('$templates');
@@ -303,7 +312,7 @@ class PaywallMessageHandler(
         )
 
         mainScope.launch {
-            delegate?.webView?.evaluateJavascript(scriptSrc) { error ->
+            messageHandler?.evaluate(scriptSrc) { error ->
                 if (error != null) {
                     Logger.debug(
                         logLevel = LogLevel.error,
@@ -316,15 +325,19 @@ class PaywallMessageHandler(
             }
 
             // block selection
-            delegate?.webView?.evaluateJavascript(selectionString, null)
-            delegate?.webView?.evaluateJavascript(preventZoom, null)
+            messageHandler?.evaluate(selectionString, null)
+            messageHandler?.evaluate(preventZoom, null)
             ioScope.launch {
                 mainScope.launch {
                     while (queue.isNotEmpty()) {
                         val item = queue.remove()
                         handle(item)
                     }
-                    delegate?.loadingState = PaywallLoadingState.Ready()
+                    messageHandler?.updateState(
+                        PaywallViewState.Updates.SetLoadingState(
+                            PaywallLoadingState.Ready,
+                        ),
+                    )
                 }
             }
         }
@@ -336,8 +349,8 @@ class PaywallMessageHandler(
             mapOf("url" to url.toString()),
         )
         hapticFeedback()
-        delegate?.eventDidOccur(PaywallWebEvent.OpenedURL(url))
-        delegate?.presentBrowserInApp(url.toString())
+        messageHandler?.eventDidOccur(PaywallWebEvent.OpenedURL(url))
+        messageHandler?.presentBrowserInApp(url.toString())
     }
 
     private fun openUrlInBrowser(url: URI) {
@@ -346,29 +359,29 @@ class PaywallMessageHandler(
             mapOf("url" to url),
         )
         hapticFeedback()
-        delegate?.eventDidOccur(PaywallWebEvent.OpenedUrlInChrome(url))
-        delegate?.presentBrowserExternal(url.toString())
+        messageHandler?.eventDidOccur(PaywallWebEvent.OpenedUrlInChrome(url))
+        messageHandler?.presentBrowserExternal(url.toString())
     }
 
-    private fun openDeepLink(url: Uri) {
+    private fun openDeepLink(url: String) {
         detectHiddenPaywallEvent(
             "openDeepLink",
             mapOf("url" to url),
         )
         hapticFeedback()
-        delegate?.openDeepLink(url.toString())
+        messageHandler?.openDeepLink(url)
     }
 
     private fun restorePurchases() {
         detectHiddenPaywallEvent("restore")
         hapticFeedback()
-        delegate?.eventDidOccur(PaywallWebEvent.InitiateRestore)
+        messageHandler?.eventDidOccur(PaywallWebEvent.InitiateRestore)
     }
 
     private fun purchaseProduct(withId: String) {
         detectHiddenPaywallEvent("purchase")
         hapticFeedback()
-        delegate?.eventDidOccur(PaywallWebEvent.InitiatePurchase(withId))
+        messageHandler?.eventDidOccur(PaywallWebEvent.InitiatePurchase(withId))
     }
 
     private fun handleCustomEvent(customEvent: String) {
@@ -376,19 +389,19 @@ class PaywallMessageHandler(
             "custom",
             mapOf("custom_event" to customEvent),
         )
-        delegate?.eventDidOccur(PaywallWebEvent.Custom(customEvent))
+        messageHandler?.eventDidOccur(PaywallWebEvent.Custom(customEvent))
     }
 
     private fun handleCustomPlacement(
         name: String,
         params: JSONObject,
     ) {
-        delegate?.eventDidOccur(PaywallWebEvent.CustomPlacement(name, params))
+        messageHandler?.eventDidOccur(PaywallWebEvent.CustomPlacement(name, params))
     }
 
     private fun handleRequestReview(request: PaywallMessage.RequestReview) {
         hapticFeedback()
-        delegate?.eventDidOccur(
+        messageHandler?.eventDidOccur(
             PaywallWebEvent.RequestReview(
                 when (request.type) {
                     PaywallMessage.RequestReview.Type.EXTERNAL -> PaywallWebEvent.RequestReview.Type.EXTERNAL
@@ -403,13 +416,11 @@ class PaywallMessageHandler(
         eventName: String,
         userInfo: Map<String, Any>? = null,
     ) {
-        val delegateIsActive = delegate?.isActive
-
-        if (delegateIsActive == true) {
+        if (messageHandler?.state?.isPresented == true) {
             return
         }
 
-        val paywallDebugDescription = Superwall.instance.paywallView.toString()
+        val paywallDebugDescription = getView().toString()
 
         var info: MutableMap<String, Any> =
             mutableMapOf(
@@ -430,8 +441,9 @@ class PaywallMessageHandler(
     }
 
     private fun hapticFeedback() {
-        val isHapticFeedbackEnabled = Superwall.instance.options.paywalls.isHapticFeedbackEnabled
-        val isGameControllerEnabled = Superwall.instance.options.isGameControllerEnabled
+        val options = options.makeSuperwallOptions()
+        val isHapticFeedbackEnabled = options.paywalls.isHapticFeedbackEnabled
+        val isGameControllerEnabled = options.isGameControllerEnabled
 
         if (isHapticFeedbackEnabled == false || isGameControllerEnabled == true) {
             return

@@ -16,6 +16,7 @@ object TemplateLogic {
         paywall: Paywall,
         event: EventData?,
         factory: VariablesFactory,
+        encodeToBase64: (String) -> String,
     ): String {
         val productsTemplate =
             ProductTemplate(
@@ -56,7 +57,6 @@ object TemplateLogic {
 //            json.encodeToString(swProductTemplate)
             )
         val templatesString = "[" + encodedTemplates.joinToString(",") + "]"
-        val templatesData = templatesString.toByteArray(Charsets.UTF_8)
 
         Logger.debug(
             LogLevel.debug,
@@ -64,7 +64,7 @@ object TemplateLogic {
             "!!! Template Logic: $templatesString",
         )
 
-        return android.util.Base64.encodeToString(templatesData, android.util.Base64.NO_WRAP)
+        return encodeToBase64(templatesString)
     }
 
 //    private fun swProductTemplate(
