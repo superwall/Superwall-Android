@@ -19,6 +19,7 @@ import android.webkit.WebViewClient
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
+import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.config.options.PaywallOptions
 import com.superwall.sdk.game.dispatchKeyEvent
 import com.superwall.sdk.game.dispatchMotionEvent
@@ -29,6 +30,7 @@ import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.MainScope
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.paywall.presentation.PaywallInfo
+import com.superwall.sdk.paywall.view.PaywallViewState
 import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessageHandler
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessageHandlerDelegate
@@ -38,22 +40,26 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.launch
-import java.util.Date
 
 @Suppress("ktlint:standard:class-naming")
-interface _SWWebViewDelegate {
+interface PaywallInfoDelegate {
     val info: PaywallInfo
 }
 
 interface SWWebViewDelegate :
-    _SWWebViewDelegate,
+    PaywallInfoDelegate,
     PaywallMessageHandlerDelegate
+
+interface SendPaywallMessages {
+    fun handle(message: PaywallMessage)
+}
 
 class SWWebView(
     context: Context,
     val messageHandler: PaywallMessageHandler,
     private val onFinishedLoading: ((url: String) -> Unit)? = null,
     private val options: () -> PaywallOptions,
+    private val track: suspend (TrackableSuperwallEvent) -> Unit = { Superwall.instance.track(it) },
 ) : WebView(context) {
     var delegate: SWWebViewDelegate? = null
     private val mainScope = MainScope()
@@ -213,7 +219,7 @@ class SWWebView(
             if (timeout != null) {
                 ioScope.launch {
                     delay(timeout)
-                    if (delegate?.loadingState !is PaywallLoadingState.Ready) {
+                    if (delegate?.state?.loadingState !is PaywallLoadingState.Ready) {
                         trackPaywallError(WebviewError.Timeout, listOfNotNull(lastLoadedUrl))
                         onTimeout?.invoke(WebviewError.Timeout)
                     }
@@ -285,7 +291,11 @@ class SWWebView(
 
                             is WebviewClientEvent.OnPageFinished -> {
                                 if (options().optimisticLoading) {
-                                    delegate?.loadingState = PaywallLoadingState.Ready()
+                                    delegate?.updateState(
+                                        PaywallViewState.Updates.SetLoadingState(
+                                            PaywallLoadingState.Ready,
+                                        ),
+                                    )
                                 }
                                 onFinishedLoading?.invoke(it.url)
                             }
@@ -301,7 +311,7 @@ class SWWebView(
 
     private fun trackLoadFallback() {
         mainScope.launch {
-            delegate?.paywall?.webviewLoadingInfo?.failAt = Date()
+            delegate?.updateState(PaywallViewState.Updates.WebLoadingFailed)
 
             val paywallInfo = delegate?.info ?: return@launch
 
@@ -311,7 +321,7 @@ class SWWebView(
                         InternalSuperwallEvent.PaywallWebviewLoad.State.Fallback,
                     paywallInfo = paywallInfo,
                 )
-            Superwall.instance.track(trackedEvent)
+            track(trackedEvent)
         }
     }
 
@@ -320,7 +330,7 @@ class SWWebView(
         urls: List<String>,
     ) {
         mainScope.launch {
-            delegate?.paywall?.webviewLoadingInfo?.failAt = Date()
+            delegate?.updateState(PaywallViewState.Updates.WebLoadingFailed)
 
             val paywallInfo = delegate?.info ?: return@launch
 
@@ -333,7 +343,7 @@ class SWWebView(
                         ),
                     paywallInfo = paywallInfo,
                 )
-            Superwall.instance.track(trackedEvent)
+            track(trackedEvent)
         }
     }
 
@@ -347,7 +357,7 @@ class SWWebView(
                     url = url,
                     error = error.toString(),
                 )
-            Superwall.instance.track(trackedEvent)
+            track(trackedEvent)
         }
     }
 

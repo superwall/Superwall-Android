@@ -3,6 +3,7 @@ package com.superwall.sdk.dependencies
 import android.app.Activity
 import android.app.Application
 import android.content.Context
+import android.util.Base64
 import android.webkit.WebSettings
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.ViewModelProvider
@@ -73,6 +74,7 @@ import com.superwall.sdk.paywall.request.PaywallRequestManager
 import com.superwall.sdk.paywall.request.PaywallRequestManagerDepFactory
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
 import com.superwall.sdk.paywall.view.PaywallView
+import com.superwall.sdk.paywall.view.PaywallViewState
 import com.superwall.sdk.paywall.view.SuperwallStoreOwner
 import com.superwall.sdk.paywall.view.ViewModelFactory
 import com.superwall.sdk.paywall.view.ViewStorageViewModel
@@ -106,6 +108,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.ClassDiscriminatorMode
 import kotlinx.serialization.json.Json
 import java.lang.ref.WeakReference
+import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.util.Date
 
@@ -385,6 +388,7 @@ class DependencyContainer(
                 },
                 currentPaywallEntitlements = {
                     Superwall.instance.paywallView
+                        ?.state
                         ?.paywall
                         ?.productIds
                         ?.flatMap {
@@ -457,8 +461,12 @@ class DependencyContainer(
                 track = {
                     Superwall.instance.track(it)
                 },
-                dismiss = { it, et ->
-                    Superwall.instance.dismiss(it, et)
+                dismiss = { key, result ->
+                    val paywallView = resolvePaywallViewForKey(makeViewStore(), Superwall.instance.paywallView, key)
+                    if (paywallView == null) {
+                        return@TransactionManager
+                    }
+                    Superwall.instance.dismiss(paywallView, result)
                 },
                 ioScope = ioScope(),
                 showRestoreDialogForWeb = {
@@ -469,6 +477,23 @@ class DependencyContainer(
                 },
                 refreshReceipt = {
                     storeManager.refreshReceipt()
+                },
+                showAlert = {
+                    Superwall.instance.paywallView?.showAlert(
+                        it.title,
+                        it.message,
+                        it.actionTitle,
+                        it.closeActionTitle,
+                        it.action,
+                        it.onClose,
+                    )
+                },
+                updateState = { key, state ->
+                    val paywallView = resolvePaywallViewForKey(makeViewStore(), Superwall.instance.paywallView, key)
+                    if (paywallView == null) {
+                        return@TransactionManager
+                    }
+                    paywallView.updateState(state)
                 },
             )
 
@@ -575,13 +600,26 @@ class DependencyContainer(
     ): PaywallView {
         val messageHandler =
             PaywallMessageHandler(
-                sessionEventsManager = sessionEventsManager,
                 factory = this@DependencyContainer,
+                options = this,
+                getView = { Superwall.instance.paywallView },
+                track = {
+                    Superwall.instance.track(it)
+                },
                 ioScope = ioScope,
                 json = paywallJson,
                 mainScope = mainScope(),
+                encodeToB64 = {
+                    Base64.encodeToString(it.toByteArray(StandardCharsets.UTF_8), Base64.NO_WRAP)
+                },
             )
 
+        val state =
+            PaywallViewState(
+                paywall = paywall,
+                locale = deviceHelper.locale,
+            )
+        val controller = PaywallView.PaywallController(state)
         val paywallView =
             uiScope
                 .async {
@@ -597,7 +635,6 @@ class DependencyContainer(
                     val paywallView =
                         PaywallView(
                             context = context,
-                            paywall = paywall,
                             factory = this@DependencyContainer,
                             cache = cache,
                             callback = delegate,
@@ -608,9 +645,10 @@ class DependencyContainer(
                             useMultipleUrls =
                                 configManager.config?.featureFlags?.enableMultiplePaywallUrls
                                     ?: false,
+                            controller = controller,
                         )
                     webView.delegate = paywallView
-                    messageHandler.delegate = paywallView
+                    messageHandler.messageHandler = paywallView
                     paywallView
                 }.await()
 
@@ -635,7 +673,11 @@ class DependencyContainer(
 
     override fun makeCache(): PaywallViewCache = PaywallViewCache(context, makeViewStore(), activityProvider!!, deviceHelper)
 
-    override fun activePaywallId(): String? = paywallManager.currentView?.paywall?.identifier
+    override fun activePaywallId(): String? =
+        paywallManager.currentView
+            ?.state
+            ?.paywall
+            ?.identifier
 
     override fun makeDeviceInfo(): DeviceInfo =
         DeviceInfo(
@@ -851,7 +893,7 @@ class DependencyContainer(
                         paywallInfo = paywallView.info,
                     ),
                 )
-                paywallView.webView.messageHandler.handle(PaywallMessage.Restore)
+                paywallView.handle(PaywallMessage.Restore)
             }
             if (makeSuperwallOptions().paywalls.automaticallyDismiss) {
                 ioScope.launch {
@@ -874,7 +916,7 @@ class DependencyContainer(
             ioScope.launch {
                 Superwall.instance.track(trackedEvent)
             }
-            paywallView.webView.messageHandler.handle(PaywallMessage.RestoreFailed(message))
+            paywallView.handle(PaywallMessage.RestoreFailed(message))
             paywallView.showAlert(
                 title = options.paywalls.restoreFailed.title,
                 message = options.paywalls.restoreFailed.message,

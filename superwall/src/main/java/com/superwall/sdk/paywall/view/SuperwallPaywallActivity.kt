@@ -50,6 +50,7 @@ import com.superwall.sdk.misc.isLightColor
 import com.superwall.sdk.misc.onError
 import com.superwall.sdk.misc.readableOverlayColor
 import com.superwall.sdk.models.paywall.LocalNotification
+import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.PaywallPresentationStyle
 import com.superwall.sdk.network.JsonFactory
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
@@ -99,7 +100,8 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                         )
                         putExtra(
                             IS_LIGHT_BACKGROUND_KEY,
-                            view.paywall.backgroundColor.isLightColor(),
+                            view.state.paywall.backgroundColor
+                                .isLightColor(),
                         )
                         flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
                     }
@@ -118,7 +120,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             if (children.none { it is LoadingView || it is ShimmerView }) {
                 val loading =
                     (viewStorageViewModel.retrieveView(LoadingView.TAG) as LoadingView)
-                val style = paywall.presentation.style
+                val style = state.paywall.presentation.style
                 val shimmer =
                     if (style is PaywallPresentationStyle.Popup) {
                         ShimmerView(this@prepareViewForDisplay.context).apply {
@@ -294,10 +296,20 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             this,
             object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
-                    view.dismiss(
-                        result = PaywallResult.Declined(),
-                        closeReason = PaywallCloseReason.ManualClose,
-                    )
+                    val shouldConsumeDismiss =
+                        if (paywallView()?.state?.paywall?.rerouteBackButton == Paywall.ToggleMode.ENABLED) {
+                            Superwall.instance.options.paywalls.onBackPressed
+                                ?.let { it(paywallView()?.info) }
+                                ?: false
+                        } else {
+                            false
+                        }
+                    if (!shouldConsumeDismiss) {
+                        view.dismiss(
+                            result = PaywallResult.Declined(),
+                            closeReason = PaywallCloseReason.ManualClose,
+                        )
+                    }
                 }
             },
         )
@@ -330,12 +342,17 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                 // Set the navigation bar color to the paywall background color
                 enableEdgeToEdge(
                     navigationBarStyle =
-                        when (view.paywall.backgroundColor.isDarkColor()) {
-                            true -> SystemBarStyle.dark(view.paywall.backgroundColor)
+                        when (
+                            view.state.paywall.backgroundColor
+                                .isDarkColor()
+                        ) {
+                            true -> SystemBarStyle.dark(view.state.paywall.backgroundColor)
                             else ->
                                 SystemBarStyle.light(
-                                    scrim = view.paywall.backgroundColor,
-                                    darkScrim = view.paywall.backgroundColor.readableOverlayColor(),
+                                    scrim = view.state.paywall.backgroundColor,
+                                    darkScrim =
+                                        view.state.paywall.backgroundColor
+                                            .readableOverlayColor(),
                                 )
                         },
                 )
@@ -360,12 +377,17 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                 }
                 enableEdgeToEdge(
                     navigationBarStyle =
-                        when (view.paywall.backgroundColor.isDarkColor()) {
-                            true -> SystemBarStyle.dark(view.paywall.backgroundColor)
+                        when (
+                            view.state.paywall.backgroundColor
+                                .isDarkColor()
+                        ) {
+                            true -> SystemBarStyle.dark(view.state.paywall.backgroundColor)
                             else ->
                                 SystemBarStyle.light(
-                                    scrim = view.paywall.backgroundColor,
-                                    darkScrim = view.paywall.backgroundColor.readableOverlayColor(),
+                                    scrim = view.state.paywall.backgroundColor,
+                                    darkScrim =
+                                        view.state.paywall.backgroundColor
+                                            .readableOverlayColor(),
                                 )
                         },
                 )
@@ -469,7 +491,11 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         val animatorSet =
             AnimatorSet().apply {
                 playTogether(scaleX, scaleY, fadeIn)
-                duration = paywallView()?.paywall?.presentation?.delay ?: DEFAULT_DELAY
+                duration = paywallView()
+                    ?.state
+                    ?.paywall
+                    ?.presentation
+                    ?.delay ?: DEFAULT_DELAY
                 interpolator = OvershootInterpolator(1.1f)
             }
         animatorSet.start()
@@ -549,8 +575,8 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         super.onStart()
         val paywallVc = paywallView() ?: return
 
-        if (paywallVc.isBrowserViewPresented) {
-            paywallVc.isBrowserViewPresented = false
+        if (paywallVc.state.isBrowserViewPresented) {
+            paywallVc.updateState(PaywallViewState.Updates.SetBrowserPresented(true))
         }
 
         paywallVc.beforeViewCreated()
@@ -657,7 +683,6 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                 "Error cleaning up PaywallView: $it",
             )
         }
-        paywallView()?.webView?.onScrollChangeListener = null
         paywallView()?.cleanup()
         content?.removeAllViews()
         // Clear reference to activity in the view

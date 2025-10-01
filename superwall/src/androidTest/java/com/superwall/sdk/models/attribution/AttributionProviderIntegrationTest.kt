@@ -4,13 +4,13 @@ import And
 import Given
 import Then
 import When
-import android.app.Application
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.platform.app.InstrumentationRegistry
-import com.superwall.sdk.Superwall
-import com.superwall.sdk.config.options.SuperwallOptions
+import com.superwall.sdk.analytics.AttributionManager
+import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.delayFor
-import com.superwall.sdk.storage.CONSTANT_API_KEY
+import com.superwall.sdk.models.internal.VendorId
+import com.superwall.sdk.storage.Storable
+import com.superwall.sdk.storage.Storage
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -23,33 +23,52 @@ import kotlin.time.Duration.Companion.seconds
 
 @RunWith(AndroidJUnit4::class)
 class AttributionProviderIntegrationTest {
+    private lateinit var attributionManager: AttributionManager
+    private val trackedEvents = mutableListOf<TrackableSuperwallEvent>()
+    private val storageMap = mutableMapOf<String, Any>()
+
+    private val mockStorage =
+        object : Storage {
+            override fun <T> read(storable: Storable<T>): T? {
+                @Suppress("UNCHECKED_CAST")
+                return storageMap[storable.key] as? T
+            }
+
+            override fun <T : Any> write(
+                storable: Storable<T>,
+                data: T,
+            ) {
+                storageMap[storable.key] = data
+            }
+
+            override fun <T : Any> delete(storable: Storable<T>) {
+                storageMap.remove(storable.key)
+            }
+
+            override fun clean() {
+                storageMap.clear()
+            }
+        }
+
     @Before
     fun setup() {
+        trackedEvents.clear()
+        storageMap.clear()
+
+        attributionManager =
+            AttributionManager(
+                storage = mockStorage,
+                track = { event -> trackedEvents.add(event) },
+                redeemAfterSetting = {},
+                vendorId = { VendorId("test-vendor-id") },
+            )
     }
 
     @Test
     fun test_attribution_providers_passed_to_redeem_calls() =
         runTest(timeout = 5.minutes) {
-            Given("Superwall is configured and we have attribution providers") {
-                val context = InstrumentationRegistry.getInstrumentation().targetContext
-                val application = context.applicationContext as Application
-
-                if (!Superwall.initialized) {
-                    Superwall.configure(
-                        application,
-                        CONSTANT_API_KEY,
-                        options =
-                            SuperwallOptions().apply {
-                                paywalls.shouldPreload = false
-                            },
-                    )
-                }
-
-                When("we wait for configuration to complete") {
-                    delay(1000)
-                }
-
-                And("we set integration identifiers for attribution providers") {
+            Given("AttributionManager is initialized") {
+                When("we set integration identifiers for attribution providers") {
                     val attributionIdentifiers =
                         mapOf(
                             AttributionProvider.META to "meta_user_123",
@@ -62,12 +81,12 @@ class AttributionProviderIntegrationTest {
                             AttributionProvider.CUSTOM to "custom_id_xyz",
                         )
 
-                    Superwall.instance.setIntegrationAttributes(attributionIdentifiers)
+                    attributionManager.setIntegrationAttributes(attributionIdentifiers)
                     delayFor(1.seconds)
                 }
 
                 Then("the attribution properties should be available via attributionProps") {
-                    val attributionProps = Superwall.instance.integrationAttributes
+                    val attributionProps = attributionManager.integrationAttributes
 
                     assertEquals("meta_user_123", attributionProps["meta"])
                     assertEquals("amp_user_456", attributionProps["amplitude"])
@@ -85,23 +104,7 @@ class AttributionProviderIntegrationTest {
     @Test
     fun test_attribution_providers_in_superwall_integration_identifiers() =
         runTest(timeout = 5.minutes) {
-            Given("we have Superwall configured with attribution providers") {
-                val context = InstrumentationRegistry.getInstrumentation().targetContext
-                val application = context.applicationContext as Application
-
-                if (!Superwall.initialized) {
-                    Superwall.configure(
-                        application,
-                        CONSTANT_API_KEY,
-                        options =
-                            SuperwallOptions().apply {
-                                paywalls.shouldPreload = false
-                            },
-                    )
-                }
-
-                delay(1000)
-
+            Given("AttributionManager is initialized") {
                 When("we set integration identifiers") {
                     val attributionIdentifiers =
                         mapOf(
@@ -110,12 +113,12 @@ class AttributionProviderIntegrationTest {
                             AttributionProvider.GOOGLE_ADS to "gclid_test_123",
                         )
 
-                    Superwall.instance.setIntegrationAttributes(attributionIdentifiers)
-                    delayFor(1.seconds) // Allow processing
+                    attributionManager.setIntegrationAttributes(attributionIdentifiers)
+                    delayFor(1.seconds)
                 }
 
                 Then("the attribution props should be available and correctly formatted") {
-                    val attributionProps = Superwall.instance.integrationAttributes
+                    val attributionProps = attributionManager.integrationAttributes
 
                     assertEquals("meta_user_123", attributionProps["meta"])
                     assertEquals("amp_user_456", attributionProps["amplitude"])
@@ -124,7 +127,7 @@ class AttributionProviderIntegrationTest {
 
                     And("the attribution props should persist") {
                         delay(100)
-                        val propsAgain = Superwall.instance.integrationAttributes
+                        val propsAgain = attributionManager.integrationAttributes
                         assertEquals(attributionProps, propsAgain)
                     }
                 }
@@ -134,25 +137,9 @@ class AttributionProviderIntegrationTest {
     @Test
     fun test_empty_attribution_providers() =
         runTest(timeout = 5.minutes) {
-            Given("Superwall is configured with no attribution providers") {
-                val context = InstrumentationRegistry.getInstrumentation().targetContext
-                val application = context.applicationContext as Application
-
-                if (!Superwall.initialized) {
-                    Superwall.configure(
-                        application,
-                        CONSTANT_API_KEY,
-                        options =
-                            SuperwallOptions().apply {
-                                paywalls.shouldPreload = false
-                            },
-                    )
-                }
-
-                delay(1000)
-
+            Given("AttributionManager is initialized with no attribution providers") {
                 When("we check attribution properties") {
-                    val attributionProps = Superwall.instance.integrationAttributes
+                    val attributionProps = attributionManager.integrationAttributes
 
                     Then("attribution properties should be empty") {
                         assertTrue("Attribution props should be empty", attributionProps.isEmpty())
@@ -164,23 +151,7 @@ class AttributionProviderIntegrationTest {
     @Test
     fun test_new_attribution_providers() =
         runTest(timeout = 5.minutes) {
-            Given("Superwall is configured") {
-                val context = InstrumentationRegistry.getInstrumentation().targetContext
-                val application = context.applicationContext as Application
-
-                if (!Superwall.initialized) {
-                    Superwall.configure(
-                        application,
-                        CONSTANT_API_KEY,
-                        options =
-                            SuperwallOptions().apply {
-                                paywalls.shouldPreload = false
-                            },
-                    )
-                }
-
-                delay(1000)
-
+            Given("AttributionManager is initialized") {
                 When("we set various new attribution provider identifiers") {
                     val attributionIdentifiers =
                         mapOf(
@@ -206,12 +177,12 @@ class AttributionProviderIntegrationTest {
                             AttributionProvider.CUSTOMERIO_ID to "customerio_test_jkl",
                         )
 
-                    Superwall.instance.setIntegrationAttributes(attributionIdentifiers)
+                    attributionManager.setIntegrationAttributes(attributionIdentifiers)
                     delayFor(1.seconds)
                 }
 
                 Then("all new attribution providers should be correctly converted") {
-                    val attributionProps = Superwall.instance.integrationAttributes
+                    val attributionProps = attributionManager.integrationAttributes
 
                     assertEquals("adjust_test_123", attributionProps["adjustId"])
                     assertEquals("amp_device_test_456", attributionProps["amplitudeDeviceId"])

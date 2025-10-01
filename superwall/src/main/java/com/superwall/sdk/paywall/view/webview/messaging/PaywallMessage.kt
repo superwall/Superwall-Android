@@ -1,6 +1,5 @@
 package com.superwall.sdk.paywall.view.webview
 
-import android.net.Uri
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
@@ -40,7 +39,7 @@ sealed class PaywallMessage {
     ) : PaywallMessage()
 
     data class OpenDeepLink(
-        val url: Uri,
+        val url: URI,
     ) : PaywallMessage()
 
     data class Purchase(
@@ -73,25 +72,28 @@ sealed class PaywallMessage {
     }
 }
 
-fun parseWrappedPaywallMessages(jsonString: String): WrappedPaywallMessages {
-    Logger.debug(
-        LogLevel.debug,
-        LogScope.superwallCore,
-        "SWWebViewInterface $jsonString",
-    )
-    val jsonObject = JSONObject(jsonString)
-    val version = jsonObject.optInt("version", 1)
-    val payloadJson = jsonObject.getJSONObject("payload")
-    val messagesJsonArray = payloadJson.getJSONArray("events")
-    val messages = mutableListOf<PaywallMessage>()
+fun parseWrappedPaywallMessages(jsonString: String): Result<WrappedPaywallMessages> =
+    try {
+        Logger.debug(
+            LogLevel.debug,
+            LogScope.superwallCore,
+            "SWWebViewInterface $jsonString",
+        )
+        val jsonObject = JSONObject(jsonString)
+        val version = jsonObject.optInt("version", 1)
+        val payloadJson = jsonObject.getJSONObject("payload")
+        val messagesJsonArray = payloadJson.getJSONArray("events")
+        val messages = mutableListOf<PaywallMessage>()
 
-    for (i in 0 until messagesJsonArray.length()) {
-        val messageJson = messagesJsonArray.getJSONObject(i)
-        messages.add(parsePaywallMessage(messageJson))
+        for (i in 0 until messagesJsonArray.length()) {
+            val messageJson = messagesJsonArray.getJSONObject(i)
+            messages.add(parsePaywallMessage(messageJson))
+        }
+
+        Result.success(WrappedPaywallMessages(version, PayloadMessages(messages)))
+    } catch (e: Throwable) {
+        Result.failure(e)
     }
-
-    return WrappedPaywallMessages(version, PayloadMessages(messages))
-}
 
 private fun parsePaywallMessage(json: JSONObject): PaywallMessage {
     val eventName = json.getString("event_name")
@@ -102,7 +104,7 @@ private fun parsePaywallMessage(json: JSONObject): PaywallMessage {
         "restore" -> PaywallMessage.Restore
         "open_url" -> PaywallMessage.OpenUrl(URI(json.getString("url")))
         "open_url_external" -> PaywallMessage.OpenUrlInBrowser(URI(json.getString("url")))
-        "open_deep_link" -> PaywallMessage.OpenDeepLink(Uri.parse(json.getString("link")))
+        "open_deep_link" -> PaywallMessage.OpenDeepLink(URI(json.getString("link")))
         "purchase" ->
             PaywallMessage.Purchase(
                 json.getString("product"),
@@ -124,6 +126,7 @@ private fun parsePaywallMessage(json: JSONObject): PaywallMessage {
                     else -> PaywallMessage.RequestReview.Type.INAPP
                 },
             )
+
         else -> {
             throw IllegalArgumentException("Unknown event name: $eventName")
         }

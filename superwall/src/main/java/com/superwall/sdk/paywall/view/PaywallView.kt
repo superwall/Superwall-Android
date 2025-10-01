@@ -32,11 +32,9 @@ import com.superwall.sdk.misc.AlertControllerFactory
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.MainScope
 import com.superwall.sdk.misc.toResult
-import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.PaywallPresentationStyle
 import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
 import com.superwall.sdk.network.device.DeviceHelper
-import com.superwall.sdk.paywall.manager.PaywallCacheLogic
 import com.superwall.sdk.paywall.manager.PaywallViewCache
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.PaywallInfo
@@ -51,16 +49,24 @@ import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 import com.superwall.sdk.paywall.view.delegate.PaywallViewDelegateAdapter
 import com.superwall.sdk.paywall.view.delegate.PaywallViewEventCallback
 import com.superwall.sdk.paywall.view.survey.SurveyManager
-import com.superwall.sdk.paywall.view.survey.SurveyPresentationResult
 import com.superwall.sdk.paywall.view.webview.PaywallMessage
 import com.superwall.sdk.paywall.view.webview.SWWebView
 import com.superwall.sdk.paywall.view.webview.SWWebViewDelegate
+import com.superwall.sdk.paywall.view.webview.SendPaywallMessages
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessageHandlerDelegate
+import com.superwall.sdk.paywall.view.webview.messaging.PaywallStateDelegate
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent
 import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.utilities.withErrorTracking
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -74,7 +80,6 @@ import kotlin.time.DurationUnit
 
 class PaywallView(
     context: Context,
-    override var paywall: Paywall,
     val eventCallback: PaywallViewEventCallback? = null,
     var callback: PaywallViewDelegateAdapter? = null,
     val deviceHelper: DeviceHelper,
@@ -83,11 +88,31 @@ class PaywallView(
     webView: SWWebView,
     private val cache: PaywallViewCache?,
     private val useMultipleUrls: Boolean,
+    val controller: PaywallController,
 ) : FrameLayout(context),
     PaywallMessageHandlerDelegate,
     SWWebViewDelegate,
+    PaywallStateDelegate by controller,
     ActivityEncapsulatable,
-    GameControllerDelegate {
+    GameControllerDelegate,
+    SendPaywallMessages by webView.messageHandler {
+    class PaywallController(
+        initialState: PaywallViewState,
+    ) : PaywallStateDelegate {
+        private var _state = MutableStateFlow(initialState)
+        val currentState = _state.asStateFlow()
+        override val state: PaywallViewState
+            get() = _state.value
+
+        override fun updateState(update: PaywallViewState.Updates) {
+            _state.update { currentState ->
+                // Apply the transform to get new state
+                val newState = update.transform(currentState)
+                newState
+            }
+        }
+    }
+
     private companion object {
         private val mainScope: MainScope = MainScope()
         private val ioScope: IOScope = IOScope()
@@ -105,86 +130,42 @@ class PaywallView(
         AttributesFactory
     //region Public properties
 
-    // MUST be set prior to presentation
-    override var request: PresentationRequest? = null
-
     // We use a local webview so we can handle cases where webview process crashes
-    private var _webView: SWWebView = webView
-    override val webView: SWWebView = _webView
+    internal var webView: SWWebView = webView
+        private set
+
+    fun scrollBy(y: Int) {
+        webView.scrollBy(0, y)
+    }
+
+    fun scrollTo(y: Int) {
+        webView.scrollTo(0, y)
+    }
 
     //endregion
 
     //region Presentation properties
 
-    // / The presentation style for the paywall.
-    private var presentationStyle: PaywallPresentationStyle
-
+    // The full screen activity instance if this view has been presented in one.
+    override var encapsulatingActivity: WeakReference<Activity>? = null
     private var shimmerView: PaywallShimmerView? = null
 
     private var loadingView: PaywallPurchaseLoadingView? = null
 
-    var paywallStatePublisher: MutableSharedFlow<PaywallState>? = null
-
-    // The full screen activity instance if this view has been presented in one.
-    override var encapsulatingActivity: WeakReference<Activity>? = null
-
-    // / Stores the ``PaywallResult`` on dismiss of paywall.
-    private var paywallResult: PaywallResult? = null
-
-    // / Stores the completion block when calling dismiss.
-    private var dismissCompletionBlock: (() -> Unit)? = null
-
-    private var callbackInvoked = false
-
-    private var viewCreatedCompletion: ((Boolean) -> Unit)? = null
-
-    // / Defines when Browser is presenting in app.
-    internal var isBrowserViewPresented = false
-
-    internal var interceptTouchEvents = false
-
-    // / Whether the survey was shown, not shown, or in a holdout. Defaults to not shown.
-    private var surveyPresentationResult: SurveyPresentationResult = SurveyPresentationResult.NOSHOW
-
     //endregion
-
     // region State properties
 
     // / The paywall info
     override val info: PaywallInfo
-        get() = paywall.getInfo(request?.presentationInfo?.eventData)
+        get() = controller.state.info
 
     // / The loading state of the paywall.
-    override var loadingState: PaywallLoadingState = PaywallLoadingState.Unknown()
-        set(value) {
-            val oldValue = field
-            field = value
-            if (value::class != oldValue::class) {
-                loadingStateDidChange(oldValue)
-            }
+    var loadingState: PaywallLoadingState
+        get() = state.loadingState
+        private set(value) {
+            controller.updateState(PaywallViewState.Updates.SetLoadingState(value))
         }
 
-    // / Determines whether the paywall is presented or not.
-    override val isActive: Boolean
-        get() = isPresented
-
-    // / Defines whether the view is being presented or not.
-    private var isPresented = false
-    private var presentationWillPrepare = true
-    private var presentationDidFinishPrepare = false
-
-    //endregion
-
-    //region Private properties not used in initializer
-
-    // / `true` if there's a survey to complete and the paywall is displayed in a modal style.
-    private var didDisableSwipeForSurvey = false
-
-    // / If the user match a rule with an occurrence, this needs to be saved on
-    // / paywall presentation.
-    private var unsavedOccurrence: TriggerRuleOccurrence? = null
-
-    private val cacheKey: String = PaywallCacheLogic.key(paywall.identifier, deviceHelper.locale)
     val backgroundColor: Int
         get() {
 
@@ -196,20 +177,38 @@ class PaywallView(
                 }
             return when (style) {
                 Configuration.UI_MODE_NIGHT_YES ->
-                    paywall.darkBackgroundColor
-                        ?: paywall.backgroundColor
+                    state.paywall.darkBackgroundColor
+                        ?: state.paywall.backgroundColor
 
-                else -> paywall.backgroundColor
+                else -> state.paywall.backgroundColor
             }
         }
     //endregion
 
     //region Initialization
 
+    private var stateListener: Job? = null
+
+    private fun stopStateListener() {
+        stateListener?.cancel()
+        stateListener = null
+    }
+
+    private fun startStateListener() {
+        // Ensure any previous listener is cancelled before starting a new one
+        stopStateListener()
+        stateListener =
+            ioScope.launch {
+                controller.currentState
+                    .map { it.loadingState }
+                    .distinctUntilChanged { old, new -> old::class == new::class }
+                    .collectLatest { loadingStateDidChange() }
+            }
+    }
+
     init {
         id = View.generateViewId()
         setBackgroundColor(backgroundColor)
-        presentationStyle = paywall.presentation.style
     }
 
     //endregion
@@ -219,9 +218,13 @@ class PaywallView(
         paywallStatePublisher: MutableSharedFlow<PaywallState>,
         unsavedOccurrence: TriggerRuleOccurrence?,
     ) {
-        this.request = request
-        this.paywallStatePublisher = paywallStatePublisher
-        this.unsavedOccurrence = unsavedOccurrence
+        controller.updateState(
+            PaywallViewState.Updates.SetRequest(
+                request,
+                paywallStatePublisher,
+                unsavedOccurrence,
+            ),
+        )
     }
 
     internal fun setupShimmer(shimmerView: PaywallShimmerView) {
@@ -270,37 +273,44 @@ class PaywallView(
             setupShimmer(it)
         }
         set(request, paywallStatePublisher, unsavedOccurrence)
-        if (presentationStyleOverride != null && presentationStyleOverride !is PaywallPresentationStyle.None) {
-            presentationStyle = presentationStyleOverride
-        } else {
-            presentationStyle = paywall.presentation.style
-        }
+        controller.updateState(
+            PaywallViewState.Updates.SetPresentationConfig(
+                presentationStyleOverride,
+                completion,
+            ),
+        )
 
         SuperwallPaywallActivity.startWithView(
             presenter,
             this,
-            cacheKey,
-            presentationStyle,
+            state.cacheKey,
+            state.presentationStyle,
         )
-        viewCreatedCompletion = completion
+        startStateListener()
     }
 
+    override fun updateState(update: PaywallViewState.Updates) {
+        controller.updateState(update)
+    }
+
+    override val state: PaywallViewState
+        get() = controller.state
+
     fun beforeViewCreated() {
-        if (isBrowserViewPresented) {
+        if (state.isBrowserViewPresented) {
             return
         }
         shimmerView?.checkForOrientationChanges()
         presentationWillBegin()
     }
 
-    override fun onInterceptTouchEvent(ev: MotionEvent?): Boolean = interceptTouchEvents
+    override fun onInterceptTouchEvent(ev: MotionEvent?): Boolean = state.interceptTouchEvents
 
     private fun presentationWillBegin() {
-        if (!presentationWillPrepare) {
+        if (!state.presentationWillPrepare) {
             return
         }
-        callbackInvoked = false
-        paywall.closeReason = PaywallCloseReason.None
+        controller.updateState(PaywallViewState.Updates.PresentationWillBegin)
 
         Superwall.instance.dependencyContainer.delegateAdapter
             .willPresentPaywall(info)
@@ -320,13 +330,12 @@ class PaywallView(
         if (loadingState is PaywallLoadingState.Ready) {
             webView.messageHandler.handle(PaywallMessage.TemplateParamsAndUserAttributes)
         }
-        paywall.shimmerLoadingInfo.startAt = Date()
+        controller.updateState(PaywallViewState.Updates.ShimmerStarted)
         trackShimmerStart()
-        presentationWillPrepare = false
     }
 
     fun beforeOnDestroy() {
-        if (isBrowserViewPresented) {
+        if (state.isBrowserViewPresented) {
             return
         }
         Superwall.instance.presentationItems.paywallInfo = info
@@ -335,9 +344,12 @@ class PaywallView(
     }
 
     suspend fun destroyed() {
-        if (isBrowserViewPresented) {
+        if (state.isBrowserViewPresented) {
             return
         }
+
+        // Ensure we stop listening to state changes when being destroyed
+        stopStateListener()
 
         ioScope.launch {
             trackClose()
@@ -347,17 +359,17 @@ class PaywallView(
         val isShowingSpinner =
             loadingState is PaywallLoadingState.LoadingPurchase || loadingState is PaywallLoadingState.ManualLoading
         if (isShowingSpinner) {
-            this.loadingState = PaywallLoadingState.Ready()
+            controller.updateState(PaywallViewState.Updates.SetLoadingState(PaywallLoadingState.Ready))
         }
 
         Superwall.instance.dependencyContainer.delegateAdapter
             .didDismissPaywall(info)
 
-        val result = paywallResult ?: PaywallResult.Declined()
+        val result = state.paywallResult ?: PaywallResult.Declined()
 
-        paywallStatePublisher?.emit(PaywallState.Dismissed(info, result))
+        state.paywallStatePublisher?.emit(PaywallState.Dismissed(info, result))
 
-        if (!callbackInvoked) {
+        if (!state.callbackInvoked) {
             callback?.onFinished(
                 paywall = this,
                 result = result,
@@ -365,23 +377,19 @@ class PaywallView(
             )
         }
 
-        if (paywall.closeReason.stateShouldComplete) {
-            paywallStatePublisher = null
+        if (state.paywall.closeReason.stateShouldComplete) {
+            controller.updateState(PaywallViewState.Updates.ClearStatePublisher)
         }
 
         GameControllerManager.shared.clearDelegate(this)
         resetPresentationPreparations()
 
-        paywallResult = null
+        controller.updateState(PaywallViewState.Updates.CleanupAfterDestroy)
         cache?.activePaywallVcKey = null
-        isPresented = false
-        dismissCompletionBlock?.invoke()
-        dismissCompletionBlock = null
     }
 
     private fun resetPresentationPreparations() {
-        presentationWillPrepare = true
-        presentationDidFinishPrepare = false
+        controller.updateState(PaywallViewState.Updates.ResetPresentationPreparations)
     }
 
     internal fun dismiss(
@@ -389,11 +397,15 @@ class PaywallView(
         closeReason: PaywallCloseReason,
         completion: (() -> Unit)? = null,
     ) {
-        dismissCompletionBlock = completion
-        paywallResult = result
-        paywall.closeReason = closeReason
+        controller.updateState(
+            PaywallViewState.Updates.InitiateDismiss(
+                result,
+                closeReason,
+                completion,
+            ),
+        )
 
-        val isDeclined = paywallResult is PaywallResult.Declined
+        val isDeclined = state.paywallResult is PaywallResult.Declined
         val isManualClose = closeReason is PaywallCloseReason.ManualClose
 
         suspend fun dismissView() {
@@ -407,55 +419,66 @@ class PaywallView(
                             isImplicit = true,
                         )
                     }.toResult()
-                val paywallPresenterEvent = info.presentedByEventWithName
+                val presentingPlacement = info.presentedByEventWithName
                 val presentedByPaywallDecline =
-                    paywallPresenterEvent == SuperwallEvents.PaywallDecline.rawName
+                    presentingPlacement == SuperwallEvents.PaywallDecline.rawName
+                val presentedByTransactionAbandon =
+                    presentingPlacement == SuperwallEvents.TransactionAbandon.rawName
+                val presentedByTransactionFail =
+                    presentingPlacement == SuperwallEvents.TransactionFail.rawName
 
-                Superwall.instance.track(trackedEvent)
+                Superwall.instance.track(trackedEvent).getOrNull()
                 val capturedResult = presentationResult.getOrNull()
-                if (capturedResult != null && capturedResult is PresentationResult.Paywall && !presentedByPaywallDecline) {
-                    // Logic here, similar to the Swift one
+                if (capturedResult != null &&
+                    capturedResult is PresentationResult.Paywall &&
+                    !presentedByPaywallDecline &&
+                    !presentedByTransactionAbandon &&
+                    !presentedByTransactionFail
+                ) {
+                    // If a paywall_decline trigger is active and the current paywall wasn't presented
+                    // by paywall_decline, transaction_abandon, or transaction_fail, it lands here so
+                    // as not to dismiss the paywall. track() will do that before presenting the next paywall.
                     return
                 }
             }
 
             callback?.let {
-                callbackInvoked = true
+                controller.updateState(PaywallViewState.Updates.CallbackInvoked)
                 it.onFinished(
                     paywall = this,
                     result = result,
                     shouldDismiss = true,
                 )
             } ?: run {
-                // TODO: Add presentationIsAnimated here
                 dismiss(presentationIsAnimated = false)
             }
+            stopStateListener()
         }
 
-        val dismiss = {
+        val finalDismiss = {
             ioScope.launch {
                 dismissView()
             }
         }
 
         SurveyManager.presentSurveyIfAvailable(
-            paywall.surveys,
+            state.paywall.surveys,
             paywallResult = result,
             paywallCloseReason = closeReason,
             activity =
                 encapsulatingActivity?.get() ?: run {
-                    dismiss()
+                    finalDismiss()
                     return
                 },
             paywallView = this,
             loadingState = loadingState,
-            isDebuggerLaunched = request?.flags?.isDebuggerLaunched == true,
+            isDebuggerLaunched = state.request?.flags?.isDebuggerLaunched == true,
             paywallInfo = info,
             storage = storage,
             factory = factory,
         ) { res ->
-            this.surveyPresentationResult = res
-            dismiss()
+            controller.updateState(PaywallViewState.Updates.UpdateSurveyState(res))
+            finalDismiss()
         }
     }
 
@@ -477,23 +500,23 @@ class PaywallView(
     // Lets the view know that presentation has finished.
     // Only called once per presentation.
     fun onViewCreated() {
-        viewCreatedCompletion?.invoke(true)
-        viewCreatedCompletion = null
+        state.viewCreatedCompletion?.invoke(true)
+        controller.updateState(PaywallViewState.Updates.ClearViewCreatedCompletion)
 
-        if (presentationDidFinishPrepare) {
+        if (state.presentationDidFinishPrepare) {
             return
         }
         ioScope.launch {
-            paywallStatePublisher?.let {
-                Superwall.instance.storePresentationObjects(request, it)
+            state.paywallStatePublisher?.let {
+                Superwall.instance.storePresentationObjects(state.request, it)
             }
         }
-        unsavedOccurrence?.let {
+        state.unsavedOccurrence?.let {
             storage.coreDataManager.save(triggerRuleOccurrence = it)
-            unsavedOccurrence = null
+            controller.updateState(PaywallViewState.Updates.ClearUnsavedOccurrence)
         }
 
-        isPresented = true
+        controller.updateState(PaywallViewState.Updates.SetPresentedAndFinished)
         Superwall.instance.dependencyContainer.delegateAdapter
             .didPresentPaywall(info)
         ioScope.launch {
@@ -503,7 +526,6 @@ class PaywallView(
 
         val currentOrientation = resources.configuration.orientation
         initialOrientation = currentOrientation
-        presentationDidFinishPrepare = true
     }
 
     private var initialOrientation: Int? = null
@@ -523,7 +545,7 @@ class PaywallView(
         val trackedEvent =
             InternalSuperwallEvent.PaywallClose(
                 info,
-                surveyPresentationResult,
+                state.surveyPresentationResult,
             )
         Superwall.instance.track(trackedEvent)
     }
@@ -538,8 +560,6 @@ class PaywallView(
 
     //region Presentation
 
-    // This is basically the same as `dismiss(animated: Bool)`
-    // in the original iOS implementation
     private fun dismiss(presentationIsAnimated: Boolean) {
         // TODO: SW-2162 Implement animation support
         // https://linear.app/superwall/issue/SW-2162/%5Bandroid%5D-%5Bv1%5D-get-animated-presentation-working
@@ -572,10 +592,12 @@ class PaywallView(
         val trackedEvent =
             InternalSuperwallEvent.ShimmerLoad(
                 state = InternalSuperwallEvent.ShimmerLoad.State.Started,
-                paywallId = paywall.identifier,
+                paywallId = state.paywall.identifier,
                 visibleDuration = null,
                 preloadingEnabled = factory.makeSuperwallOptions().paywalls.shouldPreload,
-                delay = paywall.presentation.delay.toDouble(),
+                delay =
+                    state.paywall.presentation.delay
+                        .toDouble(),
             )
         ioScope.launch {
             Superwall.instance.track(trackedEvent)
@@ -600,14 +622,14 @@ class PaywallView(
                 it.hideShimmer()
             }
         }
-        val visible = paywall.shimmerLoadingInfo.startAt
+        val visible = state.paywall.shimmerLoadingInfo.startAt
         val now = Date()
-        paywall.shimmerLoadingInfo.endAt = now
+        controller.updateState(PaywallViewState.Updates.ShimmerEnded)
         ioScope.launch {
             val trackedEvent =
                 InternalSuperwallEvent.ShimmerLoad(
                     state = InternalSuperwallEvent.ShimmerLoad.State.Complete,
-                    paywallId = paywall.identifier,
+                    paywallId = state.paywall.identifier,
                     visibleDuration =
                         if (visible != null) {
                             (now.time - visible.time).milliseconds.toDouble(
@@ -616,7 +638,9 @@ class PaywallView(
                         } else {
                             0.0
                         },
-                    delay = paywall.presentation.delay.toDouble(),
+                    delay =
+                        state.paywall.presentation.delay
+                            .toDouble(),
                     preloadingEnabled = factory.makeSuperwallOptions().paywalls.shouldPreload,
                 )
             Superwall.instance.track(trackedEvent)
@@ -657,7 +681,7 @@ class PaywallView(
                 )
             alertController.show()
 
-            loadingState = PaywallLoadingState.Ready()
+            controller.updateState(PaywallViewState.Updates.SetLoadingState(PaywallLoadingState.Ready))
         }
     }
 
@@ -665,29 +689,8 @@ class PaywallView(
 
     //region State
 
-    /**
-     * Hides or displays the paywall spinner.
-     *
-     * @param isHidden A Boolean indicating whether to show or hide the spinner.
-     */
-    fun togglePaywallSpinner(isHidden: Boolean) {
-        when {
-            isHidden -> {
-                if (loadingState is PaywallLoadingState.ManualLoading || loadingState is PaywallLoadingState.LoadingPurchase) {
-                    loadingState = PaywallLoadingState.Ready()
-                }
-            }
-
-            else -> {
-                if (loadingState is PaywallLoadingState.Ready) {
-                    loadingState = PaywallLoadingState.ManualLoading()
-                }
-            }
-        }
-    }
-
-    internal fun loadingStateDidChange(from: PaywallLoadingState) {
-        if (isActive) {
+    internal fun loadingStateDidChange() {
+        if (state.isPresented) {
             mainScope.launch {
                 when (loadingState) {
                     is PaywallLoadingState.Unknown -> {
@@ -705,7 +708,7 @@ class PaywallView(
 
                     is PaywallLoadingState.Ready -> {
                         ioScope.launch {
-                            delay(paywall.presentation.delay)
+                            delay(state.paywall.presentation.delay)
                             mainScope.launch {
                                 showRefreshButtonAfterTimeout(false)
                                 hideLoadingView()
@@ -720,10 +723,8 @@ class PaywallView(
 
     fun loadWebView() {
         ioScope.launch {
-            val url = paywall.url
-            if (paywall.webviewLoadingInfo.startAt == null) {
-                paywall.webviewLoadingInfo.startAt = Date()
-            }
+            val url = state.paywall.url
+            controller.updateState(PaywallViewState.Updates.WebLoadingStarted)
 
             launch {
                 val trackedEvent =
@@ -740,7 +741,7 @@ class PaywallView(
                     logLevel = LogLevel.error,
                     scope = LogScope.paywallView,
                     message =
-                        "Webview Process has crashed for paywall with identifier: ${paywall.identifier}.\n" +
+                        "Webview Process has crashed for paywall with identifier: ${state.paywall.identifier}.\n" +
                             "Crashed by the system: ${
                                 if (isOverO) it.didCrash() else "Unknown"
                             } - priority ${
@@ -752,7 +753,7 @@ class PaywallView(
             if (factory.makeSuperwallOptions().paywalls.timeoutAfter != null) {
                 webView.onTimeout = {
                     ioScope.launch {
-                        paywallStatePublisher?.emit(
+                        state.paywallStatePublisher?.emit(
                             PaywallState.PresentationError(
                                 PaywallErrors.Timeout(it.toString()),
                             ),
@@ -761,26 +762,26 @@ class PaywallView(
                 }
             }
 
-            webView.scrollEnabled = paywall.isScrollEnabled ?: true
+            webView.scrollEnabled = state.paywall.isScrollEnabled ?: true
             mainScope.launch {
-                if (paywall.onDeviceCache is OnDeviceCaching.Enabled) {
+                if (state.paywall.onDeviceCache is OnDeviceCaching.Enabled) {
                     webView.settings.cacheMode = WebSettings.LOAD_CACHE_ELSE_NETWORK
                 } else {
                     webView.settings.cacheMode = WebSettings.LOAD_DEFAULT
                 }
                 if (useMultipleUrls) {
-                    webView.loadPaywallWithFallbackUrl(paywall)
+                    webView.loadPaywallWithFallbackUrl(state.paywall)
                 } else {
                     webView.loadUrl(url.value)
                 }
             }
-            loadingState = PaywallLoadingState.LoadingURL()
+            controller.updateState(PaywallViewState.Updates.SetLoadingState(PaywallLoadingState.LoadingURL))
         }
     }
 
     private fun recreateWebview() {
         removeView(webView)
-        _webView =
+        webView =
             SWWebView(context, webView.messageHandler, options = {
                 factory.makeSuperwallOptions().paywalls
             })
@@ -800,7 +801,7 @@ class PaywallView(
             val customTabsIntent = CustomTabsIntent.Builder().build()
             customTabsIntent.intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
             customTabsIntent.launchUrl(context, parsedUrl.toString().toUri())
-            isBrowserViewPresented = true
+            controller.updateState(PaywallViewState.Updates.SetBrowserPresented(true))
         } catch (e: MalformedURLException) {
             Logger.debug(
                 logLevel = LogLevel.debug,
@@ -837,6 +838,13 @@ class PaywallView(
         }
     }
 
+    override fun evaluate(
+        code: String,
+        resultCallback: ((String?) -> Unit)?,
+    ) {
+        webView.evaluateJavascript(code, resultCallback)
+    }
+
     override fun openDeepLink(url: String) {
         var uri = url.toUri()
         eventDidOccur(PaywallWebEvent.OpenedDeepLink(uri))
@@ -870,15 +878,22 @@ class PaywallView(
         // Check if the view already has a parent
         val parentViewGroup = this@PaywallView.parent as? ViewGroup
         parentViewGroup?.removeView(this@PaywallView)
-        cache?.activePaywallVcKey = cacheKey
+        cache?.activePaywallVcKey = state.cacheKey
     }
 
     fun cleanup() {
         encapsulatingActivity?.clear()
         callback = null
+        webView.onScrollChangeListener = null
         (parent as? ViewGroup)?.removeAllViews()
         removeAllViews()
         detachAllViewsFromParent()
+        // Cancel any active state listener to avoid leaks
+        stopStateListener()
+    }
+
+    internal fun destroyWebview() {
+        webView.destroy()
     }
 
 //endregion
