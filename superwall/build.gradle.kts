@@ -23,7 +23,7 @@ plugins {
     alias(libs.plugins.publisher)
 }
 
-version = "2.5.5"
+version = "2.5.6"
 
 android {
     compileSdk = 35
