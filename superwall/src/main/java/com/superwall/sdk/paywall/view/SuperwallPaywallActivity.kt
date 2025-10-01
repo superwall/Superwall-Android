@@ -297,7 +297,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
                     val shouldConsumeDismiss =
-                        if (paywallView()?.paywall?.rerouteBackButton == Paywall.ToggleMode.ENABLED) {
+                        if (paywallView()?.state?.paywall?.rerouteBackButton == Paywall.ToggleMode.ENABLED) {
                             Superwall.instance.options.paywalls.onBackPressed
                                 ?.let { it(paywallView()?.info) }
                                 ?: false
