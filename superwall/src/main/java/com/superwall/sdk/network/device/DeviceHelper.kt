@@ -212,15 +212,14 @@ class DeviceHelper(
     internal val demandTier: String?
         get() =
             lastEnrichment
-                ?.value
+                .value
                 ?.device
                 ?.get("demandTier")
-                ?.convertFromJsonElement()
                 ?.toString()
 
     internal val demandScore: Int?
         get() =
-            lastEnrichment?.value?.device?.get("demandScore")?.convertFromJsonElement()?.let {
+            lastEnrichment.value?.device?.get("demandScore")?.let {
                 when (it) {
                     is Double -> it.toInt()
                     is Float -> it.toInt()
