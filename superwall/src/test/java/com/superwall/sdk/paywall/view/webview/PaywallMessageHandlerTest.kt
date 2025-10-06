@@ -71,6 +71,9 @@ class PaywallMessageHandlerTest {
         ) {
             resultCallback?.invoke(null)
         }
+
+        override fun presentPaymentSheet(url: String) {
+        }
     }
 
     private class FakeVariablesFactory : VariablesFactory {
@@ -224,7 +227,7 @@ class PaywallMessageHandlerTest {
 
                     // Now send additional messages post-ready
                     handler.handle(PaywallMessage.TemplateParamsAndUserAttributes)
-                    handler.handle(PaywallMessage.OpenUrl(URI("https://example.com")))
+                    handler.handle(PaywallMessage.OpenUrl(URI("https://example.com"), null))
                     handler.handle(PaywallMessage.OpenUrlInBrowser(URI("https://example.com/ext")))
                     handler.handle(PaywallMessage.OpenDeepLink(URI("myapp://path")))
                     handler.handle(PaywallMessage.Restore)
@@ -464,7 +467,7 @@ class PaywallMessageHandlerTest {
                 handler.messageHandler = delegate
 
                 When("OpenUrl, OpenUrlInBrowser, OpenDeepLink arrive") {
-                    handler.handle(PaywallMessage.OpenUrl(URI("https://example.org")))
+                    handler.handle(PaywallMessage.OpenUrl(URI("https://example.org"), PaywallMessage.OpenUrl.BrowserType.PAYMENT_SHEET))
                     handler.handle(PaywallMessage.OpenUrlInBrowser(URI("https://example.org/e")))
                     val deep = URI("myapp://abc/path?x=1&y=2")
                     handler.handle(PaywallMessage.OpenDeepLink(deep))
