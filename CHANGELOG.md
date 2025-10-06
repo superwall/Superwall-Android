@@ -5,9 +5,8 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 ## 2.5.7
 
 ## Fixes
-
 - Fix `demandScore` and `demandTier` getting removed from some events
-
+- Fixes paywall navigation resetting after backgrounding
 
 ## 2.5.6
 
