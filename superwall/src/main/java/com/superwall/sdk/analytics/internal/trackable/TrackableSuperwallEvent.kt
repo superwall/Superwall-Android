@@ -153,7 +153,8 @@ sealed class InternalSuperwallEvent(
 
         override suspend fun getSuperwallParameters(): HashMap<String, Any> = extractedParams()
 
-        override var audienceFilterParams: HashMap<String, Any> = HashMap(extractQueryParameters(uri).plus(extractedParams()))
+        override var audienceFilterParams: HashMap<String, Any> =
+            HashMap(extractQueryParameters(uri).plus(extractedParams()))
 
         companion object {
             private fun extractQueryParameters(uri: Uri): HashMap<String, Any> {
@@ -407,6 +408,8 @@ sealed class InternalSuperwallEvent(
     class PaywallOpen(
         val paywallInfo: PaywallInfo,
         val userAttributes: Map<String, Any>,
+        val demandTier: String?,
+        val demandScore: Int?,
     ) : InternalSuperwallEvent(SuperwallEvent.PaywallOpen(paywallInfo = paywallInfo)) {
         override val audienceFilterParams: Map<String, Any>
             get() {
@@ -416,9 +419,16 @@ sealed class InternalSuperwallEvent(
         override suspend fun getSuperwallParameters(): HashMap<String, Any> =
             HashMap(
                 paywallInfo.eventParams() +
-                    mapOf(
+                    mutableMapOf<String, Any>(
                         "user_attributes" to userAttributes,
-                    ),
+                    ).apply {
+                        if (demandTier != null) {
+                            put("attr_demandTier", demandTier)
+                        }
+                        if (demandScore != null) {
+                            put("attr_demandScore", demandScore)
+                        }
+                    },
             )
     }
 
@@ -465,8 +475,8 @@ sealed class InternalSuperwallEvent(
         val model: StoreTransaction?,
         val source: TransactionSource,
         val isObserved: Boolean,
-        var demandScore: Int? = null,
-        var demandTier: String? = null,
+        var demandScore: Int?,
+        var demandTier: String?,
         var userAttributes: Map<String, Any>? = null,
     ) : TrackableSuperwallEvent {
         enum class TransactionSource(

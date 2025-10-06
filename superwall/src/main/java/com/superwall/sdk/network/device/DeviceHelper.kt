@@ -210,6 +210,25 @@ class DeviceHelper(
     private val lastEnrichment: MutableStateFlow<Enrichment?> =
         MutableStateFlow(storage.read(LatestEnrichment))
 
+    internal val demandTier: String?
+        get() =
+            lastEnrichment
+                ?.value
+                ?.device
+                ?.get("demandTier")
+                ?.convertFromJsonElement()
+                ?.toString()
+
+    internal val demandScore: Int?
+        get() =
+            lastEnrichment?.value?.device?.get("demandScore")?.convertFromJsonElement()?.let {
+                when (it) {
+                    is Double -> it.toInt()
+                    is Float -> it.toInt()
+                    else -> it.toString().toIntOrNull()
+                }
+            }
+
     val locale: String
         get() {
             val localeIdentifier = factory.makeLocaleIdentifier()

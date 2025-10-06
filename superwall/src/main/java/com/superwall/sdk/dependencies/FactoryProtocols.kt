@@ -126,6 +126,12 @@ interface DeviceHelperFactory {
     suspend fun makeSessionDeviceAttributes(): HashMap<String, Any>
 }
 
+interface EnrichmentFactory {
+    fun demandTier(): String?
+
+    fun demandScore(): Int?
+}
+
 interface ConfigAttributesFactory {
     fun makeConfigAttributes(): InternalSuperwallEvent.ConfigAttributes
 }

@@ -20,6 +20,7 @@ import com.superwall.sdk.analytics.superwall.SuperwallEvents
 import com.superwall.sdk.config.models.OnDeviceCaching
 import com.superwall.sdk.config.options.PaywallOptions
 import com.superwall.sdk.dependencies.AttributesFactory
+import com.superwall.sdk.dependencies.EnrichmentFactory
 import com.superwall.sdk.dependencies.OptionsFactory
 import com.superwall.sdk.dependencies.TriggerFactory
 import com.superwall.sdk.game.GameControllerDelegate
@@ -127,7 +128,8 @@ class PaywallView(
     interface Factory :
         TriggerFactory,
         OptionsFactory,
-        AttributesFactory
+        AttributesFactory,
+        EnrichmentFactory
     //region Public properties
 
     // We use a local webview so we can handle cases where webview process crashes
@@ -537,6 +539,8 @@ class PaywallView(
             InternalSuperwallEvent.PaywallOpen(
                 info,
                 factory.getCurrentUserAttributes(),
+                demandTier = factory.demandTier(),
+                demandScore = factory.demandScore(),
             )
         Superwall.instance.track(trackedEvent)
     }
