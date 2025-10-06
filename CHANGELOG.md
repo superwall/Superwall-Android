@@ -2,12 +2,17 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.6.0-alpha
+
+- Add app2web support, allowing users to purchase Stripe or Paddle products without leaving your app
+- Add `PaymentSheet` purchase type enabling quick bottom sheet purchases
+- Add support for Android app links purchase redeeming
+
 ## 2.5.7
 
 ## Fixes
 
 - Fix `demandScore` and `demandTier` getting removed from some events
-
 
 ## 2.5.6
 
