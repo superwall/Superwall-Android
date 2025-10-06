@@ -767,7 +767,7 @@ object UITestHandler {
 
                     val result = Superwall.instance.getPresentationResult("holdout")
                     fatalAssert(
-                        result.getOrNull() is PresentationResult.Holdout,
+                        result.getOrNull() is PresentationResult.NoAudienceMatch,
                         "NoRuleMatch expected, received $result",
                     )
                     println("!!! TEST 31 !!! $result")
