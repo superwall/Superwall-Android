@@ -135,8 +135,8 @@ data class PaywallViewState(
 
         object ResetPresentationPreparations : Updates({ state ->
             state.copy(
-                presentationWillPrepare = true,
-                presentationDidFinishPrepare = false,
+                presentationWillPrepare = false,
+                presentationDidFinishPrepare = true,
             )
         })
 

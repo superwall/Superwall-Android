@@ -22,6 +22,7 @@ import com.superwall.sdk.config.options.PaywallOptions
 import com.superwall.sdk.dependencies.AttributesFactory
 import com.superwall.sdk.dependencies.EnrichmentFactory
 import com.superwall.sdk.dependencies.OptionsFactory
+import com.superwall.sdk.dependencies.TrackingFactory
 import com.superwall.sdk.dependencies.TriggerFactory
 import com.superwall.sdk.game.GameControllerDelegate
 import com.superwall.sdk.game.GameControllerEvent
@@ -129,7 +130,8 @@ class PaywallView(
         TriggerFactory,
         OptionsFactory,
         AttributesFactory,
-        EnrichmentFactory
+        EnrichmentFactory,
+        TrackingFactory
     //region Public properties
 
     // We use a local webview so we can handle cases where webview process crashes
@@ -165,6 +167,7 @@ class PaywallView(
     var loadingState: PaywallLoadingState
         get() = state.loadingState
         private set(value) {
+
             controller.updateState(PaywallViewState.Updates.SetLoadingState(value))
         }
 
@@ -309,7 +312,7 @@ class PaywallView(
     override fun onInterceptTouchEvent(ev: MotionEvent?): Boolean = state.interceptTouchEvents
 
     private fun presentationWillBegin() {
-        if (!state.presentationWillPrepare) {
+        if (!state.presentationWillPrepare || state.presentationDidFinishPrepare) {
             return
         }
         controller.updateState(PaywallViewState.Updates.PresentationWillBegin)
@@ -429,7 +432,7 @@ class PaywallView(
                 val presentedByTransactionFail =
                     presentingPlacement == SuperwallEvents.TransactionFail.rawName
 
-                Superwall.instance.track(trackedEvent).getOrNull()
+                factory.track(trackedEvent).getOrNull()
                 val capturedResult = presentationResult.getOrNull()
                 if (capturedResult != null &&
                     capturedResult is PresentationResult.Paywall &&
@@ -542,7 +545,7 @@ class PaywallView(
                 demandTier = factory.demandTier(),
                 demandScore = factory.demandScore(),
             )
-        Superwall.instance.track(trackedEvent)
+        factory.track(trackedEvent)
     }
 
     private suspend fun trackClose() {
@@ -551,7 +554,7 @@ class PaywallView(
                 info,
                 state.surveyPresentationResult,
             )
-        Superwall.instance.track(trackedEvent)
+        factory.track(trackedEvent)
     }
 
     override fun eventDidOccur(paywallWebEvent: PaywallWebEvent) {
@@ -604,7 +607,7 @@ class PaywallView(
                         .toDouble(),
             )
         ioScope.launch {
-            Superwall.instance.track(trackedEvent)
+            factory.track(trackedEvent)
         }
     }
 
@@ -647,7 +650,7 @@ class PaywallView(
                             .toDouble(),
                     preloadingEnabled = factory.makeSuperwallOptions().paywalls.shouldPreload,
                 )
-            Superwall.instance.track(trackedEvent)
+            factory.track(trackedEvent)
         }
     }
 
@@ -736,7 +739,7 @@ class PaywallView(
                         state = InternalSuperwallEvent.PaywallWebviewLoad.State.Start(),
                         paywallInfo = this@PaywallView.info,
                     )
-                Superwall.instance.track(trackedEvent)
+                factory.track(trackedEvent)
             }
 
             webView.onRenderProcessCrashed = {
