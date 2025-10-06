@@ -2,13 +2,18 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
-
 ## 2.5.8
 
 ## Fixes
 - Fix lifetime purchase entitlements not being discovered in some cases on purchase
 - Fix potential ANR issues where some animations would end up looping over on main thread
 - Fix webview client not behaving properly when using a resetted paywall
+
+## 2.6.0-alpha
+
+- Add app2web support, allowing users to purchase Stripe or Paddle products without leaving your app
+- Add `PaymentSheet` purchase type enabling quick bottom sheet purchases
+- Add support for Android app links purchase redeeming
 
 ## 2.5.7
 

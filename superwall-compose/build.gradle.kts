@@ -12,7 +12,7 @@ plugins {
     id("jacoco")
 }
 
-version = "2.5.8"
+version = "2.6.0-alpha"
 
 android {
     namespace = "com.superwall.sdk.composable"
