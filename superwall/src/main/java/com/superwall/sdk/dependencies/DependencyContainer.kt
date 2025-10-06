@@ -930,4 +930,8 @@ class DependencyContainer(
     override fun experimentalProperties(): Map<String, Any> = storeManager.receiptManager.experimentalProperties()
 
     override fun getCurrentUserAttributes(): Map<String, Any> = identityManager.userAttributes
+
+    override fun demandTier(): String? = deviceHelper.demandTier
+
+    override fun demandScore(): Int? = deviceHelper.demandScore
 }
