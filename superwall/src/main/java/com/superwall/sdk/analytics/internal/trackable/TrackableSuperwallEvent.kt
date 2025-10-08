@@ -1,6 +1,5 @@
 package com.superwall.sdk.analytics.internal.trackable
 
-import android.net.Uri
 import com.superwall.sdk.analytics.superwall.SuperwallEvent
 import com.superwall.sdk.analytics.superwall.TransactionProduct
 import com.superwall.sdk.config.models.Survey
@@ -27,6 +26,7 @@ import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
 import com.superwall.sdk.store.transactions.RestoreType
 import com.superwall.sdk.store.transactions.TransactionError
 import com.superwall.sdk.web.WebPaywallRedeemer
+import java.net.URI
 
 interface TrackableSuperwallEvent : Trackable {
     val superwallPlacement: SuperwallEvent
@@ -138,14 +138,17 @@ sealed class InternalSuperwallEvent(
     }
 
     class DeepLink(
-        val uri: Uri,
+        val uri: URI,
     ) : InternalSuperwallEvent(SuperwallEvent.DeepLink(uri)) {
         private fun extractedParams(): HashMap<String, Any> =
             hashMapOf(
                 "url" to uri.toString(),
                 "path" to (uri.path ?: ""),
-                "pathExtension" to (uri.lastPathSegment?.substringAfterLast('.') ?: ""),
-                "lastPathComponent" to (uri.lastPathSegment ?: ""),
+                "pathExtension" to (
+                    uri.path?.substringAfterLast("/")?.substringAfterLast('.')
+                        ?: ""
+                ),
+                "lastPathComponent" to (uri.path?.substringAfterLast("/") ?: ""),
                 "host" to (uri.host ?: ""),
                 "query" to (uri.query ?: ""),
                 "fragment" to (uri.fragment ?: ""),
@@ -157,32 +160,36 @@ sealed class InternalSuperwallEvent(
             HashMap(extractQueryParameters(uri).plus(extractedParams()))
 
         companion object {
-            private fun extractQueryParameters(uri: Uri): HashMap<String, Any> {
-                val queryStrings = HashMap<String, Any>()
-                uri.queryParameterNames.forEach { paramName ->
-                    val paramValue = uri.getQueryParameter(paramName) ?: return@forEach
-                    when {
-                        paramValue.equals("true", ignoreCase = true) ->
-                            queryStrings[paramName] =
-                                true
+            private fun extractQueryParameters(uri: URI): HashMap<String, Any> =
+                HashMap(
+                    (uri.query ?: "")
+                        .split("&")
+                        .associate {
+                            it.split("=").let {
+                                it[0] to it.getOrNull(1)
+                            }
+                        }.map { (paramName, paramValue) ->
+                            when {
+                                paramValue == null -> null
+                                paramValue.equals("true", ignoreCase = true) ->
+                                    paramName to true
 
-                        paramValue.equals("false", ignoreCase = true) ->
-                            queryStrings[paramName] =
-                                false
+                                paramValue.equals("false", ignoreCase = true) ->
+                                    paramName to false
 
-                        paramValue.toIntOrNull() != null ->
-                            queryStrings[paramName] =
-                                paramValue.toInt()
+                                paramValue.toIntOrNull() != null ->
+                                    paramName to
+                                        paramValue.toInt()
 
-                        paramValue.toDoubleOrNull() != null ->
-                            queryStrings[paramName] =
-                                paramValue.toDouble()
+                                paramValue.toDoubleOrNull() != null ->
+                                    paramName to
+                                        paramValue.toDouble()
 
-                        else -> queryStrings[paramName] = paramValue
-                    }
-                }
-                return queryStrings
-            }
+                                else -> paramName to paramValue
+                            }
+                        }.filterNotNull()
+                        .toMap<String, Any>(),
+                )
         }
     }
 

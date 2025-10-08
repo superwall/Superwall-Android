@@ -17,6 +17,7 @@ import com.superwall.sdk.analytics.SessionEventsManager
 import com.superwall.sdk.analytics.internal.TrackingResult
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
+import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.analytics.session.AppManagerDelegate
 import com.superwall.sdk.analytics.session.AppSession
@@ -62,11 +63,13 @@ import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.paywall.manager.PaywallViewCache
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.dismiss
+import com.superwall.sdk.paywall.presentation.get_presentation_result.internallyGetPresentationResult
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
-import com.superwall.sdk.paywall.presentation.internal.dismiss
+import com.superwall.sdk.paywall.presentation.internal.operators.storePresentationObjects
 import com.superwall.sdk.paywall.presentation.internal.request.PaywallOverrides
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
+import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.SuperscriptEvaluator
 import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.CombinedExpressionEvaluator
 import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.ExpressionEvaluating
@@ -105,6 +108,7 @@ import com.superwall.sdk.utilities.dateFormat
 import com.superwall.sdk.web.DeepLinkReferrer
 import com.superwall.sdk.web.WebPaywallRedeemer
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.ClassDiscriminatorMode
@@ -113,6 +117,7 @@ import java.lang.ref.WeakReference
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.util.Date
+import com.superwall.sdk.paywall.presentation.internal.dismiss as internalDismiss
 
 class DependencyContainer(
     val context: Context,
@@ -468,7 +473,7 @@ class DependencyContainer(
                     if (paywallView == null) {
                         return@TransactionManager
                     }
-                    Superwall.instance.dismiss(paywallView, result)
+                    internalDismiss(paywallView, result)
                 },
                 ioScope = ioScope(),
                 showRestoreDialogForWeb = {
@@ -620,6 +625,9 @@ class DependencyContainer(
             PaywallViewState(
                 paywall = paywall,
                 locale = deviceHelper.locale,
+                useMultipleUrls =
+                    configManager.config?.featureFlags?.enableMultiplePaywallUrls
+                        ?: false,
             )
         val controller = PaywallView.PaywallController(state)
         val paywallView =
@@ -644,10 +652,8 @@ class DependencyContainer(
                             storage = storage,
                             webView = webView,
                             eventCallback = Superwall.instance,
-                            useMultipleUrls =
-                                configManager.config?.featureFlags?.enableMultiplePaywallUrls
-                                    ?: false,
                             controller = controller,
+                            sendMessages = messageHandler,
                         )
                     webView.delegate = paywallView
                     messageHandler.messageHandler = paywallView
@@ -938,4 +944,27 @@ class DependencyContainer(
     override fun demandScore(): Int? = deviceHelper.demandScore
 
     override suspend fun track(event: TrackableSuperwallEvent): Result<TrackingResult> = Superwall.instance.track(event)
+
+    override fun delegate(): SuperwallDelegateAdapter = delegateAdapter
+
+    override fun updatePaywallInfo(paywallInfo: PaywallInfo) {
+        Superwall.instance.presentationItems.paywallInfo = paywallInfo
+    }
+
+    override suspend fun storePresentationObject(
+        request: PresentationRequest?,
+        publisher: MutableSharedFlow<PaywallState>,
+    ) {
+        Superwall.instance.storePresentationObjects(request, publisher)
+    }
+
+    override suspend fun internallyGetPresentationResult(
+        event: Trackable,
+        isImplicit: Boolean,
+    ) {
+        Superwall.instance.internallyGetPresentationResult(
+            event,
+            isImplicit,
+        )
+    }
 }

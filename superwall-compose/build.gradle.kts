@@ -9,6 +9,7 @@ plugins {
     id("signing")
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.publisher)
+    id("jacoco")
 }
 
 version = "2.5.7"
@@ -118,3 +119,6 @@ dependencies {
     androidTestImplementation(libs.test.ext.junit)
     androidTestImplementation(libs.espresso.core)
 }
+
+// Apply JaCoCo configuration
+apply(from = "${rootProject.rootDir}/gradle/jacoco.gradle")
