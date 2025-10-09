@@ -9,7 +9,6 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebSettings
-import android.webkit.WebView.RENDERER_PRIORITY_IMPORTANT
 import android.widget.FrameLayout
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.core.net.toUri
@@ -321,7 +320,8 @@ class PaywallView(
             .willPresentPaywall(info)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             try {
-                webView.setRendererPriorityPolicy(RENDERER_PRIORITY_IMPORTANT, true)
+                // Temporary disabled
+                // webView.setRendererPriorityPolicy(RENDERER_PRIORITY_IMPORTANT, true)
             } catch (e: Throwable) {
                 Logger.debug(
                     LogLevel.info,

@@ -7,6 +7,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 ## Fixes
 - Fix `demandScore` and `demandTier` getting removed from some events
 - Fixes paywall navigation resetting after backgrounding
+- Removes webview flags which can cause off-screen render issues
 
 ## 2.5.6
 

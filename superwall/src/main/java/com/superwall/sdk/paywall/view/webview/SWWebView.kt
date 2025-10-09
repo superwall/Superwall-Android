@@ -108,7 +108,12 @@ class SWWebView(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
             webSettings.mediaPlaybackRequiresUserGesture = false
         }
-
+        val vc =
+            DefaultWebviewClient("", ioScope, {
+                onRenderProcessCrashed(it)
+            })
+        this.webViewClient = vc
+        this.lastWebViewClient = vc
         this.setBackgroundColor(Color.TRANSPARENT)
         this.webChromeClient = ChromeClient
     }
@@ -148,7 +153,8 @@ class SWWebView(
 
     fun enableOffscreenRender() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            settings.offscreenPreRaster = true
+            // Temporary disabled
+            //     settings.offscreenPreRaster = true
         }
     }
 
