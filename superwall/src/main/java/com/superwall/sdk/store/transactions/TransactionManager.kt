@@ -17,6 +17,7 @@ import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.dependencies.AttributesFactory
 import com.superwall.sdk.dependencies.CacheFactory
 import com.superwall.sdk.dependencies.DeviceHelperFactory
+import com.superwall.sdk.dependencies.EnrichmentFactory
 import com.superwall.sdk.dependencies.HasExternalPurchaseControllerFactory
 import com.superwall.sdk.dependencies.HasInternalPurchaseControllerFactory
 import com.superwall.sdk.dependencies.OptionsFactory
@@ -105,7 +106,8 @@ class TransactionManager(
         HasExternalPurchaseControllerFactory,
         HasInternalPurchaseControllerFactory,
         WebToAppFactory,
-        AttributesFactory
+        AttributesFactory,
+        EnrichmentFactory
 
     private var transactionsInProgress: ConcurrentHashMap<String, ProductDetails> =
         ConcurrentHashMap()
@@ -386,6 +388,8 @@ class TransactionManager(
                         is PurchaseSource.Internal -> TransactionSource.INTERNAL
                         is PurchaseSource.ObserverMode -> TransactionSource.OBSERVER
                     },
+                demandScore = factory.demandScore(),
+                demandTier = factory.demandTier(),
             )
         track(trackedEvent)
 
@@ -431,6 +435,8 @@ class TransactionManager(
                             model = null,
                             isObserved = factory.makeSuperwallOptions().shouldObservePurchases,
                             source = TransactionSource.INTERNAL,
+                            demandScore = factory.demandScore(),
+                            demandTier = factory.demandTier(),
                         )
                     val fail = (trackedEvent.state as InternalSuperwallEvent.Transaction.State.Fail)
                     track(trackedEvent)
@@ -458,6 +464,8 @@ class TransactionManager(
                             model = null,
                             isObserved = purchaseSource is PurchaseSource.ObserverMode,
                             source = TransactionSource.EXTERNAL,
+                            demandScore = factory.demandScore(),
+                            demandTier = factory.demandTier(),
                         )
                     track(trackedEvent)
                 }
@@ -492,6 +500,8 @@ class TransactionManager(
                         null,
                         isObserved = isObserved,
                         source = TransactionSource.INTERNAL,
+                        demandScore = factory.demandScore(),
+                        demandTier = factory.demandTier(),
                     )
                 track(trackedEvent)
             }
@@ -533,6 +543,8 @@ class TransactionManager(
                         null,
                         isObserved = isObserved,
                         source = TransactionSource.EXTERNAL,
+                        demandScore = factory.demandScore(),
+                        demandTier = factory.demandTier(),
                     )
                 track(trackedEvent)
             }
@@ -633,6 +645,8 @@ class TransactionManager(
                         null,
                         isObserved = isObserved,
                         source = TransactionSource.INTERNAL,
+                        demandScore = factory.demandScore(),
+                        demandTier = factory.demandTier(),
                     )
                 track(trackedEvent)
 
@@ -660,6 +674,8 @@ class TransactionManager(
                         null,
                         isObserved = isObserved,
                         source = TransactionSource.EXTERNAL,
+                        demandScore = factory.demandScore(),
+                        demandTier = factory.demandTier(),
                     )
                 track(trackedEvent)
             }
@@ -689,6 +705,8 @@ class TransactionManager(
                         null,
                         isObserved = factory.makeSuperwallOptions().shouldObservePurchases,
                         source = TransactionSource.INTERNAL,
+                        demandScore = factory.demandScore(),
+                        demandTier = factory.demandTier(),
                     )
                 track(trackedEvent)
 
@@ -715,6 +733,8 @@ class TransactionManager(
                         null,
                         isObserved = isObserved,
                         source = TransactionSource.EXTERNAL,
+                        demandScore = factory.demandScore(),
+                        demandTier = factory.demandTier(),
                     )
                 track(trackedEvent)
             }
@@ -895,8 +915,8 @@ class TransactionManager(
                         transaction,
                         source = TransactionSource.INTERNAL,
                         isObserved = false,
-                        demandScore = deviceAttributes["demandScore"] as? Int?,
-                        demandTier = deviceAttributes["demandTier"] as? String?,
+                        demandScore = factory.demandScore(),
+                        demandTier = factory.demandTier(),
                         userAttributes = factory.getCurrentUserAttributes(),
                     )
                 track(trackedEvent)
@@ -951,6 +971,8 @@ class TransactionManager(
                         source = TransactionSource.EXTERNAL,
                         isObserved = isObserved,
                         userAttributes = factory.getCurrentUserAttributes(),
+                        demandScore = factory.demandScore(),
+                        demandTier = factory.demandTier(),
                     )
                 track(trackedEvent)
                 eventsQueue.flushInternal()

@@ -3,9 +3,11 @@ package com.superwall.sdk.dependencies
 import android.app.Activity
 import com.android.billingclient.api.Purchase
 import com.superwall.sdk.Superwall
+import com.superwall.sdk.analytics.internal.TrackingResult
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.Trackable
+import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.billing.GoogleBillingWrapper
 import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.config.options.SuperwallOptions
@@ -124,6 +126,16 @@ interface DeviceHelperFactory {
     fun makeIsSandbox(): Boolean
 
     suspend fun makeSessionDeviceAttributes(): HashMap<String, Any>
+}
+
+interface EnrichmentFactory {
+    fun demandTier(): String?
+
+    fun demandScore(): Int?
+}
+
+fun interface TrackingFactory {
+    suspend fun track(event: TrackableSuperwallEvent): Result<TrackingResult>
 }
 
 interface ConfigAttributesFactory {

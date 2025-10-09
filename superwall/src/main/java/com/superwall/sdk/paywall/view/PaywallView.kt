@@ -9,7 +9,6 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebSettings
-import android.webkit.WebView.RENDERER_PRIORITY_IMPORTANT
 import android.widget.FrameLayout
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.core.net.toUri
@@ -20,7 +19,9 @@ import com.superwall.sdk.analytics.superwall.SuperwallEvents
 import com.superwall.sdk.config.models.OnDeviceCaching
 import com.superwall.sdk.config.options.PaywallOptions
 import com.superwall.sdk.dependencies.AttributesFactory
+import com.superwall.sdk.dependencies.EnrichmentFactory
 import com.superwall.sdk.dependencies.OptionsFactory
+import com.superwall.sdk.dependencies.TrackingFactory
 import com.superwall.sdk.dependencies.TriggerFactory
 import com.superwall.sdk.game.GameControllerDelegate
 import com.superwall.sdk.game.GameControllerEvent
@@ -127,7 +128,9 @@ class PaywallView(
     interface Factory :
         TriggerFactory,
         OptionsFactory,
-        AttributesFactory
+        AttributesFactory,
+        EnrichmentFactory,
+        TrackingFactory
     //region Public properties
 
     // We use a local webview so we can handle cases where webview process crashes
@@ -163,6 +166,7 @@ class PaywallView(
     var loadingState: PaywallLoadingState
         get() = state.loadingState
         private set(value) {
+
             controller.updateState(PaywallViewState.Updates.SetLoadingState(value))
         }
 
@@ -307,7 +311,7 @@ class PaywallView(
     override fun onInterceptTouchEvent(ev: MotionEvent?): Boolean = state.interceptTouchEvents
 
     private fun presentationWillBegin() {
-        if (!state.presentationWillPrepare) {
+        if (!state.presentationWillPrepare || state.presentationDidFinishPrepare) {
             return
         }
         controller.updateState(PaywallViewState.Updates.PresentationWillBegin)
@@ -316,7 +320,8 @@ class PaywallView(
             .willPresentPaywall(info)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             try {
-                webView.setRendererPriorityPolicy(RENDERER_PRIORITY_IMPORTANT, true)
+                // Temporary disabled
+                // webView.setRendererPriorityPolicy(RENDERER_PRIORITY_IMPORTANT, true)
             } catch (e: Throwable) {
                 Logger.debug(
                     LogLevel.info,
@@ -427,7 +432,7 @@ class PaywallView(
                 val presentedByTransactionFail =
                     presentingPlacement == SuperwallEvents.TransactionFail.rawName
 
-                Superwall.instance.track(trackedEvent).getOrNull()
+                factory.track(trackedEvent).getOrNull()
                 val capturedResult = presentationResult.getOrNull()
                 if (capturedResult != null &&
                     capturedResult is PresentationResult.Paywall &&
@@ -537,8 +542,10 @@ class PaywallView(
             InternalSuperwallEvent.PaywallOpen(
                 info,
                 factory.getCurrentUserAttributes(),
+                demandTier = factory.demandTier(),
+                demandScore = factory.demandScore(),
             )
-        Superwall.instance.track(trackedEvent)
+        factory.track(trackedEvent)
     }
 
     private suspend fun trackClose() {
@@ -547,7 +554,7 @@ class PaywallView(
                 info,
                 state.surveyPresentationResult,
             )
-        Superwall.instance.track(trackedEvent)
+        factory.track(trackedEvent)
     }
 
     override fun eventDidOccur(paywallWebEvent: PaywallWebEvent) {
@@ -600,7 +607,7 @@ class PaywallView(
                         .toDouble(),
             )
         ioScope.launch {
-            Superwall.instance.track(trackedEvent)
+            factory.track(trackedEvent)
         }
     }
 
@@ -643,7 +650,7 @@ class PaywallView(
                             .toDouble(),
                     preloadingEnabled = factory.makeSuperwallOptions().paywalls.shouldPreload,
                 )
-            Superwall.instance.track(trackedEvent)
+            factory.track(trackedEvent)
         }
     }
 
@@ -732,7 +739,7 @@ class PaywallView(
                         state = InternalSuperwallEvent.PaywallWebviewLoad.State.Start(),
                         paywallInfo = this@PaywallView.info,
                     )
-                Superwall.instance.track(trackedEvent)
+                factory.track(trackedEvent)
             }
 
             webView.onRenderProcessCrashed = {

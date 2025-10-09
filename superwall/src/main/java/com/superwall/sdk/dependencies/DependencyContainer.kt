@@ -14,8 +14,10 @@ import com.superwall.sdk.analytics.ClassifierDataFactory
 import com.superwall.sdk.analytics.DefaultClassifierDataFactory
 import com.superwall.sdk.analytics.DeviceClassifier
 import com.superwall.sdk.analytics.SessionEventsManager
+import com.superwall.sdk.analytics.internal.TrackingResult
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
+import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.analytics.session.AppManagerDelegate
 import com.superwall.sdk.analytics.session.AppSession
 import com.superwall.sdk.analytics.session.AppSessionManager
@@ -930,4 +932,10 @@ class DependencyContainer(
     override fun experimentalProperties(): Map<String, Any> = storeManager.receiptManager.experimentalProperties()
 
     override fun getCurrentUserAttributes(): Map<String, Any> = identityManager.userAttributes
+
+    override fun demandTier(): String? = deviceHelper.demandTier
+
+    override fun demandScore(): Int? = deviceHelper.demandScore
+
+    override suspend fun track(event: TrackableSuperwallEvent): Result<TrackingResult> = Superwall.instance.track(event)
 }

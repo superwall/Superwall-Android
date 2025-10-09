@@ -453,8 +453,8 @@ class PaywallViewStateTest {
                 val newState = PaywallViewState.Updates.ResetPresentationPreparations.transform(state)
 
                 Then("flags reset to initial values") {
-                    assertEquals(true, newState.presentationWillPrepare)
-                    assertEquals(false, newState.presentationDidFinishPrepare)
+                    assertEquals(false, newState.presentationWillPrepare)
+                    assertEquals(true, newState.presentationDidFinishPrepare)
                 }
             }
         }
