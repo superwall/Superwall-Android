@@ -136,6 +136,7 @@ class Entitlements(
         val decomposedProductIds = DecomposedProductIds.from(id)
         listOf(
             decomposedProductIds.fullId,
+            "${decomposedProductIds.subscriptionId}:${decomposedProductIds.basePlanId}:${decomposedProductIds.offerType.id ?: ""}",
             "${decomposedProductIds.subscriptionId}:${decomposedProductIds.basePlanId}",
             decomposedProductIds.subscriptionId,
         ).forEach { id ->
