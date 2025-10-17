@@ -112,7 +112,9 @@ class TransactionManagerTest {
                 mockk {
                     every { info } returns pwInfo
                     every { paywall } returns mockedPaywall
+                    every { cacheKey } returns "test-cache-key"
                 }
+            every { info } returns pwInfo
         }
 
     private var purchaseController = mockk<InternalPurchaseController>()
@@ -136,8 +138,15 @@ class TransactionManagerTest {
     private var transactionManagerFactory =
         mockk<TransactionManager.Factory> {
             every { isWebToAppEnabled() } returns false
+            every { restoreUrl() } returns "https://restore.superwall.com"
             every { makeHasExternalPurchaseController() } returns false
+            every { makeHasInternalPurchaseController() } returns false
             coEvery { makeSessionDeviceAttributes() } returns hashMapOf()
+            every { makeDeviceInfo() } returns mockk(relaxed = true)
+            every { makeIsSandbox() } returns false
+            every { makeCache() } returns mockk(relaxed = true)
+            every { demandTier() } returns null
+            every { demandScore() } returns null
             every { makeTransactionVerifier() } returns
                 mockk<GoogleBillingWrapper> {
                     coEvery { getLatestTransaction(any()) } returns
@@ -149,7 +158,6 @@ class TransactionManagerTest {
                             "app-session-id",
                         )
                 }
-            every { makeHasExternalPurchaseController() } returns false
             every { makeSuperwallOptions() } returns SuperwallOptions()
             every { getCurrentUserAttributes() } returns emptyMap()
         }
