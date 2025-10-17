@@ -749,7 +749,7 @@ class TransactionManager(
      */
     suspend fun tryToRestorePurchases(paywallView: PaywallView?): RestorationResult {
         log(message = "Attempting Restore")
-        val paywallInfo = paywallView?.info ?: PaywallInfo.empty()
+        val paywallInfo = paywallView?.state?.info ?: PaywallInfo.empty()
         paywallView?.updateState(PaywallViewState.Updates.SetLoadingState(PaywallLoadingState.LoadingPurchase))
 
         track(
@@ -783,7 +783,7 @@ class TransactionManager(
                 track(
                     InternalSuperwallEvent.Restore(
                         state = InternalSuperwallEvent.Restore.State.Complete,
-                        paywallInfo = paywallView?.info ?: PaywallInfo.empty(),
+                        paywallInfo = paywallView?.state?.info ?: PaywallInfo.empty(),
                     ),
                 )
                 if (paywallView != null) {
@@ -816,7 +816,7 @@ class TransactionManager(
             track(
                 InternalSuperwallEvent.Restore(
                     state = InternalSuperwallEvent.Restore.State.Failure(msg),
-                    paywallInfo = paywallView?.info ?: PaywallInfo.empty(),
+                    paywallInfo = paywallView?.state?.info ?: PaywallInfo.empty(),
                 ),
             )
             if (webToAppEnabled) {
