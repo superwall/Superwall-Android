@@ -1,6 +1,7 @@
 package com.superwall.sdk.storage
 
 import android.content.Context
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.serializer
@@ -23,12 +24,18 @@ class CacheTest {
     private lateinit var context: Context
     private lateinit var cache: Cache
     private lateinit var json: Json
+    private val testDispatcher = UnconfinedTestDispatcher()
 
     @Before
     fun setUp() {
         context = RuntimeEnvironment.getApplication()
         json = Json { ignoreUnknownKeys = true }
-        cache = Cache(context, json = json)
+        cache =
+            Cache(
+                context,
+                ioQueue = testDispatcher,
+                json = json,
+            )
     }
 
     @Test
@@ -76,11 +83,13 @@ class CacheTest {
         // Write data
         cache.write(storable, testData)
 
-        // Wait for async write to complete
-        Thread.sleep(100)
-
         // Create new cache instance to clear memory cache
-        val newCache = Cache(context, json = json)
+        val newCache =
+            Cache(
+                context,
+                ioQueue = testDispatcher,
+                json = json,
+            )
 
         // Read should retrieve from disk
         val result = newCache.read(storable)
@@ -101,14 +110,12 @@ class CacheTest {
 
         // Write data
         cache.write(storable, testData)
-        Thread.sleep(100)
 
         // Verify it exists
         assertEquals(testData, cache.read(storable))
 
         // Delete
         cache.delete(storable)
-        Thread.sleep(100)
 
         // Verify it's gone
         assertNull(cache.read(storable))

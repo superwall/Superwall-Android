@@ -126,7 +126,11 @@ class SWWebView(
         }
         val vc =
             DefaultWebviewClient("", ioScope, {
-                onRenderProcessCrashed(it)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    onRenderCrashed(it.didCrash(), it.rendererPriorityAtExit())
+                } else {
+                    onRenderCrashed(true, -1)
+                }
             })
         this.webViewClient = vc
         this.lastWebViewClient = vc

@@ -30,6 +30,9 @@ class CacheInstrumentedTest {
             cache.delete(AppUserId)
             cache.delete(AliasId)
             cache.delete(UserAttributes)
+            cache.delete(LastPaywallView)
+            // Wait for async deletes to complete
+            kotlinx.coroutines.delay(200)
             println("!!setUp - done")
         }
 
@@ -112,11 +115,15 @@ class CacheInstrumentedTest {
             // Test write
             val testDate = Date()
             cache.write(LastPaywallView, testDate)
+            // Wait for async write to complete
+            kotlinx.coroutines.delay(200)
             val updatedLastPaywallView = cache.read(LastPaywallView)
             assert(updatedLastPaywallView == testDate)
 
             // Test delete
             cache.delete(LastPaywallView)
+            // Wait for async delete to complete
+            kotlinx.coroutines.delay(200)
             val deletedLastPaywallView = cache.read(LastPaywallView)
             assert(deletedLastPaywallView == null)
         }

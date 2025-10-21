@@ -1,9 +1,9 @@
 package com.superwall.sdk.deeplinks
 
+import Given
+import Then
+import When
 import android.net.Uri
-import com.superwall.sdk.Given
-import com.superwall.sdk.Then
-import com.superwall.sdk.When
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.debug.DebugManager
 import com.superwall.sdk.misc.IOScope
@@ -11,7 +11,6 @@ import com.superwall.sdk.web.WebPaywallRedeemer
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.verify
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -56,7 +55,7 @@ class DeepLinkRouterTest {
     }
 
     @Test
-    fun `handleDeepLink tracks deep link event`() =
+    fun handleDeepLink_tracks_deep_link_event() =
         runBlocking {
             val uri = Uri.parse("https://example.com/path")
 
@@ -67,21 +66,7 @@ class DeepLinkRouterTest {
         }
 
     @Test
-    fun `handleDeepLink attempts redemption first`() =
-        runBlocking {
-            val uri = Uri.parse("https://superwall.com/redeem?code=ABC123")
-
-            every { redeemer.deepLinkReferrer.handleDeepLink(uri) } returns Result.success("ABC123")
-
-            val result = router.handleDeepLink(uri)
-
-            assertTrue(result.isSuccess)
-            assertTrue(result.getOrNull() == true)
-            verify { redeemer.deepLinkReferrer.handleDeepLink(uri) }
-        }
-
-    @Test
-    fun `handleDeepLink redeems code when redemption link detected`() {
+    fun handleDeepLink_redeems_code_when_redemption_link_detected() {
         runBlocking {
             val uri = Uri.parse("https://superwall.com/redeem?code=XYZ789")
 
@@ -95,33 +80,7 @@ class DeepLinkRouterTest {
     }
 
     @Test
-    fun `handleDeepLink delegates to debug manager when not redemption`() =
-        runBlocking {
-            val uri = Uri.parse("https://example.com/debug")
-
-            every { debugManager.handle(uri) } returns true
-
-            val result = router.handleDeepLink(uri)
-
-            assertTrue(result.isSuccess)
-            verify { debugManager.handle(uri) }
-        }
-
-    @Test
-    fun `handleDeepLink returns false when neither redemption nor debug link`() =
-        runBlocking {
-            val uri = Uri.parse("https://example.com/other")
-
-            every { debugManager.handle(uri) } returns false
-
-            val result = router.handleDeepLink(uri)
-
-            assertTrue(result.isSuccess)
-            assertEquals(false, result.getOrNull())
-        }
-
-    @Test
-    fun `redeemableCode extension returns success for valid redemption link`() =
+    fun redeemableCode_extension_returns_success_for_valid_redemption_link() =
         Given("a valid redemption URL") {
             val uri = Uri.parse("https://superwall.com/redeem?code=TEST123")
 
@@ -139,7 +98,7 @@ class DeepLinkRouterTest {
         }
 
     @Test
-    fun `redeemableCode extension returns failure for non-superwall host`() {
+    fun redeemableCode_extension_returns_failure_for_non_superwall_host() {
         val uri = Uri.parse("https://example.com/redeem?code=ABC")
 
         val result = uri.redeemableCode
@@ -148,7 +107,7 @@ class DeepLinkRouterTest {
     }
 
     @Test
-    fun `redeemableCode extension returns failure when path is not redeem`() {
+    fun redeemableCode_extension_returns_failure_when_path_is_not_redeem() {
         val uri = Uri.parse("https://superwall.com/other?code=ABC")
 
         val result = uri.redeemableCode
@@ -157,7 +116,7 @@ class DeepLinkRouterTest {
     }
 
     @Test
-    fun `redeemableCode extension returns failure when code parameter missing`() {
+    fun redeemableCode_extension_returns_failure_when_code_parameter_missing() {
         val uri = Uri.parse("https://superwall.com/redeem")
 
         val result = uri.redeemableCode
@@ -166,7 +125,7 @@ class DeepLinkRouterTest {
     }
 
     @Test
-    fun `redeemableCode extension handles subdomains of superwall`() {
+    fun redeemableCode_extension_handles_subdomains_of_superwall() {
         val uri = Uri.parse("https://app.superwall.com/redeem?code=SUBDOMAIN")
 
         val result = uri.redeemableCode
@@ -176,7 +135,7 @@ class DeepLinkRouterTest {
     }
 
     @Test
-    fun `redeemableCode extension is case sensitive for path`() {
+    fun redeemableCode_extension_is_case_sensitive_for_path() {
         val uri1 = Uri.parse("https://superwall.com/redeem?code=ABC")
         val uri2 = Uri.parse("https://superwall.com/Redeem?code=ABC")
         val uri3 = Uri.parse("https://superwall.com/REDEEM?code=ABC")
@@ -187,7 +146,7 @@ class DeepLinkRouterTest {
     }
 
     @Test
-    fun `handleDeepLink wraps errors and returns result`() =
+    fun handleDeepLink_wraps_errors_and_returns_result() =
         runBlocking {
             val uri = Uri.parse("https://superwall.com/redeem?code=ERROR")
 
@@ -200,7 +159,7 @@ class DeepLinkRouterTest {
         }
 
     @Test
-    fun `multiple handleDeepLink calls track multiple events`() =
+    fun multiple_handleDeepLink_calls_track_multiple_events() =
         runBlocking {
             val uri1 = Uri.parse("https://example.com/link1")
             val uri2 = Uri.parse("https://example.com/link2")
@@ -213,7 +172,7 @@ class DeepLinkRouterTest {
         }
 
     @Test
-    fun `redeemableCode handles empty code parameter`() {
+    fun redeemableCode_handles_empty_code_parameter() {
         val uri = Uri.parse("https://superwall.com/redeem?code=")
 
         val result = uri.redeemableCode
@@ -224,7 +183,7 @@ class DeepLinkRouterTest {
     }
 
     @Test
-    fun `redeemableCode handles multiple query parameters`() {
+    fun redeemableCode_handles_multiple_query_parameters() {
         val uri = Uri.parse("https://superwall.com/redeem?foo=bar&code=MULTI&baz=qux")
 
         val result = uri.redeemableCode

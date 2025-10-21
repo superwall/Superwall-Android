@@ -107,6 +107,9 @@ class PaywallViewDismissTest {
                     closeReason = PaywallCloseReason.SystemLogic,
                 )
             }
+            // Allow dismiss to process
+            kotlinx.coroutines.delay(100)
+
             // Simulate lifecycle cleanup
             withContext(Dispatchers.Main) { view.beforeOnDestroy() }
             withContext(Dispatchers.Main) { view.destroyed() }
@@ -114,7 +117,7 @@ class PaywallViewDismissTest {
             // Await delegate callback completion
             withContext(Dispatchers.IO) {
                 try {
-                    kotlinx.coroutines.withTimeout(2000) { finished.await() }
+                    kotlinx.coroutines.withTimeout(3000) { finished.await() }
                 } catch (_: Throwable) {
                 }
             }

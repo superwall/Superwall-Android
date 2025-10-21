@@ -62,16 +62,15 @@ class DeepLinkRouter(
                         ioScope.launch {
                             redeemer.redeem(WebPaywallRedeemer.RedeemType.Code(it))
                         }
-                        return Result.success(true)
                     }.isSuccess
 
-            val result =
-                if (!handledAsRedemption) {
-                    debugManager.handle(deepLinkUrl = uri)
+            val result: Boolean =
+                if (handledAsRedemption) {
+                    true
                 } else {
-                    handledAsRedemption
+                    debugManager.handle(deepLinkUrl = uri)
                 }
-            return Result.success(result)
+            result
         }.toResult()
 }
 
