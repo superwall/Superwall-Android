@@ -1,3 +1,7 @@
+// Combined Jacoco Report including both Unit Tests and Android Instrumentation Tests
+// Usage: Add this to your module's build.gradle.kts:
+// apply(from = "${rootProject.rootDir}/gradle/jacoco-combined.gradle")
+
 apply plugin: 'jacoco'
 
 jacoco {
@@ -35,12 +39,12 @@ project.afterEvaluate {
 
                 def testTaskName = "test${sourceName.capitalize()}UnitTest"
 
-                // Create JaCoCo task for unit tests
-                tasks.register("jacoco${sourceName.capitalize()}TestReport", JacocoReport) {
+                // Create JaCoCo task for unit tests only
+                tasks.register("jacoco${sourceName.capitalize()}UnitTestReport", JacocoReport) {
                     dependsOn testTaskName
 
                     group = "Reporting"
-                    description = "Generate Jacoco coverage reports for ${sourceName} build."
+                    description = "Generate Jacoco coverage reports for ${sourceName} unit tests only."
 
                     reports {
                         xml.required.set(true)
@@ -89,7 +93,8 @@ project.afterEvaluate {
                         'com/superwall/sdk/analytics/superwall/**',
                         'com/superwall/sdk/billing/**',
                         'com/superwall/sdk/debug/**',
-                        'com/superwall/sdk/logger/**'
+                        'com/superwall/sdk/logger/**',
+                        '**/MockReviewManager.kt',
                     ]
 
                     def javaTree = fileTree(
@@ -120,11 +125,14 @@ project.afterEvaluate {
             }
         }
 
-        // Create combined report task - uses debug variant to avoid duplicates
+        // Create combined report task that includes BOTH unit tests and instrumentation tests
         tasks.register('jacocoTestReport', JacocoReport) {
             dependsOn 'testDebugUnitTest'
+            // Note: Instrumentation tests must be run separately before generating the combined report
+            // Run: ./gradlew :superwall:connectedDebugAndroidTest
+
             group = "Reporting"
-            description = "Generate Jacoco coverage reports for debug build."
+            description = "Generate Jacoco coverage reports combining unit tests and instrumentation tests."
 
             reports {
                 xml.required.set(true)
@@ -173,8 +181,8 @@ project.afterEvaluate {
                 'com/superwall/sdk/analytics/superwall/**',
                 'com/superwall/sdk/billing/**',
                 'com/superwall/sdk/debug/**',
-                'com/superwall/sdk/logger/**'
-
+                'com/superwall/sdk/logger/**',
+                '**/MockReviewManager.kt',
             ]
 
             // Only use debug build to avoid duplicate classes
@@ -194,10 +202,24 @@ project.afterEvaluate {
                 "src/main/kotlin"
             ]))
 
+            // COMBINED: Include both unit test and instrumentation test execution data
             executionData.setFrom(fileTree(
                 dir: project.buildDir,
-                includes: ["jacoco/testDebugUnitTest.exec"]
+                includes: [
+                    "jacoco/testDebugUnitTest.exec",
+                    "outputs/code_coverage/debugAndroidTest/connected/**/*.ec"
+                ]
             ))
+        }
+
+        // Convenience task to run all tests and generate combined report
+        // Convenience task to run all tests and generate combined coverage report
+        tasks.register('jacocoFullReport') {
+            group = "Reporting"
+            description = "Run all tests (unit + instrumentation) and generate combined coverage report."
+
+            dependsOn 'testDebugUnitTest', 'connectedDebugAndroidTest'
+            finalizedBy 'jacocoTestReport'
         }
 
         // Coverage verification task - uses debug variant to avoid duplicates
@@ -244,7 +266,10 @@ project.afterEvaluate {
 
             executionData.setFrom(fileTree(
                 dir: project.buildDir,
-                includes: ["jacoco/testDebugUnitTest.exec"]
+                includes: [
+                    "jacoco/testDebugUnitTest.exec",
+                    "outputs/code_coverage/debugAndroidTest/connected/**/*.ec"
+                ]
             ))
         }
     }

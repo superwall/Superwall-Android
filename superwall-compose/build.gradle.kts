@@ -121,4 +121,4 @@ dependencies {
 }
 
 // Apply JaCoCo configuration
-apply(from = "${rootProject.rootDir}/gradle/jacoco.gradle")
+apply(from = "${rootProject.rootDir}/gradle/jacoco-combined.gradle")

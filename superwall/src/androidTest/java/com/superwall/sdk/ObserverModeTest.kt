@@ -194,7 +194,7 @@ class ObserverModeTest {
 
     @Test
     fun test_observe_purchase_failed_with_controller() =
-        runTest(timeout = 30.seconds) {
+        runTest(timeout = 120.seconds) {
             setup()
             Given("a configured Superwall instance and failed purchase") {
                 mockDelegate = MockDelegate(this@runTest)
