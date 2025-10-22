@@ -33,15 +33,17 @@ class AutomaticPurchaseController(
     var context: Context,
     val scope: IOScope,
     val entitlementsInfo: Entitlements,
-) : PurchaseController,
-    PurchasesUpdatedListener {
-    private var billingClient: BillingClient =
+    val getBilling: (Context, PurchasesUpdatedListener) -> BillingClient = { ctx, listener ->
         BillingClient
-            .newBuilder(context)
-            .setListener(this)
+            .newBuilder(ctx)
+            .setListener(listener)
             .enableAutoServiceReconnection()
             .enablePendingPurchases(PendingPurchasesParams.newBuilder().enableOneTimeProducts().build())
             .build()
+    },
+) : PurchaseController,
+    PurchasesUpdatedListener {
+    private var billingClient: BillingClient = getBilling(context, this)
 
     private val isConnected = MutableStateFlow(false)
     private val purchaseResults = MutableStateFlow<PurchaseResult?>(null)

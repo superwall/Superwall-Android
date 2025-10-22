@@ -40,6 +40,9 @@ install_referrer = "2.2"
 publisher_version = "0.33.0"
 play_review = "2.0.2"
 ads_identifier = "1.0.0-alpha5"
+jacoco = "0.8.12"
+detekt = "1.23.7"
+robolectric = "4.13"
 [libraries]
 
 # SQL
@@ -97,6 +100,7 @@ kotlinx_serialization_json = { module = "org.jetbrains.kotlinx:kotlinx-serializa
 junit = { module = "junit:junit", version.ref = "junit_version" }
 kotlinx_coroutines_test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx_coroutines_test_version" }
 mockk_core = { module = "io.mockk:mockk", version.ref = "mockk_version" }
+robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
 
 # Test (Android)
 test_ext_junit = { module = "androidx.test.ext:junit", version.ref = "test_ext_junit_version" }
@@ -120,3 +124,4 @@ ksp = { id = "com.google.devtools.ksp", version.ref = "ksp"}
 androidLibrary = { id = "com.android.library", version.ref = "gradle_plugin_version" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 publisher = { id ="com.vanniktech.maven.publish", version.ref = "publisher_version" }
+detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }

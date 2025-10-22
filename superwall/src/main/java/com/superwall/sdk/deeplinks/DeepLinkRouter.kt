@@ -12,6 +12,7 @@ import com.superwall.sdk.utilities.withErrorTracking
 import com.superwall.sdk.web.WebPaywallRedeemer
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import java.net.URI
 import java.util.concurrent.ConcurrentLinkedDeque
 
 class DeepLinkRouter(
@@ -52,7 +53,7 @@ class DeepLinkRouter(
     fun handleDeepLink(uri: Uri): Result<Boolean> =
         withErrorTracking<Boolean> {
             ioScope.launch {
-                track(InternalSuperwallEvent.DeepLink(uri = uri))
+                track(InternalSuperwallEvent.DeepLink(uri = URI.create(uri.toString())))
             }
             val handledAsRedemption =
                 redeemer.deepLinkReferrer
@@ -61,16 +62,15 @@ class DeepLinkRouter(
                         ioScope.launch {
                             redeemer.redeem(WebPaywallRedeemer.RedeemType.Code(it))
                         }
-                        return Result.success(true)
                     }.isSuccess
 
-            val result =
-                if (!handledAsRedemption) {
-                    debugManager.handle(deepLinkUrl = uri)
+            val result: Boolean =
+                if (handledAsRedemption) {
+                    true
                 } else {
-                    handledAsRedemption
+                    debugManager.handle(deepLinkUrl = uri)
                 }
-            return Result.success(result)
+            result
         }.toResult()
 }
 

@@ -55,7 +55,7 @@ import com.superwall.sdk.models.paywall.PaywallPresentationStyle
 import com.superwall.sdk.network.JsonFactory
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
-import com.superwall.sdk.paywall.view.webview.SWWebView
+import com.superwall.sdk.paywall.view.webview.PaywallWebUI
 import com.superwall.sdk.store.transactions.notifications.NotificationScheduler
 import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.CoroutineScope
@@ -110,10 +110,8 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         }
 
         private fun PaywallView.prepareViewForDisplay(key: String) {
-            if (webView.parent == null) {
-                webView.enableOffscreenRender()
-                addView(webView)
-            }
+            webView.enableBackgroundRendering()
+            webView.attach(this)
             val viewStorageViewModel = Superwall.instance.dependencyContainer.makeViewStore()
             // If we started it directly and the view does not have shimmer and loading attached
             // We set them up for this PaywallView
@@ -358,13 +356,15 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                 )
 
                 // Set the bottom margin of the webview to the height of the system bars
-                ViewCompat.setOnApplyWindowInsetsListener(view.webView) { v, windowInsets ->
-                    val insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
-                    v.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-                        bottomMargin = insets.bottom
-                    }
+                view.webView.onView {
+                    ViewCompat.setOnApplyWindowInsetsListener(this) { v, windowInsets ->
+                        val insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
+                        v.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                            bottomMargin = insets.bottom
+                        }
 
-                    WindowInsetsCompat.CONSUMED
+                        WindowInsetsCompat.CONSUMED
+                    }
                 }
             }
 
@@ -526,7 +526,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         var currentWebViewScroll = 0
         if (isModal) {
             paywallView()?.webView?.onScrollChangeListener =
-                object : SWWebView.OnScrollChangeListener {
+                object : PaywallWebUI.OnScrollChangeListener {
                     override fun onScrollChanged(
                         currentHorizontalScroll: Int,
                         currentVerticalScroll: Int,
@@ -627,7 +627,9 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             setTransparentBackground()
         }
         paywallVc.onViewCreated()
-        paywallVc.webView.requestFocus()
+        paywallVc.webView.onView {
+            requestFocus()
+        }
     }
 
     override fun onPause() {

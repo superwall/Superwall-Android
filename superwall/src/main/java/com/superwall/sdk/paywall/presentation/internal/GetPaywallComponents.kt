@@ -5,6 +5,7 @@ import com.superwall.sdk.misc.Either
 import com.superwall.sdk.misc.toResult
 import com.superwall.sdk.models.assignment.ConfirmedAssignment
 import com.superwall.sdk.paywall.presentation.get_paywall.PaywallComponents
+import com.superwall.sdk.paywall.presentation.internal.operators.attemptTriggerFire
 import com.superwall.sdk.paywall.presentation.internal.operators.checkDebuggerPresentation
 import com.superwall.sdk.paywall.presentation.internal.operators.confirmHoldoutAssignment
 import com.superwall.sdk.paywall.presentation.internal.operators.confirmPaywallAssignment
@@ -47,7 +48,15 @@ suspend fun Superwall.getPaywallComponents(
         val paywallView =
             getPaywallView(request, outcome, debugInfo, publisher, dependencyContainer).getOrThrow()
 
-        val presenter = getPresenterIfNecessary(paywallView, outcome, request, publisher)
+        val presenter =
+            getPresenterIfNecessary(
+                paywallView,
+                outcome,
+                request,
+                publisher,
+                attemptTriggerFire = { req, res -> attemptTriggerFire(req, res) },
+                activity = { dependencyContainer.activityProvider?.getCurrentActivity() },
+            )
 
         confirmPaywallAssignment(
             outcome.confirmableAssignment,

@@ -1,6 +1,5 @@
 package com.superwall.sdk.analytics.superwall
 
-import android.net.Uri
 import com.superwall.sdk.config.models.Survey
 import com.superwall.sdk.config.models.SurveyOption
 import com.superwall.sdk.models.triggers.TriggerResult
@@ -12,6 +11,7 @@ import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
 import com.superwall.sdk.store.transactions.RestoreType
 import com.superwall.sdk.store.transactions.TransactionError
+import java.net.URI
 
 internal interface IsInternalEvent {
     val rawName: String
@@ -111,7 +111,7 @@ sealed class SuperwallEvent {
     // /
     // / The raw value of this event can be added to a campaign to trigger a paywall.
     data class DeepLink(
-        val uri: Uri,
+        val uri: URI,
     ) : SuperwallEvent() {
         override val rawName: String
             get() = "deepLink_open"
