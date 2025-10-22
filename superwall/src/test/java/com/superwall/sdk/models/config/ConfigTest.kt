@@ -497,7 +497,7 @@ class ConfigTest {
         assert(
             config.paywalls
                 .first()
-                .productItems
+                ._productItemsV3
                 .isNotEmpty(),
         )
         assert(config.triggers.first().eventName == "MyEvent")

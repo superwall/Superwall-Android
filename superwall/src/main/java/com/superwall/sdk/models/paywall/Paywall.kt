@@ -17,7 +17,6 @@ import com.superwall.sdk.models.product.Offer.*
 import com.superwall.sdk.models.product.PlayStoreProduct
 import com.superwall.sdk.models.product.ProductItem
 import com.superwall.sdk.models.product.ProductItem.StoreProductType.*
-import com.superwall.sdk.models.product.ProductItemsDeserializer
 import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.models.serialization.DateSerializer
 import com.superwall.sdk.models.triggers.Experiment
@@ -82,11 +81,8 @@ data class Paywall(
     // Declared as private to prevent direct access
     @kotlinx.serialization.Transient()
     private var _products: List<ProductItem> = emptyList(),
-    @Serializable(with = ProductItemsDeserializer::class)
-    @SerialName("products_v2")
-    private var _productItems: List<ProductItem>,
     @SerialName("products_v3")
-    private var _productItemsV3: List<CrossplatformProduct> = emptyList(),
+    internal var _productItemsV3: List<CrossplatformProduct> = emptyList(),
     @kotlinx.serialization.Transient()
     var productIds: List<String> = arrayListOf(),
     @kotlinx.serialization.Transient()
@@ -162,37 +158,66 @@ data class Paywall(
     // Public getter for productItems
     var productItems: List<ProductItem>
         get() =
-            _productItems.ifEmpty {
-                _productItemsV3.map {
-                    val id = it.fullProductId.split(":")
-                    ProductItem(
-                        it.name,
-                        when (it.storeProduct) {
-                            is PlayStoreProduct ->
-                                PlayStore(
-                                    PlayStoreProduct(
-                                        productIdentifier = id[0],
-                                        basePlanIdentifier = id[1],
-                                        offer =
-                                            when (val identifier = id.getOrNull(2)) {
-                                                null -> Automatic()
-                                                "sw-auto" -> Automatic()
-                                                else -> Specified(offerIdentifier = identifier)
-                                            },
-                                    ),
-                                )
+            _productItemsV3.map {
+                ProductItem(
+                    it.name,
+                    when (val storeProduct = it.storeProduct) {
+                        is CrossplatformProduct.StoreProduct.PlayStore ->
+                            PlayStore(
+                                com.superwall.sdk.models.product.PlayStoreProduct(
+                                    productIdentifier = it.storeProduct.productIdentifier,
+                                    basePlanIdentifier = storeProduct.basePlanIdentifier,
+                                    offer = storeProduct.offer,
+                                ),
+                            )
 
-                            is CrossplatformProduct.StoreProduct.AppStore -> TODO()
-                            is CrossplatformProduct.StoreProduct.Other -> TODO()
-                            is CrossplatformProduct.StoreProduct.PlayStore -> TODO()
-                            is CrossplatformProduct.StoreProduct.Stripe -> TODO()
-                        },
-                        entitlements = it.entitlements.toSet(),
-                    )
-                }
+                        is CrossplatformProduct.StoreProduct.AppStore ->
+                            ProductItem.StoreProductType.AppStore(
+                                com.superwall.sdk.models.product.AppStoreProduct(
+                                    productIdentifier = storeProduct.productIdentifier,
+                                ),
+                            )
+
+                        is CrossplatformProduct.StoreProduct.Stripe ->
+                            ProductItem.StoreProductType.Stripe(
+                                com.superwall.sdk.models.product.StripeProduct(
+                                    environment = storeProduct.environment,
+                                    productIdentifier = storeProduct.productId,
+                                    trialDays = storeProduct.trialDays,
+                                ),
+                            )
+
+                        is CrossplatformProduct.StoreProduct.Paddle ->
+                            ProductItem.StoreProductType.Paddle(
+                                com.superwall.sdk.models.product.PaddleProduct(
+                                    environment = storeProduct.environment,
+                                    productIdentifier = storeProduct.productId,
+                                    trialDays = storeProduct.trialDays,
+                                ),
+                            )
+
+                        is CrossplatformProduct.StoreProduct.Other -> {
+                            // For Other store types, we need to determine what to do
+                            // For now, let's log and skip, or create a PlayStore fallback
+                            Logger.debug(
+                                LogLevel.warn,
+                                LogScope.paywallView,
+                                "Unsupported store type: ${storeProduct.storeType}, creating PlayStore fallback",
+                            )
+                            // Create a minimal PlayStore product as fallback
+                            PlayStore(
+                                com.superwall.sdk.models.product.PlayStoreProduct(
+                                    productIdentifier = it.fullProductId,
+                                    basePlanIdentifier = "",
+                                    offer = Automatic(),
+                                ),
+                            )
+                        }
+                    },
+                    entitlements = it.entitlements.toSet(),
+                )
             }
         set(value) {
-            _productItems = value
             // Automatically update related properties when productItems is set
             productIds = value.map { it.fullProductId }
             _products =
@@ -231,10 +256,6 @@ data class Paywall(
             )
             null
         }
-    }
-
-    init {
-        productItems = _productItems
     }
 
     @Serializable
@@ -311,7 +332,6 @@ data class Paywall(
                 backgroundColorHex = "000000",
                 darkBackgroundColorHex = null,
                 productIds = arrayListOf(),
-                _productItems = emptyList(),
                 _products = emptyList(),
                 responseLoadingInfo = LoadingInfo(),
                 webviewLoadingInfo = LoadingInfo(),

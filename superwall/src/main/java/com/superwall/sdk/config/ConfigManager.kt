@@ -152,6 +152,7 @@ open class ConfigManager(
                                     }
                             }
                         } catch (e: Throwable) {
+                            e.printStackTrace()
                             // If fetching config fails, default to the cached version
                             // Note: Only a timeout exception is possible here
                             oldConfig?.let {

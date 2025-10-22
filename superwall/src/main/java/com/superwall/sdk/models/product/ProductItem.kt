@@ -31,13 +31,25 @@ import kotlinx.serialization.json.jsonPrimitive
 enum class Store {
     @SerialName("PLAY_STORE")
     PLAY_STORE,
+
+    @SerialName("APP_STORE")
+    APP_STORE,
+
+    @SerialName("STRIPE")
+    STRIPE,
+
+    @SerialName("PADDLE")
+    PADDLE,
     ;
 
     companion object {
         fun fromValue(value: String): Store =
             when (value) {
                 "PLAY_STORE" -> PLAY_STORE
-                else -> throw SerializationException("Store must be PLAY_STORE, found: $value")
+                "APP_STORE" -> APP_STORE
+                "STRIPE" -> STRIPE
+                "PADDLE" -> PADDLE
+                else -> throw SerializationException("Store must be PLAY_STORE, APP_STORE, STRIPE, or PADDLE, found: $value")
             }
     }
 }
@@ -72,6 +84,47 @@ data class PlayStoreProduct(
                 is Offer.Automatic -> "$productIdentifier:$basePlanIdentifier:sw-auto"
                 is Offer.Specified -> "$productIdentifier:$basePlanIdentifier:${offer.offerIdentifier}"
             }
+}
+
+@Serializable
+data class AppStoreProduct(
+    @SerialName("store")
+    val store: Store = Store.APP_STORE,
+    @SerialName("product_identifier")
+    val productIdentifier: String,
+) {
+    val fullIdentifier: String
+        get() = productIdentifier
+}
+
+@Serializable
+data class StripeProduct(
+    @SerialName("store")
+    val store: Store = Store.STRIPE,
+    @SerialName("environment")
+    val environment: String,
+    @SerialName("product_identifier")
+    val productIdentifier: String,
+    @SerialName("trial_days")
+    val trialDays: Int? = null,
+) {
+    val fullIdentifier: String
+        get() = productIdentifier
+}
+
+@Serializable
+data class PaddleProduct(
+    @SerialName("store")
+    val store: Store = Store.PADDLE,
+    @SerialName("environment")
+    val environment: String,
+    @SerialName("product_identifier")
+    val productIdentifier: String,
+    @SerialName("trial_days")
+    val trialDays: Int? = null,
+) {
+    val fullIdentifier: String
+        get() = productIdentifier
 }
 
 object PlayStoreProductSerializer : KSerializer<PlayStoreProduct> {
@@ -177,12 +230,30 @@ data class ProductItem(
         data class PlayStore(
             val product: PlayStoreProduct,
         ) : StoreProductType()
+
+        @Serializable
+        data class AppStore(
+            val product: AppStoreProduct,
+        ) : StoreProductType()
+
+        @Serializable
+        data class Stripe(
+            val product: StripeProduct,
+        ) : StoreProductType()
+
+        @Serializable
+        data class Paddle(
+            val product: PaddleProduct,
+        ) : StoreProductType()
     }
 
     val fullProductId: String
         get() =
             when (type) {
                 is StoreProductType.PlayStore -> type.product.fullIdentifier
+                is StoreProductType.AppStore -> type.product.fullIdentifier
+                is StoreProductType.Stripe -> type.product.fullIdentifier
+                is StoreProductType.Paddle -> type.product.fullIdentifier
             }
 }
 
