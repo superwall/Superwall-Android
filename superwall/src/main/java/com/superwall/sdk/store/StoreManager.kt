@@ -31,7 +31,7 @@ class StoreManager(
     StoreKit {
     val receiptManager by lazy { ReceiptManager(delegate = this, billing) }
 
-    var productsByFullId: MutableMap<String, StoreProduct> = mutableMapOf()
+    private var productsByFullId: MutableMap<String, StoreProduct> = mutableMapOf()
 
     private data class ProductProcessingResult(
         val fullProductIdsToLoad: Set<String>,
@@ -95,7 +95,7 @@ class StoreManager(
         for (product in products) {
             val fullProductIdentifier = product.fullIdentifier
             productsById[fullProductIdentifier] = product
-            this.productsByFullId[fullProductIdentifier] = product
+            cacheProduct(fullProductIdentifier, product)
         }
 
         return products.map { it.fullIdentifier to it }.toMap()
@@ -139,7 +139,7 @@ class StoreManager(
         for (product in products) {
             val fullProductIdentifier = product.fullIdentifier
             productsById[fullProductIdentifier] = product
-            this.productsByFullId[fullProductIdentifier] = product
+            cacheProduct(fullProductIdentifier, product)
         }
 
         return GetProductsResponse(
@@ -167,51 +167,63 @@ class StoreManager(
                 substituteProductsByFullId[fullProductId] = product
 
                 // Store the substitute product by id in the class' dictionary
-                this.productsByFullId[fullProductId] = product
+                cacheProduct(fullProductId, product)
                 val decomposedProductIds = DecomposedProductIds.from(product.fullIdentifier)
 
                 // Search for an existing product with specified name
                 productItems.indexOfFirst { it.name == name }.takeIf { it >= 0 }?.let { index ->
                     // Update the product ID at the found index
+                    val storeProduct =
+                        ProductItem.StoreProductType.PlayStore(
+                            PlayStoreProduct(
+                                productIdentifier = decomposedProductIds.subscriptionId,
+                                basePlanIdentifier = decomposedProductIds.basePlanId ?: "",
+                                offer =
+                                    decomposedProductIds.offerType.let { offerType ->
+                                        when (offerType) {
+                                            is OfferType.Offer ->
+                                                Offer.Specified(
+                                                    offerIdentifier = offerType.id,
+                                                )
+
+                                            is OfferType.Auto -> Offer.Automatic()
+                                        }
+                                    },
+                            ),
+                        )
                     productItems[index] =
                         ProductItem(
                             name = productItems[index].name,
                             entitlements = productItems[index].entitlements,
-                            type =
-                                ProductItem.StoreProductType.PlayStore(
-                                    PlayStoreProduct(
-                                        productIdentifier = decomposedProductIds.subscriptionId,
-                                        basePlanIdentifier = decomposedProductIds.basePlanId ?: "",
-                                        offer =
-                                            decomposedProductIds.offerType.let { offerType ->
-                                                when (offerType) {
-                                                    is OfferType.Offer -> Offer.Specified(offerIdentifier = offerType.id)
-                                                    is OfferType.Auto -> Offer.Automatic()
-                                                }
-                                            },
-                                    ),
-                                ),
+                            type = storeProduct,
+                            compositeId = storeProduct.product.fullIdentifier,
                         )
                 } ?: run {
+                    val storeProduct =
+                        ProductItem.StoreProductType.PlayStore(
+                            PlayStoreProduct(
+                                productIdentifier = decomposedProductIds.subscriptionId,
+                                basePlanIdentifier = decomposedProductIds.basePlanId ?: "",
+                                offer =
+                                    decomposedProductIds.offerType.let { offerType ->
+                                        when (offerType) {
+                                            is OfferType.Offer ->
+                                                Offer.Specified(
+                                                    offerIdentifier = offerType.id,
+                                                )
+
+                                            is OfferType.Auto -> Offer.Automatic()
+                                        }
+                                    },
+                            ),
+                        )
                     // If no existing product found, just append to the list.
                     productItems.add(
                         ProductItem(
                             name = name,
                             entitlements = emptySet(),
-                            type =
-                                ProductItem.StoreProductType.PlayStore(
-                                    PlayStoreProduct(
-                                        productIdentifier = decomposedProductIds.subscriptionId,
-                                        basePlanIdentifier = decomposedProductIds.basePlanId ?: "",
-                                        offer =
-                                            decomposedProductIds.offerType.let { offerType ->
-                                                when (offerType) {
-                                                    is OfferType.Offer -> Offer.Specified(offerIdentifier = offerType.id)
-                                                    is OfferType.Auto -> Offer.Automatic()
-                                                }
-                                            },
-                                    ),
-                                ),
+                            type = storeProduct,
+                            compositeId = storeProduct.product.fullIdentifier,
                         ),
                     )
                 }
@@ -245,6 +257,17 @@ class StoreManager(
         )
         receiptManager.loadPurchasedProducts()
     }
+
+    override fun cacheProduct(
+        fullProductIdentifier: String,
+        storeProduct: StoreProduct,
+    ) {
+        productsByFullId[fullProductIdentifier] = storeProduct
+    }
+
+    override fun getProductFromCache(productId: String): StoreProduct? = productsByFullId[productId]
+
+    override fun hasCached(productId: String): Boolean = productsByFullId.contains(productId)
 
     @Throws(Throwable::class)
     override suspend fun products(identifiers: Set<String>): Set<StoreProduct> = billing.awaitGetProducts(identifiers)

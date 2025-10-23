@@ -18,7 +18,6 @@ object TemplateLogic {
         factory: VariablesFactory,
         encodeToBase64: (String) -> String,
     ): String {
-        val products = (paywall.playStoreProducts.plus(paywall.stripeProducts))
         val productsTemplate =
             ProductTemplate(
                 eventName = "products",

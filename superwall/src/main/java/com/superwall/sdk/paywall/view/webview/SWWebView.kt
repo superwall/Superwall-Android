@@ -18,7 +18,6 @@ import android.webkit.ConsoleMessage
 import android.webkit.CookieManager
 import android.webkit.JsPromptResult
 import android.webkit.JsResult
-import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebChromeClient
 import android.webkit.WebSettings
 import android.webkit.WebView
@@ -109,60 +108,61 @@ class SWWebView(
     var onRenderCrashed: (didCrash: Boolean, priority: Int) -> Unit = { i, e -> }
 
     private companion object ChromeClient : WebChromeClient() {
-    private class ChromeClient(
-        val activity: () -> Activity?,
-    ) : WebChromeClient() {
-        override fun onConsoleMessage(consoleMessage: ConsoleMessage): Boolean {
-            // Don't log anything
-            return true
-        }
+        private class ChromeClient(
+            val activity: () -> Activity?,
+        ) : WebChromeClient() {
+            override fun onConsoleMessage(consoleMessage: ConsoleMessage): Boolean {
+                // Don't log anything
+                return true
+            }
 
-        override fun onJsAlert(
-            view: WebView,
-            url: String,
-            message: String,
-            result: JsResult,
-        ): Boolean {
-            AlertDialog
-                .Builder(activity() ?: return false)
-                .setMessage(message)
-                .setPositiveButton(android.R.string.ok) { _, _ -> result.confirm() }
-                .setOnCancelListener { result.cancel() }
-                .show()
-            return true
-        }
+            override fun onJsAlert(
+                view: WebView,
+                url: String,
+                message: String,
+                result: JsResult,
+            ): Boolean {
+                AlertDialog
+                    .Builder(activity() ?: return false)
+                    .setMessage(message)
+                    .setPositiveButton(android.R.string.ok) { _, _ -> result.confirm() }
+                    .setOnCancelListener { result.cancel() }
+                    .show()
+                return true
+            }
 
-        override fun onJsConfirm(
-            view: WebView,
-            url: String,
-            message: String,
-            result: JsResult,
-        ): Boolean {
-            AlertDialog
-                .Builder(activity() ?: return false)
-                .setMessage(message)
-                .setPositiveButton(android.R.string.ok) { _, _ -> result.confirm() }
-                .setNegativeButton(android.R.string.cancel) { _, _ -> result.cancel() }
-                .show()
-            return true
-        }
+            override fun onJsConfirm(
+                view: WebView,
+                url: String,
+                message: String,
+                result: JsResult,
+            ): Boolean {
+                AlertDialog
+                    .Builder(activity() ?: return false)
+                    .setMessage(message)
+                    .setPositiveButton(android.R.string.ok) { _, _ -> result.confirm() }
+                    .setNegativeButton(android.R.string.cancel) { _, _ -> result.cancel() }
+                    .show()
+                return true
+            }
 
-        override fun onJsPrompt(
-            view: WebView,
-            url: String,
-            message: String,
-            defaultValue: String?,
-            result: JsPromptResult,
-        ): Boolean {
-            val input = EditText(activity()).apply { setText(defaultValue ?: "") }
-            AlertDialog
-                .Builder(activity() ?: return false)
-                .setMessage(message)
-                .setView(input)
-                .setPositiveButton(android.R.string.ok) { _, _ -> result.confirm(input.text.toString()) }
-                .setNegativeButton(android.R.string.cancel) { _, _ -> result.cancel() }
-                .show()
-            return true
+            override fun onJsPrompt(
+                view: WebView,
+                url: String,
+                message: String,
+                defaultValue: String?,
+                result: JsPromptResult,
+            ): Boolean {
+                val input = EditText(activity()).apply { setText(defaultValue ?: "") }
+                AlertDialog
+                    .Builder(activity() ?: return false)
+                    .setMessage(message)
+                    .setView(input)
+                    .setPositiveButton(android.R.string.ok) { _, _ -> result.confirm(input.text.toString()) }
+                    .setNegativeButton(android.R.string.cancel) { _, _ -> result.cancel() }
+                    .show()
+                return true
+            }
         }
     }
 
@@ -173,6 +173,7 @@ class SWWebView(
         addJavascriptInterface(messageHandler, "SWAndroid")
 
         val webSettings = this.settings
+        setWebContentsDebuggingEnabled(true)
         webSettings.javaScriptEnabled = true
         webSettings.setSupportZoom(false)
         webSettings.builtInZoomControls = false

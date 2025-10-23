@@ -216,6 +216,8 @@ sealed interface TemplatingProduct
 
 @Serializable(with = ProductItemSerializer::class)
 data class ProductItem(
+    @SerialName("sw_composite_product_id")
+    val compositeId: String,
     // Note: This is used only by paywall as a reference to the object. Otherwise, it is empty.
     @SerialName("reference_name")
     val name: String,
@@ -303,6 +305,7 @@ object ProductItemSerializer : KSerializer<ProductItem> {
             name = name,
             type = ProductItem.StoreProductType.PlayStore(storeProduct),
             entitlements = entitlements,
+            compositeId = storeProduct.fullIdentifier,
         )
     }
 }

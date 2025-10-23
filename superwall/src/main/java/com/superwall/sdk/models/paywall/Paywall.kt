@@ -2,7 +2,6 @@ package com.superwall.sdk.models.paywall
 
 import android.annotation.SuppressLint
 import android.graphics.Color
-import com.superwall.sdk.billing.StoreProductType
 import com.superwall.sdk.config.models.OnDeviceCaching
 import com.superwall.sdk.config.models.Survey
 import com.superwall.sdk.logger.LogLevel
@@ -14,7 +13,6 @@ import com.superwall.sdk.models.config.FeatureGatingBehavior
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.product.CrossplatformProduct
 import com.superwall.sdk.models.product.Offer.*
-import com.superwall.sdk.models.product.PlayStoreProduct
 import com.superwall.sdk.models.product.ProductItem
 import com.superwall.sdk.models.product.ProductItem.StoreProductType.*
 import com.superwall.sdk.models.product.ProductVariable
@@ -83,8 +81,10 @@ data class Paywall(
     private var _products: List<ProductItem> = emptyList(),
     @SerialName("products_v3")
     internal var _productItemsV3: List<CrossplatformProduct> = emptyList(),
+    @SerialName("products_v2")
+    internal var _productItems: List<ProductItem> = emptyList(),
     @kotlinx.serialization.Transient()
-    var productIds: List<String> = arrayListOf(),
+    var productIds: List<String> = _productItems.map { it.compositeId },
     @kotlinx.serialization.Transient()
     var responseLoadingInfo: LoadingInfo = LoadingInfo(),
     @kotlinx.serialization.Transient()
@@ -135,10 +135,10 @@ data class Paywall(
     val playStoreProducts: List<CrossplatformProduct>
         get() =
             if (_productItemsV3.isEmpty() && productItems.isNotEmpty()) {
-                productItems.map {
-                    val type = it.type as ProductItem.StoreProductType.PlayStore
+                productItems.filter { it.type is PlayStore }.map {
+                    val type = it.type as PlayStore
                     CrossplatformProduct(
-                        it.fullProductId,
+                        it.compositeId,
                         CrossplatformProduct.StoreProduct.PlayStore(
                             type.product.productIdentifier,
                             type.product.basePlanIdentifier,
@@ -157,71 +157,11 @@ data class Paywall(
 
     // Public getter for productItems
     var productItems: List<ProductItem>
-        get() =
-            _productItemsV3.map {
-                ProductItem(
-                    it.name,
-                    when (val storeProduct = it.storeProduct) {
-                        is CrossplatformProduct.StoreProduct.PlayStore ->
-                            PlayStore(
-                                com.superwall.sdk.models.product.PlayStoreProduct(
-                                    productIdentifier = it.storeProduct.productIdentifier,
-                                    basePlanIdentifier = storeProduct.basePlanIdentifier,
-                                    offer = storeProduct.offer,
-                                ),
-                            )
-
-                        is CrossplatformProduct.StoreProduct.AppStore ->
-                            ProductItem.StoreProductType.AppStore(
-                                com.superwall.sdk.models.product.AppStoreProduct(
-                                    productIdentifier = storeProduct.productIdentifier,
-                                ),
-                            )
-
-                        is CrossplatformProduct.StoreProduct.Stripe ->
-                            ProductItem.StoreProductType.Stripe(
-                                com.superwall.sdk.models.product.StripeProduct(
-                                    environment = storeProduct.environment,
-                                    productIdentifier = storeProduct.productId,
-                                    trialDays = storeProduct.trialDays,
-                                ),
-                            )
-
-                        is CrossplatformProduct.StoreProduct.Paddle ->
-                            ProductItem.StoreProductType.Paddle(
-                                com.superwall.sdk.models.product.PaddleProduct(
-                                    environment = storeProduct.environment,
-                                    productIdentifier = storeProduct.productId,
-                                    trialDays = storeProduct.trialDays,
-                                ),
-                            )
-
-                        is CrossplatformProduct.StoreProduct.Other -> {
-                            // For Other store types, we need to determine what to do
-                            // For now, let's log and skip, or create a PlayStore fallback
-                            Logger.debug(
-                                LogLevel.warn,
-                                LogScope.paywallView,
-                                "Unsupported store type: ${storeProduct.storeType}, creating PlayStore fallback",
-                            )
-                            // Create a minimal PlayStore product as fallback
-                            PlayStore(
-                                com.superwall.sdk.models.product.PlayStoreProduct(
-                                    productIdentifier = it.fullProductId,
-                                    basePlanIdentifier = "",
-                                    offer = Automatic(),
-                                ),
-                            )
-                        }
-                    },
-                    entitlements = it.entitlements.toSet(),
-                )
-            }
+        get() = (_productItems)
         set(value) {
-            // Automatically update related properties when productItems is set
+            _productItems = value
+            _products = value
             productIds = value.map { it.fullProductId }
-            _products =
-                value // Assuming makeProducts is a function that generates products based on product items
         }
 
     // Public getter for products to allow access but not direct modification

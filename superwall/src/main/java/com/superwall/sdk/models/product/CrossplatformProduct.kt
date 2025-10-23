@@ -26,7 +26,7 @@ import kotlinx.serialization.json.jsonPrimitive
 
 @Serializable(with = CrossplatformProductSerializer::class)
 data class CrossplatformProduct(
-    @SerialName("sw_composite_id")
+    @SerialName("sw_composite_product_id")
     val compositeId: String,
     @SerialName("store_product")
     val storeProduct: StoreProduct,
