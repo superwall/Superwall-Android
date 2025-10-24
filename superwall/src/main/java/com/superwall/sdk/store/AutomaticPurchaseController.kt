@@ -262,12 +262,11 @@ class AutomaticPurchaseController(
         val subscriptionPurchases = queryPurchasesOfType(BillingClient.ProductType.SUBS)
         val inAppPurchases = queryPurchasesOfType(BillingClient.ProductType.INAPP)
         val allPurchases = subscriptionPurchases + inAppPurchases
-
         val hasActivePurchaseOrSubscription =
             allPurchases.any { it.purchaseState == Purchase.PurchaseState.PURCHASED }
         val status: SubscriptionStatus =
             if (hasActivePurchaseOrSubscription) {
-                subscriptionPurchases
+                allPurchases
                     .flatMap {
                         it.products
                     }.toSet()
