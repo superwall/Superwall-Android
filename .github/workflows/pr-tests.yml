@@ -31,11 +31,17 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-gradle-
           
-    - name: Run unit tests
-      run: ./gradlew :superwall:test
-
     - name: Change wrapper permissions
       run: chmod +x ./gradlew
+
+    - name: Run unit and instrumentation tests with coverage
+      uses: reactivecircus/android-emulator-runner@v2
+      with:
+        api-level: 33
+        target: google_apis
+        arch: x86_64
+        profile: pixel_6
+        script: ./gradlew :superwall:jacocoFullReport
 
     - name: Upload test reports
       uses: actions/upload-artifact@v4
@@ -45,3 +51,13 @@ jobs:
         path: |
           **/build/reports/tests/
           **/build/test-results/
+          **/build/reports/androidTests/connected/
+          **/build/outputs/code_coverage/
+
+    - name: Upload coverage report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: jacoco-coverage
+        path: |
+          superwall/build/reports/jacoco/

@@ -62,6 +62,7 @@ android {
 
     buildTypes {
         debug {
+            enableAndroidTestCoverage = true
             consumerProguardFile("proguard-rules.pro")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
