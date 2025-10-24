@@ -124,16 +124,6 @@ class SWWebView(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
             webSettings.mediaPlaybackRequiresUserGesture = false
         }
-        val vc =
-            DefaultWebviewClient("", ioScope, {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    onRenderCrashed(it.didCrash(), it.rendererPriorityAtExit())
-                } else {
-                    onRenderCrashed(true, -1)
-                }
-            })
-        this.webViewClient = vc
-        this.lastWebViewClient = vc
         this.setBackgroundColor(Color.TRANSPARENT)
         this.webChromeClient = ChromeClient
     }
