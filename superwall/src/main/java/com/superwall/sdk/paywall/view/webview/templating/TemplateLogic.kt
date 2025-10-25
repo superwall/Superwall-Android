@@ -1,9 +1,13 @@
+import android.util.Log
 import com.superwall.sdk.dependencies.VariablesFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
+import com.superwall.sdk.models.product.CrossplatformProduct
+import com.superwall.sdk.models.product.PlayStoreProduct
+import com.superwall.sdk.models.product.ProductItem
 import com.superwall.sdk.paywall.view.webview.templating.models.ExperimentTemplate
 import com.superwall.sdk.paywall.view.webview.templating.models.FreeTrialTemplate
 import com.superwall.sdk.paywall.view.webview.templating.models.JsonVariables
@@ -21,7 +25,25 @@ object TemplateLogic {
         val productsTemplate =
             ProductTemplate(
                 eventName = "products",
-                products = paywall.productItems,
+                products =
+                    paywall.playStoreProducts.map {
+                        ProductItem(
+                            name = it.name,
+                            entitlements = it.entitlements.toSet(),
+                            type =
+                                it.storeProduct.let { crossProduct ->
+                                    val product = crossProduct as CrossplatformProduct.StoreProduct.PlayStore
+                                    ProductItem.StoreProductType.PlayStore(
+                                        PlayStoreProduct(
+                                            productIdentifier = product.productIdentifier,
+                                            basePlanIdentifier = product.basePlanIdentifier,
+                                            offer = product.offer,
+                                        ),
+                                    )
+                                },
+                            compositeId = it.compositeId,
+                        )
+                    },
             )
 
         val variablesTemplate =
@@ -57,7 +79,10 @@ object TemplateLogic {
 //            json.encodeToString(swProductTemplate)
             )
         val templatesString = "[" + encodedTemplates.joinToString(",") + "]"
-
+        Log.e(
+            "ProductTemplate",
+            json.encodeToString(ProductTemplate.serializer(), productsTemplate),
+        )
         Logger.debug(
             LogLevel.debug,
             LogScope.superwallCore,

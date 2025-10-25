@@ -212,6 +212,71 @@ object PlayStoreProductSerializer : KSerializer<PlayStoreProduct> {
     }
 }
 
+object StoreProductSerializer : KSerializer<ProductItem.StoreProductType> {
+    override val descriptor: SerialDescriptor = buildClassSerialDescriptor("StoreProduct")
+
+    override fun serialize(
+        encoder: Encoder,
+        value: ProductItem.StoreProductType,
+    ) {
+        val jsonEncoder =
+            encoder as? JsonEncoder
+                ?: throw SerializationException("This class can be saved only by Json")
+        val jsonElement =
+            when (value) {
+                is ProductItem.StoreProductType.PlayStore ->
+                    jsonEncoder.json.encodeToJsonElement(PlayStoreProductSerializer, value.product)
+                is ProductItem.StoreProductType.AppStore ->
+                    jsonEncoder.json.encodeToJsonElement(AppStoreProduct.serializer(), value.product)
+                is ProductItem.StoreProductType.Stripe ->
+                    jsonEncoder.json.encodeToJsonElement(StripeProduct.serializer(), value.product)
+                is ProductItem.StoreProductType.Paddle ->
+                    jsonEncoder.json.encodeToJsonElement(PaddleProduct.serializer(), value.product)
+            }
+        jsonEncoder.encodeJsonElement(jsonElement)
+    }
+
+    override fun deserialize(decoder: Decoder): ProductItem.StoreProductType {
+        val jsonDecoder =
+            decoder as? JsonDecoder
+                ?: throw SerializationException("This class can be loaded only by Json")
+        val jsonObject = jsonDecoder.decodeJsonElement().jsonObject
+        val storeValue =
+            jsonObject["store"]?.jsonPrimitive?.content
+                ?: jsonObject["product"]
+                    ?.jsonObject
+                    ?.get("store")
+                    ?.jsonPrimitive
+                    ?.content
+                ?: throw SerializationException("Store is missing")
+        val store =
+            try {
+                Store.fromValue(storeValue)
+            } catch (throwable: Throwable) {
+                Store.PLAY_STORE
+            }
+        val json = jsonDecoder.json
+        return when (store) {
+            Store.PLAY_STORE -> {
+                val product = json.decodeFromJsonElement(PlayStoreProductSerializer, jsonObject)
+                ProductItem.StoreProductType.PlayStore(product)
+            }
+            Store.APP_STORE -> {
+                val product = json.decodeFromJsonElement(AppStoreProduct.serializer(), jsonObject)
+                ProductItem.StoreProductType.AppStore(product)
+            }
+            Store.STRIPE -> {
+                val product = json.decodeFromJsonElement(StripeProduct.serializer(), jsonObject)
+                ProductItem.StoreProductType.Stripe(product)
+            }
+            Store.PADDLE -> {
+                val product = json.decodeFromJsonElement(PaddleProduct.serializer(), jsonObject)
+                ProductItem.StoreProductType.Paddle(product)
+            }
+        }
+    }
+}
+
 sealed interface TemplatingProduct
 
 @Serializable(with = ProductItemSerializer::class)
@@ -273,7 +338,9 @@ object ProductItemSerializer : KSerializer<ProductItem> {
             buildJsonObject {
                 put("product", JsonPrimitive(value.name))
                 put("productId", JsonPrimitive(value.fullProductId))
-                put("store_product", encoder.json.encodeToJsonElement(value.type))
+                val storeProductElement =
+                    jsonOutput.json.encodeToJsonElement(StoreProductSerializer, value.type)
+                put("store_product", storeProductElement)
             }
         // Encode the JSON object
         jsonOutput.encodeJsonElement(jsonObject)
@@ -298,14 +365,24 @@ object ProductItemSerializer : KSerializer<ProductItem> {
                     Json.decodeFromJsonElement<Entitlement>(it)
                 }?.toSet() ?: emptySet()
 
-        // Deserialize 'storeProduct' JSON object into the expected Kotlin data class
-        val storeProduct = Json.decodeFromJsonElement<PlayStoreProduct>(storeProductJsonObject)
+        val storeProductType =
+            jsonInput.json.decodeFromJsonElement(StoreProductSerializer, storeProductJsonObject)
+
+        val compositeIdFromJson = jsonObject["sw_composite_product_id"]?.jsonPrimitive?.content
+        val compositeId =
+            compositeIdFromJson
+                ?: when (storeProductType) {
+                    is ProductItem.StoreProductType.PlayStore -> storeProductType.product.fullIdentifier
+                    is ProductItem.StoreProductType.AppStore -> storeProductType.product.fullIdentifier
+                    is ProductItem.StoreProductType.Stripe -> storeProductType.product.fullIdentifier
+                    is ProductItem.StoreProductType.Paddle -> storeProductType.product.fullIdentifier
+                }
 
         return ProductItem(
             name = name,
-            type = ProductItem.StoreProductType.PlayStore(storeProduct),
+            type = storeProductType,
             entitlements = entitlements,
-            compositeId = storeProduct.fullIdentifier,
+            compositeId = compositeId,
         )
     }
 }
@@ -335,11 +412,7 @@ object ProductItemsDeserializer : KSerializer<List<ProductItem>> {
         for (productElement in productsV2Element) {
             try {
                 val product = Json.decodeFromJsonElement<ProductItem>(productElement)
-                // Check the store type and add to the list if it matches the criteria
-                if (product.type is ProductItem.StoreProductType.PlayStore) {
-                    validProducts.add(product)
-                }
-                // If the type is APP_STORE or anything else, it will simply skip adding it
+                validProducts.add(product)
             } catch (e: SerializationException) {
                 // Catch and ignore items that cannot be deserialized due to unknown store types or other issues
                 // Log the error or handle it as needed

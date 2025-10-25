@@ -155,6 +155,9 @@ data class Paywall(
     val stripeProducts: List<CrossplatformProduct>
         get() = _productItemsV3.filter { it.storeProduct is CrossplatformProduct.StoreProduct.Stripe }
 
+    val paddleProducts: List<CrossplatformProduct>
+        get() = _productItemsV3.filter { it.storeProduct is CrossplatformProduct.StoreProduct.Paddle }
+
     // Public getter for productItems
     var productItems: List<ProductItem>
         get() = (_productItems)

@@ -1035,6 +1035,7 @@ class PaywallView(
                     scope = LogScope.paywallView,
                     message = "Chrome Custom Tab closed with status code: $statusCode",
                 )
+                isPaymentSheetPresented = false
                 controller.updateState(PaywallViewState.Updates.SetBrowserPresented(false))
             }
     }
