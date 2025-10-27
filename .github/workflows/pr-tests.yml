@@ -94,3 +94,26 @@ jobs:
         name: jacoco-coverage
         path: |
           superwall/build/reports/jacoco/
+
+    - name: Generate JaCoCo Badge
+      id: jacoco
+      uses: cicirello/jacoco-badge-generator@v2
+      with:
+        jacoco-csv-file: superwall/build/reports/jacoco/jacocoTestReport/jacocoTestReport.csv
+        badges-directory: .github/badges
+        generate-branches-badge: true
+        generate-coverage-badge: true
+
+    - name: Commit coverage badge
+      if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+      run: |
+        cd ${{ github.workspace }}
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+        git add .github/badges/
+        if git diff --staged --quiet; then
+          echo "No changes to badge"
+        else
+          git commit -m "Update coverage badge [skip ci]"
+          git push
+        fi
