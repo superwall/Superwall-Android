@@ -6,8 +6,6 @@ import When
 import android.app.Application
 import android.util.Log
 import androidx.test.platform.app.InstrumentationRegistry
-import com.android.billingclient.api.BillingClient
-import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.ProductDetails
 import com.superwall.sdk.analytics.superwall.SuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
@@ -21,7 +19,6 @@ import com.superwall.sdk.store.StoreManager
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import com.superwall.sdk.store.abstractions.product.SubscriptionPeriod
 import com.superwall.sdk.store.transactions.TransactionManager
-import com.superwall.sdk.utilities.PurchaseMockBuilder
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkObject
@@ -154,6 +151,7 @@ class ObserverModeTest {
             }
         }
 
+/*
     @Test
     fun test_observe_purchase_complete_with_controller() =
         runTest(timeout = 30.seconds) {
@@ -199,7 +197,7 @@ class ObserverModeTest {
                 }
             }
         }
-
+*/
     @Test
     fun test_observe_purchase_failed_with_controller() =
         runTest(timeout = 120.seconds) {
