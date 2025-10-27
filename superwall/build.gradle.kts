@@ -24,7 +24,7 @@ plugins {
     id("jacoco")
 }
 
-version = "2.5.7"
+version = "2.5.8"
 
 android {
     compileSdk = 35
