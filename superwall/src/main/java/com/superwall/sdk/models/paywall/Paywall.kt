@@ -160,7 +160,14 @@ data class Paywall(
 
     // Public getter for productItems
     var productItems: List<ProductItem>
-        get() = (_productItems)
+        get() = (
+            _productItems.ifEmpty {
+                _productItemsV3
+                    .map {
+                        CrossplatformProduct.toProductItem(it)
+                    }
+            }
+        )
         set(value) {
             _productItems = value
             _products = value

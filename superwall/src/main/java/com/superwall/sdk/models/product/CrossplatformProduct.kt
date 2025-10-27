@@ -36,8 +36,20 @@ data class CrossplatformProduct(
     @SerialName("reference_name")
     val name: String,
 ) : TemplatingProduct {
+    companion object {
+        fun toProductItem(product: CrossplatformProduct) =
+            ProductItem(
+                compositeId = product.compositeId,
+                name = product.name,
+                type = product.storeProduct.toStoreProductType(),
+                entitlements = product.entitlements.toSet(),
+            )
+    }
+
     @Serializable
     sealed class StoreProduct {
+        abstract fun toStoreProductType(): ProductItem.StoreProductType
+
         @Serializable(with = PlayStoreSerializer::class)
         @SerialName("PLAY_STORE")
         data class PlayStore(
@@ -54,6 +66,11 @@ data class CrossplatformProduct(
                         is Offer.Automatic -> "$productIdentifier:$basePlanIdentifier:sw-auto"
                         is Offer.Specified -> "$productIdentifier:$basePlanIdentifier:${offer.offerIdentifier}"
                     }
+
+            override fun toStoreProductType(): ProductItem.StoreProductType =
+                ProductItem.StoreProductType.PlayStore(
+                    PlayStoreProduct(productIdentifier = productIdentifier, basePlanIdentifier = basePlanIdentifier, offer = offer),
+                )
         }
 
         @Serializable(with = AppStoreSerializer::class)
@@ -61,7 +78,12 @@ data class CrossplatformProduct(
         data class AppStore(
             @SerialName("product_identifier")
             val productIdentifier: String = "",
-        ) : StoreProduct()
+        ) : StoreProduct() {
+            override fun toStoreProductType(): ProductItem.StoreProductType =
+                ProductItem.StoreProductType.AppStore(
+                    AppStoreProduct(productIdentifier = productIdentifier),
+                )
+        }
 
         @Serializable(with = StripeSerializer::class)
         @SerialName("STRIPE")
@@ -69,12 +91,17 @@ data class CrossplatformProduct(
             @SerialName("environment")
             val environment: String,
             @SerialName("product_identifier")
-            val productId: String,
+            val productIdentifier: String,
             @SerialName("trial_days")
             val trialDays: Int,
             @SerialName("meta")
             val meta: JsonObject = JsonObject(emptyMap()),
-        ) : StoreProduct()
+        ) : StoreProduct() {
+            override fun toStoreProductType(): ProductItem.StoreProductType =
+                ProductItem.StoreProductType.Stripe(
+                    StripeProduct(productIdentifier = productIdentifier, environment = environment, trialDays = trialDays),
+                )
+        }
 
         @Serializable(with = PaddleSerializer::class)
         @SerialName("PADDLE")
@@ -82,22 +109,34 @@ data class CrossplatformProduct(
             @SerialName("environment")
             val environment: String,
             @SerialName("product_identifier")
-            val productId: String,
+            val productIdentifier: String,
             @SerialName("trial_days")
             val trialDays: Int,
             @SerialName("meta")
             val meta: JsonObject = JsonObject(emptyMap()),
-        ) : StoreProduct()
+        ) : StoreProduct() {
+            override fun toStoreProductType(): ProductItem.StoreProductType =
+                ProductItem.StoreProductType.Paddle(
+                    PaddleProduct(productIdentifier = productIdentifier, environment = environment, trialDays = trialDays),
+                )
+        }
 
         @Serializable(with = OtherSerializer::class)
         @SerialName("OTHER")
         data class Other(
             @SerialName("store")
             val storeType: String,
+            @SerialName("product_identifier")
+            val productIdentifier: String,
             @SerialName("metadata")
             private val _data: JsonObject = JsonObject(emptyMap()),
         ) : StoreProduct() {
             val data = _data.toMap()
+
+            override fun toStoreProductType(): ProductItem.StoreProductType =
+                ProductItem.StoreProductType.Other(
+                    UnknownStoreProduct(productIdentifier = productIdentifier),
+                )
         }
     }
 
@@ -108,8 +147,8 @@ data class CrossplatformProduct(
             compositeId.takeIf { it.isNotEmpty() } ?: when (storeProduct) {
                 is StoreProduct.PlayStore -> storeProduct.fullIdentifier
                 is StoreProduct.AppStore -> storeProduct.productIdentifier
-                is StoreProduct.Stripe -> storeProduct.productId
-                is StoreProduct.Paddle -> storeProduct.productId
+                is StoreProduct.Stripe -> storeProduct.productIdentifier
+                is StoreProduct.Paddle -> storeProduct.productIdentifier
                 is StoreProduct.Other -> ""
             }
 }
@@ -223,7 +262,7 @@ object StripeSerializer : KSerializer<CrossplatformProduct.StoreProduct.Stripe> 
             buildJsonObject {
                 put("store", JsonPrimitive("STRIPE"))
                 put("environment", JsonPrimitive(value.environment))
-                put("product_identifier", JsonPrimitive(value.productId))
+                put("product_identifier", JsonPrimitive(value.productIdentifier))
                 put("trial_days", JsonPrimitive(value.trialDays))
                 put("meta", value.meta)
             }
@@ -263,7 +302,7 @@ object PaddleSerializer : KSerializer<CrossplatformProduct.StoreProduct.Paddle> 
             buildJsonObject {
                 put("store", JsonPrimitive("PADDLE"))
                 put("environment", JsonPrimitive(value.environment))
-                put("product_identifier", JsonPrimitive(value.productId))
+                put("product_identifier", JsonPrimitive(value.productIdentifier))
                 put("trial_days", JsonPrimitive(value.trialDays))
                 put("meta", value.meta)
             }
@@ -314,8 +353,9 @@ object OtherSerializer : KSerializer<CrossplatformProduct.StoreProduct.Other> {
         val jsonObject = jsonDecoder.decodeJsonElement() as JsonObject
 
         val storeType = jsonObject["store"]?.jsonPrimitive?.content ?: "OTHER"
+        val productId = jsonObject["product_identifier"]?.jsonPrimitive?.content ?: "unknown"
 
-        return CrossplatformProduct.StoreProduct.Other(storeType, jsonObject)
+        return CrossplatformProduct.StoreProduct.Other(storeType, productId)
     }
 }
 
@@ -330,7 +370,7 @@ object CrossplatformProductSerializer : KSerializer<CrossplatformProduct> {
                 ?: throw SerializationException("This class can be saved only by Json")
         val jsonObject =
             buildJsonObject {
-                put("composite_id", JsonPrimitive(value.compositeId))
+                put("sw_composite_product_id", JsonPrimitive(value.compositeId))
                 put("product_id", JsonPrimitive(value.fullProductId))
                 put("store_product", encoder.json.encodeToJsonElement(value.storeProduct))
                 put("entitlements", encoder.json.encodeToJsonElement(value.entitlements))
@@ -345,8 +385,7 @@ object CrossplatformProductSerializer : KSerializer<CrossplatformProduct> {
         val jsonObject = jsonInput.decodeJsonElement().jsonObject
 
         val compositeId =
-            jsonObject["composite_id"]?.jsonPrimitive?.content
-                ?: jsonObject["sw_composite_product_id"]?.jsonPrimitive?.content ?: ""
+            jsonObject["sw_composite_product_id"]?.jsonPrimitive?.content ?: ""
         val storeProductJsonObject =
             jsonObject["store_product"]?.jsonObject
                 ?: throw SerializationException("Missing store_product")
@@ -365,7 +404,12 @@ object CrossplatformProductSerializer : KSerializer<CrossplatformProduct> {
                     "APP_STORE" -> decoder.json.decodeFromJsonElement<CrossplatformProduct.StoreProduct.AppStore>(storeProductJsonObject)
                     "STRIPE" -> decoder.json.decodeFromJsonElement<CrossplatformProduct.StoreProduct.Stripe>(storeProductJsonObject)
                     "PADDLE" -> decoder.json.decodeFromJsonElement<CrossplatformProduct.StoreProduct.Paddle>(storeProductJsonObject)
-                    else -> CrossplatformProduct.StoreProduct.Other(storeType ?: "OTHER", jsonObject)
+                    "OTHER" -> decoder.json.decodeFromJsonElement<CrossplatformProduct.StoreProduct.Other>(storeProductJsonObject)
+                    else ->
+                        CrossplatformProduct.StoreProduct.Other(
+                            storeType ?: "OTHER",
+                            storeProductJsonObject["product_identifier"]?.jsonPrimitive?.content ?: "unknown",
+                        )
                 }
             } catch (e: SerializationException) {
                 Logger.debug(
@@ -375,8 +419,9 @@ object CrossplatformProductSerializer : KSerializer<CrossplatformProduct> {
                     jsonObject,
                     e,
                 )
+                val id = storeProductJsonObject["store"]?.jsonPrimitive?.content
                 // Fallback to Other if deserialization fails
-                CrossplatformProduct.StoreProduct.Other("OTHER", jsonObject)
+                CrossplatformProduct.StoreProduct.Other("OTHER", id ?: "unknown")
             }
 
         return CrossplatformProduct(

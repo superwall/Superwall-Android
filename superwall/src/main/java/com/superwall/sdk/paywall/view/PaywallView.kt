@@ -836,12 +836,15 @@ class PaywallView(
                 logLevel = LogLevel.debug,
                 scope = LogScope.paywallView,
                 message = "Invalid URL provided for \"Open In-App URL\" click behavior.",
+                error = e,
             )
         } catch (e: Throwable) {
+            e.printStackTrace()
             Logger.debug(
                 logLevel = LogLevel.debug,
                 scope = LogScope.paywallView,
                 message = "Exception thrown for \"Open In-App URL\" click behavior.",
+                error = e,
             )
         }
     }
@@ -1014,7 +1017,7 @@ class PaywallView(
                                         },
                                 ).setUrlBarHidingEnabled(true)
                                 .setInitialActivityHeightPx(
-                                    (height.toInt() * 0.7).toInt(),
+                                    (height.toInt() * 0.3).toInt(),
                                     CustomTabsIntent.ACTIVITY_HEIGHT_ADJUSTABLE,
                                 ).build()
                                 .intent

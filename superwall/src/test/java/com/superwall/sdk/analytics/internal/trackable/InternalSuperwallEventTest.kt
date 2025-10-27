@@ -704,11 +704,11 @@ class InternalSuperwallEventTest {
             Given("an enrichment load completion") {
                 val enrichment =
                     Enrichment(
-                        user =
+                        _user =
                             buildJsonObject {
                                 put("firstName", JsonPrimitive("Ada"))
                             },
-                        device =
+                        _device =
                             buildJsonObject {
                                 put("tier", JsonPrimitive("gold"))
                             },

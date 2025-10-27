@@ -23,8 +23,16 @@ data class Enrichment(
     }
 
     val user: Map<String, Any>
-        get() = _user.filterValues { it is JsonNull }.mapNotNull { it.key to it.value.convertFromJsonElement()!! }.toMap()
+        get() =
+            _user
+                .filterValues { it !is JsonNull }
+                .mapNotNull { (key, value) -> value.convertFromJsonElement()?.let { key to it } }
+                .toMap()
 
     val device: Map<String, Any>
-        get() = _device.filterValues { it is JsonNull }.mapNotNull { it.key to it.value.convertFromJsonElement()!! }.toMap()
+        get() =
+            _device
+                .filterValues { it !is JsonNull }
+                .mapNotNull { (key, value) -> value.convertFromJsonElement()?.let { key to it } }
+                .toMap()
 }

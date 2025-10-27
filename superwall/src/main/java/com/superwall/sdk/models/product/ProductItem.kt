@@ -40,6 +40,10 @@ enum class Store {
 
     @SerialName("PADDLE")
     PADDLE,
+
+    @SerialName("OTHER")
+    OTHER,
+
     ;
 
     companion object {
@@ -49,7 +53,7 @@ enum class Store {
                 "APP_STORE" -> APP_STORE
                 "STRIPE" -> STRIPE
                 "PADDLE" -> PADDLE
-                else -> throw SerializationException("Store must be PLAY_STORE, APP_STORE, STRIPE, or PADDLE, found: $value")
+                else -> OTHER
             }
     }
 }
@@ -126,6 +130,14 @@ data class PaddleProduct(
     val fullIdentifier: String
         get() = productIdentifier
 }
+
+@Serializable
+data class UnknownStoreProduct(
+    @SerialName("product_identifier")
+    val productIdentifier: String,
+    @SerialName("store")
+    val store: Store = Store.OTHER,
+)
 
 object PlayStoreProductSerializer : KSerializer<PlayStoreProduct> {
     override val descriptor: SerialDescriptor = buildClassSerialDescriptor("PlayStoreProduct")
@@ -226,12 +238,24 @@ object StoreProductSerializer : KSerializer<ProductItem.StoreProductType> {
             when (value) {
                 is ProductItem.StoreProductType.PlayStore ->
                     jsonEncoder.json.encodeToJsonElement(PlayStoreProductSerializer, value.product)
+
                 is ProductItem.StoreProductType.AppStore ->
-                    jsonEncoder.json.encodeToJsonElement(AppStoreProduct.serializer(), value.product)
+                    jsonEncoder.json.encodeToJsonElement(
+                        AppStoreProduct.serializer(),
+                        value.product,
+                    )
+
                 is ProductItem.StoreProductType.Stripe ->
                     jsonEncoder.json.encodeToJsonElement(StripeProduct.serializer(), value.product)
+
                 is ProductItem.StoreProductType.Paddle ->
                     jsonEncoder.json.encodeToJsonElement(PaddleProduct.serializer(), value.product)
+
+                is ProductItem.StoreProductType.Other ->
+                    jsonEncoder.json.encodeToJsonElement(
+                        UnknownStoreProduct.serializer(),
+                        value.product,
+                    )
             }
         jsonEncoder.encodeJsonElement(jsonElement)
     }
@@ -261,17 +285,26 @@ object StoreProductSerializer : KSerializer<ProductItem.StoreProductType> {
                 val product = json.decodeFromJsonElement(PlayStoreProductSerializer, jsonObject)
                 ProductItem.StoreProductType.PlayStore(product)
             }
+
             Store.APP_STORE -> {
                 val product = json.decodeFromJsonElement(AppStoreProduct.serializer(), jsonObject)
                 ProductItem.StoreProductType.AppStore(product)
             }
+
             Store.STRIPE -> {
                 val product = json.decodeFromJsonElement(StripeProduct.serializer(), jsonObject)
                 ProductItem.StoreProductType.Stripe(product)
             }
+
             Store.PADDLE -> {
                 val product = json.decodeFromJsonElement(PaddleProduct.serializer(), jsonObject)
                 ProductItem.StoreProductType.Paddle(product)
+            }
+
+            Store.OTHER -> {
+                val product =
+                    json.decodeFromJsonElement(UnknownStoreProduct.serializer(), jsonObject)
+                ProductItem.StoreProductType.Other(product)
             }
         }
     }
@@ -312,6 +345,11 @@ data class ProductItem(
         data class Paddle(
             val product: PaddleProduct,
         ) : StoreProductType()
+
+        @Serializable
+        data class Other(
+            val product: UnknownStoreProduct,
+        ) : StoreProductType()
     }
 
     val fullProductId: String
@@ -321,7 +359,18 @@ data class ProductItem(
                 is StoreProductType.AppStore -> type.product.fullIdentifier
                 is StoreProductType.Stripe -> type.product.fullIdentifier
                 is StoreProductType.Paddle -> type.product.fullIdentifier
+                is StoreProductType.Other -> type.product.productIdentifier
             }
+
+    companion object {
+        fun fromCrossplatformProduct(product: CrossplatformProduct) =
+            ProductItem(
+                name = product.name,
+                entitlements = product.entitlements.toSet(),
+                type = product.storeProduct.toStoreProductType(),
+                compositeId = product.compositeId,
+            )
+    }
 }
 
 @Serializer(forClass = ProductItem::class)
@@ -376,6 +425,7 @@ object ProductItemSerializer : KSerializer<ProductItem> {
                     is ProductItem.StoreProductType.AppStore -> storeProductType.product.fullIdentifier
                     is ProductItem.StoreProductType.Stripe -> storeProductType.product.fullIdentifier
                     is ProductItem.StoreProductType.Paddle -> storeProductType.product.fullIdentifier
+                    is ProductItem.StoreProductType.Other -> storeProductType.product.productIdentifier
                 }
 
         return ProductItem(

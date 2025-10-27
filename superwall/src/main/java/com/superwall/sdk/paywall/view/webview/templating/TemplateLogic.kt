@@ -1,4 +1,3 @@
-import android.util.Log
 import com.superwall.sdk.dependencies.VariablesFactory
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
@@ -79,10 +78,6 @@ object TemplateLogic {
 //            json.encodeToString(swProductTemplate)
             )
         val templatesString = "[" + encodedTemplates.joinToString(",") + "]"
-        Log.e(
-            "ProductTemplate",
-            json.encodeToString(ProductTemplate.serializer(), productsTemplate),
-        )
         Logger.debug(
             LogLevel.debug,
             LogScope.superwallCore,

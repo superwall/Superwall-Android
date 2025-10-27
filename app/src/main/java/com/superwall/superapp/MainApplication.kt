@@ -74,10 +74,10 @@ class MainApplication :
     fun configureWithAutomaticInitialization() {
         Superwall.configure(
             this,
-            Keys.CONSTANT_API_KEY,
+            Keys.WEB_2_APP_API_KEY,
             options =
                 SuperwallOptions().apply {
-                    logging.level = LogLevel.info
+                    logging.level = LogLevel.debug
                     paywalls =
                         PaywallOptions().apply {
                             shouldPreload = false

@@ -22,6 +22,7 @@ import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent
 import com.superwall.sdk.paywall.view.webview.templating.models.JsonVariables
 import com.superwall.sdk.paywall.view.webview.templating.models.Variables
 import com.superwall.sdk.storage.LocalStorage
+import com.superwall.sdk.web.WebPaywallRedeemer
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -124,7 +125,10 @@ class PaywallMessageHandlerTest {
                         latch.await(500, TimeUnit.MILLISECONDS)
 
                         Then("InitiatePurchase event is delivered with product id") {
-                            val purchaseEvent = capturedEvents.filterIsInstance<PaywallWebEvent.InitiatePurchase>().firstOrNull()
+                            val purchaseEvent =
+                                capturedEvents
+                                    .filterIsInstance<PaywallWebEvent.InitiatePurchase>()
+                                    .firstOrNull()
                             assertTrue("Expected InitiatePurchase event", purchaseEvent != null)
                             assertEquals(productId, purchaseEvent?.productId)
                         }
@@ -157,11 +161,14 @@ class PaywallMessageHandlerTest {
 
                     When("openUrl message is handled") {
                         val testUrl = java.net.URI("https://example.com")
-                        harness.handler.handle(PaywallMessage.OpenUrl(testUrl))
+                        harness.handler.handle(PaywallMessage.OpenUrl(testUrl, null))
                         latch.await(500, TimeUnit.MILLISECONDS)
 
                         Then("OpenedURL event is delivered") {
-                            val urlEvent = capturedEvents.filterIsInstance<PaywallWebEvent.OpenedURL>().firstOrNull()
+                            val urlEvent =
+                                capturedEvents
+                                    .filterIsInstance<PaywallWebEvent.OpenedURL>()
+                                    .firstOrNull()
                             assertTrue("Expected OpenedURL event", urlEvent != null)
                             assertEquals(testUrl, urlEvent?.url)
                         }
@@ -198,7 +205,10 @@ class PaywallMessageHandlerTest {
                         latch.await(500, TimeUnit.MILLISECONDS)
 
                         Then("Custom event is delivered with data") {
-                            val customEvent = capturedEvents.filterIsInstance<PaywallWebEvent.Custom>().firstOrNull()
+                            val customEvent =
+                                capturedEvents
+                                    .filterIsInstance<PaywallWebEvent.Custom>()
+                                    .firstOrNull()
                             assertTrue("Expected Custom event", customEvent != null)
                             assertEquals(customData, customEvent?.string)
                         }
@@ -298,7 +308,7 @@ class PaywallMessageHandlerTest {
 
         val localFactory = mockk<PaywallView.Factory>(relaxed = true)
         every { localFactory.makeSuperwallOptions() } returns options
-
+        val redeemer = mockk<WebPaywallRedeemer>(relaxed = true)
         viewRef =
             PaywallView(
                 context = context,
@@ -311,6 +321,7 @@ class PaywallMessageHandlerTest {
                 cache = null,
                 controller = controller,
                 sendMessages = messageHandler,
+                redeemer = redeemer,
             )
         messageHandler.messageHandler = viewRef
 

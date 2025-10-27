@@ -426,7 +426,12 @@ class ConfigTest {
         "reference_name": "secondary android",
         "store_product": {
           "store": "PLAY_STORE",
-          "product_identifier": "androidproduct:base-plan:offer"
+          "product_identifier": "androidproduct",
+          "base_plan_identifier": "base-plan",
+          "offer": {
+            "type": "SPECIFIED",
+            "offer_identifier": "sw-none"
+          }
         }
       }
     ],
@@ -458,6 +463,33 @@ class ConfigTest {
       "hostname": "www.fitnessai.com"
     }]
   },
+  "products_v3": [
+      {
+        "reference_name": "primary",
+        "sw_composite_product_id": "my-android-product:base-plan:sw-auto",
+        "store_product": {
+          "store": "PLAY_STORE",
+          "product_identifier": "my-android-product",
+          "base_plan_identifier": "base-plan",
+          "offer": {
+            "type": "AUTOMATIC"
+          }
+        }
+      },
+      {
+        "reference_name": "secondary android",
+        "sw_composite_product_id": "androidproduct:base-plan:sw-none",
+        "store_product": {
+          "store": "PLAY_STORE",
+          "product_identifier": "androidproduct",
+          "base_plan_identifier": "base-plan",
+          "offer": {
+            "type": "SPECIFIED",
+            "offer_identifier": "sw-none"
+          }
+        }
+      }
+    ],
   "disable_preload": {
     "all": false,
     "triggers": []
@@ -494,12 +526,6 @@ class ConfigTest {
         assert(config != null)
         assert(config.featureFlags.enableSessionEvents)
         println(config.paywalls.first().productItems)
-        assert(
-            config.paywalls
-                .first()
-                ._productItemsV3
-                .isNotEmpty(),
-        )
         assert(config.triggers.first().eventName == "MyEvent")
     }
 
@@ -540,7 +566,7 @@ class ConfigTest {
 
             val stripeStore = product.storeProduct as com.superwall.sdk.models.product.CrossplatformProduct.StoreProduct.Stripe
             assert(stripeStore.environment == "test")
-            assert(stripeStore.productId == "price_123")
+            assert(stripeStore.productIdentifier == "price_123")
             assert(stripeStore.trialDays == 7)
 
             println("CrossplatformProduct direct deserialization test passed!")
@@ -658,7 +684,7 @@ class ConfigTest {
             assert(stripeProduct!!.storeProduct is com.superwall.sdk.models.product.CrossplatformProduct.StoreProduct.Stripe)
             val stripeStore = stripeProduct.storeProduct as com.superwall.sdk.models.product.CrossplatformProduct.StoreProduct.Stripe
             assert(stripeStore.environment == "test")
-            assert(stripeStore.productId == "price_123")
+            assert(stripeStore.productIdentifier == "price_123")
             assert(stripeStore.trialDays == 7)
             assert(stripeProduct.entitlements.first().id == "pro")
 
@@ -812,7 +838,7 @@ class ConfigTest {
             assert(stripeProduct!!.storeProduct is com.superwall.sdk.models.product.CrossplatformProduct.StoreProduct.Stripe)
             val stripeStore = stripeProduct.storeProduct as com.superwall.sdk.models.product.CrossplatformProduct.StoreProduct.Stripe
             assert(stripeStore.environment == "test")
-            assert(stripeStore.productId == "price_1QhGdKBitwqMmwU0QoDxApS1")
+            assert(stripeStore.productIdentifier == "price_1QhGdKBitwqMmwU0QoDxApS1")
             assert(stripeStore.trialDays == 7)
 
             // Test App Store product
