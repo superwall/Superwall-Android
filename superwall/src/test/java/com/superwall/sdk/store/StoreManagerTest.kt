@@ -9,10 +9,8 @@ import com.superwall.sdk.billing.Billing
 import com.superwall.sdk.billing.BillingError
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.paywall.Paywall
+import com.superwall.sdk.models.product.CrossplatformProduct
 import com.superwall.sdk.models.product.Offer
-import com.superwall.sdk.models.product.PlayStoreProduct
-import com.superwall.sdk.models.product.ProductItem
-import com.superwall.sdk.models.product.Store
 import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import io.mockk.coEvery
@@ -50,32 +48,29 @@ class StoreManagerTest {
                 val paywall =
                     Paywall.stub().copy(
                         productIds = listOf("product1", "product2"),
-                        _productItems =
+                        _productItemsV3 =
                             listOf(
-                                ProductItem(
-                                    "Item1",
-                                    ProductItem.StoreProductType.PlayStore(
-                                        PlayStoreProduct(
-                                            store = Store.PLAY_STORE,
+                                CrossplatformProduct(
+                                    compositeId = "product1:basePlan1:sw-auto",
+                                    storeProduct =
+                                        CrossplatformProduct.StoreProduct.PlayStore(
                                             productIdentifier = "product1",
                                             basePlanIdentifier = "basePlan1",
                                             offer = Offer.Automatic(),
                                         ),
-                                    ),
-                                    entitlements = entitlementsBasic.toSet(),
+                                    entitlements = entitlementsBasic.toList(),
+                                    name = "Item1",
                                 ),
-                                ProductItem(
-                                    "Item2",
-                                    type =
-                                        ProductItem.StoreProductType.PlayStore(
-                                            PlayStoreProduct(
-                                                store = Store.PLAY_STORE,
-                                                productIdentifier = "product2",
-                                                basePlanIdentifier = "basePlan1",
-                                                offer = Offer.Automatic(),
-                                            ),
+                                CrossplatformProduct(
+                                    compositeId = "product2:basePlan1:sw-auto",
+                                    storeProduct =
+                                        CrossplatformProduct.StoreProduct.PlayStore(
+                                            productIdentifier = "product2",
+                                            basePlanIdentifier = "basePlan1",
+                                            offer = Offer.Automatic(),
                                         ),
-                                    entitlements = entitlementsBasic.toSet(),
+                                    entitlements = entitlementsBasic.toList(),
+                                    name = "Item2",
                                 ),
                             ),
                     )
@@ -115,32 +110,29 @@ class StoreManagerTest {
                 val paywall =
                     Paywall.stub().copy(
                         productIds = listOf("product1", "product2"),
-                        _productItems =
+                        _productItemsV3 =
                             listOf(
-                                ProductItem(
-                                    "Item1",
-                                    ProductItem.StoreProductType.PlayStore(
-                                        PlayStoreProduct(
-                                            store = Store.PLAY_STORE,
+                                CrossplatformProduct(
+                                    compositeId = "product1:basePlan1:sw-auto",
+                                    storeProduct =
+                                        CrossplatformProduct.StoreProduct.PlayStore(
                                             productIdentifier = "product1",
                                             basePlanIdentifier = "basePlan1",
                                             offer = Offer.Automatic(),
                                         ),
-                                    ),
-                                    entitlements = entitlementsBasic.toSet(),
+                                    entitlements = entitlementsBasic.toList(),
+                                    name = "Item1",
                                 ),
-                                ProductItem(
-                                    "Item2",
-                                    type =
-                                        ProductItem.StoreProductType.PlayStore(
-                                            PlayStoreProduct(
-                                                store = Store.PLAY_STORE,
-                                                productIdentifier = "product2",
-                                                basePlanIdentifier = "basePlan1",
-                                                offer = Offer.Automatic(),
-                                            ),
+                                CrossplatformProduct(
+                                    compositeId = "product2:basePlan1:sw-auto",
+                                    storeProduct =
+                                        CrossplatformProduct.StoreProduct.PlayStore(
+                                            productIdentifier = "product2",
+                                            basePlanIdentifier = "basePlan1",
+                                            offer = Offer.Automatic(),
                                         ),
-                                    entitlements = entitlementsBasic.toSet(),
+                                    entitlements = entitlementsBasic.toList(),
+                                    name = "Item2",
                                 ),
                             ),
                     )
@@ -186,32 +178,29 @@ class StoreManagerTest {
                 val paywall =
                     Paywall.stub().copy(
                         productIds = listOf("product1"),
-                        _productItems =
+                        _productItemsV3 =
                             listOf(
-                                ProductItem(
-                                    "Item1",
-                                    ProductItem.StoreProductType.PlayStore(
-                                        PlayStoreProduct(
-                                            store = Store.PLAY_STORE,
+                                CrossplatformProduct(
+                                    compositeId = "product1:basePlan1:sw-auto",
+                                    storeProduct =
+                                        CrossplatformProduct.StoreProduct.PlayStore(
                                             productIdentifier = "product1",
                                             basePlanIdentifier = "basePlan1",
                                             offer = Offer.Automatic(),
                                         ),
-                                    ),
-                                    entitlements = entitlementsBasic.toSet(),
+                                    entitlements = entitlementsBasic.toList(),
+                                    name = "Item1",
                                 ),
-                                ProductItem(
-                                    "Item2",
-                                    type =
-                                        ProductItem.StoreProductType.PlayStore(
-                                            PlayStoreProduct(
-                                                store = Store.PLAY_STORE,
-                                                productIdentifier = "product2",
-                                                basePlanIdentifier = "basePlan1",
-                                                offer = Offer.Automatic(),
-                                            ),
+                                CrossplatformProduct(
+                                    compositeId = "product2:basePlan1:sw-auto",
+                                    storeProduct =
+                                        CrossplatformProduct.StoreProduct.PlayStore(
+                                            productIdentifier = "product2",
+                                            basePlanIdentifier = "basePlan1",
+                                            offer = Offer.Automatic(),
                                         ),
-                                    entitlements = entitlementsBasic.toSet(),
+                                    entitlements = entitlementsBasic.toList(),
+                                    name = "Item2",
                                 ),
                             ),
                     )

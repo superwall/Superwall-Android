@@ -26,6 +26,7 @@ enum class LogScope {
     paywallView,
     nativePurchaseController,
     cache,
+    deepLinks,
     all,
     ;
 

@@ -197,9 +197,9 @@ sealed class StoreIdentifiers {
     data class Paddle(
         @SerialName("paddleCustomerId")
         val paddleCustomerId: String,
-        @SerialName("paddleSubscriptionId")
+        @SerialName("paddleSubscriptionIds")
         val paddleSubscriptionIds: List<String>,
-    )
+    ) : StoreIdentifiers()
 
     @Serializable
     @SerialName("UNKNOWN")

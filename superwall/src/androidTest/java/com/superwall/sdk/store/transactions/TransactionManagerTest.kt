@@ -82,6 +82,7 @@ class TransactionManagerTest {
         listOf(
             ProductItem(
                 "Item1",
+                name = "name",
                 ProductItem.StoreProductType.PlayStore(
                     PlayStoreProduct(
                         productIdentifier = "product1",

@@ -96,7 +96,6 @@ class TransactionManagerTest {
             }
 
         every { storeManager.billing } returns billing
-        every { storeManager.productsByFullId } returns productsByFullId
 
         every { factory.makeSuperwallOptions() } returns
             mockk(relaxed = true) {

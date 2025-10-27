@@ -191,7 +191,7 @@ class TransactionManager(
                 val state = state as PurchasingObserverState.PurchaseResult
                 state.purchases?.forEach { purchase ->
                     purchase.products.map {
-                        storeManager.productsByFullId[it]?.let { product ->
+                        storeManager.getProductFromCache(it)?.let { product ->
                             didPurchase(
                                 product,
                                 PurchaseSource.ObserverMode(product),
@@ -228,7 +228,7 @@ class TransactionManager(
                 transactionsInProgress.remove(lastProduct.key)
                 result.purchases?.forEach { purchase ->
                     purchase.products.map {
-                        storeManager.productsByFullId[it]?.let { product ->
+                        storeManager.getProductFromCache(it)?.let { product ->
                             handlePendingTransaction(PurchaseSource.ObserverMode(product))
                         }
                     }
@@ -240,7 +240,7 @@ class TransactionManager(
                 transactionsInProgress.remove(lastProduct.key)
                 state.purchases?.forEach { purchase ->
                     purchase.products.map {
-                        storeManager.productsByFullId[it]?.let { product ->
+                        storeManager.getProductFromCache(it)?.let { product ->
                             didRestore(product, PurchaseSource.ObserverMode(product))
                         }
                     }
@@ -262,7 +262,7 @@ class TransactionManager(
         val product =
             when (purchaseSource) {
                 is PurchaseSource.Internal ->
-                    storeManager.productsByFullId[purchaseSource.productId] ?: run {
+                    storeManager.getProductFromCache(purchaseSource.productId) ?: run {
                         log(
                             LogLevel.error,
                             "Trying to purchase (${purchaseSource.productId}) but the product has failed to load. Visit https://superwall.com/l/missing-products to diagnose.",
@@ -513,8 +513,8 @@ class TransactionManager(
                         product.rawStoreProduct.underlyingProductDetails,
                     )
                 }
-                if (!storeManager.productsByFullId.contains(product.fullIdentifier)) {
-                    storeManager.productsByFullId[product.fullIdentifier] = product
+                if (!storeManager.hasCached(product.fullIdentifier)) {
+                    storeManager.cacheProduct(product.fullIdentifier, product)
                 }
 
                 if (factory.makeHasExternalPurchaseController() && !factory.makeHasInternalPurchaseController()) {

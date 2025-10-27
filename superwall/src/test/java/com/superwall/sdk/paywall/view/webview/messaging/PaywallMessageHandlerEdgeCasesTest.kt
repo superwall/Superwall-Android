@@ -70,6 +70,9 @@ class PaywallMessageHandlerEdgeCasesTest {
             evaluations.add(code)
             resultCallback?.invoke(null)
         }
+
+        override fun presentPaymentSheet(url: String) {
+        }
     }
 
     private class FakeVariablesFactory : VariablesFactory {

@@ -32,7 +32,14 @@ sealed class PaywallMessage {
 
     data class OpenUrl(
         val url: URI,
-    ) : PaywallMessage()
+        var browserType: BrowserType?,
+    ) : PaywallMessage() {
+        enum class BrowserType(
+            val rawName: String,
+        ) {
+            PAYMENT_SHEET("payment_sheet"),
+        }
+    }
 
     data class OpenUrlInBrowser(
         val url: URI,
@@ -59,6 +66,10 @@ sealed class PaywallMessage {
     object PaywallOpen : PaywallMessage()
 
     object PaywallClose : PaywallMessage()
+
+    object TransactionStart : PaywallMessage()
+
+    object TransactionComplete : PaywallMessage()
 
     data class RequestReview(
         val type: Type,
@@ -102,7 +113,23 @@ private fun parsePaywallMessage(json: JSONObject): PaywallMessage {
         "ping" -> PaywallMessage.OnReady(json.getString("version"))
         "close" -> PaywallMessage.Close
         "restore" -> PaywallMessage.Restore
-        "open_url" -> PaywallMessage.OpenUrl(URI(json.getString("url")))
+        "open_url" ->
+            PaywallMessage.OpenUrl(
+                URI(json.getString("url")),
+                json.isNull("browser_type").let {
+                    if (it) {
+                        null
+                    } else {
+                        json.getString("browser_type")?.let {
+                            when (it) {
+                                PaywallMessage.OpenUrl.BrowserType.PAYMENT_SHEET.rawName -> PaywallMessage.OpenUrl.BrowserType.PAYMENT_SHEET
+                                else -> null
+                            }
+                        }
+                    }
+                },
+            )
+
         "open_url_external" -> PaywallMessage.OpenUrlInBrowser(URI(json.getString("url")))
         "open_deep_link" -> PaywallMessage.OpenDeepLink(URI(json.getString("link")))
         "purchase" ->

@@ -814,7 +814,7 @@ class ConfigManagerTests {
                     )
                 val newConfig = Config.stub().copy(buildId = "not")
                 val cachedGeo = Enrichment.stub().copy()
-                val newGeo = Enrichment.stub().copy(device = JsonObject(mapOf("demandTier" to "gold".convertToJsonElement())))
+                val newGeo = Enrichment.stub().copy(_device = JsonObject(mapOf("demandTier" to "gold".convertToJsonElement())))
 
                 coEvery { preload.preloadAllPaywalls(any(), any()) } just Runs
                 coEvery { storage.read(LatestRedemptionResponse) } returns null

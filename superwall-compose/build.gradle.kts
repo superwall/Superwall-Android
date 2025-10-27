@@ -12,11 +12,11 @@ plugins {
     id("jacoco")
 }
 
-version = "2.5.8"
+version = "2.6.0"
 
 android {
     namespace = "com.superwall.sdk.composable"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         minSdk = 22

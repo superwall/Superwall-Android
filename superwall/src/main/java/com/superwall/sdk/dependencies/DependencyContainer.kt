@@ -419,6 +419,11 @@ class DependencyContainer(
                 getExternalAccountId = {
                     identityManager.externalAccountId
                 },
+                closePaywallIfExists = {
+                    ioScope.launch {
+                        Superwall.instance.dismiss()
+                    }
+                },
             )
 
         eventsQueue =
@@ -654,6 +659,7 @@ class DependencyContainer(
                             eventCallback = Superwall.instance,
                             controller = controller,
                             sendMessages = messageHandler,
+                            redeemer = reedemer,
                         )
                     webView.delegate = paywallView
                     messageHandler.messageHandler = paywallView
