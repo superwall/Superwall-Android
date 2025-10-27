@@ -21,9 +21,10 @@ plugins {
     alias(libs.plugins.serialization) // Maven publishing
     id("signing")
     alias(libs.plugins.publisher)
+    id("jacoco")
 }
 
-version = "2.5.7"
+version = "2.5.8"
 
 android {
     compileSdk = 35
@@ -85,8 +86,18 @@ android {
     }
 
     packaging {
-        resources.excludes += "META-INF/LICENSE.md"
-        resources.excludes += "META-INF/LICENSE-notice.md"
+        resources {
+            excludes +=
+                listOf(
+                    "META-INF/LICENSE.md",
+                    "META-INF/LICENSE-notice.md",
+                )
+        }
+    }
+
+    tasks.withType<AbstractArchiveTask> {
+        exclude("META-INF/LICENSE.md")
+        exclude("META-INF/LICENSE-notice.md")
     }
 }
 
@@ -170,6 +181,8 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.mockk.core)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.test.core)
 
     // Test (Android)
     androidTestImplementation(libs.test.ext.junit)
@@ -178,3 +191,6 @@ dependencies {
     androidTestImplementation(libs.mockk.android)
     androidTestImplementation(libs.lifecycle.testing)
 }
+
+// Apply JaCoCo configuration
+apply(from = "${rootProject.rootDir}/gradle/jacoco-combined.gradle")

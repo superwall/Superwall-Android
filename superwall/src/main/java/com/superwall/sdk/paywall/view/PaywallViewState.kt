@@ -39,6 +39,7 @@ data class PaywallViewState(
     val didDisableSwipeForSurvey: Boolean = false,
     // / If the user match a rule with an occurrence, this needs to be saved on paywall presentation.
     val unsavedOccurrence: TriggerRuleOccurrence? = null,
+    val useMultipleUrls: Boolean = false,
 ) {
     val info: PaywallInfo
         get() = paywall.getInfo(request?.presentationInfo?.eventData)
@@ -63,6 +64,7 @@ data class PaywallViewState(
             |  hasUnsavedOccurrence: ${unsavedOccurrence != null}
             |  hasViewCreatedCompletion: ${viewCreatedCompletion != null}
             |  hasDismissCompletionBlock: ${dismissCompletionBlock != null}
+            |  useMultipleUrls: $useMultipleUrls
             |)
         """.trimMargin()
 

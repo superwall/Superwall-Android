@@ -91,6 +91,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.net.URI
 import java.util.Date
 
 class Superwall(
@@ -730,7 +731,7 @@ class Superwall(
     fun handleDeepLink(uri: Uri): Result<Boolean> =
         withErrorTracking<Boolean> {
             ioScope.launch {
-                track(InternalSuperwallEvent.DeepLink(uri = uri))
+                track(InternalSuperwallEvent.DeepLink(uri = URI.create(uri.toString())))
             }
             val handledAsRedemption =
                 dependencyContainer.reedemer.deepLinkReferrer

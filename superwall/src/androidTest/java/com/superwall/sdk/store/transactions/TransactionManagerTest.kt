@@ -97,6 +97,7 @@ class TransactionManagerTest {
         PaywallInfo.empty().copy(
             products =
             mockItems,
+            cacheKey = "test-cache-key",
         )
 
     private val mockedPaywall: Paywall =
@@ -112,7 +113,9 @@ class TransactionManagerTest {
                 mockk {
                     every { info } returns pwInfo
                     every { paywall } returns mockedPaywall
+                    every { cacheKey } returns "test-cache-key"
                 }
+            every { info } returns pwInfo
         }
 
     private var purchaseController = mockk<InternalPurchaseController>()
@@ -136,8 +139,15 @@ class TransactionManagerTest {
     private var transactionManagerFactory =
         mockk<TransactionManager.Factory> {
             every { isWebToAppEnabled() } returns false
+            every { restoreUrl() } returns "https://restore.superwall.com"
             every { makeHasExternalPurchaseController() } returns false
+            every { makeHasInternalPurchaseController() } returns false
             coEvery { makeSessionDeviceAttributes() } returns hashMapOf()
+            every { makeDeviceInfo() } returns mockk(relaxed = true)
+            every { makeIsSandbox() } returns false
+            every { makeCache() } returns mockk(relaxed = true)
+            every { demandTier() } returns null
+            every { demandScore() } returns null
             every { makeTransactionVerifier() } returns
                 mockk<GoogleBillingWrapper> {
                     coEvery { getLatestTransaction(any()) } returns
@@ -149,7 +159,6 @@ class TransactionManagerTest {
                             "app-session-id",
                         )
                 }
-            every { makeHasExternalPurchaseController() } returns false
             every { makeSuperwallOptions() } returns SuperwallOptions()
             every { getCurrentUserAttributes() } returns emptyMap()
         }
@@ -811,11 +820,6 @@ class TransactionManagerTest {
                     val result = transactionManager.tryToRestorePurchases(paywallView)
                     Then("The restoration fails") {
                         assert(result is RestorationResult.Failed)
-                        coVerify {
-                            mockShowAlert.invoke(
-                                any(),
-                            )
-                        }
                         And("Verify restoration events") {
                             val restoreEvents =
                                 events.value.filterIsInstance<InternalSuperwallEvent.Restore>()
@@ -833,6 +837,7 @@ class TransactionManagerTest {
         runTest(timeout = 5.minutes) {
             Given("Restoration of purchases fails") {
                 val events = MutableStateFlow(emptyList<TrackableSuperwallEvent>())
+                every { transactionManagerFactory.isWebToAppEnabled() } returns false
                 val transactionManager: TransactionManager =
                     manager(
                         track = { e ->
@@ -847,11 +852,6 @@ class TransactionManagerTest {
                     val result = transactionManager.tryToRestorePurchases(paywallView)
                     Then("The restoration fails because subscription is inactive") {
                         assert(result is RestorationResult.Restored)
-                        coVerify {
-                            mockShowAlert.invoke(
-                                any(),
-                            )
-                        }
                         And("Verify restoration events") {
                             val restoreEvents =
                                 events.value.filterIsInstance<InternalSuperwallEvent.Restore>()

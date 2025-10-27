@@ -55,7 +55,7 @@ internal suspend fun Superwall.internallyPresent(
     }
 }
 
-internal suspend fun Superwall.dismiss(
+internal suspend fun dismiss(
     paywallView: PaywallView,
     result: PaywallResult,
     closeReason: PaywallCloseReason = PaywallCloseReason.SystemLogic,
