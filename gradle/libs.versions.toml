@@ -41,7 +41,7 @@ ads_identifier = "1.0.0-alpha5"
 jacoco = "0.8.12"
 detekt = "1.23.7"
 robolectric = "4.13"
-activity_ktx_version = "1.11.0"
+activity_ktx_version = "1.10.1"
 [libraries]
 
 # SQL
