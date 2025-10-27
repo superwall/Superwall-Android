@@ -25,12 +25,14 @@ import com.superwall.sdk.models.internal.RedemptionResult
 import com.superwall.sdk.models.internal.UserId
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.paywall.presentation.PaywallInfo
+import com.superwall.sdk.paywall.presentation.dismissSync
 import com.superwall.sdk.storage.LatestRedemptionResponse
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.plus
 import kotlinx.serialization.json.JsonArray
@@ -76,6 +78,14 @@ class WebPaywallRedeemer(
     val getIntegrationProps: () -> Map<String, Any> = {
         Superwall.instance.dependencyContainer.attributionManager
             .getFullAttributionIds()
+    },
+    val closePaywallIfExists: () -> Unit = {
+        ioScope.launch {
+            Superwall.instance.dismissSync()
+        }
+    },
+    val isPaymentSheetOpen: () -> Boolean = {
+        Superwall.instance.paywallView?.isPaymentSheetPresented ?: false
     },
 ) {
     private var pollingJob: Job? = null
@@ -143,149 +153,156 @@ class WebPaywallRedeemer(
     }
 
     suspend fun redeem(redemption: RedeemType) {
-        if (!isWebToAppEnabled()) {
-            return
-        } else {
-            // We want to keep track of the codes that have been retrieved by the user
-            val latestResponse = storage.read(LatestRedemptionResponse)
-            val allCodes = latestResponse?.allCodes?.toMutableList() ?: mutableListOf()
-            var isFirstRedemption = true
-            if (redemption is RedeemType.Code) {
-                willRedeemLink()
-
-                if (allCodes.isNotEmpty()) {
-                    isFirstRedemption = !allCodes.map { it.code }.contains(redemption.code)
+        //     delay(10.seconds)
+        Logger.debug(
+            LogLevel.error,
+            LogScope.webEntitlements,
+            "Starting redemption of type ${
+                when (redemption) {
+                    is RedeemType.Existing -> "Existing"
+                    is RedeemType.Code -> "Code: ${redemption.code}"
                 }
-                allCodes.add(Redeemable(redemption.code, isFirstRedemption))
+            }",
+        )
+        // We want to keep track of the codes that have been retrieved by the user
+        val latestResponse = storage.read(LatestRedemptionResponse)
+        val allCodes = latestResponse?.allCodes?.toMutableList() ?: mutableListOf()
+        var isFirstRedemption = true
+        if (redemption is RedeemType.Code) {
+            willRedeemLink()
 
-                if (isPaywallVisible()) {
+            if (allCodes.isNotEmpty()) {
+                isFirstRedemption = !allCodes.map { it.code }.contains(redemption.code)
+            }
+            allCodes.add(Redeemable(redemption.code, isFirstRedemption))
+
+            if (isPaywallVisible() && !isPaymentSheetOpen()) {
+                track(
+                    InternalSuperwallEvent.Restore(
+                        InternalSuperwallEvent.Restore.State.Start,
+                        getPaywallInfo(),
+                    ),
+                )
+            }
+        }
+        track(Redemptions(RedemptionState.Start, redemption))
+        network
+            .redeemToken(
+                allCodes,
+                getUserId(),
+                getAliasId(),
+                getDeviceId(),
+                receipts(),
+                getExternalAccountId(),
+                getIntegrationProps().takeIf { it.isNotEmpty() }?.let { props ->
+                    props
+                        .mapValues { (_, value) -> convertToJsonElement(value) }
+                        .filterValues { it != null }
+                        .mapValues { (_, value) -> value!! }
+                },
+            ).fold(
+                onSuccess = {
+                    storage.write(LatestRedemptionResponse, it)
                     track(
-                        InternalSuperwallEvent.Restore(
-                            InternalSuperwallEvent.Restore.State.Start,
-                            getPaywallInfo(),
+                        Redemptions(
+                            RedemptionState.Complete,
+                            redemption,
                         ),
                     )
-                }
-            }
-            track(Redemptions(RedemptionState.Start, redemption))
-            network
-                .redeemToken(
-                    allCodes,
-                    getUserId(),
-                    getAliasId(),
-                    getDeviceId(),
-                    receipts(),
-                    getExternalAccountId(),
-                    getIntegrationProps().takeIf { it.isNotEmpty() }?.let { props ->
-                        props
-                            .mapValues { (_, value) -> convertToJsonElement(value) }
-                            .filterValues { it != null }
-                            .mapValues { (_, value) -> value!! }
-                    },
-                ).fold(
-                    onSuccess = {
-                        storage.write(LatestRedemptionResponse, it)
-                        track(
-                            Redemptions(
-                                RedemptionState.Complete,
-                                redemption,
-                            ),
-                        )
-                        when (redemption) {
-                            is RedeemType.Code -> {
-                                Logger.debug(
-                                    logLevel = LogLevel.debug,
-                                    scope = LogScope.webEntitlements,
-                                    message = "Entitlement redemption done",
-                                    info =
-                                        mapOf(
-                                            "code" to (
-                                                (redemption as? RedeemType.Code)?.code
-                                                    ?: ""
-                                            ),
+                    when (redemption) {
+                        is RedeemType.Code -> {
+                            Logger.debug(
+                                logLevel = LogLevel.debug,
+                                scope = LogScope.webEntitlements,
+                                message = "Entitlement redemption done",
+                                info =
+                                    mapOf(
+                                        "code" to (
+                                            (redemption as? RedeemType.Code)?.code
+                                                ?: ""
                                         ),
-                                )
+                                    ),
+                            )
 
-                                val result =
-                                    if (it.codes.any { it.code == redemption.code }) {
-                                        it.codes
-                                    } else {
-                                        listOf(
-                                            RedemptionResult.Error(
-                                                code =
-                                                    (redemption as? RedeemType.Code?)?.code
-                                                        ?: "",
-                                                error = ErrorInfo("Redemption failed, code not returned"),
-                                            ),
+                            val result =
+                                if (it.codes.any { it.code == redemption.code }) {
+                                    it.codes
+                                } else {
+                                    listOf(
+                                        RedemptionResult.Error(
+                                            code =
+                                                (redemption as? RedeemType.Code?)?.code
+                                                    ?: "",
+                                            error = ErrorInfo("Redemption failed, code not returned"),
+                                        ),
+                                    )
+                                }
+                            val redemptionResultForCode =
+                                result.firstOrNull { it.code == redemption.code }
+                            if (redemptionResultForCode != null) {
+                                if (isPaywallVisible() && !isPaymentSheetOpen()) {
+                                    if (it.entitlements.containsAll(
+                                            currentPaywallEntitlements(),
                                         )
-                                    }
-                                val redemptionResultForCode =
-                                    result.firstOrNull { it.code == redemption.code }
-                                if (redemptionResultForCode != null) {
-                                    if (isPaywallVisible()) {
-                                        if (it.entitlements.containsAll(
-                                                currentPaywallEntitlements(),
-                                            )
-                                        ) {
-                                            triggerRestoreInPaywall()
-                                        } else {
-                                            trackRestorationFailed("Failed to restore subscriptions from the web")
-                                        }
+                                    ) {
+                                        triggerRestoreInPaywall()
+                                    } else {
+                                        trackRestorationFailed("Failed to restore subscriptions from the web")
                                     }
                                 }
                             }
-
-                            RedeemType.Existing -> {
-                                // NO-OP
-                            }
                         }
 
-                        internallySetSubscriptionStatus(SubscriptionStatus.Active(it.entitlements.toSet() + getActiveDeviceEntitlements()))
-                        if (redemption is RedeemType.Code) {
-                            val res = it.codes.first { it.code == redemption.code }
-                            didRedeemLink(
-                                res,
-                            )
+                        RedeemType.Existing -> {
+                            // NO-OP
                         }
+                    }
+                    internallySetSubscriptionStatus(SubscriptionStatus.Active(it.entitlements.toSet() + getActiveDeviceEntitlements()))
+                    if (redemption is RedeemType.Code) {
+                        closePaywallIfExists()
+                        val res = it.codes.first { it.code == redemption.code }
+                        didRedeemLink(
+                            res,
+                        )
+                    }
 
-                        // Notify the delegate that the redemption succeeded, unless the code has not been redeemed
-                    },
-                    onFailure = {
-                        track(
-                            Redemptions(
-                                RedemptionState.Fail,
-                                redemption,
+                    // Notify the delegate that the redemption succeeded, unless the code has not been redeemed
+                },
+                onFailure = {
+                    track(
+                        Redemptions(
+                            RedemptionState.Fail,
+                            redemption,
+                        ),
+                    )
+                    if (redemption is RedeemType.Code) {
+                        val errorMessage =
+                            it.localizedMessage ?: it.message
+                                ?: "Redemption failed, error unknown"
+                        Logger.debug(
+                            logLevel = LogLevel.error,
+                            scope = LogScope.webEntitlements,
+                            message = "Failed to redeem purchase token",
+                            info = mapOf("code" to redemption.code),
+                            error = it,
+                        )
+                        // Notify the delegate that the redemption failed
+                        didRedeemLink(
+                            RedemptionResult.Error(
+                                code = redemption.code ?: "",
+                                error =
+                                    ErrorInfo(
+                                        errorMessage,
+                                    ),
                             ),
                         )
-                        if (redemption is RedeemType.Code) {
-                            val errorMessage =
-                                it.localizedMessage ?: it.message
-                                    ?: "Redemption failed, error unknown"
-                            Logger.debug(
-                                logLevel = LogLevel.error,
-                                scope = LogScope.webEntitlements,
-                                message = "Failed to redeem purchase token",
-                                info = mapOf("code" to redemption.code),
-                                error = it,
-                            )
-                            // Notify the delegate that the redemption failed
-                            didRedeemLink(
-                                RedemptionResult.Error(
-                                    code = redemption.code ?: "",
-                                    error =
-                                        ErrorInfo(
-                                            errorMessage,
-                                        ),
-                                ),
-                            )
-                            if (isPaywallVisible()) {
-                                trackRestorationFailed(errorMessage)
-                            }
+                        if (isPaywallVisible() && !isPaymentSheetOpen()) {
+                            trackRestorationFailed(errorMessage)
                         }
-                    },
-                )
-            startPolling()
-        }
+                    }
+                },
+            )
+        startPolling()
     }
 
     suspend fun checkForWebEntitlements(
@@ -348,7 +365,6 @@ class WebPaywallRedeemer(
             pollingJob =
                 (ioScope + Dispatchers.IO).launch {
                     while (true) {
-                        delay(maxAge)
                         checkForWebEntitlements(getUserId(), getDeviceId())
                             .fold(
                                 onFailure = {
@@ -373,6 +389,7 @@ class WebPaywallRedeemer(
                                     }
                                 },
                             )
+                        delay(maxAge)
                     }
                 }
         }

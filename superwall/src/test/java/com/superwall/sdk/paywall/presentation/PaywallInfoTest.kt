@@ -136,6 +136,7 @@ class PaywallInfoTest {
             )
         return ProductItem(
             name = name,
+            compositeId = "$productIdentifier:base:sw-auto",
             type = StoreProductType.PlayStore(product),
             entitlements = emptySet(),
         )

@@ -25,4 +25,13 @@ interface StoreKit {
     fun refreshReceipt()
 
     suspend fun loadPurchasedProducts()
+
+    fun cacheProduct(
+        fullProductIdentifier: String,
+        storeProduct: StoreProduct,
+    )
+
+    fun getProductFromCache(productId: String): StoreProduct?
+
+    fun hasCached(productId: String): Boolean
 }

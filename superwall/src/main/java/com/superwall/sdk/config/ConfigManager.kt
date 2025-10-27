@@ -152,6 +152,7 @@ open class ConfigManager(
                                     }
                             }
                         } catch (e: Throwable) {
+                            e.printStackTrace()
                             // If fetching config fails, default to the cached version
                             // Note: Only a timeout exception is possible here
                             oldConfig?.let {
@@ -325,8 +326,14 @@ open class ConfigManager(
         }
         triggersByEventName = ConfigLogic.getTriggersByEventName(config.triggers)
         assignments.choosePaywallVariants(config.triggers)
+        // Extract entitlements from both products (ProductItem) and productsV3 (CrossplatformProduct)
         ConfigLogic.extractEntitlementsByProductId(config.products).let {
             entitlements.addEntitlementsByProductId(it)
+        }
+        config.productsV3?.let { productsV3 ->
+            ConfigLogic.extractEntitlementsByProductIdFromCrossplatform(productsV3).let {
+                entitlements.addEntitlementsByProductId(it)
+            }
         }
         ioScope.launch {
             storeManager.loadPurchasedProducts()

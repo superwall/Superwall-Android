@@ -63,3 +63,12 @@ internal suspend fun dismiss(
 ) = withContext(Dispatchers.Main) {
     paywallView.dismiss(result, closeReason, completion)
 }
+
+internal suspend fun Superwall.dismissAfterPaymentSheet(
+    paywallView: PaywallView,
+    result: PaywallResult,
+    closeReason: PaywallCloseReason = PaywallCloseReason.SystemLogic,
+    completion: (() -> Unit)? = null,
+) = withContext(Dispatchers.Main) {
+    paywallView.dismiss(result, closeReason, completion)
+}

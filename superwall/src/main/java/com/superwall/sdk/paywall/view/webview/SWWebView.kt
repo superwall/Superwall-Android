@@ -1,5 +1,7 @@
 package com.superwall.sdk.paywall.view.webview
 
+import android.app.Activity
+import android.app.AlertDialog
 import android.content.Context
 import android.graphics.Color
 import android.net.Uri
@@ -14,10 +16,13 @@ import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import android.webkit.ConsoleMessage
 import android.webkit.CookieManager
+import android.webkit.JsPromptResult
+import android.webkit.JsResult
 import android.webkit.WebChromeClient
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.EditText
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
@@ -69,7 +74,10 @@ class SWWebView(
     override var delegate: PaywallUIDelegate? = null
     private val mainScope = MainScope()
     private val ioScope = IOScope()
-
+    val activity: Activity?
+        get() =
+            Superwall.instance.dependencyContainer.activityProvider
+                ?.getCurrentActivity()
     private val gestureDetector: GestureDetector by lazy {
         GestureDetector(
             context,
@@ -100,9 +108,61 @@ class SWWebView(
     var onRenderCrashed: (didCrash: Boolean, priority: Int) -> Unit = { i, e -> }
 
     private companion object ChromeClient : WebChromeClient() {
-        override fun onConsoleMessage(consoleMessage: ConsoleMessage): Boolean {
-            // Don't log anything
-            return true
+        private class ChromeClient(
+            val activity: () -> Activity?,
+        ) : WebChromeClient() {
+            override fun onConsoleMessage(consoleMessage: ConsoleMessage): Boolean {
+                // Don't log anything
+                return true
+            }
+
+            override fun onJsAlert(
+                view: WebView,
+                url: String,
+                message: String,
+                result: JsResult,
+            ): Boolean {
+                AlertDialog
+                    .Builder(activity() ?: return false)
+                    .setMessage(message)
+                    .setPositiveButton(android.R.string.ok) { _, _ -> result.confirm() }
+                    .setOnCancelListener { result.cancel() }
+                    .show()
+                return true
+            }
+
+            override fun onJsConfirm(
+                view: WebView,
+                url: String,
+                message: String,
+                result: JsResult,
+            ): Boolean {
+                AlertDialog
+                    .Builder(activity() ?: return false)
+                    .setMessage(message)
+                    .setPositiveButton(android.R.string.ok) { _, _ -> result.confirm() }
+                    .setNegativeButton(android.R.string.cancel) { _, _ -> result.cancel() }
+                    .show()
+                return true
+            }
+
+            override fun onJsPrompt(
+                view: WebView,
+                url: String,
+                message: String,
+                defaultValue: String?,
+                result: JsPromptResult,
+            ): Boolean {
+                val input = EditText(activity()).apply { setText(defaultValue ?: "") }
+                AlertDialog
+                    .Builder(activity() ?: return false)
+                    .setMessage(message)
+                    .setView(input)
+                    .setPositiveButton(android.R.string.ok) { _, _ -> result.confirm(input.text.toString()) }
+                    .setNegativeButton(android.R.string.cancel) { _, _ -> result.cancel() }
+                    .show()
+                return true
+            }
         }
     }
 
@@ -113,6 +173,7 @@ class SWWebView(
         addJavascriptInterface(messageHandler, "SWAndroid")
 
         val webSettings = this.settings
+        setWebContentsDebuggingEnabled(true)
         webSettings.javaScriptEnabled = true
         webSettings.setSupportZoom(false)
         webSettings.builtInZoomControls = false
@@ -125,7 +186,7 @@ class SWWebView(
             webSettings.mediaPlaybackRequiresUserGesture = false
         }
         this.setBackgroundColor(Color.TRANSPARENT)
-        this.webChromeClient = ChromeClient
+        this.webChromeClient = ChromeClient({ activity })
     }
 
     internal fun loadPaywallWithFallbackUrl(paywall: Paywall) {

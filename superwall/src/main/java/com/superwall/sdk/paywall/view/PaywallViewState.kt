@@ -77,7 +77,7 @@ data class PaywallViewState(
                 val base = state.paywall
                 val merged =
                     base.copy(
-                        _productItems = from.productItems,
+                        _productItemsV3 = from._productItemsV3,
                         productVariables = from.productVariables,
                         swProductVariablesTemplate = from.swProductVariablesTemplate,
                         isFreeTrialAvailable = from.isFreeTrialAvailable,

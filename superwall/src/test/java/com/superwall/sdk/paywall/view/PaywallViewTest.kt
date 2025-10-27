@@ -27,6 +27,7 @@ import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent
 import com.superwall.sdk.paywall.view.webview.templating.models.JsonVariables
 import com.superwall.sdk.paywall.view.webview.templating.models.Variables
 import com.superwall.sdk.storage.LocalStorage
+import com.superwall.sdk.web.WebPaywallRedeemer
 import io.mockk.Runs
 import io.mockk.clearMocks
 import io.mockk.coEvery
@@ -79,6 +80,8 @@ class PaywallViewTest {
     private lateinit var deviceHelper: DeviceHelper
     private lateinit var storage: LocalStorage
 
+    private lateinit var redeemer: WebPaywallRedeemer
+
     @Before
     fun setUp() {
         val paywall = Paywall.stub()
@@ -88,6 +91,7 @@ class PaywallViewTest {
         messageHandler = mockk(relaxed = true)
         fakeWebUI = FakePaywallWebUI(messageHandler)
         sendMessages = RecordingSendMessages()
+        redeemer = mockk()
 
         factory = mockk(relaxed = true)
         delegateAdapter = mockk(relaxed = true)
@@ -118,6 +122,7 @@ class PaywallViewTest {
                 cache = null,
                 controller = controller,
                 sendMessages = sendMessages,
+                redeemer = redeemer,
             )
     }
 
@@ -463,6 +468,7 @@ class PaywallViewTest {
                 cache = null,
                 controller = controller,
                 sendMessages = messageHandler,
+                redeemer = redeemer,
             )
         messageHandler.messageHandler = viewRef
 

@@ -64,6 +64,7 @@ class WebPaywallRedeemerTest {
 
     private val deepLinkReferrer: CheckForReferral = mockk()
     private val testDispatcher = StandardTestDispatcher()
+    private val testScheduler = testDispatcher.scheduler
 
     private val setEntitlementStatus: (List<Entitlement>) -> Unit = {
         mutableEntitlements += it.toSet()
@@ -123,7 +124,10 @@ class WebPaywallRedeemerTest {
                                                 PurchaserInfo(
                                                     getUserId().value,
                                                     "email",
-                                                    StoreIdentifiers.Stripe(stripeCustomerId = "123", emptyList()),
+                                                    StoreIdentifiers.Stripe(
+                                                        stripeCustomerId = "123",
+                                                        emptyList(),
+                                                    ),
                                                 ),
                                             entitlements = listOf(webEntitlement),
                                         ),
@@ -726,7 +730,10 @@ class WebPaywallRedeemerTest {
                                                 PurchaserInfo(
                                                     "test_user",
                                                     "test@example.com",
-                                                    StoreIdentifiers.Stripe(stripeCustomerId = "123", emptyList()),
+                                                    StoreIdentifiers.Stripe(
+                                                        stripeCustomerId = "123",
+                                                        emptyList(),
+                                                    ),
                                                 ),
                                             entitlements = listOf(webEntitlement),
                                         ),
@@ -805,7 +812,10 @@ class WebPaywallRedeemerTest {
                                                 PurchaserInfo(
                                                     "test_user",
                                                     "test@example.com",
-                                                    StoreIdentifiers.Stripe(stripeCustomerId = "123", emptyList()),
+                                                    StoreIdentifiers.Stripe(
+                                                        stripeCustomerId = "123",
+                                                        emptyList(),
+                                                    ),
                                                 ),
                                             entitlements = listOf(webEntitlement),
                                         ),
@@ -882,7 +892,10 @@ class WebPaywallRedeemerTest {
                                                 PurchaserInfo(
                                                     "test_user",
                                                     "test@example.com",
-                                                    StoreIdentifiers.Stripe(stripeCustomerId = "123", emptyList()),
+                                                    StoreIdentifiers.Stripe(
+                                                        stripeCustomerId = "123",
+                                                        emptyList(),
+                                                    ),
                                                 ),
                                             entitlements = listOf(webEntitlement),
                                         ),
@@ -985,7 +998,10 @@ class WebPaywallRedeemerTest {
                                                 PurchaserInfo(
                                                     "test_user",
                                                     "test@example.com",
-                                                    StoreIdentifiers.Stripe(stripeCustomerId = "123", emptyList()),
+                                                    StoreIdentifiers.Stripe(
+                                                        stripeCustomerId = "123",
+                                                        emptyList(),
+                                                    ),
                                                 ),
                                             entitlements = listOf(webEntitlement),
                                         ),
