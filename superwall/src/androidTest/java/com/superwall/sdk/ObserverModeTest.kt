@@ -163,10 +163,20 @@ class ObserverModeTest {
                 Superwall.instance.delegate = mockDelegate
 
                 When("observing purchase completion") {
+                    // Await the start event so the transaction manager finishes preparing before completion is observed.
+                    val startEventJob =
+                        async {
+                            mockDelegate.events.first { it is SuperwallEvent.TransactionStart }
+                        }
                     Superwall.instance.observe(
                         PurchasingObserverState.PurchaseWillBegin(mockProductDetails),
                     )
-                    delayFor(1.seconds)
+                    startEventJob.await()
+
+                    val completionEventJob =
+                        async {
+                            mockDelegate.events.first { it is SuperwallEvent.TransactionComplete }
+                        }
                     Superwall.instance.observe(
                         PurchasingObserverState.PurchaseResult(
                             result =
@@ -184,9 +194,7 @@ class ObserverModeTest {
                     )
 
                     Then("it should handle successful purchase and emit transaction complete event") {
-                        mockDelegate.events.first {
-                            it is SuperwallEvent.TransactionComplete
-                        }
+                        completionEventJob.await()
                     }
                 }
             }
