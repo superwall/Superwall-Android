@@ -524,6 +524,8 @@ class PaywallView(
         factory
             .delegate()
             .didPresentPaywall(info)
+        loadingStateDidChange()
+        webView.messageHandler.flushPendingMessages()
         ioScope.launch {
             trackOpen()
         }

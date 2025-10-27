@@ -329,10 +329,7 @@ class PaywallMessageHandler(
             messageHandler?.evaluate(preventZoom, null)
             ioScope.launch {
                 mainScope.launch {
-                    while (queue.isNotEmpty()) {
-                        val item = queue.remove()
-                        handle(item)
-                    }
+                    flushPendingMessagesInternal()
                     messageHandler?.updateState(
                         PaywallViewState.Updates.SetLoadingState(
                             PaywallLoadingState.Ready,
@@ -341,6 +338,22 @@ class PaywallMessageHandler(
                 }
             }
         }
+    }
+
+    fun flushPendingMessages() {
+        ioScope.launch {
+            mainScope.launch {
+                flushPendingMessagesInternal()
+            }
+        }
+    }
+
+    private fun flushPendingMessagesInternal() {
+        if (queue.isEmpty()) return
+
+        val pending = queue.toList()
+        queue.clear()
+        pending.forEach { handle(it) }
     }
 
     private fun openUrl(url: URI) {

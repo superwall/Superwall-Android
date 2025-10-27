@@ -630,6 +630,30 @@ class PaywallViewTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
+    fun onViewCreated_flushesPendingMessages() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            Dispatchers.setMain(dispatcher)
+            try {
+                Given("a PaywallView waiting for presentation completion") {
+                    clearMocks(messageHandler, answers = false)
+
+                    When("onViewCreated is invoked") {
+                        paywallView.onViewCreated()
+                        advanceUntilIdle()
+
+                        Then("pending webview messages are flushed once") {
+                            verify(exactly = 1) { messageHandler.flushPendingMessages() }
+                        }
+                    }
+                }
+            } finally {
+                Dispatchers.resetMain()
+            }
+        }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
     fun beforeOnDestroy_callsWillDismissDelegate() =
         runTest {
             val dispatcher = StandardTestDispatcher(testScheduler)
