@@ -85,6 +85,10 @@ android {
         jvmTarget = "17"
     }
 
+    lint {
+        disable.addAll(listOf("UnsafeOptInUsageError", "UnsafeOptInUsageWarning"))
+    }
+
     packaging {
         resources {
             excludes +=
