@@ -1017,7 +1017,7 @@ class PaywallView(
                                         },
                                 ).setUrlBarHidingEnabled(true)
                                 .setInitialActivityHeightPx(
-                                    (height.toInt() * 0.3).toInt(),
+                                    (height.toInt() * 0.7).toInt(),
                                     CustomTabsIntent.ACTIVITY_HEIGHT_ADJUSTABLE,
                                 ).build()
                                 .intent

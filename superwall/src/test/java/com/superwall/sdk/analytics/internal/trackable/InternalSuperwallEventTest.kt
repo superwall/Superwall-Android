@@ -722,8 +722,8 @@ class InternalSuperwallEventTest {
                     val params = event.getSuperwallParameters()
 
                     Then("user and device keys are flattened") {
-                        assertEquals(JsonPrimitive("Ada"), params["user_firstName"])
-                        assertEquals(JsonPrimitive("gold"), params["device_tier"])
+                        assertEquals("Ada", params["user_firstName"])
+                        assertEquals("gold", params["device_tier"])
                     }
                 }
             }

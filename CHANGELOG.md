@@ -2,6 +2,12 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.6.0
+
+## Enhancements
+- Enables Stripe and Paddle checkout via in-app payment sheets
+- Improves product handling and redemption for Stripe and Paddle
+
 ## 2.5.8
 
 ## Fixes
