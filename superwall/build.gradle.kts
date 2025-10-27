@@ -27,7 +27,7 @@ plugins {
 version = "2.6.0"
 
 android {
-    compileSdk = 36
+    compileSdk = 35
     namespace = "com.superwall.sdk"
 
     defaultConfig {
