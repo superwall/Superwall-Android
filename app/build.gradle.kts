@@ -54,6 +54,10 @@ android {
         compose = true
     }
 
+    lint {
+        disable.addAll(listOf("UnsafeOptInUsageError", "UnsafeOptInUsageWarning"))
+    }
+
     packaging {
         resources.excludes += "META-INF/{AL2.0,LGPL2.1}"
         resources.excludes += "META-INF/LICENSE.md"

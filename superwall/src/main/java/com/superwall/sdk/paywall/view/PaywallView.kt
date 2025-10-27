@@ -16,7 +16,6 @@ import androidx.activity.result.contract.ActivityResultContract
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.browser.customtabs.CustomTabsIntent.COLOR_SCHEME_LIGHT
-import androidx.browser.customtabs.CustomTabsIntent.OPEN_IN_BROWSER_STATE_OFF
 import androidx.core.graphics.drawable.DrawableCompat
 import androidx.core.graphics.drawable.toBitmap
 import androidx.core.net.toUri
@@ -1006,7 +1005,6 @@ class PaywallView(
                                 .setShareState(CustomTabsIntent.SHARE_STATE_OFF)
                                 .setInstantAppsEnabled(true)
                                 .setSendToExternalDefaultHandlerEnabled(true)
-                                .setOpenInBrowserButtonState(OPEN_IN_BROWSER_STATE_OFF)
                                 .setCloseButtonIcon(
                                     AppCompatResources
                                         .getDrawable(context, R.drawable.none)!!

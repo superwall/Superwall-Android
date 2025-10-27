@@ -95,6 +95,10 @@ android {
         }
     }
 
+    lint {
+        disable.addAll(listOf("UnsafeOptInUsageError", "UnsafeOptInUsageWarning"))
+    }
+
     tasks.withType<AbstractArchiveTask> {
         exclude("META-INF/LICENSE.md")
         exclude("META-INF/LICENSE-notice.md")
