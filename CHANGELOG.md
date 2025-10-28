@@ -2,11 +2,20 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
-## 2.6.0
+## 2.6.1
 
 ## Enhancements
 - Enables Stripe and Paddle checkout via in-app payment sheets
 - Improves product handling and redemption for Stripe and Paddle
+
+## Fixes
+- Fixes issue with Google's Play Billing library auto-reconnection
+
+## 2.6.0 ⚠️ [Deprecated]
+
+## Notes
+- This version is deprecated due to discovery of an issue in Play Billing library which could cause runtime issues
+- Please use version 2.6.1
 
 ## 2.5.8
 

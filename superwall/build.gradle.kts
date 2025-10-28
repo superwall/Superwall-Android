@@ -24,7 +24,7 @@ plugins {
     id("jacoco")
 }
 
-version = "2.6.0"
+version = "2.6.1"
 
 android {
     compileSdk = 35
@@ -62,6 +62,7 @@ android {
 
     buildTypes {
         debug {
+            enableAndroidTestCoverage = true
             consumerProguardFile("proguard-rules.pro")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }

@@ -67,7 +67,7 @@ class SuperwallOptions {
     // **WARNING:**: Determines which network environment your SDK should use.
     // Defaults to `.release`.  You should under no circumstance change this unless you
     // received the go-ahead from the Superwall team.
-    var networkEnvironment: NetworkEnvironment = NetworkEnvironment.Developer()
+    var networkEnvironment: NetworkEnvironment = NetworkEnvironment.Release()
 
     // Enables the sending of non-Superwall tracked events and properties back to the Superwall servers.
     // Defaults to `true`.
