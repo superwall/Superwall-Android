@@ -125,7 +125,7 @@ jobs:
           echo "No changes to badge"
         else
           git commit -m "Update coverage badge [skip ci]"
-          git push
+          git push origin HEAD:${{ github.head_ref }}
         fi
 
     - name: Run tests on Firebase Test Lab
