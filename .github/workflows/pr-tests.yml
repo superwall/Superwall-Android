@@ -11,6 +11,9 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        ref: ${{ github.head_ref }}
+        token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Enable KVM
       run: |
@@ -115,5 +118,5 @@ jobs:
           echo "No changes to badge"
         else
           git commit -m "Update coverage badge [skip ci]"
-          git push
+          git push origin HEAD:${{ github.head_ref }}
         fi
