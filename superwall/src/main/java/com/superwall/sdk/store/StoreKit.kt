@@ -34,4 +34,6 @@ interface StoreKit {
     fun getProductFromCache(productId: String): StoreProduct?
 
     fun hasCached(productId: String): Boolean
+
+    suspend fun consume(purchaseToken: String): Result<String>
 }

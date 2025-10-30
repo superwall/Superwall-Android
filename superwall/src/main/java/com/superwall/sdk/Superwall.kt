@@ -72,6 +72,7 @@ import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.transactions.TransactionManager
 import com.superwall.sdk.store.transactions.TransactionManager.PurchaseSource.*
+import com.superwall.sdk.utilities.flatten
 import com.superwall.sdk.utilities.withErrorTracking
 import com.superwall.sdk.web.WebPaywallRedeemer
 import kotlinx.coroutines.CoroutineScope
@@ -107,7 +108,6 @@ class Superwall(
         get() = dependencyContainer.mainScope()
     internal var context: Context = context.applicationContext
 
-    // Add a private variable for the purchase task
     private var purchaseTask: Job? = null
 
     internal val presentationItems: PresentationItems = PresentationItems()
@@ -963,6 +963,42 @@ class Superwall(
     ) {
         ioScope.launch {
             onFinished(purchase(productId))
+        }
+    }
+
+    /**
+     * Initiates a consumption of an In-App product.
+     *
+     * Use this function to consume an In-App product after processing it in your application.
+     * Returns a Result.success if finished, or a Result.failure with a `BillingError`
+     * If the error is not a BillingError, something went wrong in communication with the store itself.
+     * @param purchaseToken: The `purchaseToken` related to the purchase you wish to consume.
+     * @return Result.success with the purchase token or a Result.failure<BillingError>
+     */
+    suspend fun consume(purchaseToken: String): Result<String> =
+        withErrorTracking {
+            dependencyContainer.storeManager.consume(purchaseToken)
+        }.toResult().flatten()
+
+    /**
+     * Initiates a consumption of an In-App product.
+     *
+     * Use this function to consume an In-App product after processing it in your application.
+     * Returns a Result.success if finished, or a Result.failure with a `BillingError`
+     * If the error is not a BillingError, something went wrong in communication with the store itself.
+     * @param purchaseToken: The `purchaseToken` related to the purchase you wish to consume.
+     * @param onConsumed: A callback that will receive the `Result<String>`, containing Result.success with the purchase token or a Result.failure<BillingError>
+     */
+    fun consume(
+        purchaseToken: String,
+        onConsumed: (Result<String>) -> Unit,
+    ) {
+        ioScope.launch {
+            onConsumed(
+                withErrorTracking {
+                    dependencyContainer.storeManager.consume(purchaseToken)
+                }.toResult().flatten(),
+            )
         }
     }
 
