@@ -2,6 +2,12 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.6.2
+
+## Enhancements
+- Adds `Superwall.instance.consume(purchaseToken)` method to help easily consume in-app purchases
+
+
 ## 2.6.1
 
 ## Enhancements
