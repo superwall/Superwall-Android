@@ -520,19 +520,42 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         val content = contentView as ViewGroup
         val bottomSheetBehavior = BottomSheetBehavior.from(content.getChildAt(0))
         if (!isModal) {
-            bottomSheetBehavior.halfExpandedRatio = height.toFloat()
-            // Expanded by default
-            bottomSheetBehavior.state = BottomSheetBehavior.STATE_HALF_EXPANDED
+            bottomSheetBehavior.halfExpandedRatio =
+                (if (height > 1.0) height / 100 else height).toFloat()
         } else {
             // If it's a Modal, we want it to cover only 95% of the screen when expanded
             content.updateLayoutParams {
                 (this as FrameLayout.LayoutParams).topMargin =
                     (Resources.getSystem().displayMetrics.heightPixels * 0.05).toInt()
             }
-            bottomSheetBehavior.state = BottomSheetBehavior.STATE_EXPANDED
+        }
+        bottomSheetBehavior.skipCollapsed = true
+
+        val setState = {
+            if (!isModal) {
+                // Expanded by default
+                bottomSheetBehavior.state = BottomSheetBehavior.STATE_HALF_EXPANDED
+            } else {
+                bottomSheetBehavior.state = BottomSheetBehavior.STATE_EXPANDED
+            }
+        }
+
+        // Check if we need to delay state change for Samsung devices on Android 14
+        val isSamsungAndroid14 =
+            Build.VERSION.SDK_INT == Build.VERSION_CODES.UPSIDE_DOWN_CAKE &&
+                (
+                    Build.MANUFACTURER.equals("samsung", ignoreCase = true) ||
+                        Build.BRAND.equals("samsung", ignoreCase = true)
+                )
+
+        if (isSamsungAndroid14) {
+            // Post state change to next frame after layout is complete
+            // This fixes timing issues on Samsung devices with Android 14
+            content.post { setState() }
+        } else {
+            setState()
         }
         content.invalidate()
-        bottomSheetBehavior.skipCollapsed = true
         var currentWebViewScroll = 0
         if (isModal) {
             paywallView()?.webView?.onScrollChangeListener =
