@@ -10,6 +10,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 ## Fixes
 - Fixes issue with deeplink params not being handled properly in some cases
 - Fixes issue with Drawer and Modal displays on Android 14 Samsung devices
+- Fixes selection issue with some OTP, ensures after consuming the Status is synced
 
 ## 2.6.1
 

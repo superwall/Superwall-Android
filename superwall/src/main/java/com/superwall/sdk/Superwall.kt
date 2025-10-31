@@ -977,7 +977,11 @@ class Superwall(
      */
     suspend fun consume(purchaseToken: String): Result<String> =
         withErrorTracking {
-            dependencyContainer.storeManager.consume(purchaseToken)
+            dependencyContainer.storeManager.consume(purchaseToken).onSuccess {
+                if (dependencyContainer.makeHasInternalPurchaseController()) {
+                    dependencyContainer.storeManager.purchaseController.restorePurchases()
+                }
+            }
         }.toResult().flatten()
 
     /**
@@ -995,9 +999,7 @@ class Superwall(
     ) {
         ioScope.launch {
             onConsumed(
-                withErrorTracking {
-                    dependencyContainer.storeManager.consume(purchaseToken)
-                }.toResult().flatten(),
+                consume(purchaseToken),
             )
         }
     }

@@ -84,9 +84,11 @@ data class PlayStoreProduct(
 ) {
     val fullIdentifier: String
         get() =
-            when (offer) {
-                is Offer.Automatic -> "$productIdentifier:$basePlanIdentifier:sw-auto"
-                is Offer.Specified -> "$productIdentifier:$basePlanIdentifier:${offer.offerIdentifier}"
+            when {
+                basePlanIdentifier.isEmpty() -> productIdentifier
+                offer is Offer.Automatic -> "$productIdentifier:$basePlanIdentifier:sw-auto"
+                offer is Offer.Specified -> "$productIdentifier:$basePlanIdentifier:${offer.offerIdentifier}"
+                else -> "$productIdentifier:$basePlanIdentifier"
             }
 }
 
