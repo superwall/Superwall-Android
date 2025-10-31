@@ -27,28 +27,33 @@ class DeepLinkRouter(
     companion object {
         private var unhandledDeepLinks = ConcurrentLinkedDeque<Uri>()
 
-        fun handleDeepLink(uri: Uri): Result<Boolean> =
-            if (uri.redeemableCode.isSuccess || DebugManager.outcomeForDeepLink(uri).isSuccess) {
-                if (Superwall.initialized && Superwall.instance.configurationState is ConfigurationStatus.Configured) {
-                    Superwall.instance.dependencyContainer.deepLinkRouter
-                        .handleDeepLink(uri)
-                } else {
-                    unhandledDeepLinks.add(uri)
-                }
-                Logger.debug(
-                    LogLevel.info,
-                    LogScope.deepLinks,
-                    "Superwall handling provided deep link",
-                )
-                Result.success(true)
+        fun handleDeepLink(uri: Uri): Result<Boolean> {
+            if (Superwall.initialized && Superwall.instance.configurationState is ConfigurationStatus.Configured) {
+                Superwall.instance.dependencyContainer.deepLinkRouter
+                    .handleDeepLink(uri)
+            } else {
+                unhandledDeepLinks.add(uri)
+            }
+            Logger.debug(
+                LogLevel.info,
+                LogScope.deepLinks,
+                "Superwall handling provided deep link",
+            )
+
+            val handled =
+                uri.redeemableCode.isSuccess || DebugManager.outcomeForDeepLink(uri).isSuccess
+
+            if (handled) {
+                return Result.success(true)
             } else {
                 Logger.debug(
                     LogLevel.info,
                     LogScope.deepLinks,
                     "Superwall not handling the provided deep link",
                 )
-                Result.failure(IllegalArgumentException("Not a superwall link"))
+                return Result.failure(IllegalArgumentException("Not a superwall link"))
             }
+        }
     }
 
     init {

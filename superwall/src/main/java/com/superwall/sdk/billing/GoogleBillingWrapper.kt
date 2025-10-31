@@ -131,6 +131,26 @@ class GoogleBillingWrapper(
         return apps + subs
     }
 
+    override suspend fun consume(purchaseToken: String): Result<String> =
+        suspendCoroutine { cont ->
+            val useCase =
+                ConsumePurchaseUseCase(
+                    ConsumePurchaseUseCaseParams(
+                        purchaseToken = purchaseToken,
+                        appInBackground = appLifecycleObserver.isInBackground.value,
+                    ),
+                    onReceive = { consumedToken ->
+                        cont.resume(Result.success(consumedToken))
+                    },
+                    onError = { error ->
+                        cont.resume(Result.failure(error))
+                    },
+                    withConnectedClient = ::withConnectedClient,
+                    executeRequestOnUIThread = ::executeRequestOnUIThread,
+                )
+            useCase.run()
+        }
+
     fun startConnectionOnMainThread(delayMilliseconds: Long = 0) {
         threadHandler.postDelayed(
             { startConnection() },
@@ -145,8 +165,9 @@ class GoogleBillingWrapper(
                     BillingClient
                         .newBuilder(context)
                         .setListener(this@GoogleBillingWrapper)
-                        .enablePendingPurchases(PendingPurchasesParams.newBuilder().enableOneTimeProducts().build())
-                        .build()
+                        .enablePendingPurchases(
+                            PendingPurchasesParams.newBuilder().enableOneTimeProducts().build(),
+                        ).build()
             }
 
             reconnectionAlreadyScheduled = false

@@ -423,10 +423,8 @@ open class ConfigManager(
     }
 
     suspend fun checkForWebEntitlements() {
-        if (config?.featureFlags?.web2App == true) {
-            ioScope.launch {
-                webPaywallRedeemer().redeem(WebPaywallRedeemer.RedeemType.Existing)
-            }
+        ioScope.launch {
+            webPaywallRedeemer().redeem(WebPaywallRedeemer.RedeemType.Existing)
         }
     }
 }

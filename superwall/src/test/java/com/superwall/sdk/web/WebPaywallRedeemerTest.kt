@@ -174,7 +174,16 @@ class WebPaywallRedeemerTest {
                         getPaywallInfo = { PaywallInfo.empty() },
                         trackRestorationFailed = {},
                         isWebToAppEnabled = { true },
-                        receipts = { listOf(TransactionReceipt("mock", "orderId")) },
+                        receipts = {
+                            listOf(
+                                TransactionReceipt(
+                                    "mock",
+                                    "orderId",
+                                    productId = "test_123",
+                                    productType = TransactionReceipt.ProductType.SUBSCRIPTION,
+                                ),
+                            )
+                        },
                         getExternalAccountId = { "" },
                         getIntegrationProps = { emptyMap() },
                     )
@@ -222,7 +231,16 @@ class WebPaywallRedeemerTest {
                         getPaywallInfo = { PaywallInfo.empty() },
                         trackRestorationFailed = {},
                         isWebToAppEnabled = { true },
-                        receipts = { listOf(TransactionReceipt("mock", "orderId")) },
+                        receipts = {
+                            listOf(
+                                TransactionReceipt(
+                                    "mock",
+                                    "orderId",
+                                    productId = "test_123",
+                                    productType = TransactionReceipt.ProductType.SUBSCRIPTION,
+                                ),
+                            )
+                        },
                         getExternalAccountId = { "" },
                         getIntegrationProps = { emptyMap() },
                     )
@@ -286,7 +304,16 @@ class WebPaywallRedeemerTest {
                         getPaywallInfo = { PaywallInfo.empty() },
                         trackRestorationFailed = {},
                         isWebToAppEnabled = { true },
-                        receipts = { listOf(TransactionReceipt("mock", "orderId")) },
+                        receipts = {
+                            listOf(
+                                TransactionReceipt(
+                                    "mock",
+                                    "orderId",
+                                    productId = "test_123",
+                                    productType = TransactionReceipt.ProductType.SUBSCRIPTION,
+                                ),
+                            )
+                        },
                         getExternalAccountId = { "" },
                         getIntegrationProps = { emptyMap() },
                     )
@@ -347,7 +374,16 @@ class WebPaywallRedeemerTest {
                         getPaywallInfo = { PaywallInfo.empty() },
                         trackRestorationFailed = {},
                         isWebToAppEnabled = { true },
-                        receipts = { listOf(TransactionReceipt("mock", "orderId")) },
+                        receipts = {
+                            listOf(
+                                TransactionReceipt(
+                                    "mock",
+                                    "orderId",
+                                    productId = "test_123",
+                                    productType = TransactionReceipt.ProductType.SUBSCRIPTION,
+                                ),
+                            )
+                        },
                         getExternalAccountId = { "" },
                         getIntegrationProps = { emptyMap() },
                     )
@@ -402,7 +438,16 @@ class WebPaywallRedeemerTest {
                         getPaywallInfo = { PaywallInfo.empty() },
                         trackRestorationFailed = {},
                         isWebToAppEnabled = { true },
-                        receipts = { listOf(TransactionReceipt("mock", "orderId")) },
+                        receipts = {
+                            listOf(
+                                TransactionReceipt(
+                                    "mock",
+                                    "orderId",
+                                    productId = "test_123",
+                                    productType = TransactionReceipt.ProductType.SUBSCRIPTION,
+                                ),
+                            )
+                        },
                         getExternalAccountId = { "" },
                         getIntegrationProps = { emptyMap() },
                     )
@@ -460,7 +505,16 @@ class WebPaywallRedeemerTest {
                         getPaywallInfo = { PaywallInfo.empty() },
                         trackRestorationFailed = {},
                         isWebToAppEnabled = { true },
-                        receipts = { listOf(TransactionReceipt("mock", "orderId")) },
+                        receipts = {
+                            listOf(
+                                TransactionReceipt(
+                                    "mock",
+                                    "orderId",
+                                    productId = "test_123",
+                                    productType = TransactionReceipt.ProductType.SUBSCRIPTION,
+                                ),
+                            )
+                        },
                         getExternalAccountId = { "" },
                         getIntegrationProps = { emptyMap() },
                     )
@@ -519,7 +573,16 @@ class WebPaywallRedeemerTest {
                         getPaywallInfo = { PaywallInfo.empty() },
                         trackRestorationFailed = {},
                         isWebToAppEnabled = { true },
-                        receipts = { listOf(TransactionReceipt("mock", "orderId")) },
+                        receipts = {
+                            listOf(
+                                TransactionReceipt(
+                                    "mock",
+                                    "orderId",
+                                    productId = "test_123",
+                                    productType = TransactionReceipt.ProductType.SUBSCRIPTION,
+                                ),
+                            )
+                        },
                         getExternalAccountId = { "" },
                         getIntegrationProps = { emptyMap() },
                     )
@@ -573,7 +636,16 @@ class WebPaywallRedeemerTest {
                         getPaywallInfo = { PaywallInfo.empty() },
                         trackRestorationFailed = {},
                         isWebToAppEnabled = { true },
-                        receipts = { listOf(TransactionReceipt("mock", "orderId")) },
+                        receipts = {
+                            listOf(
+                                TransactionReceipt(
+                                    "mock",
+                                    "orderId",
+                                    productId = "test_123",
+                                    productType = TransactionReceipt.ProductType.SUBSCRIPTION,
+                                ),
+                            )
+                        },
                         getExternalAccountId = { "" },
                         getIntegrationProps = { emptyMap() },
                     )
@@ -682,7 +754,7 @@ class WebPaywallRedeemerTest {
                     getPaywallInfo = { PaywallInfo.empty() },
                     trackRestorationFailed = {},
                     isWebToAppEnabled = { true },
-                    receipts = { listOf(TransactionReceipt("mock")) },
+                    receipts = { listOf(TransactionReceipt("mock", "mock", "mock", TransactionReceipt.ProductType.SUBSCRIPTION)) },
                     getExternalAccountId = { "" },
                 )
 
@@ -769,7 +841,16 @@ class WebPaywallRedeemerTest {
                         getPaywallInfo = { PaywallInfo.empty() },
                         trackRestorationFailed = {},
                         isWebToAppEnabled = { true },
-                        receipts = { listOf(TransactionReceipt("mock", "orderId")) },
+                        receipts = {
+                            listOf(
+                                TransactionReceipt(
+                                    "mock",
+                                    "orderId",
+                                    productId = "test_123",
+                                    productType = TransactionReceipt.ProductType.SUBSCRIPTION,
+                                ),
+                            )
+                        },
                         getExternalAccountId = { "" },
                         getIntegrationProps = { attributionProps },
                     )
@@ -795,7 +876,7 @@ class WebPaywallRedeemerTest {
                 val expectedPurchaseToken = "test_purchase_token"
                 val expectedReceipts =
                     listOf(
-                        TransactionReceipt(expectedPurchaseToken, expectedOrderId),
+                        TransactionReceipt(expectedPurchaseToken, expectedOrderId, "123", TransactionReceipt.ProductType.SUBSCRIPTION),
                     )
 
                 mutableEntitlements = mutableSetOf(normalEntitlement)
@@ -931,7 +1012,16 @@ class WebPaywallRedeemerTest {
                         getPaywallInfo = { PaywallInfo.empty() },
                         trackRestorationFailed = {},
                         isWebToAppEnabled = { true },
-                        receipts = { listOf(TransactionReceipt("mock", "orderId")) },
+                        receipts = {
+                            listOf(
+                                TransactionReceipt(
+                                    "mock",
+                                    "orderId",
+                                    productId = "test_123",
+                                    productType = TransactionReceipt.ProductType.SUBSCRIPTION,
+                                ),
+                            )
+                        },
                         getExternalAccountId = { "" },
                         getIntegrationProps = { emptyAttributionProps },
                     )
@@ -1037,7 +1127,16 @@ class WebPaywallRedeemerTest {
                         getPaywallInfo = { PaywallInfo.empty() },
                         trackRestorationFailed = {},
                         isWebToAppEnabled = { true },
-                        receipts = { listOf(TransactionReceipt("mock", "orderId")) },
+                        receipts = {
+                            listOf(
+                                TransactionReceipt(
+                                    "mock",
+                                    "orderId",
+                                    productId = "test_123",
+                                    productType = TransactionReceipt.ProductType.SUBSCRIPTION,
+                                ),
+                            )
+                        },
                         getExternalAccountId = { "" },
                         getIntegrationProps = { complexAttributionProps },
                     )

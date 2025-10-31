@@ -259,6 +259,8 @@ class StoreManager(
 
     override fun hasCached(productId: String): Boolean = productsByFullId.contains(productId)
 
+    override suspend fun consume(purchaseToken: String): Result<String> = billing.consume(purchaseToken)
+
     @Throws(Throwable::class)
     override suspend fun products(identifiers: Set<String>): Set<StoreProduct> = billing.awaitGetProducts(identifiers)
 }

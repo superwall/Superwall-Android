@@ -413,7 +413,20 @@ class DependencyContainer(
                 },
                 receipts = {
                     googleBillingWrapper.queryAllPurchases().map {
-                        TransactionReceipt(it.purchaseToken, it.orderId)
+                        val id = it.products.first()
+                        val product = storeManager.products(setOf(id)).first()
+                        TransactionReceipt(
+                            it.purchaseToken,
+                            it.orderId,
+                            it.products.first(),
+                            if (product.rawStoreProduct
+                                    .isSubscription
+                            ) {
+                                TransactionReceipt.ProductType.SUBSCRIPTION
+                            } else {
+                                TransactionReceipt.ProductType.IAP
+                            },
+                        )
                     }
                 },
                 getExternalAccountId = {
@@ -474,7 +487,12 @@ class DependencyContainer(
                     Superwall.instance.track(it)
                 },
                 dismiss = { key, result ->
-                    val paywallView = resolvePaywallViewForKey(makeViewStore(), Superwall.instance.paywallView, key)
+                    val paywallView =
+                        resolvePaywallViewForKey(
+                            makeViewStore(),
+                            Superwall.instance.paywallView,
+                            key,
+                        )
                     if (paywallView == null) {
                         return@TransactionManager
                     }
@@ -501,7 +519,12 @@ class DependencyContainer(
                     )
                 },
                 updateState = { key, state ->
-                    val paywallView = resolvePaywallViewForKey(makeViewStore(), Superwall.instance.paywallView, key)
+                    val paywallView =
+                        resolvePaywallViewForKey(
+                            makeViewStore(),
+                            Superwall.instance.paywallView,
+                            key,
+                        )
                     if (paywallView == null) {
                         return@TransactionManager
                     }
