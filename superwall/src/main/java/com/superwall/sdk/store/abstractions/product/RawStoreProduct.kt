@@ -619,4 +619,8 @@ class RawStoreProduct(
             null
         }
     }
+
+    internal val isSubscription by lazy {
+        underlyingProductDetails.subscriptionOfferDetails?.isNotEmpty() ?: false
+    }
 }
