@@ -7,6 +7,8 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 ## Enhancements
 - Adds `Superwall.instance.consume(purchaseToken)` method to help easily consume in-app purchases
 
+## Fixes
+- Fixes issue with deeplink params not being handled properly in some cases
 
 ## 2.6.1
 

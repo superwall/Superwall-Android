@@ -24,7 +24,7 @@ plugins {
     id("jacoco")
 }
 
-version = "2.6.1"
+version = rootProject.extra["superwallVersion"] as String
 
 android {
     compileSdk = 35
