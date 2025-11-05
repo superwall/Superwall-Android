@@ -119,6 +119,8 @@ sealed class RedemptionResult {
         val variantId: VariantId,
         @SerialName("experimentId")
         val experimentId: ExperimentId,
+        @SerialName("productIdentifier")
+        val productIdentifier: String? = null,
     )
 }
 
