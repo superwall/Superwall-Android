@@ -4,7 +4,6 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## 2.6.3
 
-
 ## Enhancements
 - Adds `productIdentifier` to RedemptionResult's `PaywallInfo` object
 
