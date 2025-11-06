@@ -360,38 +360,36 @@ class WebPaywallRedeemer(
     }
 
     private fun startPolling(maxAge: Long = maxAge()) {
-        if (isWebToAppEnabled()) {
-            pollingJob?.cancel()
-            pollingJob =
-                (ioScope + Dispatchers.IO).launch {
-                    while (true) {
-                        checkForWebEntitlements(getUserId(), getDeviceId())
-                            .fold(
-                                onFailure = {
-                                    it.printStackTrace()
-                                },
-                                onSuccess = {
-                                    val newEntitlements = it
-                                    var latestRedeemResponse =
-                                        storage.read(LatestRedemptionResponse)
-                                    val existingWebEntitlements =
-                                        latestRedeemResponse?.entitlements ?: emptySet()
-                                    latestRedeemResponse =
-                                        latestRedeemResponse?.copy(entitlements = newEntitlements.toList())
-                                    if (latestRedeemResponse != null) {
-                                        storage.write(
-                                            LatestRedemptionResponse,
-                                            latestRedeemResponse,
-                                        )
-                                    }
-                                    if (existingWebEntitlements.toSet() != newEntitlements) {
-                                        internallySetSubscriptionStatus(SubscriptionStatus.Active(it + getActiveDeviceEntitlements()))
-                                    }
-                                },
-                            )
-                        delay(maxAge)
-                    }
+        pollingJob?.cancel()
+        pollingJob =
+            (ioScope + Dispatchers.IO).launch {
+                while (true) {
+                    checkForWebEntitlements(getUserId(), getDeviceId())
+                        .fold(
+                            onFailure = {
+                                it.printStackTrace()
+                            },
+                            onSuccess = {
+                                val newEntitlements = it
+                                var latestRedeemResponse =
+                                    storage.read(LatestRedemptionResponse)
+                                val existingWebEntitlements =
+                                    latestRedeemResponse?.entitlements ?: emptySet()
+                                latestRedeemResponse =
+                                    latestRedeemResponse?.copy(entitlements = newEntitlements.toList())
+                                if (latestRedeemResponse != null) {
+                                    storage.write(
+                                        LatestRedemptionResponse,
+                                        latestRedeemResponse,
+                                    )
+                                }
+                                if (existingWebEntitlements.toSet() != newEntitlements) {
+                                    internallySetSubscriptionStatus(SubscriptionStatus.Active(it + getActiveDeviceEntitlements()))
+                                }
+                            },
+                        )
+                    delay(maxAge)
                 }
-        }
+            }
     }
 }
