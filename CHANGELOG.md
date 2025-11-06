@@ -2,6 +2,16 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.6.3
+
+## Enhancements
+- Adds `productIdentifier` to RedemptionResult's `PaywallInfo` object
+
+## Fixes
+- Fixes nested scrolling issue in Modal webviews
+- Removes node removal for `com.google.android.gms.permission.AD_ID` from Manifest
+- Ensures remote entitlements in the background refresh without feature flags
+
 ## 2.6.2
 
 ## Enhancements
