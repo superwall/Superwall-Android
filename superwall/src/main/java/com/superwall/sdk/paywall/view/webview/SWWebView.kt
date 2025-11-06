@@ -36,6 +36,7 @@ import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.MainScope
+import com.superwall.sdk.misc.asEither
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.PaywallURL
 import com.superwall.sdk.paywall.presentation.PaywallInfo
@@ -379,6 +380,11 @@ class SWWebView(
                             }
 
                             is WebviewClientEvent.OnPageFinished -> {
+                                asEither {
+                                    mainScope.launch {
+                                        this@SWWebView.scrollTo(0, 0)
+                                    }
+                                }
                                 if (options().optimisticLoading) {
                                     delegate?.updateState(
                                         PaywallViewState.Updates.SetLoadingState(

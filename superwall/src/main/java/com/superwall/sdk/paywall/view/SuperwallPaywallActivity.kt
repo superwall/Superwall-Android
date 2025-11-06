@@ -595,6 +595,12 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                     bottomSheet: View,
                     slideOffset: Float,
                 ) {
+                    val webView = paywallView()?.webView
+                    if (webView != null) {
+                        webView.onView {
+                            bottomSheetBehavior.isDraggable = !canScrollVertically(-1)
+                        }
+                    }
                 }
             }
         bottomSheetCallback?.let {
