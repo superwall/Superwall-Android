@@ -15,7 +15,7 @@ import kotlinx.coroutines.launch
 internal open class DefaultWebviewClient(
     private val forUrl: String = "",
     private val ioScope: CoroutineScope,
-    private val onWebViewCrash: (RenderProcessGoneDetail) -> Unit = { },
+    private val onWebViewCrash: (view: WebView, RenderProcessGoneDetail) -> Unit = { v, d -> },
 ) : WebViewClient() {
     val webviewClientEvents: MutableSharedFlow<WebviewClientEvent> =
         MutableSharedFlow(extraBufferCapacity = 10, replay = 2)
@@ -72,7 +72,7 @@ internal open class DefaultWebviewClient(
         view: WebView,
         detail: RenderProcessGoneDetail,
     ): Boolean {
-        onWebViewCrash(detail)
+        onWebViewCrash(view, detail)
         return true
     }
 
