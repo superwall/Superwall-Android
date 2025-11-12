@@ -324,29 +324,66 @@ class SWWebView(
                             }
                         }.await()
                 }.collect {
+                    fun log(
+                        message: String,
+                        info: Map<String, Any> = emptyMap(),
+                    ) {
+                        Logger.debug(
+                            LogLevel.error,
+                            LogScope.paywallView,
+                            message,
+                            info = info,
+                        )
+                    }
                     mainScope.launch {
                         when (it) {
                             is WebviewClientEvent.OnError -> {
                                 trackPaywallError(
                                     it.webviewError,
                                     when (val e = it.webviewError) {
-                                        is WebviewError.NetworkError ->
+                                        is WebviewError.NetworkError -> {
+                                            log(
+                                                "Paywall loading failed due to network error - ${e.code} - ${e.description}",
+                                            )
                                             listOf(e.url)
+                                        }
 
-                                        is WebviewError.NoUrls ->
+                                        is WebviewError.NoUrls -> {
+                                            log(
+                                                "Paywall loading failed - no URL's to load",
+                                            )
                                             emptyList()
+                                        }
 
-                                        is WebviewError.MaxAttemptsReached ->
+                                        is WebviewError.MaxAttemptsReached -> {
+                                            log(
+                                                "Paywall loading failed - maximum attempts reached.",
+                                            )
                                             e.urls
+                                        }
 
-                                        is WebviewError.AllUrlsFailed -> e.urls
-                                        is WebviewError.Timeout -> listOfNotNull(lastLoadedUrl)
+                                        is WebviewError.AllUrlsFailed -> {
+                                            log(
+                                                "Paywall loading failed - ${e.urls.size}/${e.urls.size} tried",
+                                            )
+                                            e.urls
+                                        }
+
+                                        is WebviewError.Timeout -> {
+                                            log(
+                                                "Paywall loading reached user defined timeout - the paywall might still display",
+                                            )
+                                            listOfNotNull(lastLoadedUrl)
+                                        }
                                     },
                                 )
                                 if (lastLoadedUrl != null) {
                                     when (lastWebViewClient) {
                                         is WebviewFallbackClient -> {}
                                         is DefaultWebviewClient -> {
+                                            log(
+                                                "Paywall loading failed - retrying $lastLoadedUrl",
+                                            )
                                             loadUrl(lastLoadedUrl!!)
                                         }
 

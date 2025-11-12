@@ -831,6 +831,12 @@ class PaywallView(
                                 }",
                     )
                     if (state.crashRetries < 3) {
+                        Logger.debug(
+                            LogLevel.error,
+                            LogScope.paywallView,
+                            "Webview crash - recreating ${state.paywall.identifier}",
+                        )
+
                         recreateWebview()
                     } else {
                         controller.updateState(WebLoadingFailed)
@@ -840,6 +846,11 @@ class PaywallView(
                             "Webview keeps crashing - paywall ${state.paywall.identifier} not recreated",
                         )
                         if (state.isPresented) {
+                            Logger.debug(
+                                LogLevel.error,
+                                LogScope.paywallView,
+                                "Dismissing active paywall due to webview process crash, cannot recreate",
+                            )
                             dismiss(
                                 PaywallResult.Declined(),
                                 PaywallCloseReason.WebViewFailedToLoad,
@@ -847,6 +858,11 @@ class PaywallView(
                         } else {
                             mainScope.launch {
                                 withErrorTracking {
+                                    Logger.debug(
+                                        LogLevel.error,
+                                        LogScope.paywallView,
+                                        "Paywall cannot be recreated - cleaning cached instance for next open",
+                                    )
                                     beforeOnDestroy()
                                     destroyed()
                                     cleanup()

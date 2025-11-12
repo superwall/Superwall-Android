@@ -8,6 +8,9 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
@@ -53,6 +56,12 @@ internal open class DefaultWebviewClient(
             return
         }
         ioScope.launch {
+            Logger.debug(
+                LogLevel.error,
+                LogScope.paywallView,
+                "Paywall loading failed due to network error. Url: $requestUrl - Code: ${errorResponse?.statusCode} for ${errorResponse?.reasonPhrase}",
+            )
+
             webviewClientEvents.emit(
                 WebviewClientEvent.OnError(
                     WebviewError.NetworkError(
@@ -93,6 +102,11 @@ internal open class DefaultWebviewClient(
                             -1 to "Error description unavailable, Android API version < 23"
                         }
                     } ?: (-1 to "Unknown error")
+                Logger.debug(
+                    LogLevel.debug,
+                    LogScope.paywallView,
+                    "Paywall loading failed due to network error. Url: ${request?.url?.toString()} - Code: $code for $desc",
+                )
                 webviewClientEvents.emit(
                     WebviewClientEvent.OnError(
                         WebviewError.NetworkError(
