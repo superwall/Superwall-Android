@@ -47,7 +47,6 @@ import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessageHandlerDel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.launch
 
@@ -104,9 +103,8 @@ class SWWebView(
 
     var scrollEnabled = true
 
-    var onTimeout: ((WebviewError) -> Unit)? = null
-
-    var onRenderCrashed: (didCrash: Boolean, priority: Int) -> Unit = { i, e -> }
+    var onRenderCrashed: (didCrash: Boolean, priority: Int) -> Unit =
+        { i, e -> }
 
     private companion object ChromeClient : WebChromeClient() {
         private class ChromeClient(
@@ -213,11 +211,16 @@ class SWWebView(
                 stopLoading = {
                     stopLoading()
                 },
-                onCrashed = {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        onRenderCrashed(it.didCrash(), it.rendererPriorityAtExit())
-                    } else {
-                        onRenderCrashed(true, -1)
+                onCrashed = { view, detail ->
+                    if (view == this) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            onRenderCrashed(
+                                detail.didCrash(),
+                                detail.rendererPriorityAtExit(),
+                            )
+                        } else {
+                            onRenderCrashed(true, -1)
+                        }
                     }
                 },
             )
@@ -263,11 +266,16 @@ class SWWebView(
             DefaultWebviewClient(
                 forUrl = url,
                 ioScope = CoroutineScope(Dispatchers.IO),
-                onWebViewCrash = {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        onRenderCrashed(it.didCrash(), it.rendererPriorityAtExit())
-                    } else {
-                        onRenderCrashed(true, -1)
+                onWebViewCrash = { v, detail ->
+                    if (v == this) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            onRenderCrashed(
+                                detail.didCrash(),
+                                detail.rendererPriorityAtExit(),
+                            )
+                        } else {
+                            onRenderCrashed(true, -1)
+                        }
                     }
                 },
             )
@@ -305,17 +313,6 @@ class SWWebView(
 
     private fun listenToWebviewClientEvents(client: DefaultWebviewClient) {
         ioScope.launch {
-            val timeout = options().timeoutAfter
-            if (timeout != null) {
-                ioScope.launch {
-                    delay(timeout)
-                    if (delegate?.state?.loadingState !is PaywallLoadingState.Ready) {
-                        trackPaywallError(WebviewError.Timeout, listOfNotNull(lastLoadedUrl))
-                        onTimeout?.invoke(WebviewError.Timeout)
-                    }
-                }
-            }
-
             client.webviewClientEvents
                 .takeWhile {
                     mainScope
@@ -327,29 +324,66 @@ class SWWebView(
                             }
                         }.await()
                 }.collect {
+                    fun log(
+                        message: String,
+                        info: Map<String, Any> = emptyMap(),
+                    ) {
+                        Logger.debug(
+                            LogLevel.error,
+                            LogScope.paywallView,
+                            message,
+                            info = info,
+                        )
+                    }
                     mainScope.launch {
                         when (it) {
                             is WebviewClientEvent.OnError -> {
                                 trackPaywallError(
                                     it.webviewError,
                                     when (val e = it.webviewError) {
-                                        is WebviewError.NetworkError ->
+                                        is WebviewError.NetworkError -> {
+                                            log(
+                                                "Paywall loading failed due to network error - ${e.code} - ${e.description}",
+                                            )
                                             listOf(e.url)
+                                        }
 
-                                        is WebviewError.NoUrls ->
+                                        is WebviewError.NoUrls -> {
+                                            log(
+                                                "Paywall loading failed - no URL's to load",
+                                            )
                                             emptyList()
+                                        }
 
-                                        is WebviewError.MaxAttemptsReached ->
+                                        is WebviewError.MaxAttemptsReached -> {
+                                            log(
+                                                "Paywall loading failed - maximum attempts reached.",
+                                            )
                                             e.urls
+                                        }
 
-                                        is WebviewError.AllUrlsFailed -> e.urls
-                                        is WebviewError.Timeout -> listOfNotNull(lastLoadedUrl)
+                                        is WebviewError.AllUrlsFailed -> {
+                                            log(
+                                                "Paywall loading failed - ${e.urls.size}/${e.urls.size} tried",
+                                            )
+                                            e.urls
+                                        }
+
+                                        is WebviewError.Timeout -> {
+                                            log(
+                                                "Paywall loading reached user defined timeout - the paywall might still display",
+                                            )
+                                            listOfNotNull(lastLoadedUrl)
+                                        }
                                     },
                                 )
                                 if (lastLoadedUrl != null) {
                                     when (lastWebViewClient) {
                                         is WebviewFallbackClient -> {}
                                         is DefaultWebviewClient -> {
+                                            log(
+                                                "Paywall loading failed - retrying $lastLoadedUrl",
+                                            )
                                             loadUrl(lastLoadedUrl!!)
                                         }
 
@@ -505,10 +539,8 @@ class SWWebView(
     override fun setup(
         url: PaywallURL,
         onRenderCrashed: (Boolean, Int) -> Unit,
-        onTimeout: ((WebviewError) -> Unit)?,
     ) {
         this.onRenderCrashed = onRenderCrashed
-        this.onTimeout = onTimeout
         scrollEnabled = delegate?.state?.paywall?.isScrollEnabled ?: true
         mainScope.launch {
             val state = delegate?.state ?: return@launch

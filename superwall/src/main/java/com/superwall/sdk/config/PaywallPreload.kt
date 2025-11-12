@@ -80,7 +80,6 @@ class PaywallPreload(
     // Preloads paywalls referenced by triggers.
     private suspend fun preloadPaywalls(paywallIdentifiers: Set<String>) {
         val webviewExists = webViewExists()
-
         if (webviewExists) {
             scope.launchWithTracking {
                 // List to hold all the Deferred objects

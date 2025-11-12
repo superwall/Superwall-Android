@@ -66,20 +66,27 @@ import com.superwall.sdk.paywall.view.webview.PaywallUIDelegate
 import com.superwall.sdk.paywall.view.webview.PaywallWebUI
 import com.superwall.sdk.paywall.view.webview.SWWebView
 import com.superwall.sdk.paywall.view.webview.SendPaywallMessages
+import com.superwall.sdk.paywall.view.webview.WebviewError
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessageHandlerDelegate
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallStateDelegate
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent
 import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.utilities.withErrorTracking
 import com.superwall.sdk.web.WebPaywallRedeemer
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.timeout
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
@@ -272,6 +279,7 @@ class PaywallView(
         this.loadingView = loadingView
     }
 
+    @OptIn(FlowPreview::class)
     fun present(
         presenter: Activity,
         request: PresentationRequest,
@@ -283,6 +291,39 @@ class PaywallView(
         webView.attach(this)
         cache?.acquireLoadingView()?.let {
             setupLoading(it)
+        }
+
+        val timeout = factory.makeSuperwallOptions().paywalls.timeoutAfter
+        if (timeout != null) {
+            ioScope.launch {
+                val msg = "Timeout triggered - paywall wasn't loaded in ${timeout.inWholeSeconds} seconds"
+                controller.currentState
+                    .filter { it.loadingState == PaywallLoadingState.Ready }
+                    .timeout(timeout)
+                    .catch {
+                        if (it is TimeoutCancellationException) {
+                            state.paywallStatePublisher?.emit(
+                                PaywallState.PresentationError(
+                                    PaywallErrors.Timeout(msg),
+                                ),
+                            )
+                            mainScope.launch {
+                                updateState(WebLoadingFailed)
+
+                                val trackedEvent =
+                                    InternalSuperwallEvent.PaywallWebviewLoad(
+                                        state =
+                                            InternalSuperwallEvent.PaywallWebviewLoad.State.Fail(
+                                                WebviewError.Timeout(msg),
+                                                listOf(info.url.value),
+                                            ),
+                                        paywallInfo = info,
+                                    )
+                                factory.track(trackedEvent)
+                            }
+                        }
+                    }.first()
+            }
         }
 
         cache?.acquireShimmerView()?.let {
@@ -751,6 +792,7 @@ class PaywallView(
                                 hideLoadingView()
                                 hideShimmerView()
                             }
+                            controller.updateState(ResetCrashRetry)
                         }
                     }
                 }
@@ -776,6 +818,7 @@ class PaywallView(
                 url = url,
                 onRenderCrashed = { didCrash, priority ->
                     val isOverO = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                    controller.updateState(CrashRetry)
                     Logger.debug(
                         logLevel = LogLevel.error,
                         scope = LogScope.paywallView,
@@ -787,22 +830,48 @@ class PaywallView(
                                     if (isOverO) priority else "Unknown"
                                 }",
                     )
-                    recreateWebview()
-                },
-                onTimeout =
-                    if (factory.makeSuperwallOptions().paywalls.timeoutAfter != null) {
-                        {
-                            ioScope.launch {
-                                state.paywallStatePublisher?.emit(
-                                    PaywallState.PresentationError(
-                                        PaywallErrors.Timeout(it.toString()),
-                                    ),
-                                )
+                    if (state.crashRetries < 3) {
+                        Logger.debug(
+                            LogLevel.error,
+                            LogScope.paywallView,
+                            "Webview crash - recreating ${state.paywall.identifier}",
+                        )
+
+                        recreateWebview()
+                    } else {
+                        controller.updateState(WebLoadingFailed)
+                        Logger.debug(
+                            LogLevel.error,
+                            LogScope.paywallView,
+                            "Webview keeps crashing - paywall ${state.paywall.identifier} not recreated",
+                        )
+                        if (state.isPresented) {
+                            Logger.debug(
+                                LogLevel.error,
+                                LogScope.paywallView,
+                                "Dismissing active paywall due to webview process crash, cannot recreate",
+                            )
+                            dismiss(
+                                PaywallResult.Declined(),
+                                PaywallCloseReason.WebViewFailedToLoad,
+                            )
+                        } else {
+                            mainScope.launch {
+                                withErrorTracking {
+                                    Logger.debug(
+                                        LogLevel.error,
+                                        LogScope.paywallView,
+                                        "Paywall cannot be recreated - cleaning cached instance for next open",
+                                    )
+                                    beforeOnDestroy()
+                                    destroyed()
+                                    cleanup()
+                                    cache?.removePaywallView(state.paywall.identifier)
+                                }
                             }
                         }
-                    } else {
-                        null
-                    },
+                    }
+                },
             )
 
             controller.updateState(SetLoadingState(PaywallLoadingState.LoadingURL))

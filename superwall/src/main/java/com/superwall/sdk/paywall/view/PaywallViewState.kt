@@ -40,6 +40,7 @@ data class PaywallViewState(
     // / If the user match a rule with an occurrence, this needs to be saved on paywall presentation.
     val unsavedOccurrence: TriggerRuleOccurrence? = null,
     val useMultipleUrls: Boolean = false,
+    val crashRetries: Int = 0,
 ) {
     val info: PaywallInfo
         get() = paywall.getInfo(request?.presentationInfo?.eventData)
@@ -248,6 +249,14 @@ data class PaywallViewState(
 
         object ClearStatePublisher : Updates({
             it.copy(paywallStatePublisher = null)
+        })
+
+        object CrashRetry : Updates({
+            it.copy(crashRetries = it.crashRetries + 1)
+        })
+
+        object ResetCrashRetry : Updates({
+            it.copy(crashRetries = 0)
         })
 
         /**
