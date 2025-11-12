@@ -199,6 +199,7 @@ data class PaywallInfo(
                 "paywall_response_load_duration" to responseLoadDuration,
                 "paywall_webview_load_start_time" to webViewLoadStartTime,
                 "paywall_webview_load_complete_time" to webViewLoadCompleteTime,
+                "paywall_webview_load_fail_time" to webViewLoadFailTime,
                 "paywall_webview_load_duration" to webViewLoadDuration,
                 "paywall_products_load_start_time" to productsLoadStartTime,
                 "paywall_products_load_complete_time" to productsLoadCompleteTime,

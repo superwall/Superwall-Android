@@ -270,7 +270,7 @@ class InternalSuperwallEventTest {
                     val params = event.getSuperwallParameters()
 
                     Then("urls are flattened and include an error message") {
-                        assertEquals(error, params["error_message"])
+                        assertEquals("All paywall URLs have failed to load.", params["error_message"])
                         assertEquals("https://a", params["url_0"])
                         assertEquals("https://b", params["url_1"])
                     }

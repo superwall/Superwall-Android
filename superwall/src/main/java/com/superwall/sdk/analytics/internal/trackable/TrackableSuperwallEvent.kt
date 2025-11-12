@@ -697,7 +697,9 @@ sealed class InternalSuperwallEvent(
 
             object Fallback : State()
 
-            class Timeout : State()
+            class Timeout(
+                val msg: String,
+            ) : State()
 
             class Complete : State()
         }
@@ -741,11 +743,16 @@ sealed class InternalSuperwallEvent(
                 when (state) {
                     is State.Fail ->
                         mapOf(
-                            "error_message" to state.error,
+                            "error_message" to state.error.toString(),
                             *state.urls
                                 .mapIndexed { i, it ->
                                     "url_$i" to it
                                 }.toTypedArray(),
+                        )
+
+                    is State.Timeout ->
+                        mapOf(
+                            "error_message" to state.msg,
                         )
 
                     else -> mapOf()

@@ -27,7 +27,6 @@ interface PaywallWebUI {
     fun setup(
         url: PaywallURL,
         onRenderCrashed: (didCrash: Boolean, priority: Int) -> Unit,
-        onTimeout: ((WebviewError) -> Unit)?,
     )
 
     fun evaluate(

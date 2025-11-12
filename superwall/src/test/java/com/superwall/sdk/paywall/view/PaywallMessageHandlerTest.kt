@@ -16,7 +16,6 @@ import com.superwall.sdk.paywall.view.delegate.PaywallViewEventCallback
 import com.superwall.sdk.paywall.view.webview.PaywallMessage
 import com.superwall.sdk.paywall.view.webview.PaywallUIDelegate
 import com.superwall.sdk.paywall.view.webview.PaywallWebUI
-import com.superwall.sdk.paywall.view.webview.WebviewError
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessageHandler
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent
 import com.superwall.sdk.paywall.view.webview.templating.models.JsonVariables
@@ -357,7 +356,6 @@ class PaywallMessageHandlerTest {
         override fun setup(
             url: com.superwall.sdk.models.paywall.PaywallURL,
             onRenderCrashed: (Boolean, Int) -> Unit,
-            onTimeout: ((WebviewError) -> Unit)?,
         ) {
         }
 

@@ -2,6 +2,12 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.6.4
+
+## Enhancements
+- Improves error and timeout handling
+- Hardens paywall recreation in case of render process crash
+
 ## 2.6.3
 
 ## Enhancements
