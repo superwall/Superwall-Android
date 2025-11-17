@@ -1,8 +1,9 @@
-package com.superwall.sdk.paywall.view.webview
+package com.superwall.sdk.paywall.view.webview.messaging
 
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
+import com.superwall.sdk.models.paywall.LocalNotificationType
 import org.json.JSONObject
 import java.net.URI
 
@@ -69,7 +70,9 @@ sealed class PaywallMessage {
 
     object TransactionStart : PaywallMessage()
 
-    object TransactionComplete : PaywallMessage()
+    data class TransactionComplete(
+        val trialeEndDate: Long?,
+    ) : PaywallMessage()
 
     data class RequestReview(
         val type: Type,
@@ -81,6 +84,14 @@ sealed class PaywallMessage {
             EXTERNAL("external"),
         }
     }
+
+    data class ScheduleNotification(
+        val type: LocalNotificationType,
+        val title: String,
+        val subtitle: String,
+        val body: String,
+        val delay: Long,
+    ) : PaywallMessage()
 }
 
 fun parseWrappedPaywallMessages(jsonString: String): Result<WrappedPaywallMessages> =
@@ -152,6 +163,18 @@ private fun parsePaywallMessage(json: JSONObject): PaywallMessage {
                     "in-app" -> PaywallMessage.RequestReview.Type.INAPP
                     else -> PaywallMessage.RequestReview.Type.INAPP
                 },
+            )
+
+        "schedule_notification" ->
+            PaywallMessage.ScheduleNotification(
+                when (json.getString("type")) {
+                    "TRIAL_STARTED" -> LocalNotificationType.TrialStarted
+                    else -> LocalNotificationType.Unsupported
+                },
+                title = json.getString("title") ?: "",
+                subtitle = json.getString("subtitle") ?: "",
+                body = json.getString("body") ?: "",
+                delay = json.getLong("delay") ?: 0L,
             )
 
         else -> {
