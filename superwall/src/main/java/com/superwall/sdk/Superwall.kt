@@ -1256,6 +1256,30 @@ class Superwall(
                         }
                     }
                 }
+
+                is PaywallWebEvent.ScheduleNotification -> {
+                    val paywallActivity =
+
+                        (
+                            paywallView
+                                ?.encapsulatingActivity
+                                ?.get()
+                                ?: dependencyContainer
+                                    .activityProvider
+                                    ?.getCurrentActivity()
+                        ) as SuperwallPaywallActivity?
+
+                    paywallActivity?.attemptToScheduleNotifications(
+                        notifications = listOf(paywallEvent.localNotification),
+                        factory = dependencyContainer,
+                    ) ?: run {
+                        Logger.debug(
+                            LogLevel.error,
+                            LogScope.paywallView,
+                            message = "No paywall activity alive to schedule notifications",
+                        )
+                    }
+                }
             }
         }
     }

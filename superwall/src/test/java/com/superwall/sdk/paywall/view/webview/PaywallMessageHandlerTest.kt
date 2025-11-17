@@ -14,6 +14,7 @@ import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.paywall.view.PaywallViewState
 import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
+import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessage
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessageHandler
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessageHandlerDelegate
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent

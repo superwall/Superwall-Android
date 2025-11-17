@@ -71,6 +71,7 @@ class TransactionManagerTest {
     private val dismissCalls = mutableListOf<Pair<String, PaywallResult>>()
     private val alertCalls = mutableListOf<AlertControllerFactory.AlertProps>()
     private val stateUpdates = mutableListOf<Pair<String, PaywallViewState.Updates>>()
+    private val transactionCompleteCalls = mutableListOf<Pair<String, Long?>>()
     private var subscriptionStatusValue = SubscriptionStatus.Active(setOf(Entitlement("test")))
     private val entitlementsMap = mutableMapOf<String, Set<Entitlement>>()
     private var refreshReceiptCalled = false
@@ -84,6 +85,7 @@ class TransactionManagerTest {
         dismissCalls.clear()
         alertCalls.clear()
         stateUpdates.clear()
+        transactionCompleteCalls.clear()
         refreshReceiptCalled = false
         showRestoreDialogCalled = false
 
@@ -119,6 +121,7 @@ class TransactionManagerTest {
                 showRestoreDialogForWeb = { showRestoreDialogCalled = true },
                 refreshReceipt = { refreshReceiptCalled = true },
                 updateState = { key, update -> stateUpdates.add(key to update) },
+                notifyOfTransactionComplete = { cacheKey, trialEndDate -> transactionCompleteCalls.add(cacheKey to trialEndDate) },
             )
     }
 

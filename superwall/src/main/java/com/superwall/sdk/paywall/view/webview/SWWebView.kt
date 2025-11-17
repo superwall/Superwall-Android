@@ -42,6 +42,7 @@ import com.superwall.sdk.models.paywall.PaywallURL
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.view.PaywallViewState
 import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
+import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessage
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessageHandler
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessageHandlerDelegate
 import kotlinx.coroutines.CoroutineScope

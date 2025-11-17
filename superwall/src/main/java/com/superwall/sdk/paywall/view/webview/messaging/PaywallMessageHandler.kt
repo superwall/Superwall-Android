@@ -2,7 +2,6 @@ package com.superwall.sdk.paywall.view.webview.messaging
 
 import TemplateLogic
 import android.webkit.JavascriptInterface
-import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEvents
@@ -12,13 +11,13 @@ import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.MainScope
+import com.superwall.sdk.models.paywall.LocalNotification
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.paywall.view.PaywallView
 import com.superwall.sdk.paywall.view.PaywallViewState
 import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
-import com.superwall.sdk.paywall.view.webview.PaywallMessage
 import com.superwall.sdk.paywall.view.webview.SendPaywallMessages
-import com.superwall.sdk.paywall.view.webview.parseWrappedPaywallMessages
+import com.superwall.sdk.storage.core_data.convertToJsonElement
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -201,9 +200,28 @@ class PaywallMessageHandler(
 
             is PaywallMessage.TransactionComplete -> {
                 ioScope.launch {
-                    pass(eventName = SuperwallEvents.TransactionComplete.rawName, paywall = paywall)
+                    pass(
+                        eventName = SuperwallEvents.TransactionComplete.rawName,
+                        paywall = paywall,
+                        payload =
+                            message.trialeEndDate?.let { mapOf("trial_end_date" to it) }
+                                ?: mapOf(),
+                    )
                 }
             }
+
+            is PaywallMessage.ScheduleNotification ->
+                messageHandler?.eventDidOccur(
+                    PaywallWebEvent.ScheduleNotification(
+                        LocalNotification(
+                            type = message.type,
+                            title = message.title,
+                            subtitle = message.subtitle,
+                            body = message.body,
+                            delay = message.delay,
+                        ),
+                    ),
+                )
 
             else -> {
                 Logger.debug(
@@ -215,10 +233,24 @@ class PaywallMessageHandler(
         }
     }
 
+    /**
+     * Sends a TransactionComplete message to the webview and suspends until the message is delivered.
+     * This ensures the webview has time to process the message before any subsequent actions (like dismiss).
+     */
+    suspend fun sendTransactionComplete(trialEndDate: Long?) {
+        val paywall = messageHandler?.state?.paywall ?: return
+        pass(
+            eventName = SuperwallEvents.TransactionComplete.rawName,
+            paywall = paywall,
+            payload = trialEndDate?.let { mapOf("trial_end_date" to it) } ?: mapOf(),
+        )
+    }
+
     // Serialize the event to JSON and pass as B64 encoded string
     private suspend fun pass(
         eventName: String,
         paywall: Paywall,
+        payload: Map<String, Any> = emptyMap(),
     ) {
         val eventList =
             listOf(
@@ -226,9 +258,15 @@ class PaywallMessageHandler(
                     "event_name" to eventName,
                     "paywall_id" to paywall.databaseId,
                     "paywall_identifier" to paywall.identifier,
-                ),
+                ) + payload,
             )
-        val jsonString = json.encodeToString(eventList)
+        val jsonString =
+            try {
+                json.encodeToString(eventList.convertToJsonElement())
+            } catch (e: Throwable) {
+                e.printStackTrace()
+                "{\"event_name\":\"$eventName\"}"
+            }
         passMessageToWebView(base64String = encodeToB64(jsonString))
     }
 

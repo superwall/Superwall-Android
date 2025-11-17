@@ -1,8 +1,10 @@
-package com.superwall.sdk.paywall.view.webview
+package com.superwall.sdk.paywall.view.webview.messaging
 
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
+import com.superwall.sdk.models.paywall.LocalNotificationType
+import org.json.JSONObject
 import com.superwall.sdk.storage.core_data.convertFromJsonElement
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -78,7 +80,9 @@ sealed class PaywallMessage {
 
     object TransactionStart : PaywallMessage()
 
-    object TransactionComplete : PaywallMessage()
+    data class TransactionComplete(
+        val trialeEndDate: Long?,
+    ) : PaywallMessage()
 
     data class UserAttributesUpdated(
         val data: Map<String, Any>,
@@ -94,6 +98,14 @@ sealed class PaywallMessage {
             EXTERNAL("external"),
         }
     }
+
+    data class ScheduleNotification(
+        val type: LocalNotificationType,
+        val title: String,
+        val subtitle: String,
+        val body: String,
+        val delay: Long,
+    ) : PaywallMessage()
 }
 
 fun parseWrappedPaywallMessages(jsonString: String): Result<WrappedPaywallMessages> =
@@ -169,6 +181,18 @@ private fun parsePaywallMessage(json: JsonObject): PaywallMessage {
                     },
             )
         }
+
+        "schedule_notification" ->
+            PaywallMessage.ScheduleNotification(
+                when (json.getString("type")) {
+                    "TRIAL_STARTED" -> LocalNotificationType.TrialStarted
+                    else -> LocalNotificationType.Unsupported
+                },
+                title = json.getString("title") ?: "",
+                subtitle = json.getString("subtitle") ?: "",
+                body = json.getString("body") ?: "",
+                delay = json.getLong("delay") ?: 0L,
+            )
 
         else -> {
             throw IllegalArgumentException("Unknown event name: $eventName")
