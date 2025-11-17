@@ -2,6 +2,12 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.6.5
+
+## Enhancements
+
+- Add dynamic notification support and scheduling
+
 ## 2.6.4
 
 ## Enhancements
