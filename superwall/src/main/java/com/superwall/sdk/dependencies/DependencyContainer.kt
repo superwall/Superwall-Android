@@ -35,6 +35,9 @@ import com.superwall.sdk.delegate.SuperwallDelegateAdapter
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.identity.IdentityInfo
 import com.superwall.sdk.identity.IdentityManager
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.ActivityProvider
 import com.superwall.sdk.misc.AppLifecycleObserver
 import com.superwall.sdk.misc.CurrentActivityTracker
@@ -84,8 +87,8 @@ import com.superwall.sdk.paywall.view.SuperwallStoreOwner
 import com.superwall.sdk.paywall.view.ViewModelFactory
 import com.superwall.sdk.paywall.view.ViewStorageViewModel
 import com.superwall.sdk.paywall.view.delegate.PaywallViewDelegateAdapter
-import com.superwall.sdk.paywall.view.webview.PaywallMessage
 import com.superwall.sdk.paywall.view.webview.SWWebView
+import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessage
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessageHandler
 import com.superwall.sdk.paywall.view.webview.templating.models.JsonVariables
 import com.superwall.sdk.paywall.view.webview.templating.models.Variables
@@ -529,6 +532,24 @@ class DependencyContainer(
                         return@TransactionManager
                     }
                     paywallView.updateState(state)
+                },
+                notifyOfTransactionComplete = { key, trialEndDate ->
+                    val paywallView =
+                        resolvePaywallViewForKey(
+                            makeViewStore(),
+                            Superwall.instance.paywallView,
+                            key,
+                        )
+                    if (paywallView == null) {
+                        Logger.debug(
+                            LogLevel.error,
+                            LogScope.paywallView,
+                            "No active paywall to use - did the app close?",
+                        )
+                        return@TransactionManager
+                    }
+                    // Await message delivery to ensure webview has time to process before dismiss
+                    paywallView.webView.messageHandler.sendTransactionComplete(trialEndDate)
                 },
             )
 
