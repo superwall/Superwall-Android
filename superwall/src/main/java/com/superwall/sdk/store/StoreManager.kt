@@ -24,12 +24,15 @@ import java.util.Date
 class StoreManager(
     val purchaseController: InternalPurchaseController,
     val billing: Billing,
+    private val storage: com.superwall.sdk.storage.Storage,
+    internal val customerInfoManager: () -> com.superwall.sdk.customer.CustomerInfoManager,
+    receiptManagerFactory: () -> ReceiptManager,
     private val track: suspend (InternalSuperwallEvent) -> Unit = {
         Superwall.instance.track(it)
     },
 ) : ProductsFetcher,
     StoreKit {
-    val receiptManager by lazy { ReceiptManager(delegate = this, billing) }
+    val receiptManager by lazy(receiptManagerFactory)
 
     private var productsByFullId: MutableMap<String, StoreProduct> = mutableMapOf()
 

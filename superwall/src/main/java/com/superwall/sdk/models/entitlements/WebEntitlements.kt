@@ -7,4 +7,6 @@ import kotlinx.serialization.Serializable
 data class WebEntitlements(
     @SerialName("entitlements")
     val entitlements: List<Entitlement>,
+    @SerialName("customerInfo")
+    val customerInfo: com.superwall.sdk.models.customer.CustomerInfo? = null,
 )

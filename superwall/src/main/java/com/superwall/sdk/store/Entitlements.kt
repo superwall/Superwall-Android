@@ -28,7 +28,7 @@ class Entitlements(
             storage.read(LatestRedemptionResponse)?.entitlements?.toSet() ?: emptySet()
 
     // MARK: - Private Properties
-    private val _entitlementsByProduct = ConcurrentHashMap<String, Set<Entitlement>>()
+    internal val entitlementsByProduct = ConcurrentHashMap<String, Set<Entitlement>>()
 
     private val _status: MutableStateFlow<SubscriptionStatus> =
         MutableStateFlow(SubscriptionStatus.Unknown)
@@ -65,7 +65,7 @@ class Entitlements(
      * All entitlements, regardless of whether they're active or not.
      */
     val all: Set<Entitlement>
-        get() = _all.toSet() + _entitlementsByProduct.values.flatten() + web.toSet()
+        get() = _all.toSet() + entitlementsByProduct.values.flatten() + web.toSet()
 
     /**
      * The active entitlements.
@@ -84,7 +84,7 @@ class Entitlements(
             setSubscriptionStatus(it)
         }
         storage.read(StoredEntitlementsByProductId)?.let {
-            _entitlementsByProduct.putAll(it)
+            entitlementsByProduct.putAll(it)
         }
 
         scope.launch {
@@ -140,7 +140,7 @@ class Entitlements(
             "${decomposedProductIds.subscriptionId}:${decomposedProductIds.basePlanId}",
             decomposedProductIds.subscriptionId,
         ).forEach { id ->
-            _entitlementsByProduct.entries
+            entitlementsByProduct.entries
                 .firstOrNull { it.key.contains(id) && it.value.isNotEmpty() }
                 .let {
                     if (it != null) {
@@ -152,17 +152,25 @@ class Entitlements(
     }
 
     /**
+     * Returns a Set of Entitlements belonging to given product IDs.
+     *
+     * @param ids A Set of Strings representing product IDs
+     * @return A Set of Entitlements
+     */
+    fun byProductIds(ids: Set<String>): Set<Entitlement> = ids.flatMap { byProductId(it) }.toSet()
+
+    /**
      * Updates the entitlements associated with product IDs and persists them to storage.
      */
     internal fun addEntitlementsByProductId(idToEntitlements: Map<String, Set<Entitlement>>) {
-        _entitlementsByProduct.putAll(
+        entitlementsByProduct.putAll(
             idToEntitlements
                 .mapValues { (_, entitlements) ->
                     entitlements.toSet()
                 }.toMap(),
         )
         _all.clear()
-        _all.addAll(_entitlementsByProduct.values.flatten())
-        storage.write(StoredEntitlementsByProductId, _entitlementsByProduct)
+        _all.addAll(entitlementsByProduct.values.flatten())
+        storage.write(StoredEntitlementsByProductId, entitlementsByProduct)
     }
 }

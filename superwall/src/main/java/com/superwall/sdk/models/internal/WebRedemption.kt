@@ -32,6 +32,8 @@ data class WebRedemptionResponse(
     val codes: List<RedemptionResult>,
     @SerialName("entitlements")
     val entitlements: List<Entitlement>,
+    @SerialName("customerInfo")
+    val customerInfo: com.superwall.sdk.models.customer.CustomerInfo? = null,
     @kotlinx.serialization.Transient
     val allCodes: List<Redeemable> = codes.map { Redeemable(it.code, false) },
 )
