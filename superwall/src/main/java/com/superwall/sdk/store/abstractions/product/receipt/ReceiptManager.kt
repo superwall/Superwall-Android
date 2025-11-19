@@ -34,10 +34,13 @@ enum class LatestSubscriptionOfferType {
     WINBACK,
 }
 
+@Suppress("EXPOSED_PARAMETER_TYPE")
 class ReceiptManager(
     private var delegate: ProductsFetcher?,
     private val billing: Billing,
     private val ioScope: IOScope = IOScope(),
+    private val storage: com.superwall.sdk.storage.Storage,
+    internal val customerInfoManager: () -> com.superwall.sdk.customer.CustomerInfoManager,
 ) {
     var latestSubscriptionWillAutoRenew: Boolean? = null
     var latestSubscriptionPeriodType: LatestPeriodType? = null
@@ -109,7 +112,7 @@ class ReceiptManager(
                 if (product?.rawStoreProduct?.underlyingProductDetails?.productType == BillingClient.ProductType.INAPP) {
                     nonSubscriptions.add(
                         NonSubscriptionTransaction(
-                            transactionId = purchase.purchaseToken.hashCode().toULong(),
+                            transactionId = purchase.orderId ?: purchase.purchaseToken,
                             productId = productId,
                             purchaseDate = Date(purchase.purchaseTime),
                             isConsumable = false,
@@ -119,7 +122,7 @@ class ReceiptManager(
                 } else {
                     subscriptions.add(
                         SubscriptionTransaction(
-                            transactionId = purchase.purchaseToken.hashCode().toULong(),
+                            transactionId = purchase.orderId ?: purchase.purchaseToken,
                             productId = productId,
                             purchaseDate = Date(purchase.purchaseTime),
                             willRenew = purchase.isAutoRenewing,
@@ -242,7 +245,7 @@ class ReceiptManager(
 
             val subscriptionTxnIndex =
                 subscriptions.indexOfFirst {
-                    it.transactionId == mostRecentRenewable?.purchaseToken?.hashCode()?.toULong()
+                    it.transactionId == (mostRecentRenewable?.orderId ?: mostRecentRenewable?.purchaseToken)
                 }
 
             if (!isLifetime && mostRecentRenewable != null) {
@@ -319,6 +322,35 @@ class ReceiptManager(
 
         _purchases = purchases
 
+        // Build device CustomerInfo from local receipts
+        val deviceCustomerInfo =
+            com.superwall.sdk.models.customer.CustomerInfo(
+                subscriptions = subscriptions.reversed(),
+                nonSubscriptions = nonSubscriptions.reversed(),
+                userId = "", // Will be filled by merge with web info
+                entitlements =
+                    entitlementsByProductId.values
+                        .flatten()
+                        .distinctBy { it.id }
+                        .toList(),
+                isBlank = subscriptions.isEmpty() && nonSubscriptions.isEmpty(),
+            )
+
+        // Store device CustomerInfo
+        storage.write(com.superwall.sdk.storage.LatestDeviceCustomerInfo, deviceCustomerInfo)
+
+        Logger.debug(
+            logLevel = LogLevel.debug,
+            scope = LogScope.receipts,
+            message =
+                "Built device CustomerInfo: ${deviceCustomerInfo.subscriptions.size} subs, " +
+                    "${deviceCustomerInfo.nonSubscriptions.size} non-subs, " +
+                    "${deviceCustomerInfo.entitlements.size} entitlements",
+        )
+
+        // Trigger merge
+        customerInfoManager().updateMergedCustomerInfo()
+
         return PurchaseSnapshot(
             purchases = purchases,
             entitlementsByProductId = entitlementsByProductId,
@@ -357,7 +389,7 @@ class ReceiptManager(
                         .awaitGetProducts(productIds.toSet())
                         .firstOrNull()
                 if (product == null) {
-                    return@let emptyMap()
+                    return@let LatestSubscriptionState.UNKNOWN
                 }
                 val duration = product.rawStoreProduct.subscriptionPeriod?.toMillis ?: 0
                 val state =
@@ -377,7 +409,7 @@ class ReceiptManager(
                         }
                     }
                 state
-            }
+            } ?: LatestSubscriptionState.UNKNOWN
 
     fun determineLatestPeriodType(
         purchase: Purchase,

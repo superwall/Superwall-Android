@@ -12,7 +12,7 @@ import java.util.*
 data class NonSubscriptionTransaction(
     /** The unique identifier for the transaction. */
     @SerialName("transactionId")
-    val transactionId: ULong,
+    val transactionId: String,
     /** The product identifier of the in-app purchase. */
     @SerialName("productId")
     val productId: String,
@@ -33,7 +33,7 @@ data class NonSubscriptionTransaction(
          */
         fun empty(): NonSubscriptionTransaction =
             NonSubscriptionTransaction(
-                transactionId = 0UL,
+                transactionId = "",
                 productId = "",
                 purchaseDate = Date(),
                 isConsumable = false,

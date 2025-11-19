@@ -12,7 +12,7 @@ import java.util.*
 data class SubscriptionTransaction(
     /** The unique identifier for the transaction. */
     @SerialName("transactionId")
-    val transactionId: ULong,
+    val transactionId: String,
     /** The product identifier of the subscription. */
     @SerialName("productId")
     val productId: String,
@@ -48,7 +48,7 @@ data class SubscriptionTransaction(
          */
         fun empty(): SubscriptionTransaction =
             SubscriptionTransaction(
-                transactionId = 0UL,
+                transactionId = "",
                 productId = "",
                 purchaseDate = Date(),
                 willRenew = false,
