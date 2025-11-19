@@ -1,6 +1,7 @@
 package com.superwall.sdk.models.entitlements
 
 import android.annotation.SuppressLint
+import com.superwall.sdk.models.product.Store
 import com.superwall.sdk.store.abstractions.product.receipt.LatestPeriodType
 import com.superwall.sdk.store.abstractions.product.receipt.LatestSubscriptionState
 import kotlinx.serialization.Contextual
@@ -105,6 +106,13 @@ data class Entitlement(
      */
     @SerialName("offerType")
     val offerType: LatestPeriodType? = null,
+    /**
+     * The store where the product that unlocked this entitlement was purchased.
+     *
+     * This is `null` if there aren't any transactions that unlock this entitlement.
+     */
+    @SerialName("store")
+    val store: Store? = null,
 ) {
     @Serializable
     enum class Type(

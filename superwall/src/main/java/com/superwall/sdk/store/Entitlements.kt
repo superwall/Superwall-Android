@@ -177,6 +177,14 @@ class Entitlements(
     }
 
     /**
+     * Returns a Set of Entitlements belonging to given product IDs.
+     *
+     * @param ids A Set of Strings representing product IDs
+     * @return A Set of Entitlements
+     */
+    fun byProductIds(ids: Set<String>): Set<Entitlement> = ids.flatMap { byProductId(it) }.toSet()
+
+    /**
      * Updates the entitlements associated with product IDs and persists them to storage.
      */
     internal fun addEntitlementsByProductId(idToEntitlements: Map<String, Set<Entitlement>>) {
