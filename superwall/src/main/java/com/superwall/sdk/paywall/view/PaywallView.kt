@@ -559,6 +559,9 @@ class PaywallView(
         // Assert if no `request`
         // fatalAssert(request != null, "Must be presenting a Paywallview with a `request` instance.")
 
+        // Ensure state listener is running for both normal and Compose presentation flows
+        startStateListener()
+
         if (loadingState is PaywallLoadingState.Unknown) {
             loadWebView()
         }
