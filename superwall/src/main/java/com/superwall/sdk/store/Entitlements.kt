@@ -132,23 +132,48 @@ class Entitlements(
      * @param id A String representing a productId
      * @return A Set of Entitlements
      */
+
+    private fun checkFor(
+        toCheck: List<String>,
+        isExact: Boolean = true,
+    ): Set<Entitlement>? {
+        if (toCheck.isEmpty()) return null
+        val item = toCheck.first()
+        val next = toCheck.drop(1)
+        return _entitlementsByProduct.entries
+            .firstOrNull {
+                (
+                    if (isExact) {
+                        it.key == item
+                    } else {
+                        it.key.contains(item)
+                    }
+                ) &&
+                    it.value.isNotEmpty()
+            }?.value ?: checkFor(next, isExact)
+    }
+
+    /**
+     * Checks for entitlements belonging to the product.
+     * First checks exact matches, then checks containing matches
+     * by product ID + baseplan and productId  so user doesn't remain without entitlements
+     * if they purchased the product. This ensures users dont lose access for their subscription.
+     */
     internal fun byProductId(id: String): Set<Entitlement> {
         val decomposedProductIds = DecomposedProductIds.from(id)
-        listOf(
-            decomposedProductIds.fullId,
-            "${decomposedProductIds.subscriptionId}:${decomposedProductIds.basePlanId}:${decomposedProductIds.offerType.id ?: ""}",
-            "${decomposedProductIds.subscriptionId}:${decomposedProductIds.basePlanId}",
-            decomposedProductIds.subscriptionId,
-        ).forEach { id ->
-            _entitlementsByProduct.entries
-                .firstOrNull { it.key.contains(id) && it.value.isNotEmpty() }
-                .let {
-                    if (it != null) {
-                        return it.value
-                    }
-                }
-        }
-        return emptySet()
+        return checkFor(
+            listOf(
+                decomposedProductIds.fullId,
+                "${decomposedProductIds.subscriptionId}:${decomposedProductIds.basePlanId}:${decomposedProductIds.offerType.id ?: ""}",
+                "${decomposedProductIds.subscriptionId}:${decomposedProductIds.basePlanId}",
+            ),
+        ) ?: checkFor(
+            listOf(
+                "${decomposedProductIds.subscriptionId}:${decomposedProductIds.basePlanId}:",
+                decomposedProductIds.subscriptionId,
+            ),
+            isExact = false,
+        ) ?: emptySet()
     }
 
     /**

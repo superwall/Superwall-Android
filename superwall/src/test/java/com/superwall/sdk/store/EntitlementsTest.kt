@@ -199,4 +199,31 @@ class EntitlementsTest {
                 }
             }
         }
+
+    @Test
+    fun `test byProductId matches partial product IDs with contains logic`() =
+        runTest {
+            Given("storage contains entitlement with key subscription_monthly colon p1m-high") {
+                val premiumEntitlement = Entitlement("premium_access")
+                val wrongEntitlement = Entitlement("fake")
+                val productEntitlements =
+                    mapOf(
+                        "subscription_monthly:p1m-high" to setOf(wrongEntitlement),
+                        "subscription_monthly:p1m:freetrial" to setOf(premiumEntitlement),
+                    )
+                every { storage.read(StoredSubscriptionStatus) } returns null
+                every { storage.read(StoredEntitlementsByProductId) } returns productEntitlements
+                entitlements = Entitlements(storage)
+
+                When("querying with subscription_monthly colon p1m colon freetrial") {
+                    val result = entitlements.byProductId("subscription_monthly:p1m:freetrial")
+
+                    Then(
+                        "it should match the entitlement because subscription_monthly colon p1m is contained in subscription_monthly colon p1m-high",
+                    ) {
+                        assertEquals(setOf(premiumEntitlement), result)
+                    }
+                }
+            }
+        }
 }
