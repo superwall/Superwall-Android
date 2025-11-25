@@ -217,7 +217,19 @@ class TransactionManager(
                 val state = state as PurchasingObserverState.PurchaseError
                 val product = StoreProduct(RawStoreProduct.from(state.product))
                 trackFailure(
-                    state.error.localizedMessage ?: "Unknown error",
+                    state.error.localizedMessage
+                        ?.let {
+                            try {
+                                PlayBillingErrors.fromCode(it)
+                            } catch (e: Throwable) {
+                                Logger.debug(
+                                    LogLevel.error,
+                                    LogScope.nativePurchaseController,
+                                    message = "Play store issue occured, code: $it",
+                                )
+                                null
+                            }
+                        }?.message ?: "Unknown error",
                     product,
                     PurchaseSource.ObserverMode(product),
                 )

@@ -811,7 +811,7 @@ class Superwall(
                         isPaywallPresented = false,
                         type = PresentationRequestType.ConfirmAllAssignments,
                     )
-                confirmAssignment(request).fold(
+                confirmAssignment(dependencyContainer.getPaywallComponentsFactory, request).fold(
                     onSuccess = {
                         it?.let {
                             assignments.add(it)
