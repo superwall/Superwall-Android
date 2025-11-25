@@ -573,15 +573,16 @@ sealed class InternalSuperwallEvent(
         override val canImplicitlyTriggerPaywall: Boolean
             get() = if (isObserved) false else superwallPlacement.canImplicitlyTriggerPaywall
 
-        override suspend fun getSuperwallParameters(): HashMap<String, Any> {
-            return when (state) {
+        override suspend fun getSuperwallParameters(): HashMap<String, Any> =
+            when (state) {
                 is State.Restore -> {
                     var eventParams = HashMap(paywallInfo.eventParams(product))
                     model?.toDictionary()?.let { transactionDict ->
                         eventParams.putAll(transactionDict)
                     }
+                    eventParams["store"] = store
                     eventParams["restore_via_purchase_attempt"] = model != null
-                    return eventParams
+                    eventParams
                 }
 
                 is State.Start,
@@ -605,7 +606,7 @@ sealed class InternalSuperwallEvent(
                         eventParams["user_attributes"] = userAttributes
                     }
 
-                    return eventParams
+                    eventParams
                 }
 
                 is State.Fail -> {
@@ -621,12 +622,18 @@ sealed class InternalSuperwallEvent(
                                         otherParams = mapOf("message" to message),
                                     ),
                                 )
-                            return eventParams
+                            if (demandScore != null) {
+                                eventParams["attr_demandScore"] = demandScore
+                            }
+                            if (demandTier != null) {
+                                eventParams["attr_demandTier"] = demandTier
+                            }
+                            eventParams["store"] = store
+                            eventParams
                         }
                     }
                 }
             }
-        }
     }
 
     class SubscriptionStart(

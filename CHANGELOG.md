@@ -2,6 +2,18 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.6.5
+
+## Dependencies
+- Reverts `androidx.lifecycle:lifecycle-runtime-ktx` to 2.8.4 to ensure old Compose BOM compatiblity
+
+## Enhancements
+- Improves error messaging in play store errors
+
+## Fixes
+- Fixes edge case bug with wrong entitlement being matched in cases where product ID's match and base plans differentiate by suffix only
+- Fixes issue with composable paywall state updates not firing in onAttach
+
 ## 2.6.4
 
 ## Enhancements

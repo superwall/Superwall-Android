@@ -35,16 +35,33 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.math.min
 
+private val BILLING_INSANTIATION_ERROR =
+    """Cannot create Google Play Billing Client. This can be caused by:
+    - Play store client not existing on this device
+    - User not being signed in into the play store
+    - Mismatching Google Play Billing versions""""""
+
 class AutomaticPurchaseController(
     var context: Context,
     val scope: IOScope,
     val entitlementsInfo: Entitlements,
     val getBilling: (Context, PurchasesUpdatedListener) -> BillingClient = { ctx, listener ->
-        BillingClient
-            .newBuilder(ctx)
-            .setListener(listener)
-            .enablePendingPurchases(PendingPurchasesParams.newBuilder().enableOneTimeProducts().build())
-            .build()
+        try {
+            BillingClient
+                .newBuilder(ctx)
+                .setListener(listener)
+                .enablePendingPurchases(PendingPurchasesParams.newBuilder().enableOneTimeProducts().build())
+                .build()
+        } catch (e: Throwable) {
+            Logger.debug(
+                logLevel = LogLevel.error,
+                scope = LogScope.nativePurchaseController,
+                message = BILLING_INSANTIATION_ERROR,
+                info = mapOf("error_message" to (e.message ?: "Unknown message")),
+                error = e,
+            )
+            throw e
+        }
     },
 ) : PurchaseController,
     PurchasesUpdatedListener {
