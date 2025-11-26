@@ -64,6 +64,8 @@ import com.superwall.sdk.paywall.manager.PaywallViewCache
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.dismiss
 import com.superwall.sdk.paywall.presentation.get_presentation_result.internallyGetPresentationResult
+import com.superwall.sdk.paywall.presentation.internal.DefaultGetPaywallComponentsFactory
+import com.superwall.sdk.paywall.presentation.internal.GetPaywallComponentsFactory
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.operators.storePresentationObjects
@@ -154,6 +156,10 @@ class DependencyContainer(
     SuperwallScopeFactory,
     GoogleBillingWrapper.Factory,
     ClassifierDataFactory {
+    internal val getPaywallComponentsFactory: GetPaywallComponentsFactory by lazy {
+        DefaultGetPaywallComponentsFactory(Superwall.instance)
+    }
+
     var network: Network
     override var api: Api
     override var deviceHelper: DeviceHelper

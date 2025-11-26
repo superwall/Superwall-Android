@@ -29,7 +29,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Before
@@ -131,21 +130,26 @@ class ObserverModeTest {
     @Test
     fun test_observe_purchase_will_begin_with_controller() =
         runTest(timeout = 5.minutes) {
-            setup()
             Given("a configured Superwall instance with purchase observation enabled") {
-                mockDelegate = MockDelegate(this@runTest)
+                mockDelegate = MockDelegate()
                 Superwall.instance.delegate = mockDelegate
 
                 When("observing purchase will begin") {
+                    // Start collecting events before triggering the action
+                    val eventDeferred =
+                        async {
+                            mockDelegate.events.first {
+                                it is SuperwallEvent.TransactionStart
+                            }
+                        }
+
                     Superwall.instance.observe(
                         PurchasingObserverState.PurchaseWillBegin(mockProductDetails),
                     )
 
                     Then("it should delegate to transaction manager and emit transaction start event") {
-                        val event =
-                            mockDelegate.events.first {
-                                it is SuperwallEvent.TransactionStart
-                            }
+                        // Wait for the event with proper timeout
+                        eventDeferred.await()
                     }
                 }
             }
@@ -201,14 +205,21 @@ class ObserverModeTest {
     @Test
     fun test_observe_purchase_failed_with_controller() =
         runTest(timeout = 120.seconds) {
-            setup()
             Given("a configured Superwall instance and failed purchase") {
-                mockDelegate = MockDelegate(this@runTest)
+                mockDelegate = MockDelegate()
                 Superwall.instance.delegate = mockDelegate
 
                 val error = BillingError.BillingNotAvailable("Test error")
 
                 When("observing purchase failure") {
+                    // Start collecting events before triggering the action
+                    val eventDeferred =
+                        async {
+                            mockDelegate.events.first {
+                                it is SuperwallEvent.TransactionFail
+                            }
+                        }
+
                     Superwall.instance.observe(
                         PurchasingObserverState.PurchaseWillBegin(mockProductDetails),
                     )
@@ -221,24 +232,23 @@ class ObserverModeTest {
                     )
 
                     Then("it should handle failure and emit transaction fail event") {
-                        mockDelegate.events.first {
-                            it is SuperwallEvent.TransactionFail
-                        }
+                        // Wait for the event with proper timeout
+                        eventDeferred.await()
                     }
                 }
             }
         }
 }
 
-class MockDelegate(
-    val scope: CoroutineScope,
-) : SuperwallDelegate {
-    val events = MutableSharedFlow<SuperwallEvent>(extraBufferCapacity = 20)
+class MockDelegate : SuperwallDelegate {
+    val events = MutableSharedFlow<SuperwallEvent>(extraBufferCapacity = 20, replay = 1)
 
     override fun handleSuperwallEvent(eventInfo: SuperwallEventInfo) {
         Log.e("test", "handle event is ${eventInfo.event}")
-        scope.launch {
-            events.emit(eventInfo.event)
+        // Emit synchronously to avoid race conditions and process crashes
+        val emitted = events.tryEmit(eventInfo.event)
+        if (!emitted) {
+            Log.e("test", "Failed to emit event: ${eventInfo.event}")
         }
     }
 }

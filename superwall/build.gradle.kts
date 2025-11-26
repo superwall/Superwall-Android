@@ -187,6 +187,7 @@ dependencies {
     testImplementation(libs.mockk.core)
     testImplementation(libs.robolectric)
     testImplementation(libs.test.core)
+    testImplementation(kotlin("test"))
 
     // Test (Android)
     androidTestImplementation(libs.test.ext.junit)

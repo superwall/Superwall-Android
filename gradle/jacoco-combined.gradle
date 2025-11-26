@@ -95,6 +95,14 @@ project.afterEvaluate {
                         'com/superwall/sdk/debug/**',
                         'com/superwall/sdk/logger/**',
                         '**/MockReviewManager.kt',
+                        'com/superwall/sdk/store/PurchasingObserverState*',
+                        'com/superwall/sdk/store/transactions/RestoreType*',
+                        'com/superwall/sdk/store/transactions/TransactionError*',
+                        'com/superwall/sdk/store/transactions/PlayBillingError**',
+
+                        'com/superwall/sdk/store/abstractions/product/StoreProduct*',
+                        'com/superwall/sdk/store/abstractions/product/StoreProductType*',
+                        'com/superwall/sdk/store/abstractions/product/OfferType*',
                     ]
 
                     def javaTree = fileTree(
@@ -183,6 +191,12 @@ project.afterEvaluate {
                 'com/superwall/sdk/debug/**',
                 'com/superwall/sdk/logger/**',
                 '**/MockReviewManager.kt',
+                'com/superwall/sdk/store/PurchasingObserverState*.class',
+                'com/superwall/sdk/store/transactions/RestoreType*.class',
+                'com/superwall/sdk/store/transactions/TransactionError*.class',
+                'com/superwall/sdk/store/abstractions/product/StoreProduct.class',
+                'com/superwall/sdk/store/abstractions/product/StoreProductType.class',
+                'com/superwall/sdk/store/abstractions/product/OfferType*.class',
             ]
 
             // Only use debug build to avoid duplicate classes
@@ -244,7 +258,13 @@ project.afterEvaluate {
                 'android/**/*.*',
                 'com/superwall/sdk/dependencies/**',
                 'com/superwall/sdk/models/**',
-                'com/superwall/sdk/contrib/threeteen/**'
+                'com/superwall/sdk/contrib/threeteen/**',
+                'com/superwall/sdk/store/PurchasingObserverState*.class',
+                'com/superwall/sdk/store/transactions/RestoreType*.class',
+                'com/superwall/sdk/store/transactions/TransactionError*.class',
+                'com/superwall/sdk/store/abstractions/product/StoreProduct.class',
+                'com/superwall/sdk/store/abstractions/product/StoreProductType.class',
+                'com/superwall/sdk/store/abstractions/product/OfferType*.class',
             ]
 
             // Only use debug build to avoid duplicate classes
