@@ -79,7 +79,7 @@ fun CustomerInfo.merge(other: CustomerInfo): CustomerInfo {
         nonSubscriptions = mergedNonSubscriptions,
         userId = mergedUserId,
         entitlements = mergedEntitlements,
-        isBlank = isBlank,
+        isPlaceholder = isBlank,
     )
 }
 

@@ -29,7 +29,7 @@ class CustomerInfoMergingTest {
                 nonSubscriptions = emptyList(),
                 userId = "user123",
                 entitlements = emptyList(),
-                isBlank = false,
+                isPlaceholder = false,
             )
 
         val webInfo =
@@ -51,7 +51,7 @@ class CustomerInfoMergingTest {
                 nonSubscriptions = emptyList(),
                 userId = "",
                 entitlements = emptyList(),
-                isBlank = false,
+                isPlaceholder = false,
             )
 
         val merged = deviceInfo.merge(webInfo)
@@ -95,7 +95,7 @@ class CustomerInfoMergingTest {
                 nonSubscriptions = emptyList(),
                 userId = "",
                 entitlements = emptyList(),
-                isBlank = false,
+                isPlaceholder = false,
             )
 
         val webInfo =
@@ -104,7 +104,7 @@ class CustomerInfoMergingTest {
                 nonSubscriptions = emptyList(),
                 userId = "",
                 entitlements = emptyList(),
-                isBlank = false,
+                isPlaceholder = false,
             )
 
         val merged = deviceInfo.merge(webInfo)
@@ -147,7 +147,7 @@ class CustomerInfoMergingTest {
                 nonSubscriptions = emptyList(),
                 userId = "",
                 entitlements = emptyList(),
-                isBlank = false,
+                isPlaceholder = false,
             )
 
         val webInfo =
@@ -156,7 +156,7 @@ class CustomerInfoMergingTest {
                 nonSubscriptions = emptyList(),
                 userId = "",
                 entitlements = emptyList(),
-                isBlank = false,
+                isPlaceholder = false,
             )
 
         val merged = deviceInfo.merge(webInfo)
@@ -182,7 +182,7 @@ class CustomerInfoMergingTest {
                     ),
                 userId = "",
                 entitlements = emptyList(),
-                isBlank = false,
+                isPlaceholder = false,
             )
 
         val webInfo =
@@ -207,7 +207,7 @@ class CustomerInfoMergingTest {
                     ),
                 userId = "",
                 entitlements = emptyList(),
-                isBlank = false,
+                isPlaceholder = false,
             )
 
         val merged = deviceInfo.merge(webInfo)
@@ -225,7 +225,7 @@ class CustomerInfoMergingTest {
                 nonSubscriptions = emptyList(),
                 userId = "device_user",
                 entitlements = emptyList(),
-                isBlank = false,
+                isPlaceholder = false,
             )
 
         val webInfo =
@@ -234,7 +234,7 @@ class CustomerInfoMergingTest {
                 nonSubscriptions = emptyList(),
                 userId = "",
                 entitlements = emptyList(),
-                isBlank = false,
+                isPlaceholder = false,
             )
 
         val merged = deviceInfo.merge(webInfo)
@@ -262,7 +262,7 @@ class CustomerInfoMergingTest {
                 nonSubscriptions = emptyList(),
                 userId = "",
                 entitlements = listOf(inactiveEntitlement),
-                isBlank = false,
+                isPlaceholder = false,
             )
 
         val webInfo =
@@ -271,7 +271,7 @@ class CustomerInfoMergingTest {
                 nonSubscriptions = emptyList(),
                 userId = "",
                 entitlements = listOf(activeEntitlement),
-                isBlank = false,
+                isPlaceholder = false,
             )
 
         val merged = deviceInfo.merge(webInfo)
@@ -303,7 +303,7 @@ class CustomerInfoMergingTest {
                 nonSubscriptions = emptyList(),
                 userId = "",
                 entitlements = listOf(regularEntitlement),
-                isBlank = false,
+                isPlaceholder = false,
             )
 
         val webInfo =
@@ -312,7 +312,7 @@ class CustomerInfoMergingTest {
                 nonSubscriptions = emptyList(),
                 userId = "",
                 entitlements = listOf(lifetimeEntitlement),
-                isBlank = false,
+                isPlaceholder = false,
             )
 
         val merged = deviceInfo.merge(webInfo)
@@ -328,7 +328,7 @@ class CustomerInfoMergingTest {
 
         val merged = deviceInfo.merge(webInfo)
 
-        assertTrue(merged.isBlank)
+        assertTrue(merged.isPlaceholder)
         assertEquals(0, merged.subscriptions.size)
         assertEquals(0, merged.nonSubscriptions.size)
         assertEquals(0, merged.entitlements.size)
@@ -368,7 +368,7 @@ class CustomerInfoMergingTest {
                 nonSubscriptions = emptyList(),
                 userId = "",
                 entitlements = emptyList(),
-                isBlank = false,
+                isPlaceholder = false,
             )
 
         val webInfo =
@@ -377,7 +377,7 @@ class CustomerInfoMergingTest {
                 nonSubscriptions = emptyList(),
                 userId = "",
                 entitlements = emptyList(),
-                isBlank = false,
+                isPlaceholder = false,
             )
 
         val merged = deviceInfo.merge(webInfo)
@@ -420,7 +420,7 @@ class CustomerInfoMergingTest {
                 nonSubscriptions = emptyList(),
                 userId = "",
                 entitlements = emptyList(),
-                isBlank = false,
+                isPlaceholder = false,
             )
 
         val webInfo =
@@ -429,7 +429,7 @@ class CustomerInfoMergingTest {
                 nonSubscriptions = emptyList(),
                 userId = "",
                 entitlements = emptyList(),
-                isBlank = false,
+                isPlaceholder = false,
             )
 
         val merged = deviceInfo.merge(webInfo)
@@ -472,7 +472,7 @@ class CustomerInfoMergingTest {
                 nonSubscriptions = emptyList(),
                 userId = "",
                 entitlements = emptyList(),
-                isBlank = false,
+                isPlaceholder = false,
             )
 
         val webInfo =
@@ -481,7 +481,7 @@ class CustomerInfoMergingTest {
                 nonSubscriptions = emptyList(),
                 userId = "",
                 entitlements = emptyList(),
-                isBlank = false,
+                isPlaceholder = false,
             )
 
         val merged = deviceInfo.merge(webInfo)
@@ -513,7 +513,7 @@ class CustomerInfoMergingTest {
                 nonSubscriptions = emptyList(),
                 userId = "",
                 entitlements = listOf(gracePeriodEntitlement),
-                isBlank = false,
+                isPlaceholder = false,
             )
 
         val webInfo =
@@ -522,7 +522,7 @@ class CustomerInfoMergingTest {
                 nonSubscriptions = emptyList(),
                 userId = "",
                 entitlements = listOf(subscribedEntitlement),
-                isBlank = false,
+                isPlaceholder = false,
             )
 
         val merged = deviceInfo.merge(webInfo)
@@ -553,7 +553,7 @@ class CustomerInfoMergingTest {
                 nonSubscriptions = emptyList(),
                 userId = "",
                 entitlements = listOf(entitlementWithoutHistory),
-                isBlank = false,
+                isPlaceholder = false,
             )
 
         val webInfo =
@@ -562,7 +562,7 @@ class CustomerInfoMergingTest {
                 nonSubscriptions = emptyList(),
                 userId = "",
                 entitlements = listOf(entitlementWithHistory),
-                isBlank = false,
+                isPlaceholder = false,
             )
 
         val merged = deviceInfo.merge(webInfo)
@@ -593,7 +593,7 @@ class CustomerInfoMergingTest {
                 nonSubscriptions = emptyList(),
                 userId = "",
                 entitlements = listOf(earlierExpiration),
-                isBlank = false,
+                isPlaceholder = false,
             )
 
         val webInfo =
@@ -602,7 +602,7 @@ class CustomerInfoMergingTest {
                 nonSubscriptions = emptyList(),
                 userId = "",
                 entitlements = listOf(laterExpiration),
-                isBlank = false,
+                isPlaceholder = false,
             )
 
         val merged = deviceInfo.merge(webInfo)
@@ -649,7 +649,7 @@ class CustomerInfoMergingTest {
                 nonSubscriptions = emptyList(),
                 userId = "device_user",
                 entitlements = listOf(deviceEnt),
-                isBlank = false,
+                isPlaceholder = false,
             )
 
         val webInfo =
@@ -658,7 +658,7 @@ class CustomerInfoMergingTest {
                 nonSubscriptions = emptyList(),
                 userId = "",
                 entitlements = listOf(webEnt),
-                isBlank = false,
+                isPlaceholder = false,
             )
 
         val merged = deviceInfo.merge(webInfo)
@@ -699,7 +699,7 @@ class CustomerInfoMergingTest {
                 nonSubscriptions = emptyList(),
                 userId = "",
                 entitlements = listOf(withoutExpiration),
-                isBlank = false,
+                isPlaceholder = false,
             )
 
         val webInfo =
@@ -708,7 +708,7 @@ class CustomerInfoMergingTest {
                 nonSubscriptions = emptyList(),
                 userId = "",
                 entitlements = listOf(withExpiration),
-                isBlank = false,
+                isPlaceholder = false,
             )
 
         val merged = deviceInfo.merge(webInfo)

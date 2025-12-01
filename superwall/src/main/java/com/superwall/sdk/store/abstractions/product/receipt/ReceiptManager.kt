@@ -161,7 +161,7 @@ class ReceiptManager(
                         .flatten()
                         .distinctBy { it.id }
                         .toList(),
-                isBlank = subscriptions.isEmpty() && nonSubscriptions.isEmpty(),
+                isPlaceholder = subscriptions.isEmpty() && nonSubscriptions.isEmpty(),
             )
 
         // Store device CustomerInfo

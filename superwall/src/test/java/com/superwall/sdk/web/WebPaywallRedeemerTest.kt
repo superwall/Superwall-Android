@@ -42,7 +42,6 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
 import org.junit.Before
 import org.junit.Test
 
@@ -102,7 +101,7 @@ class WebPaywallRedeemerTest {
                             nonSubscriptions = emptyList(),
                             userId = "",
                             entitlements = listOf(webEntitlement),
-                            isBlank = false,
+                            isPlaceholder = false,
                         ),
                 ),
             )
@@ -208,7 +207,7 @@ class WebPaywallRedeemerTest {
                                 nonSubscriptions = emptyList(),
                                 userId = "",
                                 entitlements = listOf(webEntitlement),
-                                isBlank = false,
+                                isPlaceholder = false,
                             ),
                     )
                 coEvery {
@@ -222,7 +221,7 @@ class WebPaywallRedeemerTest {
                                     nonSubscriptions = emptyList(),
                                     userId = "",
                                     entitlements = listOf(webEntitlement),
-                                    isBlank = false,
+                                    isPlaceholder = false,
                                 ),
                         ),
                     )
@@ -361,7 +360,7 @@ class WebPaywallRedeemerTest {
                                     nonSubscriptions = emptyList(),
                                     userId = "",
                                     entitlements = userEntitlements,
-                                    isBlank = false,
+                                    isPlaceholder = false,
                                 ),
                         ),
                     )
@@ -450,7 +449,7 @@ class WebPaywallRedeemerTest {
                                     nonSubscriptions = emptyList(),
                                     userId = "",
                                     entitlements = userEntitlements.toList(),
-                                    isBlank = false,
+                                    isPlaceholder = false,
                                 ),
                         ),
                     )
@@ -509,7 +508,7 @@ class WebPaywallRedeemerTest {
                                     nonSubscriptions = emptyList(),
                                     userId = "",
                                     entitlements = listOf(webEntitlement),
-                                    isBlank = false,
+                                    isPlaceholder = false,
                                 ),
                         ),
                     )
@@ -559,7 +558,7 @@ class WebPaywallRedeemerTest {
                                     nonSubscriptions = emptyList(),
                                     userId = "",
                                     entitlements = userEntitlements,
-                                    isBlank = false,
+                                    isPlaceholder = false,
                                 ),
                         ),
                     )
@@ -645,7 +644,7 @@ class WebPaywallRedeemerTest {
                             nonSubscriptions = emptyList(),
                             userId = "",
                             entitlements = listOf(webEntitlement),
-                            isBlank = false,
+                            isPlaceholder = false,
                         ),
                 )
             val storage =
@@ -728,7 +727,7 @@ class WebPaywallRedeemerTest {
                                 nonSubscriptions = emptyList(),
                                 userId = "",
                                 entitlements = listOf(webEntitlement),
-                                isBlank = false,
+                                isPlaceholder = false,
                             ),
                     )
 
@@ -799,7 +798,7 @@ class WebPaywallRedeemerTest {
                                 nonSubscriptions = emptyList(),
                                 userId = "",
                                 entitlements = listOf(webEntitlement),
-                                isBlank = false,
+                                isPlaceholder = false,
                             ),
                     )
 
@@ -895,7 +894,7 @@ class WebPaywallRedeemerTest {
                                 nonSubscriptions = emptyList(),
                                 userId = "",
                                 entitlements = listOf(webEntitlement),
-                                isBlank = false,
+                                isPlaceholder = false,
                             ),
                     )
 

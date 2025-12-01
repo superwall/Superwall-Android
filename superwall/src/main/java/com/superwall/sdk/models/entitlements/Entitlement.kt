@@ -1,3 +1,5 @@
+@file:Suppress("ktlint:standard:no-blank-line-in-list")
+
 package com.superwall.sdk.models.entitlements
 
 import android.annotation.SuppressLint
@@ -25,9 +27,9 @@ data class Entitlement(
      */
     @SerialName("type")
     val type: Type = Type.SERVICE_LEVEL,
+    // region: Device-enriched properties (added on device after retrieving from server)
+
     /**
-     *Added on device after retrieving from server.
-     *
      * Indicates whether there is any active, non-revoked, transaction for this entitlement.
      */
     @SerialName("isActive")
@@ -42,14 +44,14 @@ data class Entitlement(
      *
      * If one or more lifetime products unlock this entitlement, the `latestProductId` will always be the product identifier of the first lifetime product.
      *
-     * This is `null` if there aren't any transactions that unlock this entitlement.
+     * This is `null` if there aren't any transactions that unlock this entitlement or if it was manually granted from Superwall.
      */
     @SerialName("latestProductId")
     val latestProductId: String? = null,
     /**
      * The purchase date of the first transaction that unlocked this entitlement.
      *
-     * This is `null` if there aren't any transactions that unlock this entitlement.
+     * This is `null` if there aren't any transactions that unlock this entitlement or if it was manually granted from Superwall.
      */
     @SerialName("startsAt")
     @Contextual
@@ -68,7 +70,7 @@ data class Entitlement(
     /**
      * The expiry date of the last transaction that unlocked this entitlement.
      *
-     * This is `null` if there aren't any transactions that unlock this entitlement or
+     * This is `null` if there aren't any transactions that unlock this entitlement, if it was manually granted from Superwall or
      * if a lifetime product unlocked this entitlement.
      */
     @SerialName("expiresAt")
@@ -92,7 +94,7 @@ data class Entitlement(
      * The state of the last subscription transaction associated with the
      * entitlement.
      *
-     * This is `null` if there aren't any transactions that unlock this entitlement.
+     * This is `null` if there aren't any transactions that unlock this entitlement or if it was manually granted from Superwall.
      */
     @SerialName("state")
     val state: LatestSubscriptionState? = null,
@@ -100,7 +102,7 @@ data class Entitlement(
      * The type of offer that applies to the last subscription transaction that
      * unlocks this entitlement.
      *
-     * This is `null` if there aren't any transactions that unlock this entitlement.
+     * This is `null` if there aren't any transactions that unlock this entitlement or if it was manually granted from Superwall.
      *
      * Note: This is only non-`null` on Android API 21+.
      */
@@ -109,7 +111,7 @@ data class Entitlement(
     /**
      * The store where the product that unlocked this entitlement was purchased.
      *
-     * This is `null` if there aren't any transactions that unlock this entitlement.
+     * This is `null` if there aren't any transactions that unlock this entitlement or if it was manually granted from Superwall.
      */
     @SerialName("store")
     val store: Store? = null,
@@ -119,7 +121,7 @@ data class Entitlement(
         val raw: String,
     ) {
         /**
-         * An  Store product.
+         *  A Superwall service level entitlement.
          */
         @SerialName("SERVICE_LEVEL")
         SERVICE_LEVEL("SERVICE_LEVEL"),

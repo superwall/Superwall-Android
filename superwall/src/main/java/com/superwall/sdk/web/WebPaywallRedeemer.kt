@@ -1,7 +1,6 @@
 package com.superwall.sdk.web
 
 import android.content.Context
-import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.Redemptions
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.Redemptions.RedemptionState
@@ -34,7 +33,6 @@ import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.plus
 import kotlinx.serialization.json.JsonArray
@@ -343,7 +341,7 @@ class WebPaywallRedeemer(
                     nonSubscriptions = emptyList(),
                     userId = userId?.value ?: "",
                     entitlements = emptyList(),
-                    isBlank = false,
+                    isPlaceholder = false,
                 )
             }
 
@@ -426,7 +424,7 @@ class WebPaywallRedeemer(
                                             nonSubscriptions = emptyList(),
                                             userId = "",
                                             entitlements = newEntitlements.toList(),
-                                            isBlank = false,
+                                            isPlaceholder = false,
                                         )
                                     val updatedResponse =
                                         latestRedeemResponse.copy(

@@ -65,7 +65,7 @@ class CustomerInfoManagerTest {
                     nonSubscriptions = emptyList(),
                     userId = "user123",
                     entitlements = emptyList(),
-                    isBlank = false,
+                    isPlaceholder = false,
                 )
 
             val webInfo =
@@ -87,7 +87,7 @@ class CustomerInfoManagerTest {
                     nonSubscriptions = emptyList(),
                     userId = "",
                     entitlements = emptyList(),
-                    isBlank = false,
+                    isPlaceholder = false,
                 )
 
             every { storage.read(LatestDeviceCustomerInfo) } returns deviceInfo
@@ -123,7 +123,7 @@ class CustomerInfoManagerTest {
                     nonSubscriptions = emptyList(),
                     userId = "user123",
                     entitlements = emptyList(),
-                    isBlank = false,
+                    isPlaceholder = false,
                 )
 
             every { storage.read(LatestDeviceCustomerInfo) } returns deviceInfo
@@ -158,7 +158,7 @@ class CustomerInfoManagerTest {
                     nonSubscriptions = emptyList(),
                     userId = "webuser",
                     entitlements = emptyList(),
-                    isBlank = false,
+                    isPlaceholder = false,
                 )
 
             every { storage.read(LatestDeviceCustomerInfo) } returns null
@@ -180,8 +180,8 @@ class CustomerInfoManagerTest {
             manager.updateMergedCustomerInfo()
             testDispatcher.scheduler.advanceUntilIdle()
 
-            verify { storage.write(LatestCustomerInfo, match { it.isBlank }) }
-            assert(customerInfoFlow.value.isBlank)
+            verify { storage.write(LatestCustomerInfo, match { it.isPlaceholder }) }
+            assert(customerInfoFlow.value.isPlaceholder)
         }
 
     // Tests for external purchase controller flow
@@ -215,7 +215,7 @@ class CustomerInfoManagerTest {
                     nonSubscriptions = emptyList(),
                     userId = "user123",
                     entitlements = listOf(deviceEntitlement),
-                    isBlank = false,
+                    isPlaceholder = false,
                 )
 
             val webCustomerInfo =
@@ -224,7 +224,7 @@ class CustomerInfoManagerTest {
                     nonSubscriptions = emptyList(),
                     userId = "",
                     entitlements = listOf(webEntitlement),
-                    isBlank = false,
+                    isPlaceholder = false,
                 )
 
             val subscriptionStatus =
@@ -341,7 +341,7 @@ class CustomerInfoManagerTest {
                     nonSubscriptions = emptyList(),
                     userId = "user123",
                     entitlements = emptyList(),
-                    isBlank = false,
+                    isPlaceholder = false,
                 )
 
             val webCustomerInfo =
@@ -350,7 +350,7 @@ class CustomerInfoManagerTest {
                     nonSubscriptions = emptyList(),
                     userId = "",
                     entitlements = emptyList(),
-                    isBlank = false,
+                    isPlaceholder = false,
                 )
 
             every { storage.read(LatestDeviceCustomerInfo) } returns deviceInfo

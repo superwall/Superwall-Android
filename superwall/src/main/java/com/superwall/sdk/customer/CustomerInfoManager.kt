@@ -88,9 +88,9 @@ class CustomerInfoManager(
                 // Merge with optimization: skip merge if one source is blank
                 merged =
                     when {
-                        deviceInfo.isBlank && webInfo.isBlank -> CustomerInfo.empty()
-                        deviceInfo.isBlank -> webInfo
-                        webInfo.isBlank -> deviceInfo
+                        deviceInfo.isPlaceholder && webInfo.isPlaceholder -> CustomerInfo.empty()
+                        deviceInfo.isPlaceholder -> webInfo
+                        webInfo.isPlaceholder -> deviceInfo
                         else -> deviceInfo.merge(webInfo) // Apply priority-based merging
                     }
 

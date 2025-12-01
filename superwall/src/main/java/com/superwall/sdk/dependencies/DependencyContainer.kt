@@ -273,8 +273,6 @@ class DependencyContainer(
             StoreManager(
                 purchaseController = purchaseController,
                 billing = googleBillingWrapper,
-                storage = storage,
-                customerInfoManager = { customerInfoManager },
                 receiptManagerFactory = {
                     ReceiptManager(
                         delegate = storeManager,

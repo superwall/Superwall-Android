@@ -30,9 +30,12 @@ data class CustomerInfo(
     /** All entitlements available to the user. */
     @SerialName("entitlements")
     val entitlements: List<Entitlement>,
-    /** Internally set to `true` on first ever load of CustomerInfo. */
-    @SerialName("isBlank")
-    internal val isBlank: Boolean = false,
+    /** Indicates whether this is a placeholder CustomerInfo that hasn't been populated with real data yet.
+     *  true means this is the initial placeholder state before data has been loaded.
+     *  false means real data has been loaded (even if that data is empty)
+     * */
+    @SerialName("isPlaceholder")
+    internal val isPlaceholder: Boolean = false,
 ) {
     /** A Set of the product identifiers for the active subscriptions. */
     @Transient
@@ -53,7 +56,7 @@ data class CustomerInfo(
                 nonSubscriptions = emptyList(),
                 userId = "",
                 entitlements = emptyList(),
-                isBlank = true,
+                isPlaceholder = true,
             )
 
         /**
@@ -116,7 +119,7 @@ data class CustomerInfo(
                 nonSubscriptions = baseCustomerInfo.nonSubscriptions,
                 userId = baseCustomerInfo.userId,
                 entitlements = finalEntitlements,
-                isBlank = false,
+                isPlaceholder = false,
             )
         }
     }
