@@ -134,7 +134,7 @@ class TransactionManagerTest {
         mockk<ActivityProvider> {
             every { getCurrentActivity() } returns mockk()
         }
-    private val storeManager = spyk(StoreManager(purchaseController, billing))
+    private val storeManager = spyk(StoreManager(purchaseController, billing, receiptManagerFactory = { mockk(relaxed = true) }))
 
     private var eventsQueue = mockk<EventsQueue>(relaxUnitFun = true)
     private var transactionManagerFactory =
@@ -208,6 +208,7 @@ class TransactionManagerTest {
             ioScope = IOScope(this.coroutineContext),
             storage = storage,
             entitlementsById = entitlementsById,
+            allEntitlementsByProductId = { emptyMap() },
             showRestoreDialogForWeb = showRestoreDialogForWeb,
             refreshReceipt = {},
         )
@@ -303,7 +304,7 @@ class TransactionManagerTest {
                         )
                     Then("The purchase is successful") {
                         assert(result is PurchaseResult.Purchased)
-                        coVerify { storeManager.loadPurchasedProducts() }
+                        coVerify { storeManager.loadPurchasedProducts(any()) }
                         And("Verify event order") {
                             val transactionEvents =
                                 events.value.filterIsInstance<InternalSuperwallEvent.Transaction>()
@@ -413,7 +414,7 @@ class TransactionManagerTest {
                         )
                     Then("The purchase is successful") {
                         assert(result is PurchaseResult.Purchased)
-                        coVerify { storeManager.loadPurchasedProducts() }
+                        coVerify { storeManager.loadPurchasedProducts(any()) }
                         And("Verify event order") {
                             val transactionEvents =
                                 events.value.filterIsInstance<InternalSuperwallEvent.Transaction>()
@@ -914,7 +915,7 @@ class TransactionManagerTest {
                         )
                     Then("The purchase is successful") {
                         assert(result is PurchaseResult.Purchased)
-                        coVerify { storeManager.loadPurchasedProducts() }
+                        coVerify { storeManager.loadPurchasedProducts(any()) }
                         And("Verify free trial start event") {
                             val freeTrialStartEvent =
                                 events.value.filterIsInstance<InternalSuperwallEvent.FreeTrialStart>()
@@ -961,7 +962,7 @@ class TransactionManagerTest {
                         )
                     Then("The purchase is successful") {
                         assert(result is PurchaseResult.Purchased)
-                        coVerify { storeManager.loadPurchasedProducts() }
+                        coVerify { storeManager.loadPurchasedProducts(any()) }
                         And("Verify non-recurring product purchase event") {
                             val nonRecurringPurchaseEvent =
                                 events.value.filterIsInstance<InternalSuperwallEvent.NonRecurringProductPurchase>()
@@ -1005,7 +1006,7 @@ class TransactionManagerTest {
                         )
                     Then("The purchase is successful") {
                         assert(result is PurchaseResult.Purchased)
-                        coVerify { storeManager.loadPurchasedProducts() }
+                        coVerify { storeManager.loadPurchasedProducts(any()) }
                         And("Verify non-recurring product purchase event") {
                             val nonRecurringPurchaseEvent =
                                 events.value.filterIsInstance<InternalSuperwallEvent.NonRecurringProductPurchase>()
@@ -1054,7 +1055,7 @@ class TransactionManagerTest {
                         )
                     Then("The purchase is successful") {
                         assert(result is PurchaseResult.Purchased)
-                        coVerify { storeManager.loadPurchasedProducts() }
+                        coVerify { storeManager.loadPurchasedProducts(any()) }
                         And("Verify subscription start event") {
                             val subscriptionStartEvent =
                                 events.value.filterIsInstance<InternalSuperwallEvent.SubscriptionStart>()
@@ -1101,7 +1102,7 @@ class TransactionManagerTest {
                         )
                     Then("The purchase is successful") {
                         assert(result is PurchaseResult.Purchased)
-                        coVerify { storeManager.loadPurchasedProducts() }
+                        coVerify { storeManager.loadPurchasedProducts(any()) }
                         And("Verify subscription start event") {
                             val subscriptionStartEvent =
                                 events.value.filterIsInstance<InternalSuperwallEvent.SubscriptionStart>()
