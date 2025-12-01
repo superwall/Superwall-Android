@@ -165,7 +165,6 @@ class DependencyContainer(
     ClassifierDataFactory,
     ExperimentalPropertiesFactory,
     WebPaywallRedeemer.Factory {
-
     internal val getPaywallComponentsFactory: GetPaywallComponentsFactory by lazy {
         DefaultGetPaywallComponentsFactory(Superwall.instance)
     }
@@ -922,8 +921,6 @@ class DependencyContainer(
     override fun makeTransactionVerifier(): GoogleBillingWrapper = googleBillingWrapper
 
     override fun makeSuperwallOptions(): SuperwallOptions = configManager.options
-
-    override fun experimentalProperties(): Map<String, Any> = storeManager.receiptManager.experimentalProperties()
 
     override suspend fun makeTriggers(): Set<String> = configManager.triggersByEventName.keys
 
