@@ -7,6 +7,7 @@ import com.superwall.sdk.When
 import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.misc.Either
 import com.superwall.sdk.misc.IOScope
+import com.superwall.sdk.models.customer.CustomerInfo
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.entitlements.TransactionReceipt
@@ -24,6 +25,7 @@ import com.superwall.sdk.models.internal.WebRedemptionResponse
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.network.NetworkError
 import com.superwall.sdk.paywall.presentation.PaywallInfo
+import com.superwall.sdk.storage.*
 import com.superwall.sdk.storage.LatestRedemptionResponse
 import com.superwall.sdk.storage.Storable
 import com.superwall.sdk.storage.Storage
@@ -50,9 +52,9 @@ class WebPaywallRedeemerTest {
         mockk {
             every { read(LatestRedemptionResponse) } returns null
             every { write(LatestRedemptionResponse, any()) } just Runs
-            every { read(com.superwall.sdk.storage.LatestWebCustomerInfo) } returns null
-            every { write(com.superwall.sdk.storage.LatestWebCustomerInfo, any()) } just Runs
-            every { write(com.superwall.sdk.storage.LastWebEntitlementsFetchDate, any()) } just Runs
+            every { read(LatestWebCustomerInfo) } returns null
+            every { write(LatestWebCustomerInfo, any()) } just Runs
+            every { write(LastWebEntitlementsFetchDate, any()) } just Runs
         }
 
     private var maxAge: () -> Long = { 1L }
@@ -91,7 +93,19 @@ class WebPaywallRedeemerTest {
         mutableEntitlements = mutableSetOf()
         coEvery {
             network.webEntitlementsByUserId(any(), any())
-        } returns Either.Success(WebEntitlements(listOf(webEntitlement), customerInfo = null))
+        } returns
+            Either.Success(
+                WebEntitlements(
+                    customerInfo =
+                        CustomerInfo(
+                            subscriptions = emptyList(),
+                            nonSubscriptions = emptyList(),
+                            userId = "",
+                            entitlements = listOf(webEntitlement),
+                            isBlank = false,
+                        ),
+                ),
+            )
     }
 
     private val onRedemptionResult: (RedemptionResult) -> Unit = mockk(relaxed = true)
@@ -188,11 +202,30 @@ class WebPaywallRedeemerTest {
                                         ),
                                 ),
                             ),
-                        entitlements = listOf(webEntitlement),
+                        customerInfo =
+                            CustomerInfo(
+                                subscriptions = emptyList(),
+                                nonSubscriptions = emptyList(),
+                                userId = "",
+                                entitlements = listOf(webEntitlement),
+                                isBlank = false,
+                            ),
                     )
                 coEvery {
                     network.webEntitlementsByUserId(any(), any())
-                } returns Either.Success(WebEntitlements(listOf(webEntitlement), customerInfo = null))
+                } returns
+                    Either.Success(
+                        WebEntitlements(
+                            customerInfo =
+                                CustomerInfo(
+                                    subscriptions = emptyList(),
+                                    nonSubscriptions = emptyList(),
+                                    userId = "",
+                                    entitlements = listOf(webEntitlement),
+                                    isBlank = false,
+                                ),
+                        ),
+                    )
 
                 coEvery { deepLinkReferrer.checkForReferral() } returns Result.success(code)
                 coEvery {
@@ -284,7 +317,7 @@ class WebPaywallRedeemerTest {
                 } returns Either.Failure(NetworkError.Unknown(exception))
                 coEvery {
                     network.webEntitlementsByUserId(any(), any())
-                } returns Either.Success(WebEntitlements(listOf(), customerInfo = null))
+                } returns Either.Success(WebEntitlements(customerInfo = null))
 
                 When("creating redeemer and checking for referral") {
                     redeemer =
@@ -319,7 +352,19 @@ class WebPaywallRedeemerTest {
 
                 coEvery {
                     network.webEntitlementsByUserId(any(), any())
-                } returns Either.Success(WebEntitlements(userEntitlements, customerInfo = null))
+                } returns
+                    Either.Success(
+                        WebEntitlements(
+                            customerInfo =
+                                CustomerInfo(
+                                    subscriptions = emptyList(),
+                                    nonSubscriptions = emptyList(),
+                                    userId = "",
+                                    entitlements = userEntitlements,
+                                    isBlank = false,
+                                ),
+                        ),
+                    )
 
                 redeemer =
                     WebPaywallRedeemer(
@@ -396,7 +441,19 @@ class WebPaywallRedeemerTest {
 
                 coEvery {
                     network.webEntitlementsByUserId(UserId("test_user"), any())
-                } returns Either.Success(WebEntitlements(userEntitlements.toList(), customerInfo = null))
+                } returns
+                    Either.Success(
+                        WebEntitlements(
+                            customerInfo =
+                                CustomerInfo(
+                                    subscriptions = emptyList(),
+                                    nonSubscriptions = emptyList(),
+                                    userId = "",
+                                    entitlements = userEntitlements.toList(),
+                                    isBlank = false,
+                                ),
+                        ),
+                    )
 
                 coEvery {
                     network.webEntitlementsByDeviceID(any())
@@ -443,7 +500,19 @@ class WebPaywallRedeemerTest {
 
                 coEvery {
                     network.webEntitlementsByUserId(any(), any())
-                } returns Either.Success(WebEntitlements(listOf(webEntitlement), customerInfo = null))
+                } returns
+                    Either.Success(
+                        WebEntitlements(
+                            customerInfo =
+                                CustomerInfo(
+                                    subscriptions = emptyList(),
+                                    nonSubscriptions = emptyList(),
+                                    userId = "",
+                                    entitlements = listOf(webEntitlement),
+                                    isBlank = false,
+                                ),
+                        ),
+                    )
 
                 redeemer =
                     WebPaywallRedeemer(
@@ -481,7 +550,19 @@ class WebPaywallRedeemerTest {
 
                 coEvery {
                     network.webEntitlementsByUserId(any(), any())
-                } returns Either.Success(WebEntitlements(userEntitlements, customerInfo = null))
+                } returns
+                    Either.Success(
+                        WebEntitlements(
+                            customerInfo =
+                                CustomerInfo(
+                                    subscriptions = emptyList(),
+                                    nonSubscriptions = emptyList(),
+                                    userId = "",
+                                    entitlements = userEntitlements,
+                                    isBlank = false,
+                                ),
+                        ),
+                    )
 
                 redeemer =
                     WebPaywallRedeemer(
@@ -558,7 +639,14 @@ class WebPaywallRedeemerTest {
                                     ),
                             ),
                         ),
-                    entitlements = listOf(webEntitlement),
+                    customerInfo =
+                        CustomerInfo(
+                            subscriptions = emptyList(),
+                            nonSubscriptions = emptyList(),
+                            userId = "",
+                            entitlements = listOf(webEntitlement),
+                            isBlank = false,
+                        ),
                 )
             val storage =
                 object : Storage {
@@ -634,7 +722,14 @@ class WebPaywallRedeemerTest {
                                         ),
                                 ),
                             ),
-                        entitlements = listOf(webEntitlement),
+                        customerInfo =
+                            CustomerInfo(
+                                subscriptions = emptyList(),
+                                nonSubscriptions = emptyList(),
+                                userId = "",
+                                entitlements = listOf(webEntitlement),
+                                isBlank = false,
+                            ),
                     )
 
                 coEvery { deepLinkReferrer.checkForReferral() } returns Result.success(code)
@@ -698,7 +793,14 @@ class WebPaywallRedeemerTest {
                                         ),
                                 ),
                             ),
-                        entitlements = listOf(webEntitlement),
+                        customerInfo =
+                            CustomerInfo(
+                                subscriptions = emptyList(),
+                                nonSubscriptions = emptyList(),
+                                userId = "",
+                                entitlements = listOf(webEntitlement),
+                                isBlank = false,
+                            ),
                     )
 
                 coEvery { deepLinkReferrer.checkForReferral() } returns Result.success(code)
@@ -745,25 +847,24 @@ class WebPaywallRedeemerTest {
                     )
 
                 // Expected JSON conversion
-                val expectedJsonProps =
-                    mapOf<String, JsonElement>(
-                        "string_value" to JsonPrimitive("test_string"),
-                        "int_value" to JsonPrimitive(42),
-                        "double_value" to JsonPrimitive(3.14),
-                        "boolean_value" to JsonPrimitive(true),
-                        "nested_map" to
-                            kotlinx.serialization.json.buildJsonObject {
-                                put("inner_key", JsonPrimitive("inner_value"))
-                            },
-                        "list_value" to
-                            kotlinx.serialization.json.JsonArray(
-                                listOf(
-                                    JsonPrimitive("item1"),
-                                    JsonPrimitive("item2"),
-                                    JsonPrimitive(123),
-                                ),
+                mapOf<String, JsonElement>(
+                    "string_value" to JsonPrimitive("test_string"),
+                    "int_value" to JsonPrimitive(42),
+                    "double_value" to JsonPrimitive(3.14),
+                    "boolean_value" to JsonPrimitive(true),
+                    "nested_map" to
+                        buildJsonObject {
+                            put("inner_key", JsonPrimitive("inner_value"))
+                        },
+                    "list_value" to
+                        JsonArray(
+                            listOf(
+                                JsonPrimitive("item1"),
+                                JsonPrimitive("item2"),
+                                JsonPrimitive(123),
                             ),
-                    )
+                        ),
+                )
 
                 mutableEntitlements = mutableSetOf(normalEntitlement)
                 val response =
@@ -788,7 +889,14 @@ class WebPaywallRedeemerTest {
                                         ),
                                 ),
                             ),
-                        entitlements = listOf(webEntitlement),
+                        customerInfo =
+                            CustomerInfo(
+                                subscriptions = emptyList(),
+                                nonSubscriptions = emptyList(),
+                                userId = "",
+                                entitlements = listOf(webEntitlement),
+                                isBlank = false,
+                            ),
                     )
 
                 coEvery { deepLinkReferrer.checkForReferral() } returns Result.success(code)

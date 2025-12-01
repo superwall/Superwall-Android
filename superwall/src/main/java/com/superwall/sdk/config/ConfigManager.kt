@@ -336,7 +336,7 @@ open class ConfigManager(
             }
         }
         ioScope.launch {
-            storeManager.loadPurchasedProducts()
+            storeManager.loadPurchasedProducts(entitlements.entitlementsByProductId)
         }
     }
 

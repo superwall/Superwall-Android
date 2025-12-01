@@ -163,6 +163,7 @@ class DependencyContainer(
     SuperwallScopeFactory,
     GoogleBillingWrapper.Factory,
     ClassifierDataFactory,
+    ExperimentalPropertiesFactory,
     WebPaywallRedeemer.Factory {
 
     internal val getPaywallComponentsFactory: GetPaywallComponentsFactory by lazy {
@@ -256,6 +257,8 @@ class DependencyContainer(
                 storage = storage,
                 customerInfoFlow = Superwall.instance._customerInfo,
                 ioScope = ioScope,
+                hasExternalPurchaseController = { storeManager.purchaseController.hasExternalPurchaseController },
+                getSubscriptionStatus = { entitlements.status.value },
             )
 
         var purchaseController =
@@ -484,6 +487,9 @@ class DependencyContainer(
                 },
                 entitlementsById = {
                     entitlements.byProductId(it)
+                },
+                allEntitlementsByProductId = {
+                    entitlements.entitlementsByProductId
                 },
                 refreshReceipt = {
                     storeManager.refreshReceipt()
@@ -918,6 +924,8 @@ class DependencyContainer(
     override fun makeTransactionVerifier(): GoogleBillingWrapper = googleBillingWrapper
 
     override fun makeSuperwallOptions(): SuperwallOptions = configManager.options
+
+    override fun experimentalProperties(): Map<String, Any> = storeManager.receiptManager.experimentalProperties()
 
     override suspend fun makeTriggers(): Set<String> = configManager.triggersByEventName.keys
 

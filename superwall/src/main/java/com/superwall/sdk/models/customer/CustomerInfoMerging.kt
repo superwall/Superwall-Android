@@ -86,12 +86,18 @@ fun CustomerInfo.merge(other: CustomerInfo): CustomerInfo {
 private fun mergeEntitlements(
     first: List<Entitlement>,
     second: List<Entitlement>,
-): List<Entitlement> =
-    (first + second)
+): List<Entitlement> = mergeEntitlementsPrioritized(first + second)
+
+/**
+ * Merges a list of entitlements, keeping the highest priority entitlement for each ID.
+ * Uses EntitlementPriorityComparator to determine priority.
+ */
+internal fun mergeEntitlementsPrioritized(entitlements: List<Entitlement>): List<Entitlement> =
+    entitlements
         .groupBy { it.id }
-        .map { (_, entitlements) ->
-            entitlements.maxWithOrNull(EntitlementPriorityComparator)
-                ?: entitlements.first()
+        .map { (_, group) ->
+            group.maxWithOrNull(EntitlementPriorityComparator)
+                ?: group.first()
         }
 
 /**
@@ -123,8 +129,16 @@ private object SubscriptionTransactionComparator : Comparator<SubscriptionTransa
 
 /**
  * Comparator implementing iOS priority rules for entitlements.
+ *
+ * Priority order (highest to lowest):
+ * 1. Active entitlements (isActive = true)
+ * 2. Has transaction history (startsAt != null)
+ * 3. Lifetime entitlements (isLifetime = true)
+ * 4. Latest expiry time (furthest future expiresAt)
+ * 5. Will renew vs won't renew (willRenew = true)
+ * 6. Subscription state quality (SUBSCRIBED > GRACE_PERIOD > BILLING_RETRY > EXPIRED)
  */
-private object EntitlementPriorityComparator : Comparator<Entitlement> {
+internal object EntitlementPriorityComparator : Comparator<Entitlement> {
     override fun compare(
         a: Entitlement,
         b: Entitlement,
@@ -159,7 +173,7 @@ private object EntitlementPriorityComparator : Comparator<Entitlement> {
         val aState = a.state
         val bState = b.state
         if (aState != bState) {
-            // Prioritize based on state quality
+            // Prioritize based on latest sub state
             val aScore = getStateScore(aState)
             val bScore = getStateScore(bState)
             if (aScore != bScore) return aScore.compareTo(bScore)

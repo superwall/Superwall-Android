@@ -342,7 +342,7 @@ internal object LatestCustomerInfo : Storable<CustomerInfo> {
     override val key: String
         get() = "store.latestCustomerInfo"
     override val directory: SearchPathDirectory
-        get() = SearchPathDirectory.APP_SPECIFIC_DOCUMENTS
+        get() = SearchPathDirectory.USER_SPECIFIC_DOCUMENTS
     override val serializer: KSerializer<CustomerInfo>
         get() = CustomerInfo.serializer()
 }
@@ -351,7 +351,7 @@ internal object LatestDeviceCustomerInfo : Storable<CustomerInfo> {
     override val key: String
         get() = "store.latestDeviceCustomerInfo"
     override val directory: SearchPathDirectory
-        get() = SearchPathDirectory.APP_SPECIFIC_DOCUMENTS
+        get() = SearchPathDirectory.USER_SPECIFIC_DOCUMENTS
     override val serializer: KSerializer<CustomerInfo>
         get() = CustomerInfo.serializer()
 }
@@ -369,7 +369,7 @@ internal object LastWebEntitlementsFetchDate : Storable<Long> {
     override val key: String
         get() = "store.lastWebEntitlementsFetchDate"
     override val directory: SearchPathDirectory
-        get() = SearchPathDirectory.APP_SPECIFIC_DOCUMENTS
+        get() = SearchPathDirectory.USER_SPECIFIC_DOCUMENTS
     override val serializer: KSerializer<Long>
         get() = Long.serializer()
 }

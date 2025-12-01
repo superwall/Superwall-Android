@@ -6,6 +6,7 @@ import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.models.customer.CustomerInfo
 import com.superwall.sdk.models.customer.merge
+import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.storage.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
@@ -20,6 +21,11 @@ import kotlinx.coroutines.launch
  * - Updating the public CustomerInfo flow that the SDK exposes
  * - Persisting the merged result to storage
  *
+ * When an external purchase controller is present (e.g., RevenueCat, Qonversion):
+ * - The subscription status is the source of truth for active entitlements
+ * - Device receipts are only used for inactive entitlements (history)
+ * - This preserves entitlements set by external controllers that device receipts don't know about
+ *
  * The merge happens whenever:
  * - Device receipts are refreshed (via ReceiptManager)
  * - Web entitlements are fetched (via WebPaywallRedeemer)
@@ -29,6 +35,8 @@ class CustomerInfoManager(
     private val storage: Storage,
     private val customerInfoFlow: MutableStateFlow<CustomerInfo>,
     private val ioScope: IOScope,
+    private val hasExternalPurchaseController: () -> Boolean,
+    private val getSubscriptionStatus: () -> SubscriptionStatus,
 ) {
     /**
      * Merges device and web CustomerInfo and updates the public CustomerInfo flow.
@@ -40,40 +48,60 @@ class CustomerInfoManager(
      * 4. Persists the merged result to storage
      * 5. Updates the public flow so listeners get the latest merged state
      *
+     * When an external purchase controller is present:
+     * - Uses CustomerInfo.forExternalPurchaseController() instead of standard merge
+     * - This ensures external controller's entitlements are preserved as source of truth
+     *
      * The merge is performed asynchronously on the IO scope to avoid blocking the caller.
      */
     fun updateMergedCustomerInfo() {
         ioScope.launch {
-            // Get device CustomerInfo (from Google Play receipts)
-            val deviceInfo = storage.read(LatestDeviceCustomerInfo) ?: CustomerInfo.empty()
+            val merged: CustomerInfo
 
-            // Get web CustomerInfo (from Superwall backend)
-            val webInfo = storage.read(LatestWebCustomerInfo) ?: CustomerInfo.empty()
+            if (hasExternalPurchaseController()) {
+                merged =
+                    CustomerInfo.forExternalPurchaseController(
+                        storage = storage,
+                        subscriptionStatus = getSubscriptionStatus(),
+                    )
 
-            Logger.debug(
-                logLevel = LogLevel.debug,
-                scope = LogScope.superwallCore,
-                message =
-                    "Merging CustomerInfo - Device: ${deviceInfo.subscriptions.size} subs, " +
-                        "Web: ${webInfo.subscriptions.size} subs",
-            )
+                Logger.debug(
+                    logLevel = LogLevel.debug,
+                    scope = LogScope.superwallCore,
+                    message =
+                        "Built CustomerInfo for external controller - " +
+                            "${merged.subscriptions.size} subs, " +
+                            "${merged.entitlements.size} entitlements",
+                )
+            } else {
+                val deviceInfo = storage.read(LatestDeviceCustomerInfo) ?: CustomerInfo.empty()
+                val webInfo = storage.read(LatestWebCustomerInfo) ?: CustomerInfo.empty()
 
-            // Merge with optimization: skip merge if one source is blank
-            val merged =
-                when {
-                    deviceInfo.isBlank && webInfo.isBlank -> CustomerInfo.empty()
-                    deviceInfo.isBlank -> webInfo
-                    webInfo.isBlank -> deviceInfo
-                    else -> deviceInfo.merge(webInfo) // Apply priority-based merging
-                }
+                Logger.debug(
+                    logLevel = LogLevel.debug,
+                    scope = LogScope.superwallCore,
+                    message =
+                        "Merging CustomerInfo - Device: ${deviceInfo.subscriptions.size} subs, " +
+                            "Web: ${webInfo.subscriptions.size} subs",
+                )
 
-            Logger.debug(
-                logLevel = LogLevel.debug,
-                scope = LogScope.superwallCore,
-                message =
-                    "Merged CustomerInfo - Total: ${merged.subscriptions.size} subs, " +
-                        "${merged.entitlements.size} entitlements",
-            )
+                // Merge with optimization: skip merge if one source is blank
+                merged =
+                    when {
+                        deviceInfo.isBlank && webInfo.isBlank -> CustomerInfo.empty()
+                        deviceInfo.isBlank -> webInfo
+                        webInfo.isBlank -> deviceInfo
+                        else -> deviceInfo.merge(webInfo) // Apply priority-based merging
+                    }
+
+                Logger.debug(
+                    logLevel = LogLevel.debug,
+                    scope = LogScope.superwallCore,
+                    message =
+                        "Merged CustomerInfo - Total: ${merged.subscriptions.size} subs, " +
+                            "${merged.entitlements.size} entitlements",
+                )
+            }
 
             // Store merged result for caching/offline access
             storage.write(LatestCustomerInfo, merged)

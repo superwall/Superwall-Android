@@ -9,6 +9,7 @@ import com.superwall.sdk.billing.DecomposedProductIds
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
+import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.product.Offer
 import com.superwall.sdk.models.product.PlayStoreProduct
@@ -24,8 +25,6 @@ import java.util.Date
 class StoreManager(
     val purchaseController: InternalPurchaseController,
     val billing: Billing,
-    private val storage: com.superwall.sdk.storage.Storage,
-    internal val customerInfoManager: () -> com.superwall.sdk.customer.CustomerInfoManager,
     receiptManagerFactory: () -> ReceiptManager,
     private val track: suspend (InternalSuperwallEvent) -> Unit = {
         Superwall.instance.track(it)
@@ -242,13 +241,13 @@ class StoreManager(
         receiptManager.refreshReceipt()
     }
 
-    override suspend fun loadPurchasedProducts() {
+    override suspend fun loadPurchasedProducts(serverEntitlementsByProductId: Map<String, Set<Entitlement>>) {
         Logger.debug(
             logLevel = LogLevel.debug,
             scope = LogScope.storeKitManager, // Rename this scope to reflect Billing Manager
             message = "Loading purchased products from the Google Play receipt.",
         )
-        receiptManager.loadPurchasedProducts()
+        receiptManager.loadPurchasedProducts(serverEntitlementsByProductId)
     }
 
     override fun cacheProduct(

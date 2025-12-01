@@ -25,10 +25,21 @@ class Entitlements(
 ) {
     val web: Set<Entitlement>
         get() =
-            storage.read(LatestRedemptionResponse)?.entitlements?.toSet() ?: emptySet()
+            storage
+                .read(LatestRedemptionResponse)
+                ?.customerInfo
+                ?.entitlements
+                ?.toSet() ?: emptySet()
 
     // MARK: - Private Properties
     internal val entitlementsByProduct = ConcurrentHashMap<String, Set<Entitlement>>()
+
+    /**
+     * Returns a snapshot of all entitlements by product ID.
+     * Used when loading purchases to enrich entitlements with transaction data.
+     */
+    val entitlementsByProductId: Map<String, Set<Entitlement>>
+        get() = entitlementsByProduct.toMap()
 
     private val _status: MutableStateFlow<SubscriptionStatus> =
         MutableStateFlow(SubscriptionStatus.Unknown)
