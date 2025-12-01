@@ -1269,9 +1269,12 @@ class Superwall(
                                     ?.getCurrentActivity()
                         ) as SuperwallPaywallActivity?
 
+                    // Cancel any existing fallback notification of the same type before scheduling
+                    // the dynamic notification from the paywall
                     paywallActivity?.attemptToScheduleNotifications(
                         notifications = listOf(paywallEvent.localNotification),
                         factory = dependencyContainer,
+                        cancelExisting = true,
                     ) ?: run {
                         Logger.debug(
                             LogLevel.error,

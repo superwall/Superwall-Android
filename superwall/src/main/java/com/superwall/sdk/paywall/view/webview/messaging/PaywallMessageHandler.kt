@@ -198,14 +198,15 @@ class PaywallMessageHandler(
                 setAttributes(message.data)
             }
 
-            is PaywallMessage.TransactionComplete -> {
+            is PaywallMessage.TrialStarted -> {
                 ioScope.launch {
                     pass(
-                        eventName = SuperwallEvents.TransactionComplete.rawName,
+                        eventName = SuperwallEvents.TrialStart.rawName,
                         paywall = paywall,
                         payload =
-                            message.trialeEndDate?.let { mapOf("trial_end_date" to it) }
-                                ?: mapOf(),
+                            buildMap {
+                                message.trialEndDate?.let { put("trial_end_date", it) }
+                            },
                     )
                 }
             }

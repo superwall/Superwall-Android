@@ -80,8 +80,8 @@ sealed class PaywallMessage {
 
     object TransactionStart : PaywallMessage()
 
-    data class TransactionComplete(
-        val trialeEndDate: Long?,
+    data class TrialStarted(
+        val trialEndDate: Long?,
     ) : PaywallMessage()
 
     data class UserAttributesUpdated(

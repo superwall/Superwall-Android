@@ -14,14 +14,44 @@ import java.util.concurrent.TimeUnit
 
 internal class NotificationScheduler {
     companion object {
+        private const val TAG_PREFIX = "superwall_notification_"
+
+        /**
+         * Creates a unique tag for a notification ID to allow cancellation and replacement.
+         */
+        private fun tagForNotificationId(id: Int): String = "${TAG_PREFIX}$id"
+
+        /**
+         * Cancels any pending notification with the given ID.
+         */
+        fun cancelNotificationById(
+            id: Int,
+            context: Context,
+        ) {
+            val workManager = WorkManager.getInstance(context)
+            val tag = tagForNotificationId(id)
+            workManager.cancelAllWorkByTag(tag)
+            Logger.debug(
+                logLevel = LogLevel.debug,
+                scope = LogScope.paywallView,
+                message = "Cancelled pending notification with tag: $tag",
+            )
+        }
+
         fun scheduleNotifications(
             notifications: List<LocalNotification>,
             factory: DeviceHelperFactory,
             context: Context,
+            cancelExisting: Boolean = false,
         ) {
             val workManager = WorkManager.getInstance(context)
 
             notifications.forEach { notification ->
+                // Cancel existing notification with the same ID if requested
+                if (cancelExisting) {
+                    cancelNotificationById(notification.id, context)
+                }
+
                 val data =
                     workDataOf(
                         "id" to notification.id,
@@ -48,14 +78,23 @@ internal class NotificationScheduler {
                     return
                 }
 
+                val idTag = tagForNotificationId(notification.id)
+
                 val notificationWork =
                     OneTimeWorkRequestBuilder<NotificationWorker>()
                         .setInitialDelay(delay, TimeUnit.MILLISECONDS)
                         .setInputData(data)
                         .addTag(SuperwallPaywallActivity.NOTIFICATION_CHANNEL_ID)
+                        .addTag(idTag) // Add ID-specific tag for cancellation
                         .build()
 
                 workManager.enqueue(notificationWork)
+
+                Logger.debug(
+                    logLevel = LogLevel.debug,
+                    scope = LogScope.paywallView,
+                    message = "Scheduled notification with tag: $idTag, delay: ${delay}ms",
+                )
             }
         }
     }
