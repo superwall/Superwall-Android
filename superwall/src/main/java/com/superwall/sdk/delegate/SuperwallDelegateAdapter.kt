@@ -90,4 +90,9 @@ class SuperwallDelegateAdapter {
             error = error,
         )
     }
+
+    fun userAttributesDidChange(newAttributes: Map<String, Any>) {
+        kotlinDelegate?.userAttributesDidChange(newAttributes)
+            ?: javaDelegate?.userAttributesDidChange(newAttributes)
+    }
 }

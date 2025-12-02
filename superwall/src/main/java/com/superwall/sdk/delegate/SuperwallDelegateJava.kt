@@ -42,4 +42,6 @@ interface SuperwallDelegateJava {
         error: Throwable? = null,
     ) {
     }
+
+    fun userAttributesDidChange(newAttributes: Map<String, Any>) {}
 }

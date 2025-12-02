@@ -25,7 +25,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import org.json.JSONObject
+import kotlinx.serialization.json.JsonObject
 import java.net.URI
 import java.util.Date
 import java.util.LinkedList
@@ -58,6 +58,7 @@ class PaywallMessageHandler(
     private val factory: VariablesFactory,
     private val options: OptionsFactory,
     private val track: suspend (TrackableSuperwallEvent) -> Unit,
+    private val setAttributes: (Map<String, Any>) -> Unit,
     private val getView: () -> PaywallView?,
     private val mainScope: MainScope,
     private val ioScope: CoroutineScope,
@@ -191,6 +192,10 @@ class PaywallMessageHandler(
                 ioScope.launch {
                     pass(eventName = SuperwallEvents.TransactionStart.rawName, paywall = paywall)
                 }
+            }
+
+            is PaywallMessage.UserAttributesUpdated -> {
+                setAttributes(message.data)
             }
 
             is PaywallMessage.TransactionComplete -> {
@@ -435,7 +440,7 @@ class PaywallMessageHandler(
 
     private fun handleCustomPlacement(
         name: String,
-        params: JSONObject,
+        params: JsonObject,
     ) {
         messageHandler?.eventDidOccur(PaywallWebEvent.CustomPlacement(name, params))
     }
