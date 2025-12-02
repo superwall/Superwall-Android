@@ -579,6 +579,7 @@ class PaywallMessageHandlerTest {
     @Test
     fun parseWrappedPaywallMessages_parses_user_attribute_updated() {
         Given("a JSON string with user_attribute_updated event") {
+            // The attributes field is an array of {key, value} objects
             val json =
                 """
                 {
@@ -587,11 +588,11 @@ class PaywallMessageHandlerTest {
                         "events": [
                             {
                                 "event_name": "user_attribute_updated",
-                                "attributes": {
-                                    "email": "test@example.com",
-                                    "subscription_tier": "pro",
-                                    "login_count": 42
-                                }
+                                "attributes": [
+                                    {"key": "email", "value": "test@example.com"},
+                                    {"key": "subscription_tier", "value": "pro"},
+                                    {"key": "login_count", "value": 42}
+                                ]
                             }
                         ]
                     }

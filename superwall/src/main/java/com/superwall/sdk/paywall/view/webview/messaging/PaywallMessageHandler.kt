@@ -103,6 +103,7 @@ class PaywallMessageHandler(
                     handle(paywallMessage)
                 }
             }, {
+                it.printStackTrace()
                 Logger.debug(
                     LogLevel.debug,
                     LogScope.superwallCore,

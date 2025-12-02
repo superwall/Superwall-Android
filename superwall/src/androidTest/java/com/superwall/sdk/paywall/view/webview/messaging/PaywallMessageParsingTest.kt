@@ -710,6 +710,85 @@ class PaywallMessageParsingTest {
 
     // endregion
 
+    // region UserAttributesUpdated (user_attribute_updated)
+
+    @Test
+    fun parse_user_attribute_updated_returns_UserAttributesUpdated_with_data() {
+        Given("a JSON with user_attribute_updated event") {
+            // The attributes field is an array of {key, value} objects
+            val json =
+                """
+                {
+                    "version": 1,
+                    "payload": {
+                        "events": [
+                            {
+                                "event_name": "user_attribute_updated",
+                                "attributes": [
+                                    {"key": "gender", "value": "male"},
+                                    {"key": "age", "value": 25},
+                                    {"key": "is_premium", "value": true}
+                                ]
+                            }
+                        ]
+                    }
+                }
+                """.trimIndent()
+
+            When("parsed") {
+                val result = parseWrappedPaywallMessages(json)
+
+                Then("it returns UserAttributesUpdated with correct data map") {
+                    assertTrue(result.isSuccess)
+                    val messages = result.getOrThrow().payload.messages
+                    assertEquals(1, messages.size)
+                    val message = messages[0] as PaywallMessage.UserAttributesUpdated
+                    assertEquals("male", message.data["gender"])
+                    assertEquals(25.0, message.data["age"])
+                    assertEquals(true, message.data["is_premium"])
+                }
+            }
+        }
+    }
+
+    @Test
+    fun parse_user_attribute_updated_with_null_value() {
+        Given("a JSON with user_attribute_updated event containing null value") {
+            val json =
+                """
+                {
+                    "version": 1,
+                    "payload": {
+                        "events": [
+                            {
+                                "event_name": "user_attribute_updated",
+                                "attributes": [
+                                    {"key": "name", "value": "John"},
+                                    {"key": "nickname", "value": null}
+                                ]
+                            }
+                        ]
+                    }
+                }
+                """.trimIndent()
+
+            When("parsed") {
+                val result = parseWrappedPaywallMessages(json)
+
+                Then("it returns UserAttributesUpdated with empty string for null value") {
+                    assertTrue(result.isSuccess)
+                    val messages = result.getOrThrow().payload.messages
+                    assertEquals(1, messages.size)
+                    val message = messages[0] as PaywallMessage.UserAttributesUpdated
+                    assertEquals("John", message.data["name"])
+                    assertEquals("", message.data["nickname"])
+                }
+            }
+        }
+    }
+
+    // endregion
+
     // region Error cases
 
     @Test

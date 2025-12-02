@@ -162,9 +162,11 @@ private fun parsePaywallMessage(json: JsonObject): PaywallMessage {
             )
 
         "user_attribute_updated" -> {
-            @Suppress("UNCHECKED_CAST")
             PaywallMessage.UserAttributesUpdated(
-                json["attributes"]!!.jsonObject.convertFromJsonElement() as Map<String, Any>,
+                (json["attributes"]!!.jsonArray.convertFromJsonElement() as List<Map<String, Any>>)
+                    .associate {
+                        it["key"] as String to ((it["value"] as Any?) ?: "")
+                    },
             )
         }
 

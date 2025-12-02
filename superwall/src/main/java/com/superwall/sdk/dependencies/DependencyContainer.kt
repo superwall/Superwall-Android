@@ -651,7 +651,7 @@ class DependencyContainer(
                     Superwall.instance.track(it)
                 },
                 setAttributes = {
-                    identityManager.mergeUserAttributes(it)
+                    identityManager.mergeAndNotify(it)
                 },
                 ioScope = ioScope,
                 json = paywallJson,
