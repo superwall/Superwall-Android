@@ -544,7 +544,7 @@ class DependencyContainer(
                     }
                     paywallView.updateState(state)
                 },
-                notifyOfTransactionComplete = { key, trialEndDate ->
+                notifyOfTransactionComplete = { key, trialEndDate, id ->
                     val paywallView =
                         resolvePaywallViewForKey(
                             makeViewStore(),
@@ -593,7 +593,7 @@ class DependencyContainer(
                         }
                     }
                     // Await message delivery to ensure webview has time to process before dismiss
-                    paywallView.webView.messageHandler.sendTransactionComplete(trialEndDate)
+                    paywallView.webView.messageHandler.handle(PaywallMessage.TrialStarted(trialEndDate, id))
                 },
             )
 

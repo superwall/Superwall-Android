@@ -75,7 +75,7 @@ class TransactionManager(
     private val showRestoreDialogForWeb: suspend () -> Unit,
     private val refreshReceipt: () -> Unit,
     private val updateState: (cacheKey: String, update: PaywallViewState.Updates) -> Unit,
-    private val notifyOfTransactionComplete: suspend (paywallCacheKey: String, trialEndDate: Long?) -> Unit,
+    private val notifyOfTransactionComplete: suspend (paywallCacheKey: String, trialEndDate: Long?, productId: String) -> Unit,
 ) {
     sealed class PurchaseSource {
         data class Internal(
@@ -937,7 +937,7 @@ class TransactionManager(
                         )
                     track(nonRecurringEvent)
                 } else {
-                    notifyOfTransactionComplete(purchaseSource.paywallInfo.cacheKey, trialEnd)
+                    notifyOfTransactionComplete(purchaseSource.paywallInfo.cacheKey, trialEnd, product.fullIdentifier)
                     if (didStartFreeTrial) {
                         val freeTrialEvent =
                             InternalSuperwallEvent.FreeTrialStart(paywallInfo, product)

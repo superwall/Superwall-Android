@@ -201,11 +201,12 @@ class PaywallMessageHandler(
             is PaywallMessage.TrialStarted -> {
                 ioScope.launch {
                     pass(
-                        eventName = SuperwallEvents.TrialStart.rawName,
+                        eventName = SuperwallEvents.FreeTrialStart.rawName,
                         paywall = paywall,
                         payload =
                             buildMap {
                                 message.trialEndDate?.let { put("trial_end_date", it) }
+                                put("product_identifier", message.productIdentifier)
                             },
                     )
                 }
@@ -232,19 +233,6 @@ class PaywallMessageHandler(
                 )
             }
         }
-    }
-
-    /**
-     * Sends a TransactionComplete message to the webview and suspends until the message is delivered.
-     * This ensures the webview has time to process the message before any subsequent actions (like dismiss).
-     */
-    suspend fun sendTransactionComplete(trialEndDate: Long?) {
-        val paywall = messageHandler?.state?.paywall ?: return
-        pass(
-            eventName = SuperwallEvents.TransactionComplete.rawName,
-            paywall = paywall,
-            payload = trialEndDate?.let { mapOf("trial_end_date" to it) } ?: mapOf(),
-        )
     }
 
     // Serialize the event to JSON and pass as B64 encoded string

@@ -82,6 +82,7 @@ sealed class PaywallMessage {
 
     data class TrialStarted(
         val trialEndDate: Long?,
+        val productIdentifier: String,
     ) : PaywallMessage()
 
     data class UserAttributesUpdated(

@@ -202,7 +202,7 @@ class TransactionManagerTest {
             dismiss = { i, e -> dismiss(i, e) },
             showAlert = { showAlert(it) },
             updateState = { cacheKey, update -> updateState(cacheKey, update) },
-            notifyOfTransactionComplete = { cacheKey, trialEndDate -> notifyOfTransactionComplete(cacheKey, trialEndDate) },
+            notifyOfTransactionComplete = { cacheKey, trialEndDate, id -> notifyOfTransactionComplete(cacheKey, trialEndDate) },
             eventsQueue = eventsQueue,
             factory = trManagerFactory,
             ioScope = IOScope(this.coroutineContext),

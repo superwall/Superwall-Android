@@ -121,7 +121,7 @@ class TransactionManagerTest {
                 showRestoreDialogForWeb = { showRestoreDialogCalled = true },
                 refreshReceipt = { refreshReceiptCalled = true },
                 updateState = { key, update -> stateUpdates.add(key to update) },
-                notifyOfTransactionComplete = { cacheKey, trialEndDate -> transactionCompleteCalls.add(cacheKey to trialEndDate) },
+                notifyOfTransactionComplete = { cacheKey, trialEndDate, id -> transactionCompleteCalls.add(cacheKey to trialEndDate) },
             )
     }
 

@@ -25,7 +25,6 @@ enum class SuperwallEvents(
     SurveyClose("survey_close"),
     SubscriptionStatusDidChange("subscriptionStatus_didChange"),
     FreeTrialStart("freeTrial_start"),
-    TrialStart("trial_started"),
     UserAttributes("user_attributes"),
     NonRecurringProductPurchase("nonRecurringProduct_purchase"),
     PaywallResponseLoadStart("paywallResponseLoad_start"),
