@@ -372,6 +372,9 @@ class DependencyContainer(
                     val digest = md.digest(bytes)
                     digest.fold("", { str, it -> str + "%02x".format(it) })
                 },
+                notifyUserChange = {
+                    delegate().userAttributesDidChange(it)
+                },
             )
 
         reedemer =
@@ -646,6 +649,9 @@ class DependencyContainer(
                 getView = { Superwall.instance.paywallView },
                 track = {
                     Superwall.instance.track(it)
+                },
+                setAttributes = {
+                    identityManager.mergeAndNotify(it)
                 },
                 ioScope = ioScope,
                 json = paywallJson,

@@ -8,6 +8,7 @@ import com.superwall.sdk.misc.MainScope
 import com.superwall.sdk.paywall.view.webview.PaywallMessage
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -327,7 +328,7 @@ class RawWebMessageHandlerTest {
                         assertEquals(1, delegate.receivedMessages.size)
                         val placementMessage = delegate.receivedMessages[0] as PaywallMessage.CustomPlacement
                         assertEquals("my_placement", placementMessage.name)
-                        assertEquals("value", placementMessage.params.getString("key"))
+                        assertEquals("value", placementMessage.params["key"]?.jsonPrimitive?.content)
                     }
                 }
             }

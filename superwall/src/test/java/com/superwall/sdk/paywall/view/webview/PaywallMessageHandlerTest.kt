@@ -101,6 +101,7 @@ class PaywallMessageHandlerTest {
                                 override fun makeSuperwallOptions(): SuperwallOptions = SuperwallOptions()
                             },
                         track = { _ -> },
+                        setAttributes = { _ -> },
                         getView = { null },
                         mainScope = MainScope(Dispatchers.Unconfined),
                         ioScope =
@@ -139,6 +140,7 @@ class PaywallMessageHandlerTest {
                                 override fun makeSuperwallOptions(): SuperwallOptions = SuperwallOptions()
                             },
                         track = { _ -> },
+                        setAttributes = { _ -> },
                         getView = { null },
                         mainScope = MainScope(Dispatchers.Unconfined),
                         ioScope = IOScope(Dispatchers.Unconfined),
@@ -209,6 +211,7 @@ class PaywallMessageHandlerTest {
                                 override fun makeSuperwallOptions(): SuperwallOptions = SuperwallOptions()
                             },
                         track = { evt -> tracked.add(evt.superwallPlacement.rawName) },
+                        setAttributes = { _ -> },
                         getView = { null },
                         mainScope = MainScope(Dispatchers.Unconfined),
                         ioScope = IOScope(Dispatchers.Unconfined),
@@ -319,6 +322,7 @@ class PaywallMessageHandlerTest {
                                 override fun makeSuperwallOptions(): SuperwallOptions = SuperwallOptions()
                             },
                         track = { _ -> },
+                        setAttributes = { _ -> },
                         getView = { null },
                         mainScope = MainScope(Dispatchers.Unconfined),
                         ioScope = IOScope(Dispatchers.Unconfined),
@@ -368,6 +372,7 @@ class PaywallMessageHandlerTest {
                                 override fun makeSuperwallOptions(): SuperwallOptions = SuperwallOptions()
                             },
                         track = { _ -> },
+                        setAttributes = { _ -> },
                         getView = { null },
                         mainScope = MainScope(Dispatchers.Unconfined),
                         ioScope = IOScope(Dispatchers.Unconfined),
@@ -411,6 +416,7 @@ class PaywallMessageHandlerTest {
                                 override fun makeSuperwallOptions(): SuperwallOptions = SuperwallOptions()
                             },
                         track = { _ -> },
+                        setAttributes = { _ -> },
                         getView = { null },
                         mainScope = MainScope(Dispatchers.Unconfined),
                         ioScope = IOScope(Dispatchers.Unconfined),
@@ -459,6 +465,7 @@ class PaywallMessageHandlerTest {
                                 override fun makeSuperwallOptions(): SuperwallOptions = SuperwallOptions()
                             },
                         track = { _ -> },
+                        setAttributes = { _ -> },
                         getView = { null },
                         mainScope = MainScope(Dispatchers.Unconfined),
                         ioScope = IOScope(Dispatchers.Unconfined),
@@ -504,6 +511,7 @@ class PaywallMessageHandlerTest {
                                 override fun makeSuperwallOptions(): SuperwallOptions = SuperwallOptions()
                             },
                         track = { _ -> },
+                        setAttributes = { _ -> },
                         getView = { null },
                         mainScope = MainScope(Dispatchers.Unconfined),
                         ioScope = IOScope(Dispatchers.Unconfined),
@@ -524,4 +532,93 @@ class PaywallMessageHandlerTest {
                 }
             }
         }
+
+    @Test
+    fun userAttributesUpdated_calls_setAttributes() =
+        runTest {
+            Given("a handler with a setAttributes callback") {
+                val paywall = Paywall.stub()
+                val state = PaywallViewState(paywall = paywall, locale = "en-US")
+                val delegate = FakeDelegate(state)
+                val capturedAttributes = mutableListOf<Map<String, Any>>()
+                val handler =
+                    PaywallMessageHandler(
+                        factory = FakeVariablesFactory(),
+                        options =
+                            object : OptionsFactory {
+                                override fun makeSuperwallOptions(): SuperwallOptions = SuperwallOptions()
+                            },
+                        track = { _ -> },
+                        setAttributes = { attrs -> capturedAttributes.add(attrs) },
+                        getView = { null },
+                        mainScope = MainScope(Dispatchers.Unconfined),
+                        ioScope = IOScope(Dispatchers.Unconfined),
+                        encodeToB64 = { it },
+                    )
+                handler.messageHandler = delegate
+
+                When("UserAttributesUpdated message is handled") {
+                    val attributes =
+                        mapOf<String, Any>(
+                            "name" to "John",
+                            "age" to 30,
+                            "premium" to true,
+                        )
+                    handler.handle(PaywallMessage.UserAttributesUpdated(attributes))
+
+                    Then("setAttributes is called with the provided attributes") {
+                        assertEquals(1, capturedAttributes.size)
+                        assertEquals("John", capturedAttributes[0]["name"])
+                        assertEquals(30, capturedAttributes[0]["age"])
+                        assertEquals(true, capturedAttributes[0]["premium"])
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun parseWrappedPaywallMessages_parses_user_attribute_updated() {
+        Given("a JSON string with user_attribute_updated event") {
+            // The attributes field is an array of {key, value} objects
+            val json =
+                """
+                {
+                    "version": 1,
+                    "payload": {
+                        "events": [
+                            {
+                                "event_name": "user_attribute_updated",
+                                "attributes": [
+                                    {"key": "email", "value": "test@example.com"},
+                                    {"key": "subscription_tier", "value": "pro"},
+                                    {"key": "login_count", "value": 42}
+                                ]
+                            }
+                        ]
+                    }
+                }
+                """.trimIndent()
+
+            When("the message is parsed") {
+                val result =
+                    parseWrappedPaywallMessages(json).onFailure {
+                        it.printStackTrace()
+                        println("Failed with ${it.message} -${it.stackTraceToString()}")
+                    }
+
+                Then("it returns a UserAttributesUpdated message with correct data") {
+                    assert(result.isSuccess)
+                    val wrapped = result.getOrThrow()
+                    assertEquals(1, wrapped.payload.messages.size)
+                    val message = wrapped.payload.messages[0]
+                    assert(message is PaywallMessage.UserAttributesUpdated)
+                    val userAttributesMessage = message as PaywallMessage.UserAttributesUpdated
+                    assertEquals("test@example.com", userAttributesMessage.data["email"])
+                    assertEquals("pro", userAttributesMessage.data["subscription_tier"])
+                    // Note: JSON numbers are converted to Double by convertFromJsonElement
+                    assertEquals(42.0, userAttributesMessage.data["login_count"])
+                }
+            }
+        }
+    }
 }

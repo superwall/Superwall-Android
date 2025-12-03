@@ -95,6 +95,7 @@ class PaywallMessageHandlerEdgeCasesTest {
                                 override fun makeSuperwallOptions(): SuperwallOptions = SuperwallOptions()
                             },
                         track = { _ -> },
+                        setAttributes = { _ -> },
                         getView = { null },
                         mainScope = MainScope(Dispatchers.Unconfined),
                         ioScope = IOScope(Dispatchers.Unconfined),
@@ -140,6 +141,7 @@ class PaywallMessageHandlerEdgeCasesTest {
                                 override fun makeSuperwallOptions(): SuperwallOptions = options
                             },
                         track = { _ -> },
+                        setAttributes = { _ -> },
                         getView = { null },
                         mainScope = MainScope(Dispatchers.Unconfined),
                         ioScope = IOScope(Dispatchers.Unconfined),
@@ -179,6 +181,7 @@ class PaywallMessageHandlerEdgeCasesTest {
                                 override fun makeSuperwallOptions(): SuperwallOptions = options
                             },
                         track = { _ -> },
+                        setAttributes = { _ -> },
                         getView = { null },
                         mainScope = MainScope(Dispatchers.Unconfined),
                         ioScope = IOScope(Dispatchers.Unconfined),
@@ -218,6 +221,7 @@ class PaywallMessageHandlerEdgeCasesTest {
                                 override fun makeSuperwallOptions(): SuperwallOptions = options
                             },
                         track = { _ -> },
+                        setAttributes = { _ -> },
                         getView = { null },
                         mainScope = MainScope(Dispatchers.Unconfined),
                         ioScope = IOScope(Dispatchers.Unconfined),
@@ -251,6 +255,7 @@ class PaywallMessageHandlerEdgeCasesTest {
                                 override fun makeSuperwallOptions(): SuperwallOptions = SuperwallOptions()
                             },
                         track = { _ -> },
+                        setAttributes = { _ -> },
                         getView = { null },
                         mainScope = MainScope(Dispatchers.Unconfined),
                         ioScope = IOScope(Dispatchers.Unconfined),
@@ -290,6 +295,7 @@ class PaywallMessageHandlerEdgeCasesTest {
                                 override fun makeSuperwallOptions(): SuperwallOptions = SuperwallOptions()
                             },
                         track = { _ -> },
+                        setAttributes = { _ -> },
                         getView = { null },
                         mainScope = MainScope(Dispatchers.Unconfined),
                         ioScope = IOScope(Dispatchers.Unconfined),

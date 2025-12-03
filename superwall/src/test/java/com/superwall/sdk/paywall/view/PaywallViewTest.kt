@@ -423,6 +423,7 @@ class PaywallViewTest {
                 factory = TestVariablesFactory,
                 options = optionsFactory,
                 track = { _ -> },
+                setAttributes = { _ -> },
                 getView = { viewRef },
                 mainScope =
                     com.superwall.sdk.misc

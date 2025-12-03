@@ -11,7 +11,8 @@ interface SuperwallDelegate {
     fun subscriptionStatusDidChange(
         from: SubscriptionStatus,
         to: SubscriptionStatus,
-    ) {}
+    ) {
+    }
 
     fun handleSuperwallEvent(eventInfo: SuperwallEventInfo) {}
 
@@ -35,9 +36,12 @@ interface SuperwallDelegate {
         message: String?,
         info: Map<String, Any>?,
         error: Throwable?,
-    ) {}
+    ) {
+    }
 
     fun willRedeemLink() {}
 
     fun didRedeemLink(result: RedemptionResult) {}
+
+    fun userAttributesDidChange(newAttributes: Map<String, Any>) {}
 }

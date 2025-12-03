@@ -66,6 +66,7 @@ import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedUr
 import com.superwall.sdk.storage.ReviewCount
 import com.superwall.sdk.storage.ReviewData
 import com.superwall.sdk.storage.StoredSubscriptionStatus
+import com.superwall.sdk.storage.core_data.convertFromJsonElement
 import com.superwall.sdk.store.Entitlements
 import com.superwall.sdk.store.PurchasingObserverState
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
@@ -1185,17 +1186,11 @@ class Superwall(
                 }
 
                 is PaywallWebEvent.CustomPlacement -> {
+                    @Suppress("UNCHECKED_CAST")
                     track(
                         CustomPlacement(
                             placementName = paywallEvent.name,
-                            params =
-                                paywallEvent.params.let {
-                                    val map = mutableMapOf<String, Any>()
-                                    for (key in it.keys()) {
-                                        map[key] = it.get(key)
-                                    }
-                                    map
-                                },
+                            params = paywallEvent.params.convertFromJsonElement() as? Map<String, Any> ?: emptyMap(),
                             paywallInfo = paywallView.info,
                         ),
                     )

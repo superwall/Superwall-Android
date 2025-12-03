@@ -4,6 +4,7 @@ import android.net.Uri
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
+import com.superwall.sdk.misc.onError
 import com.superwall.sdk.utilities.withErrorTracking
 import org.json.JSONObject
 import java.net.URI
@@ -65,9 +66,10 @@ fun parseWrappedPaywallMessages(jsonString: String): WrappedPaywallMessages {
         val messageJson = messagesJsonArray.getJSONObject(i)
         withErrorTracking {
             messages.add(parsePaywallMessage(messageJson))
+        }.onError {
+            it.printStackTrace()
         }
     }
-
     return WrappedPaywallMessages(version, PayloadMessages(messages))
 }
 
