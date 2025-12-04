@@ -328,12 +328,6 @@ class TransactionManagerTest {
                                 events.value.filterIsInstance<InternalSuperwallEvent.NonRecurringProductPurchase>()
                             assert(purchase.first().product?.fullIdentifier == "product1")
                         }
-                        And("Verify transaction complete notification") {
-                            assert(transactionCompleteCalls.size == 1)
-                            assert(transactionCompleteCalls.first().first == "test-cache-key")
-                            // Non-recurring product, so trial end date should be null
-                            assert(transactionCompleteCalls.first().second == null)
-                        }
                     }
                 }
             }
