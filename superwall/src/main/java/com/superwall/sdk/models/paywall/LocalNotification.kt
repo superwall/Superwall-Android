@@ -9,7 +9,7 @@ import kotlinx.serialization.encoding.Encoder
 import java.util.UUID
 
 @Serializable
-class LocalNotification(
+data class LocalNotification(
     @SerialName("id")
     val id: String = UUID.randomUUID().toString(),
     @SerialName("type")
@@ -25,12 +25,14 @@ class LocalNotification(
 )
 
 @Serializable(with = LocalNotificationTypeSerializer::class)
-sealed class LocalNotificationType {
+sealed class LocalNotificationType(
+    val raw: String,
+) {
     @SerialName("TRIAL_STARTED")
-    object TrialStarted : LocalNotificationType()
+    object TrialStarted : LocalNotificationType("TRIAL_STARTED")
 
     @SerialName("UNSUPPORTED")
-    object Unsupported : LocalNotificationType()
+    object Unsupported : LocalNotificationType("TRIAL_STARTED")
 }
 
 @Serializer(forClass = LocalNotificationType::class)

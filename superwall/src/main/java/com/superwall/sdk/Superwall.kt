@@ -93,6 +93,7 @@ import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.Date
+import kotlin.collections.map
 
 class Superwall(
     context: Context,

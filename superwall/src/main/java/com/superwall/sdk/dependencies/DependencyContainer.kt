@@ -566,13 +566,14 @@ class DependencyContainer(
                     // replace this notification.
                     val paywallInfo = paywallView.state.info
                     val trialNotifications =
-                        paywallInfo.localNotifications.filter {
-                            it.type == LocalNotificationType.TrialStarted
-                        }
+                        paywallInfo.localNotifications
+                            .filter {
+                                it.type == LocalNotificationType.TrialStarted
+                            }.map {
+                                it.copy("${paywallInfo.identifier}_${it.type.raw}")
+                            }
 
                     if (trialNotifications.isNotEmpty()) {
-                        // Await message delivery to ensure webview has time to process before dismiss
-                        paywallView.webView.messageHandler.handle(PaywallMessage.TrialStarted(trialEndDate, id))
 
                         val paywallActivity =
                             (
@@ -594,6 +595,8 @@ class DependencyContainer(
                                 "No paywall activity available to schedule fallback notifications",
                             )
                         }
+                        // Await message delivery to ensure webview has time to process before dismiss
+                        paywallView.webView.messageHandler.handle(PaywallMessage.TrialStarted(trialEndDate, id))
                     }
                 },
             )

@@ -90,6 +90,10 @@ internal class NotificationScheduler {
                             .addTag(notification.id) // Add ID-specific tag for cancellation
                             .build()
 
+                    // Try canceling again just in case it was made
+                    if (cancelExisting) {
+                        cancelNotificationById(notification.id, context)
+                    }
                     workManager.enqueue(notificationWork)
 
                     Logger.debug(
