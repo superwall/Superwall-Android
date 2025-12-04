@@ -6,12 +6,12 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Serializer
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
-import kotlin.random.Random
+import java.util.UUID
 
 @Serializable
 class LocalNotification(
     @SerialName("id")
-    val id: Int = Random.nextInt(),
+    val id: String = UUID.randomUUID().toString(),
     @SerialName("type")
     val type: LocalNotificationType,
     @SerialName("title")

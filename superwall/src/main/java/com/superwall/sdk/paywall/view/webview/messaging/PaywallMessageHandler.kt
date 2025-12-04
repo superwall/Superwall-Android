@@ -216,6 +216,7 @@ class PaywallMessageHandler(
                 messageHandler?.eventDidOccur(
                     PaywallWebEvent.ScheduleNotification(
                         LocalNotification(
+                            id = message.id,
                             type = message.type,
                             title = message.title,
                             subtitle = message.subtitle,

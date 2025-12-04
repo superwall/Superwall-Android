@@ -571,6 +571,9 @@ class DependencyContainer(
                         }
 
                     if (trialNotifications.isNotEmpty()) {
+                        // Await message delivery to ensure webview has time to process before dismiss
+                        paywallView.webView.messageHandler.handle(PaywallMessage.TrialStarted(trialEndDate, id))
+
                         val paywallActivity =
                             (
                                 paywallView.encapsulatingActivity?.get()
@@ -592,8 +595,6 @@ class DependencyContainer(
                             )
                         }
                     }
-                    // Await message delivery to ensure webview has time to process before dismiss
-                    paywallView.webView.messageHandler.handle(PaywallMessage.TrialStarted(trialEndDate, id))
                 },
             )
 

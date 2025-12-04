@@ -101,6 +101,7 @@ sealed class PaywallMessage {
     }
 
     data class ScheduleNotification(
+        val id: String,
         val type: LocalNotificationType,
         val title: String,
         val subtitle: String,
@@ -185,10 +186,12 @@ private fun parsePaywallMessage(json: JsonObject): PaywallMessage {
 
         "schedule_notification" ->
             PaywallMessage.ScheduleNotification(
-                when (json.getString("type")) {
-                    "TRIAL_STARTED" -> LocalNotificationType.TrialStarted
-                    else -> LocalNotificationType.Unsupported
-                },
+                type =
+                    when (json.getString("type")) {
+                        "TRIAL_STARTED" -> LocalNotificationType.TrialStarted
+                        else -> LocalNotificationType.Unsupported
+                    },
+                id = json.getString("id") ?: "",
                 title = json.getString("title") ?: "",
                 subtitle = json.getString("subtitle") ?: "",
                 body = json.getString("body") ?: "",
