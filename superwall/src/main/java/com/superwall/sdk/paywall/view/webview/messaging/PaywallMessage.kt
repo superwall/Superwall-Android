@@ -4,7 +4,6 @@ import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.models.paywall.LocalNotificationType
-import org.json.JSONObject
 import com.superwall.sdk.storage.core_data.convertFromJsonElement
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -13,6 +12,7 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.longOrNull
 import java.net.URI
 
 private val json = Json { ignoreUnknownKeys = true }
@@ -187,15 +187,15 @@ private fun parsePaywallMessage(json: JsonObject): PaywallMessage {
         "schedule_notification" ->
             PaywallMessage.ScheduleNotification(
                 type =
-                    when (json.getString("type")) {
+                    when (json["type"]?.jsonPrimitive?.contentOrNull) {
                         "TRIAL_STARTED" -> LocalNotificationType.TrialStarted
                         else -> LocalNotificationType.Unsupported
                     },
-                id = json.getString("id") ?: "",
-                title = json.getString("title") ?: "",
-                subtitle = json.getString("subtitle") ?: "",
-                body = json.getString("body") ?: "",
-                delay = json.getLong("delay") ?: 0L,
+                id = json["id"]?.jsonPrimitive?.contentOrNull ?: "",
+                title = json["title"]?.jsonPrimitive?.contentOrNull ?: "",
+                subtitle = json["subtitle"]?.jsonPrimitive?.contentOrNull ?: "",
+                body = json["body"]?.jsonPrimitive?.contentOrNull ?: "",
+                delay = json["delay"]?.jsonPrimitive?.longOrNull ?: 0L,
             )
 
         else -> {
