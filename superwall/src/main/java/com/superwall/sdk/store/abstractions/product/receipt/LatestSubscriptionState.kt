@@ -14,6 +14,12 @@ enum class LatestSubscriptionState {
     @SerialName("SUBSCRIBED")
     SUBSCRIBED,
 
+    @SerialName("BILLING_RETRY")
+    BILLING_RETRY,
+
+    @SerialName("REVOKED")
+    REVOKED,
+
     @SerialName("UNKNOWN")
     UNKNOWN,
 }

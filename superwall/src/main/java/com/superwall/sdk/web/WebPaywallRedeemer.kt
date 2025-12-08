@@ -1,18 +1,18 @@
 package com.superwall.sdk.web
 
 import android.content.Context
-import com.superwall.sdk.Superwall
-import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.Redemptions
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.Redemptions.RedemptionState
 import com.superwall.sdk.analytics.internal.trackable.Trackable
+import com.superwall.sdk.customer.CustomerInfoManager
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.asEither
 import com.superwall.sdk.misc.fold
+import com.superwall.sdk.models.customer.CustomerInfo
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.Redeemable
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
@@ -25,14 +25,14 @@ import com.superwall.sdk.models.internal.RedemptionResult
 import com.superwall.sdk.models.internal.UserId
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.paywall.presentation.PaywallInfo
-import com.superwall.sdk.paywall.presentation.dismissSync
+import com.superwall.sdk.storage.LastWebEntitlementsFetchDate
 import com.superwall.sdk.storage.LatestRedemptionResponse
+import com.superwall.sdk.storage.LatestWebCustomerInfo
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.plus
 import kotlinx.serialization.json.JsonArray
@@ -40,55 +40,61 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 
+@Suppress("EXPOSED_PARAMETER_TYPE")
 class WebPaywallRedeemer(
-    val context: Context,
-    val ioScope: IOScope,
-    val deepLinkReferrer: CheckForReferral,
-    val network: Network,
-    val storage: Storage,
-    val willRedeemLink: () -> Unit,
-    val didRedeemLink: (
-        redemptionResult: RedemptionResult,
-    ) -> Unit,
-    val maxAge: () -> Long,
-    val getActiveDeviceEntitlements: () -> Set<Entitlement> = {
-        Superwall.instance.entitlements.activeDeviceEntitlements
-    },
-    val getUserId: () -> UserId? = {
-        Superwall.instance.dependencyContainer.identityManager.appUserId?.let {
-            UserId(
-                it,
-            )
-        }
-    },
-    val getDeviceId: () -> DeviceVendorId = { DeviceVendorId(Superwall.instance.vendorId) },
-    val getAliasId: () -> String? = { Superwall.instance.dependencyContainer.identityManager.aliasId },
-    val track: suspend (Trackable) -> Unit = {
-        Superwall.instance.track(it)
-    },
-    val internallySetSubscriptionStatus: (SubscriptionStatus) -> Unit,
-    val isPaywallVisible: suspend () -> Boolean = { Superwall.instance.isPaywallPresented },
-    val triggerRestoreInPaywall: suspend () -> Unit = { },
-    val currentPaywallEntitlements: () -> Set<Entitlement>,
-    val getPaywallInfo: () -> PaywallInfo,
-    val trackRestorationFailed: (message: String) -> Unit,
-    val isWebToAppEnabled: () -> Boolean,
-    val receipts: suspend () -> List<TransactionReceipt>,
-    val getExternalAccountId: () -> String,
-    val getIntegrationProps: () -> Map<String, Any> = {
-        Superwall.instance.dependencyContainer.attributionManager
-            .getFullAttributionIds()
-    },
-    val closePaywallIfExists: () -> Unit = {
-        ioScope.launch {
-            Superwall.instance.dismissSync()
-        }
-    },
-    val isPaymentSheetOpen: () -> Boolean = {
-        Superwall.instance.paywallView?.isPaymentSheetPresented ?: false
-    },
+    private val context: Context,
+    private val ioScope: IOScope,
+    internal val deepLinkReferrer: CheckForReferral,
+    private val network: Network,
+    private val storage: Storage,
+    internal val customerInfoManager: CustomerInfoManager,
+    private val factory: Factory,
 ) {
+    interface Factory {
+        fun willRedeemLink()
+
+        fun didRedeemLink(redemptionResult: RedemptionResult)
+
+        fun maxAge(): Long
+
+        fun getActiveDeviceEntitlements(): Set<Entitlement>
+
+        fun getUserId(): UserId?
+
+        fun getDeviceId(): DeviceVendorId
+
+        fun getAliasId(): String?
+
+        suspend fun track(event: Trackable)
+
+        fun internallySetSubscriptionStatus(status: SubscriptionStatus)
+
+        suspend fun isPaywallVisible(): Boolean
+
+        suspend fun triggerRestoreInPaywall()
+
+        fun currentPaywallEntitlements(): Set<Entitlement>
+
+        fun getPaywallInfo(): PaywallInfo
+
+        fun trackRestorationFailed(message: String)
+
+        fun isWebToAppEnabled(): Boolean
+
+        suspend fun receipts(): List<TransactionReceipt>
+
+        fun getExternalAccountId(): String
+
+        fun getIntegrationProps(): Map<String, Any>
+
+        fun closePaywallIfExists()
+
+        fun isPaymentSheetOpen(): Boolean
+    }
+
     private var pollingJob: Job? = null
+
+    private suspend fun track(event: Trackable) = factory.track(event)
 
     private fun convertToJsonElement(value: Any?): JsonElement? =
         when (value) {
@@ -118,7 +124,7 @@ class WebPaywallRedeemer(
 
     init {
         ioScope.launch {
-            if (isWebToAppEnabled()) {
+            if (factory.isWebToAppEnabled()) {
                 checkForRefferal()
             }
         }
@@ -169,18 +175,18 @@ class WebPaywallRedeemer(
         val allCodes = latestResponse?.allCodes?.toMutableList() ?: mutableListOf()
         var isFirstRedemption = true
         if (redemption is RedeemType.Code) {
-            willRedeemLink()
+            factory.willRedeemLink()
 
             if (allCodes.isNotEmpty()) {
                 isFirstRedemption = !allCodes.map { it.code }.contains(redemption.code)
             }
             allCodes.add(Redeemable(redemption.code, isFirstRedemption))
 
-            if (isPaywallVisible() && !isPaymentSheetOpen()) {
+            if (factory.isPaywallVisible() && !factory.isPaymentSheetOpen()) {
                 track(
                     InternalSuperwallEvent.Restore(
                         InternalSuperwallEvent.Restore.State.Start,
-                        getPaywallInfo(),
+                        factory.getPaywallInfo(),
                     ),
                 )
             }
@@ -189,12 +195,12 @@ class WebPaywallRedeemer(
         network
             .redeemToken(
                 allCodes,
-                getUserId(),
-                getAliasId(),
-                getDeviceId(),
-                receipts(),
-                getExternalAccountId(),
-                getIntegrationProps().takeIf { it.isNotEmpty() }?.let { props ->
+                factory.getUserId(),
+                factory.getAliasId(),
+                factory.getDeviceId(),
+                factory.receipts(),
+                factory.getExternalAccountId(),
+                factory.getIntegrationProps().takeIf { it.isNotEmpty() }?.let { props ->
                     props
                         .mapValues { (_, value) -> convertToJsonElement(value) }
                         .filterValues { it != null }
@@ -240,14 +246,14 @@ class WebPaywallRedeemer(
                             val redemptionResultForCode =
                                 result.firstOrNull { it.code == redemption.code }
                             if (redemptionResultForCode != null) {
-                                if (isPaywallVisible() && !isPaymentSheetOpen()) {
-                                    if (it.entitlements.containsAll(
-                                            currentPaywallEntitlements(),
-                                        )
+                                if (factory.isPaywallVisible() && !factory.isPaymentSheetOpen()) {
+                                    if (it.customerInfo?.entitlements?.containsAll(
+                                            factory.currentPaywallEntitlements(),
+                                        ) ?: false
                                     ) {
-                                        triggerRestoreInPaywall()
+                                        factory.triggerRestoreInPaywall()
                                     } else {
-                                        trackRestorationFailed("Failed to restore subscriptions from the web")
+                                        factory.trackRestorationFailed("Failed to restore subscriptions from the web")
                                     }
                                 }
                             }
@@ -257,11 +263,15 @@ class WebPaywallRedeemer(
                             // NO-OP
                         }
                     }
-                    internallySetSubscriptionStatus(SubscriptionStatus.Active(it.entitlements.toSet() + getActiveDeviceEntitlements()))
+                    factory.internallySetSubscriptionStatus(
+                        SubscriptionStatus.Active(
+                            (it.customerInfo?.entitlements?.toSet() ?: emptySet()) + factory.getActiveDeviceEntitlements(),
+                        ),
+                    )
                     if (redemption is RedeemType.Code) {
-                        closePaywallIfExists()
+                        factory.closePaywallIfExists()
                         val res = it.codes.first { it.code == redemption.code }
-                        didRedeemLink(
+                        factory.didRedeemLink(
                             res,
                         )
                     }
@@ -287,7 +297,7 @@ class WebPaywallRedeemer(
                             error = it,
                         )
                         // Notify the delegate that the redemption failed
-                        didRedeemLink(
+                        factory.didRedeemLink(
                             RedemptionResult.Error(
                                 code = redemption.code ?: "",
                                 error =
@@ -296,8 +306,8 @@ class WebPaywallRedeemer(
                                     ),
                             ),
                         )
-                        if (isPaywallVisible() && !isPaymentSheetOpen()) {
-                            trackRestorationFailed(errorMessage)
+                        if (factory.isPaywallVisible() && !factory.isPaymentSheetOpen()) {
+                            factory.trackRestorationFailed(errorMessage)
                         }
                     }
                 },
@@ -315,10 +325,40 @@ class WebPaywallRedeemer(
             } else {
                 network.webEntitlementsByUserId(userId, deviceId)
             }
-        val entitlements =
-            (webEntitlementsResult.getSuccess()?.entitlements ?: listOf())
-        entitlements
-            .toSet()
+        val webEntitlementsResponse = webEntitlementsResult.getSuccess()
+
+        // Extract CustomerInfo from response or construct from entitlements
+        val webCustomerInfo =
+            webEntitlementsResponse?.customerInfo ?: run {
+                // Fallback for backward compatibility
+                Logger.debug(
+                    logLevel = LogLevel.warn,
+                    scope = LogScope.webEntitlements,
+                    message = "Backend didn't return customerInfo, constructing from entitlements",
+                )
+                CustomerInfo(
+                    subscriptions = emptyList(),
+                    nonSubscriptions = emptyList(),
+                    userId = userId?.value ?: "",
+                    entitlements = emptyList(),
+                    isPlaceholder = false,
+                )
+            }
+
+        Logger.debug(
+            logLevel = LogLevel.debug,
+            scope = LogScope.webEntitlements,
+            message =
+                "Fetched web CustomerInfo: ${webCustomerInfo.subscriptions.size} subs, " +
+                    "${webCustomerInfo.nonSubscriptions.size} non-subs",
+        )
+
+        // Store web CustomerInfo
+        storage.write(LatestWebCustomerInfo, webCustomerInfo)
+        storage.write(LastWebEntitlementsFetchDate, System.currentTimeMillis())
+
+        // Return for compatibility with existing code
+        webCustomerInfo.entitlements.toSet()
     }
 
     fun clear(ownership: RedemptionOwnershipType) {
@@ -342,16 +382,15 @@ class WebPaywallRedeemer(
         val withUserCodesRemoved =
             latestResponse?.copy(
                 codes = latestResponse.codes.filterNot { it in userCodesToRemove.orEmpty() },
-                entitlements = emptyList(),
             )
 
         // Get active entitlements that remain after removing web sources or ones from the web
         if (withUserCodesRemoved != null) {
             storage.write(LatestRedemptionResponse, withUserCodesRemoved)
         }
-        internallySetSubscriptionStatus(
+        factory.internallySetSubscriptionStatus(
             SubscriptionStatus.Active(
-                getActiveDeviceEntitlements(),
+                factory.getActiveDeviceEntitlements(),
             ),
         )
         ioScope.launch {
@@ -359,32 +398,53 @@ class WebPaywallRedeemer(
         }
     }
 
-    private fun startPolling(maxAge: Long = maxAge()) {
+    private fun startPolling(maxAge: Long = factory.maxAge()) {
         pollingJob?.cancel()
         pollingJob =
             (ioScope + Dispatchers.IO).launch {
                 while (true) {
-                    checkForWebEntitlements(getUserId(), getDeviceId())
+                    checkForWebEntitlements(factory.getUserId(), factory.getDeviceId())
                         .fold(
                             onFailure = {
                                 it.printStackTrace()
                             },
-                            onSuccess = {
-                                val newEntitlements = it
-                                var latestRedeemResponse =
+                            onSuccess = { newEntitlements ->
+                                val latestRedeemResponse =
                                     storage.read(LatestRedemptionResponse)
                                 val existingWebEntitlements =
-                                    latestRedeemResponse?.entitlements ?: emptySet()
-                                latestRedeemResponse =
-                                    latestRedeemResponse?.copy(entitlements = newEntitlements.toList())
+                                    latestRedeemResponse?.customerInfo?.entitlements?.toSet() ?: emptySet()
+
+                                // Update customerInfo with new entitlements if response exists
                                 if (latestRedeemResponse != null) {
+                                    val updatedCustomerInfo =
+                                        latestRedeemResponse.customerInfo?.copy(
+                                            entitlements = newEntitlements.toList(),
+                                        ) ?: CustomerInfo(
+                                            subscriptions = emptyList(),
+                                            nonSubscriptions = emptyList(),
+                                            userId = "",
+                                            entitlements = newEntitlements.toList(),
+                                            isPlaceholder = false,
+                                        )
+                                    val updatedResponse =
+                                        latestRedeemResponse.copy(
+                                            customerInfo = updatedCustomerInfo,
+                                        )
                                     storage.write(
                                         LatestRedemptionResponse,
-                                        latestRedeemResponse,
+                                        updatedResponse,
                                     )
                                 }
-                                if (existingWebEntitlements.toSet() != newEntitlements) {
-                                    internallySetSubscriptionStatus(SubscriptionStatus.Active(it + getActiveDeviceEntitlements()))
+
+                                // Trigger CustomerInfo merge
+                                customerInfoManager.updateMergedCustomerInfo()
+
+                                if (existingWebEntitlements != newEntitlements) {
+                                    factory.internallySetSubscriptionStatus(
+                                        SubscriptionStatus.Active(
+                                            newEntitlements + factory.getActiveDeviceEntitlements(),
+                                        ),
+                                    )
                                 }
                             },
                         )

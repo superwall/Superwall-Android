@@ -1,5 +1,6 @@
 package com.superwall.sdk.store
 
+import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.paywall.request.PaywallRequest
@@ -24,7 +25,7 @@ interface StoreKit {
 
     fun refreshReceipt()
 
-    suspend fun loadPurchasedProducts()
+    suspend fun loadPurchasedProducts(serverEntitlementsByProductId: Map<String, Set<Entitlement>>)
 
     fun cacheProduct(
         fullProductIdentifier: String,
