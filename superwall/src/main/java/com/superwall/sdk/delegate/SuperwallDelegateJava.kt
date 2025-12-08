@@ -45,6 +45,7 @@ interface SuperwallDelegateJava {
     }
 
     fun userAttributesDidChange(newAttributes: Map<String, Any>) {}
+
     fun customerInfoDidChange(
         from: CustomerInfo,
         to: CustomerInfo,

@@ -1,5 +1,6 @@
 package com.superwall.sdk.models.customer
 
+import com.superwall.sdk.models.product.Store
 import com.superwall.sdk.models.serialization.DateSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -26,6 +27,9 @@ data class NonSubscriptionTransaction(
     /** Indicates whether the transaction has been revoked. */
     @SerialName("isRevoked")
     val isRevoked: Boolean,
+    /** The store from which this transaction originated. */
+    @SerialName("store")
+    val store: Store = Store.PLAY_STORE,
 ) {
     companion object {
         /**
@@ -38,6 +42,7 @@ data class NonSubscriptionTransaction(
                 purchaseDate = Date(),
                 isConsumable = false,
                 isRevoked = false,
+                store = Store.PLAY_STORE,
             )
     }
 }

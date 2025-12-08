@@ -648,7 +648,7 @@ class Superwall(
                     val (old, new) = it
                     dependencyContainer.storage.write(LatestCustomerInfo, new)
                     dependencyContainer.delegateAdapter.customerInfoDidChange(old, new)
-                    track(InternalSuperwallEvent.CustomerInfoDidChange(emptyMap()))
+                    track(InternalSuperwallEvent.CustomerInfoDidChange(old, new))
                 }
         }
     }

@@ -9,10 +9,16 @@ import com.superwall.sdk.config.options.toMap
 import com.superwall.sdk.dependencies.ComputedPropertyRequestsFactory
 import com.superwall.sdk.dependencies.FeatureFlagsFactory
 import com.superwall.sdk.dependencies.RuleAttributesFactory
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
+import com.superwall.sdk.models.customer.CustomerInfo
 import com.superwall.sdk.models.enrichment.Enrichment
+import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.triggers.InternalTriggerResult
+import com.superwall.sdk.network.JsonFactory
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatus
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatusReason
@@ -26,6 +32,8 @@ import com.superwall.sdk.store.abstractions.transactions.StoreTransactionType
 import com.superwall.sdk.store.transactions.RestoreType
 import com.superwall.sdk.store.transactions.TransactionError
 import com.superwall.sdk.web.WebPaywallRedeemer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
 import java.net.URI
 
 interface TrackableSuperwallEvent : Trackable {
@@ -1107,13 +1115,63 @@ sealed class InternalSuperwallEvent(
     }
 
     data class CustomerInfoDidChange(
-        override val audienceFilterParams: Map<String, Any>,
+        val fromCustomerInfo: CustomerInfo,
+        val toCustomerInfo: CustomerInfo,
+        override val audienceFilterParams: Map<String, Any> = emptyMap(),
     ) : TrackableSuperwallEvent {
-        override val superwallPlacement: SuperwallEvent = SuperwallEvent.CustomerInfoDidChange
-        override val rawName: String = SuperwallEvent.CustomerInfoDidChange.rawName
+        override val superwallPlacement: SuperwallEvent =
+            SuperwallEvent.CustomerInfoDidChange(fromCustomerInfo, toCustomerInfo)
+        override val rawName: String =
+            SuperwallEvent.CustomerInfoDidChange(fromCustomerInfo, toCustomerInfo).rawName
 
         override val canImplicitlyTriggerPaywall: Boolean = false
 
-        override suspend fun getSuperwallParameters(): Map<String, Any> = emptyMap()
+        @Serializable
+        private data class EntitlementsSnapshot(
+            val entitlements: List<Entitlement>,
+            val isPlaceholder: Boolean,
+        )
+
+        override suspend fun getSuperwallParameters(): Map<String, Any> {
+            val fromSnapshot =
+                EntitlementsSnapshot(
+                    entitlements = fromCustomerInfo.entitlements,
+                    isPlaceholder = fromCustomerInfo.isPlaceholder,
+                )
+            val toSnapshot =
+                EntitlementsSnapshot(
+                    entitlements = toCustomerInfo.entitlements,
+                    isPlaceholder = toCustomerInfo.isPlaceholder,
+                )
+
+            val fromJson =
+                try {
+                    JsonFactory.JSON.encodeToString(fromSnapshot)
+                } catch (e: Exception) {
+                    Logger.debug(
+                        LogLevel.error,
+                        LogScope.customerInfo,
+                        "Unable to serialize customer info \"from\" - ${e.message}",
+                    )
+                    "{}"
+                }
+
+            val toJson =
+                try {
+                    JsonFactory.JSON.encodeToString(toSnapshot)
+                } catch (e: Exception) {
+                    Logger.debug(
+                        LogLevel.error,
+                        LogScope.customerInfo,
+                        "Unable to serialize customer info \"to\" - ${e.message}",
+                    )
+                    "{}"
+                }
+
+            return mapOf(
+                "from" to fromJson,
+                "to" to toJson,
+            )
+        }
     }
 }

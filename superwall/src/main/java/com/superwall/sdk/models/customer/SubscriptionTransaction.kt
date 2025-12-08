@@ -1,6 +1,8 @@
 package com.superwall.sdk.models.customer
 
+import com.superwall.sdk.models.product.Store
 import com.superwall.sdk.models.serialization.DateSerializer
+import com.superwall.sdk.store.abstractions.product.receipt.LatestPeriodType
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.util.*
@@ -41,6 +43,14 @@ data class SubscriptionTransaction(
     @Serializable(with = DateSerializer::class)
     @SerialName("expirationDate")
     val expirationDate: Date?,
+    /** The store from which this transaction originated. */
+    @SerialName("store")
+    val store: Store = Store.PLAY_STORE,
+    /** The type of offer that applied to this transaction.
+     *
+     * This is `null` if no offer was applied. */
+    @SerialName("offerType")
+    val offerType: LatestPeriodType? = null,
 ) {
     companion object {
         /**
@@ -57,6 +67,8 @@ data class SubscriptionTransaction(
                 isInBillingRetryPeriod = false,
                 isActive = false,
                 expirationDate = null,
+                store = Store.PLAY_STORE,
+                offerType = null,
             )
     }
 }
