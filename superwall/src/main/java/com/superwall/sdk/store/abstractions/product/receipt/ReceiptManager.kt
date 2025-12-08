@@ -13,6 +13,7 @@ import com.superwall.sdk.models.customer.SubscriptionTransaction
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.storage.LatestDeviceCustomerInfo
 import com.superwall.sdk.storage.Storage
+import com.superwall.sdk.storage.StoredTransactionHistory
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.coordinator.ProductsFetcher
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,6 +21,7 @@ import kotlinx.coroutines.launch
 
 data class InAppPurchase(
     var productIdentifier: String,
+    var fullIdentifier: String,
 )
 
 data class TransactionReceipt(
@@ -90,28 +92,49 @@ class ReceiptManager(
         val productIdsByEntitlementId: MutableMap<String, MutableSet<String>> = mutableMapOf()
         serverEntitlementsByProductId.forEach { (productId, entitlements) ->
             entitlements.forEach { entitlement ->
-                productIdsByEntitlementId.getOrPut(entitlement.id) { mutableSetOf(productId) }
+                productIdsByEntitlementId.getOrPut(entitlement.id) { mutableSetOf() }.add(productId)
             }
         }
+
+        // Load existing transaction history to preserve data from expired purchases
+        val existingHistory = storage.read(StoredTransactionHistory) ?: UserTransactionHistory()
 
         // 1️⃣ FIRST PASS: Collect purchases, create transaction adapters, and collect receipts
         val allPurchases = billing.queryAllPurchases()
         val transactionsByEntitlement: MutableMap<String, MutableList<EntitlementTransaction>> = mutableMapOf()
-        val allTransactions: MutableList<EntitlementTransaction> = mutableListOf()
+        val currentTransactions: MutableList<EntitlementTransaction> = mutableListOf()
 
-        // Fetch all products upfront for efficiency
-        val allProductIds = allPurchases.flatMap { it.products }.toSet()
-        val productsById = billing.awaitGetProducts(allProductIds).associateBy { it.fullIdentifier }
+        // Build mapping from raw product ID to full product ID using server entitlements
+        // This allows us to fetch products with proper base plan/offer info
+        val rawProductIds = allPurchases.flatMap { it.products }.toSet()
+        val rawToFullProductId = mutableMapOf<String, String>()
+        rawProductIds.forEach { rawId ->
+            // Find the full product ID from server config that matches this raw ID
+            // Check exact match first, then fall back to prefix match
+            val fullId =
+                serverEntitlementsByProductId.keys.firstOrNull { it == rawId }
+                    ?: serverEntitlementsByProductId.keys.firstOrNull { it.startsWith("$rawId:") }
+            rawToFullProductId[rawId] = fullId ?: rawId
+        }
+
+        // Fetch products using full product IDs so they have proper base plan/offer info
+        val fullProductIds = rawToFullProductId.values.toSet()
+        val productsById = billing.awaitGetProducts(fullProductIds).associateBy { it.productIdentifier }
 
         allPurchases.forEach { purchase ->
             // Create adapters for each product in the purchase
             val adapters = PlayStorePurchaseAdapter.fromPurchase(purchase, productsById)
 
             adapters.forEach { adapter ->
-                allTransactions.add(adapter)
-                purchases.add(InAppPurchase(productIdentifier = adapter.productId))
+                currentTransactions.add(adapter)
+                purchases.add(
+                    InAppPurchase(
+                        productIdentifier = productsById[adapter.productId]?.productIdentifier ?: adapter.productId,
+                        fullIdentifier = adapter.productId,
+                    ),
+                )
 
-                // Map to entitlements
+                // Map to entitlements - adapter.productId is now the full product ID
                 val serverEntitlements = serverEntitlementsByProductId[adapter.productId]
                 serverEntitlements?.forEach { entitlement ->
                     transactionsByEntitlement
@@ -133,24 +156,53 @@ class ReceiptManager(
             }
         }
 
-        // 2️⃣ Use EntitlementProcessor to process transactions
+        // 2️⃣ Merge current transactions with history and persist
+        // This preserves data from expired purchases that Google Play no longer returns
+        val updatedHistory = existingHistory.mergeWith(currentTransactions)
+        storage.write(StoredTransactionHistory, updatedHistory)
+
+        Logger.debug(
+            logLevel = LogLevel.debug,
+            scope = LogScope.receipts,
+            message =
+                "Transaction history: ${currentTransactions.size} current, " +
+                    "${updatedHistory.transactions.size} total stored, " +
+                    "${updatedHistory.activeTransactions().size} active",
+        )
+
+        // 3️⃣ Use all historical transactions for processing (includes inactive ones for history)
+        val allTransactions: List<EntitlementTransaction> = updatedHistory.allTransactions()
+
+        // 4️⃣ Use EntitlementProcessor to process transactions
         val (nonSubscriptions, subscriptions) = entitlementProcessor.processTransactions(allTransactions)
 
-        // 3️⃣ Build enriched entitlements using the processor
+        // 5️⃣ Build enriched entitlements using historical transactions mapped to entitlements
+        // Re-map historical transactions to entitlements
+        val historicalTransactionsByEntitlement: MutableMap<String, MutableList<EntitlementTransaction>> = mutableMapOf()
+        allTransactions.forEach { transaction ->
+            val serverEntitlements = serverEntitlementsByProductId[transaction.productId]
+            serverEntitlements?.forEach { entitlement ->
+                historicalTransactionsByEntitlement
+                    .getOrPut(entitlement.id) { mutableListOf() }
+                    .add(transaction)
+            }
+        }
+
         val entitlementsByProductId =
             entitlementProcessor.buildEntitlementsFromTransactions(
-                transactionsByEntitlement = transactionsByEntitlement,
+                transactionsByEntitlement = historicalTransactionsByEntitlement,
                 rawEntitlementsByProductId = serverEntitlementsByProductId,
+                productIdsByEntitlementId = productIdsByEntitlementId,
             )
 
-        // 4️⃣ Update experimental device variables if enabled
+        // 6️⃣ Update experimental device variables if enabled
         if (enableExperimentalDeviceVariables) {
             updateExperimentalDeviceVariables(allPurchases, productsById)
         }
 
         _purchases = purchases
 
-        // Build device CustomerInfo from local receipts
+        // Build device CustomerInfo from local receipts (including historical)
         val deviceCustomerInfo =
             CustomerInfo(
                 subscriptions = subscriptions.reversed(),

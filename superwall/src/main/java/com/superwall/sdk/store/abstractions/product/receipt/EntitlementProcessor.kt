@@ -72,11 +72,13 @@ class EntitlementProcessor {
      *
      * @param transactionsByEntitlement Map of entitlement ID to list of transactions for that entitlement
      * @param rawEntitlementsByProductId Map of product ID to set of entitlements from server config
+     * @param productIdsByEntitlementId Map of entitlement ID to all product IDs that can unlock it (from config)
      * @return Map of product ID to set of enriched entitlements
      */
     fun buildEntitlementsFromTransactions(
         transactionsByEntitlement: Map<String, List<EntitlementTransaction>>,
         rawEntitlementsByProductId: Map<String, Set<Entitlement>>,
+        productIdsByEntitlementId: Map<String, Set<String>>,
     ): Map<String, List<Entitlement>> {
         // If no raw entitlements, return empty
         if (rawEntitlementsByProductId.isEmpty()) {
@@ -94,24 +96,34 @@ class EntitlementProcessor {
                             .flatten()
                             .find { it.id == entitlementId }
                             ?: return@map null
+                    // Get all product IDs that can unlock this entitlement from config
+                    val allProductIds = productIdsByEntitlementId[entitlementId] ?: emptySet()
                     val enriched =
                         enrichEntitlement(
                             entitlementId = entitlementId,
                             transactions = transactions,
                             rawEntitlement = rawEntitlement,
+                            allProductIds = allProductIds,
                         )
                     entitlementId to enriched
                 }.filterNotNull()
                 .toMap()
 
-        // Build result map: product ID -> set of entitlements
+        // Build result map: product ID -> list of entitlements
+        // Use enriched entitlements where available, fall back to raw entitlements with productIds populated
+        // This ensures all entitlements are available even if never purchased
         val result =
             rawEntitlementsByProductId
                 .map { (productId, rawEntitlements) ->
                     productId to
-                        rawEntitlements.map {
-                            enrichedEntitlementsById[it.id]
-                                ?: it
+                        rawEntitlements.map { rawEntitlement ->
+                            enrichedEntitlementsById[rawEntitlement.id]
+                                ?: rawEntitlement.copy(
+                                    productIds = productIdsByEntitlementId[rawEntitlement.id] ?: emptySet(),
+                                    // No transactions means not active - if there were active purchases,
+                                    // Google Play would have returned them
+                                    isActive = false,
+                                )
                         }
                 }.toMap()
 
@@ -120,19 +132,28 @@ class EntitlementProcessor {
 
     /**
      * Enriches a single entitlement with transaction data.
+     *
+     * @param entitlementId The ID of the entitlement to enrich
+     * @param transactions The list of transactions for this entitlement
+     * @param rawEntitlement The raw entitlement from server config
+     * @param allProductIds All product IDs that can unlock this entitlement (from config)
      */
     private fun enrichEntitlement(
         entitlementId: String,
         transactions: List<EntitlementTransaction>,
         rawEntitlement: Entitlement,
+        allProductIds: Set<String>,
     ): Entitlement {
-        val now = Date()
         var isActive = false
         var renewedAt: Date? = null
         var expiresAt: Date? = null
         var mostRecentRenewable: EntitlementTransaction? = null
         var latestProductId: String? = null
         var isLifetime = false
+
+        // Use all product IDs from config that can unlock this entitlement
+        // Fall back to transaction product IDs if config is empty
+        val productIds = allProductIds.ifEmpty { transactions.map { it.productId }.toSet() }
 
         // Find the earliest purchase date for startsAt
         val startsAt = transactions.minByOrNull { it.originalPurchaseDate }?.originalPurchaseDate
@@ -155,7 +176,7 @@ class EntitlementProcessor {
             // Skip revoked transactions for active/expiration calculations
             if (transaction.isRevoked) continue
 
-            // Check for active status
+            // Check for active status - trust the transaction's isActive status
             when (transaction.productType) {
                 EntitlementTransactionType.NON_CONSUMABLE -> {
                     // Non-consumable without revocation is always active
@@ -165,8 +186,8 @@ class EntitlementProcessor {
                 EntitlementTransactionType.AUTO_RENEWABLE,
                 EntitlementTransactionType.NON_RENEWABLE,
                 -> {
-                    val expiration = transaction.expirationDate
-                    if (expiration == null || expiration.after(now)) {
+                    // Trust the transaction's isActive status from Google Play
+                    if (transaction.isActive) {
                         isActive = true
                     }
                 }
@@ -263,7 +284,7 @@ class EntitlementProcessor {
             id = entitlementId,
             type = rawEntitlement.type,
             isActive = isActive,
-            productIds = rawEntitlement.productIds,
+            productIds = productIds,
             latestProductId = latestProductId,
             startsAt = startsAt,
             renewedAt = renewedAt,

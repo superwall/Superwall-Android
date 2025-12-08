@@ -46,6 +46,29 @@ data class CustomerInfo(
                 .map { it.productId }
                 .toSet()
 
+    override fun toString(): String =
+        buildString {
+            appendLine("CustomerInfo(")
+            appendLine("  userId=$userId,")
+            appendLine("  isPlaceholder=$isPlaceholder,")
+            appendLine("  subscriptions=[")
+            subscriptions.forEachIndexed { index, subscription ->
+                appendLine("    #$index $subscription")
+            }
+            appendLine("  ],")
+            appendLine("  nonSubscriptions=[")
+            nonSubscriptions.forEachIndexed { index, transaction ->
+                appendLine("    #$index $transaction")
+            }
+            appendLine("  ],")
+            appendLine("  entitlements=[")
+            entitlements.forEachIndexed { index, entitlement ->
+                appendLine("    #$index $entitlement")
+            }
+            appendLine("  ],")
+            append(")")
+        }
+
     companion object {
         /**
          * Creates a blank CustomerInfo instance for testing or default states.

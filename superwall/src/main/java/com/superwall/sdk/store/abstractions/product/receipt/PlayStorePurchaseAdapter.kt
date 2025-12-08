@@ -95,16 +95,23 @@ class PlayStorePurchaseAdapter(
     companion object {
         /**
          * Creates adapters for all products in a purchase.
+         *
+         * @param purchase The Google Play purchase
+         * @param productsById Map of products keyed by raw product ID (productIdentifier)
+         * @return List of adapters, one for each product in the purchase
          */
         fun fromPurchase(
             purchase: Purchase,
             productsById: Map<String, StoreProduct>,
         ): List<PlayStorePurchaseAdapter> =
             purchase.products.map { productId ->
+                val product = productsById[productId]
                 PlayStorePurchaseAdapter(
                     purchase = purchase,
-                    product = productsById[productId],
-                    productId = productId,
+                    product = product,
+                    // Use fullIdentifier for entitlement matching when product is found,
+                    // otherwise fall back to raw productId
+                    productId = product?.fullIdentifier ?: productId,
                 )
             }
     }

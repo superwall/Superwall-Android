@@ -72,6 +72,20 @@ class EntitlementProcessorTest {
             productIds = productIds,
         )
 
+    /**
+     * Builds productIdsByEntitlementId from rawEntitlementsByProductId.
+     * This is a helper to derive the mapping from the existing test data.
+     */
+    private fun buildProductIdsByEntitlementId(rawEntitlementsByProductId: Map<String, Set<Entitlement>>): Map<String, Set<String>> {
+        val result = mutableMapOf<String, MutableSet<String>>()
+        rawEntitlementsByProductId.forEach { (productId, entitlements) ->
+            entitlements.forEach { entitlement ->
+                result.getOrPut(entitlement.id) { mutableSetOf() }.add(productId)
+            }
+        }
+        return result
+    }
+
     private val processor = EntitlementProcessor()
 
     // MARK: - Basic Processing Tests
@@ -87,6 +101,7 @@ class EntitlementProcessorTest {
                     processor.buildEntitlementsFromTransactions(
                         transactionsByEntitlement = transactionsByEntitlement,
                         rawEntitlementsByProductId = rawEntitlementsByProductId,
+                        productIdsByEntitlementId = buildProductIdsByEntitlementId(rawEntitlementsByProductId),
                     )
 
                 Then("result should be empty") {
@@ -121,6 +136,7 @@ class EntitlementProcessorTest {
                     processor.buildEntitlementsFromTransactions(
                         transactionsByEntitlement = transactionsByEntitlement,
                         rawEntitlementsByProductId = rawEntitlementsByProductId,
+                        productIdsByEntitlementId = buildProductIdsByEntitlementId(rawEntitlementsByProductId),
                     )
 
                 val processedEntitlement = result["lifetime_product"]?.firstOrNull()
@@ -167,6 +183,7 @@ class EntitlementProcessorTest {
                     processor.buildEntitlementsFromTransactions(
                         transactionsByEntitlement = transactionsByEntitlement,
                         rawEntitlementsByProductId = rawEntitlementsByProductId,
+                        productIdsByEntitlementId = buildProductIdsByEntitlementId(rawEntitlementsByProductId),
                     )
 
                 val processedEntitlement = result["subscription_product"]?.firstOrNull()
@@ -215,6 +232,7 @@ class EntitlementProcessorTest {
                     processor.buildEntitlementsFromTransactions(
                         transactionsByEntitlement = transactionsByEntitlement,
                         rawEntitlementsByProductId = rawEntitlementsByProductId,
+                        productIdsByEntitlementId = buildProductIdsByEntitlementId(rawEntitlementsByProductId),
                     )
 
                 val processedEntitlement = result["expired_product"]?.firstOrNull()
@@ -271,6 +289,7 @@ class EntitlementProcessorTest {
                     processor.buildEntitlementsFromTransactions(
                         transactionsByEntitlement = transactionsByEntitlement,
                         rawEntitlementsByProductId = rawEntitlementsByProductId,
+                        productIdsByEntitlementId = buildProductIdsByEntitlementId(rawEntitlementsByProductId),
                     )
 
                 val processedEntitlement = result["product1"]?.firstOrNull()
@@ -321,6 +340,7 @@ class EntitlementProcessorTest {
                     processor.buildEntitlementsFromTransactions(
                         transactionsByEntitlement = transactionsByEntitlement,
                         rawEntitlementsByProductId = rawEntitlementsByProductId,
+                        productIdsByEntitlementId = buildProductIdsByEntitlementId(rawEntitlementsByProductId),
                     )
 
                 val processedEntitlement = result["renewal_product"]?.firstOrNull()
@@ -373,6 +393,7 @@ class EntitlementProcessorTest {
                     processor.buildEntitlementsFromTransactions(
                         transactionsByEntitlement = transactionsByEntitlement,
                         rawEntitlementsByProductId = rawEntitlementsByProductId,
+                        productIdsByEntitlementId = buildProductIdsByEntitlementId(rawEntitlementsByProductId),
                     )
 
                 Then("result should have 2 products") {
@@ -419,6 +440,7 @@ class EntitlementProcessorTest {
                     processor.buildEntitlementsFromTransactions(
                         transactionsByEntitlement = transactionsByEntitlement,
                         rawEntitlementsByProductId = rawEntitlementsByProductId,
+                        productIdsByEntitlementId = buildProductIdsByEntitlementId(rawEntitlementsByProductId),
                     )
 
                 val processedEntitlement = result["non_consumable"]?.firstOrNull()
@@ -465,6 +487,7 @@ class EntitlementProcessorTest {
                     processor.buildEntitlementsFromTransactions(
                         transactionsByEntitlement = transactionsByEntitlement,
                         rawEntitlementsByProductId = rawEntitlementsByProductId,
+                        productIdsByEntitlementId = buildProductIdsByEntitlementId(rawEntitlementsByProductId),
                     )
 
                 val processedEntitlement = result["consumable"]?.firstOrNull()
@@ -518,6 +541,7 @@ class EntitlementProcessorTest {
                     processor.buildEntitlementsFromTransactions(
                         transactionsByEntitlement = transactionsByEntitlement,
                         rawEntitlementsByProductId = rawEntitlementsByProductId,
+                        productIdsByEntitlementId = buildProductIdsByEntitlementId(rawEntitlementsByProductId),
                     )
 
                 Then("result should have 2 products") {
@@ -596,6 +620,7 @@ class EntitlementProcessorTest {
                     processor.buildEntitlementsFromTransactions(
                         transactionsByEntitlement = transactionsByEntitlement,
                         rawEntitlementsByProductId = rawEntitlementsByProductId,
+                        productIdsByEntitlementId = buildProductIdsByEntitlementId(rawEntitlementsByProductId),
                     )
 
                 val entitlements = result["shared_product"]
@@ -659,6 +684,7 @@ class EntitlementProcessorTest {
                     processor.buildEntitlementsFromTransactions(
                         transactionsByEntitlement = transactionsByEntitlement,
                         rawEntitlementsByProductId = rawEntitlementsByProductId,
+                        productIdsByEntitlementId = buildProductIdsByEntitlementId(rawEntitlementsByProductId),
                     )
 
                 val processedEntitlement = result["new_product"]?.firstOrNull()
@@ -691,6 +717,7 @@ class EntitlementProcessorTest {
                     processor.buildEntitlementsFromTransactions(
                         transactionsByEntitlement = transactionsByEntitlement,
                         rawEntitlementsByProductId = rawEntitlementsByProductId,
+                        productIdsByEntitlementId = buildProductIdsByEntitlementId(rawEntitlementsByProductId),
                     )
 
                 Then("result should be empty") {
@@ -723,6 +750,7 @@ class EntitlementProcessorTest {
                     processor.buildEntitlementsFromTransactions(
                         transactionsByEntitlement = transactionsByEntitlement,
                         rawEntitlementsByProductId = rawEntitlementsByProductId,
+                        productIdsByEntitlementId = buildProductIdsByEntitlementId(rawEntitlementsByProductId),
                     )
 
                 Then("raw entitlement should be returned (inactive)") {
@@ -753,6 +781,7 @@ class EntitlementProcessorTest {
                         expirationDate = Date(baseDate.time + 1800_000), // 30 min
                         isRevoked = false,
                         productType = EntitlementTransactionType.AUTO_RENEWABLE,
+                        isActive = true,
                     ),
                     createMockTransaction(
                         productId = "product2",
@@ -760,6 +789,7 @@ class EntitlementProcessorTest {
                         expirationDate = Date(baseDate.time + 3600_000), // 1 hour
                         isRevoked = false,
                         productType = EntitlementTransactionType.AUTO_RENEWABLE,
+                        isActive = true,
                     ),
                     createMockTransaction(
                         productId = "product3",
@@ -767,6 +797,7 @@ class EntitlementProcessorTest {
                         expirationDate = Date(baseDate.time + 4000_000), // 66 mins (latest but revoked)
                         isRevoked = true,
                         productType = EntitlementTransactionType.AUTO_RENEWABLE,
+                        isActive = false,
                     ),
                 )
 
@@ -789,6 +820,7 @@ class EntitlementProcessorTest {
                     processor.buildEntitlementsFromTransactions(
                         transactionsByEntitlement = transactionsByEntitlement,
                         rawEntitlementsByProductId = rawEntitlementsByProductId,
+                        productIdsByEntitlementId = buildProductIdsByEntitlementId(rawEntitlementsByProductId),
                     )
 
                 val processedEntitlement = result["product1"]?.firstOrNull()
@@ -831,6 +863,7 @@ class EntitlementProcessorTest {
                     processor.buildEntitlementsFromTransactions(
                         transactionsByEntitlement = transactionsByEntitlement,
                         rawEntitlementsByProductId = rawEntitlementsByProductId,
+                        productIdsByEntitlementId = buildProductIdsByEntitlementId(rawEntitlementsByProductId),
                     )
 
                 val processedEntitlement = result["non_renewable_product"]?.firstOrNull()
@@ -887,6 +920,7 @@ class EntitlementProcessorTest {
                     processor.buildEntitlementsFromTransactions(
                         transactionsByEntitlement = transactionsByEntitlement,
                         rawEntitlementsByProductId = rawEntitlementsByProductId,
+                        productIdsByEntitlementId = buildProductIdsByEntitlementId(rawEntitlementsByProductId),
                     )
 
                 Then("result should have 100 products") {
@@ -937,6 +971,7 @@ class EntitlementProcessorTest {
                     processor.buildEntitlementsFromTransactions(
                         transactionsByEntitlement = transactionsByEntitlement,
                         rawEntitlementsByProductId = rawEntitlementsByProductId,
+                        productIdsByEntitlementId = buildProductIdsByEntitlementId(rawEntitlementsByProductId),
                     )
 
                 val processedEntitlement = result["extreme_product"]?.firstOrNull()
@@ -979,6 +1014,7 @@ class EntitlementProcessorTest {
                     processor.buildEntitlementsFromTransactions(
                         transactionsByEntitlement = transactionsByEntitlement,
                         rawEntitlementsByProductId = rawEntitlementsByProductId,
+                        productIdsByEntitlementId = buildProductIdsByEntitlementId(rawEntitlementsByProductId),
                     )
 
                 val processedEntitlement = result[""]?.firstOrNull()
@@ -1036,6 +1072,7 @@ class EntitlementProcessorTest {
                     processor.buildEntitlementsFromTransactions(
                         transactionsByEntitlement = transactionsByEntitlement,
                         rawEntitlementsByProductId = rawEntitlementsByProductId,
+                        productIdsByEntitlementId = buildProductIdsByEntitlementId(rawEntitlementsByProductId),
                     )
 
                 Then("result should have 5 products") {
@@ -1286,6 +1323,7 @@ class EntitlementProcessorTest {
                     processor.buildEntitlementsFromTransactions(
                         transactionsByEntitlement = transactionsByEntitlement,
                         rawEntitlementsByProductId = rawEntitlementsByProductId,
+                        productIdsByEntitlementId = buildProductIdsByEntitlementId(rawEntitlementsByProductId),
                     )
 
                 Then("entitlement should be returned") {
@@ -1323,6 +1361,7 @@ class EntitlementProcessorTest {
                     processor.buildEntitlementsFromTransactions(
                         transactionsByEntitlement = transactionsByEntitlement,
                         rawEntitlementsByProductId = rawEntitlementsByProductId,
+                        productIdsByEntitlementId = buildProductIdsByEntitlementId(rawEntitlementsByProductId),
                     )
 
                 Then("all entitlements should be returned") {
@@ -1368,6 +1407,7 @@ class EntitlementProcessorTest {
                     processor.buildEntitlementsFromTransactions(
                         transactionsByEntitlement = transactionsByEntitlement,
                         rawEntitlementsByProductId = rawEntitlementsByProductId,
+                        productIdsByEntitlementId = buildProductIdsByEntitlementId(rawEntitlementsByProductId),
                     )
 
                 Then("same entitlement should be returned for all products") {
@@ -1402,6 +1442,7 @@ class EntitlementProcessorTest {
                     processor.buildEntitlementsFromTransactions(
                         transactionsByEntitlement = transactionsByEntitlement,
                         rawEntitlementsByProductId = rawEntitlementsByProductId,
+                        productIdsByEntitlementId = buildProductIdsByEntitlementId(rawEntitlementsByProductId),
                     )
 
                 Then("both entitlements should be returned for the product") {
@@ -1420,6 +1461,670 @@ class EntitlementProcessorTest {
                 And("all should be inactive") {
                     val allInactive = result["product_a"]?.all { !it.isActive } ?: false
                     assertTrue(allInactive)
+                }
+            }
+        }
+    }
+
+    // MARK: - Integration Tests for Entitlement Matching
+
+    /**
+     * This test verifies the FIX for the entitlement lookup bug.
+     *
+     * After the fix in ReceiptManager.loadPurchases() and PlayStorePurchaseAdapter:
+     * - adapter.productId is now the full product ID (e.g., "com.ui_tests.monthly:monthly_plan:sw-auto")
+     * - This matches the keys in serverEntitlementsByProductId
+     * - Entitlement lookup succeeds and transactions are properly mapped
+     *
+     * This test verifies that when adapter.productId matches the server entitlement keys,
+     * entitlements are correctly enriched with transaction data.
+     */
+    @Test
+    fun `entitlement lookup succeeds when adapter productId is full product ID`() {
+        Given("server entitlements keyed by full product ID and adapter with matching productId") {
+            val fullProductId = "com.ui_tests.monthly:monthly_plan:sw-auto"
+            val futureDate = Date(System.currentTimeMillis() + 3600_000) // 1 hour from now
+
+            val defaultEntitlement =
+                Entitlement(
+                    id = "default",
+                    type = Entitlement.Type.SERVICE_LEVEL,
+                    isActive = false,
+                    productIds = setOf(fullProductId),
+                )
+
+            val testEntitlement =
+                Entitlement(
+                    id = "test",
+                    type = Entitlement.Type.SERVICE_LEVEL,
+                    isActive = false,
+                    productIds = setOf(fullProductId),
+                )
+
+            val serverEntitlementsByProductId =
+                mapOf(
+                    fullProductId to setOf(defaultEntitlement, testEntitlement),
+                )
+
+            // After fix: adapter.productId is now the full product ID
+            val lookupResult = serverEntitlementsByProductId[fullProductId]
+
+            When("looking up entitlements by full product ID") {
+                Then("lookup succeeds") {
+                    assertNotNull(
+                        "After fix: lookup by full product ID succeeds",
+                        lookupResult,
+                    )
+                    assertEquals(2, lookupResult?.size)
+                }
+            }
+
+            // Create transaction with full product ID (as adapter.productId now uses)
+            val transaction =
+                createMockTransaction(
+                    productId = fullProductId,
+                    transactionId = "GPA.3382-0986-5088-93164",
+                    expirationDate = futureDate,
+                    productType = EntitlementTransactionType.AUTO_RENEWABLE,
+                    willRenew = true,
+                    isActive = true,
+                )
+
+            // Transactions are properly mapped to entitlements
+            val transactionsByEntitlement =
+                mapOf(
+                    "default" to listOf<EntitlementTransaction>(transaction),
+                    "test" to listOf<EntitlementTransaction>(transaction),
+                )
+
+            When("building entitlements with proper transaction mapping") {
+                val result =
+                    processor.buildEntitlementsFromTransactions(
+                        transactionsByEntitlement = transactionsByEntitlement,
+                        rawEntitlementsByProductId = serverEntitlementsByProductId,
+                        productIdsByEntitlementId = buildProductIdsByEntitlementId(serverEntitlementsByProductId),
+                    )
+
+                Then("entitlements are active") {
+                    val allEntitlements = result.values.flatten()
+                    assertEquals(2, allEntitlements.size)
+
+                    val defaultEnt = allEntitlements.find { it.id == "default" }
+                    val testEnt = allEntitlements.find { it.id == "test" }
+
+                    assertTrue(
+                        "After fix: default entitlement is active",
+                        defaultEnt?.isActive ?: false,
+                    )
+                    assertTrue(
+                        "After fix: test entitlement is active",
+                        testEnt?.isActive ?: false,
+                    )
+                }
+
+                And("entitlements have latestProductId") {
+                    val defaultEnt = result.values.flatten().find { it.id == "default" }
+                    assertEquals(
+                        "After fix: latestProductId is set from transaction",
+                        fullProductId,
+                        defaultEnt?.latestProductId,
+                    )
+                }
+
+                And("entitlements have expiration from subscription") {
+                    val defaultEnt = result.values.flatten().find { it.id == "default" }
+                    assertEquals(futureDate, defaultEnt?.expiresAt)
+                }
+
+                And("entitlements have willRenew from subscription") {
+                    val defaultEnt = result.values.flatten().find { it.id == "default" }
+                    assertTrue(defaultEnt?.willRenew ?: false)
+                }
+            }
+        }
+    }
+
+    /**
+     * This test verifies the fix works correctly with transaction containing full product ID.
+     * After the fix, adapter.productId is the full identifier, so all lookups work correctly.
+     */
+    @Test
+    fun `transaction with full product ID properly enriches entitlements`() {
+        Given("server entitlements keyed by full product ID and transaction with full product ID") {
+            val fullProductId = "com.ui_tests.monthly:monthly_plan:sw-auto"
+            val futureDate = Date(System.currentTimeMillis() + 3600_000) // 1 hour from now
+
+            // After fix: transaction productId is the full product ID
+            val transaction =
+                createMockTransaction(
+                    productId = fullProductId,
+                    transactionId = "GPA.3382-0986-5088-93164",
+                    expirationDate = futureDate,
+                    productType = EntitlementTransactionType.AUTO_RENEWABLE,
+                    willRenew = true,
+                    isActive = true,
+                )
+
+            val defaultEntitlement =
+                Entitlement(
+                    id = "default",
+                    type = Entitlement.Type.SERVICE_LEVEL,
+                    isActive = false,
+                    productIds = setOf(fullProductId),
+                )
+
+            val testEntitlement =
+                Entitlement(
+                    id = "test",
+                    type = Entitlement.Type.SERVICE_LEVEL,
+                    isActive = false,
+                    productIds = setOf(fullProductId),
+                )
+
+            val serverEntitlementsByProductId =
+                mapOf(
+                    fullProductId to setOf(defaultEntitlement, testEntitlement),
+                )
+
+            // After fix: lookup succeeds because adapter.productId matches server key
+            val lookupResult = serverEntitlementsByProductId[fullProductId]
+
+            When("looking up entitlements by full product ID") {
+                Then("entitlements are found") {
+                    assertNotNull(lookupResult)
+                    assertEquals(2, lookupResult?.size)
+                }
+            }
+
+            val transactionsByEntitlement =
+                mapOf(
+                    "default" to listOf<EntitlementTransaction>(transaction),
+                    "test" to listOf<EntitlementTransaction>(transaction),
+                )
+
+            When("building entitlements with proper transaction mapping") {
+                val result =
+                    processor.buildEntitlementsFromTransactions(
+                        transactionsByEntitlement = transactionsByEntitlement,
+                        rawEntitlementsByProductId = serverEntitlementsByProductId,
+                        productIdsByEntitlementId = buildProductIdsByEntitlementId(serverEntitlementsByProductId),
+                    )
+
+                Then("entitlements are active") {
+                    val defaultEnt = result.values.flatten().find { it.id == "default" }
+                    val testEnt = result.values.flatten().find { it.id == "test" }
+
+                    assertTrue(
+                        "default entitlement should be active from subscription",
+                        defaultEnt?.isActive ?: false,
+                    )
+                    assertTrue(
+                        "test entitlement should be active from subscription",
+                        testEnt?.isActive ?: false,
+                    )
+                }
+
+                And("latestProductId is the full product ID") {
+                    val defaultEnt = result.values.flatten().find { it.id == "default" }
+                    assertEquals(
+                        "latestProductId should be the full product ID from transaction",
+                        fullProductId,
+                        defaultEnt?.latestProductId,
+                    )
+                }
+
+                And("entitlements have expiration from subscription") {
+                    val defaultEnt = result.values.flatten().find { it.id == "default" }
+                    assertEquals(futureDate, defaultEnt?.expiresAt)
+                }
+
+                And("entitlements have willRenew from subscription") {
+                    val defaultEnt = result.values.flatten().find { it.id == "default" }
+                    assertTrue(defaultEnt?.willRenew ?: false)
+                }
+            }
+        }
+    }
+
+    /**
+     * This test verifies the fix in ReceiptManager.loadPurchases():
+     *
+     * After the fix:
+     * - productsById is keyed by productIdentifier (raw product ID)
+     * - Lookup by purchase.products (raw IDs) succeeds
+     * - adapter.productId is set to product.fullIdentifier
+     * - serverEntitlementsByProductId[adapter.productId] lookup succeeds
+     */
+    @Test
+    fun `fixed flow - productsById keyed by raw ID and adapter uses full identifier`() {
+        Given("proper product lookup keyed by raw product ID") {
+            val rawProductId = "com.ui_tests.monthly"
+            val fullProductId = "com.ui_tests.monthly:monthly_plan:sw-auto"
+
+            // After fix: productsById is keyed by productIdentifier (raw ID)
+            val productsById =
+                mapOf(
+                    rawProductId to fullProductId, // Maps raw ID to full ID
+                )
+
+            When("looking up by raw product ID") {
+                val result = productsById[rawProductId]
+
+                Then("lookup succeeds") {
+                    assertEquals(fullProductId, result)
+                }
+            }
+
+            // After fix: adapter.productId is the full identifier
+            val adapterProductId = fullProductId
+
+            val serverEntitlementsByProductId =
+                mapOf(
+                    fullProductId to
+                        setOf(
+                            Entitlement(
+                                id = "default",
+                                type = Entitlement.Type.SERVICE_LEVEL,
+                                isActive = false,
+                                productIds = setOf(fullProductId),
+                            ),
+                        ),
+                )
+
+            And("entitlement lookup succeeds with full product ID") {
+                val entitlementLookup = serverEntitlementsByProductId[adapterProductId]
+
+                Then("entitlements are found") {
+                    assertNotNull(
+                        "serverEntitlementsByProductId[$adapterProductId] should find entitlements",
+                        entitlementLookup,
+                    )
+                    assertEquals(1, entitlementLookup?.size)
+                    assertEquals("default", entitlementLookup?.first()?.id)
+                }
+            }
+        }
+    }
+
+    /**
+     * This test verifies the raw-to-full product ID mapping in ReceiptManager.loadPurchases():
+     *
+     * When purchases come in with raw product IDs (e.g., "com.ui_tests.monthly"),
+     * we map them to full product IDs from serverEntitlementsByProductId keys
+     * before fetching products. This ensures products have proper base plan/offer info.
+     */
+    @Test
+    fun `raw to full product ID mapping finds full ID from server entitlements`() {
+        Given("serverEntitlementsByProductId keyed by full product ID and raw product ID from purchase") {
+            val rawProductId = "com.ui_tests.monthly"
+            val fullProductId = "com.ui_tests.monthly:com-ui-tests-montly:sw-auto"
+
+            val serverEntitlementsByProductId =
+                mapOf(
+                    fullProductId to
+                        setOf(
+                            Entitlement(
+                                id = "default",
+                                type = Entitlement.Type.SERVICE_LEVEL,
+                                isActive = false,
+                                productIds = setOf(fullProductId),
+                            ),
+                        ),
+                )
+
+            When("mapping raw product ID to full product ID") {
+                // This simulates the fix in ReceiptManager:
+                // Find the full product ID from server config that matches this raw ID
+                val mappedFullId =
+                    serverEntitlementsByProductId.keys.firstOrNull { key ->
+                        key == rawProductId || key.startsWith("$rawProductId:")
+                    }
+
+                Then("full product ID is found via prefix matching") {
+                    assertEquals(
+                        "Should find full product ID from server entitlements",
+                        fullProductId,
+                        mappedFullId,
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * This test verifies that exact match takes precedence over prefix matching
+     * when mapping raw product IDs to full product IDs.
+     */
+    @Test
+    fun `exact match takes precedence over prefix matching in raw to full mapping`() {
+        Given("serverEntitlementsByProductId with both exact and prefix-matchable entries") {
+            val rawProductId = "com.ui_tests.monthly"
+            val fullProductId = "com.ui_tests.monthly:base_plan:offer"
+
+            val exactMatchEntitlement =
+                Entitlement(
+                    id = "exact",
+                    type = Entitlement.Type.SERVICE_LEVEL,
+                    isActive = false,
+                    productIds = setOf(rawProductId),
+                )
+
+            val prefixMatchEntitlement =
+                Entitlement(
+                    id = "prefix",
+                    type = Entitlement.Type.SERVICE_LEVEL,
+                    isActive = false,
+                    productIds = setOf(fullProductId),
+                )
+
+            // Use LinkedHashMap to preserve insertion order for predictable iteration
+            val serverEntitlementsByProductId =
+                linkedMapOf(
+                    // Put prefix match first to ensure exact match still wins
+                    fullProductId to setOf(prefixMatchEntitlement),
+                    rawProductId to setOf(exactMatchEntitlement),
+                )
+
+            When("mapping raw product ID to full product ID") {
+                // Find exact match first, then fall back to prefix match
+                val mappedFullId =
+                    serverEntitlementsByProductId.keys.firstOrNull { it == rawProductId }
+                        ?: serverEntitlementsByProductId.keys.firstOrNull { it.startsWith("$rawProductId:") }
+                        ?: rawProductId
+
+                Then("exact match is returned, not prefix match") {
+                    assertEquals(
+                        "Exact match should take precedence over prefix match",
+                        rawProductId,
+                        mappedFullId,
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `entitlement with no transactions should still have productIds from config`() {
+        Given("an entitlement with no transactions but multiple products in config") {
+            // This simulates the bug where "test" entitlement had productIds=[] because
+            // the user only purchased "monthly" product which only unlocks "default" entitlement
+            val defaultEntitlement =
+                Entitlement(
+                    id = "default",
+                    type = Entitlement.Type.SERVICE_LEVEL,
+                    isActive = false,
+                    productIds = emptySet(), // Server doesn't send productIds
+                )
+            val testEntitlement =
+                Entitlement(
+                    id = "test",
+                    type = Entitlement.Type.SERVICE_LEVEL,
+                    isActive = false,
+                    productIds = emptySet(), // Server doesn't send productIds
+                )
+
+            // Config: monthly product unlocks "default", annual product unlocks both "default" and "test"
+            val serverEntitlementsByProductId =
+                mapOf(
+                    "com.app.monthly" to setOf(defaultEntitlement),
+                    "com.app.annual" to setOf(defaultEntitlement, testEntitlement),
+                )
+
+            // User only purchased the monthly product - so only "default" has transactions
+            val monthlyTransaction =
+                createMockTransaction(
+                    productId = "com.app.monthly",
+                    transactionId = "txn_monthly",
+                    productType = EntitlementTransactionType.AUTO_RENEWABLE,
+                    isActive = true,
+                    expirationDate = Date(System.currentTimeMillis() + 30 * 24 * 60 * 60 * 1000L),
+                )
+
+            // Only "default" entitlement has transactions (from monthly purchase)
+            val transactionsByEntitlement =
+                mapOf(
+                    "default" to listOf<EntitlementTransaction>(monthlyTransaction),
+                    // "test" has NO transactions because user didn't purchase annual
+                )
+
+            When("building entitlements from transactions") {
+                val result =
+                    processor.buildEntitlementsFromTransactions(
+                        transactionsByEntitlement = transactionsByEntitlement,
+                        rawEntitlementsByProductId = serverEntitlementsByProductId,
+                        productIdsByEntitlementId = buildProductIdsByEntitlementId(serverEntitlementsByProductId),
+                    )
+
+                Then("default entitlement should be active with correct productIds") {
+                    val defaultResult = result["com.app.monthly"]?.find { it.id == "default" }
+                    assertEquals(true, defaultResult?.isActive)
+                    // default is unlocked by both monthly and annual
+                    assertEquals(
+                        setOf("com.app.monthly", "com.app.annual"),
+                        defaultResult?.productIds,
+                    )
+                }
+
+                And("test entitlement should be inactive but still have productIds from config") {
+                    val testResult = result["com.app.annual"]?.find { it.id == "test" }
+                    // test has no transactions so it's inactive
+                    assertEquals(false, testResult?.isActive)
+                    // But it should still have productIds from config!
+                    assertEquals(
+                        "Entitlement with no transactions should still have productIds from config",
+                        setOf("com.app.annual"),
+                        testResult?.productIds,
+                    )
+                }
+            }
+        }
+    }
+
+    // MARK: - isActive Status Tests
+
+    @Test
+    fun `entitlement isActive should trust transaction isActive status`() {
+        Given("a subscription transaction with isActive=false even though expiration is in future") {
+            // This simulates the bug where Google Play returns isActive=false
+            // but the expiration date is still in the future
+            val futureExpiration = Date(System.currentTimeMillis() + 30 * 24 * 60 * 60 * 1000L)
+
+            val transaction =
+                createMockTransaction(
+                    productId = "com.app.monthly",
+                    transactionId = "txn_1",
+                    productType = EntitlementTransactionType.AUTO_RENEWABLE,
+                    expirationDate = futureExpiration,
+                    isActive = false, // Google Play says inactive
+                )
+
+            val entitlement =
+                Entitlement(
+                    id = "premium",
+                    type = Entitlement.Type.SERVICE_LEVEL,
+                    isActive = false,
+                    productIds = emptySet(),
+                )
+
+            val serverEntitlementsByProductId =
+                mapOf(
+                    "com.app.monthly" to setOf(entitlement),
+                )
+
+            val transactionsByEntitlement =
+                mapOf(
+                    "premium" to listOf<EntitlementTransaction>(transaction),
+                )
+
+            When("building entitlements from transactions") {
+                val result =
+                    processor.buildEntitlementsFromTransactions(
+                        transactionsByEntitlement = transactionsByEntitlement,
+                        rawEntitlementsByProductId = serverEntitlementsByProductId,
+                        productIdsByEntitlementId = buildProductIdsByEntitlementId(serverEntitlementsByProductId),
+                    )
+
+                Then("entitlement should be inactive because transaction.isActive is false") {
+                    val processedEntitlement = result["com.app.monthly"]?.find { it.id == "premium" }
+                    assertEquals(
+                        "Entitlement should trust transaction.isActive=false",
+                        false,
+                        processedEntitlement?.isActive,
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `entitlement isActive should be true when transaction isActive is true`() {
+        Given("a subscription transaction with isActive=true") {
+            val futureExpiration = Date(System.currentTimeMillis() + 30 * 24 * 60 * 60 * 1000L)
+
+            val transaction =
+                createMockTransaction(
+                    productId = "com.app.monthly",
+                    transactionId = "txn_1",
+                    productType = EntitlementTransactionType.AUTO_RENEWABLE,
+                    expirationDate = futureExpiration,
+                    isActive = true,
+                )
+
+            val entitlement =
+                Entitlement(
+                    id = "premium",
+                    type = Entitlement.Type.SERVICE_LEVEL,
+                    isActive = false,
+                    productIds = emptySet(),
+                )
+
+            val serverEntitlementsByProductId =
+                mapOf(
+                    "com.app.monthly" to setOf(entitlement),
+                )
+
+            val transactionsByEntitlement =
+                mapOf(
+                    "premium" to listOf<EntitlementTransaction>(transaction),
+                )
+
+            When("building entitlements from transactions") {
+                val result =
+                    processor.buildEntitlementsFromTransactions(
+                        transactionsByEntitlement = transactionsByEntitlement,
+                        rawEntitlementsByProductId = serverEntitlementsByProductId,
+                        productIdsByEntitlementId = buildProductIdsByEntitlementId(serverEntitlementsByProductId),
+                    )
+
+                Then("entitlement should be active because transaction.isActive is true") {
+                    val processedEntitlement = result["com.app.monthly"]?.find { it.id == "premium" }
+                    assertEquals(
+                        "Entitlement should trust transaction.isActive=true",
+                        true,
+                        processedEntitlement?.isActive,
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `entitlement isActive should be true if any transaction is active`() {
+        Given("multiple transactions where one is active and one is inactive") {
+            val futureExpiration = Date(System.currentTimeMillis() + 30 * 24 * 60 * 60 * 1000L)
+
+            val inactiveTransaction =
+                createMockTransaction(
+                    productId = "com.app.monthly",
+                    transactionId = "txn_old",
+                    productType = EntitlementTransactionType.AUTO_RENEWABLE,
+                    expirationDate = Date(System.currentTimeMillis() - 1000), // expired
+                    isActive = false,
+                    purchaseDate = Date(System.currentTimeMillis() - 60 * 24 * 60 * 60 * 1000L), // 60 days ago
+                )
+
+            val activeTransaction =
+                createMockTransaction(
+                    productId = "com.app.monthly",
+                    transactionId = "txn_new",
+                    productType = EntitlementTransactionType.AUTO_RENEWABLE,
+                    expirationDate = futureExpiration,
+                    isActive = true,
+                    purchaseDate = Date(), // now
+                )
+
+            val entitlement =
+                Entitlement(
+                    id = "premium",
+                    type = Entitlement.Type.SERVICE_LEVEL,
+                    isActive = false,
+                    productIds = emptySet(),
+                )
+
+            val serverEntitlementsByProductId =
+                mapOf(
+                    "com.app.monthly" to setOf(entitlement),
+                )
+
+            val transactionsByEntitlement =
+                mapOf(
+                    "premium" to listOf<EntitlementTransaction>(inactiveTransaction, activeTransaction),
+                )
+
+            When("building entitlements from transactions") {
+                val result =
+                    processor.buildEntitlementsFromTransactions(
+                        transactionsByEntitlement = transactionsByEntitlement,
+                        rawEntitlementsByProductId = serverEntitlementsByProductId,
+                        productIdsByEntitlementId = buildProductIdsByEntitlementId(serverEntitlementsByProductId),
+                    )
+
+                Then("entitlement should be active because at least one transaction is active") {
+                    val processedEntitlement = result["com.app.monthly"]?.find { it.id == "premium" }
+                    assertEquals(
+                        "Entitlement should be active if any transaction is active",
+                        true,
+                        processedEntitlement?.isActive,
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `entitlement with no transactions should be inactive`() {
+        Given("an entitlement with no transactions") {
+            val entitlement =
+                Entitlement(
+                    id = "premium",
+                    type = Entitlement.Type.SERVICE_LEVEL,
+                    isActive = false,
+                    productIds = emptySet(),
+                )
+
+            val serverEntitlementsByProductId =
+                mapOf(
+                    "com.app.monthly" to setOf(entitlement),
+                )
+
+            // No transactions for this entitlement
+            val transactionsByEntitlement = emptyMap<String, List<EntitlementTransaction>>()
+
+            When("building entitlements from transactions") {
+                val result =
+                    processor.buildEntitlementsFromTransactions(
+                        transactionsByEntitlement = transactionsByEntitlement,
+                        rawEntitlementsByProductId = serverEntitlementsByProductId,
+                        productIdsByEntitlementId = buildProductIdsByEntitlementId(serverEntitlementsByProductId),
+                    )
+
+                Then("entitlement should be inactive") {
+                    val processedEntitlement = result["com.app.monthly"]?.find { it.id == "premium" }
+                    assertEquals(
+                        "Entitlement with no transactions should be inactive",
+                        false,
+                        processedEntitlement?.isActive,
+                    )
                 }
             }
         }

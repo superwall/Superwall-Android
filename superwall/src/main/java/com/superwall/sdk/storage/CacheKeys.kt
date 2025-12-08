@@ -374,6 +374,17 @@ internal object LastWebEntitlementsFetchDate : Storable<Long> {
         get() = Long.serializer()
 }
 
+internal object StoredTransactionHistory : Storable<com.superwall.sdk.store.abstractions.product.receipt.UserTransactionHistory> {
+    override val key: String
+        get() = "store.userTransactionHistory"
+    override val directory: SearchPathDirectory
+        get() = SearchPathDirectory.USER_SPECIFIC_DOCUMENTS
+    override val serializer: KSerializer<com.superwall.sdk.store.abstractions.product.receipt.UserTransactionHistory>
+        get() =
+            com.superwall.sdk.store.abstractions.product.receipt.UserTransactionHistory
+                .serializer()
+}
+
 //endregion
 
 // region Serializers

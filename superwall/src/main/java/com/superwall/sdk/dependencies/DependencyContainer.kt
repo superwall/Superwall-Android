@@ -1049,7 +1049,8 @@ class DependencyContainer(
 
     override fun maxAge(): Long = configManager.config?.webToAppConfig?.entitlementsMaxAgeMs ?: 86400000L
 
-    override fun getActiveDeviceEntitlements(): Set<com.superwall.sdk.models.entitlements.Entitlement> = entitlements.all
+    override fun getActiveDeviceEntitlements(): Set<com.superwall.sdk.models.entitlements.Entitlement> =
+        entitlements.activeDeviceEntitlements
 
     override fun getUserId(): com.superwall.sdk.models.internal.UserId? =
         identityManager.appUserId?.let {
