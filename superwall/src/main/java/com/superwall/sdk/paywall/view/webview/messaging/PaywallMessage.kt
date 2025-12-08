@@ -1,8 +1,9 @@
-package com.superwall.sdk.paywall.view.webview
+package com.superwall.sdk.paywall.view.webview.messaging
 
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
+import com.superwall.sdk.models.paywall.LocalNotificationType
 import com.superwall.sdk.storage.core_data.convertFromJsonElement
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -11,6 +12,7 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.longOrNull
 import java.net.URI
 
 private val json = Json { ignoreUnknownKeys = true }
@@ -78,7 +80,10 @@ sealed class PaywallMessage {
 
     object TransactionStart : PaywallMessage()
 
-    object TransactionComplete : PaywallMessage()
+    data class TrialStarted(
+        val trialEndDate: Long?,
+        val productIdentifier: String,
+    ) : PaywallMessage()
 
     data class UserAttributesUpdated(
         val data: Map<String, Any>,
@@ -94,6 +99,15 @@ sealed class PaywallMessage {
             EXTERNAL("external"),
         }
     }
+
+    data class ScheduleNotification(
+        val id: String,
+        val type: LocalNotificationType,
+        val title: String,
+        val subtitle: String,
+        val body: String,
+        val delay: Long,
+    ) : PaywallMessage()
 }
 
 fun parseWrappedPaywallMessages(jsonString: String): Result<WrappedPaywallMessages> =
@@ -169,6 +183,20 @@ private fun parsePaywallMessage(json: JsonObject): PaywallMessage {
                     },
             )
         }
+
+        "schedule_notification" ->
+            PaywallMessage.ScheduleNotification(
+                type =
+                    when (json["type"]?.jsonPrimitive?.contentOrNull) {
+                        "TRIAL_STARTED" -> LocalNotificationType.TrialStarted
+                        else -> LocalNotificationType.Unsupported
+                    },
+                id = json["id"]?.jsonPrimitive?.contentOrNull ?: "",
+                title = json["title"]?.jsonPrimitive?.contentOrNull ?: "",
+                subtitle = json["subtitle"]?.jsonPrimitive?.contentOrNull ?: "",
+                body = json["body"]?.jsonPrimitive?.contentOrNull ?: "",
+                delay = json["delay"]?.jsonPrimitive?.longOrNull ?: 0L,
+            )
 
         else -> {
             throw IllegalArgumentException("Unknown event name: $eventName")

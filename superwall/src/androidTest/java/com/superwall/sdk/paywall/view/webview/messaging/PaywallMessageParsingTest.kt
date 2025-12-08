@@ -4,8 +4,6 @@ import Given
 import Then
 import When
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.superwall.sdk.paywall.view.webview.PaywallMessage
-import com.superwall.sdk.paywall.view.webview.parseWrappedPaywallMessages
 import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonArray

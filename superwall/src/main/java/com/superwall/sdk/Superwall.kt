@@ -93,6 +93,7 @@ import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.Date
+import kotlin.collections.map
 
 class Superwall(
     context: Context,
@@ -1254,6 +1255,33 @@ class Superwall(
                                 error = e,
                             )
                         }
+                    }
+                }
+
+                is PaywallWebEvent.ScheduleNotification -> {
+                    val paywallActivity =
+
+                        (
+                            paywallView
+                                ?.encapsulatingActivity
+                                ?.get()
+                                ?: dependencyContainer
+                                    .activityProvider
+                                    ?.getCurrentActivity()
+                        ) as SuperwallPaywallActivity?
+
+                    // Cancel any existing fallback notification of the same type before scheduling
+                    // the dynamic notification from the paywall
+                    paywallActivity?.attemptToScheduleNotifications(
+                        notifications = listOf(paywallEvent.localNotification),
+                        factory = dependencyContainer,
+                        cancelExisting = true,
+                    ) ?: run {
+                        Logger.debug(
+                            LogLevel.error,
+                            LogScope.paywallView,
+                            message = "No paywall activity alive to schedule notifications",
+                        )
                     }
                 }
             }

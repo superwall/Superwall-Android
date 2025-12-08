@@ -5,7 +5,6 @@ import Then
 import When
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.superwall.sdk.misc.MainScope
-import com.superwall.sdk.paywall.view.webview.PaywallMessage
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.jsonPrimitive

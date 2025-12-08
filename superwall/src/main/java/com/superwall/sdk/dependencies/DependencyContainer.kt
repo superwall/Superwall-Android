@@ -35,6 +35,9 @@ import com.superwall.sdk.delegate.SuperwallDelegateAdapter
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.identity.IdentityInfo
 import com.superwall.sdk.identity.IdentityManager
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.ActivityProvider
 import com.superwall.sdk.misc.AppLifecycleObserver
 import com.superwall.sdk.misc.CurrentActivityTracker
@@ -46,6 +49,7 @@ import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.entitlements.TransactionReceipt
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.internal.VendorId
+import com.superwall.sdk.models.paywall.LocalNotificationType
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.network.Api
@@ -82,12 +86,13 @@ import com.superwall.sdk.paywall.request.PaywallRequestManagerDepFactory
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
 import com.superwall.sdk.paywall.view.PaywallView
 import com.superwall.sdk.paywall.view.PaywallViewState
+import com.superwall.sdk.paywall.view.SuperwallPaywallActivity
 import com.superwall.sdk.paywall.view.SuperwallStoreOwner
 import com.superwall.sdk.paywall.view.ViewModelFactory
 import com.superwall.sdk.paywall.view.ViewStorageViewModel
 import com.superwall.sdk.paywall.view.delegate.PaywallViewDelegateAdapter
-import com.superwall.sdk.paywall.view.webview.PaywallMessage
 import com.superwall.sdk.paywall.view.webview.SWWebView
+import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessage
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessageHandler
 import com.superwall.sdk.paywall.view.webview.templating.models.JsonVariables
 import com.superwall.sdk.paywall.view.webview.templating.models.Variables
@@ -538,6 +543,61 @@ class DependencyContainer(
                         return@TransactionManager
                     }
                     paywallView.updateState(state)
+                },
+                notifyOfTransactionComplete = { key, trialEndDate, id ->
+                    val paywallView =
+                        resolvePaywallViewForKey(
+                            makeViewStore(),
+                            Superwall.instance.paywallView,
+                            key,
+                        )
+                    if (paywallView == null) {
+                        Logger.debug(
+                            LogLevel.error,
+                            LogScope.paywallView,
+                            "No active paywall to use - did the app close?",
+                        )
+                        return@TransactionManager
+                    }
+
+                    // Schedule fallback notifications from the paywall config in case the paywall
+                    // hasn't been updated to send the ScheduleNotification message dynamically.
+                    // If the paywall sends a ScheduleNotification message, it will cancel and
+                    // replace this notification.
+                    val paywallInfo = paywallView.state.info
+                    val trialNotifications =
+                        paywallInfo.localNotifications
+                            .filter {
+                                it.type == LocalNotificationType.TrialStarted
+                            }.map {
+                                it.copy("${paywallInfo.identifier}_${it.type.raw}")
+                            }
+
+                    if (trialNotifications.isNotEmpty()) {
+
+                        val paywallActivity =
+                            (
+                                paywallView.encapsulatingActivity?.get()
+                                    ?: activityProvider?.getCurrentActivity()
+                            ) as? SuperwallPaywallActivity
+
+                        if (paywallActivity != null) {
+                            ioScope.launch {
+                                paywallActivity.attemptToScheduleNotifications(
+                                    notifications = trialNotifications,
+                                    factory = this@DependencyContainer,
+                                )
+                            }
+                        } else {
+                            Logger.debug(
+                                LogLevel.warn,
+                                LogScope.paywallView,
+                                "No paywall activity available to schedule fallback notifications",
+                            )
+                        }
+                        // Await message delivery to ensure webview has time to process before dismiss
+                        paywallView.webView.messageHandler.handle(PaywallMessage.TrialStarted(trialEndDate, id))
+                    }
                 },
             )
 

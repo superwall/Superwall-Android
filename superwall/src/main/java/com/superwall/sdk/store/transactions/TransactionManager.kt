@@ -34,12 +34,10 @@ import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.launchWithTracking
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
-import com.superwall.sdk.models.paywall.LocalNotificationType
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.view.PaywallView
 import com.superwall.sdk.paywall.view.PaywallViewState
-import com.superwall.sdk.paywall.view.SuperwallPaywallActivity
 import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 import com.superwall.sdk.storage.EventsQueue
 import com.superwall.sdk.storage.PurchasingProductdIds
@@ -77,6 +75,7 @@ class TransactionManager(
     private val showRestoreDialogForWeb: suspend () -> Unit,
     private val refreshReceipt: () -> Unit,
     private val updateState: (cacheKey: String, update: PaywallViewState.Updates) -> Unit,
+    private val notifyOfTransactionComplete: suspend (paywallCacheKey: String, trialEndDate: Long?, productId: String) -> Unit,
 ) {
     sealed class PurchaseSource {
         data class Internal(
@@ -913,10 +912,7 @@ class TransactionManager(
 
         when (purchaseSource) {
             is PurchaseSource.Internal -> {
-                val paywallShowingFreeTrial =
-                    purchaseSource.state.paywall.isFreeTrialAvailable
-                val didStartFreeTrial = product.hasFreeTrial && paywallShowingFreeTrial
-                val deviceAttributes = factory.makeSessionDeviceAttributes()
+                val trialEnd = product.trialPeriodEndDate?.time
                 val paywallInfo = purchaseSource.paywallInfo
 
                 val trackedEvent =
@@ -933,7 +929,6 @@ class TransactionManager(
                     )
                 track(trackedEvent)
                 eventsQueue.flushInternal()
-
                 if (product.subscriptionPeriod == null) {
                     val nonRecurringEvent =
                         InternalSuperwallEvent.NonRecurringProductPurchase(
@@ -942,29 +937,11 @@ class TransactionManager(
                         )
                     track(nonRecurringEvent)
                 } else {
+                    notifyOfTransactionComplete(purchaseSource.paywallInfo.cacheKey, trialEnd, product.fullIdentifier)
                     if (didStartFreeTrial) {
                         val freeTrialEvent =
                             InternalSuperwallEvent.FreeTrialStart(paywallInfo, product)
                         track(freeTrialEvent)
-
-                        val notifications =
-                            paywallInfo.localNotifications.filter { it.type == LocalNotificationType.TrialStarted }
-                        val paywallActivity =
-                            (
-                                (
-                                    Superwall.instance.paywallView
-                                        ?.encapsulatingActivity
-                                        ?.get()
-                                        ?: Superwall.instance.dependencyContainer
-                                            .activityProvider
-                                            ?.getCurrentActivity()
-                                ) as SuperwallPaywallActivity?
-                            )
-                                ?: return
-                        paywallActivity.attemptToScheduleNotifications(
-                            notifications = notifications,
-                            factory = factory,
-                        )
                     } else {
                         val subscriptionEvent =
                             InternalSuperwallEvent.SubscriptionStart(paywallInfo, product)
