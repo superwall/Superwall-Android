@@ -429,6 +429,10 @@ class Superwall(
                 .take(1)
 
         private var _instance: Superwall? = null
+
+        // Retained activity provider for reuse across teardown/configure cycles (hot reload)
+        private var retainedActivityProvider: ActivityProvider? = null
+
         val instance: Superwall
             get() =
                 _instance
@@ -477,13 +481,18 @@ class Superwall(
                 completion?.invoke(Result.success(Unit))
                 return
             }
+
+            // Use retained activity provider from previous instance if available (hot reload scenario)
+            val effectiveActivityProvider = activityProvider ?: retainedActivityProvider
+            retainedActivityProvider = null
+
             _instance =
                 Superwall(
                     context = applicationContext,
                     apiKey = apiKey,
                     purchaseController = purchaseController,
                     options = options,
-                    activityProvider = activityProvider,
+                    activityProvider = effectiveActivityProvider,
                     completion = completion,
                 )
 
@@ -551,6 +560,8 @@ class Superwall(
         @JvmStatic
         fun teardown() {
             synchronized(this) {
+                // Retain the activity provider for reuse in next configure call
+                retainedActivityProvider = _instance?.dependencyContainer?.activityProvider
                 _instance?.teardown()
                 _instance = null
                 initialized = false
@@ -777,6 +788,9 @@ class Superwall(
             reset(duringIdentify = false)
             // Also reset the paywall request cache
             dependencyContainer.paywallRequestManager.resetCache()
+            // Note: We intentionally do NOT unregister the activity lifecycle callbacks here
+            // because the activity provider will be retained and reused in the next configure call.
+            // This ensures the current activity is still tracked across hot reload cycles.
         }
     }
 
