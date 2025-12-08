@@ -1,6 +1,7 @@
 package com.superwall.sdk.store
 
 import com.superwall.sdk.billing.DecomposedProductIds
+import com.superwall.sdk.models.customer.mergeEntitlementsPrioritized
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.storage.LatestRedemptionResponse
@@ -29,6 +30,7 @@ class Entitlements(
                 .read(LatestRedemptionResponse)
                 ?.customerInfo
                 ?.entitlements
+                ?.filter { it.isActive }
                 ?.toSet() ?: emptySet()
 
     // MARK: - Private Properties
@@ -80,9 +82,11 @@ class Entitlements(
 
     /**
      * The active entitlements.
+     * Uses [mergeEntitlementsPrioritized] to deduplicate entitlements by ID,
+     * keeping the highest priority version of each and merging productIds.
      */
     val active: Set<Entitlement>
-        get() = backingActive + _activeDeviceEntitlements + web
+        get() = mergeEntitlementsPrioritized((backingActive + _activeDeviceEntitlements + web).toList()).toSet()
 
     /**
      * The inactive entitlements.
@@ -114,7 +118,7 @@ class Entitlements(
                 if (value.entitlements.isEmpty()) {
                     setSubscriptionStatus(SubscriptionStatus.Inactive)
                 } else {
-                    backingActive.addAll(value.entitlements)
+                    backingActive.addAll(value.entitlements.filter { it.isActive })
                     _all.addAll(value.entitlements)
                     _inactive.removeAll(value.entitlements)
                     _status.value = value

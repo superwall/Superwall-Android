@@ -163,7 +163,8 @@ data class Entitlement(
     /**
      * Convenience constructor for creating an entitlement with just an ID.
      */
-    constructor(id: String) : this(id = id, type = Type.SERVICE_LEVEL)
+    constructor(id: String) : this(id = id, type = Type.SERVICE_LEVEL, isActive = true)
+    constructor(id: String, type: Type) : this(id = id, type = type, isActive = true)
 
     companion object {
         /**

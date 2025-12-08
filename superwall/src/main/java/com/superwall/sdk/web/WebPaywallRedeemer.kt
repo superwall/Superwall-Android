@@ -265,7 +265,13 @@ class WebPaywallRedeemer(
                     }
                     factory.internallySetSubscriptionStatus(
                         SubscriptionStatus.Active(
-                            (it.customerInfo?.entitlements?.toSet() ?: emptySet()) + factory.getActiveDeviceEntitlements(),
+                            (
+                                it.customerInfo
+                                    ?.entitlements
+                                    ?.filter { it.isActive }
+                                    ?.toSet() ?: emptySet()
+                            ) +
+                                factory.getActiveDeviceEntitlements(),
                         ),
                     )
                     if (redemption is RedeemType.Code) {
@@ -439,10 +445,10 @@ class WebPaywallRedeemer(
                                 // Trigger CustomerInfo merge
                                 customerInfoManager.updateMergedCustomerInfo()
 
-                                if (existingWebEntitlements != newEntitlements) {
+                                if (existingWebEntitlements.filter { it.isActive } != newEntitlements.filter { it.isActive }) {
                                     factory.internallySetSubscriptionStatus(
                                         SubscriptionStatus.Active(
-                                            newEntitlements + factory.getActiveDeviceEntitlements(),
+                                            newEntitlements.filter { it.isActive }.toSet() + factory.getActiveDeviceEntitlements(),
                                         ),
                                     )
                                 }

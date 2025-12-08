@@ -91,13 +91,20 @@ private fun mergeEntitlements(
 /**
  * Merges a list of entitlements, keeping the highest priority entitlement for each ID.
  * Uses EntitlementPriorityComparator to determine priority.
+ * When merging, productIds from all entitlements with the same ID are combined.
  */
 internal fun mergeEntitlementsPrioritized(entitlements: List<Entitlement>): List<Entitlement> =
     entitlements
         .groupBy { it.id }
         .map { (_, group) ->
-            group.maxWithOrNull(EntitlementPriorityComparator)
-                ?: group.first()
+            val winner = group.maxWithOrNull(EntitlementPriorityComparator) ?: group.first()
+            // Merge productIds from all entitlements in the group
+            val mergedProductIds = group.flatMap { it.productIds }.toSet()
+            if (mergedProductIds != winner.productIds) {
+                winner.copy(productIds = mergedProductIds)
+            } else {
+                winner
+            }
         }
 
 /**

@@ -313,7 +313,7 @@ class AutomaticPurchaseController(
                     .let { entitlements ->
                         entitlementsInfo.activeDeviceEntitlements = entitlements
                         if (entitlements.isNotEmpty()) {
-                            SubscriptionStatus.Active(entitlements)
+                            SubscriptionStatus.Active(entitlements.map { it.copy(isActive = true) }.toSet())
                         } else {
                             SubscriptionStatus.Inactive
                         }

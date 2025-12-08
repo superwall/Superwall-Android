@@ -772,4 +772,71 @@ class EntitlementPriorityComparatorTest {
         assertEquals(1, merged.size)
         assertTrue(merged.first().isActive)
     }
+
+    @Test
+    fun `mergeEntitlementsPrioritized merges productIds from all entitlements with same ID`() {
+        val device =
+            Entitlement(
+                id = "premium",
+                isActive = true,
+                productIds = setOf("monthly_premium"),
+                latestProductId = "monthly_premium",
+                expiresAt = Date(System.currentTimeMillis() + 3600_000),
+                willRenew = true,
+            )
+
+        val web =
+            Entitlement(
+                id = "premium",
+                isActive = true,
+                productIds = setOf("lifetime_premium"),
+                latestProductId = "lifetime_premium",
+                isLifetime = true,
+            )
+
+        val merged = mergeEntitlementsPrioritized(listOf(device, web))
+
+        assertEquals(1, merged.size)
+        val result = merged.first()
+        // Lifetime should win (both active, lifetime takes priority)
+        assertEquals(true, result.isLifetime)
+        assertEquals("lifetime_premium", result.latestProductId)
+        // ProductIds should be merged from both entitlements
+        assertEquals(setOf("monthly_premium", "lifetime_premium"), result.productIds)
+    }
+
+    @Test
+    fun `mergeEntitlementsPrioritized merges productIds from multiple same-ID entitlements`() {
+        val ent1 =
+            Entitlement(
+                id = "premium",
+                isActive = true,
+                productIds = setOf("product_a"),
+                isLifetime = true,
+            )
+
+        val ent2 =
+            Entitlement(
+                id = "premium",
+                isActive = false,
+                productIds = setOf("product_b"),
+            )
+
+        val ent3 =
+            Entitlement(
+                id = "premium",
+                isActive = true,
+                productIds = setOf("product_c"),
+                isLifetime = false,
+            )
+
+        val merged = mergeEntitlementsPrioritized(listOf(ent1, ent2, ent3))
+
+        assertEquals(1, merged.size)
+        val result = merged.first()
+        // Lifetime should win
+        assertEquals(true, result.isLifetime)
+        // All productIds should be merged
+        assertEquals(setOf("product_a", "product_b", "product_c"), result.productIds)
+    }
 }
