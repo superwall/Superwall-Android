@@ -9,6 +9,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 - Provides a `CustomerInfo` class API, allowing you to observe the customer's purchases and subscription lifecycle via `Superwall.instance.customerInfo` flow
 - Provides a new delegate method to observe customer info changes - `fun customerInfoDidChange(from: CustomerInfo, to: CustomerInfo)`  
 - Provides a `CustomerInfoDidChange` event to track customer info changes
+- Provides a `userAttributesDidChange(newAttributes: Map<String, Any>)` method in Superwall Delegate to track external (i.e. paywall) attribute changesg
 
 ## 2.6.5
 
