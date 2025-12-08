@@ -7,6 +7,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 ## Enhancements
 
 - Add dynamic notification support and scheduling enabling deeper personalization of notifications 
+- Add a `Superwall.teardown` method for development with hot-reload based frameworks
 
 ## 2.6.5
 
