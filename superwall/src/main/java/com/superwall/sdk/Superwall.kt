@@ -449,6 +449,10 @@ class Superwall(
                 .take(1)
 
         private var _instance: Superwall? = null
+
+        // Retained activity provider for reuse across teardown/configure cycles (hot reload)
+        private var retainedActivityProvider: ActivityProvider? = null
+
         val instance: Superwall
             get() =
                 _instance
@@ -497,13 +501,18 @@ class Superwall(
                 completion?.invoke(Result.success(Unit))
                 return
             }
+
+            // Use retained activity provider from previous instance if available (hot reload scenario)
+            val effectiveActivityProvider = activityProvider ?: retainedActivityProvider
+            retainedActivityProvider = null
+
             _instance =
                 Superwall(
                     context = applicationContext,
                     apiKey = apiKey,
                     purchaseController = purchaseController,
                     options = options,
-                    activityProvider = activityProvider,
+                    activityProvider = effectiveActivityProvider,
                     completion = completion,
                 )
 
@@ -543,6 +552,42 @@ class Superwall(
          */
 
         fun handleDeepLink(uri: Uri): Result<Boolean> = DeepLinkRouter.handleDeepLink(uri)
+
+        /**
+         * Tears down the SDK and prepares it for re-initialization.
+         *
+         * Call this method in development environments that support hot reload (e.g., Expo, React Native)
+         * before calling [configure] again. This method:
+         * - Resets all user data, assignments, and caches
+         * - Clears the paywall view cache and destroys WebViews
+         * - Resets the paywall request cache
+         * - Allows [configure] to be called again
+         *
+         * After calling this method, you must call [configure] to use the SDK again.
+         *
+         * Example usage in Expo/React Native hot reload:
+         * ```kotlin
+         * // Before hot reload reconfiguration
+         * Superwall.teardown()
+         *
+         * // Then reconfigure
+         * Superwall.configure(applicationContext, apiKey, ...)
+         * ```
+         *
+         * Note: This is intended for development use only. Do not rely on this
+         * method in production as a way to reset.
+         */
+        @JvmStatic
+        fun teardown() {
+            synchronized(this) {
+                // Retain the activity provider for reuse in next configure call
+                retainedActivityProvider = _instance?.dependencyContainer?.activityProvider
+                _instance?.teardown()
+                _instance = null
+                initialized = false
+                _hasInitialized.update { false }
+            }
+        }
     }
 
     private lateinit var _dependencyContainer: DependencyContainer
@@ -751,6 +796,41 @@ class Superwall(
             ioScope.launch {
                 track(InternalSuperwallEvent.Reset)
             }
+        }
+    }
+
+    /**
+     * Tears down the SDK and prepares it for re-initialization.
+     *
+     * Call this method in development environments that support hot reload (e.g., Expo, React Native)
+     * before calling [configure] again. This method:
+     * - Resets all user data, assignments, and caches
+     * - Clears the paywall view cache and destroys WebViews
+     * - Resets the paywall request cache
+     * - Allows [configure] to be called again
+     *
+     * After calling this method, you must call [configure] to use the SDK again.
+     *
+     * Example usage in Expo/React Native hot reload:
+     * ```kotlin
+     * // Before hot reload reconfiguration
+     * Superwall.reset()
+     *
+     * // Then reconfigure
+     * Superwall.configure(applicationContext, apiKey, ...)
+     * ```
+     *
+     * Note: This is intended for development use only.
+     */
+    internal fun teardown() {
+        withErrorTracking {
+            // Reset user data and caches
+            reset(duringIdentify = false)
+            // Also reset the paywall request cache
+            dependencyContainer.paywallRequestManager.resetCache()
+            // Note: We intentionally do NOT unregister the activity lifecycle callbacks here
+            // because the activity provider will be retained and reused in the next configure call.
+            // This ensures the current activity is still tracked across hot reload cycles.
         }
     }
 
