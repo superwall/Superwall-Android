@@ -314,7 +314,18 @@ class DependencyContainer(
                                 ignoreUnknownKeys = true
                                 namingStrategy = null
                             },
-                        customHttpUrlConnection = httpConnection,
+                        customHttpUrlConnection =
+                            CustomHttpUrlConnection(
+                                json =
+                                    Json(from = json()) {
+                                        ignoreUnknownKeys = true
+                                        namingStrategy = null
+                                    },
+                                requestExecutor =
+                                    RequestExecutor { debugging, requestId ->
+                                        makeHeaders(debugging, requestId)
+                                    },
+                            ),
                     ),
                 collectorService =
                     CollectorService(
