@@ -43,6 +43,7 @@ interface StoreProductType {
     val currencySymbol: String?
     val regionCode: String?
     val subscriptionPeriod: SubscriptionPeriod?
+    val productType: String
 
     fun trialPeriodPricePerUnit(unit: SubscriptionPeriod.Unit): String
 

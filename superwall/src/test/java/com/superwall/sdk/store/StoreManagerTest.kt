@@ -33,10 +33,12 @@ class StoreManagerTest {
     fun setup() {
         purchaseController = mockk()
         billing = mockk()
+        val receiptManager: com.superwall.sdk.store.abstractions.product.receipt.ReceiptManager = mockk(relaxed = true)
         storeManager =
             StoreManager(
-                purchaseController,
-                billing,
+                purchaseController = purchaseController,
+                billing = billing,
+                receiptManagerFactory = { receiptManager },
                 track = {},
             )
     }

@@ -118,6 +118,7 @@ class TransactionManagerTest {
                 showAlert = { alertCalls.add(it) },
                 subscriptionStatus = { subscriptionStatusValue },
                 entitlementsById = { entitlementsMap[it] ?: emptySet() },
+                allEntitlementsByProductId = { entitlementsMap },
                 showRestoreDialogForWeb = { showRestoreDialogCalled = true },
                 refreshReceipt = { refreshReceiptCalled = true },
                 updateState = { key, update -> stateUpdates.add(key to update) },

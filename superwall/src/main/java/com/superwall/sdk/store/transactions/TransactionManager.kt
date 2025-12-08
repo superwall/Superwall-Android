@@ -72,6 +72,7 @@ class TransactionManager(
         Superwall.instance.entitlements.status.value
     },
     private val entitlementsById: (String) -> Set<Entitlement>,
+    private val allEntitlementsByProductId: () -> Map<String, Set<Entitlement>>,
     private val showRestoreDialogForWeb: suspend () -> Unit,
     private val refreshReceipt: () -> Unit,
     private val updateState: (cacheKey: String, update: PaywallViewState.Updates) -> Unit,
@@ -587,7 +588,7 @@ class TransactionManager(
                         factory = factory,
                     )
 
-                storeManager.loadPurchasedProducts()
+                storeManager.loadPurchasedProducts(allEntitlementsByProductId())
 
                 trackTransactionDidSucceed(transaction, product, purchaseSource, didStartFreeTrial)
 
@@ -620,7 +621,7 @@ class TransactionManager(
                     } else {
                         null
                     }
-                storeManager.loadPurchasedProducts()
+                storeManager.loadPurchasedProducts(allEntitlementsByProductId())
 
                 trackTransactionDidSucceed(transaction, product, purchaseSource, didStartFreeTrial)
             }
@@ -775,7 +776,7 @@ class TransactionManager(
         val status = subscriptionStatus()
         val hasEntitlements =
             status is SubscriptionStatus.Active
-        storeManager.loadPurchasedProducts()
+        storeManager.loadPurchasedProducts(allEntitlementsByProductId())
 
         val webToAppEnabled = factory.isWebToAppEnabled()
         val allPaywallEntitlements =

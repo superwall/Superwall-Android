@@ -2,6 +2,7 @@ package com.superwall.sdk.analytics.superwall
 
 import com.superwall.sdk.config.models.Survey
 import com.superwall.sdk.config.models.SurveyOption
+import com.superwall.sdk.models.customer.CustomerInfo
 import com.superwall.sdk.models.triggers.TriggerResult
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatus
@@ -510,6 +511,14 @@ sealed class SuperwallEvent {
     ) : SuperwallEvent() {
         override val rawName: String
             get() = "review_denied"
+    }
+
+    data class CustomerInfoDidChange(
+        val from: CustomerInfo,
+        val to: CustomerInfo,
+    ) : SuperwallEvent() {
+        override val rawName: String
+            get() = SuperwallEvents.CustomerInfoDidChange.rawName
     }
 
     open val rawName: String

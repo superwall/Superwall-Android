@@ -4,6 +4,7 @@ enum class LogScope {
     localizationManager,
     bounceButton,
     webEntitlements,
+    customerInfo,
     coreData,
     configManager,
     identityManager,
