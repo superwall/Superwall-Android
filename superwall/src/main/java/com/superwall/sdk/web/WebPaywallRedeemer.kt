@@ -338,8 +338,8 @@ class WebPaywallRedeemer(
             webEntitlementsResponse?.customerInfo ?: run {
                 // Fallback for backward compatibility
                 Logger.debug(
-                    logLevel = LogLevel.warn,
-                    scope = LogScope.webEntitlements,
+                    logLevel = LogLevel.debug,
+                    scope = LogScope.customerInfo,
                     message = "Backend didn't return customerInfo, constructing from entitlements",
                 )
                 CustomerInfo(
@@ -353,7 +353,7 @@ class WebPaywallRedeemer(
 
         Logger.debug(
             logLevel = LogLevel.debug,
-            scope = LogScope.webEntitlements,
+            scope = LogScope.customerInfo,
             message =
                 "Fetched web CustomerInfo: ${webCustomerInfo.subscriptions.size} subs, " +
                     "${webCustomerInfo.nonSubscriptions.size} non-subs",
