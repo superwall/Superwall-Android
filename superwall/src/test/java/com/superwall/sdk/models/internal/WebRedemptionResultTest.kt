@@ -40,10 +40,10 @@ class WebRedemptionResultTest {
       }
     }
   ],
-  "entitlements": {
+  "customerInfo": {
     "subscriptions": [],
-    "non_subscriptions": [],
-    "user_id": "",
+    "nonSubscriptions": [],
+    "userId": "",
     "entitlements": [
       {
         "identifier": "pro",

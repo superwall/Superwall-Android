@@ -26,7 +26,7 @@ data class CustomerInfo(
     val nonSubscriptions: List<NonSubscriptionTransaction>,
     /** The ID of the user. Equivalent to Superwall.userId. */
     @SerialName("userId")
-    val userId: String,
+    val userId: String = "",
     /** All entitlements available to the user. */
     @SerialName("entitlements")
     val entitlements: List<Entitlement>,

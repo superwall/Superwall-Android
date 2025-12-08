@@ -8,7 +8,6 @@ import com.superwall.sdk.models.customer.CustomerInfo
 import com.superwall.sdk.models.customer.merge
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.storage.*
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 
 /**
@@ -33,7 +32,7 @@ import kotlinx.coroutines.launch
  */
 class CustomerInfoManager(
     private val storage: Storage,
-    private val customerInfoFlow: MutableStateFlow<CustomerInfo>,
+    private val updateCustomerInfo: (CustomerInfo) -> Unit,
     private val ioScope: IOScope,
     private val hasExternalPurchaseController: () -> Boolean,
     private val getSubscriptionStatus: () -> SubscriptionStatus,
@@ -103,11 +102,9 @@ class CustomerInfoManager(
                 )
             }
 
-            // Store merged result for caching/offline access
             storage.write(LatestCustomerInfo, merged)
 
-            // Update public flow so listeners get the new merged state
-            customerInfoFlow.value = merged
+            updateCustomerInfo(merged)
         }
     }
 }

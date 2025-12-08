@@ -254,7 +254,7 @@ class DependencyContainer(
         customerInfoManager =
             CustomerInfoManager(
                 storage = storage,
-                customerInfoFlow = Superwall.instance._customerInfo,
+                updateCustomerInfo = { Superwall.instance._customerInfo.value = it },
                 ioScope = ioScope,
                 hasExternalPurchaseController = { storeManager.purchaseController.hasExternalPurchaseController },
                 getSubscriptionStatus = { entitlements.status.value },

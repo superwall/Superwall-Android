@@ -636,19 +636,15 @@ class Superwall(
             _customerInfo
                 .asSharedFlow()
                 .distinctUntilChanged()
-                .drop(1)
-                .scan<CustomerInfo, Pair<CustomerInfo, CustomerInfo>?>(null) { previousPair, newStatus ->
-                    if (previousPair == null) {
-                        null
-                    } else {
-                        Pair(previousPair.second, newStatus)
-                    }
+                .scan<CustomerInfo, Pair<CustomerInfo?, CustomerInfo>?>(null) { previousPair, newStatus ->
+                    Pair(previousPair?.second, newStatus)
                 }.filterNotNull()
+                .filter { it.first != null }
                 .collect {
                     val (old, new) = it
                     dependencyContainer.storage.write(LatestCustomerInfo, new)
-                    dependencyContainer.delegateAdapter.customerInfoDidChange(old, new)
-                    track(InternalSuperwallEvent.CustomerInfoDidChange(old, new))
+                    dependencyContainer.delegateAdapter.customerInfoDidChange(old!!, new)
+                    track(CustomerInfoDidChange(old, new))
                 }
         }
     }

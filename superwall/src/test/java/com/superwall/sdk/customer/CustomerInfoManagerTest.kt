@@ -36,7 +36,7 @@ class CustomerInfoManagerTest {
         manager =
             CustomerInfoManager(
                 storage = storage,
-                customerInfoFlow = customerInfoFlow,
+                updateCustomerInfo = { customerInfoFlow.value = it },
                 ioScope = ioScope,
                 hasExternalPurchaseController = { false },
                 getSubscriptionStatus = { SubscriptionStatus.Unknown },
@@ -244,7 +244,7 @@ class CustomerInfoManagerTest {
             val externalManager =
                 CustomerInfoManager(
                     storage = storage,
-                    customerInfoFlow = customerInfoFlow,
+                    updateCustomerInfo = { customerInfoFlow.value = it },
                     ioScope = ioScope,
                     hasExternalPurchaseController = { true },
                     getSubscriptionStatus = { subscriptionStatus },
@@ -290,7 +290,7 @@ class CustomerInfoManagerTest {
             val externalManager =
                 CustomerInfoManager(
                     storage = storage,
-                    customerInfoFlow = customerInfoFlow,
+                    updateCustomerInfo = { customerInfoFlow.value = it },
                     ioScope = ioScope,
                     hasExternalPurchaseController = { true },
                     getSubscriptionStatus = { subscriptionStatus },
@@ -364,7 +364,7 @@ class CustomerInfoManagerTest {
             val externalManager =
                 CustomerInfoManager(
                     storage = storage,
-                    customerInfoFlow = customerInfoFlow,
+                    updateCustomerInfo = { customerInfoFlow.value = it },
                     ioScope = ioScope,
                     hasExternalPurchaseController = { true },
                     getSubscriptionStatus = { SubscriptionStatus.Unknown },
@@ -389,7 +389,7 @@ class CustomerInfoManagerTest {
             val externalManager =
                 CustomerInfoManager(
                     storage = storage,
-                    customerInfoFlow = customerInfoFlow,
+                    updateCustomerInfo = { customerInfoFlow.value = it },
                     ioScope = ioScope,
                     hasExternalPurchaseController = { true },
                     getSubscriptionStatus = { SubscriptionStatus.Inactive },
