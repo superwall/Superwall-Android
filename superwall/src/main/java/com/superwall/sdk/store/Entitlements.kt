@@ -1,6 +1,8 @@
 package com.superwall.sdk.store
 
 import com.superwall.sdk.billing.DecomposedProductIds
+import com.superwall.sdk.models.customer.mergeEntitlementsPrioritized
+import com.superwall.sdk.models.customer.toSet
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.storage.LatestRedemptionResponse
@@ -25,10 +27,22 @@ class Entitlements(
 ) {
     val web: Set<Entitlement>
         get() =
-            storage.read(LatestRedemptionResponse)?.entitlements?.toSet() ?: emptySet()
+            storage
+                .read(LatestRedemptionResponse)
+                ?.customerInfo
+                ?.entitlements
+                ?.filter { it.isActive }
+                ?.toSet() ?: emptySet()
 
     // MARK: - Private Properties
-    private val _entitlementsByProduct = ConcurrentHashMap<String, Set<Entitlement>>()
+    internal val entitlementsByProduct = ConcurrentHashMap<String, Set<Entitlement>>()
+
+    /**
+     * Returns a snapshot of all entitlements by product ID.
+     * Used when loading purchases to enrich entitlements with transaction data.
+     */
+    val entitlementsByProductId: Map<String, Set<Entitlement>>
+        get() = entitlementsByProduct.toMap()
 
     private val _status: MutableStateFlow<SubscriptionStatus> =
         MutableStateFlow(SubscriptionStatus.Unknown)
@@ -65,13 +79,15 @@ class Entitlements(
      * All entitlements, regardless of whether they're active or not.
      */
     val all: Set<Entitlement>
-        get() = _all.toSet() + _entitlementsByProduct.values.flatten() + web.toSet()
+        get() = _all.toSet() + entitlementsByProduct.values.flatten() + web.toSet()
 
     /**
      * The active entitlements.
+     * Uses [mergeEntitlementsPrioritized] to deduplicate entitlements by ID,
+     * keeping the highest priority version of each and merging productIds.
      */
     val active: Set<Entitlement>
-        get() = backingActive + _activeDeviceEntitlements + web
+        get() = mergeEntitlementsPrioritized((backingActive + _activeDeviceEntitlements + web).toList()).toSet()
 
     /**
      * The inactive entitlements.
@@ -84,7 +100,7 @@ class Entitlements(
             setSubscriptionStatus(it)
         }
         storage.read(StoredEntitlementsByProductId)?.let {
-            _entitlementsByProduct.putAll(it)
+            entitlementsByProduct.putAll(it)
         }
 
         scope.launch {
@@ -103,9 +119,10 @@ class Entitlements(
                 if (value.entitlements.isEmpty()) {
                     setSubscriptionStatus(SubscriptionStatus.Inactive)
                 } else {
-                    backingActive.addAll(value.entitlements)
-                    _all.addAll(value.entitlements)
-                    _inactive.removeAll(value.entitlements)
+                    val entitlements = value.entitlements.toList().toSet()
+                    backingActive.addAll(entitlements.filter { it.isActive })
+                    _all.addAll(entitlements)
+                    _inactive.removeAll(entitlements)
                     _status.value = value
                 }
             }
@@ -140,7 +157,7 @@ class Entitlements(
         if (toCheck.isEmpty()) return null
         val item = toCheck.first()
         val next = toCheck.drop(1)
-        return _entitlementsByProduct.entries
+        return entitlementsByProduct.entries
             .firstOrNull {
                 (
                     if (isExact) {
@@ -177,17 +194,25 @@ class Entitlements(
     }
 
     /**
+     * Returns a Set of Entitlements belonging to given product IDs.
+     *
+     * @param ids A Set of Strings representing product IDs
+     * @return A Set of Entitlements
+     */
+    fun byProductIds(ids: Set<String>): Set<Entitlement> = ids.flatMap { byProductId(it) }.toSet()
+
+    /**
      * Updates the entitlements associated with product IDs and persists them to storage.
      */
     internal fun addEntitlementsByProductId(idToEntitlements: Map<String, Set<Entitlement>>) {
-        _entitlementsByProduct.putAll(
+        entitlementsByProduct.putAll(
             idToEntitlements
                 .mapValues { (_, entitlements) ->
                     entitlements.toSet()
                 }.toMap(),
         )
         _all.clear()
-        _all.addAll(_entitlementsByProduct.values.flatten())
-        storage.write(StoredEntitlementsByProductId, _entitlementsByProduct)
+        _all.addAll(entitlementsByProduct.values.flatten())
+        storage.write(StoredEntitlementsByProductId, entitlementsByProduct)
     }
 }

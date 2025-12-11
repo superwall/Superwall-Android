@@ -95,6 +95,7 @@ class PaywallMessageHandlerEdgeCasesTest {
                                 override fun makeSuperwallOptions(): SuperwallOptions = SuperwallOptions()
                             },
                         track = { _ -> },
+                        setAttributes = { _ -> },
                         getView = { null },
                         mainScope = MainScope(Dispatchers.Unconfined),
                         ioScope = IOScope(Dispatchers.Unconfined),
@@ -104,7 +105,7 @@ class PaywallMessageHandlerEdgeCasesTest {
 
                 When("a Custom message is handled") {
                     handler.handle(
-                        com.superwall.sdk.paywall.view.webview.PaywallMessage
+                        PaywallMessage
                             .Custom("test"),
                     )
                     advanceUntilIdle()
@@ -140,6 +141,7 @@ class PaywallMessageHandlerEdgeCasesTest {
                                 override fun makeSuperwallOptions(): SuperwallOptions = options
                             },
                         track = { _ -> },
+                        setAttributes = { _ -> },
                         getView = { null },
                         mainScope = MainScope(Dispatchers.Unconfined),
                         ioScope = IOScope(Dispatchers.Unconfined),
@@ -148,7 +150,7 @@ class PaywallMessageHandlerEdgeCasesTest {
                 handler.messageHandler = delegate
 
                 When("a Close message is handled (which triggers haptic feedback)") {
-                    handler.handle(com.superwall.sdk.paywall.view.webview.PaywallMessage.Close)
+                    handler.handle(PaywallMessage.Close)
                     advanceUntilIdle()
 
                     Then("the close event is still processed") {
@@ -179,6 +181,7 @@ class PaywallMessageHandlerEdgeCasesTest {
                                 override fun makeSuperwallOptions(): SuperwallOptions = options
                             },
                         track = { _ -> },
+                        setAttributes = { _ -> },
                         getView = { null },
                         mainScope = MainScope(Dispatchers.Unconfined),
                         ioScope = IOScope(Dispatchers.Unconfined),
@@ -187,7 +190,7 @@ class PaywallMessageHandlerEdgeCasesTest {
                 handler.messageHandler = delegate
 
                 When("a Close message is handled") {
-                    handler.handle(com.superwall.sdk.paywall.view.webview.PaywallMessage.Close)
+                    handler.handle(PaywallMessage.Close)
                     advanceUntilIdle()
 
                     Then("the close event is processed") {
@@ -218,6 +221,7 @@ class PaywallMessageHandlerEdgeCasesTest {
                                 override fun makeSuperwallOptions(): SuperwallOptions = options
                             },
                         track = { _ -> },
+                        setAttributes = { _ -> },
                         getView = { null },
                         mainScope = MainScope(Dispatchers.Unconfined),
                         ioScope = IOScope(Dispatchers.Unconfined),
@@ -226,7 +230,7 @@ class PaywallMessageHandlerEdgeCasesTest {
                 handler.messageHandler = delegate
 
                 When("a Close message is handled") {
-                    handler.handle(com.superwall.sdk.paywall.view.webview.PaywallMessage.Close)
+                    handler.handle(PaywallMessage.Close)
                     advanceUntilIdle()
 
                     Then("the close event is processed") {
@@ -251,6 +255,7 @@ class PaywallMessageHandlerEdgeCasesTest {
                                 override fun makeSuperwallOptions(): SuperwallOptions = SuperwallOptions()
                             },
                         track = { _ -> },
+                        setAttributes = { _ -> },
                         getView = { null },
                         mainScope = MainScope(Dispatchers.Unconfined),
                         ioScope = IOScope(Dispatchers.Unconfined),
@@ -260,8 +265,8 @@ class PaywallMessageHandlerEdgeCasesTest {
 
                 When("a RequestReview EXTERNAL message is handled") {
                     handler.handle(
-                        com.superwall.sdk.paywall.view.webview.PaywallMessage.RequestReview(
-                            com.superwall.sdk.paywall.view.webview.PaywallMessage.RequestReview.Type.EXTERNAL,
+                        PaywallMessage.RequestReview(
+                            PaywallMessage.RequestReview.Type.EXTERNAL,
                         ),
                     )
                     advanceUntilIdle()
@@ -290,6 +295,7 @@ class PaywallMessageHandlerEdgeCasesTest {
                                 override fun makeSuperwallOptions(): SuperwallOptions = SuperwallOptions()
                             },
                         track = { _ -> },
+                        setAttributes = { _ -> },
                         getView = { null },
                         mainScope = MainScope(Dispatchers.Unconfined),
                         ioScope = IOScope(Dispatchers.Unconfined),
@@ -299,8 +305,8 @@ class PaywallMessageHandlerEdgeCasesTest {
 
                 When("a RequestReview INAPP message is handled") {
                     handler.handle(
-                        com.superwall.sdk.paywall.view.webview.PaywallMessage.RequestReview(
-                            com.superwall.sdk.paywall.view.webview.PaywallMessage.RequestReview.Type.INAPP,
+                        PaywallMessage.RequestReview(
+                            PaywallMessage.RequestReview.Type.INAPP,
                         ),
                     )
                     advanceUntilIdle()

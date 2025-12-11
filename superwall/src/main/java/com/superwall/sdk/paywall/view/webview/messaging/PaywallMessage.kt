@@ -1,10 +1,21 @@
-package com.superwall.sdk.paywall.view.webview
+package com.superwall.sdk.paywall.view.webview.messaging
 
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
-import org.json.JSONObject
+import com.superwall.sdk.models.paywall.LocalNotificationType
+import com.superwall.sdk.storage.core_data.convertFromJsonElement
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.longOrNull
 import java.net.URI
+
+private val json = Json { ignoreUnknownKeys = true }
 
 data class WrappedPaywallMessages(
     var version: Int = 1,
@@ -60,7 +71,7 @@ sealed class PaywallMessage {
 
     data class CustomPlacement(
         val name: String,
-        val params: JSONObject,
+        val params: JsonObject,
     ) : PaywallMessage()
 
     object PaywallOpen : PaywallMessage()
@@ -69,7 +80,14 @@ sealed class PaywallMessage {
 
     object TransactionStart : PaywallMessage()
 
-    object TransactionComplete : PaywallMessage()
+    data class TrialStarted(
+        val trialEndDate: Long?,
+        val productIdentifier: String,
+    ) : PaywallMessage()
+
+    data class UserAttributesUpdated(
+        val data: Map<String, Any>,
+    ) : PaywallMessage()
 
     data class RequestReview(
         val type: Type,
@@ -81,6 +99,15 @@ sealed class PaywallMessage {
             EXTERNAL("external"),
         }
     }
+
+    data class ScheduleNotification(
+        val id: String,
+        val type: LocalNotificationType,
+        val title: String,
+        val subtitle: String,
+        val body: String,
+        val delay: Long,
+    ) : PaywallMessage()
 }
 
 fun parseWrappedPaywallMessages(jsonString: String): Result<WrappedPaywallMessages> =
@@ -90,14 +117,14 @@ fun parseWrappedPaywallMessages(jsonString: String): Result<WrappedPaywallMessag
             LogScope.superwallCore,
             "SWWebViewInterface $jsonString",
         )
-        val jsonObject = JSONObject(jsonString)
-        val version = jsonObject.optInt("version", 1)
-        val payloadJson = jsonObject.getJSONObject("payload")
-        val messagesJsonArray = payloadJson.getJSONArray("events")
+        val jsonObject = json.parseToJsonElement(jsonString).jsonObject
+        val version = jsonObject["version"]?.jsonPrimitive?.intOrNull ?: 1
+        val payloadJson = jsonObject["payload"]!!.jsonObject
+        val messagesJsonArray = payloadJson["events"]!!.jsonArray
         val messages = mutableListOf<PaywallMessage>()
 
-        for (i in 0 until messagesJsonArray.length()) {
-            val messageJson = messagesJsonArray.getJSONObject(i)
+        for (element in messagesJsonArray) {
+            val messageJson = element.jsonObject
             messages.add(parsePaywallMessage(messageJson))
         }
 
@@ -106,52 +133,69 @@ fun parseWrappedPaywallMessages(jsonString: String): Result<WrappedPaywallMessag
         Result.failure(e)
     }
 
-private fun parsePaywallMessage(json: JSONObject): PaywallMessage {
-    val eventName = json.getString("event_name")
+private fun parsePaywallMessage(json: JsonObject): PaywallMessage {
+    val eventName = json["event_name"]!!.jsonPrimitive.content
 
     return when (eventName) {
-        "ping" -> PaywallMessage.OnReady(json.getString("version"))
+        "ping" -> PaywallMessage.OnReady(json["version"]!!.jsonPrimitive.content)
         "close" -> PaywallMessage.Close
         "restore" -> PaywallMessage.Restore
         "open_url" ->
             PaywallMessage.OpenUrl(
-                URI(json.getString("url")),
-                json.isNull("browser_type").let {
-                    if (it) {
-                        null
-                    } else {
-                        json.getString("browser_type")?.let {
-                            when (it) {
-                                PaywallMessage.OpenUrl.BrowserType.PAYMENT_SHEET.rawName -> PaywallMessage.OpenUrl.BrowserType.PAYMENT_SHEET
-                                else -> null
-                            }
-                        }
+                URI(json["url"]!!.jsonPrimitive.content),
+                json["browser_type"]?.jsonPrimitive?.contentOrNull?.let {
+                    when (it) {
+                        PaywallMessage.OpenUrl.BrowserType.PAYMENT_SHEET.rawName -> PaywallMessage.OpenUrl.BrowserType.PAYMENT_SHEET
+                        else -> null
                     }
                 },
             )
 
-        "open_url_external" -> PaywallMessage.OpenUrlInBrowser(URI(json.getString("url")))
-        "open_deep_link" -> PaywallMessage.OpenDeepLink(URI(json.getString("link")))
+        "open_url_external" -> PaywallMessage.OpenUrlInBrowser(URI(json["url"]!!.jsonPrimitive.content))
+        "open_deep_link" -> PaywallMessage.OpenDeepLink(URI(json["link"]!!.jsonPrimitive.content))
         "purchase" ->
             PaywallMessage.Purchase(
-                json.getString("product"),
-                json.getString("product_identifier"),
+                json["product"]!!.jsonPrimitive.content,
+                json["product_identifier"]!!.jsonPrimitive.content,
             )
 
-        "custom" -> PaywallMessage.Custom(json.getString("data"))
+        "custom" -> PaywallMessage.Custom(json["data"]!!.jsonPrimitive.content)
         "custom_placement" ->
             PaywallMessage.CustomPlacement(
-                json.getString("name"),
-                json.getJSONObject("params"),
+                json["name"]!!.jsonPrimitive.content,
+                json["params"]!!.jsonObject,
             )
 
         "request_store_review" ->
             PaywallMessage.RequestReview(
-                when (json.getString("review_type")) {
+                when (json["review_type"]!!.jsonPrimitive.content) {
                     "external" -> PaywallMessage.RequestReview.Type.EXTERNAL
                     "in-app" -> PaywallMessage.RequestReview.Type.INAPP
                     else -> PaywallMessage.RequestReview.Type.INAPP
                 },
+            )
+
+        "user_attribute_updated" -> {
+            PaywallMessage.UserAttributesUpdated(
+                (json["attributes"]!!.jsonArray.convertFromJsonElement() as List<Map<String, Any>>)
+                    .associate {
+                        it["key"] as String to ((it["value"] as Any?) ?: "")
+                    },
+            )
+        }
+
+        "schedule_notification" ->
+            PaywallMessage.ScheduleNotification(
+                type =
+                    when (json["type"]?.jsonPrimitive?.contentOrNull) {
+                        "TRIAL_STARTED" -> LocalNotificationType.TrialStarted
+                        else -> LocalNotificationType.Unsupported
+                    },
+                id = json["id"]?.jsonPrimitive?.contentOrNull ?: "",
+                title = json["title"]?.jsonPrimitive?.contentOrNull ?: "",
+                subtitle = json["subtitle"]?.jsonPrimitive?.contentOrNull ?: "",
+                body = json["body"]?.jsonPrimitive?.contentOrNull ?: "",
+                delay = json["delay"]?.jsonPrimitive?.longOrNull ?: 0L,
             )
 
         else -> {

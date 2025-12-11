@@ -94,6 +94,9 @@ data class StripeProductType(
     }
 
     // StoreProductType interface implementations
+    override val productType: String
+        get() = "stripe"
+
     override val fullIdentifier: String
         get() = id
 

@@ -28,6 +28,7 @@ import com.superwall.sdk.config.ConfigLogic
 import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.config.PaywallPreload
 import com.superwall.sdk.config.options.SuperwallOptions
+import com.superwall.sdk.customer.CustomerInfoManager
 import com.superwall.sdk.debug.DebugManager
 import com.superwall.sdk.debug.DebugView
 import com.superwall.sdk.deeplinks.DeepLinkRouter
@@ -35,6 +36,9 @@ import com.superwall.sdk.delegate.SuperwallDelegateAdapter
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.identity.IdentityInfo
 import com.superwall.sdk.identity.IdentityManager
+import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.ActivityProvider
 import com.superwall.sdk.misc.AppLifecycleObserver
 import com.superwall.sdk.misc.CurrentActivityTracker
@@ -46,6 +50,7 @@ import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.entitlements.TransactionReceipt
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.internal.VendorId
+import com.superwall.sdk.models.paywall.LocalNotificationType
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.network.Api
@@ -82,12 +87,13 @@ import com.superwall.sdk.paywall.request.PaywallRequestManagerDepFactory
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
 import com.superwall.sdk.paywall.view.PaywallView
 import com.superwall.sdk.paywall.view.PaywallViewState
+import com.superwall.sdk.paywall.view.SuperwallPaywallActivity
 import com.superwall.sdk.paywall.view.SuperwallStoreOwner
 import com.superwall.sdk.paywall.view.ViewModelFactory
 import com.superwall.sdk.paywall.view.ViewStorageViewModel
 import com.superwall.sdk.paywall.view.delegate.PaywallViewDelegateAdapter
-import com.superwall.sdk.paywall.view.webview.PaywallMessage
 import com.superwall.sdk.paywall.view.webview.SWWebView
+import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessage
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessageHandler
 import com.superwall.sdk.paywall.view.webview.templating.models.JsonVariables
 import com.superwall.sdk.paywall.view.webview.templating.models.Variables
@@ -101,6 +107,7 @@ import com.superwall.sdk.store.AutomaticPurchaseController
 import com.superwall.sdk.store.Entitlements
 import com.superwall.sdk.store.InternalPurchaseController
 import com.superwall.sdk.store.StoreManager
+import com.superwall.sdk.store.abstractions.product.receipt.ReceiptManager
 import com.superwall.sdk.store.abstractions.transactions.GoogleBillingPurchaseTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import com.superwall.sdk.store.transactions.TransactionManager
@@ -155,7 +162,9 @@ class DependencyContainer(
     ViewStoreFactory,
     SuperwallScopeFactory,
     GoogleBillingWrapper.Factory,
-    ClassifierDataFactory {
+    ClassifierDataFactory,
+    ExperimentalPropertiesFactory,
+    WebPaywallRedeemer.Factory {
     internal val getPaywallComponentsFactory: GetPaywallComponentsFactory by lazy {
         DefaultGetPaywallComponentsFactory(Superwall.instance)
     }
@@ -180,6 +189,7 @@ class DependencyContainer(
     internal val reviewManager: ReviewManager
 
     var entitlements: Entitlements
+    internal lateinit var customerInfoManager: CustomerInfoManager
     lateinit var reedemer: WebPaywallRedeemer
     private val uiScope
         get() = mainScope()
@@ -241,6 +251,15 @@ class DependencyContainer(
             LocalStorage(context = context, ioScope = ioScope(), factory = this, json = json())
         entitlements = Entitlements(storage)
 
+        customerInfoManager =
+            CustomerInfoManager(
+                storage = storage,
+                updateCustomerInfo = { Superwall.instance._customerInfo.value = it },
+                ioScope = ioScope,
+                hasExternalPurchaseController = { storeManager.purchaseController.hasExternalPurchaseController },
+                getSubscriptionStatus = { entitlements.status.value },
+            )
+
         var purchaseController =
             InternalPurchaseController(
                 kotlinPurchaseController =
@@ -249,7 +268,19 @@ class DependencyContainer(
                 javaPurchaseController = null,
                 context,
             )
-        storeManager = StoreManager(purchaseController, googleBillingWrapper)
+        storeManager =
+            StoreManager(
+                purchaseController = purchaseController,
+                billing = googleBillingWrapper,
+                receiptManagerFactory = {
+                    ReceiptManager(
+                        delegate = storeManager,
+                        billing = googleBillingWrapper,
+                        storage = storage,
+                        customerInfoManager = { customerInfoManager },
+                    )
+                },
+            )
 
         delegateAdapter = SuperwallDelegateAdapter()
         val httpConnection =
@@ -283,7 +314,18 @@ class DependencyContainer(
                                 ignoreUnknownKeys = true
                                 namingStrategy = null
                             },
-                        customHttpUrlConnection = httpConnection,
+                        customHttpUrlConnection =
+                            CustomHttpUrlConnection(
+                                json =
+                                    Json(from = json()) {
+                                        ignoreUnknownKeys = true
+                                        namingStrategy = null
+                                    },
+                                requestExecutor =
+                                    RequestExecutor { debugging, requestId ->
+                                        makeHeaders(debugging, requestId)
+                                    },
+                            ),
                     ),
                 collectorService =
                     CollectorService(
@@ -372,6 +414,9 @@ class DependencyContainer(
                     val digest = md.digest(bytes)
                     digest.fold("", { str, it -> str + "%02x".format(it) })
                 },
+                notifyUserChange = {
+                    delegate().userAttributesDidChange(it)
+                },
             )
 
         reedemer =
@@ -381,68 +426,8 @@ class DependencyContainer(
                 deepLinkReferrer = DeepLinkReferrer({ context }, ioScope),
                 network = network,
                 storage = storage,
-                didRedeemLink = { result ->
-                    delegateAdapter.didRedeemLink(result)
-                },
-                maxAge = {
-                    configManager.config?.webToAppConfig?.entitlementsMaxAgeMs ?: 86400000L
-                },
-                internallySetSubscriptionStatus = {
-                    Superwall.instance.internallySetSubscriptionStatus(it)
-                },
-                isPaywallVisible = {
-                    Superwall.instance.isPaywallPresented
-                },
-                triggerRestoreInPaywall = {
-                    showWebRestoreSuccesful()
-                },
-                trackRestorationFailed = {
-                    trackRestorationFailure(it)
-                },
-                currentPaywallEntitlements = {
-                    Superwall.instance.paywallView
-                        ?.state
-                        ?.paywall
-                        ?.productIds
-                        ?.flatMap {
-                            entitlements.byProductId(it)
-                        }?.toSet() ?: emptySet()
-                },
-                willRedeemLink = {
-                    delegateAdapter.willRedeemLink()
-                },
-                getPaywallInfo = {
-                    Superwall.instance.paywallView?.info ?: PaywallInfo.empty()
-                },
-                isWebToAppEnabled = {
-                    isWebToAppEnabled()
-                },
-                receipts = {
-                    googleBillingWrapper.queryAllPurchases().map {
-                        val id = it.products.first()
-                        val product = storeManager.products(setOf(id)).first()
-                        TransactionReceipt(
-                            it.purchaseToken,
-                            it.orderId,
-                            it.products.first(),
-                            if (product.rawStoreProduct
-                                    .isSubscription
-                            ) {
-                                TransactionReceipt.ProductType.SUBSCRIPTION
-                            } else {
-                                TransactionReceipt.ProductType.IAP
-                            },
-                        )
-                    }
-                },
-                getExternalAccountId = {
-                    identityManager.externalAccountId
-                },
-                closePaywallIfExists = {
-                    ioScope.launch {
-                        Superwall.instance.dismiss()
-                    }
-                },
+                customerInfoManager = customerInfoManager,
+                factory = this,
             )
 
         eventsQueue =
@@ -511,6 +496,9 @@ class DependencyContainer(
                 entitlementsById = {
                     entitlements.byProductId(it)
                 },
+                allEntitlementsByProductId = {
+                    entitlements.entitlementsByProductId
+                },
                 refreshReceipt = {
                     storeManager.refreshReceipt()
                 },
@@ -535,6 +523,61 @@ class DependencyContainer(
                         return@TransactionManager
                     }
                     paywallView.updateState(state)
+                },
+                notifyOfTransactionComplete = { key, trialEndDate, id ->
+                    val paywallView =
+                        resolvePaywallViewForKey(
+                            makeViewStore(),
+                            Superwall.instance.paywallView,
+                            key,
+                        )
+                    if (paywallView == null) {
+                        Logger.debug(
+                            LogLevel.error,
+                            LogScope.paywallView,
+                            "No active paywall to use - did the app close?",
+                        )
+                        return@TransactionManager
+                    }
+
+                    // Schedule fallback notifications from the paywall config in case the paywall
+                    // hasn't been updated to send the ScheduleNotification message dynamically.
+                    // If the paywall sends a ScheduleNotification message, it will cancel and
+                    // replace this notification.
+                    val paywallInfo = paywallView.state.info
+                    val trialNotifications =
+                        paywallInfo.localNotifications
+                            .filter {
+                                it.type == LocalNotificationType.TrialStarted
+                            }.map {
+                                it.copy("${paywallInfo.identifier}_${it.type.raw}")
+                            }
+
+                    if (trialNotifications.isNotEmpty()) {
+
+                        val paywallActivity =
+                            (
+                                paywallView.encapsulatingActivity?.get()
+                                    ?: activityProvider?.getCurrentActivity()
+                            ) as? SuperwallPaywallActivity
+
+                        if (paywallActivity != null) {
+                            ioScope.launch {
+                                paywallActivity.attemptToScheduleNotifications(
+                                    notifications = trialNotifications,
+                                    factory = this@DependencyContainer,
+                                )
+                            }
+                        } else {
+                            Logger.debug(
+                                LogLevel.warn,
+                                LogScope.paywallView,
+                                "No paywall activity available to schedule fallback notifications",
+                            )
+                        }
+                        // Await message delivery to ensure webview has time to process before dismiss
+                        paywallView.webView.messageHandler.handle(PaywallMessage.TrialStarted(trialEndDate, id))
+                    }
                 },
             )
 
@@ -646,6 +689,9 @@ class DependencyContainer(
                 getView = { Superwall.instance.paywallView },
                 track = {
                     Superwall.instance.track(it)
+                },
+                setAttributes = {
+                    identityManager.mergeAndNotify(it)
                 },
                 ioScope = ioScope,
                 json = paywallJson,
@@ -1001,5 +1047,96 @@ class DependencyContainer(
             event,
             isImplicit,
         )
+    }
+
+    // WebPaywallRedeemer.Factory implementation
+    override fun willRedeemLink() {
+        delegateAdapter.willRedeemLink()
+    }
+
+    override fun didRedeemLink(redemptionResult: com.superwall.sdk.models.internal.RedemptionResult) {
+        delegateAdapter.didRedeemLink(redemptionResult)
+    }
+
+    override fun maxAge(): Long = configManager.config?.webToAppConfig?.entitlementsMaxAgeMs ?: 86400000L
+
+    override fun getActiveDeviceEntitlements(): Set<com.superwall.sdk.models.entitlements.Entitlement> =
+        entitlements.activeDeviceEntitlements
+
+    override fun getUserId(): com.superwall.sdk.models.internal.UserId? =
+        identityManager.appUserId?.let {
+            com.superwall.sdk.models.internal
+                .UserId(it)
+        }
+
+    override fun getDeviceId(): com.superwall.sdk.models.internal.DeviceVendorId =
+        com.superwall.sdk.models.internal
+            .DeviceVendorId(
+                com.superwall.sdk.models.internal
+                    .VendorId(deviceHelper.vendorId),
+            )
+
+    override fun getAliasId(): String? = identityManager.aliasId
+
+    override suspend fun track(event: Trackable) {
+        Superwall.instance.track(event)
+    }
+
+    override fun internallySetSubscriptionStatus(status: SubscriptionStatus) {
+        Superwall.instance.internallySetSubscriptionStatus(status)
+    }
+
+    override suspend fun isPaywallVisible(): Boolean = Superwall.instance.isPaywallPresented
+
+    override suspend fun triggerRestoreInPaywall() {
+        showWebRestoreSuccesful()
+    }
+
+    override fun currentPaywallEntitlements(): Set<com.superwall.sdk.models.entitlements.Entitlement> =
+        Superwall.instance.paywallView
+            ?.state
+            ?.paywall
+            ?.productIds
+            ?.flatMap { entitlements.byProductId(it) }
+            ?.toSet() ?: emptySet()
+
+    override fun getPaywallInfo(): PaywallInfo = Superwall.instance.paywallView?.info ?: PaywallInfo.empty()
+
+    override fun trackRestorationFailed(message: String) {
+        trackRestorationFailure(message)
+    }
+
+    override suspend fun receipts(): List<TransactionReceipt> =
+        googleBillingWrapper.queryAllPurchases().map {
+            val id = it.products.first()
+            val product = storeManager.products(setOf(id)).first()
+            TransactionReceipt(
+                it.purchaseToken,
+                it.orderId,
+                it.products.first(),
+                if (product.rawStoreProduct.isSubscription) {
+                    TransactionReceipt.ProductType.SUBSCRIPTION
+                } else {
+                    TransactionReceipt.ProductType.IAP
+                },
+            )
+        }
+
+    override fun getExternalAccountId(): String = identityManager.externalAccountId
+
+    override fun getIntegrationProps(): Map<String, Any> {
+        val attrs = storage.read(com.superwall.sdk.storage.IntegrationAttributes) ?: emptyMap()
+        return attrs.mapKeys { it.key.toString() }
+    }
+
+    override fun closePaywallIfExists() {
+        ioScope.launch {
+            Superwall.instance.dismiss()
+        }
+    }
+
+    override fun isPaymentSheetOpen(): Boolean {
+        // TODO: Track payment sheet state
+        return false
     }
 }

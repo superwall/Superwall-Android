@@ -11,6 +11,7 @@ plugins {
     alias(libs.plugins.ksp) apply false
     alias(libs.plugins.compose.compiler) apply false
     alias(libs.plugins.publisher) apply true
+    alias(libs.plugins.dokka)
 }
 true
 

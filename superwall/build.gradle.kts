@@ -22,6 +22,7 @@ plugins {
     id("signing")
     alias(libs.plugins.publisher)
     id("jacoco")
+    alias(libs.plugins.dokka)
 }
 
 version = rootProject.extra["superwallVersion"] as String
@@ -199,3 +200,22 @@ dependencies {
 
 // Apply JaCoCo configuration
 apply(from = "${rootProject.rootDir}/gradle/jacoco-combined.gradle")
+
+// Dokka configuration
+dokka {
+    moduleName.set("Superwall Android SDK")
+    dokkaSourceSets.configureEach {
+        sourceLink {
+            localDirectory.set(file("src/main/java"))
+            remoteUrl("https://github.com/superwall/Superwall-Android/tree/main/superwall/src/main/java")
+            remoteLineSuffix.set("#L")
+        }
+        perPackageOption {
+            matchingRegex.set(".*\\.internal.*")
+            suppress.set(true)
+        }
+    }
+    pluginsConfiguration.html {
+        footerMessage.set("© Superwall Inc.")
+    }
+}

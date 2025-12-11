@@ -226,4 +226,148 @@ class EntitlementsTest {
                 }
             }
         }
+
+    @Test
+    fun `test activeDeviceEntitlements returns only active device entitlements not all`() =
+        runTest {
+            Given("entitlements with both active and inactive device entitlements") {
+                val activeEntitlement = Entitlement("premium", isActive = true)
+                val inactiveEntitlement = Entitlement("basic", isActive = false)
+                val productEntitlements =
+                    mapOf(
+                        "product_premium" to setOf(activeEntitlement),
+                        "product_basic" to setOf(inactiveEntitlement),
+                    )
+                every { storage.read(StoredSubscriptionStatus) } returns null
+                every { storage.read(StoredEntitlementsByProductId) } returns productEntitlements
+                entitlements = Entitlements(storage)
+
+                When("setting active device entitlements to only the active one") {
+                    entitlements.activeDeviceEntitlements = setOf(activeEntitlement)
+
+                    Then("activeDeviceEntitlements should only contain the active entitlement") {
+                        assertEquals(setOf(activeEntitlement), entitlements.activeDeviceEntitlements)
+                    }
+
+                    And("all should contain both entitlements") {
+                        assertTrue(entitlements.all.contains(activeEntitlement))
+                        assertTrue(entitlements.all.contains(inactiveEntitlement))
+                    }
+
+                    And("activeDeviceEntitlements should NOT equal all") {
+                        assertTrue(
+                            "activeDeviceEntitlements should not return all entitlements - " +
+                                "this would cause inactive entitlements to be treated as active",
+                            entitlements.activeDeviceEntitlements != entitlements.all,
+                        )
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `test activeDeviceEntitlements is empty when no active device purchases`() =
+        runTest {
+            Given("entitlements from config but no active device purchases") {
+                val configEntitlement1 = Entitlement("default", isActive = false)
+                val configEntitlement2 = Entitlement("test", isActive = false)
+                val productEntitlements =
+                    mapOf(
+                        "product_monthly" to setOf(configEntitlement1),
+                        "product_annual" to setOf(configEntitlement1, configEntitlement2),
+                    )
+                every { storage.read(StoredSubscriptionStatus) } returns null
+                every { storage.read(StoredEntitlementsByProductId) } returns productEntitlements
+                entitlements = Entitlements(storage)
+
+                When("no active device entitlements are set") {
+                    // activeDeviceEntitlements not set, should be empty
+
+                    Then("activeDeviceEntitlements should be empty") {
+                        assertTrue(
+                            "activeDeviceEntitlements should be empty when no device purchases are active",
+                            entitlements.activeDeviceEntitlements.isEmpty(),
+                        )
+                    }
+
+                    And("all should still contain config entitlements") {
+                        assertTrue(entitlements.all.isNotEmpty())
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `test activeDeviceEntitlements cleared on subscription status change to inactive`() =
+        runTest {
+            Given("entitlements with active device entitlements") {
+                val activeEntitlement = Entitlement("premium", isActive = true)
+                val inactiveEntitlement = Entitlement("basic", isActive = false)
+                val productEntitlements =
+                    mapOf(
+                        "product_premium" to setOf(activeEntitlement),
+                        "product_basic" to setOf(inactiveEntitlement),
+                    )
+                every { storage.read(StoredSubscriptionStatus) } returns null
+                every { storage.read(StoredEntitlementsByProductId) } returns productEntitlements
+                entitlements = Entitlements(storage, scope = backgroundScope)
+                entitlements.activeDeviceEntitlements = setOf(activeEntitlement)
+
+                When("subscription status is set to Inactive") {
+                    entitlements.setSubscriptionStatus(SubscriptionStatus.Inactive)
+
+                    Then("activeDeviceEntitlements should be cleared") {
+                        assertTrue(
+                            "activeDeviceEntitlements should be cleared when status becomes Inactive",
+                            entitlements.activeDeviceEntitlements.isEmpty(),
+                        )
+                    }
+
+                    And("all should still contain config entitlements") {
+                        assertTrue(entitlements.all.contains(activeEntitlement))
+                        assertTrue(entitlements.all.contains(inactiveEntitlement))
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `test active getter combines backingActive and activeDeviceEntitlements correctly`() =
+        runTest {
+            Given("entitlements with both status-based and device-based active entitlements") {
+                val statusActiveEntitlement = Entitlement("status_active", isActive = true)
+                val deviceActiveEntitlement = Entitlement("device_active", isActive = true)
+                val inactiveEntitlement = Entitlement("inactive", isActive = false)
+                val productEntitlements =
+                    mapOf(
+                        "product_status" to setOf(statusActiveEntitlement),
+                        "product_device" to setOf(deviceActiveEntitlement),
+                        "product_inactive" to setOf(inactiveEntitlement),
+                    )
+                every { storage.read(StoredSubscriptionStatus) } returns null
+                every { storage.read(StoredEntitlementsByProductId) } returns productEntitlements
+                entitlements = Entitlements(storage, scope = backgroundScope)
+
+                When("setting both status and device entitlements") {
+                    entitlements.setSubscriptionStatus(SubscriptionStatus.Active(setOf(statusActiveEntitlement)))
+                    entitlements.activeDeviceEntitlements = setOf(deviceActiveEntitlement)
+
+                    Then("active should contain both status and device entitlements") {
+                        assertTrue(entitlements.active.contains(statusActiveEntitlement))
+                        assertTrue(entitlements.active.contains(deviceActiveEntitlement))
+                    }
+
+                    And("active should NOT contain inactive entitlements") {
+                        assertTrue(
+                            "active should not contain inactive entitlements from config",
+                            !entitlements.active.contains(inactiveEntitlement),
+                        )
+                    }
+
+                    And("activeDeviceEntitlements should only contain device entitlements") {
+                        assertEquals(setOf(deviceActiveEntitlement), entitlements.activeDeviceEntitlements)
+                    }
+                }
+            }
+        }
 }

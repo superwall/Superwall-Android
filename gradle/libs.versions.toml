@@ -39,6 +39,7 @@ publisher_version = "0.33.0"
 play_review = "2.0.2"
 ads_identifier = "1.0.0-alpha5"
 jacoco = "0.8.12"
+dokka = "2.1.0"
 detekt = "1.23.7"
 robolectric = "4.13"
 activity_ktx_version = "1.10.1"
@@ -124,3 +125,4 @@ androidLibrary = { id = "com.android.library", version.ref = "gradle_plugin_vers
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 publisher = { id = "com.vanniktech.maven.publish", version.ref = "publisher_version" }
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
+dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }

@@ -41,6 +41,9 @@ enum class Store {
     @SerialName("PADDLE")
     PADDLE,
 
+    @SerialName("SUPERWALL")
+    SUPERWALL,
+
     @SerialName("OTHER")
     OTHER,
 
@@ -53,6 +56,7 @@ enum class Store {
                 "APP_STORE" -> APP_STORE
                 "STRIPE" -> STRIPE
                 "PADDLE" -> PADDLE
+                "SUPERWALL" -> SUPERWALL
                 else -> OTHER
             }
     }
@@ -303,7 +307,9 @@ object StoreProductSerializer : KSerializer<ProductItem.StoreProductType> {
                 ProductItem.StoreProductType.Paddle(product)
             }
 
-            Store.OTHER -> {
+            Store.SUPERWALL,
+            Store.OTHER,
+            -> {
                 val product =
                     json.decodeFromJsonElement(UnknownStoreProduct.serializer(), jsonObject)
                 ProductItem.StoreProductType.Other(product)

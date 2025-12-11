@@ -37,6 +37,7 @@ import com.superwall.sdk.misc.launchWithTracking
 import com.superwall.sdk.misc.toResult
 import com.superwall.sdk.models.assignment.ConfirmedAssignment
 import com.superwall.sdk.models.attribution.AttributionProvider
+import com.superwall.sdk.models.customer.CustomerInfo
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.events.EventData
@@ -63,9 +64,11 @@ import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.Initiate
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedDeepLink
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedURL
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedUrlInChrome
+import com.superwall.sdk.storage.LatestCustomerInfo
 import com.superwall.sdk.storage.ReviewCount
 import com.superwall.sdk.storage.ReviewData
 import com.superwall.sdk.storage.StoredSubscriptionStatus
+import com.superwall.sdk.storage.core_data.convertFromJsonElement
 import com.superwall.sdk.store.Entitlements
 import com.superwall.sdk.store.PurchasingObserverState
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
@@ -85,13 +88,17 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.scan
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.Date
+import kotlin.collections.map
 
 class Superwall(
     context: Context,
@@ -198,6 +205,22 @@ class Superwall(
         set(value) {
             options.paywalls.overrideProductsByName = value
         }
+
+    internal val _customerInfo: MutableStateFlow<CustomerInfo> =
+        MutableStateFlow(CustomerInfo.empty())
+
+    /**
+     * Exposes customer info as a stateflow.
+     */
+
+    val customerInfo: StateFlow<CustomerInfo> get() = _customerInfo
+
+    /**
+     * Gets the current CustomerInfo synchronously.
+     *
+     * @return The current CustomerInfo containing purchase and subscription data.
+     */
+    fun getCustomerInfo(): CustomerInfo = _customerInfo.value
 
     /**
      * Sets the Java delegate that handles Superwall lifecycle events.
@@ -427,6 +450,10 @@ class Superwall(
                 .take(1)
 
         private var _instance: Superwall? = null
+
+        // Retained activity provider for reuse across teardown/configure cycles (hot reload)
+        private var retainedActivityProvider: ActivityProvider? = null
+
         val instance: Superwall
             get() =
                 _instance
@@ -475,13 +502,18 @@ class Superwall(
                 completion?.invoke(Result.success(Unit))
                 return
             }
+
+            // Use retained activity provider from previous instance if available (hot reload scenario)
+            val effectiveActivityProvider = activityProvider ?: retainedActivityProvider
+            retainedActivityProvider = null
+
             _instance =
                 Superwall(
                     context = applicationContext,
                     apiKey = apiKey,
                     purchaseController = purchaseController,
                     options = options,
-                    activityProvider = activityProvider,
+                    activityProvider = effectiveActivityProvider,
                     completion = completion,
                 )
 
@@ -521,6 +553,42 @@ class Superwall(
          */
 
         fun handleDeepLink(uri: Uri): Result<Boolean> = DeepLinkRouter.handleDeepLink(uri)
+
+        /**
+         * Tears down the SDK and prepares it for re-initialization.
+         *
+         * Call this method in development environments that support hot reload (e.g., Expo, React Native)
+         * before calling [configure] again. This method:
+         * - Resets all user data, assignments, and caches
+         * - Clears the paywall view cache and destroys WebViews
+         * - Resets the paywall request cache
+         * - Allows [configure] to be called again
+         *
+         * After calling this method, you must call [configure] to use the SDK again.
+         *
+         * Example usage in Expo/React Native hot reload:
+         * ```kotlin
+         * // Before hot reload reconfiguration
+         * Superwall.teardown()
+         *
+         * // Then reconfigure
+         * Superwall.configure(applicationContext, apiKey, ...)
+         * ```
+         *
+         * Note: This is intended for development use only. Do not rely on this
+         * method in production as a way to reset.
+         */
+        @JvmStatic
+        fun teardown() {
+            synchronized(this) {
+                // Retain the activity provider for reuse in next configure call
+                retainedActivityProvider = _instance?.dependencyContainer?.activityProvider
+                _instance?.teardown()
+                _instance = null
+                initialized = false
+                _hasInitialized.update { false }
+            }
+        }
     }
 
     private lateinit var _dependencyContainer: DependencyContainer
@@ -554,7 +622,13 @@ class Superwall(
                 val cachedSubscriptionStatus =
                     dependencyContainer.storage.read(StoredSubscriptionStatus)
                         ?: SubscriptionStatus.Unknown
+                _customerInfo.value =
+                    dependencyContainer.storage.read(LatestCustomerInfo) ?: CustomerInfo.empty()
+
                 setSubscriptionStatus(cachedSubscriptionStatus)
+
+                // Trigger initial CustomerInfo merge on startup
+                dependencyContainer.customerInfoManager.updateMergedCustomerInfo()
 
                 addListeners()
 
@@ -603,6 +677,21 @@ class Superwall(
                     )
                     val event = InternalSuperwallEvent.SubscriptionStatusDidChange(newValue)
                     track(event)
+                }
+        }
+        ioScope.launchWithTracking {
+            _customerInfo
+                .asSharedFlow()
+                .distinctUntilChanged()
+                .scan<CustomerInfo, Pair<CustomerInfo?, CustomerInfo>?>(null) { previousPair, newStatus ->
+                    Pair(previousPair?.second, newStatus)
+                }.filterNotNull()
+                .filter { it.first != null }
+                .collect {
+                    val (old, new) = it
+                    dependencyContainer.storage.write(LatestCustomerInfo, new)
+                    dependencyContainer.delegateAdapter.customerInfoDidChange(old!!, new)
+                    track(CustomerInfoDidChange(old, new))
                 }
         }
     }
@@ -709,6 +798,41 @@ class Superwall(
             ioScope.launch {
                 track(InternalSuperwallEvent.Reset)
             }
+        }
+    }
+
+    /**
+     * Tears down the SDK and prepares it for re-initialization.
+     *
+     * Call this method in development environments that support hot reload (e.g., Expo, React Native)
+     * before calling [configure] again. This method:
+     * - Resets all user data, assignments, and caches
+     * - Clears the paywall view cache and destroys WebViews
+     * - Resets the paywall request cache
+     * - Allows [configure] to be called again
+     *
+     * After calling this method, you must call [configure] to use the SDK again.
+     *
+     * Example usage in Expo/React Native hot reload:
+     * ```kotlin
+     * // Before hot reload reconfiguration
+     * Superwall.reset()
+     *
+     * // Then reconfigure
+     * Superwall.configure(applicationContext, apiKey, ...)
+     * ```
+     *
+     * Note: This is intended for development use only.
+     */
+    internal fun teardown() {
+        withErrorTracking {
+            // Reset user data and caches
+            reset(duringIdentify = false)
+            // Also reset the paywall request cache
+            dependencyContainer.paywallRequestManager.resetCache()
+            // Note: We intentionally do NOT unregister the activity lifecycle callbacks here
+            // because the activity provider will be retained and reused in the next configure call.
+            // This ensures the current activity is still tracked across hot reload cycles.
         }
     }
 
@@ -1185,17 +1309,13 @@ class Superwall(
                 }
 
                 is PaywallWebEvent.CustomPlacement -> {
+                    @Suppress("UNCHECKED_CAST")
                     track(
                         CustomPlacement(
                             placementName = paywallEvent.name,
                             params =
-                                paywallEvent.params.let {
-                                    val map = mutableMapOf<String, Any>()
-                                    for (key in it.keys()) {
-                                        map[key] = it.get(key)
-                                    }
-                                    map
-                                },
+                                paywallEvent.params.convertFromJsonElement() as? Map<String, Any>
+                                    ?: emptyMap(),
                             paywallInfo = paywallView.info,
                         ),
                     )
@@ -1261,6 +1381,33 @@ class Superwall(
                         }
                     }
                 }
+
+                is PaywallWebEvent.ScheduleNotification -> {
+                    val paywallActivity =
+
+                        (
+                            paywallView
+                                ?.encapsulatingActivity
+                                ?.get()
+                                ?: dependencyContainer
+                                    .activityProvider
+                                    ?.getCurrentActivity()
+                        ) as SuperwallPaywallActivity?
+
+                    // Cancel any existing fallback notification of the same type before scheduling
+                    // the dynamic notification from the paywall
+                    paywallActivity?.attemptToScheduleNotifications(
+                        notifications = listOf(paywallEvent.localNotification),
+                        factory = dependencyContainer,
+                        cancelExisting = true,
+                    ) ?: run {
+                        Logger.debug(
+                            LogLevel.error,
+                            LogScope.paywallView,
+                            message = "No paywall activity alive to schedule notifications",
+                        )
+                    }
+                }
             }
         }
     }
@@ -1268,6 +1415,16 @@ class Superwall(
     internal fun redeem(code: String) {
         ioScope.launch {
             dependencyContainer.reedemer.redeem(WebPaywallRedeemer.RedeemType.Code(code))
+        }
+    }
+
+    /**
+     * Forces a configuration refresh. Used only for hot reload or explicit testing/debugging cases.
+     * Do not use unless explicitly instructed by Superwall dev team.
+     */
+    fun refreshConfiguration() {
+        ioScope.launch {
+            dependencyContainer.configManager.refreshConfiguration(force = true)
         }
     }
 }

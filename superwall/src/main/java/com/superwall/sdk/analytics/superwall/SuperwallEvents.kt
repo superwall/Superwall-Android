@@ -57,4 +57,5 @@ enum class SuperwallEvents(
     ReviewGranted("review_granted"),
     ReviewDenied("review_denied"),
     IntegrationAttributes("integration_attributes"),
+    CustomerInfoDidChange("customerInfo_didChange"),
 }

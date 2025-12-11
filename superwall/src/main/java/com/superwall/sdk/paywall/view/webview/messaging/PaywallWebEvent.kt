@@ -1,9 +1,10 @@
 package com.superwall.sdk.paywall.view.webview.messaging
 
 import android.net.Uri
+import com.superwall.sdk.models.paywall.LocalNotification
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import org.json.JSONObject
+import kotlinx.serialization.json.JsonObject
 import java.net.URI
 
 @Serializable
@@ -40,7 +41,12 @@ sealed class PaywallWebEvent {
     @SerialName("custom_placement")
     data class CustomPlacement(
         val name: String,
-        val params: JSONObject,
+        val params: JsonObject,
+    ) : PaywallWebEvent()
+
+    @SerialName("schedule_notification")
+    data class ScheduleNotification(
+        val localNotification: LocalNotification,
     ) : PaywallWebEvent()
 
     @SerialName("request_review")
