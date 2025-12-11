@@ -2,6 +2,7 @@ package com.superwall.sdk.store
 
 import com.superwall.sdk.billing.DecomposedProductIds
 import com.superwall.sdk.models.customer.mergeEntitlementsPrioritized
+import com.superwall.sdk.models.customer.toSet
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.storage.LatestRedemptionResponse
@@ -118,9 +119,10 @@ class Entitlements(
                 if (value.entitlements.isEmpty()) {
                     setSubscriptionStatus(SubscriptionStatus.Inactive)
                 } else {
-                    backingActive.addAll(value.entitlements.filter { it.isActive })
-                    _all.addAll(value.entitlements)
-                    _inactive.removeAll(value.entitlements)
+                    val entitlements = value.entitlements.toList().toSet()
+                    backingActive.addAll(entitlements.filter { it.isActive })
+                    _all.addAll(entitlements)
+                    _inactive.removeAll(entitlements)
                     _status.value = value
                 }
             }
