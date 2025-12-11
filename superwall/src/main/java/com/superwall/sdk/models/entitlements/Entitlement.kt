@@ -155,7 +155,7 @@ data class Entitlement(
      * Indicates whether the last subscription transaction associated with this
      * entitlement is in a billing grace period state.
      *
-     * This is `null` if there aren't any transactions that unlock this entitlement.
+     * This is `null` if there aren't any transactions that unlock this entitlement or if it was manually granted from Superwall.
      */
     val isInGracePeriod: Boolean?
         get() = state?.let { it == LatestSubscriptionState.GRACE_PERIOD }

@@ -51,6 +51,9 @@ data class SubscriptionTransaction(
      * This is `null` if no offer was applied. */
     @SerialName("offerType")
     val offerType: LatestPeriodType? = null,
+    // Note: iOS Only - The subscription group identifier for this subscription.
+    @SerialName("subscriptionGroupId")
+    val subscriptionGroupId: String? = null,
 ) {
     companion object {
         /**

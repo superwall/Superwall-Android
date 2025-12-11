@@ -11,6 +11,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 - Provides a new delegate method to observe customer info changes - `fun customerInfoDidChange(from: CustomerInfo, to: CustomerInfo)`  
 - Provides a `CustomerInfoDidChange` event to track customer info changes
 - Provides a `userAttributesDidChange(newAttributes: Map<String, Any>)` method in Superwall Delegate to track external (i.e. paywall) attribute changesg
+- Allows triggering a `transaction_abandon` offer on a `paywall_decline` offer and vice-versa, whereas previously it would trigger a presentation error. 
 
 ## 2.6.5
 

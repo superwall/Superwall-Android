@@ -83,17 +83,30 @@ fun CustomerInfo.merge(other: CustomerInfo): CustomerInfo {
     )
 }
 
-private fun mergeEntitlements(
-    first: List<Entitlement>,
-    second: List<Entitlement>,
-): List<Entitlement> = mergeEntitlementsPrioritized(first + second)
+fun mergeEntitlements(
+    first: Collection<Entitlement>,
+    second: Collection<Entitlement>,
+): List<Entitlement> =
+    mergeEntitlementsPrioritized(
+        buildList {
+            addAll(first)
+            addAll(second)
+        },
+    )
+
+fun List<Entitlement>.toSet() =
+    setOf(
+        *mergeEntitlementsPrioritized(this).toTypedArray(),
+    )
+
+operator fun Collection<Entitlement>.plus(second: Collection<Entitlement>) = mergeEntitlements(this, second)
 
 /**
  * Merges a list of entitlements, keeping the highest priority entitlement for each ID.
  * Uses EntitlementPriorityComparator to determine priority.
  * When merging, productIds from all entitlements with the same ID are combined.
  */
-internal fun mergeEntitlementsPrioritized(entitlements: List<Entitlement>): List<Entitlement> =
+fun mergeEntitlementsPrioritized(entitlements: List<Entitlement>): List<Entitlement> =
     entitlements
         .groupBy { it.id }
         .map { (_, group) ->
