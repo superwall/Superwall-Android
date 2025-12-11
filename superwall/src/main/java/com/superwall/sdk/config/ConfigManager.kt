@@ -397,12 +397,12 @@ open class ConfigManager(
         },
     )
 
-    internal suspend fun refreshConfiguration() {
+    internal suspend fun refreshConfiguration(force: Boolean = false) {
         // Make sure config already exists
         val oldConfig = config ?: return
 
         // Ensure the config refresh feature flag is enabled
-        if (!oldConfig.featureFlags.enableConfigRefresh) {
+        if (!force && !oldConfig.featureFlags.enableConfigRefresh) {
             return
         }
 

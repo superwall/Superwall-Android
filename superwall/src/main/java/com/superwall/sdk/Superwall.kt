@@ -1424,7 +1424,7 @@ class Superwall(
      */
     fun refreshConfiguration() {
         ioScope.launch {
-            dependencyContainer.configManager.refreshConfiguration()
+            dependencyContainer.configManager.refreshConfiguration(force = true)
         }
     }
 }

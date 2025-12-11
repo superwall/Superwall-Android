@@ -9,6 +9,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 - Provides a `CustomerInfo` class API, allowing you to observe the customer's purchases and subscription lifecycle via `Superwall.instance.customerInfo` flow
 - Provides a new delegate method to observe customer info changes - `fun customerInfoDidChange(from: CustomerInfo, to: CustomerInfo)`  
 - Provides a `CustomerInfoDidChange` event to track customer info changes
+- Overrides `Collection<Entitlement>.plus`and `.toSet` methods to ensure our merging methods are used.
 - Provides a `userAttributesDidChange(newAttributes: Map<String, Any>)` method in Superwall Delegate to track external (i.e. paywall) attribute changesg
 - Allows triggering a `transaction_abandon` offer on a `paywall_decline` offer and vice-versa, whereas previously it would trigger a presentation error. 
 - Add a `Superwall.teardown` method and `Superwall.instance.refreshConfiguration()` for development with hot-reload based frameworks
