@@ -23,9 +23,11 @@ import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.IOScope
+import com.superwall.sdk.models.customer.toSet
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.store.abstractions.product.OfferType
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
+import com.superwall.sdk.store.transactions.PlayBillingErrors
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -39,7 +41,7 @@ private val BILLING_INSANTIATION_ERROR =
     """Cannot create Google Play Billing Client. This can be caused by:
     - Play store client not existing on this device
     - User not being signed in into the play store
-    - Mismatching Google Play Billing versions""""""
+    - Mismatching Google Play Billing versions"""
 
 class AutomaticPurchaseController(
     var context: Context,
@@ -275,7 +277,9 @@ class AutomaticPurchaseController(
 
                 // For all other response codes, create a Failed result with an exception
                 else -> {
-                    PurchaseResult.Failed(billingResult.responseCode.toString())
+                    PurchaseResult.Failed(
+                        PlayBillingErrors.fromCode(billingResult.responseCode)?.message ?: "Unknown error ${billingResult.responseCode}",
+                    )
                 }
             }
 

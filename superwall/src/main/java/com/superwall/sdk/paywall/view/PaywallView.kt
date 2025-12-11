@@ -471,13 +471,6 @@ class PaywallView(
             if (isDeclined && isManualClose) {
                 val trackedEvent = InternalSuperwallEvent.PaywallDecline(paywallInfo = info)
 
-                val presentationResult =
-                    withErrorTracking {
-                        factory.internallyGetPresentationResult(
-                            event = trackedEvent,
-                            isImplicit = true,
-                        )
-                    }.toResult()
                 val presentingPlacement = info.presentedByEventWithName
                 val presentedByPaywallDecline =
                     presentingPlacement == SuperwallEvents.PaywallDecline.rawName
@@ -486,18 +479,29 @@ class PaywallView(
                 val presentedByTransactionFail =
                     presentingPlacement == SuperwallEvents.TransactionFail.rawName
 
-                factory.track(trackedEvent).getOrNull()
-                val capturedResult = presentationResult.getOrNull()
-                if (capturedResult != null &&
-                    capturedResult is PresentationResult.Paywall &&
-                    !presentedByPaywallDecline &&
-                    !presentedByTransactionAbandon &&
-                    !presentedByTransactionFail
-                ) {
-                    // If a paywall_decline trigger is active and the current paywall wasn't presented
-                    // by paywall_decline, transaction_abandon, or transaction_fail, it lands here so
-                    // as not to dismiss the paywall. track() will do that before presenting the next paywall.
-                    return
+                // Don't track PaywallDecline if this paywall was already presented by PaywallDecline
+                // to prevent infinite loops
+                if (!presentedByPaywallDecline) {
+                    val presentationResult =
+                        withErrorTracking {
+                            factory.internallyGetPresentationResult(
+                                event = trackedEvent,
+                                isImplicit = true,
+                            )
+                        }.toResult()
+
+                    factory.track(trackedEvent).getOrNull()
+                    val capturedResult = presentationResult.getOrNull()
+                    if (capturedResult != null &&
+                        capturedResult is PresentationResult.Paywall &&
+                        !presentedByTransactionAbandon &&
+                        !presentedByTransactionFail
+                    ) {
+                        // If a paywall_decline trigger is active and the current paywall wasn't presented
+                        // by transaction_abandon or transaction_fail, it lands here so
+                        // as not to dismiss the paywall. track() will do that before presenting the next paywall.
+                        return
+                    }
                 }
             }
 
@@ -1026,6 +1030,11 @@ class PaywallView(
         encapsulatingActivity?.clear()
         callback = null
         webView.onScrollChangeListener = null
+        // Clear webView delegate to prevent leak
+        webView.delegate = null
+        // Unregister activity result launcher to prevent Activity leak
+        activityResultLauncher?.unregister()
+        activityResultLauncher = null
         (parent as? ViewGroup)?.removeAllViews()
         removeAllViews()
         detachAllViewsFromParent()

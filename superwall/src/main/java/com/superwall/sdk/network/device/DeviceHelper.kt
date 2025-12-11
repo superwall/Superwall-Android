@@ -591,6 +591,13 @@ class DeviceHelper(
                         ?: emptyMap()
                 enriched
                     .plus(it)
+                    .let {
+                        if (factory.makeSuperwallOptions().enableExperimentalDeviceVariables) {
+                            it.plus(latestExperimentalDeviceProperties())
+                        } else {
+                            it
+                        }
+                    }
             }.fold(
                 onSuccess = { deviceTemplate ->
                     return@fold deviceTemplate

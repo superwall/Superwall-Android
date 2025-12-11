@@ -206,7 +206,8 @@ class Superwall(
             options.paywalls.overrideProductsByName = value
         }
 
-    internal val _customerInfo: MutableStateFlow<CustomerInfo> = MutableStateFlow(CustomerInfo.empty())
+    internal val _customerInfo: MutableStateFlow<CustomerInfo> =
+        MutableStateFlow(CustomerInfo.empty())
 
     /**
      * Exposes customer info as a stateflow.
@@ -621,7 +622,8 @@ class Superwall(
                 val cachedSubscriptionStatus =
                     dependencyContainer.storage.read(StoredSubscriptionStatus)
                         ?: SubscriptionStatus.Unknown
-                _customerInfo.value = dependencyContainer.storage.read(LatestCustomerInfo) ?: CustomerInfo.empty()
+                _customerInfo.value =
+                    dependencyContainer.storage.read(LatestCustomerInfo) ?: CustomerInfo.empty()
 
                 setSubscriptionStatus(cachedSubscriptionStatus)
 
@@ -1311,7 +1313,9 @@ class Superwall(
                     track(
                         CustomPlacement(
                             placementName = paywallEvent.name,
-                            params = paywallEvent.params.convertFromJsonElement() as? Map<String, Any> ?: emptyMap(),
+                            params =
+                                paywallEvent.params.convertFromJsonElement() as? Map<String, Any>
+                                    ?: emptyMap(),
                             paywallInfo = paywallView.info,
                         ),
                     )
@@ -1411,6 +1415,16 @@ class Superwall(
     internal fun redeem(code: String) {
         ioScope.launch {
             dependencyContainer.reedemer.redeem(WebPaywallRedeemer.RedeemType.Code(code))
+        }
+    }
+
+    /**
+     * Forces a configuration refresh. Used only for hot reload or explicit testing/debugging cases.
+     * Do not use unless explicitly instructed by Superwall dev team.
+     */
+    fun refreshConfiguration() {
+        ioScope.launch {
+            dependencyContainer.configManager.refreshConfiguration()
         }
     }
 }

@@ -93,6 +93,7 @@ class WebPaywallRedeemer(
     }
 
     private var pollingJob: Job? = null
+    private var redemptionJob: Job? = null
 
     private suspend fun track(event: Trackable) = factory.track(event)
 
@@ -399,9 +400,11 @@ class WebPaywallRedeemer(
                 factory.getActiveDeviceEntitlements(),
             ),
         )
-        ioScope.launch {
-            redeem(RedeemType.Existing)
-        }
+        redemptionJob?.cancel()
+        redemptionJob =
+            ioScope.launch {
+                redeem(RedeemType.Existing)
+            }
     }
 
     private fun startPolling(maxAge: Long = factory.maxAge()) {
