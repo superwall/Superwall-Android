@@ -14,6 +14,11 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 - Allows triggering a `transaction_abandon` offer on a `paywall_decline` offer and vice-versa, whereas previously it would trigger a presentation error. 
 - Add a `Superwall.teardown` method and `Superwall.instance.refreshConfiguration()` for development with hot-reload based frameworks
 
+##  ⚠️ Warning ⚠️
+If you are using a Purchase Controller and web2app or app2web purchases, you will have to update your purchase controller
+to listen to `Superwall.instance.customerInfo` which will provide you with the relevant web entitlements and call
+`setSubscriptionStatus` accordingly.
+
 ## 2.6.5
 
 ## Dependencies
