@@ -2,6 +2,7 @@ package com.superwall.sdk.paywall.view.webview.messaging
 
 import android.net.Uri
 import com.superwall.sdk.models.paywall.LocalNotification
+import com.superwall.sdk.permissions.PermissionType
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
@@ -63,4 +64,10 @@ sealed class PaywallWebEvent {
             EXTERNAL("external"),
         }
     }
+
+    @SerialName("request_permission")
+    data class RequestPermission(
+        val permissionType: PermissionType,
+        val requestId: String,
+    ) : PaywallWebEvent()
 }

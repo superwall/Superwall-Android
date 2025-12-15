@@ -1,5 +1,6 @@
 package com.superwall.sdk.paywall.view.webview.messaging
 
+import android.app.Activity
 import com.superwall.sdk.Given
 import com.superwall.sdk.Then
 import com.superwall.sdk.When
@@ -15,6 +16,9 @@ import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.paywall.view.PaywallViewState
 import com.superwall.sdk.paywall.view.webview.templating.models.JsonVariables
 import com.superwall.sdk.paywall.view.webview.templating.models.Variables
+import com.superwall.sdk.permissions.PermissionStatus
+import com.superwall.sdk.permissions.PermissionType
+import com.superwall.sdk.permissions.UserPermissions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -83,6 +87,21 @@ class PaywallMessageHandlerEdgeCasesTest {
         ): JsonVariables = JsonVariables("template_variables", Variables(emptyMap(), emptyMap(), emptyMap()))
     }
 
+    private class FakeUserPermissions : UserPermissions {
+        var permissionToReturn: PermissionStatus = PermissionStatus.GRANTED
+        var requestedPermissions = mutableListOf<PermissionType>()
+
+        override fun hasPermission(permission: PermissionType): PermissionStatus = permissionToReturn
+
+        override suspend fun requestPermission(
+            activity: Activity,
+            permission: PermissionType,
+        ): PermissionStatus {
+            requestedPermissions.add(permission)
+            return permissionToReturn
+        }
+    }
+
     @Test
     fun handleCustom_with_null_messageHandler_does_not_crash() =
         runTest {
@@ -100,6 +119,8 @@ class PaywallMessageHandlerEdgeCasesTest {
                         mainScope = MainScope(Dispatchers.Unconfined),
                         ioScope = IOScope(Dispatchers.Unconfined),
                         encodeToB64 = { it },
+                        userPermissions = FakeUserPermissions(),
+                        getActivity = { null },
                     )
                 // Note: messageHandler is not set
 
@@ -146,6 +167,8 @@ class PaywallMessageHandlerEdgeCasesTest {
                         mainScope = MainScope(Dispatchers.Unconfined),
                         ioScope = IOScope(Dispatchers.Unconfined),
                         encodeToB64 = { it },
+                        userPermissions = FakeUserPermissions(),
+                        getActivity = { null },
                     )
                 handler.messageHandler = delegate
 
@@ -186,6 +209,8 @@ class PaywallMessageHandlerEdgeCasesTest {
                         mainScope = MainScope(Dispatchers.Unconfined),
                         ioScope = IOScope(Dispatchers.Unconfined),
                         encodeToB64 = { it },
+                        userPermissions = FakeUserPermissions(),
+                        getActivity = { null },
                     )
                 handler.messageHandler = delegate
 
@@ -226,6 +251,8 @@ class PaywallMessageHandlerEdgeCasesTest {
                         mainScope = MainScope(Dispatchers.Unconfined),
                         ioScope = IOScope(Dispatchers.Unconfined),
                         encodeToB64 = { it },
+                        userPermissions = FakeUserPermissions(),
+                        getActivity = { null },
                     )
                 handler.messageHandler = delegate
 
@@ -260,6 +287,8 @@ class PaywallMessageHandlerEdgeCasesTest {
                         mainScope = MainScope(Dispatchers.Unconfined),
                         ioScope = IOScope(Dispatchers.Unconfined),
                         encodeToB64 = { it },
+                        userPermissions = FakeUserPermissions(),
+                        getActivity = { null },
                     )
                 handler.messageHandler = delegate
 
@@ -300,6 +329,8 @@ class PaywallMessageHandlerEdgeCasesTest {
                         mainScope = MainScope(Dispatchers.Unconfined),
                         ioScope = IOScope(Dispatchers.Unconfined),
                         encodeToB64 = { it },
+                        userPermissions = FakeUserPermissions(),
+                        getActivity = { null },
                     )
                 handler.messageHandler = delegate
 
@@ -315,6 +346,101 @@ class PaywallMessageHandlerEdgeCasesTest {
                         assertEquals(1, delegate.events.size)
                         val event = delegate.events[0] as PaywallWebEvent.RequestReview
                         assertEquals(PaywallWebEvent.RequestReview.Type.INAPP, event.type)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun requestPermission_emits_event_with_correct_permission_type() =
+        runTest {
+            Given("a handler with a delegate") {
+                val paywall = Paywall.stub()
+                val state = PaywallViewState(paywall = paywall, locale = "en-US")
+                val delegate = RecordingDelegate(state)
+                val fakePermissions = FakeUserPermissions()
+                fakePermissions.permissionToReturn = PermissionStatus.GRANTED
+
+                val handler =
+                    PaywallMessageHandler(
+                        factory = FakeVariablesFactory(),
+                        options =
+                            object : OptionsFactory {
+                                override fun makeSuperwallOptions(): SuperwallOptions = SuperwallOptions()
+                            },
+                        track = { _ -> },
+                        setAttributes = { _ -> },
+                        getView = { null },
+                        mainScope = MainScope(Dispatchers.Unconfined),
+                        ioScope = IOScope(Dispatchers.Unconfined),
+                        encodeToB64 = { it },
+                        userPermissions = fakePermissions,
+                        getActivity = { null },
+                    )
+                handler.messageHandler = delegate
+
+                When("a RequestPermission message is handled") {
+                    handler.handle(
+                        PaywallMessage.RequestPermission(
+                            permissionType = PermissionType.NOTIFICATION,
+                            requestId = "test-request-123",
+                        ),
+                    )
+                    advanceUntilIdle()
+
+                    Then("it emits RequestPermission event with correct data") {
+                        assertEquals(1, delegate.events.size)
+                        val event = delegate.events[0] as PaywallWebEvent.RequestPermission
+                        assertEquals(PermissionType.NOTIFICATION, event.permissionType)
+                        assertEquals("test-request-123", event.requestId)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun requestPermission_without_activity_returns_unsupported() =
+        runTest {
+            Given("a handler without an activity provider") {
+                val paywall = Paywall.stub()
+                val state = PaywallViewState(paywall = paywall, locale = "en-US")
+                val delegate = RecordingDelegate(state)
+                var encodedMessages = mutableListOf<String>()
+
+                val handler =
+                    PaywallMessageHandler(
+                        factory = FakeVariablesFactory(),
+                        options =
+                            object : OptionsFactory {
+                                override fun makeSuperwallOptions(): SuperwallOptions = SuperwallOptions()
+                            },
+                        track = { _ -> },
+                        setAttributes = { _ -> },
+                        getView = { null },
+                        mainScope = MainScope(Dispatchers.Unconfined),
+                        ioScope = IOScope(Dispatchers.Unconfined),
+                        encodeToB64 = { msg ->
+                            encodedMessages.add(msg)
+                            msg
+                        },
+                        userPermissions = FakeUserPermissions(),
+                        getActivity = { null }, // No activity available
+                    )
+                handler.messageHandler = delegate
+
+                When("a RequestPermission message is handled") {
+                    handler.handle(
+                        PaywallMessage.RequestPermission(
+                            permissionType = PermissionType.NOTIFICATION,
+                            requestId = "test-request-456",
+                        ),
+                    )
+                    advanceUntilIdle()
+
+                    Then("the permission result contains unsupported status") {
+                        // Verify the encoded message contains "unsupported"
+                        val lastMessage = encodedMessages.lastOrNull() ?: ""
+                        assertEquals(true, lastMessage.contains("unsupported"))
                     }
                 }
             }

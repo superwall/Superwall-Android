@@ -4,6 +4,7 @@ import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.models.paywall.LocalNotificationType
+import com.superwall.sdk.permissions.PermissionType
 import com.superwall.sdk.storage.core_data.convertFromJsonElement
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -108,6 +109,11 @@ sealed class PaywallMessage {
         val body: String,
         val delay: Long,
     ) : PaywallMessage()
+
+    data class RequestPermission(
+        val permissionType: PermissionType,
+        val requestId: String,
+    ) : PaywallMessage()
 }
 
 fun parseWrappedPaywallMessages(jsonString: String): Result<WrappedPaywallMessages> =
@@ -197,6 +203,22 @@ private fun parsePaywallMessage(json: JsonObject): PaywallMessage {
                 body = json["body"]?.jsonPrimitive?.contentOrNull ?: "",
                 delay = json["delay"]?.jsonPrimitive?.longOrNull ?: 0L,
             )
+
+        "request_permission" -> {
+            val permissionTypeRaw =
+                json["permission_type"]?.jsonPrimitive?.contentOrNull
+                    ?: throw IllegalArgumentException("request_permission missing permission_type")
+            val permissionType =
+                PermissionType.fromRaw(permissionTypeRaw)
+                    ?: throw IllegalArgumentException("Unknown permission_type: $permissionTypeRaw")
+            val requestId =
+                json["request_id"]?.jsonPrimitive?.contentOrNull
+                    ?: throw IllegalArgumentException("request_permission missing request_id")
+            PaywallMessage.RequestPermission(
+                permissionType = permissionType,
+                requestId = requestId,
+            )
+        }
 
         else -> {
             throw IllegalArgumentException("Unknown event name: $eventName")

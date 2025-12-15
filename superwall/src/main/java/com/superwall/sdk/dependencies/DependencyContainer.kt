@@ -98,6 +98,8 @@ import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessageHandler
 import com.superwall.sdk.paywall.view.webview.templating.models.JsonVariables
 import com.superwall.sdk.paywall.view.webview.templating.models.Variables
 import com.superwall.sdk.paywall.view.webview.webViewExists
+import com.superwall.sdk.permissions.UserPermissions
+import com.superwall.sdk.permissions.UserPermissionsImpl
 import com.superwall.sdk.review.MockReviewManager
 import com.superwall.sdk.review.ReviewManager
 import com.superwall.sdk.review.ReviewManagerImpl
@@ -187,6 +189,7 @@ class DependencyContainer(
     val transactionManager: TransactionManager
     val googleBillingWrapper: GoogleBillingWrapper
     internal val reviewManager: ReviewManager
+    internal val userPermissions: UserPermissions
 
     var entitlements: Entitlements
     internal lateinit var customerInfoManager: CustomerInfoManager
@@ -593,6 +596,8 @@ class DependencyContainer(
                 })
             }
 
+        userPermissions = UserPermissionsImpl(context)
+
         deepLinkRouter =
             DeepLinkRouter(
                 reedemer,
@@ -702,6 +707,8 @@ class DependencyContainer(
                 encodeToB64 = {
                     Base64.encodeToString(it.toByteArray(StandardCharsets.UTF_8), Base64.NO_WRAP)
                 },
+                userPermissions = userPermissions,
+                getActivity = { activityProvider?.getCurrentActivity() },
             )
 
         val state =

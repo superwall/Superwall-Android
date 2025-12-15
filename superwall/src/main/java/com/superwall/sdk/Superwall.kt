@@ -64,6 +64,7 @@ import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.Initiate
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedDeepLink
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedURL
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedUrlInChrome
+import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.RequestPermission
 import com.superwall.sdk.storage.LatestCustomerInfo
 import com.superwall.sdk.storage.ReviewCount
 import com.superwall.sdk.storage.ReviewData
@@ -1407,6 +1408,14 @@ class Superwall(
                             message = "No paywall activity alive to schedule notifications",
                         )
                     }
+                }
+
+                is RequestPermission -> {
+                    Logger.debug(
+                        LogLevel.debug,
+                        LogScope.paywallView,
+                        message = "Permission requested: ${paywallEvent.permissionType.rawValue}",
+                    )
                 }
             }
         }

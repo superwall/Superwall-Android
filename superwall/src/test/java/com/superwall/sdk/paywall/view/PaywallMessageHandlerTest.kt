@@ -1,6 +1,7 @@
 package com.superwall.sdk.paywall.view
 
 import TemplateLogic
+import android.app.Activity
 import android.view.View
 import android.view.ViewGroup
 import com.superwall.sdk.Given
@@ -20,6 +21,9 @@ import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessageHandler
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent
 import com.superwall.sdk.paywall.view.webview.templating.models.JsonVariables
 import com.superwall.sdk.paywall.view.webview.templating.models.Variables
+import com.superwall.sdk.permissions.PermissionStatus
+import com.superwall.sdk.permissions.PermissionType
+import com.superwall.sdk.permissions.UserPermissions
 import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.web.WebPaywallRedeemer
 import io.mockk.coEvery
@@ -280,6 +284,15 @@ class PaywallMessageHandlerTest {
 
         lateinit var viewRef: PaywallView
         val scopeContext = scope.coroutineContext
+        val fakeUserPermissions =
+            object : UserPermissions {
+                override fun hasPermission(permission: PermissionType): PermissionStatus = PermissionStatus.GRANTED
+
+                override suspend fun requestPermission(
+                    activity: Activity,
+                    permission: PermissionType,
+                ): PermissionStatus = PermissionStatus.GRANTED
+            }
         val messageHandler =
             PaywallMessageHandler(
                 factory = TestVariablesFactory,
@@ -296,6 +309,8 @@ class PaywallMessageHandlerTest {
                     },
                 json = Json { encodeDefaults = true },
                 encodeToB64 = { it },
+                userPermissions = fakeUserPermissions,
+                getActivity = { null },
             )
 
         val state =
