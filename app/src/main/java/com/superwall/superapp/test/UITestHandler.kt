@@ -47,7 +47,7 @@ object UITestHandler {
                                     "${it.id}"
                                 }.joinToString(separator = ", "),
                         )
-                        Superwall.instance.register(placement = "show_if_web_failed")
+                        Superwall.instance.register(placement = "otp_test")
                     },
                 ),
                 UITestInfo(

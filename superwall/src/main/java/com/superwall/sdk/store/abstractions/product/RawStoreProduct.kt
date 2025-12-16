@@ -1,4 +1,6 @@
 package com.superwall.sdk.store.abstractions.product
+
+import android.util.Log
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.ProductDetails.PricingPhase
 import com.android.billingclient.api.ProductDetails.SubscriptionOfferDetails
@@ -42,32 +44,47 @@ class RawStoreProduct(
     }
 
     internal val offerId: String? by lazy {
-        selectedOffer?.offerId
+        when (val offer = selectedOffer) {
+            is SelectedOfferDetails.Subscription -> offer.underlying.offerId
+            is SelectedOfferDetails.OneTime -> offer.offerId
+            null -> null
+        }
     }
 
-    val selectedOffer: SubscriptionOfferDetails? by lazy {
+    val selectedOffer: SelectedOfferDetails? by lazy {
         getSelectedOfferDetails()
     }
 
     private val basePriceForSelectedOffer by lazy {
-        val selectedOffer = selectedOffer ?: return@lazy BigDecimal.ZERO
-        val pricingPhase =
-            selectedOffer.pricingPhases.pricingPhaseList
-                .last()
-                .priceAmountMicros
-        BigDecimal(pricingPhase).divide(BigDecimal(1_000_000), 2, RoundingMode.DOWN)
+        when (val offer = selectedOffer) {
+            is SelectedOfferDetails.Subscription -> {
+                val priceAmountMicros =
+                    offer.underlying.pricingPhases.pricingPhaseList
+                        .last()
+                        .priceAmountMicros
+                BigDecimal(priceAmountMicros).divide(BigDecimal(1_000_000), 2, RoundingMode.DOWN)
+            }
+            is SelectedOfferDetails.OneTime -> {
+                BigDecimal(offer.underlying.priceAmountMicros).divide(BigDecimal(1_000_000), 2, RoundingMode.DOWN)
+            }
+            null -> BigDecimal.ZERO
+        }
     }
 
-    private val selectedOfferPricingPhase by lazy {
-        // Get the selected offer; return null if it's null.
-        val selectedOffer = selectedOffer ?: return@lazy null
-
-        // Find the first free trial phase or discounted phase.
-        selectedOffer.pricingPhases.pricingPhaseList
-            .firstOrNull { it.priceAmountMicros == 0L }
-            ?: selectedOffer.pricingPhases.pricingPhaseList
-                .dropLast(1)
-                .firstOrNull { it.priceAmountMicros != 0L }
+    private val selectedOfferPricingPhase: PricingPhase? by lazy {
+        // OneTime products don't have pricing phases - only subscriptions do
+        when (val offer = selectedOffer) {
+            is SelectedOfferDetails.Subscription -> {
+                // Find the first free trial phase or discounted phase.
+                offer.underlying.pricingPhases.pricingPhaseList
+                    .firstOrNull { it.priceAmountMicros == 0L }
+                    ?: offer.underlying.pricingPhases.pricingPhaseList
+                        .dropLast(1)
+                        .firstOrNull { it.priceAmountMicros != 0L }
+            }
+            is SelectedOfferDetails.OneTime -> null // No pricing phases for one-time products
+            null -> null
+        }
     }
 
     override val productIdentifier by lazy {
@@ -78,9 +95,19 @@ class RawStoreProduct(
         get() = underlyingProductDetails.productType
 
     override val price by lazy {
-        underlyingProductDetails.oneTimePurchaseOfferDetails?.let { offerDetails ->
-            BigDecimal(offerDetails.priceAmountMicros).divide(BigDecimal(1_000_000), 2, RoundingMode.DOWN)
-        } ?: basePriceForSelectedOffer
+        // Always use the price from the selected offer (handles both subscription and OTP with purchase options)
+        // Only fall back to legacy oneTimePurchaseOfferDetails if no selected offer exists
+        if (selectedOffer != null) {
+            basePriceForSelectedOffer
+        } else {
+            underlyingProductDetails.oneTimePurchaseOfferDetails?.let { offerDetails ->
+                BigDecimal(offerDetails.priceAmountMicros).divide(
+                    BigDecimal(1_000_000),
+                    2,
+                    RoundingMode.DOWN,
+                )
+            } ?: BigDecimal.ZERO
+        }
     }
 
     override val localizedPrice by lazy {
@@ -119,6 +146,7 @@ class RawStoreProduct(
                         2, 6 -> "every $period"
                         else -> "${period}ly"
                     }
+
                 else -> "${period}ly"
             }
         } ?: ""
@@ -240,53 +268,136 @@ class RawStoreProduct(
     }
 
     override val hasFreeTrial by lazy {
-        if (underlyingProductDetails.oneTimePurchaseOfferDetails != null) {
-            return@lazy false
+        when (val offer = selectedOffer) {
+            is SelectedOfferDetails.Subscription -> {
+                // Check for free trial phase in pricing phases, excluding the base pricing
+                offer.underlying.pricingPhases.pricingPhaseList
+                    .dropLast(1)
+                    .isNotEmpty()
+            }
+            is SelectedOfferDetails.OneTime -> false // One-time products don't have trials
+            null -> false
         }
-
-        val selectedOffer = selectedOffer ?: return@lazy false
-
-        // Check for free trial phase in pricing phases, excluding the base pricing
-        selectedOffer.pricingPhases.pricingPhaseList
-            .dropLast(1)
-            .isNotEmpty()
     }
 
     override val localizedTrialPeriodPrice by lazy {
         priceFormatter?.format(trialPeriodPrice) ?: "$0.00"
     }
 
-    override val trialPeriodPrice by lazy {
-        if (underlyingProductDetails.oneTimePurchaseOfferDetails != null) {
-            return@lazy BigDecimal.ZERO
+    override val trialPeriodPrice: BigDecimal by lazy {
+        when (val offer = selectedOffer) {
+            is SelectedOfferDetails.Subscription -> {
+                val pricingWithoutBase =
+                    offer.underlying.pricingPhases.pricingPhaseList
+                        .dropLast(1)
+                if (pricingWithoutBase.isEmpty()) return@lazy BigDecimal.ZERO
+
+                // Check for free trial phase
+                val freeTrialPhase = pricingWithoutBase.firstOrNull { it.priceAmountMicros == 0L }
+                if (freeTrialPhase != null) return@lazy BigDecimal.ZERO
+
+                // Check for discounted phase
+                val discountedPhase = pricingWithoutBase.firstOrNull { it.priceAmountMicros > 0 }
+                discountedPhase?.let {
+                    BigDecimal(it.priceAmountMicros).divide(BigDecimal(1_000_000), 2, RoundingMode.DOWN)
+                } ?: BigDecimal.ZERO
+            }
+            is SelectedOfferDetails.OneTime -> BigDecimal.ZERO // One-time products don't have trial pricing
+            null -> BigDecimal.ZERO
         }
-
-        val selectedOffer = selectedOffer ?: return@lazy BigDecimal.ZERO
-
-        val pricingWithoutBase = selectedOffer.pricingPhases.pricingPhaseList.dropLast(1)
-        if (pricingWithoutBase.isEmpty()) return@lazy BigDecimal.ZERO
-
-        // Check for free trial phase
-        val freeTrialPhase = pricingWithoutBase.firstOrNull { it.priceAmountMicros == 0L }
-        if (freeTrialPhase != null) return@lazy BigDecimal.ZERO
-
-        // Check for discounted phase
-        val discountedPhase = pricingWithoutBase.firstOrNull { it.priceAmountMicros > 0 }
-        discountedPhase?.let {
-            BigDecimal(it.priceAmountMicros).divide(BigDecimal(1_000_000), 2, RoundingMode.DOWN)
-        } ?: BigDecimal.ZERO
     }
 
-    private fun getSelectedOfferDetails(): SubscriptionOfferDetails? {
-        if (underlyingProductDetails.oneTimePurchaseOfferDetails != null) {
-            return null
+    private fun getSelectedOfferDetails(): SelectedOfferDetails? {
+        // Handle one-time purchase products
+        if (!underlyingProductDetails.oneTimePurchaseOfferDetailsList.isNullOrEmpty()) {
+            val list = underlyingProductDetails.oneTimePurchaseOfferDetailsList ?: emptyList()
+            val hasSpecificPurchaseOption = !basePlanId.isNullOrEmpty()
+            val offerIdFromType = (offerType as? OfferType.Offer)?.id
+            val hasSpecificOffer = offerIdFromType != null
+
+            Log.e(
+                "RawStoreProduct",
+                "Selecting OTP offer - purchaseOption: $basePlanId (specific: $hasSpecificPurchaseOption), " +
+                    "offerType: $offerType (specificOffer: $hasSpecificOffer), " +
+                    "available options: ${list.map { "(opt=${it.purchaseOptionId}, offer=${it.offerId}, price=${it.priceAmountMicros})" }}",
+            )
+
+            val selected: ProductDetails.OneTimePurchaseOfferDetails? =
+                when {
+                    // Case 1: Specific purchase option + specific offer
+                    // → Look for exact match, fallback to just purchase option
+                    hasSpecificPurchaseOption && hasSpecificOffer -> {
+                        val exactMatch =
+                            list.firstOrNull {
+                                it.purchaseOptionId == basePlanId && it.offerId == offerIdFromType
+                            }
+                        val result = exactMatch ?: list.firstOrNull { it.purchaseOptionId == basePlanId }
+                        result
+                    }
+
+                    // Case 2: Auto purchase option + specific offer
+                    // → Look for all options with that offer, select cheapest
+                    !hasSpecificPurchaseOption && hasSpecificOffer -> {
+                        val optionsWithOffer = list.filter { it.offerId == offerIdFromType }
+                        val result = optionsWithOffer.minByOrNull { it.priceAmountMicros }
+                        result
+                    }
+
+                    // Case 3: Specific purchase option + auto offer
+                    // → Look for all offers within that purchase option, select cheapest
+                    hasSpecificPurchaseOption && !hasSpecificOffer -> {
+                        val optionsForPurchaseOption = list.filter { it.purchaseOptionId == basePlanId }
+                        val result = optionsForPurchaseOption.minByOrNull { it.priceAmountMicros }
+                        result
+                    }
+
+                    // Case 4: Auto purchase option + auto offer
+                    // → Prefer cheapest with both option+offer, fallback to cheapest overall
+                    else -> {
+                        Log.e("RawStoreProduct", "Case 4: Auto option + auto offer")
+                        // First try: options that have both purchaseOptionId AND offerId
+                        val optionsWithBoth = list.filter { !it.purchaseOptionId.isNullOrEmpty() && !it.offerId.isNullOrEmpty() }
+                        Log.e(
+                            "RawStoreProduct",
+                            "  Options with both: ${optionsWithBoth.map {
+                                "(opt=${it.purchaseOptionId}, offer=${it.offerId}, price=${it.priceAmountMicros})"
+                            }}",
+                        )
+
+                        val cheapestWithBoth = optionsWithBoth.minByOrNull { it.priceAmountMicros }
+
+                        val result = cheapestWithBoth ?: list.minByOrNull { it.priceAmountMicros }
+                        Log.e(
+                            "RawStoreProduct",
+                            "  Final selection: ${result?.let {
+                                "(opt=${it.purchaseOptionId}, offer=${it.offerId}, price=${it.priceAmountMicros})"
+                            }}",
+                        )
+                        result
+                    }
+                }
+
+            // Fallback to default if nothing found
+            val finalSelected = selected ?: underlyingProductDetails.oneTimePurchaseOfferDetails
+            Log.e(
+                "RawStoreProduct",
+                "Final OTP selection: ${finalSelected?.let {
+                    "(opt=${it.purchaseOptionId}, offer=${it.offerId}, price=${it.priceAmountMicros})"
+                } ?: "null"}",
+            )
+
+            return finalSelected?.let { SelectedOfferDetails.OneTime(it, it.purchaseOptionId, it.offerId) }
         }
-        // Retrieve the subscription offer details from the product details
-        val subscriptionOfferDetails = underlyingProductDetails.subscriptionOfferDetails ?: return null
+
+        // Handle subscription products
+        val subscriptionOfferDetails =
+            underlyingProductDetails.subscriptionOfferDetails ?: return null
 
         // Default to first base plan we come across if base plan is an empty string
         if (basePlanId.isNullOrEmpty()) {
-            return subscriptionOfferDetails.firstOrNull { it.pricingPhases.pricingPhaseList.size == 1 }
+            return subscriptionOfferDetails
+                .firstOrNull { it.pricingPhases.pricingPhaseList.size == 1 }
+                ?.let { SelectedOfferDetails.Subscription(it) }
         }
 
         // Get the offers that match the given base plan ID.
@@ -298,30 +409,37 @@ class RawStoreProduct(
                 it.pricingPhases.pricingPhaseList.size == 1
             } ?: return null
 
-        return when (offerType) {
-            is OfferType.Auto -> {
-                automaticallySelectOffer() ?: basePlan
+        val selectedSubscriptionOffer: SubscriptionOfferDetails =
+            when (offerType) {
+                is OfferType.Auto -> {
+                    automaticallySelectSubscriptionOffer()?.underlying ?: basePlan
+                }
+
+                is OfferType.Offer -> {
+                    // If an offer ID is given, return that one. Otherwise fallback to base plan.
+                    offersForBasePlan.firstOrNull { it.offerId == offerType.id } ?: basePlan
+                }
+
+                null -> {
+                    // If no offer, return base plan
+                    basePlan
+                }
             }
-            is OfferType.Offer -> {
-                // If an offer ID is given, return that one. Otherwise fallback to base plan.
-                offersForBasePlan.firstOrNull { it.offerId == offerType.id } ?: basePlan
-            }
-            null -> {
-                // If no offer, return base plan
-                basePlan
-            }
-        }
+
+        return SelectedOfferDetails.Subscription(selectedSubscriptionOffer)
     }
 
     /**
-     * For automatically selecting an offer:
+     * For automatically selecting a SUBSCRIPTION offer:
      *   - Filters out offers with "-ignore-offer" tag
      *   - Uses offer with longest free trial or cheapest first phase
      *   - Falls back to use base plan
+     *
+     * Note: One-time purchase selection is handled directly in getSelectedOfferDetails()
      */
-    private fun automaticallySelectOffer(): SubscriptionOfferDetails? {
-        // Retrieve the subscription offer details from the product details
-        val subscriptionOfferDetails = underlyingProductDetails.subscriptionOfferDetails ?: return null
+    private fun automaticallySelectSubscriptionOffer(): SelectedOfferDetails.Subscription? {
+        val subscriptionOfferDetails =
+            underlyingProductDetails.subscriptionOfferDetails ?: return null
 
         // Get the offers that match the given base plan ID.
         val offersForBasePlan = subscriptionOfferDetails.filter { it.basePlanId == basePlanId }
@@ -333,7 +451,10 @@ class RawStoreProduct(
                 // Ignore those with a tag that contains "ignore-offer"
                 .filter { !it.offerTags.any { it.contains("-ignore-offer") } }
 
-        return findLongestFreeTrial(validOffers) ?: findLowestNonFreeOffer(validOffers)
+        return (findLongestFreeTrial(validOffers) ?: findLowestNonFreeOffer(validOffers))
+            ?.let {
+                SelectedOfferDetails.Subscription(it)
+            }
     }
 
     private fun findLongestFreeTrial(offers: List<SubscriptionOfferDetails>): SubscriptionOfferDetails? =
@@ -475,13 +596,15 @@ class RawStoreProduct(
     }
 
     override val currencyCode by lazy {
-        if (underlyingProductDetails.oneTimePurchaseOfferDetails != null) {
-            return@lazy underlyingProductDetails.oneTimePurchaseOfferDetails?.priceCurrencyCode
+        when (val offer = selectedOffer) {
+            is SelectedOfferDetails.Subscription -> {
+                offer.underlying.pricingPhases.pricingPhaseList
+                    .last()
+                    .priceCurrencyCode
+            }
+            is SelectedOfferDetails.OneTime -> offer.underlying.priceCurrencyCode
+            null -> null
         }
-        val selectedOffer = selectedOffer ?: return@lazy null
-        selectedOffer.pricingPhases.pricingPhaseList
-            .last()
-            .priceCurrencyCode
     }
 
     override val currencySymbol by lazy {
@@ -493,20 +616,20 @@ class RawStoreProduct(
     }
 
     override val subscriptionPeriod by lazy {
-        if (underlyingProductDetails.oneTimePurchaseOfferDetails != null) {
-            return@lazy null
-        }
-
-        val selectedOffer = selectedOffer ?: return@lazy null
-        val baseBillingPeriod =
-            selectedOffer.pricingPhases.pricingPhaseList
-                .last()
-                .billingPeriod
-
-        try {
-            SubscriptionPeriod.from(baseBillingPeriod)
-        } catch (e: Throwable) {
-            null
+        when (val offer = selectedOffer) {
+            is SelectedOfferDetails.Subscription -> {
+                val baseBillingPeriod =
+                    offer.underlying.pricingPhases.pricingPhaseList
+                        .last()
+                        .billingPeriod
+                try {
+                    SubscriptionPeriod.from(baseBillingPeriod)
+                } catch (e: Throwable) {
+                    null
+                }
+            }
+            is SelectedOfferDetails.OneTime -> null // One-time products don't have subscription periods
+            null -> null
         }
     }
 
@@ -534,7 +657,12 @@ class RawStoreProduct(
             return BigDecimal.ZERO
         } else {
             // The total cost that you'll pay
-            val trialPeriodPrice = BigDecimal(pricingPhase.priceAmountMicros).divide(BigDecimal(1_000_000), 6, RoundingMode.DOWN)
+            val trialPeriodPrice =
+                BigDecimal(pricingPhase.priceAmountMicros).divide(
+                    BigDecimal(1_000_000),
+                    6,
+                    RoundingMode.DOWN,
+                )
             val introCost = trialPeriodPrice.multiply(BigDecimal(pricingPhase.billingCycleCount))
 
             // The number of total units normalized to the unit you want.
@@ -577,29 +705,68 @@ class RawStoreProduct(
                     else -> BigDecimal.ZERO
                 }
             }
+
             SubscriptionPeriod.Unit.week -> {
                 when (trialSubscriptionPeriod?.unit) {
-                    SubscriptionPeriod.Unit.day -> BigDecimal(1).divide(BigDecimal(7), 6, RoundingMode.DOWN)
+                    SubscriptionPeriod.Unit.day ->
+                        BigDecimal(1).divide(
+                            BigDecimal(7),
+                            6,
+                            RoundingMode.DOWN,
+                        )
+
                     SubscriptionPeriod.Unit.week -> BigDecimal(1)
                     SubscriptionPeriod.Unit.month -> BigDecimal(4)
                     SubscriptionPeriod.Unit.year -> BigDecimal(52)
                     else -> BigDecimal.ZERO
                 }
             }
+
             SubscriptionPeriod.Unit.month -> {
                 when (trialSubscriptionPeriod?.unit) {
-                    SubscriptionPeriod.Unit.day -> BigDecimal(1).divide(BigDecimal(30), 6, RoundingMode.DOWN)
-                    SubscriptionPeriod.Unit.week -> BigDecimal(1).divide(BigDecimal(4), 6, RoundingMode.DOWN)
+                    SubscriptionPeriod.Unit.day ->
+                        BigDecimal(1).divide(
+                            BigDecimal(30),
+                            6,
+                            RoundingMode.DOWN,
+                        )
+
+                    SubscriptionPeriod.Unit.week ->
+                        BigDecimal(1).divide(
+                            BigDecimal(4),
+                            6,
+                            RoundingMode.DOWN,
+                        )
+
                     SubscriptionPeriod.Unit.month -> BigDecimal(1)
                     SubscriptionPeriod.Unit.year -> BigDecimal(12)
                     else -> BigDecimal.ZERO
                 }
             }
+
             SubscriptionPeriod.Unit.year -> {
                 when (trialSubscriptionPeriod?.unit) {
-                    SubscriptionPeriod.Unit.day -> BigDecimal(1).divide(BigDecimal(365), 6, RoundingMode.DOWN)
-                    SubscriptionPeriod.Unit.week -> BigDecimal(1).divide(BigDecimal(52), 6, RoundingMode.DOWN)
-                    SubscriptionPeriod.Unit.month -> BigDecimal(1).divide(BigDecimal(12), 6, RoundingMode.DOWN)
+                    SubscriptionPeriod.Unit.day ->
+                        BigDecimal(1).divide(
+                            BigDecimal(365),
+                            6,
+                            RoundingMode.DOWN,
+                        )
+
+                    SubscriptionPeriod.Unit.week ->
+                        BigDecimal(1).divide(
+                            BigDecimal(52),
+                            6,
+                            RoundingMode.DOWN,
+                        )
+
+                    SubscriptionPeriod.Unit.month ->
+                        BigDecimal(1).divide(
+                            BigDecimal(12),
+                            6,
+                            RoundingMode.DOWN,
+                        )
+
                     SubscriptionPeriod.Unit.year -> BigDecimal.ONE
                     else -> BigDecimal.ZERO
                 }
@@ -625,5 +792,17 @@ class RawStoreProduct(
 
     internal val isSubscription by lazy {
         underlyingProductDetails.subscriptionOfferDetails?.isNotEmpty() ?: false
+    }
+
+    sealed class SelectedOfferDetails {
+        data class Subscription(
+            val underlying: SubscriptionOfferDetails,
+        ) : SelectedOfferDetails()
+
+        data class OneTime(
+            val underlying: ProductDetails.OneTimePurchaseOfferDetails,
+            val purchaseOptionId: String?,
+            val offerId: String?,
+        ) : SelectedOfferDetails()
     }
 }

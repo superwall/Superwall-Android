@@ -2,6 +2,7 @@ package com.superwall.sdk.store
 
 import android.app.Activity
 import android.content.Context
+import android.util.Log
 import com.android.billingclient.api.AcknowledgePurchaseParams
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClientStateListener
@@ -176,20 +177,33 @@ class AutomaticPurchaseController(
                 offerType = offerId?.let { OfferType.Offer(id = it) },
             )
 
-        val offerToken = rawStoreProduct.selectedOffer?.offerToken
+        val offerToken =
+            when (val offer = rawStoreProduct.selectedOffer) {
+                is RawStoreProduct.SelectedOfferDetails.Subscription -> offer.underlying.offerToken
+                is RawStoreProduct.SelectedOfferDetails.OneTime -> offer.underlying.offerToken
+                null -> null
+            }
 
-        val isOneTime =
-            productDetails.productType == BillingClient.ProductType.INAPP && offerToken.isNullOrEmpty()
+        Log.e(
+            "RawStoreProduct",
+            "Purchase offer token: $offerToken (from ${rawStoreProduct.selectedOffer?.let { it::class.simpleName }})",
+        )
+
+        val isOneTime = productDetails.productType == BillingClient.ProductType.INAPP
+        val hasOfferToken = !offerToken.isNullOrEmpty()
 
         val productDetailsParams =
             BillingFlowParams.ProductDetailsParams
                 .newBuilder()
                 .setProductDetails(productDetails)
                 .also {
-                    // Do not set empty offer token for one time products
-                    // as Google play is not supporting it since June 12th 2024
-                    if (!isOneTime && offerToken != null) {
-                        it.setOfferToken(offerToken)
+                    // Set offer token if we have one (for both subscriptions and OTP with purchase options)
+                    // Don't set empty token as Google Play doesn't support it
+                    if (hasOfferToken) {
+                        Log.e("RawStoreProduct", "Setting offer token on BillingFlowParams: $offerToken")
+                        it.setOfferToken(offerToken!!)
+                    } else {
+                        Log.e("RawStoreProduct", "No offer token to set (isOneTime: $isOneTime)")
                     }
                 }.build()
 
@@ -216,7 +230,7 @@ class AutomaticPurchaseController(
                 )
                 null
             }
-
+        Log.e("RawStoreProduct", "Purchase: Choice is $fullId - ${productDetails.oneTimePurchaseOfferDetails}")
         val flowParams =
             BillingFlowParams
                 .newBuilder()
@@ -307,7 +321,11 @@ class AutomaticPurchaseController(
         val status: SubscriptionStatus =
             if (hasActivePurchaseOrSubscription) {
                 allPurchases
-                    .flatMap {
+                    .onEach {
+                        if (!it.isAutoRenewing) {
+                            Superwall.instance.consume(it.purchaseToken)
+                        }
+                    }.flatMap {
                         it.products
                     }.toSet()
                     .flatMap {
