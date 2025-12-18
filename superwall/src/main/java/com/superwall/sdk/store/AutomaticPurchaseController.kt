@@ -2,7 +2,6 @@ package com.superwall.sdk.store
 
 import android.app.Activity
 import android.content.Context
-import android.util.Log
 import com.android.billingclient.api.AcknowledgePurchaseParams
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClientStateListener
@@ -184,11 +183,6 @@ class AutomaticPurchaseController(
                 null -> null
             }
 
-        Log.e(
-            "RawStoreProduct",
-            "Purchase offer token: $offerToken (from ${rawStoreProduct.selectedOffer?.let { it::class.simpleName }})",
-        )
-
         val isOneTime = productDetails.productType == BillingClient.ProductType.INAPP
         val hasOfferToken = !offerToken.isNullOrEmpty()
 
@@ -200,10 +194,7 @@ class AutomaticPurchaseController(
                     // Set offer token if we have one (for both subscriptions and OTP with purchase options)
                     // Don't set empty token as Google Play doesn't support it
                     if (hasOfferToken) {
-                        Log.e("RawStoreProduct", "Setting offer token on BillingFlowParams: $offerToken")
                         it.setOfferToken(offerToken!!)
-                    } else {
-                        Log.e("RawStoreProduct", "No offer token to set (isOneTime: $isOneTime)")
                     }
                 }.build()
 
@@ -230,7 +221,6 @@ class AutomaticPurchaseController(
                 )
                 null
             }
-        Log.e("RawStoreProduct", "Purchase: Choice is $fullId - ${productDetails.oneTimePurchaseOfferDetails}")
         val flowParams =
             BillingFlowParams
                 .newBuilder()
@@ -321,11 +311,7 @@ class AutomaticPurchaseController(
         val status: SubscriptionStatus =
             if (hasActivePurchaseOrSubscription) {
                 allPurchases
-                    .onEach {
-                        if (!it.isAutoRenewing) {
-                            Superwall.instance.consume(it.purchaseToken)
-                        }
-                    }.flatMap {
+                    .flatMap {
                         it.products
                     }.toSet()
                     .flatMap {

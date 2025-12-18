@@ -1,6 +1,5 @@
 package com.superwall.sdk.store.abstractions.product
 
-import android.util.Log
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.ProductDetails.PricingPhase
 import com.android.billingclient.api.ProductDetails.SubscriptionOfferDetails
@@ -217,6 +216,11 @@ class RawStoreProduct(
     }
 
     override val dailyPrice by lazy {
+        // One-time purchases don't have period-based pricing (aligned with iOS)
+        if (selectedOffer is SelectedOfferDetails.OneTime) {
+            return@lazy "n/a"
+        }
+
         val basePrice = basePriceForSelectedOffer
 
         if (basePrice == BigDecimal.ZERO) {
@@ -230,6 +234,11 @@ class RawStoreProduct(
     }
 
     override val weeklyPrice by lazy {
+        // One-time purchases don't have period-based pricing (aligned with iOS)
+        if (selectedOffer is SelectedOfferDetails.OneTime) {
+            return@lazy "n/a"
+        }
+
         val basePrice = basePriceForSelectedOffer
 
         if (basePrice == BigDecimal.ZERO) {
@@ -241,6 +250,11 @@ class RawStoreProduct(
     }
 
     override val monthlyPrice by lazy {
+        // One-time purchases don't have period-based pricing (aligned with iOS)
+        if (selectedOffer is SelectedOfferDetails.OneTime) {
+            return@lazy "n/a"
+        }
+
         val basePrice = basePriceForSelectedOffer
 
         if (basePrice == BigDecimal.ZERO) {
@@ -255,6 +269,11 @@ class RawStoreProduct(
     }
 
     override val yearlyPrice by lazy {
+        // One-time purchases don't have period-based pricing (aligned with iOS)
+        if (selectedOffer is SelectedOfferDetails.OneTime) {
+            return@lazy "n/a"
+        }
+
         val basePrice = basePriceForSelectedOffer
 
         if (basePrice == BigDecimal.ZERO) {
@@ -315,13 +334,6 @@ class RawStoreProduct(
             val offerIdFromType = (offerType as? OfferType.Offer)?.id
             val hasSpecificOffer = offerIdFromType != null
 
-            Log.e(
-                "RawStoreProduct",
-                "Selecting OTP offer - purchaseOption: $basePlanId (specific: $hasSpecificPurchaseOption), " +
-                    "offerType: $offerType (specificOffer: $hasSpecificOffer), " +
-                    "available options: ${list.map { "(opt=${it.purchaseOptionId}, offer=${it.offerId}, price=${it.priceAmountMicros})" }}",
-            )
-
             val selected: ProductDetails.OneTimePurchaseOfferDetails? =
                 when {
                     // Case 1: Specific purchase option + specific offer
@@ -354,39 +366,21 @@ class RawStoreProduct(
                     // Case 4: Auto purchase option + auto offer
                     // → Prefer cheapest with both option+offer, fallback to cheapest overall
                     else -> {
-                        Log.e("RawStoreProduct", "Case 4: Auto option + auto offer")
                         // First try: options that have both purchaseOptionId AND offerId
                         val optionsWithBoth = list.filter { !it.purchaseOptionId.isNullOrEmpty() && !it.offerId.isNullOrEmpty() }
-                        Log.e(
-                            "RawStoreProduct",
-                            "  Options with both: ${optionsWithBoth.map {
-                                "(opt=${it.purchaseOptionId}, offer=${it.offerId}, price=${it.priceAmountMicros})"
-                            }}",
-                        )
-
                         val cheapestWithBoth = optionsWithBoth.minByOrNull { it.priceAmountMicros }
-
-                        val result = cheapestWithBoth ?: list.minByOrNull { it.priceAmountMicros }
-                        Log.e(
-                            "RawStoreProduct",
-                            "  Final selection: ${result?.let {
-                                "(opt=${it.purchaseOptionId}, offer=${it.offerId}, price=${it.priceAmountMicros})"
-                            }}",
-                        )
-                        result
+                        cheapestWithBoth ?: list.minByOrNull { it.priceAmountMicros }
                     }
                 }
 
             // Fallback to default if nothing found
             val finalSelected = selected ?: underlyingProductDetails.oneTimePurchaseOfferDetails
-            Log.e(
-                "RawStoreProduct",
-                "Final OTP selection: ${finalSelected?.let {
-                    "(opt=${it.purchaseOptionId}, offer=${it.offerId}, price=${it.priceAmountMicros})"
-                } ?: "null"}",
-            )
-
             return finalSelected?.let { SelectedOfferDetails.OneTime(it, it.purchaseOptionId, it.offerId) }
+        }
+
+        // Handle legacy one-time purchase products (without purchase options list)
+        underlyingProductDetails.oneTimePurchaseOfferDetails?.let {
+            return SelectedOfferDetails.OneTime(it, it.purchaseOptionId, it.offerId)
         }
 
         // Handle subscription products
