@@ -58,4 +58,6 @@ enum class SuperwallEvents(
     ReviewDenied("review_denied"),
     IntegrationAttributes("integration_attributes"),
     CustomerInfoDidChange("customerInfo_didChange"),
+    PaywallPreloadStart("paywallPreload_start"),
+    PaywallPreloadComplete("paywallPreload_complete"),
 }

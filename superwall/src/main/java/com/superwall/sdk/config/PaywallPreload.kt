@@ -1,6 +1,7 @@
 package com.superwall.sdk.config
 
 import android.content.Context
+import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.dependencies.RequestFactory
 import com.superwall.sdk.dependencies.RuleAttributesFactory
 import com.superwall.sdk.misc.IOScope
@@ -25,6 +26,7 @@ class PaywallPreload(
     val storage: LocalStorage,
     val assignments: Assignments,
     val paywallManager: PaywallManager,
+    private val track: suspend (InternalSuperwallEvent) -> Unit,
 ) {
     interface Factory :
         RequestFactory,
@@ -57,8 +59,9 @@ class PaywallPreload(
                         unconfirmedAssignments = assignments.unconfirmedAssignments,
                         expressionEvaluator = expressionEvaluator,
                     )
-                preloadPaywalls(paywallIdentifiers = paywallIds)
 
+                track(InternalSuperwallEvent.PaywallPreloadStart(paywallCount = paywallIds.size))
+                preloadPaywalls(paywallIdentifiers = paywallIds)
                 currentPreloadingTask = null
             }
     }
@@ -116,6 +119,7 @@ class PaywallPreload(
                 }
                 // Await all tasks
                 tasks.awaitAll()
+                track(InternalSuperwallEvent.PaywallPreloadComplete(paywallCount = paywallIdentifiers.size))
             }
         }
     }

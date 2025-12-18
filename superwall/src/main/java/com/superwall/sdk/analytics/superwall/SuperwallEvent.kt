@@ -521,6 +521,22 @@ sealed class SuperwallEvent {
             get() = SuperwallEvents.CustomerInfoDidChange.rawName
     }
 
+    // / When paywall preloading starts.
+    data class PaywallPreloadStart(
+        val paywallCount: Int,
+    ) : SuperwallEvent() {
+        override val rawName: String
+            get() = SuperwallEvents.PaywallPreloadStart.rawName
+    }
+
+    // / When paywall preloading completes.
+    data class PaywallPreloadComplete(
+        val paywallCount: Int,
+    ) : SuperwallEvent() {
+        override val rawName: String
+            get() = SuperwallEvents.PaywallPreloadComplete.rawName
+    }
+
     open val rawName: String
         get() = this.toString()
 
