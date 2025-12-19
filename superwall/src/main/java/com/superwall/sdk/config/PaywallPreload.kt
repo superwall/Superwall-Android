@@ -60,7 +60,6 @@ class PaywallPreload(
                         expressionEvaluator = expressionEvaluator,
                     )
 
-                track(InternalSuperwallEvent.PaywallPreloadStart(paywallCount = paywallIds.size))
                 preloadPaywalls(paywallIdentifiers = paywallIds)
                 currentPreloadingTask = null
             }
@@ -82,6 +81,14 @@ class PaywallPreload(
 
     // Preloads paywalls referenced by triggers.
     private suspend fun preloadPaywalls(paywallIdentifiers: Set<String>) {
+        val paywallCount = paywallIdentifiers.size
+        track(
+            InternalSuperwallEvent.PaywallPreload(
+                state = InternalSuperwallEvent.PaywallPreload.State.Start,
+                paywallCount = paywallCount,
+            ),
+        )
+
         val webviewExists = webViewExists()
         if (webviewExists) {
             scope.launchWithTracking {
@@ -119,7 +126,12 @@ class PaywallPreload(
                 }
                 // Await all tasks
                 tasks.awaitAll()
-                track(InternalSuperwallEvent.PaywallPreloadComplete(paywallCount = paywallIdentifiers.size))
+                track(
+                    InternalSuperwallEvent.PaywallPreload(
+                        state = InternalSuperwallEvent.PaywallPreload.State.Complete,
+                        paywallCount = paywallCount,
+                    ),
+                )
             }
         }
     }

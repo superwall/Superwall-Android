@@ -1175,19 +1175,25 @@ sealed class InternalSuperwallEvent(
         }
     }
 
-    data class PaywallPreloadStart(
+    data class PaywallPreload(
+        val state: State,
         val paywallCount: Int,
-    ) : InternalSuperwallEvent(SuperwallEvent.PaywallPreloadStart(paywallCount)) {
+    ) : InternalSuperwallEvent(
+            when (state) {
+                State.Start -> SuperwallEvent.PaywallPreloadStart(paywallCount)
+                State.Complete -> SuperwallEvent.PaywallPreloadComplete(paywallCount)
+            },
+        ) {
+        enum class State {
+            Start,
+            Complete,
+        }
+
         override val audienceFilterParams: Map<String, Any> = emptyMap()
 
-        override suspend fun getSuperwallParameters(): Map<String, Any> = mapOf("paywall_count" to paywallCount)
-    }
-
-    data class PaywallPreloadComplete(
-        val paywallCount: Int,
-    ) : InternalSuperwallEvent(SuperwallEvent.PaywallPreloadComplete(paywallCount)) {
-        override val audienceFilterParams: Map<String, Any> = emptyMap()
-
-        override suspend fun getSuperwallParameters(): Map<String, Any> = mapOf("paywall_count" to paywallCount)
+        override suspend fun getSuperwallParameters(): Map<String, Any> =
+            mapOf(
+                "paywall_count" to paywallCount,
+            )
     }
 }
