@@ -1175,6 +1175,51 @@ sealed class InternalSuperwallEvent(
         }
     }
 
+    data class PermissionRequested(
+        val permissionName: String,
+        val paywallIdentifier: String,
+    ) : InternalSuperwallEvent(
+            SuperwallEvent.PermissionRequested(permissionName, paywallIdentifier),
+        ) {
+        override val audienceFilterParams: Map<String, Any> = emptyMap()
+
+        override suspend fun getSuperwallParameters(): Map<String, Any> =
+            mapOf(
+                "permission_name" to permissionName,
+                "paywall_identifier" to paywallIdentifier,
+            )
+    }
+
+    data class PermissionGranted(
+        val permissionName: String,
+        val paywallIdentifier: String,
+    ) : InternalSuperwallEvent(
+            SuperwallEvent.PermissionGranted(permissionName, paywallIdentifier),
+        ) {
+        override val audienceFilterParams: Map<String, Any> = emptyMap()
+
+        override suspend fun getSuperwallParameters(): Map<String, Any> =
+            mapOf(
+                "permission_name" to permissionName,
+                "paywall_identifier" to paywallIdentifier,
+            )
+    }
+
+    data class PermissionDenied(
+        val permissionName: String,
+        val paywallIdentifier: String,
+    ) : InternalSuperwallEvent(
+            SuperwallEvent.PermissionDenied(permissionName, paywallIdentifier),
+        ) {
+        override val audienceFilterParams: Map<String, Any> = emptyMap()
+
+        override suspend fun getSuperwallParameters(): Map<String, Any> =
+            mapOf(
+                "permission_name" to permissionName,
+                "paywall_identifier" to paywallIdentifier,
+            )
+    }
+
     data class PaywallPreload(
         val state: State,
         val paywallCount: Int,

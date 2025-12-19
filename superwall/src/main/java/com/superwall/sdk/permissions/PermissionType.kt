@@ -11,6 +11,12 @@ enum class PermissionType(
     val rawValue: String,
 ) {
     NOTIFICATION("notification"),
+    LOCATION("location"),
+    BACKGROUND_LOCATION("background_location"),
+    READ_IMAGES("read_images"),
+    CONTACTS("contacts"),
+    READ_VIDEO("read_video"),
+    CAMERA("camera"),
     ;
 
     /**
@@ -25,6 +31,27 @@ enum class PermissionType(
                 } else {
                     null // Notifications don't require runtime permission before API 33
                 }
+            LOCATION -> Manifest.permission.ACCESS_FINE_LOCATION
+            BACKGROUND_LOCATION ->
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    Manifest.permission.ACCESS_BACKGROUND_LOCATION
+                } else {
+                    null // Background location not available before API 29
+                }
+            READ_IMAGES ->
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    Manifest.permission.READ_MEDIA_IMAGES
+                } else {
+                    Manifest.permission.READ_EXTERNAL_STORAGE
+                }
+            CONTACTS -> Manifest.permission.READ_CONTACTS
+            READ_VIDEO ->
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    Manifest.permission.READ_MEDIA_VIDEO
+                } else {
+                    Manifest.permission.READ_EXTERNAL_STORAGE
+                }
+            CAMERA -> Manifest.permission.CAMERA
         }
 
     companion object {

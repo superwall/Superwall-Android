@@ -22,6 +22,13 @@ internal class UserPermissionsImpl(
     override fun hasPermission(permission: PermissionType): PermissionStatus =
         when (permission) {
             PermissionType.NOTIFICATION -> checkNotificationPermission()
+            PermissionType.LOCATION,
+            PermissionType.READ_IMAGES,
+            PermissionType.CONTACTS,
+            PermissionType.READ_VIDEO,
+            PermissionType.CAMERA,
+            -> checkRuntimePermission(permission)
+            PermissionType.BACKGROUND_LOCATION -> checkBackgroundLocationPermission()
         }
 
     private fun checkNotificationPermission(): PermissionStatus {
@@ -44,12 +51,59 @@ internal class UserPermissionsImpl(
         }
     }
 
+    private fun checkRuntimePermission(permission: PermissionType): PermissionStatus {
+        val manifestPermission =
+            permission.toManifestPermission()
+                ?: return PermissionStatus.UNSUPPORTED
+
+        val granted =
+            ContextCompat.checkSelfPermission(
+                context,
+                manifestPermission,
+            ) == PackageManager.PERMISSION_GRANTED
+        return if (granted) PermissionStatus.GRANTED else PermissionStatus.DENIED
+    }
+
+    private fun checkBackgroundLocationPermission(): PermissionStatus {
+        // Background location requires API 29+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            return PermissionStatus.UNSUPPORTED
+        }
+
+        // First check if foreground location is granted
+        val foregroundGranted =
+            ContextCompat.checkSelfPermission(
+                context,
+                android.Manifest.permission.ACCESS_FINE_LOCATION,
+            ) == PackageManager.PERMISSION_GRANTED
+
+        if (!foregroundGranted) {
+            return PermissionStatus.DENIED
+        }
+
+        // Then check background location
+        val backgroundGranted =
+            ContextCompat.checkSelfPermission(
+                context,
+                android.Manifest.permission.ACCESS_BACKGROUND_LOCATION,
+            ) == PackageManager.PERMISSION_GRANTED
+
+        return if (backgroundGranted) PermissionStatus.GRANTED else PermissionStatus.DENIED
+    }
+
     override suspend fun requestPermission(
         activity: Activity,
         permission: PermissionType,
     ): PermissionStatus =
         when (permission) {
             PermissionType.NOTIFICATION -> requestNotificationPermission(activity)
+            PermissionType.BACKGROUND_LOCATION -> requestBackgroundLocationPermission(activity)
+            PermissionType.LOCATION,
+            PermissionType.READ_IMAGES,
+            PermissionType.CONTACTS,
+            PermissionType.READ_VIDEO,
+            PermissionType.CAMERA,
+            -> requestStandardPermission(activity, permission)
         }
 
     private suspend fun requestNotificationPermission(activity: Activity): PermissionStatus {
@@ -69,6 +123,53 @@ internal class UserPermissionsImpl(
         // On API 33+, request the POST_NOTIFICATIONS permission
         val manifestPermission =
             PermissionType.NOTIFICATION.toManifestPermission()
+                ?: return PermissionStatus.UNSUPPORTED
+
+        return requestRuntimePermission(activity, manifestPermission)
+    }
+
+    private suspend fun requestStandardPermission(
+        activity: Activity,
+        permission: PermissionType,
+    ): PermissionStatus {
+        // Check current status first
+        val currentStatus = hasPermission(permission)
+        if (currentStatus == PermissionStatus.GRANTED) {
+            return PermissionStatus.GRANTED
+        }
+
+        val manifestPermission =
+            permission.toManifestPermission()
+                ?: return PermissionStatus.UNSUPPORTED
+
+        return requestRuntimePermission(activity, manifestPermission)
+    }
+
+    private suspend fun requestBackgroundLocationPermission(activity: Activity): PermissionStatus {
+        // Background location requires API 29+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            return PermissionStatus.UNSUPPORTED
+        }
+
+        // Check if already granted
+        val currentStatus = hasPermission(PermissionType.BACKGROUND_LOCATION)
+        if (currentStatus == PermissionStatus.GRANTED) {
+            return PermissionStatus.GRANTED
+        }
+
+        // First ensure foreground location is granted
+        val foregroundStatus = hasPermission(PermissionType.LOCATION)
+        if (foregroundStatus != PermissionStatus.GRANTED) {
+            // Request foreground location first
+            val foregroundResult = requestStandardPermission(activity, PermissionType.LOCATION)
+            if (foregroundResult != PermissionStatus.GRANTED) {
+                return PermissionStatus.DENIED
+            }
+        }
+
+        // Now request background location
+        val manifestPermission =
+            PermissionType.BACKGROUND_LOCATION.toManifestPermission()
                 ?: return PermissionStatus.UNSUPPORTED
 
         return requestRuntimePermission(activity, manifestPermission)

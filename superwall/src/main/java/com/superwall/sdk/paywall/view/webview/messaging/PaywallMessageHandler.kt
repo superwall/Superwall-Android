@@ -496,6 +496,8 @@ class PaywallMessageHandler(
 
     private fun handleRequestPermission(request: PaywallMessage.RequestPermission) {
         val activity = getActivity()
+        val paywallIdentifier = messageHandler?.state?.paywall?.identifier ?: ""
+        val permissionName = request.permissionType.rawValue
 
         messageHandler?.eventDidOccur(
             PaywallWebEvent.RequestPermission(
@@ -503,6 +505,16 @@ class PaywallMessageHandler(
                 requestId = request.requestId,
             ),
         )
+
+        // Track permission requested event
+        ioScope.launch {
+            track(
+                InternalSuperwallEvent.PermissionRequested(
+                    permissionName = permissionName,
+                    paywallIdentifier = paywallIdentifier,
+                ),
+            )
+        }
 
         if (activity == null) {
             Logger.debug(
@@ -534,6 +546,26 @@ class PaywallMessageHandler(
                     )
                     PermissionStatus.UNSUPPORTED
                 }
+
+            // Track permission result event
+            when (status) {
+                PermissionStatus.GRANTED -> {
+                    track(
+                        InternalSuperwallEvent.PermissionGranted(
+                            permissionName = permissionName,
+                            paywallIdentifier = paywallIdentifier,
+                        ),
+                    )
+                }
+                PermissionStatus.DENIED, PermissionStatus.UNSUPPORTED -> {
+                    track(
+                        InternalSuperwallEvent.PermissionDenied(
+                            permissionName = permissionName,
+                            paywallIdentifier = paywallIdentifier,
+                        ),
+                    )
+                }
+            }
 
             sendPermissionResult(
                 requestId = request.requestId,
