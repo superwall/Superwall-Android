@@ -520,8 +520,9 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         val content = contentView as ViewGroup
         val bottomSheetBehavior = BottomSheetBehavior.from(content.getChildAt(0))
         if (!isModal) {
-            bottomSheetBehavior.halfExpandedRatio =
-                (if (height > 1.0) height / 100 else height).toFloat()
+            // halfExpandedRatio must be strictly between 0 and 1 (exclusive)
+            val normalizedHeight = (if (height > 1.0) height / 100 else height).toFloat()
+            bottomSheetBehavior.halfExpandedRatio = normalizedHeight.coerceIn(0.01f, 0.99f)
         } else {
             // If it's a Modal, we want it to cover only 95% of the screen when expanded
             content.updateLayoutParams {
