@@ -381,6 +381,9 @@ class DependencyContainer(
                 assignments = assignments,
                 paywallManager = paywallManager,
                 scope = ioScope,
+                track = {
+                    Superwall.instance.track(it)
+                },
             )
 
         configManager =

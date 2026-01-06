@@ -850,6 +850,56 @@ class InternalSuperwallEventTest {
             }
         }
 
+    @Test
+    fun paywallPreload_startReportsPaywallCount() =
+        runTest {
+            Given("a paywall preload start event") {
+                val paywallCount = 5
+                val event =
+                    InternalSuperwallEvent.PaywallPreload(
+                        state = InternalSuperwallEvent.PaywallPreload.State.Start,
+                        paywallCount = paywallCount,
+                    )
+
+                When("parameters are requested") {
+                    val params = event.getSuperwallParameters()
+
+                    Then("paywall count is included") {
+                        assertEquals(paywallCount, params["paywall_count"])
+                    }
+
+                    And("the superwall placement is paywallPreload_start") {
+                        assertEquals("paywallPreload_start", event.superwallPlacement.rawName)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun paywallPreload_completeReportsPaywallCount() =
+        runTest {
+            Given("a paywall preload complete event") {
+                val paywallCount = 3
+                val event =
+                    InternalSuperwallEvent.PaywallPreload(
+                        state = InternalSuperwallEvent.PaywallPreload.State.Complete,
+                        paywallCount = paywallCount,
+                    )
+
+                When("parameters are requested") {
+                    val params = event.getSuperwallParameters()
+
+                    Then("paywall count is included") {
+                        assertEquals(paywallCount, params["paywall_count"])
+                    }
+
+                    And("the superwall placement is paywallPreload_complete") {
+                        assertEquals("paywallPreload_complete", event.superwallPlacement.rawName)
+                    }
+                }
+            }
+        }
+
     private fun stubPaywallInfo(): PaywallInfo =
         PaywallInfo.empty().copy(
             databaseId = "db_1",

@@ -59,6 +59,7 @@ class PaywallPreloadTest {
                         storage = storage,
                         assignments = assignments,
                         paywallManager = paywallManager,
+                        track = {},
                     )
 
                 val config = Config.stub()
@@ -121,6 +122,7 @@ class PaywallPreloadTest {
                         storage = storage,
                         assignments = assignments,
                         paywallManager = paywallManager,
+                        track = {},
                     )
 
                 When("removeUnusedPaywallVCsFromCache runs") {
