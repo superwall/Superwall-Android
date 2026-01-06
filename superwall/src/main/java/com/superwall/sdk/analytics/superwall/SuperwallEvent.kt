@@ -521,6 +521,33 @@ sealed class SuperwallEvent {
             get() = SuperwallEvents.CustomerInfoDidChange.rawName
     }
 
+    // / When a permission is requested from a paywall.
+    data class PermissionRequested(
+        val permissionName: String,
+        val paywallIdentifier: String,
+    ) : SuperwallEvent() {
+        override val rawName: String
+            get() = SuperwallEvents.PermissionRequested.rawName
+    }
+
+    // / When a permission is granted after being requested from a paywall.
+    data class PermissionGranted(
+        val permissionName: String,
+        val paywallIdentifier: String,
+    ) : SuperwallEvent() {
+        override val rawName: String
+            get() = SuperwallEvents.PermissionGranted.rawName
+    }
+
+    // / When a permission is denied after being requested from a paywall.
+    data class PermissionDenied(
+        val permissionName: String,
+        val paywallIdentifier: String,
+    ) : SuperwallEvent() {
+        override val rawName: String
+            get() = SuperwallEvents.PermissionDenied.rawName
+    }
+
     // / When paywall preloading starts.
     data class PaywallPreloadStart(
         val paywallCount: Int,

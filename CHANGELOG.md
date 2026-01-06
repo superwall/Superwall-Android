@@ -6,7 +6,8 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ### Fixes
 - Fix handling of deep links when paywall is detached
-C
+- Enables permission granting from paywall and callbacks
+
 ## 2.6.6
 
 ## Enhancements
