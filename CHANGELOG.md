@@ -2,6 +2,11 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.6.7
+
+### Fixes
+- Fix handling of deep links when paywall is detached
+C
 ## 2.6.6
 
 ## Enhancements
