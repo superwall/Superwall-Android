@@ -1,6 +1,7 @@
 package com.superwall.sdk.paywall.view
 
 import android.app.Activity
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
@@ -991,11 +992,24 @@ class PaywallView(
     }
 
     override fun openDeepLink(url: String) {
-        var uri = url.toUri()
+        val uri = url.toUri()
         eventDidOccur(PaywallWebEvent.OpenedDeepLink(uri))
-        val context = encapsulatingActivity?.get()
-        val deepLinkIntent = Intent(Intent.ACTION_VIEW, uri)
-        context?.startActivity(deepLinkIntent)
+        val activityContext = encapsulatingActivity?.get()
+        val deepLinkIntent =
+            Intent(Intent.ACTION_VIEW, uri).apply {
+                if (activityContext == null) {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+            }
+        try {
+            (activityContext ?: context).startActivity(deepLinkIntent)
+        } catch (e: ActivityNotFoundException) {
+            Logger.debug(
+                logLevel = LogLevel.warn,
+                scope = LogScope.paywallView,
+                message = "No activity found to handle deep link: $url",
+            )
+        }
     }
 
     //region GameController
