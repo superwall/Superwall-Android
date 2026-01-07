@@ -82,6 +82,7 @@ class PaywallPreload(
     // Preloads paywalls referenced by triggers.
     private suspend fun preloadPaywalls(paywallIdentifiers: Set<String>) {
         val paywallCount = paywallIdentifiers.size
+        val startTime = System.currentTimeMillis()
         track(
             InternalSuperwallEvent.PaywallPreload(
                 state = InternalSuperwallEvent.PaywallPreload.State.Start,
@@ -126,10 +127,12 @@ class PaywallPreload(
                 }
                 // Await all tasks
                 tasks.awaitAll()
+                val duration = System.currentTimeMillis() - startTime
                 track(
                     InternalSuperwallEvent.PaywallPreload(
                         state = InternalSuperwallEvent.PaywallPreload.State.Complete,
                         paywallCount = paywallCount,
+                        duration = duration,
                     ),
                 )
             }

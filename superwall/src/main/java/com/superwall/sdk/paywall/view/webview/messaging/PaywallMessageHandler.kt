@@ -509,7 +509,8 @@ class PaywallMessageHandler(
         // Track permission requested event
         ioScope.launch {
             track(
-                InternalSuperwallEvent.PermissionRequested(
+                InternalSuperwallEvent.Permission(
+                    state = InternalSuperwallEvent.Permission.State.Requested,
                     permissionName = permissionName,
                     paywallIdentifier = paywallIdentifier,
                 ),
@@ -551,7 +552,8 @@ class PaywallMessageHandler(
             when (status) {
                 PermissionStatus.GRANTED -> {
                     track(
-                        InternalSuperwallEvent.PermissionGranted(
+                        InternalSuperwallEvent.Permission(
+                            state = InternalSuperwallEvent.Permission.State.Granted,
                             permissionName = permissionName,
                             paywallIdentifier = paywallIdentifier,
                         ),
@@ -559,7 +561,8 @@ class PaywallMessageHandler(
                 }
                 PermissionStatus.DENIED, PermissionStatus.UNSUPPORTED -> {
                     track(
-                        InternalSuperwallEvent.PermissionDenied(
+                        InternalSuperwallEvent.Permission(
+                            state = InternalSuperwallEvent.Permission.State.Denied,
                             permissionName = permissionName,
                             paywallIdentifier = paywallIdentifier,
                         ),

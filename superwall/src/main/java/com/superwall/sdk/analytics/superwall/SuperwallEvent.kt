@@ -559,6 +559,7 @@ sealed class SuperwallEvent {
     // / When paywall preloading completes.
     data class PaywallPreloadComplete(
         val paywallCount: Int,
+        val duration: Long,
     ) : SuperwallEvent() {
         override val rawName: String
             get() = SuperwallEvents.PaywallPreloadComplete.rawName

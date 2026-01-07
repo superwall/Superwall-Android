@@ -876,14 +876,16 @@ class InternalSuperwallEventTest {
         }
 
     @Test
-    fun paywallPreload_completeReportsPaywallCount() =
+    fun paywallPreload_completeReportsPaywallCountAndDuration() =
         runTest {
             Given("a paywall preload complete event") {
                 val paywallCount = 3
+                val duration = 1500L
                 val event =
                     InternalSuperwallEvent.PaywallPreload(
                         state = InternalSuperwallEvent.PaywallPreload.State.Complete,
                         paywallCount = paywallCount,
+                        duration = duration,
                     )
 
                 When("parameters are requested") {
@@ -891,6 +893,10 @@ class InternalSuperwallEventTest {
 
                     Then("paywall count is included") {
                         assertEquals(paywallCount, params["paywall_count"])
+                    }
+
+                    And("duration is included") {
+                        assertEquals(duration, params["duration"])
                     }
 
                     And("the superwall placement is paywallPreload_complete") {
