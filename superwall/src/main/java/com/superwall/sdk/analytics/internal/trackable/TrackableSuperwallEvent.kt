@@ -1220,7 +1220,6 @@ sealed class InternalSuperwallEvent(
     data class PaywallPreload(
         val state: State,
         val paywallCount: Int,
-        val duration: Long? = null,
     ) : InternalSuperwallEvent(
             SuperwallEvent.PaywallPreloadStart(paywallCount),
         ) {
@@ -1233,17 +1232,14 @@ sealed class InternalSuperwallEvent(
             get() =
                 when (state) {
                     State.Start -> SuperwallEvent.PaywallPreloadStart(paywallCount)
-                    State.Complete -> SuperwallEvent.PaywallPreloadComplete(paywallCount, duration ?: 0)
+                    State.Complete -> SuperwallEvent.PaywallPreloadComplete(paywallCount)
                 }
 
         override val audienceFilterParams: Map<String, Any> = emptyMap()
 
         override suspend fun getSuperwallParameters(): Map<String, Any> =
-            buildMap {
-                put("paywall_count", paywallCount)
-                if (state == State.Complete && duration != null) {
-                    put("duration", duration)
-                }
-            }
+            mapOf(
+                "paywall_count" to paywallCount,
+            )
     }
 }
