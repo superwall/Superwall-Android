@@ -1,6 +1,7 @@
 package com.superwall.sdk.paywall.view.webview.messaging
 
 import TemplateLogic
+import android.app.Activity
 import android.webkit.JavascriptInterface
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
@@ -17,6 +18,8 @@ import com.superwall.sdk.paywall.view.PaywallView
 import com.superwall.sdk.paywall.view.PaywallViewState
 import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 import com.superwall.sdk.paywall.view.webview.SendPaywallMessages
+import com.superwall.sdk.permissions.PermissionStatus
+import com.superwall.sdk.permissions.UserPermissions
 import com.superwall.sdk.storage.core_data.convertToJsonElement
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -63,6 +66,8 @@ class PaywallMessageHandler(
     private val ioScope: CoroutineScope,
     private val json: Json = Json { encodeDefaults = true },
     private val encodeToB64: (String) -> String,
+    private val userPermissions: UserPermissions,
+    private val getActivity: () -> Activity?,
 ) : SendPaywallMessages {
     private companion object {
         val selectionString =
@@ -225,6 +230,8 @@ class PaywallMessageHandler(
                         ),
                     ),
                 )
+
+            is PaywallMessage.RequestPermission -> handleRequestPermission(message)
 
             else -> {
                 Logger.debug(
@@ -485,6 +492,130 @@ class PaywallMessageHandler(
                 },
             ),
         )
+    }
+
+    private fun handleRequestPermission(request: PaywallMessage.RequestPermission) {
+        val activity = getActivity()
+        val paywallIdentifier = messageHandler?.state?.paywall?.identifier ?: ""
+        val permissionName = request.permissionType.rawValue
+
+        messageHandler?.eventDidOccur(
+            PaywallWebEvent.RequestPermission(
+                permissionType = request.permissionType,
+                requestId = request.requestId,
+            ),
+        )
+
+        // Track permission requested event
+        ioScope.launch {
+            track(
+                InternalSuperwallEvent.Permission(
+                    state = InternalSuperwallEvent.Permission.State.Requested,
+                    permissionName = permissionName,
+                    paywallIdentifier = paywallIdentifier,
+                ),
+            )
+        }
+
+        if (activity == null) {
+            Logger.debug(
+                LogLevel.error,
+                LogScope.superwallCore,
+                "Cannot request permission - no activity available",
+            )
+            // Send unsupported status back to webview since we can't request
+            ioScope.launch {
+                sendPermissionResult(
+                    requestId = request.requestId,
+                    permissionType = request.permissionType,
+                    status = PermissionStatus.UNSUPPORTED,
+                )
+            }
+            return
+        }
+
+        ioScope.launch {
+            val status =
+                try {
+                    userPermissions.requestPermission(activity, request.permissionType)
+                } catch (e: Exception) {
+                    Logger.debug(
+                        LogLevel.error,
+                        LogScope.superwallCore,
+                        "Error requesting permission: ${e.message}",
+                        error = e,
+                    )
+                    PermissionStatus.UNSUPPORTED
+                }
+
+            // Track permission result event
+            when (status) {
+                PermissionStatus.GRANTED -> {
+                    track(
+                        InternalSuperwallEvent.Permission(
+                            state = InternalSuperwallEvent.Permission.State.Granted,
+                            permissionName = permissionName,
+                            paywallIdentifier = paywallIdentifier,
+                        ),
+                    )
+                }
+                PermissionStatus.DENIED, PermissionStatus.UNSUPPORTED -> {
+                    track(
+                        InternalSuperwallEvent.Permission(
+                            state = InternalSuperwallEvent.Permission.State.Denied,
+                            permissionName = permissionName,
+                            paywallIdentifier = paywallIdentifier,
+                        ),
+                    )
+                }
+            }
+
+            sendPermissionResult(
+                requestId = request.requestId,
+                permissionType = request.permissionType,
+                status = status,
+            )
+        }
+    }
+
+    /**
+     * Send a permission_result message back to the webview
+     */
+    private suspend fun sendPermissionResult(
+        requestId: String,
+        permissionType: com.superwall.sdk.permissions.PermissionType,
+        status: PermissionStatus,
+    ) {
+        val eventList =
+            listOf(
+                mapOf(
+                    "event_name" to "permission_result",
+                    "permission_type" to permissionType.rawValue,
+                    "request_id" to requestId,
+                    "status" to status.rawValue,
+                ),
+            )
+
+        val jsonString =
+            try {
+                json.encodeToString(eventList.convertToJsonElement())
+            } catch (e: Throwable) {
+                Logger.debug(
+                    LogLevel.error,
+                    LogScope.superwallCore,
+                    "Error encoding permission result: ${e.message}",
+                    error = e,
+                )
+                return
+            }
+
+        Logger.debug(
+            LogLevel.debug,
+            LogScope.superwallCore,
+            "Sending permission_result: $jsonString",
+        )
+
+        passMessageToWebView(base64String = encodeToB64(jsonString))
     }
 
     private fun detectHiddenPaywallEvent(
