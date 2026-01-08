@@ -7,7 +7,6 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 ### Enhancements
 - Adds permission granting and callbacks to/from paywalls
 - Adds `PaywallPreloadStart` and `PaywallPreloadComplete` events
-- Updates [Superscript](https://github.com/superwall/superscript/releases/tag/1.0.12) to 1.0.12
 
 ### Fixes
 - Fix handling of deep links when paywall is detached
