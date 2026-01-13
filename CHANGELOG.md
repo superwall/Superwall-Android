@@ -2,6 +2,14 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.6.8
+
+### Enhancements
+- Adds microphone permission
+
+### Fixes
+- Fixes error when redeeming external purchases
+
 ## 2.6.7
 
 ### Enhancements
