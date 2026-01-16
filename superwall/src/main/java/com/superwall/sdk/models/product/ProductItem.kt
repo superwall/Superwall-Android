@@ -89,6 +89,9 @@ data class PlayStoreProduct(
     val fullIdentifier: String
         get() =
             when {
+                // Note:
+                // While IAP/OTP can have offers, they cannot have offers without also having purchase option
+                // So this logic is left to detect old IAP's
                 basePlanIdentifier.isEmpty() -> productIdentifier
                 offer is Offer.Automatic -> "$productIdentifier:$basePlanIdentifier:sw-auto"
                 offer is Offer.Specified -> "$productIdentifier:$basePlanIdentifier:${offer.offerIdentifier}"

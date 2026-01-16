@@ -176,20 +176,25 @@ class AutomaticPurchaseController(
                 offerType = offerId?.let { OfferType.Offer(id = it) },
             )
 
-        val offerToken = rawStoreProduct.selectedOffer?.offerToken
+        val offerToken =
+            when (val offer = rawStoreProduct.selectedOffer) {
+                is RawStoreProduct.SelectedOfferDetails.Subscription -> offer.underlying.offerToken
+                is RawStoreProduct.SelectedOfferDetails.OneTime -> offer.underlying.offerToken
+                null -> null
+            }
 
-        val isOneTime =
-            productDetails.productType == BillingClient.ProductType.INAPP && offerToken.isNullOrEmpty()
+        val isOneTime = productDetails.productType == BillingClient.ProductType.INAPP
+        val hasOfferToken = !offerToken.isNullOrEmpty()
 
         val productDetailsParams =
             BillingFlowParams.ProductDetailsParams
                 .newBuilder()
                 .setProductDetails(productDetails)
                 .also {
-                    // Do not set empty offer token for one time products
-                    // as Google play is not supporting it since June 12th 2024
-                    if (!isOneTime && offerToken != null) {
-                        it.setOfferToken(offerToken)
+                    // Set offer token if we have one (for both subscriptions and OTP with purchase options)
+                    // Don't set empty token as Google Play doesn't support it
+                    if (hasOfferToken) {
+                        it.setOfferToken(offerToken!!)
                     }
                 }.build()
 
@@ -216,7 +221,6 @@ class AutomaticPurchaseController(
                 )
                 null
             }
-
         val flowParams =
             BillingFlowParams
                 .newBuilder()

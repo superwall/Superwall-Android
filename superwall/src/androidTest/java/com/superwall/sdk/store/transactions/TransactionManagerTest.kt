@@ -66,7 +66,10 @@ class TransactionManagerTest {
                 mockk {
                     every { priceAmountMicros } returns 1000000
                     every { priceCurrencyCode } returns "USD"
+                    every { purchaseOptionId } returns null
+                    every { offerId } returns null
                 }
+            every { oneTimePurchaseOfferDetailsList } returns null
         }
 
     val entitlements = setOf("test-entitlement").map { Entitlement(it) }.toSet()
