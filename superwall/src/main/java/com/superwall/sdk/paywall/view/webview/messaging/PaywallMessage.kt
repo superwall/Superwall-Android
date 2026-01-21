@@ -4,6 +4,7 @@ import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.models.paywall.LocalNotificationType
+import com.superwall.sdk.paywall.presentation.CustomCallbackBehavior
 import com.superwall.sdk.permissions.PermissionType
 import com.superwall.sdk.storage.core_data.convertFromJsonElement
 import kotlinx.serialization.json.Json
@@ -114,6 +115,13 @@ sealed class PaywallMessage {
         val permissionType: PermissionType,
         val requestId: String,
     ) : PaywallMessage()
+
+    data class RequestCallback(
+        val requestId: String,
+        val name: String,
+        val behavior: CustomCallbackBehavior,
+        val variables: Map<String, Any>?,
+    ) : PaywallMessage()
 }
 
 fun parseWrappedPaywallMessages(jsonString: String): Result<WrappedPaywallMessages> =
@@ -217,6 +225,31 @@ private fun parsePaywallMessage(json: JsonObject): PaywallMessage {
             PaywallMessage.RequestPermission(
                 permissionType = permissionType,
                 requestId = requestId,
+            )
+        }
+
+        "request_callback" -> {
+            val requestId =
+                json["request_id"]?.jsonPrimitive?.contentOrNull
+                    ?: throw IllegalArgumentException("request_callback missing request_id")
+            val name =
+                json["name"]?.jsonPrimitive?.contentOrNull
+                    ?: throw IllegalArgumentException("request_callback missing name")
+            val behaviorRaw =
+                json["behavior"]?.jsonPrimitive?.contentOrNull
+                    ?: throw IllegalArgumentException("request_callback missing behavior")
+            val behavior =
+                CustomCallbackBehavior.fromRaw(behaviorRaw)
+                    ?: throw IllegalArgumentException("Unknown behavior: $behaviorRaw")
+            val variables =
+                json["variables"]?.jsonObject?.let { variablesJson ->
+                    variablesJson.convertFromJsonElement() as? Map<String, Any>
+                }
+            PaywallMessage.RequestCallback(
+                requestId = requestId,
+                name = name,
+                behavior = behavior,
+                variables = variables,
             )
         }
 

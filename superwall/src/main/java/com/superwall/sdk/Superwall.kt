@@ -1417,6 +1417,14 @@ class Superwall(
                         message = "Permission requested: ${paywallEvent.permissionType.rawValue}",
                     )
                 }
+
+                is PaywallWebEvent.RequestCallback -> {
+                    Logger.debug(
+                        LogLevel.debug,
+                        LogScope.paywallView,
+                        message = "Custom callback requested: ${paywallEvent.name}",
+                    )
+                }
             }
         }
     }
