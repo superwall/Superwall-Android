@@ -2,6 +2,12 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+
+## 2.6.9
+
+## Deprecations
+- Deprecated `paywallWebviewLoad_timeout` - this event was causing confusion due to it's naming, leading to it being deprecated
+
 ## 2.6.8
 
 ### Enhancements
