@@ -712,10 +712,6 @@ sealed class InternalSuperwallEvent(
 
             object Fallback : State()
 
-            class Timeout(
-                val msg: String,
-            ) : State()
-
             class Complete : State()
         }
 
@@ -724,11 +720,6 @@ sealed class InternalSuperwallEvent(
                 when (state) {
                     is PaywallWebviewLoad.State.Start ->
                         SuperwallEvent.PaywallWebviewLoadStart(
-                            paywallInfo,
-                        )
-
-                    is PaywallWebviewLoad.State.Timeout ->
-                        SuperwallEvent.PaywallWebviewLoadTimeout(
                             paywallInfo,
                         )
 
@@ -763,11 +754,6 @@ sealed class InternalSuperwallEvent(
                                 .mapIndexed { i, it ->
                                     "url_$i" to it
                                 }.toTypedArray(),
-                        )
-
-                    is State.Timeout ->
-                        mapOf(
-                            "error_message" to state.msg,
                         )
 
                     else -> mapOf()

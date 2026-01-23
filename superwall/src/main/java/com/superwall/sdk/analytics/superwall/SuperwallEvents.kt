@@ -34,6 +34,8 @@ enum class SuperwallEvents(
     PaywallWebviewLoadStart("paywallWebviewLoad_start"),
     PaywallWebviewLoadFail("paywallWebviewLoad_fail"),
     PaywallWebviewLoadComplete("paywallWebviewLoad_complete"),
+
+    @Deprecated("Due to confusion this event was causing we're deprecating it's usage")
     PaywallWebviewLoadTimeout("paywallWebviewLoad_timeout"),
     PaywallWebviewLoadFallback("paywallWebviewLoad_fallback"),
     PaywallResourceLoadFail("paywallResourceLoad_fail"),
