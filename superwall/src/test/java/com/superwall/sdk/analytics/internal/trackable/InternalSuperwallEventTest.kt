@@ -540,7 +540,7 @@ class InternalSuperwallEventTest {
         runTest {
             Given("an abandoned transaction") {
                 val paywallInfo = stubPaywallInfo()
-                val product = stubStoreProduct(productId = "prod_1")
+                val product = stubStoreProduct(productId = "prod_1", fullId = "prod_1:option:offer")
                 val event =
                     InternalSuperwallEvent.Transaction(
                         state = InternalSuperwallEvent.Transaction.State.Abandon(product),
@@ -556,8 +556,8 @@ class InternalSuperwallEventTest {
                 When("audience filters are requested") {
                     val filters = event.audienceFilterParams
 
-                    Then("the abandoned product identifier is included") {
-                        assertEquals("prod_1", filters["abandoned_product_id"])
+                    Then("the abandoned product full identifier is included") {
+                        assertEquals("prod_1:option:offer", filters["abandoned_product_id"])
                     }
                 }
             }

@@ -68,6 +68,12 @@ sealed class Offer {
         val type: String = "AUTOMATIC",
     ) : Offer()
 
+    /** Don't select any offer - use base plan/option only */
+    @Serializable
+    object NoOffer : Offer() {
+        const val TYPE = "NO_OFFER"
+    }
+
     @Serializable
     data class Specified(
         val type: String = "SPECIFIED",
@@ -94,6 +100,7 @@ data class PlayStoreProduct(
                 // So this logic is left to detect old IAP's
                 basePlanIdentifier.isEmpty() -> productIdentifier
                 offer is Offer.Automatic -> "$productIdentifier:$basePlanIdentifier:sw-auto"
+                offer is Offer.NoOffer -> "$productIdentifier:$basePlanIdentifier:sw-none"
                 offer is Offer.Specified -> "$productIdentifier:$basePlanIdentifier:${offer.offerIdentifier}"
                 else -> "$productIdentifier:$basePlanIdentifier"
             }
@@ -166,6 +173,7 @@ object PlayStoreProductSerializer : KSerializer<PlayStoreProduct> {
                 val offer =
                     when (val offer = value.offer) {
                         is Offer.Automatic -> JsonObject(mapOf("type" to JsonPrimitive(offer.type)))
+                        is Offer.NoOffer -> JsonObject(mapOf("type" to JsonPrimitive(Offer.NoOffer.TYPE)))
                         is Offer.Specified ->
                             JsonObject(
                                 mapOf(
@@ -212,6 +220,7 @@ object PlayStoreProductSerializer : KSerializer<PlayStoreProduct> {
         val offer =
             when (type) {
                 "AUTOMATIC" -> Offer.Automatic()
+                "NO_OFFER" -> Offer.NoOffer
                 "SPECIFIED" -> {
                     val offerIdentifier =
                         offerJsonObject["offer_identifier"]?.jsonPrimitive?.content
@@ -225,7 +234,7 @@ object PlayStoreProductSerializer : KSerializer<PlayStoreProduct> {
                         LogScope.configManager,
                         "Unknown offer type for $productIdentifier, fallback to none",
                     )
-                    Offer.Specified(offerIdentifier = "sw-none")
+                    Offer.NoOffer
                 }
             }
 
@@ -397,7 +406,9 @@ object ProductItemSerializer : KSerializer<ProductItem> {
         val jsonObject =
             buildJsonObject {
                 put("product", JsonPrimitive(value.name))
-                put("productId", JsonPrimitive(value.fullProductId))
+                // Use compositeId (the authoritative ID from server) instead of computed fullProductId
+                // to ensure the webview sends back the correct ID for cache lookup during purchase
+                put("productId", JsonPrimitive(value.compositeId))
                 val storeProductElement =
                     jsonOutput.json.encodeToJsonElement(StoreProductSerializer, value.type)
                 put("store_product", storeProductElement)

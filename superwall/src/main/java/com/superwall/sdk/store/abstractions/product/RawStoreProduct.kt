@@ -18,16 +18,19 @@ import java.util.Locale
 class RawStoreProduct(
     val underlyingProductDetails: ProductDetails,
     override val fullIdentifier: String,
-    val basePlanId: String?,
-    private val offerType: OfferType?,
+    val basePlanType: BasePlanType,
+    private val offerType: OfferType,
 ) : StoreProductType {
+    /** Returns the base plan ID if specific, null if auto */
+    val basePlanId: String? get() = basePlanType.specificId
+
     companion object {
         fun from(details: ProductDetails): RawStoreProduct {
             val ids = DecomposedProductIds.from(details.productId)
             return RawStoreProduct(
                 underlyingProductDetails = details,
                 fullIdentifier = details.productId,
-                basePlanId = ids.basePlanId,
+                basePlanType = ids.basePlanType,
                 offerType = ids.offerType,
             )
         }
@@ -327,54 +330,57 @@ class RawStoreProduct(
     }
 
     private fun getSelectedOfferDetails(): SelectedOfferDetails? {
-        // Handle one-time purchase products
+        // Handle one-time purchase products with purchase options list
         if (!underlyingProductDetails.oneTimePurchaseOfferDetailsList.isNullOrEmpty()) {
             val list = underlyingProductDetails.oneTimePurchaseOfferDetailsList ?: emptyList()
-            val hasSpecificPurchaseOption = !basePlanId.isNullOrEmpty()
-            val offerIdFromType = (offerType as? OfferType.Offer)?.id
-            val hasSpecificOffer = offerIdFromType != null
+            val hasSpecificPurchaseOption = basePlanType is BasePlanType.Specific
+            val offerIdFromType = offerType.specificId
+            val hasSpecificOffer = offerType is OfferType.Specific
+            val isOfferNone = offerType is OfferType.None
 
             val selected: ProductDetails.OneTimePurchaseOfferDetails? =
                 when {
-                    // Case 1: Specific purchase option + specific offer
-                    // → Look for exact match, fallback to just purchase option
-                    hasSpecificPurchaseOption && hasSpecificOffer -> {
-                        val exactMatch =
-                            list.firstOrNull {
-                                it.purchaseOptionId == basePlanId && it.offerId == offerIdFromType
+                    // Case 0: Offer is None (sw-none) - select purchase option without any discount offer
+                    isOfferNone -> {
+                        val optionsWithoutOffer =
+                            if (hasSpecificPurchaseOption) {
+                                list.filter { it.purchaseOptionId == basePlanId && it.offerId.isNullOrEmpty() }
+                            } else {
+                                list.filter { it.offerId.isNullOrEmpty() }
                             }
-                        val result = exactMatch ?: list.firstOrNull { it.purchaseOptionId == basePlanId }
-                        result
+                        optionsWithoutOffer.minByOrNull { it.priceAmountMicros }
+                    }
+
+                    // Case 1: Specific purchase option + specific offer
+                    hasSpecificPurchaseOption && hasSpecificOffer -> {
+                        val exactMatch = list.firstOrNull { it.purchaseOptionId == basePlanId && it.offerId == offerIdFromType }
+                        exactMatch ?: list.firstOrNull { it.purchaseOptionId == basePlanId }
                     }
 
                     // Case 2: Auto purchase option + specific offer
-                    // → Look for all options with that offer, select cheapest
                     !hasSpecificPurchaseOption && hasSpecificOffer -> {
-                        val optionsWithOffer = list.filter { it.offerId == offerIdFromType }
-                        val result = optionsWithOffer.minByOrNull { it.priceAmountMicros }
-                        result
+                        list.filter { it.offerId == offerIdFromType }.minByOrNull { it.priceAmountMicros }
                     }
 
                     // Case 3: Specific purchase option + auto offer
-                    // → Look for all offers within that purchase option, select cheapest
-                    hasSpecificPurchaseOption && !hasSpecificOffer -> {
-                        val optionsForPurchaseOption = list.filter { it.purchaseOptionId == basePlanId }
-                        val result = optionsForPurchaseOption.minByOrNull { it.priceAmountMicros }
-                        result
+                    hasSpecificPurchaseOption -> {
+                        list.filter { it.purchaseOptionId == basePlanId }.minByOrNull { it.priceAmountMicros }
                     }
 
                     // Case 4: Auto purchase option + auto offer
-                    // → Prefer cheapest with both option+offer, fallback to cheapest overall
                     else -> {
-                        // First try: options that have both purchaseOptionId AND offerId
                         val optionsWithBoth = list.filter { !it.purchaseOptionId.isNullOrEmpty() && !it.offerId.isNullOrEmpty() }
-                        val cheapestWithBoth = optionsWithBoth.minByOrNull { it.priceAmountMicros }
-                        cheapestWithBoth ?: list.minByOrNull { it.priceAmountMicros }
+                        optionsWithBoth.minByOrNull { it.priceAmountMicros } ?: list.minByOrNull { it.priceAmountMicros }
                     }
                 }
 
-            // Fallback to default if nothing found
-            val finalSelected = selected ?: underlyingProductDetails.oneTimePurchaseOfferDetails
+            // Only use legacy fallback if we're NOT explicitly requesting no offer (sw-none)
+            val finalSelected =
+                if (selected == null && !isOfferNone) {
+                    underlyingProductDetails.oneTimePurchaseOfferDetails
+                } else {
+                    selected
+                }
             return finalSelected?.let { SelectedOfferDetails.OneTime(it, it.purchaseOptionId, it.offerId) }
         }
 
@@ -384,40 +390,22 @@ class RawStoreProduct(
         }
 
         // Handle subscription products
-        val subscriptionOfferDetails =
-            underlyingProductDetails.subscriptionOfferDetails ?: return null
+        val subscriptionOfferDetails = underlyingProductDetails.subscriptionOfferDetails ?: return null
 
-        // Default to first base plan we come across if base plan is an empty string
+        // Default to first base plan if base plan is empty
         if (basePlanId.isNullOrEmpty()) {
-            return subscriptionOfferDetails
-                .firstOrNull { it.pricingPhases.pricingPhaseList.size == 1 }
-                ?.let { SelectedOfferDetails.Subscription(it) }
+            val firstBasePlan = subscriptionOfferDetails.firstOrNull { it.pricingPhases.pricingPhaseList.size == 1 }
+            return firstBasePlan?.let { SelectedOfferDetails.Subscription(it) }
         }
 
-        // Get the offers that match the given base plan ID.
         val offersForBasePlan = subscriptionOfferDetails.filter { it.basePlanId == basePlanId }
-
-        // In offers that match base plan, if there's only 1 pricing phase then this offer represents the base plan.
-        val basePlan =
-            offersForBasePlan.firstOrNull {
-                it.pricingPhases.pricingPhaseList.size == 1
-            } ?: return null
+        val basePlan = offersForBasePlan.firstOrNull { it.pricingPhases.pricingPhaseList.size == 1 } ?: return null
 
         val selectedSubscriptionOffer: SubscriptionOfferDetails =
             when (offerType) {
-                is OfferType.Auto -> {
-                    automaticallySelectSubscriptionOffer()?.underlying ?: basePlan
-                }
-
-                is OfferType.Offer -> {
-                    // If an offer ID is given, return that one. Otherwise fallback to base plan.
-                    offersForBasePlan.firstOrNull { it.offerId == offerType.id } ?: basePlan
-                }
-
-                null -> {
-                    // If no offer, return base plan
-                    basePlan
-                }
+                is OfferType.Auto -> automaticallySelectSubscriptionOffer()?.underlying ?: basePlan
+                is OfferType.None -> basePlan
+                is OfferType.Specific -> offersForBasePlan.firstOrNull { it.offerId == offerType.id } ?: basePlan
             }
 
         return SelectedOfferDetails.Subscription(selectedSubscriptionOffer)
@@ -433,7 +421,9 @@ class RawStoreProduct(
      */
     private fun automaticallySelectSubscriptionOffer(): SelectedOfferDetails.Subscription? {
         val subscriptionOfferDetails =
-            underlyingProductDetails.subscriptionOfferDetails ?: return null
+            underlyingProductDetails.subscriptionOfferDetails ?: run {
+                return null
+            }
 
         // Get the offers that match the given base plan ID.
         val offersForBasePlan = subscriptionOfferDetails.filter { it.basePlanId == basePlanId }
@@ -445,10 +435,11 @@ class RawStoreProduct(
                 // Ignore those with a tag that contains "ignore-offer"
                 .filter { !it.offerTags.any { it.contains("-ignore-offer") } }
 
-        return (findLongestFreeTrial(validOffers) ?: findLowestNonFreeOffer(validOffers))
-            ?.let {
-                SelectedOfferDetails.Subscription(it)
-            }
+        val longestTrialOffer = findLongestFreeTrial(validOffers)
+        val cheapestOffer = findLowestNonFreeOffer(validOffers)
+        val selected = longestTrialOffer ?: cheapestOffer
+
+        return selected?.let { SelectedOfferDetails.Subscription(it) }
     }
 
     private fun findLongestFreeTrial(offers: List<SubscriptionOfferDetails>): SubscriptionOfferDetails? =

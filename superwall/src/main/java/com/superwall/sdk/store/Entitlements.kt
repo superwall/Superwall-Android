@@ -181,12 +181,12 @@ class Entitlements(
         return checkFor(
             listOf(
                 decomposedProductIds.fullId,
-                "${decomposedProductIds.subscriptionId}:${decomposedProductIds.basePlanId}:${decomposedProductIds.offerType.id ?: ""}",
-                "${decomposedProductIds.subscriptionId}:${decomposedProductIds.basePlanId}",
+                "${decomposedProductIds.subscriptionId}:${decomposedProductIds.basePlanId ?: ""}:${decomposedProductIds.offerType.specificId ?: ""}",
+                "${decomposedProductIds.subscriptionId}:${decomposedProductIds.basePlanId ?: ""}",
             ),
         ) ?: checkFor(
             listOf(
-                "${decomposedProductIds.subscriptionId}:${decomposedProductIds.basePlanId}:",
+                "${decomposedProductIds.subscriptionId}:${decomposedProductIds.basePlanId ?: ""}:",
                 decomposedProductIds.subscriptionId,
             ),
             isExact = false,
