@@ -347,7 +347,7 @@ class ProductFetcherInstrumentedTest {
 
         val currentDate = LocalDate.now()
         val dateIn30Days = currentDate.plusMonths(1)
-        val dateFormatter = DateTimeFormatter.ofPattern(DateUtils.MMM_dd_yyyy, Locale.US)
+        val dateFormatter = DateTimeFormatter.ofPattern(DateUtils.MMM_dd_yyyy, Locale.getDefault())
         val formattedDate = dateIn30Days.format(dateFormatter)
         println("Comparing -${storeProduct.trialPeriodEndDateString}- with -$formattedDate-")
         assertEquals(formattedDate, storeProduct.trialPeriodEndDateString)
@@ -398,7 +398,7 @@ class ProductFetcherInstrumentedTest {
 
         val currentDate = LocalDate.now()
         val dateIn30Days = currentDate.plusMonths(1)
-        val dateFormatter = DateTimeFormatter.ofPattern(DateUtils.MMM_dd_yyyy, Locale.US)
+        val dateFormatter = DateTimeFormatter.ofPattern(DateUtils.MMM_dd_yyyy, Locale.getDefault())
         val formattedDate = dateIn30Days.format(dateFormatter)
         assertEquals(formattedDate, storeProduct.trialPeriodEndDateString)
     }
@@ -448,7 +448,7 @@ class ProductFetcherInstrumentedTest {
 
         val currentDate = LocalDate.now()
         val dateIn30Days = currentDate.plusMonths(1)
-        val dateFormatter = DateTimeFormatter.ofPattern(DateUtils.MMM_dd_yyyy, Locale.US)
+        val dateFormatter = DateTimeFormatter.ofPattern(DateUtils.MMM_dd_yyyy, Locale.getDefault())
         val formattedDate = dateIn30Days.format(dateFormatter)
         assertEquals(formattedDate, storeProduct.trialPeriodEndDateString)
     }
@@ -500,7 +500,7 @@ class ProductFetcherInstrumentedTest {
 
         val currentDate = LocalDate.now()
         val dateIn30Days = currentDate.plusMonths(1)
-        val dateFormatter = DateTimeFormatter.ofPattern(DateUtils.MMM_dd_yyyy, Locale.US)
+        val dateFormatter = DateTimeFormatter.ofPattern(DateUtils.MMM_dd_yyyy, Locale.getDefault())
         val formattedDate = dateIn30Days.format(dateFormatter)
         assertEquals(formattedDate, storeProduct.trialPeriodEndDateString)
     }
@@ -553,7 +553,7 @@ class ProductFetcherInstrumentedTest {
 
         val currentDate = LocalDate.now()
         val dateIn30Days = currentDate.plusMonths(1)
-        val dateFormatter = DateTimeFormatter.ofPattern(DateUtils.MMM_dd_yyyy, Locale.US)
+        val dateFormatter = DateTimeFormatter.ofPattern(DateUtils.MMM_dd_yyyy, Locale.getDefault())
         val formattedDate = dateIn30Days.format(dateFormatter)
         assertEquals(formattedDate, storeProduct.trialPeriodEndDateString)
     }

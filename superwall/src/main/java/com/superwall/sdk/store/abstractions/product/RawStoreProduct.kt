@@ -6,7 +6,7 @@ import com.android.billingclient.api.ProductDetails.SubscriptionOfferDetails
 import com.superwall.sdk.billing.DecomposedProductIds
 import com.superwall.sdk.contrib.threeteen.AmountFormats
 import com.superwall.sdk.utilities.DateUtils
-import com.superwall.sdk.utilities.dateFormat
+import com.superwall.sdk.utilities.localizedDateFormat
 import kotlinx.serialization.Transient
 import org.threeten.bp.Period
 import java.math.BigDecimal
@@ -488,7 +488,7 @@ class RawStoreProduct(
 
     override val trialPeriodEndDateString by lazy {
         trialPeriodEndDate?.let {
-            val dateFormatter = dateFormat(DateUtils.MMM_dd_yyyy)
+            val dateFormatter = localizedDateFormat(DateUtils.MMM_dd_yyyy)
             dateFormatter.format(it)
         } ?: ""
     }

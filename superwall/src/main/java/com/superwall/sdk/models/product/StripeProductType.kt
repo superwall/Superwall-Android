@@ -3,6 +3,8 @@ package com.superwall.sdk.models.product
 import com.superwall.sdk.models.serialization.BigDecimalSerializer
 import com.superwall.sdk.store.abstractions.product.StoreProductType
 import com.superwall.sdk.store.abstractions.product.SubscriptionPeriod
+import com.superwall.sdk.utilities.DateUtils
+import com.superwall.sdk.utilities.localizedDateFormat
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.math.BigDecimal
@@ -221,7 +223,7 @@ data class StripeProductType(
         }
 
     override val trialPeriodEndDateString: String
-        get() = trialPeriodEndDate?.toString() ?: ""
+        get() = trialPeriodEndDate?.let { localizedDateFormat(DateUtils.MMM_dd_yyyy).format(it) } ?: ""
 
     override val trialPeriodDays: Int
         get() =
