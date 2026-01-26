@@ -15,6 +15,7 @@ sealed class PaywallWebEvent {
     @SerialName("initiate_purchase")
     data class InitiatePurchase(
         val productId: String,
+        val shouldDismiss: Boolean,
     ) : PaywallWebEvent()
 
     object InitiateRestore : PaywallWebEvent()

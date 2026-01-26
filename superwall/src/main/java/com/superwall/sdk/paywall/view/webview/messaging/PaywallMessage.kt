@@ -8,6 +8,7 @@ import com.superwall.sdk.permissions.PermissionType
 import com.superwall.sdk.storage.core_data.convertFromJsonElement
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
@@ -64,6 +65,7 @@ sealed class PaywallMessage {
     data class Purchase(
         val product: String,
         val productId: String,
+        val shouldDismiss: Boolean,
     ) : PaywallMessage()
 
     data class Custom(
@@ -80,6 +82,10 @@ sealed class PaywallMessage {
     object PaywallClose : PaywallMessage()
 
     object TransactionStart : PaywallMessage()
+
+    data class TransactionComplete(
+        val productIdentifier: String,
+    ) : PaywallMessage()
 
     data class TrialStarted(
         val trialEndDate: Long?,
@@ -163,6 +169,7 @@ private fun parsePaywallMessage(json: JsonObject): PaywallMessage {
             PaywallMessage.Purchase(
                 json["product"]!!.jsonPrimitive.content,
                 json["product_identifier"]!!.jsonPrimitive.content,
+                json["should_dismiss"]?.jsonPrimitive?.booleanOrNull ?: true,
             )
 
         "custom" -> PaywallMessage.Custom(json["data"]!!.jsonPrimitive.content)

@@ -990,6 +990,7 @@ class Superwall(
                 TransactionManager.PurchaseSource.ExternalPurchase(
                     StoreProduct(RawStoreProduct.from(product)),
                 ),
+                shouldDismiss = true,
             )
         }.toResult()
 
@@ -1012,6 +1013,7 @@ class Superwall(
                 TransactionManager.PurchaseSource.ExternalPurchase(
                     product,
                 ),
+                shouldDismiss = true,
             )
         }.toResult()
 
@@ -1035,6 +1037,7 @@ class Superwall(
                     TransactionManager.PurchaseSource.ExternalPurchase(
                         it,
                     ),
+                    shouldDismiss = true,
                 )
             } ?: throw IllegalArgumentException("Product with id $productId not found")
         }.toResult()
@@ -1281,6 +1284,7 @@ class Superwall(
                                         paywallEvent.productId,
                                         paywallView.controller.state,
                                     ),
+                                    shouldDismiss = paywallEvent.shouldDismiss,
                                 )
                             } finally {
                                 // Ensure the task is cleared once the purchase is complete or if an error occurs

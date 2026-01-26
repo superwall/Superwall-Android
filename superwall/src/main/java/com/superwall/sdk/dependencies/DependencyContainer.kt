@@ -546,6 +546,7 @@ class DependencyContainer(
                         return@TransactionManager
                     }
 
+                    paywallView.webView.messageHandler.handle(PaywallMessage.TransactionComplete(id))
                     // Schedule fallback notifications from the paywall config in case the paywall
                     // hasn't been updated to send the ScheduleNotification message dynamically.
                     // If the paywall sends a ScheduleNotification message, it will cancel and
