@@ -162,7 +162,12 @@ class PaywallMessageHandler(
 
             is PaywallMessage.OpenDeepLink -> openDeepLink(message.url.toString())
             is PaywallMessage.Restore -> restorePurchases()
-            is PaywallMessage.Purchase -> purchaseProduct(withId = message.productId)
+            is PaywallMessage.Purchase ->
+                purchaseProduct(
+                    withId = message.productId,
+                    shouldDismiss = message.shouldDismiss,
+                )
+
             is PaywallMessage.PaywallOpen -> {
                 if (messageHandler?.state?.paywall?.paywalljsVersion == null) {
                     queue.offer(message)
@@ -201,6 +206,16 @@ class PaywallMessageHandler(
 
             is PaywallMessage.UserAttributesUpdated -> {
                 setAttributes(message.data)
+            }
+
+            is PaywallMessage.TransactionComplete -> {
+                ioScope.launch {
+                    pass(
+                        SuperwallEvents.TransactionComplete.rawName,
+                        paywall,
+                        mapOf("product_identifier" to message.productIdentifier),
+                    )
+                }
             }
 
             is PaywallMessage.TrialStarted -> {
@@ -460,10 +475,13 @@ class PaywallMessageHandler(
         messageHandler?.eventDidOccur(PaywallWebEvent.InitiateRestore)
     }
 
-    private fun purchaseProduct(withId: String) {
+    private fun purchaseProduct(
+        withId: String,
+        shouldDismiss: Boolean,
+    ) {
         detectHiddenPaywallEvent("purchase")
         hapticFeedback()
-        messageHandler?.eventDidOccur(PaywallWebEvent.InitiatePurchase(withId))
+        messageHandler?.eventDidOccur(PaywallWebEvent.InitiatePurchase(withId, shouldDismiss))
     }
 
     private fun handleCustomEvent(customEvent: String) {
@@ -559,6 +577,7 @@ class PaywallMessageHandler(
                         ),
                     )
                 }
+
                 PermissionStatus.DENIED, PermissionStatus.UNSUPPORTED -> {
                     track(
                         InternalSuperwallEvent.Permission(

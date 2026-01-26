@@ -1281,6 +1281,7 @@ class Superwall(
                                         paywallEvent.productId,
                                         paywallView.controller.state,
                                     ),
+                                    shouldDismiss = paywallEvent.shouldDismiss,
                                 )
                             } finally {
                                 // Ensure the task is cleared once the purchase is complete or if an error occurs

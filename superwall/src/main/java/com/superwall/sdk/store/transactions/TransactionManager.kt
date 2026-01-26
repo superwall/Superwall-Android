@@ -197,6 +197,7 @@ class TransactionManager(
                                 PurchaseSource.ObserverMode(product),
                                 product.hasFreeTrial,
                                 purchase,
+                                result.shouldDismiss,
                             )
                         }
                     }
@@ -270,7 +271,10 @@ class TransactionManager(
         storage.write(PurchasingProductdIds, remainingTransactions.toSet())
     }
 
-    suspend fun purchase(purchaseSource: PurchaseSource): PurchaseResult {
+    suspend fun purchase(
+        purchaseSource: PurchaseSource,
+        shouldDismiss: Boolean,
+    ): PurchaseResult {
         val product =
             when (purchaseSource) {
                 is PurchaseSource.Internal ->
@@ -318,7 +322,7 @@ class TransactionManager(
 
         when (result) {
             is PurchaseResult.Purchased -> {
-                didPurchase(product, purchaseSource, isEligibleForTrial && product.hasFreeTrial)
+                didPurchase(product, purchaseSource, isEligibleForTrial && product.hasFreeTrial, shouldDismiss = shouldDismiss)
             }
 
             is PurchaseResult.Failed -> {
@@ -568,6 +572,7 @@ class TransactionManager(
         purchaseSource: PurchaseSource,
         didStartFreeTrial: Boolean,
         purchase: Purchase? = null,
+        shouldDismiss: Boolean,
     ) {
         when (purchaseSource) {
             is PurchaseSource.Internal -> {
@@ -592,7 +597,7 @@ class TransactionManager(
 
                 trackTransactionDidSucceed(transaction, product, purchaseSource, didStartFreeTrial)
 
-                if (factory.makeSuperwallOptions().paywalls.automaticallyDismiss) {
+                if (shouldDismiss && factory.makeSuperwallOptions().paywalls.automaticallyDismiss) {
                     dismiss(
                         purchaseSource.paywallInfo.cacheKey,
                         PaywallResult.Purchased(product.fullIdentifier),

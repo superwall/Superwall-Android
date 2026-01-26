@@ -5,6 +5,7 @@ import com.android.billingclient.api.Purchase
 sealed class InternalPurchaseResult {
     data class Purchased(
         val purchase: Purchase,
+        val shouldDismiss: Boolean,
     ) : InternalPurchaseResult()
 
     object Restored : InternalPurchaseResult()
