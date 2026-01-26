@@ -59,6 +59,11 @@ data class PaywallInfo(
     val buildId: String,
     val cacheKey: String,
     val isScrollEnabled: Boolean,
+    /**
+     * The state of the paywall, updated on paywall did dismiss.
+     */
+    @kotlinx.serialization.Transient
+    val state: Map<String, Any> = emptyMap(),
 ) {
     constructor(
         databaseId: String,
@@ -92,6 +97,7 @@ data class PaywallInfo(
         buildId: String,
         cacheKey: String,
         isScrollEnabled: Boolean,
+        state: Map<String, Any> = emptyMap(),
     ) : this(
         databaseId = databaseId,
         identifier = identifier,
@@ -178,6 +184,7 @@ data class PaywallInfo(
         cacheKey = cacheKey,
         buildId = buildId,
         isScrollEnabled = isScrollEnabled,
+        state = state,
     )
 
     fun eventParams(

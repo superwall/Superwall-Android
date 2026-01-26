@@ -410,6 +410,10 @@ class PaywallView(
         // Ensure we stop listening to state changes when being destroyed
         stopStateListener()
 
+        // Get the paywall state from the webview before dismissing
+        val paywallState = webView.messageHandler.getState()
+        controller.updateState(SetPaywallState(paywallState))
+
         ioScope.launch {
             trackClose()
         }

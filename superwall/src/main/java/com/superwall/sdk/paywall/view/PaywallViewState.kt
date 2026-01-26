@@ -260,6 +260,15 @@ data class PaywallViewState(
         })
 
         /**
+         * Updates the paywall state with data retrieved from the webview on dismiss.
+         */
+        class SetPaywallState(
+            val state: Map<String, Any>,
+        ) : Updates({ viewState ->
+                viewState.copy(paywall = viewState.paywall.copy(state = state))
+            })
+
+        /**
          * Hides or displays the paywall spinner.
          *
          * @param isHidden A Boolean indicating whether to show or hide the spinner.
