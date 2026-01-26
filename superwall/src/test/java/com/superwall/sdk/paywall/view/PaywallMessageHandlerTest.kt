@@ -311,6 +311,9 @@ class PaywallMessageHandlerTest {
                 encodeToB64 = { it },
                 userPermissions = fakeUserPermissions,
                 getActivity = { null },
+                customCallbackRegistry =
+                    com.superwall.sdk.paywall.presentation
+                        .CustomCallbackRegistry(),
             )
 
         val state =
