@@ -36,6 +36,7 @@ import com.superwall.sdk.storage.EventsQueue
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.InternalPurchaseController
 import com.superwall.sdk.store.StoreManager
+import com.superwall.sdk.store.abstractions.product.BasePlanType
 import com.superwall.sdk.store.abstractions.product.OfferType
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import com.superwall.sdk.store.abstractions.product.StoreProduct
@@ -77,7 +78,7 @@ class TransactionManagerTest {
         RawStoreProduct(
             playProduct,
             "product1",
-            "basePlan",
+            BasePlanType.from("basePlan"),
             OfferType.Auto,
         )
 

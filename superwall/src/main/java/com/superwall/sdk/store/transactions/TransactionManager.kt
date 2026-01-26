@@ -197,7 +197,7 @@ class TransactionManager(
                                 PurchaseSource.ObserverMode(product),
                                 product.hasFreeTrial,
                                 purchase,
-                                result.shouldDismiss,
+                                shouldDismiss = true, // gets ignored later on,
                             )
                         }
                     }
@@ -273,7 +273,7 @@ class TransactionManager(
 
     suspend fun purchase(
         purchaseSource: PurchaseSource,
-        shouldDismiss: Boolean,
+        shouldDismiss: Boolean = true,
     ): PurchaseResult {
         val product =
             when (purchaseSource) {

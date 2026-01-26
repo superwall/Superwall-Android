@@ -169,7 +169,7 @@ private fun parsePaywallMessage(json: JsonObject): PaywallMessage {
             PaywallMessage.Purchase(
                 json["product"]!!.jsonPrimitive.content,
                 json["product_identifier"]!!.jsonPrimitive.content,
-                json["should_dismiss"]?.jsonPrimitive?.booleanOrNull ?: false,
+                json["should_dismiss"]?.jsonPrimitive?.booleanOrNull ?: true,
             )
 
         "custom" -> PaywallMessage.Custom(json["data"]!!.jsonPrimitive.content)
