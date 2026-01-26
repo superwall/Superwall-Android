@@ -4,6 +4,7 @@ package com.superwall.sdk.products
 
 import com.android.billingclient.api.BillingClient.ProductType
 import com.android.billingclient.api.ProductDetails.RecurrenceMode
+import com.superwall.sdk.store.abstractions.product.BasePlanType
 import com.superwall.sdk.store.abstractions.product.OfferType
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import com.superwall.sdk.store.abstractions.product.StoreProduct
@@ -18,6 +19,8 @@ import java.util.Currency
 import java.util.Locale
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class ProductFetcherInstrumentedTest {
@@ -308,8 +311,8 @@ class ProductFetcherInstrumentedTest {
                     RawStoreProduct(
                         underlyingProductDetails = productDetails,
                         fullIdentifier = "com.ui_tests.quarterly2:test-2:free-trial-offer",
-                        basePlanId = "test-2",
-                        offerType = OfferType.Offer(id = "free-trial-offer"),
+                        basePlanType = BasePlanType.Specific("test-2"),
+                        offerType = OfferType.Specific("free-trial-offer"),
                     ),
             )
         assertTrue(storeProduct.hasFreeTrial)
@@ -359,8 +362,8 @@ class ProductFetcherInstrumentedTest {
                     RawStoreProduct(
                         underlyingProductDetails = productDetails,
                         fullIdentifier = "com.ui_tests.quarterly2:test-2:trial-and-paid-offer",
-                        basePlanId = "test-2",
-                        offerType = OfferType.Offer(id = "trial-and-paid-offer"),
+                        basePlanType = BasePlanType.Specific("test-2"),
+                        offerType = OfferType.Specific("trial-and-paid-offer"),
                     ),
             )
         assertTrue(storeProduct.hasFreeTrial)
@@ -409,8 +412,8 @@ class ProductFetcherInstrumentedTest {
                     RawStoreProduct(
                         underlyingProductDetails = productDetails,
                         fullIdentifier = "com.ui_tests.quarterly2:test-4:paid-offer",
-                        basePlanId = "test-4",
-                        offerType = OfferType.Offer(id = "paid-offer"),
+                        basePlanType = BasePlanType.Specific("test-4"),
+                        offerType = OfferType.Specific("paid-offer"),
                     ),
             )
         assertTrue(storeProduct.hasFreeTrial)
@@ -461,7 +464,7 @@ class ProductFetcherInstrumentedTest {
                     RawStoreProduct(
                         underlyingProductDetails = productDetails,
                         fullIdentifier = "com.ui_tests.quarterly2:test-2:sw-auto",
-                        basePlanId = "test-2",
+                        basePlanType = BasePlanType.Specific("test-2"),
                         offerType = OfferType.Auto,
                     ),
             )
@@ -512,7 +515,7 @@ class ProductFetcherInstrumentedTest {
                     RawStoreProduct(
                         underlyingProductDetails = productDetails,
                         fullIdentifier = "com.ui_tests.quarterly2:test-3:sw-auto",
-                        basePlanId = "test-3",
+                        basePlanType = BasePlanType.Specific("test-3"),
                         offerType = OfferType.Auto,
                     ),
             )
@@ -564,7 +567,7 @@ class ProductFetcherInstrumentedTest {
                     RawStoreProduct(
                         underlyingProductDetails = productDetails,
                         fullIdentifier = "com.ui_tests.quarterly2:test-5:sw-auto",
-                        basePlanId = "test-5",
+                        basePlanType = BasePlanType.Specific("test-5"),
                         offerType = OfferType.Auto,
                     ),
             )
@@ -609,8 +612,8 @@ class ProductFetcherInstrumentedTest {
                     RawStoreProduct(
                         underlyingProductDetails = productDetails,
                         fullIdentifier = "com.ui_tests.quarterly2:test-5",
-                        basePlanId = "test-5",
-                        offerType = null,
+                        basePlanType = BasePlanType.Specific("test-5"),
+                        offerType = OfferType.Auto,
                     ),
             )
         assertFalse(storeProduct.hasFreeTrial)
@@ -654,8 +657,8 @@ class ProductFetcherInstrumentedTest {
                     RawStoreProduct(
                         underlyingProductDetails = productDetails,
                         fullIdentifier = "com.ui_tests.quarterly2:test-5",
-                        basePlanId = "test-5",
-                        offerType = OfferType.Offer(id = "doesnt-exist"),
+                        basePlanType = BasePlanType.Specific("test-5"),
+                        offerType = OfferType.Specific("doesnt-exist"),
                     ),
             )
         assertFalse(storeProduct.hasFreeTrial)
@@ -702,8 +705,8 @@ class ProductFetcherInstrumentedTest {
                     RawStoreProduct(
                         underlyingProductDetails = productDetails,
                         fullIdentifier = "com.ui_tests.quarterly2",
-                        basePlanId = null,
-                        offerType = null,
+                        basePlanType = BasePlanType.Auto,
+                        offerType = OfferType.Auto,
                     ),
             )
         assertFalse(storeProduct.hasFreeTrial)
@@ -747,8 +750,8 @@ class ProductFetcherInstrumentedTest {
                     RawStoreProduct(
                         underlyingProductDetails = oneTimePurchaseProduct,
                         fullIdentifier = "pro_test_8999_year",
-                        basePlanId = null,
-                        offerType = null,
+                        basePlanType = BasePlanType.Auto,
+                        offerType = OfferType.Auto,
                     ),
             )
         assertFalse(storeProduct.hasFreeTrial)
@@ -841,8 +844,8 @@ class ProductFetcherInstrumentedTest {
                     RawStoreProduct(
                         underlyingProductDetails = otpWithPurchaseOptionsProduct,
                         fullIdentifier = "otp_with_options:first-buy-option:fifty-off",
-                        basePlanId = "first-buy-option",
-                        offerType = OfferType.Offer(id = "fifty-off"),
+                        basePlanType = BasePlanType.Specific("first-buy-option"),
+                        offerType = OfferType.Specific("fifty-off"),
                     ),
             )
 
@@ -866,8 +869,8 @@ class ProductFetcherInstrumentedTest {
                     RawStoreProduct(
                         underlyingProductDetails = otpWithPurchaseOptionsProduct,
                         fullIdentifier = "otp_with_options:second-buy-option:nonexistent-offer",
-                        basePlanId = "second-buy-option",
-                        offerType = OfferType.Offer(id = "nonexistent-offer"),
+                        basePlanType = BasePlanType.Specific("second-buy-option"),
+                        offerType = OfferType.Specific("nonexistent-offer"),
                     ),
             )
 
@@ -887,8 +890,8 @@ class ProductFetcherInstrumentedTest {
                     RawStoreProduct(
                         underlyingProductDetails = otpWithPurchaseOptionsProduct,
                         fullIdentifier = "otp_with_options::fifty-off",
-                        basePlanId = "", // Auto/empty
-                        offerType = OfferType.Offer(id = "fifty-off"),
+                        basePlanType = BasePlanType.Auto,
+                        offerType = OfferType.Specific("fifty-off"),
                     ),
             )
 
@@ -908,7 +911,7 @@ class ProductFetcherInstrumentedTest {
                     RawStoreProduct(
                         underlyingProductDetails = otpWithPurchaseOptionsProduct,
                         fullIdentifier = "otp_with_options:first-buy-option:sw-auto",
-                        basePlanId = "first-buy-option",
+                        basePlanType = BasePlanType.Specific("first-buy-option"),
                         offerType = OfferType.Auto,
                     ),
             )
@@ -929,7 +932,7 @@ class ProductFetcherInstrumentedTest {
                     RawStoreProduct(
                         underlyingProductDetails = otpWithPurchaseOptionsProduct,
                         fullIdentifier = "otp_with_options:second-buy-option:sw-auto",
-                        basePlanId = "second-buy-option",
+                        basePlanType = BasePlanType.Specific("second-buy-option"),
                         offerType = OfferType.Auto,
                     ),
             )
@@ -950,7 +953,7 @@ class ProductFetcherInstrumentedTest {
                     RawStoreProduct(
                         underlyingProductDetails = otpWithPurchaseOptionsProduct,
                         fullIdentifier = "otp_with_options::sw-auto",
-                        basePlanId = "", // Auto
+                        basePlanType = BasePlanType.Auto,
                         offerType = OfferType.Auto,
                     ),
             )
@@ -1001,7 +1004,7 @@ class ProductFetcherInstrumentedTest {
                     RawStoreProduct(
                         underlyingProductDetails = otpNoOffersProduct,
                         fullIdentifier = "otp_no_offers::sw-auto",
-                        basePlanId = "",
+                        basePlanType = BasePlanType.Auto,
                         offerType = OfferType.Auto,
                     ),
             )
@@ -1021,8 +1024,8 @@ class ProductFetcherInstrumentedTest {
                     RawStoreProduct(
                         underlyingProductDetails = otpWithPurchaseOptionsProduct,
                         fullIdentifier = "otp_with_options:first-buy-option:fifty-off",
-                        basePlanId = "first-buy-option",
-                        offerType = OfferType.Offer(id = "fifty-off"),
+                        basePlanType = BasePlanType.Specific("first-buy-option"),
+                        offerType = OfferType.Specific("fifty-off"),
                     ),
             )
 
@@ -1038,6 +1041,41 @@ class ProductFetcherInstrumentedTest {
     }
 
     /**
+     * Test that OTP with specific purchase option but no discount offer
+     * has purchaseOptionId set and offerId null.
+     * This is important because the offerToken is still needed to purchase
+     * the correct purchase option even without a discount offer.
+     */
+    @Test
+    fun test_storeProduct_otp_specificOption_noOffer_hasPurchaseOptionIdWithNullOfferId() {
+        val storeProduct =
+            StoreProduct(
+                rawStoreProduct =
+                    RawStoreProduct(
+                        underlyingProductDetails = otpWithPurchaseOptionsProduct,
+                        fullIdentifier = "otp_with_options:second-buy-option:sw-auto",
+                        basePlanType = BasePlanType.Specific("second-buy-option"),
+                        offerType = OfferType.Auto,
+                    ),
+            )
+
+        val selectedOffer = storeProduct.rawStoreProduct.selectedOffer
+        assertNotNull(selectedOffer, "Expected selectedOffer to be non-null")
+        assertTrue(
+            selectedOffer is RawStoreProduct.SelectedOfferDetails.OneTime,
+            "Expected SelectedOfferDetails.OneTime, got ${selectedOffer?.javaClass?.simpleName}",
+        )
+
+        val oneTimeOffer = selectedOffer as RawStoreProduct.SelectedOfferDetails.OneTime
+        // purchaseOptionId should be set even without a discount offer
+        assertEquals("second-buy-option", oneTimeOffer.purchaseOptionId, "Expected purchaseOptionId second-buy-option")
+        // offerId should be null since we're using auto offer and there's no discount
+        assertNull(oneTimeOffer.offerId, "Expected offerId to be null for purchase option without discount")
+        // The offerToken should still be available for Google Play billing
+        assertNotNull(oneTimeOffer.underlying.offerToken, "Expected offerToken to be non-null")
+    }
+
+    /**
      * Test that OTP properties return expected values (no subscription-specific values)
      */
     @Test
@@ -1048,8 +1086,8 @@ class ProductFetcherInstrumentedTest {
                     RawStoreProduct(
                         underlyingProductDetails = otpWithPurchaseOptionsProduct,
                         fullIdentifier = "otp_with_options:first-buy-option:fifty-off",
-                        basePlanId = "first-buy-option",
-                        offerType = OfferType.Offer(id = "fifty-off"),
+                        basePlanType = BasePlanType.Specific("first-buy-option"),
+                        offerType = OfferType.Specific("fifty-off"),
                     ),
             )
 

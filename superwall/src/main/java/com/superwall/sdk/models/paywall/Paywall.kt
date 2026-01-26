@@ -84,7 +84,10 @@ data class Paywall(
     @SerialName("products_v2")
     internal var _productItems: List<ProductItem> = emptyList(),
     @kotlinx.serialization.Transient()
-    var productIds: List<String> = _productItems.map { it.compositeId },
+    var productIds: List<String> =
+        _productItems.map { it.compositeId }.ifEmpty {
+            _productItemsV3.map { it.fullProductId }
+        },
     @kotlinx.serialization.Transient()
     var responseLoadingInfo: LoadingInfo = LoadingInfo(),
     @kotlinx.serialization.Transient()

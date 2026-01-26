@@ -532,7 +532,7 @@ sealed class InternalSuperwallEvent(
             get() {
                 return paywallInfo.audienceFilterParams().let {
                     if (superwallPlacement is SuperwallEvent.TransactionAbandon) {
-                        it.plus("abandoned_product_id" to (product?.productIdentifier ?: ""))
+                        it.plus("abandoned_product_id" to (product?.fullIdentifier ?: ""))
                     } else {
                         it
                     }
