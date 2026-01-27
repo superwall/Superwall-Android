@@ -523,4 +523,40 @@ class PaywallViewStateTest {
             }
         }
     }
+
+    @Test
+    fun setPaywallState_setsStateWithoutMutatingOriginal() {
+        Given("an initial state with empty paywall state") {
+            val state = makeState()
+            assertEquals(emptyMap<String, Any>(), state.paywall.state)
+
+            When("SetPaywallState is applied with a state map") {
+                val paywallState = mapOf("key1" to "value1", "key2" to 42, "nested" to mapOf("inner" to true))
+                val newState = PaywallViewState.Updates.SetPaywallState(paywallState).transform(state)
+
+                Then("it sets the state and does not mutate original") {
+                    assertNotSame(state.paywall, newState.paywall)
+                    assertEquals(emptyMap<String, Any>(), state.paywall.state)
+                    assertEquals(paywallState, newState.paywall.state)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun setPaywallState_stateFlowsThroughToPaywallInfo() {
+        Given("a state with paywall state set") {
+            val paywallState = mapOf("formData" to mapOf("email" to "test@example.com"), "scrollPosition" to 100)
+            val state = makeState()
+            val newState = PaywallViewState.Updates.SetPaywallState(paywallState).transform(state)
+
+            When("accessing info from the state") {
+                val info = newState.info
+
+                Then("the state is present in PaywallInfo") {
+                    assertEquals(paywallState, info.state)
+                }
+            }
+        }
+    }
 }

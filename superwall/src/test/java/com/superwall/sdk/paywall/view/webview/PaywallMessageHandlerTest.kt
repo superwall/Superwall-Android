@@ -641,4 +641,180 @@ class PaywallMessageHandlerTest {
             }
         }
     }
+
+    @Test
+    fun getState_evaluates_correct_javascript() =
+        runTest {
+            Given("a PaywallMessageHandler with a delegate that tracks evaluated code") {
+                val paywall = Paywall.stub()
+                val state = PaywallViewState(paywall = paywall, locale = "en-US")
+                var evaluatedCode: String? = null
+                val delegate =
+                    object : FakeDelegate(state) {
+                        override fun evaluate(
+                            code: String,
+                            resultCallback: ((String?) -> Unit)?,
+                        ) {
+                            evaluatedCode = code
+                            resultCallback?.invoke("{}")
+                        }
+                    }
+                val handler = createHandler()
+                handler.messageHandler = delegate
+
+                When("getState is called") {
+                    handler.getState()
+                    advanceUntilIdle()
+
+                    Then("it evaluates window.app.getAllState()") {
+                        assertEquals("window.app.getAllState();", evaluatedCode)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun getState_parses_json_object_correctly() =
+        runTest {
+            Given("a delegate that returns a JSON object from evaluate") {
+                val paywall = Paywall.stub()
+                val state = PaywallViewState(paywall = paywall, locale = "en-US")
+                val delegate =
+                    object : FakeDelegate(state) {
+                        override fun evaluate(
+                            code: String,
+                            resultCallback: ((String?) -> Unit)?,
+                        ) {
+                            val jsonResponse = """{"key1": "value1", "key2": 42, "key3": true, "key4": 3.14}"""
+                            resultCallback?.invoke(jsonResponse)
+                        }
+                    }
+                val handler = createHandler()
+                handler.messageHandler = delegate
+
+                When("getState is called") {
+                    val result = handler.getState()
+                    advanceUntilIdle()
+
+                    Then("it returns a map with correctly parsed values") {
+                        assertEquals("value1", result["key1"])
+                        assertEquals(42L, result["key2"])
+                        assertEquals(true, result["key3"])
+                        assertEquals(3.14, result["key4"])
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun getState_parses_nested_objects() =
+        runTest {
+            Given("a delegate that returns nested JSON from evaluate") {
+                val paywall = Paywall.stub()
+                val state = PaywallViewState(paywall = paywall, locale = "en-US")
+                val delegate =
+                    object : FakeDelegate(state) {
+                        override fun evaluate(
+                            code: String,
+                            resultCallback: ((String?) -> Unit)?,
+                        ) {
+                            val jsonResponse = """{"nested": {"inner": "value"}, "array": [1, 2, 3]}"""
+                            resultCallback?.invoke(jsonResponse)
+                        }
+                    }
+                val handler = createHandler()
+                handler.messageHandler = delegate
+
+                When("getState is called") {
+                    val result = handler.getState()
+                    advanceUntilIdle()
+
+                    Then("it returns a map with nested structures") {
+                        @Suppress("UNCHECKED_CAST")
+                        val nested = result["nested"] as Map<String, Any>
+                        assertEquals("value", nested["inner"])
+
+                        @Suppress("UNCHECKED_CAST")
+                        val array = result["array"] as List<Any>
+                        assertEquals(listOf(1L, 2L, 3L), array)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun getState_returns_empty_map_on_null_result() =
+        runTest {
+            Given("a delegate that returns null from evaluate") {
+                val paywall = Paywall.stub()
+                val state = PaywallViewState(paywall = paywall, locale = "en-US")
+                val delegate =
+                    object : FakeDelegate(state) {
+                        override fun evaluate(
+                            code: String,
+                            resultCallback: ((String?) -> Unit)?,
+                        ) {
+                            resultCallback?.invoke(null)
+                        }
+                    }
+                val handler = createHandler()
+                handler.messageHandler = delegate
+
+                When("getState is called") {
+                    val result = handler.getState()
+                    advanceUntilIdle()
+
+                    Then("it returns an empty map") {
+                        assertEquals(emptyMap<String, Any>(), result)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun getState_returns_empty_map_on_invalid_json() =
+        runTest {
+            Given("a delegate that returns invalid JSON from evaluate") {
+                val paywall = Paywall.stub()
+                val state = PaywallViewState(paywall = paywall, locale = "en-US")
+                val delegate =
+                    object : FakeDelegate(state) {
+                        override fun evaluate(
+                            code: String,
+                            resultCallback: ((String?) -> Unit)?,
+                        ) {
+                            resultCallback?.invoke("not valid json {{{")
+                        }
+                    }
+                val handler = createHandler()
+                handler.messageHandler = delegate
+
+                When("getState is called") {
+                    val result = handler.getState()
+                    advanceUntilIdle()
+
+                    Then("it returns an empty map") {
+                        assertEquals(emptyMap<String, Any>(), result)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun getState_returns_empty_map_when_no_delegate() =
+        runTest {
+            Given("a PaywallMessageHandler with no delegate set") {
+                val handler = createHandler()
+                // messageHandler is not set
+
+                When("getState is called") {
+                    val result = handler.getState()
+                    advanceUntilIdle()
+
+                    Then("it returns an empty map") {
+                        assertEquals(emptyMap<String, Any>(), result)
+                    }
+                }
+            }
+        }
 }
