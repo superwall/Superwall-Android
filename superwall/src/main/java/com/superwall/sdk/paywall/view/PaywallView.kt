@@ -469,6 +469,10 @@ class PaywallView(
         val isManualClose = closeReason is PaywallCloseReason.ManualClose
 
         suspend fun dismissView() {
+            // Get the paywall state from the webview before dismissing
+            val paywallState = webView.messageHandler.getState()
+            controller.updateState(SetPaywallState(paywallState))
+
             if (isDeclined && isManualClose) {
                 val trackedEvent = InternalSuperwallEvent.PaywallDecline(paywallInfo = info)
 

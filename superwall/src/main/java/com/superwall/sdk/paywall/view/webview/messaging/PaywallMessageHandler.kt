@@ -24,6 +24,7 @@ import com.superwall.sdk.storage.core_data.convertToJsonElement
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -32,6 +33,7 @@ import java.net.URI
 import java.util.Date
 import java.util.LinkedList
 import java.util.Queue
+import kotlin.coroutines.resume
 
 interface PaywallStateDelegate {
     val state: PaywallViewState
@@ -678,4 +680,69 @@ class PaywallMessageHandler(
         // Android doesn't have a direct equivalent to UIImpactFeedbackGenerator
         // TODO: Implement haptic feedback
     }
+
+    /**
+     * Gets the current state from the paywall webview by evaluating JavaScript.
+     * @return A map containing the paywall state, or an empty map if evaluation fails.
+     */
+    suspend fun getState(): Map<String, Any> {
+        val messageScript = "window.app.getAllState();"
+
+        Logger.debug(
+            logLevel = LogLevel.debug,
+            scope = LogScope.paywallView,
+            message = "Getting state",
+            info = mapOf("message" to messageScript),
+        )
+
+        return suspendCancellableCoroutine { continuation ->
+            mainScope.launch {
+                messageHandler?.evaluate(messageScript) { result ->
+                    if (result != null) {
+                        try {
+                            val parsed = json.parseToJsonElement(result)
+                            val stateMap = jsonElementToMap(parsed)
+                            continuation.resume(stateMap)
+                        } catch (e: Exception) {
+                            Logger.debug(
+                                logLevel = LogLevel.error,
+                                scope = LogScope.paywallView,
+                                message = "Error parsing state JSON",
+                                info = mapOf("message" to messageScript, "result" to result),
+                                error = e,
+                            )
+                            continuation.resume(emptyMap())
+                        }
+                    } else {
+                        continuation.resume(emptyMap())
+                    }
+                } ?: run {
+                    continuation.resume(emptyMap())
+                }
+            }
+        }
+    }
+
+    private fun jsonElementToMap(element: kotlinx.serialization.json.JsonElement): Map<String, Any> =
+        when (element) {
+            is JsonObject -> element.mapValues { (_, value) -> jsonElementToAny(value) }
+            else -> emptyMap()
+        }
+
+    private fun jsonElementToAny(element: kotlinx.serialization.json.JsonElement): Any =
+        when (element) {
+            is JsonObject -> element.mapValues { (_, value) -> jsonElementToAny(value) }
+            is kotlinx.serialization.json.JsonArray -> element.map { jsonElementToAny(it) }
+            is kotlinx.serialization.json.JsonPrimitive -> {
+                when {
+                    element.isString -> element.content
+                    element.content == "true" -> true
+                    element.content == "false" -> false
+                    element.content == "null" -> ""
+                    element.content.contains('.') -> element.content.toDoubleOrNull() ?: element.content
+                    else -> element.content.toLongOrNull() ?: element.content
+                }
+            }
+            else -> element.toString()
+        }
 }
