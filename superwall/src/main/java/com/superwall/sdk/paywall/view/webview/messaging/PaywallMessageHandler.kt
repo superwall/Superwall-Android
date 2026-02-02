@@ -20,6 +20,7 @@ import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 import com.superwall.sdk.paywall.view.webview.SendPaywallMessages
 import com.superwall.sdk.permissions.PermissionStatus
 import com.superwall.sdk.permissions.UserPermissions
+import com.superwall.sdk.storage.core_data.convertFromJsonElement
 import com.superwall.sdk.storage.core_data.convertToJsonElement
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -701,7 +702,8 @@ class PaywallMessageHandler(
                     if (result != null) {
                         try {
                             val parsed = json.parseToJsonElement(result)
-                            val stateMap = jsonElementToMap(parsed)
+                            val converted = parsed.convertFromJsonElement()
+                            val stateMap = replaceNullsWithEmpty(converted) as? Map<String, Any> ?: emptyMap()
                             continuation.resume(stateMap)
                         } catch (e: Exception) {
                             Logger.debug(
@@ -723,26 +725,11 @@ class PaywallMessageHandler(
         }
     }
 
-    private fun jsonElementToMap(element: kotlinx.serialization.json.JsonElement): Map<String, Any> =
-        when (element) {
-            is JsonObject -> element.mapValues { (_, value) -> jsonElementToAny(value) }
-            else -> emptyMap()
-        }
-
-    private fun jsonElementToAny(element: kotlinx.serialization.json.JsonElement): Any =
-        when (element) {
-            is JsonObject -> element.mapValues { (_, value) -> jsonElementToAny(value) }
-            is kotlinx.serialization.json.JsonArray -> element.map { jsonElementToAny(it) }
-            is kotlinx.serialization.json.JsonPrimitive -> {
-                when {
-                    element.isString -> element.content
-                    element.content == "true" -> true
-                    element.content == "false" -> false
-                    element.content == "null" -> ""
-                    element.content.contains('.') -> element.content.toDoubleOrNull() ?: element.content
-                    else -> element.content.toLongOrNull() ?: element.content
-                }
-            }
-            else -> element.toString()
+    private fun replaceNullsWithEmpty(value: Any?): Any =
+        when (value) {
+            null -> ""
+            is Map<*, *> -> value.mapValues { (_, v) -> replaceNullsWithEmpty(v) }
+            is List<*> -> value.map { replaceNullsWithEmpty(it) }
+            else -> value
         }
 }
