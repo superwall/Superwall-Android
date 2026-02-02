@@ -20,10 +20,12 @@ import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 import com.superwall.sdk.paywall.view.webview.SendPaywallMessages
 import com.superwall.sdk.permissions.PermissionStatus
 import com.superwall.sdk.permissions.UserPermissions
+import com.superwall.sdk.storage.core_data.convertFromJsonElement
 import com.superwall.sdk.storage.core_data.convertToJsonElement
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -32,6 +34,7 @@ import java.net.URI
 import java.util.Date
 import java.util.LinkedList
 import java.util.Queue
+import kotlin.coroutines.resume
 
 interface PaywallStateDelegate {
     val state: PaywallViewState
@@ -678,4 +681,55 @@ class PaywallMessageHandler(
         // Android doesn't have a direct equivalent to UIImpactFeedbackGenerator
         // TODO: Implement haptic feedback
     }
+
+    /**
+     * Gets the current state from the paywall webview by evaluating JavaScript.
+     * @return A map containing the paywall state, or an empty map if evaluation fails.
+     */
+    suspend fun getState(): Map<String, Any> {
+        val messageScript = "window.app.getAllState();"
+
+        Logger.debug(
+            logLevel = LogLevel.debug,
+            scope = LogScope.paywallView,
+            message = "Getting state",
+            info = mapOf("message" to messageScript),
+        )
+
+        return suspendCancellableCoroutine { continuation ->
+            mainScope.launch {
+                messageHandler?.evaluate(messageScript) { result ->
+                    if (result != null) {
+                        try {
+                            val parsed = json.parseToJsonElement(result)
+                            val converted = parsed.convertFromJsonElement()
+                            val stateMap = replaceNullsWithEmpty(converted) as? Map<String, Any> ?: emptyMap()
+                            continuation.resume(stateMap)
+                        } catch (e: Exception) {
+                            Logger.debug(
+                                logLevel = LogLevel.error,
+                                scope = LogScope.paywallView,
+                                message = "Error parsing state JSON",
+                                info = mapOf("message" to messageScript, "result" to result),
+                                error = e,
+                            )
+                            continuation.resume(emptyMap())
+                        }
+                    } else {
+                        continuation.resume(emptyMap())
+                    }
+                } ?: run {
+                    continuation.resume(emptyMap())
+                }
+            }
+        }
+    }
+
+    private fun replaceNullsWithEmpty(value: Any?): Any =
+        when (value) {
+            null -> ""
+            is Map<*, *> -> value.mapValues { (_, v) -> replaceNullsWithEmpty(v) }
+            is List<*> -> value.map { replaceNullsWithEmpty(it) }
+            else -> value
+        }
 }

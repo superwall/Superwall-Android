@@ -614,7 +614,7 @@ class DependencyContainer(
                 track(it)
             }, ioScope = ioScope, redeemAfterSetting = {
                 ioScope.launch {
-                    reedemer.redeem(WebPaywallRedeemer.RedeemType.Existing)
+                    reedemer.redeem(WebPaywallRedeemer.RedeemType.IntegrationAttributes)
                 }
             }, vendorId = { VendorId(deviceHelper.vendorId) })
 

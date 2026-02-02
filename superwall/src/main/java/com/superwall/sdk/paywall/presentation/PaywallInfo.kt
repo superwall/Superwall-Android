@@ -13,6 +13,7 @@ import com.superwall.sdk.models.paywall.PaywallPresentationInfo
 import com.superwall.sdk.models.paywall.PaywallPresentationStyle
 import com.superwall.sdk.models.paywall.PaywallURL
 import com.superwall.sdk.models.product.ProductItem
+import com.superwall.sdk.models.serialization.AnyMapSerializer
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.store.abstractions.product.StoreProductType
 import com.superwall.sdk.utilities.DateFormatterUtil
@@ -59,6 +60,8 @@ data class PaywallInfo(
     val buildId: String,
     val cacheKey: String,
     val isScrollEnabled: Boolean,
+    @Serializable(with = AnyMapSerializer::class)
+    val state: Map<String, Any> = emptyMap(),
 ) {
     constructor(
         databaseId: String,
@@ -92,6 +95,7 @@ data class PaywallInfo(
         buildId: String,
         cacheKey: String,
         isScrollEnabled: Boolean,
+        state: Map<String, Any> = emptyMap(),
     ) : this(
         databaseId = databaseId,
         identifier = identifier,
@@ -178,6 +182,7 @@ data class PaywallInfo(
         cacheKey = cacheKey,
         buildId = buildId,
         isScrollEnabled = isScrollEnabled,
+        state = state,
     )
 
     fun eventParams(
