@@ -614,7 +614,9 @@ class Superwall(
                             purchaseController = purchaseController,
                             options = _options,
                             activityProvider = activityProvider,
+                            apiKey = apiKey,
                         )
+                    dependencyContainer.storage.configure(apiKey = apiKey)
                 } catch (e: Exception) {
                     e.printStackTrace()
                     throw e
@@ -635,7 +637,6 @@ class Superwall(
 
                 ioScope.launch {
                     withErrorTracking {
-                        dependencyContainer.storage.configure(apiKey = apiKey)
                         dependencyContainer.storage.recordAppInstall {
                             track(event = it)
                         }

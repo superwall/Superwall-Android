@@ -135,6 +135,7 @@ class DependencyContainer(
     purchaseController: PurchaseController? = null,
     options: SuperwallOptions?,
     var activityProvider: ActivityProvider?,
+    val apiKey: String,
 ) : ApiFactory,
     DeviceInfoFactory,
     AppManagerDelegate,
@@ -251,7 +252,7 @@ class DependencyContainer(
                 this,
             )
         storage =
-            LocalStorage(context = context, ioScope = ioScope(), factory = this, json = json())
+            LocalStorage(context = context, ioScope = ioScope(), factory = this, json = json(), _apiKey = apiKey)
         entitlements = Entitlements(storage)
 
         customerInfoManager =
