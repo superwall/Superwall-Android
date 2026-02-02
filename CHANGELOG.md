@@ -6,6 +6,10 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ### Enhancements
 - Enables paywall post-purchase action execution instead of dismissing
+- Adds retrieving of paywall state to paywall info
+
+## Fixes
+- Fixes wrong redemption type being displayed due to integration attributes
 
 ## Deprecations
 - Deprecated `paywallWebviewLoad_timeout` - this event was causing confusion due to it's naming, leading to it being deprecated

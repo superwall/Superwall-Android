@@ -812,6 +812,48 @@ class InternalSuperwallEventTest {
         }
 
     @Test
+    fun redemptions_existingTypeHasNoCode() =
+        runTest {
+            Given("a redemption start with existing type") {
+                val event =
+                    InternalSuperwallEvent.Redemptions(
+                        state = InternalSuperwallEvent.Redemptions.RedemptionState.Start,
+                        type = WebPaywallRedeemer.RedeemType.Existing,
+                    )
+
+                When("parameters are requested") {
+                    val params = event.getSuperwallParameters()
+
+                    Then("type is EXISTING_CODES and no code is present") {
+                        assertEquals("EXISTING_CODES", params["type"])
+                        assertFalse(params.containsKey("code"))
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun redemptions_integrationAttributesTypeHasNoCode() =
+        runTest {
+            Given("a redemption start with integration attributes type") {
+                val event =
+                    InternalSuperwallEvent.Redemptions(
+                        state = InternalSuperwallEvent.Redemptions.RedemptionState.Start,
+                        type = WebPaywallRedeemer.RedeemType.IntegrationAttributes,
+                    )
+
+                When("parameters are requested") {
+                    val params = event.getSuperwallParameters()
+
+                    Then("type is INTEGRATION_ATTRIBUTES and no code is present") {
+                        assertEquals("INTEGRATION_ATTRIBUTES", params["type"])
+                        assertFalse(params.containsKey("code"))
+                    }
+                }
+            }
+        }
+
+    @Test
     fun reviewRequested_reportsCountAndType() =
         runTest {
             Given("a review request event") {
