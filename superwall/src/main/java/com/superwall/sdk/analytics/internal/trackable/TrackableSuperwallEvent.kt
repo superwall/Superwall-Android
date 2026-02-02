@@ -959,6 +959,7 @@ sealed class InternalSuperwallEvent(
                 "paywall_id" to paywallId,
                 "preloading_enabled" to preloadingEnabled,
                 "visible_duration" to visibleDuration,
+                "unit" to "ms",
             ).map { (key, value) -> if (value != null) key to value else null }
                 .filterNotNull()
                 .toMap()

@@ -6,7 +6,11 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ### Enhancements
 - Enables paywall post-purchase action execution instead of dismissing
-- Adds retrieving of paywall state to paywall info
+- Enables triggering custom callback requests from paywall
+- Adds a new method to PaywallPresentationHandler called onCustomCallback that allows user to handle custom callback requests
+- Adds retrieving of paywall state inside paywall info
+- Adds support for new one time purchases with purchase options and offers 
+- Update Superscript to version 1.0.13, find more in the [Superscript changelog](https://github.com/superwall/superscript/releases/tag/1.0.13)
 
 ## Fixes
 - Fixes wrong redemption type being displayed due to integration attributes
@@ -16,6 +20,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## Fixes
 - Fixes late initialization authorization issue for Stripe checkouts
+- Improves how Shimmer duration is measured
 
 ## 2.6.8
 

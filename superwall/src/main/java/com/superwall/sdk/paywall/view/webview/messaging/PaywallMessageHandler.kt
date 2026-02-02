@@ -31,6 +31,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -810,33 +811,35 @@ class PaywallMessageHandler(
             info = mapOf("message" to messageScript),
         )
 
-        return suspendCancellableCoroutine { continuation ->
-            mainScope.launch {
-                messageHandler?.evaluate(messageScript) { result ->
-                    if (result != null) {
-                        try {
-                            val parsed = json.parseToJsonElement(result)
-                            val converted = parsed.convertFromJsonElement()
-                            val stateMap = replaceNullsWithEmpty(converted) as? Map<String, Any> ?: emptyMap()
-                            continuation.resume(stateMap)
-                        } catch (e: Exception) {
-                            Logger.debug(
-                                logLevel = LogLevel.error,
-                                scope = LogScope.paywallView,
-                                message = "Error parsing state JSON",
-                                info = mapOf("message" to messageScript, "result" to result),
-                                error = e,
-                            )
+        return withTimeoutOrNull(1000) {
+            suspendCancellableCoroutine { continuation ->
+                mainScope.launch {
+                    messageHandler?.evaluate(messageScript) { result ->
+                        if (result != null) {
+                            try {
+                                val parsed = json.parseToJsonElement(result)
+                                val converted = parsed.convertFromJsonElement()
+                                val stateMap = replaceNullsWithEmpty(converted) as? Map<String, Any> ?: emptyMap()
+                                continuation.resume(stateMap)
+                            } catch (e: Exception) {
+                                Logger.debug(
+                                    logLevel = LogLevel.error,
+                                    scope = LogScope.paywallView,
+                                    message = "Error parsing state JSON",
+                                    info = mapOf("message" to messageScript, "result" to result),
+                                    error = e,
+                                )
+                                continuation.resume(emptyMap())
+                            }
+                        } else {
                             continuation.resume(emptyMap())
                         }
-                    } else {
+                    } ?: run {
                         continuation.resume(emptyMap())
                     }
-                } ?: run {
-                    continuation.resume(emptyMap())
                 }
             }
-        }
+        } ?: emptyMap()
     }
 
     private fun replaceNullsWithEmpty(value: Any?): Any =

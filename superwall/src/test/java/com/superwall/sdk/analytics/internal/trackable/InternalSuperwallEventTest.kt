@@ -295,7 +295,7 @@ class InternalSuperwallEventTest {
                     val params = event.getSuperwallParameters()
 
                     Then("only non-null metadata is included") {
-                        assertEquals(mapOf("paywall_id" to "pw123", "preloading_enabled" to true), params)
+                        assertEquals(mapOf("paywall_id" to "pw123", "preloading_enabled" to true, "unit" to "ms"), params)
                     }
                 }
             }

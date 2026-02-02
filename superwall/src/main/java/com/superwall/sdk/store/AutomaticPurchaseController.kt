@@ -316,11 +316,6 @@ class AutomaticPurchaseController(
         Superwall.instance.configurationStateListener.first { it is ConfigurationStatus.Configured }
         val subscriptionPurchases = queryPurchasesOfType(BillingClient.ProductType.SUBS)
         val inAppPurchases = queryPurchasesOfType(BillingClient.ProductType.INAPP)
-        inAppPurchases.forEach {
-            it.purchaseToken?.let {
-                Superwall.instance.consume(it)
-            }
-        }
         val allPurchases = subscriptionPurchases + inAppPurchases
         val hasActivePurchaseOrSubscription =
             allPurchases.any { it.purchaseState == Purchase.PurchaseState.PURCHASED }
@@ -379,12 +374,6 @@ class AutomaticPurchaseController(
                 )
                 return@queryPurchasesAsync
             }
-            purchasesList.forEach {
-                scope.launch {
-                    Superwall.instance.consume(it.purchaseToken)
-                }
-            }
-
             deferred.complete(purchasesList)
         }
 
