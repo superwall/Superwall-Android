@@ -14,6 +14,9 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 ## Deprecations
 - Deprecated `paywallWebviewLoad_timeout` - this event was causing confusion due to it's naming, leading to it being deprecated
 
+## Fixes
+- Fixes late initialization authorization issue for Stripe checkouts
+
 ## 2.6.8
 
 ### Enhancements
