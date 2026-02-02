@@ -14,6 +14,10 @@ import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.MainScope
 import com.superwall.sdk.models.paywall.LocalNotification
 import com.superwall.sdk.models.paywall.Paywall
+import com.superwall.sdk.paywall.presentation.CustomCallback
+import com.superwall.sdk.paywall.presentation.CustomCallbackRegistry
+import com.superwall.sdk.paywall.presentation.CustomCallbackResult
+import com.superwall.sdk.paywall.presentation.CustomCallbackResultStatus
 import com.superwall.sdk.paywall.view.PaywallView
 import com.superwall.sdk.paywall.view.PaywallViewState
 import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
@@ -71,6 +75,7 @@ class PaywallMessageHandler(
     private val encodeToB64: (String) -> String,
     private val userPermissions: UserPermissions,
     private val getActivity: () -> Activity?,
+    private val customCallbackRegistry: CustomCallbackRegistry,
 ) : SendPaywallMessages {
     private companion object {
         val selectionString =
@@ -250,6 +255,8 @@ class PaywallMessageHandler(
                 )
 
             is PaywallMessage.RequestPermission -> handleRequestPermission(message)
+
+            is PaywallMessage.RequestCallback -> handleRequestCallback(message)
 
             else -> {
                 Logger.debug(
@@ -635,6 +642,113 @@ class PaywallMessageHandler(
             LogLevel.debug,
             LogScope.superwallCore,
             "Sending permission_result: $jsonString",
+        )
+
+        passMessageToWebView(base64String = encodeToB64(jsonString))
+    }
+
+    private fun handleRequestCallback(request: PaywallMessage.RequestCallback) {
+        val paywallIdentifier = messageHandler?.state?.paywall?.identifier ?: ""
+
+        // Emit event to listeners
+        messageHandler?.eventDidOccur(
+            PaywallWebEvent.RequestCallback(
+                name = request.name,
+                behavior = request.behavior,
+                requestId = request.requestId,
+                variables = request.variables,
+            ),
+        )
+
+        // Get the callback handler from the registry
+        val callbackHandler = customCallbackRegistry.getHandler(paywallIdentifier)
+
+        if (callbackHandler == null) {
+            Logger.debug(
+                LogLevel.warn,
+                LogScope.superwallCore,
+                "No custom callback handler registered for callback: ${request.name}",
+            )
+            // Send failure response if no handler is registered
+            ioScope.launch {
+                sendCallbackResult(
+                    requestId = request.requestId,
+                    name = request.name,
+                    status = CustomCallbackResultStatus.FAILURE,
+                    data = null,
+                )
+            }
+            return
+        }
+
+        ioScope.launch {
+            val result =
+                try {
+                    val callback =
+                        CustomCallback(
+                            name = request.name,
+                            variables = request.variables,
+                        )
+                    callbackHandler(callback)
+                } catch (e: Exception) {
+                    Logger.debug(
+                        LogLevel.error,
+                        LogScope.superwallCore,
+                        "Error executing custom callback: ${e.message}",
+                        error = e,
+                    )
+                    CustomCallbackResult.failure()
+                }
+
+            sendCallbackResult(
+                requestId = request.requestId,
+                name = request.name,
+                status = result.status,
+                data = result.data,
+            )
+        }
+    }
+
+    /**
+     * Send a callback_result message back to the webview
+     */
+    private suspend fun sendCallbackResult(
+        requestId: String,
+        name: String,
+        status: CustomCallbackResultStatus,
+        data: Map<String, Any>?,
+    ) {
+        val eventMap =
+            mutableMapOf<String, Any>(
+                "event_name" to "callback_result",
+                "request_id" to requestId,
+                "name" to name,
+                "status" to status.rawValue,
+            )
+
+        if (data != null) {
+            eventMap["data"] = data
+        }
+
+        val eventList = listOf(eventMap)
+
+        val jsonString =
+            try {
+                json.encodeToString(eventList.convertToJsonElement())
+            } catch (e: Throwable) {
+                Logger.debug(
+                    LogLevel.error,
+                    LogScope.superwallCore,
+                    "Error encoding callback result: ${e.message}",
+                    error = e,
+                )
+                return
+            }
+
+        Logger.debug(
+            LogLevel.debug,
+            LogScope.superwallCore,
+            "Sending callback_result: $jsonString",
         )
 
         passMessageToWebView(base64String = encodeToB64(jsonString))

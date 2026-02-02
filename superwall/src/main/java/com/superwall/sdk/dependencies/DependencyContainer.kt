@@ -66,6 +66,7 @@ import com.superwall.sdk.network.device.DeviceInfo
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
 import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.paywall.manager.PaywallViewCache
+import com.superwall.sdk.paywall.presentation.CustomCallbackRegistry
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.dismiss
 import com.superwall.sdk.paywall.presentation.get_presentation_result.internallyGetPresentationResult
@@ -191,6 +192,7 @@ class DependencyContainer(
     val googleBillingWrapper: GoogleBillingWrapper
     internal val reviewManager: ReviewManager
     internal val userPermissions: UserPermissions
+    internal val customCallbackRegistry: CustomCallbackRegistry
 
     var entitlements: Entitlements
     internal lateinit var customerInfoManager: CustomerInfoManager
@@ -599,6 +601,7 @@ class DependencyContainer(
             }
 
         userPermissions = UserPermissionsImpl(context)
+        customCallbackRegistry = CustomCallbackRegistry()
 
         deepLinkRouter =
             DeepLinkRouter(
@@ -711,6 +714,7 @@ class DependencyContainer(
                 },
                 userPermissions = userPermissions,
                 getActivity = { activityProvider?.getCurrentActivity() },
+                customCallbackRegistry = customCallbackRegistry,
             )
 
         val state =

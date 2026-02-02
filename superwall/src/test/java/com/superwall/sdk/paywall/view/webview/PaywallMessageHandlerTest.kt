@@ -120,6 +120,9 @@ class PaywallMessageHandlerTest {
             encodeToB64 = encodeToB64,
             userPermissions = FakeUserPermissions(),
             getActivity = { null },
+            customCallbackRegistry =
+                com.superwall.sdk.paywall.presentation
+                    .CustomCallbackRegistry(),
         )
 
     @Test
