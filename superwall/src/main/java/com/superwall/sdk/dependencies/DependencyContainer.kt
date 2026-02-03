@@ -66,6 +66,7 @@ import com.superwall.sdk.network.device.DeviceInfo
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
 import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.paywall.manager.PaywallViewCache
+import com.superwall.sdk.paywall.presentation.CustomCallbackRegistry
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.dismiss
 import com.superwall.sdk.paywall.presentation.get_presentation_result.internallyGetPresentationResult
@@ -135,6 +136,7 @@ class DependencyContainer(
     purchaseController: PurchaseController? = null,
     options: SuperwallOptions?,
     var activityProvider: ActivityProvider?,
+    val apiKey: String,
 ) : ApiFactory,
     DeviceInfoFactory,
     AppManagerDelegate,
@@ -190,6 +192,7 @@ class DependencyContainer(
     val googleBillingWrapper: GoogleBillingWrapper
     internal val reviewManager: ReviewManager
     internal val userPermissions: UserPermissions
+    internal val customCallbackRegistry: CustomCallbackRegistry
 
     var entitlements: Entitlements
     internal lateinit var customerInfoManager: CustomerInfoManager
@@ -251,7 +254,7 @@ class DependencyContainer(
                 this,
             )
         storage =
-            LocalStorage(context = context, ioScope = ioScope(), factory = this, json = json())
+            LocalStorage(context = context, ioScope = ioScope(), factory = this, json = json(), _apiKey = apiKey)
         entitlements = Entitlements(storage)
 
         customerInfoManager =
@@ -546,6 +549,7 @@ class DependencyContainer(
                         return@TransactionManager
                     }
 
+                    paywallView.webView.messageHandler.handle(PaywallMessage.TransactionComplete(id))
                     // Schedule fallback notifications from the paywall config in case the paywall
                     // hasn't been updated to send the ScheduleNotification message dynamically.
                     // If the paywall sends a ScheduleNotification message, it will cancel and
@@ -597,6 +601,7 @@ class DependencyContainer(
             }
 
         userPermissions = UserPermissionsImpl(context)
+        customCallbackRegistry = CustomCallbackRegistry()
 
         deepLinkRouter =
             DeepLinkRouter(
@@ -613,7 +618,7 @@ class DependencyContainer(
                 track(it)
             }, ioScope = ioScope, redeemAfterSetting = {
                 ioScope.launch {
-                    reedemer.redeem(WebPaywallRedeemer.RedeemType.Existing)
+                    reedemer.redeem(WebPaywallRedeemer.RedeemType.IntegrationAttributes)
                 }
             }, vendorId = { VendorId(deviceHelper.vendorId) })
 
@@ -709,6 +714,7 @@ class DependencyContainer(
                 },
                 userPermissions = userPermissions,
                 getActivity = { activityProvider?.getCurrentActivity() },
+                customCallbackRegistry = customCallbackRegistry,
             )
 
         val state =

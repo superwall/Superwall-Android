@@ -157,6 +157,12 @@ class WebPaywallRedeemer(
             override val description: String = "EXISTING_CODES"
             override val code: String? = null
         }
+
+        object IntegrationAttributes : RedeemType {
+            override val code: String?
+                get() = null
+            override val description: String = "INTEGRATION_ATTRIBUTES"
+        }
     }
 
     suspend fun redeem(redemption: RedeemType) {
@@ -168,6 +174,7 @@ class WebPaywallRedeemer(
                 when (redemption) {
                     is RedeemType.Existing -> "Existing"
                     is RedeemType.Code -> "Code: ${redemption.code}"
+                    is RedeemType.IntegrationAttributes -> "Integration attributes"
                 }
             }",
         )
@@ -260,7 +267,7 @@ class WebPaywallRedeemer(
                             }
                         }
 
-                        RedeemType.Existing -> {
+                        RedeemType.Existing, RedeemType.IntegrationAttributes -> {
                             // NO-OP
                         }
                     }

@@ -25,6 +25,7 @@ import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.models.customer.toSet
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
+import com.superwall.sdk.store.abstractions.product.BasePlanType
 import com.superwall.sdk.store.abstractions.product.OfferType
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import com.superwall.sdk.store.transactions.PlayBillingErrors
@@ -52,8 +53,9 @@ class AutomaticPurchaseController(
             BillingClient
                 .newBuilder(ctx)
                 .setListener(listener)
-                .enablePendingPurchases(PendingPurchasesParams.newBuilder().enableOneTimeProducts().build())
-                .build()
+                .enablePendingPurchases(
+                    PendingPurchasesParams.newBuilder().enableOneTimeProducts().build(),
+                ).build()
         } catch (e: Throwable) {
             Logger.debug(
                 logLevel = LogLevel.error,
@@ -172,24 +174,37 @@ class AutomaticPurchaseController(
             RawStoreProduct(
                 underlyingProductDetails = productDetails,
                 fullIdentifier = fullId,
-                basePlanId = basePlanId ?: "",
-                offerType = offerId?.let { OfferType.Offer(id = it) },
+                basePlanType = BasePlanType.from(basePlanId),
+                offerType = OfferType.from(offerId),
             )
 
-        val offerToken = rawStoreProduct.selectedOffer?.offerToken
+        val offerToken =
+            when (val offer = rawStoreProduct.selectedOffer) {
+                is RawStoreProduct.SelectedOfferDetails.Subscription -> offer.underlying.offerToken
+                is RawStoreProduct.SelectedOfferDetails.OneTime -> {
+                    // For OTP with purchase options, we need the offerToken to specify which
+                    // purchase option to use, even when there's no discount offer (offerId=null).
+                    // Only skip offerToken for legacy OTPs without purchase options.
+                    if (offer.purchaseOptionId != null || offerId != null) {
+                        offer.underlying.offerToken
+                    } else {
+                        null
+                    }
+                }
+                null -> null
+            }
 
-        val isOneTime =
-            productDetails.productType == BillingClient.ProductType.INAPP && offerToken.isNullOrEmpty()
+        val hasOfferToken = !offerToken.isNullOrEmpty()
 
         val productDetailsParams =
             BillingFlowParams.ProductDetailsParams
                 .newBuilder()
                 .setProductDetails(productDetails)
                 .also {
-                    // Do not set empty offer token for one time products
-                    // as Google play is not supporting it since June 12th 2024
-                    if (!isOneTime && offerToken != null) {
-                        it.setOfferToken(offerToken)
+                    // Set offer token if we have one (for both subscriptions and OTP with purchase options)
+                    // Don't set empty token as Google Play doesn't support it
+                    if (hasOfferToken) {
+                        it.setOfferToken(offerToken!!)
                     }
                 }.build()
 
@@ -216,7 +231,6 @@ class AutomaticPurchaseController(
                 )
                 null
             }
-
         val flowParams =
             BillingFlowParams
                 .newBuilder()
@@ -278,7 +292,8 @@ class AutomaticPurchaseController(
                 // For all other response codes, create a Failed result with an exception
                 else -> {
                     PurchaseResult.Failed(
-                        PlayBillingErrors.fromCode(billingResult.responseCode)?.message ?: "Unknown error ${billingResult.responseCode}",
+                        PlayBillingErrors.fromCode(billingResult.responseCode)?.message
+                            ?: "Unknown error ${billingResult.responseCode}",
                     )
                 }
             }
@@ -317,7 +332,11 @@ class AutomaticPurchaseController(
                     .let { entitlements ->
                         entitlementsInfo.activeDeviceEntitlements = entitlements
                         if (entitlements.isNotEmpty()) {
-                            SubscriptionStatus.Active(entitlements.map { it.copy(isActive = true) }.toSet())
+                            SubscriptionStatus.Active(
+                                entitlements
+                                    .map { it.copy(isActive = true) }
+                                    .toSet(),
+                            )
                         } else {
                             SubscriptionStatus.Inactive
                         }
@@ -355,7 +374,6 @@ class AutomaticPurchaseController(
                 )
                 return@queryPurchasesAsync
             }
-
             deferred.complete(purchasesList)
         }
 

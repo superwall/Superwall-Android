@@ -4,10 +4,12 @@ import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.models.paywall.LocalNotificationType
+import com.superwall.sdk.paywall.presentation.CustomCallbackBehavior
 import com.superwall.sdk.permissions.PermissionType
 import com.superwall.sdk.storage.core_data.convertFromJsonElement
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
@@ -64,6 +66,7 @@ sealed class PaywallMessage {
     data class Purchase(
         val product: String,
         val productId: String,
+        val shouldDismiss: Boolean,
     ) : PaywallMessage()
 
     data class Custom(
@@ -80,6 +83,10 @@ sealed class PaywallMessage {
     object PaywallClose : PaywallMessage()
 
     object TransactionStart : PaywallMessage()
+
+    data class TransactionComplete(
+        val productIdentifier: String,
+    ) : PaywallMessage()
 
     data class TrialStarted(
         val trialEndDate: Long?,
@@ -113,6 +120,13 @@ sealed class PaywallMessage {
     data class RequestPermission(
         val permissionType: PermissionType,
         val requestId: String,
+    ) : PaywallMessage()
+
+    data class RequestCallback(
+        val requestId: String,
+        val name: String,
+        val behavior: CustomCallbackBehavior,
+        val variables: Map<String, Any>?,
     ) : PaywallMessage()
 }
 
@@ -163,6 +177,7 @@ private fun parsePaywallMessage(json: JsonObject): PaywallMessage {
             PaywallMessage.Purchase(
                 json["product"]!!.jsonPrimitive.content,
                 json["product_identifier"]!!.jsonPrimitive.content,
+                json["should_dismiss"]?.jsonPrimitive?.booleanOrNull ?: true,
             )
 
         "custom" -> PaywallMessage.Custom(json["data"]!!.jsonPrimitive.content)
@@ -217,6 +232,31 @@ private fun parsePaywallMessage(json: JsonObject): PaywallMessage {
             PaywallMessage.RequestPermission(
                 permissionType = permissionType,
                 requestId = requestId,
+            )
+        }
+
+        "request_callback" -> {
+            val requestId =
+                json["request_id"]?.jsonPrimitive?.contentOrNull
+                    ?: throw IllegalArgumentException("request_callback missing request_id")
+            val name =
+                json["name"]?.jsonPrimitive?.contentOrNull
+                    ?: throw IllegalArgumentException("request_callback missing name")
+            val behaviorRaw =
+                json["behavior"]?.jsonPrimitive?.contentOrNull
+                    ?: throw IllegalArgumentException("request_callback missing behavior")
+            val behavior =
+                CustomCallbackBehavior.fromRaw(behaviorRaw)
+                    ?: throw IllegalArgumentException("Unknown behavior: $behaviorRaw")
+            val variables =
+                json["variables"]?.jsonObject?.let { variablesJson ->
+                    variablesJson.convertFromJsonElement() as? Map<String, Any>
+                }
+            PaywallMessage.RequestCallback(
+                requestId = requestId,
+                name = name,
+                behavior = behavior,
+                variables = variables,
             )
         }
 

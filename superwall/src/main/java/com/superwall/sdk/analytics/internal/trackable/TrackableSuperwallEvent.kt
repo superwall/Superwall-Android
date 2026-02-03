@@ -532,7 +532,7 @@ sealed class InternalSuperwallEvent(
             get() {
                 return paywallInfo.audienceFilterParams().let {
                     if (superwallPlacement is SuperwallEvent.TransactionAbandon) {
-                        it.plus("abandoned_product_id" to (product?.productIdentifier ?: ""))
+                        it.plus("abandoned_product_id" to (product?.fullIdentifier ?: ""))
                     } else {
                         it
                     }
@@ -712,10 +712,6 @@ sealed class InternalSuperwallEvent(
 
             object Fallback : State()
 
-            class Timeout(
-                val msg: String,
-            ) : State()
-
             class Complete : State()
         }
 
@@ -724,11 +720,6 @@ sealed class InternalSuperwallEvent(
                 when (state) {
                     is PaywallWebviewLoad.State.Start ->
                         SuperwallEvent.PaywallWebviewLoadStart(
-                            paywallInfo,
-                        )
-
-                    is PaywallWebviewLoad.State.Timeout ->
-                        SuperwallEvent.PaywallWebviewLoadTimeout(
                             paywallInfo,
                         )
 
@@ -763,11 +754,6 @@ sealed class InternalSuperwallEvent(
                                 .mapIndexed { i, it ->
                                     "url_$i" to it
                                 }.toTypedArray(),
-                        )
-
-                    is State.Timeout ->
-                        mapOf(
-                            "error_message" to state.msg,
                         )
 
                     else -> mapOf()
@@ -973,6 +959,7 @@ sealed class InternalSuperwallEvent(
                 "paywall_id" to paywallId,
                 "preloading_enabled" to preloadingEnabled,
                 "visible_duration" to visibleDuration,
+                "unit" to "ms",
             ).map { (key, value) -> if (value != null) key to value else null }
                 .filterNotNull()
                 .toMap()

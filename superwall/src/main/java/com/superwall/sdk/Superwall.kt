@@ -614,7 +614,9 @@ class Superwall(
                             purchaseController = purchaseController,
                             options = _options,
                             activityProvider = activityProvider,
+                            apiKey = apiKey,
                         )
+                    dependencyContainer.storage.configure(apiKey = apiKey)
                 } catch (e: Exception) {
                     e.printStackTrace()
                     throw e
@@ -635,7 +637,6 @@ class Superwall(
 
                 ioScope.launch {
                     withErrorTracking {
-                        dependencyContainer.storage.configure(apiKey = apiKey)
                         dependencyContainer.storage.recordAppInstall {
                             track(event = it)
                         }
@@ -990,6 +991,7 @@ class Superwall(
                 TransactionManager.PurchaseSource.ExternalPurchase(
                     StoreProduct(RawStoreProduct.from(product)),
                 ),
+                shouldDismiss = true,
             )
         }.toResult()
 
@@ -1012,6 +1014,7 @@ class Superwall(
                 TransactionManager.PurchaseSource.ExternalPurchase(
                     product,
                 ),
+                shouldDismiss = true,
             )
         }.toResult()
 
@@ -1035,6 +1038,7 @@ class Superwall(
                     TransactionManager.PurchaseSource.ExternalPurchase(
                         it,
                     ),
+                    shouldDismiss = true,
                 )
             } ?: throw IllegalArgumentException("Product with id $productId not found")
         }.toResult()
@@ -1281,6 +1285,7 @@ class Superwall(
                                         paywallEvent.productId,
                                         paywallView.controller.state,
                                     ),
+                                    shouldDismiss = paywallEvent.shouldDismiss,
                                 )
                             } finally {
                                 // Ensure the task is cleared once the purchase is complete or if an error occurs
@@ -1415,6 +1420,14 @@ class Superwall(
                         LogLevel.debug,
                         LogScope.paywallView,
                         message = "Permission requested: ${paywallEvent.permissionType.rawValue}",
+                    )
+                }
+
+                is PaywallWebEvent.RequestCallback -> {
+                    Logger.debug(
+                        LogLevel.debug,
+                        LogScope.paywallView,
+                        message = "Custom callback requested: ${paywallEvent.name}",
                     )
                 }
             }
