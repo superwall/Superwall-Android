@@ -12,15 +12,13 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 - Adds support for new one time purchases with purchase options and offers 
 - Update Superscript to version 1.0.13, find more in the [Superscript changelog](https://github.com/superwall/superscript/releases/tag/1.0.13)
 
-## Fixes
-- Fixes wrong redemption type being displayed due to integration attributes
-
 ## Deprecations
 - Deprecated `paywallWebviewLoad_timeout` - this event was causing confusion due to it's naming, leading to it being deprecated
 
 ## Fixes
 - Fixes late initialization authorization issue for Stripe checkouts
 - Improves how Shimmer duration is measured
+- Fixes wrong redemption type being displayed due to integration attributes
 
 ## 2.6.8
 
