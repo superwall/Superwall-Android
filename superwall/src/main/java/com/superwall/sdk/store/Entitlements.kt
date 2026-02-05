@@ -96,11 +96,22 @@ class Entitlements(
         get() = _inactive.toSet() + all.minus(active)
 
     init {
-        storage.read(StoredSubscriptionStatus)?.let {
-            setSubscriptionStatus(it)
+        try {
+            storage.read(StoredSubscriptionStatus)?.let {
+                setSubscriptionStatus(it)
+            }
+        } catch (e: ClassCastException) {
+            // Handle corrupted cache data - reset to Unknown status
+            storage.delete(StoredSubscriptionStatus)
+            setSubscriptionStatus(SubscriptionStatus.Unknown)
         }
-        storage.read(StoredEntitlementsByProductId)?.let {
-            entitlementsByProduct.putAll(it)
+        try {
+            storage.read(StoredEntitlementsByProductId)?.let {
+                entitlementsByProduct.putAll(it)
+            }
+        } catch (e: ClassCastException) {
+            // Handle corrupted cache data
+            storage.delete(StoredEntitlementsByProductId)
         }
 
         scope.launch {
