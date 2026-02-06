@@ -1,6 +1,7 @@
 package com.superwall.sdk.paywall.view
 
 import android.animation.ValueAnimator
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.drawable.VectorDrawable
@@ -8,14 +9,18 @@ import android.util.AttributeSet
 import android.view.View
 import android.view.ViewTreeObserver
 import android.view.animation.PathInterpolator
-import androidx.appcompat.widget.AppCompatImageView
+import android.widget.ImageView
 import androidx.core.content.ContextCompat
 import com.superwall.sdk.R
 
+// Using ImageView instead of AppCompatImageView intentionally —
+// this view is created with applicationContext to avoid activity leaks,
+// and AppCompatImageView requires a Theme.AppCompat context.
+@SuppressLint("AppCompatCustomView")
 class ShimmerView(
     context: Context,
     attrs: AttributeSet? = null,
-) : AppCompatImageView(context.applicationContext, attrs),
+) : ImageView(context.applicationContext, attrs),
     PaywallShimmerView {
     private var animator: ValueAnimator? = null
     private var vectorDrawable: VectorDrawable? = null
