@@ -32,10 +32,10 @@ class ShimmerView(
     private var currentOrientation: Int = Configuration.ORIENTATION_UNDEFINED
 
     private val portraitDrawable: VectorDrawable? by lazy {
-        ContextCompat.getDrawable(context.applicationContext, R.drawable.portrait_shimmer_skeleton) as? VectorDrawable
+        ContextCompat.getDrawable(getContext(), R.drawable.portrait_shimmer_skeleton) as? VectorDrawable
     }
     private val landscapeDrawable: VectorDrawable? by lazy {
-        ContextCompat.getDrawable(context.applicationContext, R.drawable.landscape_shimmer_skeleton) as? VectorDrawable
+        ContextCompat.getDrawable(getContext(), R.drawable.landscape_shimmer_skeleton) as? VectorDrawable
     }
     var tintColorFilter: android.graphics.ColorFilter? = null
 
