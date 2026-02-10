@@ -128,6 +128,27 @@ sealed class PaywallMessage {
         val behavior: CustomCallbackBehavior,
         val variables: Map<String, Any>?,
     ) : PaywallMessage()
+
+    data class HapticFeedback(
+        val hapticType: HapticType,
+    ) : PaywallMessage() {
+        enum class HapticType(
+            val rawName: String,
+        ) {
+            LIGHT("light"),
+            MEDIUM("medium"),
+            HEAVY("heavy"),
+            SUCCESS("success"),
+            WARNING("warning"),
+            ERROR("error"),
+            SELECTION("selection"),
+            ;
+
+            companion object {
+                fun fromRaw(value: String): HapticType? = entries.firstOrNull { it.rawName == value }
+            }
+        }
+    }
 }
 
 fun parseWrappedPaywallMessages(jsonString: String): Result<WrappedPaywallMessages> =
@@ -233,6 +254,14 @@ private fun parsePaywallMessage(json: JsonObject): PaywallMessage {
                 permissionType = permissionType,
                 requestId = requestId,
             )
+        }
+
+        "haptic_feedback" -> {
+            val style =
+                json["haptic_type"]?.jsonPrimitive?.contentOrNull?.let {
+                    PaywallMessage.HapticFeedback.HapticType.fromRaw(it)
+                } ?: throw IllegalArgumentException("haptic_feedback missing or unknown haptic_type")
+            PaywallMessage.HapticFeedback(hapticType = style)
         }
 
         "request_callback" -> {
