@@ -46,6 +46,7 @@ import com.superwall.sdk.misc.toResult
 import com.superwall.sdk.models.paywall.PaywallPresentationStyle
 import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
 import com.superwall.sdk.network.device.DeviceHelper
+import com.superwall.sdk.paywall.archive.models.DecompressedWebArchive
 import com.superwall.sdk.paywall.manager.PaywallViewCache
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.PaywallInfo
@@ -833,68 +834,90 @@ class PaywallView(
                 factory.track(trackedEvent)
             }
 
-            webView.setup(
-                url = url,
-                onRenderCrashed = { didCrash, priority ->
-                    val isOverO = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
-                    controller.updateState(CrashRetry)
-                    Logger.debug(
-                        logLevel = LogLevel.error,
-                        scope = LogScope.paywallView,
-                        message =
-                            "Webview Process has crashed for paywall with identifier: ${state.paywall.identifier}.\n" +
-                                "Crashed by the system: ${
-                                    if (isOverO) didCrash else "Unknown"
-                                } - priority ${
-                                    if (isOverO) priority else "Unknown"
-                                }",
-                    )
-                    if (state.crashRetries < 3) {
+            val shouldArchive = factory.makeSuperwallOptions().paywalls.shouldArchive
+            if (shouldArchive && factory.webArchive().checkIfArchived(state.paywall.identifier)) {
+                loadFromArchive(factory.webArchive().loadArchive(state.paywall.identifier))
+            } else {
+                webView.setup(
+                    url = url,
+                    onRenderCrashed = { didCrash, priority ->
+                        val isOverO = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                        controller.updateState(CrashRetry)
                         Logger.debug(
-                            LogLevel.error,
-                            LogScope.paywallView,
-                            "Webview crash - recreating ${state.paywall.identifier}",
+                            logLevel = LogLevel.error,
+                            scope = LogScope.paywallView,
+                            message =
+                                "Webview Process has crashed for paywall with identifier: ${state.paywall.identifier}.\n" +
+                                    "Crashed by the system: ${
+                                        if (isOverO) didCrash else "Unknown"
+                                    } - priority ${
+                                        if (isOverO) priority else "Unknown"
+                                    }",
                         )
-
-                        recreateWebview()
-                    } else {
-                        controller.updateState(WebLoadingFailed)
-                        Logger.debug(
-                            LogLevel.error,
-                            LogScope.paywallView,
-                            "Webview keeps crashing - paywall ${state.paywall.identifier} not recreated",
-                        )
-                        if (state.isPresented) {
+                        if (state.crashRetries < 3) {
                             Logger.debug(
                                 LogLevel.error,
                                 LogScope.paywallView,
-                                "Dismissing active paywall due to webview process crash, cannot recreate",
+                                "Webview crash - recreating ${state.paywall.identifier}",
                             )
-                            dismiss(
-                                PaywallResult.Declined(),
-                                PaywallCloseReason.WebViewFailedToLoad,
-                            )
+
+                            recreateWebview()
                         } else {
-                            mainScope.launch {
-                                withErrorTracking {
-                                    Logger.debug(
-                                        LogLevel.error,
-                                        LogScope.paywallView,
-                                        "Paywall cannot be recreated - cleaning cached instance for next open",
-                                    )
-                                    beforeOnDestroy()
-                                    destroyed()
-                                    cleanup()
-                                    cache?.removePaywallView(state.paywall.identifier)
+                            controller.updateState(WebLoadingFailed)
+                            Logger.debug(
+                                LogLevel.error,
+                                LogScope.paywallView,
+                                "Webview keeps crashing - paywall ${state.paywall.identifier} not recreated",
+                            )
+                            if (state.isPresented) {
+                                Logger.debug(
+                                    LogLevel.error,
+                                    LogScope.paywallView,
+                                    "Dismissing active paywall due to webview process crash, cannot recreate",
+                                )
+                                dismiss(
+                                    PaywallResult.Declined(),
+                                    PaywallCloseReason.WebViewFailedToLoad,
+                                )
+                            } else {
+                                mainScope.launch {
+                                    withErrorTracking {
+                                        Logger.debug(
+                                            LogLevel.error,
+                                            LogScope.paywallView,
+                                            "Paywall cannot be recreated - cleaning cached instance for next open",
+                                        )
+                                        beforeOnDestroy()
+                                        destroyed()
+                                        cleanup()
+                                        cache?.removePaywallView(state.paywall.identifier)
+                                    }
                                 }
                             }
                         }
-                    }
-                },
-            )
+                    },
+                )
+            }
 
             controller.updateState(SetLoadingState(PaywallLoadingState.LoadingURL))
         }
+    }
+
+    fun loadFromArchive(archive: Result<DecompressedWebArchive>) {
+        val swWebView = webView as? SWWebView ?: return
+        archive.fold(onSuccess = {
+            mainScope.launch {
+                swWebView.loadFromArchive(it)
+            }
+        }, onFailure = {
+            swWebView.loadUrl(state.paywall.url.value)
+            Logger.debug(
+                logLevel = LogLevel.error,
+                scope = LogScope.paywallView,
+                message = "Failed to load archive: ${it.localizedMessage}",
+                error = it,
+            )
+        })
     }
 
     private fun recreateWebview() {

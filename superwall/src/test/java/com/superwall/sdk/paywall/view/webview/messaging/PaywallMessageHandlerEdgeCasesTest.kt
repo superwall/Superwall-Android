@@ -117,6 +117,8 @@ class PaywallMessageHandlerEdgeCasesTest {
                         options =
                             object : OptionsFactory {
                                 override fun makeSuperwallOptions(): SuperwallOptions = SuperwallOptions()
+
+                                override fun webArchive(): com.superwall.sdk.paywall.archive.WebArchiveLibrary = throw NotImplementedError()
                             },
                         track = { _ -> },
                         setAttributes = { _ -> },
@@ -166,6 +168,8 @@ class PaywallMessageHandlerEdgeCasesTest {
                         options =
                             object : OptionsFactory {
                                 override fun makeSuperwallOptions(): SuperwallOptions = options
+
+                                override fun webArchive(): com.superwall.sdk.paywall.archive.WebArchiveLibrary = throw NotImplementedError()
                             },
                         track = { _ -> },
                         setAttributes = { _ -> },
@@ -209,6 +213,8 @@ class PaywallMessageHandlerEdgeCasesTest {
                         options =
                             object : OptionsFactory {
                                 override fun makeSuperwallOptions(): SuperwallOptions = options
+
+                                override fun webArchive(): com.superwall.sdk.paywall.archive.WebArchiveLibrary = throw NotImplementedError()
                             },
                         track = { _ -> },
                         setAttributes = { _ -> },
@@ -252,6 +258,8 @@ class PaywallMessageHandlerEdgeCasesTest {
                         options =
                             object : OptionsFactory {
                                 override fun makeSuperwallOptions(): SuperwallOptions = options
+
+                                override fun webArchive(): com.superwall.sdk.paywall.archive.WebArchiveLibrary = throw NotImplementedError()
                             },
                         track = { _ -> },
                         setAttributes = { _ -> },
@@ -289,6 +297,8 @@ class PaywallMessageHandlerEdgeCasesTest {
                         options =
                             object : OptionsFactory {
                                 override fun makeSuperwallOptions(): SuperwallOptions = SuperwallOptions()
+
+                                override fun webArchive(): com.superwall.sdk.paywall.archive.WebArchiveLibrary = throw NotImplementedError()
                             },
                         track = { _ -> },
                         setAttributes = { _ -> },
@@ -332,6 +342,8 @@ class PaywallMessageHandlerEdgeCasesTest {
                         options =
                             object : OptionsFactory {
                                 override fun makeSuperwallOptions(): SuperwallOptions = SuperwallOptions()
+
+                                override fun webArchive(): com.superwall.sdk.paywall.archive.WebArchiveLibrary = throw NotImplementedError()
                             },
                         track = { _ -> },
                         setAttributes = { _ -> },
@@ -378,6 +390,8 @@ class PaywallMessageHandlerEdgeCasesTest {
                         options =
                             object : OptionsFactory {
                                 override fun makeSuperwallOptions(): SuperwallOptions = SuperwallOptions()
+
+                                override fun webArchive(): com.superwall.sdk.paywall.archive.WebArchiveLibrary = throw NotImplementedError()
                             },
                         track = { _ -> },
                         setAttributes = { _ -> },
@@ -425,6 +439,8 @@ class PaywallMessageHandlerEdgeCasesTest {
                         options =
                             object : OptionsFactory {
                                 override fun makeSuperwallOptions(): SuperwallOptions = SuperwallOptions()
+
+                                override fun webArchive(): com.superwall.sdk.paywall.archive.WebArchiveLibrary = throw NotImplementedError()
                             },
                         track = { _ -> },
                         setAttributes = { _ -> },
@@ -474,6 +490,8 @@ class PaywallMessageHandlerEdgeCasesTest {
                         options =
                             object : OptionsFactory {
                                 override fun makeSuperwallOptions(): SuperwallOptions = SuperwallOptions()
+
+                                override fun webArchive(): com.superwall.sdk.paywall.archive.WebArchiveLibrary = throw NotImplementedError()
                             },
                         track = { _ -> },
                         setAttributes = { _ -> },
@@ -526,6 +544,8 @@ class PaywallMessageHandlerEdgeCasesTest {
                         options =
                             object : OptionsFactory {
                                 override fun makeSuperwallOptions(): SuperwallOptions = SuperwallOptions()
+
+                                override fun webArchive(): com.superwall.sdk.paywall.archive.WebArchiveLibrary = throw NotImplementedError()
                             },
                         track = { _ -> },
                         setAttributes = { _ -> },
@@ -586,6 +606,8 @@ class PaywallMessageHandlerEdgeCasesTest {
                         options =
                             object : OptionsFactory {
                                 override fun makeSuperwallOptions(): SuperwallOptions = SuperwallOptions()
+
+                                override fun webArchive(): com.superwall.sdk.paywall.archive.WebArchiveLibrary = throw NotImplementedError()
                             },
                         track = { _ -> },
                         setAttributes = { _ -> },
@@ -640,6 +662,8 @@ class PaywallMessageHandlerEdgeCasesTest {
                         options =
                             object : OptionsFactory {
                                 override fun makeSuperwallOptions(): SuperwallOptions = SuperwallOptions()
+
+                                override fun webArchive(): com.superwall.sdk.paywall.archive.WebArchiveLibrary = throw NotImplementedError()
                             },
                         track = { _ -> },
                         setAttributes = { _ -> },
@@ -700,6 +724,8 @@ class PaywallMessageHandlerEdgeCasesTest {
                         options =
                             object : OptionsFactory {
                                 override fun makeSuperwallOptions(): SuperwallOptions = SuperwallOptions()
+
+                                override fun webArchive(): com.superwall.sdk.paywall.archive.WebArchiveLibrary = throw NotImplementedError()
                             },
                         track = { _ -> },
                         setAttributes = { _ -> },

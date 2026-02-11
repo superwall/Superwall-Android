@@ -43,6 +43,7 @@ dokka = "2.1.0"
 detekt = "1.23.7"
 robolectric = "4.13"
 activity_ktx_version = "1.10.1"
+webkit = "1.14.0"
 [libraries]
 
 # SQL
@@ -88,6 +89,7 @@ play_review_ktx = { module = "com.google.android.play:review", version.ref = "pl
 reviewplay_review_ktx = { module = "com.google.android.play:review-ktx", version.ref = "play_review" }
 activity_ktx = { module = "androidx.activity:activity-ktx", version.ref = "activity_ktx_version" }
 activity = { module = "androidx.activity:activity", version.ref = "activity_ktx_version" }
+webkit = { module = "androidx.webkit:webkit", version.ref = "webkit" }
 
 # Coroutines
 kotlinx_coroutines_core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx_coroutines_core_version" }

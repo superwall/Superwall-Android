@@ -28,6 +28,7 @@ import com.superwall.sdk.network.Api
 import com.superwall.sdk.network.JsonFactory
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.network.device.DeviceInfo
+import com.superwall.sdk.paywall.archive.WebArchiveLibrary
 import com.superwall.sdk.paywall.manager.PaywallViewCache
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
@@ -228,6 +229,8 @@ interface ExperimentalPropertiesFactory {
 
 interface OptionsFactory {
     fun makeSuperwallOptions(): SuperwallOptions
+
+    fun webArchive(): WebArchiveLibrary
 }
 
 interface AttributesFactory {

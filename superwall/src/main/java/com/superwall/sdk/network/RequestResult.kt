@@ -6,6 +6,7 @@ data class RequestResult(
     val responseMessage: String,
     val duration: Double,
     val headers: Map<String, String>,
+    val buffer: ByteArray? = null,
 )
 
 fun RequestResult.authHeader(): String = headers["Authorization"] ?: ""

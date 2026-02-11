@@ -29,6 +29,7 @@ import com.superwall.sdk.models.triggers.Trigger
 import com.superwall.sdk.network.SuperwallAPI
 import com.superwall.sdk.network.awaitUntilNetworkExists
 import com.superwall.sdk.network.device.DeviceHelper
+import com.superwall.sdk.paywall.archive.WebArchiveLibrary
 import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.storage.DisableVerboseEvents
 import com.superwall.sdk.storage.LatestConfig
@@ -68,6 +69,7 @@ open class ConfigManager(
     private val awaitUtilNetwork: suspend () -> Unit = {
         context.awaitUntilNetworkExists()
     },
+    private val webArchiveLibrary: WebArchiveLibrary,
 ) {
     interface Factory :
         RequestFactory,

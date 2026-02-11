@@ -104,6 +104,37 @@ class Cache(
         }
     }
 
+    fun <T> readFile(storable: Storable<T>): String? {
+        val file = storable.file(context = context)
+        return if (file.exists()) {
+            file.readText(Charsets.UTF_8)
+        } else {
+            null
+        }
+    }
+
+    fun <T> writeFile(
+        storable: Storable<T>,
+        contents: String,
+    ): Boolean? {
+        val file = storable.file(context = context)
+        return try {
+            file.writeText(contents, Charsets.UTF_8)
+            true
+        } catch (e: Throwable) {
+            Logger.debug(
+                logLevel = LogLevel.info,
+                scope = LogScope.cache,
+                "Cannot write file ${file.path}",
+            )
+            false
+        }
+    }
+
+    fun <T : Any> getFileStream(storable: Storable<T>): java.io.FileOutputStream = storable.file(context).outputStream()
+
+    fun <T : Any> readFileStream(storable: Storable<T>): java.io.FileInputStream = storable.file(context).inputStream()
+
     //region Clean
 
     fun clean() {

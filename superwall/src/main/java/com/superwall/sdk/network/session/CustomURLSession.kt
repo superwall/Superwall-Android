@@ -7,6 +7,7 @@ import com.superwall.sdk.misc.Either
 import com.superwall.sdk.misc.flatMap
 import com.superwall.sdk.misc.map
 import com.superwall.sdk.misc.retrying
+import com.superwall.sdk.network.FileResponse
 import com.superwall.sdk.network.NetworkError
 import com.superwall.sdk.network.NetworkRequestData
 import com.superwall.sdk.network.RequestExecutor
@@ -14,6 +15,7 @@ import com.superwall.sdk.network.RequestResult
 import com.superwall.sdk.network.authHeader
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import java.net.URL
 
 class CustomHttpUrlConnection(
     val json: Json,
@@ -65,4 +67,19 @@ class CustomHttpUrlConnection(
                     }
                 }
         }
+
+    suspend fun downloadFileAt(url: URL): Either<FileResponse, NetworkError> {
+        val result =
+            requestExecutor.execute(
+                NetworkRequestData<String>(
+                    url = url.toURI(),
+                    factory = { _, it -> emptyMap() },
+                ),
+            )
+
+        return result.map {
+            val contentType = it.headers.get("Content-Type")
+            FileResponse(it.buffer!!, contentType, it.headers)
+        }
+    }
 }

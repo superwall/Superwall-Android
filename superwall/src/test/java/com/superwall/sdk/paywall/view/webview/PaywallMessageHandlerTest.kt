@@ -111,6 +111,8 @@ class PaywallMessageHandlerTest {
             options =
                 object : OptionsFactory {
                     override fun makeSuperwallOptions(): SuperwallOptions = SuperwallOptions()
+
+                    override fun webArchive(): com.superwall.sdk.paywall.archive.WebArchiveLibrary = throw NotImplementedError()
                 },
             track = track,
             setAttributes = setAttributes,

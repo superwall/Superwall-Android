@@ -1,5 +1,6 @@
 package com.superwall.sdk.network
 
+import android.net.Uri
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.dependencies.ApiFactory
 import com.superwall.sdk.logger.LogLevel
@@ -36,6 +37,7 @@ open class Network(
     private val enrichmentService: EnrichmentService,
     private val factory: ApiFactory,
     private val subscriptionService: SubscriptionService,
+    private val archiveService: ArchiveService,
 ) : SuperwallAPI {
     override suspend fun sendEvents(events: EventsRequest): Either<Unit, NetworkError> =
         collectorService
@@ -138,6 +140,14 @@ open class Network(
         subscriptionService
             .redeemToken(codes, userId, aliasId, vendorId, receipts, externalAccountId, attributionProps)
             .logError("/redeem")
+
+    override suspend fun fetchRemoteFile(
+        url: Uri,
+        id: String,
+    ): Either<FileResponse, NetworkError> =
+        archiveService
+            .fetchRemoteFile(url)
+            .logError("$url")
 
     override suspend fun webEntitlementsByUserId(
         userId: UserId,

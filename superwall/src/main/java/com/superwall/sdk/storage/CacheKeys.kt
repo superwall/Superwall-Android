@@ -385,6 +385,14 @@ internal object StoredTransactionHistory : Storable<com.superwall.sdk.store.abst
                 .serializer()
 }
 
+internal data class StoredWebArchive(
+    val payWallId: String,
+) : Storable<String> {
+    override val key: String = "store.webarchive.$payWallId"
+    override val directory: SearchPathDirectory = SearchPathDirectory.CACHE
+    override val serializer: KSerializer<String> = String.serializer()
+}
+
 //endregion
 
 // region Serializers
