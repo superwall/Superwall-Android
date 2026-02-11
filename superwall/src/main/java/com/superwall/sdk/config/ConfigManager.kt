@@ -7,12 +7,15 @@ import com.superwall.sdk.config.models.getConfig
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.dependencies.DeviceHelperFactory
 import com.superwall.sdk.dependencies.DeviceInfoFactory
+import com.superwall.sdk.dependencies.HasExternalPurchaseControllerFactory
 import com.superwall.sdk.dependencies.RequestFactory
 import com.superwall.sdk.dependencies.RuleAttributesFactory
 import com.superwall.sdk.dependencies.StoreTransactionFactory
+import com.superwall.sdk.identity.IdentityManager
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
+import com.superwall.sdk.misc.ActivityProvider
 import com.superwall.sdk.misc.Either
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.awaitFirstValidConfig
@@ -26,6 +29,7 @@ import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.models.triggers.Trigger
+import com.superwall.sdk.network.Network
 import com.superwall.sdk.network.SuperwallAPI
 import com.superwall.sdk.network.awaitUntilNetworkExists
 import com.superwall.sdk.network.device.DeviceHelper
@@ -36,6 +40,10 @@ import com.superwall.sdk.storage.LatestEnrichment
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.Entitlements
 import com.superwall.sdk.store.StoreManager
+import com.superwall.sdk.store.abstractions.product.StoreProduct
+import com.superwall.sdk.store.testmode.TestModeManager
+import com.superwall.sdk.store.testmode.TestStoreProduct
+import com.superwall.sdk.store.testmode.models.SuperwallProductPlatform
 import com.superwall.sdk.web.WebPaywallRedeemer
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -56,6 +64,7 @@ open class ConfigManager(
     private val entitlements: Entitlements,
     private val storage: Storage,
     private val network: SuperwallAPI,
+    private val fullNetwork: Network? = null,
     private val deviceHelper: DeviceHelper,
     var options: SuperwallOptions,
     private val paywallManager: PaywallManager,
@@ -65,6 +74,10 @@ open class ConfigManager(
     private val paywallPreload: PaywallPreload,
     private val ioScope: IOScope,
     private val track: suspend (InternalSuperwallEvent) -> Unit,
+    private val testModeManager: TestModeManager? = null,
+    private val identityManager: (() -> IdentityManager)? = null,
+    private val activityProvider: ActivityProvider? = null,
+    private val setSubscriptionStatus: ((SubscriptionStatus) -> Unit)? = null,
     private val awaitUtilNetwork: suspend () -> Unit = {
         context.awaitUntilNetworkExists()
     },
@@ -74,7 +87,8 @@ open class ConfigManager(
         DeviceInfoFactory,
         RuleAttributesFactory,
         DeviceHelperFactory,
-        StoreTransactionFactory
+        StoreTransactionFactory,
+        HasExternalPurchaseControllerFactory
 
     // The configuration of the Superwall dashboard
     internal val configState = MutableStateFlow<ConfigState>(ConfigState.None)
@@ -233,11 +247,13 @@ open class ConfigManager(
                 }
             }.then(::processConfig)
             .then {
-                ioScope.launch {
-                    checkForWebEntitlements()
+                if (testModeManager?.isTestMode != true) {
+                    ioScope.launch {
+                        checkForWebEntitlements()
+                    }
                 }
             }.then {
-                if (options.paywalls.shouldPreload) {
+                if (testModeManager?.isTestMode != true && options.paywalls.shouldPreload) {
                     val productIds = it.paywalls.flatMap { it.productIds }.toSet()
                     try {
                         storeManager.products(productIds)
@@ -335,8 +351,32 @@ open class ConfigManager(
                 entitlements.addEntitlementsByProductId(it)
             }
         }
-        ioScope.launch {
-            storeManager.loadPurchasedProducts(entitlements.entitlementsByProductId)
+
+        // Test mode evaluation
+        val wasTestMode = testModeManager?.isTestMode == true
+        testModeManager?.evaluateTestMode(
+            config = config,
+            bundleId = deviceHelper.bundleId,
+            appUserId = identityManager?.invoke()?.appUserId,
+            aliasId = identityManager?.invoke()?.aliasId,
+        )
+        val testModeJustActivated = !wasTestMode && testModeManager?.isTestMode == true
+
+        if (testModeManager?.isTestMode == true) {
+            ioScope.launch {
+                fetchTestModeProducts()
+                if (testModeJustActivated) {
+                    presentTestModeModal(config)
+                }
+            }
+        } else {
+            if (wasTestMode) {
+                testModeManager?.clearTestModeState()
+                setSubscriptionStatus?.invoke(SubscriptionStatus.Inactive)
+            }
+            ioScope.launch {
+                storeManager.loadPurchasedProducts(entitlements.entitlementsByProductId)
+            }
         }
     }
 
@@ -426,5 +466,74 @@ open class ConfigManager(
         ioScope.launch {
             webPaywallRedeemer().redeem(WebPaywallRedeemer.RedeemType.Existing)
         }
+    }
+
+    private suspend fun fetchTestModeProducts() {
+        val net = fullNetwork ?: return
+        val manager = testModeManager ?: return
+
+        net.getSuperwallProducts().fold(
+            onSuccess = { response ->
+                val androidProducts =
+                    response.data.filter { it.platform == SuperwallProductPlatform.ANDROID && it.price != null }
+                manager.setProducts(androidProducts)
+
+                val productsByFullId =
+                    androidProducts.associate { superwallProduct ->
+                        val testProduct = TestStoreProduct(superwallProduct)
+                        superwallProduct.identifier to StoreProduct(testProduct)
+                    }
+                manager.setTestProducts(productsByFullId)
+
+                Logger.debug(
+                    LogLevel.info,
+                    LogScope.superwallCore,
+                    "Test mode: loaded ${androidProducts.size} products",
+                )
+            },
+            onFailure = { error ->
+                Logger.debug(
+                    LogLevel.error,
+                    LogScope.superwallCore,
+                    "Test mode: failed to fetch products - ${error.message}",
+                )
+            },
+        )
+    }
+
+    private suspend fun presentTestModeModal(config: Config) {
+        val manager = testModeManager ?: return
+        val identity = identityManager?.invoke() ?: return
+        val activity = activityProvider?.getCurrentActivity() ?: return
+
+        track(InternalSuperwallEvent.TestModeModal(InternalSuperwallEvent.TestModeModal.State.Open))
+
+        val reason = manager.testModeReason?.description ?: "Test mode activated"
+        val allEntitlements =
+            config.productsV3
+                ?.flatMap { it.entitlements.map { e -> e.id } }
+                ?.distinct()
+                ?.sorted()
+                ?: emptyList()
+
+        val result =
+            com.superwall.sdk.store.testmode.ui.TestModeModal.show(
+                activity = activity,
+                reason = reason,
+                userId = identity.appUserId,
+                aliasId = identity.aliasId,
+                isIdentified = identity.isLoggedIn,
+                hasPurchaseController = factory.makeHasExternalPurchaseController(),
+                availableEntitlements = allEntitlements,
+            )
+
+        manager.freeTrialOverride = result.freeTrialOverride
+        manager.setEntitlements(result.entitlements)
+
+        val status = manager.buildSubscriptionStatus()
+        manager.setOverriddenSubscriptionStatus(status)
+        entitlements.setSubscriptionStatus(status)
+
+        track(InternalSuperwallEvent.TestModeModal(InternalSuperwallEvent.TestModeModal.State.Close))
     }
 }

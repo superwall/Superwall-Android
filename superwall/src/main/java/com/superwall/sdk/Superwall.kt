@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
 import androidx.work.WorkManager
 import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.ProductDetails
@@ -99,6 +100,8 @@ import kotlinx.coroutines.flow.scan
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.util.Date
 import kotlin.collections.map
 
@@ -275,6 +278,14 @@ class Superwall(
      * @param subscriptionStatus The entitlement status of the user.
      */
     fun setSubscriptionStatus(subscriptionStatus: SubscriptionStatus) {
+        if (dependencyContainer.testModeManager.isTestMode) {
+            Logger.debug(
+                LogLevel.warn,
+                LogScope.superwallCore,
+                "setSubscriptionStatus ignored: test mode is active",
+            )
+            return
+        }
         entitlements.setSubscriptionStatus(subscriptionStatus)
     }
 
@@ -289,6 +300,14 @@ class Superwall(
      * @param entitlements A list of entitlements.
      * */
     fun setSubscriptionStatus(vararg entitlements: String) {
+        if (dependencyContainer.testModeManager.isTestMode) {
+            Logger.debug(
+                LogLevel.warn,
+                LogScope.superwallCore,
+                "setSubscriptionStatus ignored: test mode is active",
+            )
+            return
+        }
         if (entitlements.isEmpty()) {
             this@Superwall.entitlements.setSubscriptionStatus(SubscriptionStatus.Inactive)
         } else {
@@ -307,6 +326,9 @@ class Superwall(
 
     internal fun internallySetSubscriptionStatus(toStatus: SubscriptionStatus) {
         if (dependencyContainer.makeHasExternalPurchaseController()) {
+            return
+        }
+        if (dependencyContainer.testModeManager.isTestMode) {
             return
         }
         val webEntitlements = dependencyContainer.entitlements.web
@@ -1403,6 +1425,9 @@ class Superwall(
                                     .activityProvider
                                     ?.getCurrentActivity()
                         ) as SuperwallPaywallActivity?
+                    Log.e("NotificationScheduler", "==============FROM PAYWALL======================")
+                    Log.e("NotificationScheduler", "${Json.encodeToString(paywallEvent.localNotification)}")
+                    Log.e("NotificationScheduler", "================================")
 
                     // Cancel any existing fallback notification of the same type before scheduling
                     // the dynamic notification from the paywall

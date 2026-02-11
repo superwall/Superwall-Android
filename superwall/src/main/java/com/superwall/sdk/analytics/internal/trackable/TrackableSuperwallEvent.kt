@@ -1229,4 +1229,26 @@ sealed class InternalSuperwallEvent(
                 "paywall_count" to paywallCount,
             )
     }
+
+    data class TestModeModal(
+        val state: State,
+    ) : InternalSuperwallEvent(
+            SuperwallEvent.TestModeModalOpen(),
+        ) {
+        enum class State {
+            Open,
+            Close,
+        }
+
+        override val superwallPlacement: SuperwallEvent
+            get() =
+                when (state) {
+                    State.Open -> SuperwallEvent.TestModeModalOpen()
+                    State.Close -> SuperwallEvent.TestModeModalClose()
+                }
+
+        override val audienceFilterParams: Map<String, Any> = emptyMap()
+
+        override suspend fun getSuperwallParameters(): Map<String, Any> = emptyMap()
+    }
 }

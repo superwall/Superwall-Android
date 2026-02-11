@@ -179,7 +179,7 @@ class SWWebView(
         addJavascriptInterface(messageHandler, "SWAndroid")
 
         val webSettings = this.settings
-        setWebContentsDebuggingEnabled(false)
+        setWebContentsDebuggingEnabled(true)
         webSettings.javaScriptEnabled = true
         webSettings.setSupportZoom(false)
         webSettings.builtInZoomControls = false

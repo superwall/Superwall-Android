@@ -47,6 +47,8 @@ import com.superwall.sdk.store.StoreManager
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
+import com.superwall.sdk.store.testmode.TestModeManager
+import com.superwall.sdk.store.testmode.TestModeTransactionHandler
 import com.superwall.sdk.web.openRestoreOnWeb
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -77,6 +79,9 @@ class TransactionManager(
     private val refreshReceipt: () -> Unit,
     private val updateState: (cacheKey: String, update: PaywallViewState.Updates) -> Unit,
     private val notifyOfTransactionComplete: suspend (paywallCacheKey: String, trialEndDate: Long?, productId: String) -> Unit,
+    private val testModeManager: TestModeManager? = null,
+    private val testModeTransactionHandler: TestModeTransactionHandler? = null,
+    private val setSubscriptionStatus: ((SubscriptionStatus) -> Unit)? = null,
 ) {
     sealed class PurchaseSource {
         data class Internal(
@@ -292,7 +297,40 @@ class TransactionManager(
 
                 is PurchaseSource.ObserverMode -> purchaseSource.product
             }
-        val rawStoreProduct = product.rawStoreProduct
+
+        // Test mode intercept: simulate purchase without real billing
+        if (testModeManager?.isTestMode == true && testModeTransactionHandler != null) {
+            prepareToPurchase(product, purchaseSource)
+            val result = testModeTransactionHandler.handlePurchase(product, purchaseSource)
+            when (result) {
+                is PurchaseResult.Purchased -> {
+                    // In test mode, set subscription status directly (no real receipt to verify)
+                    val status = testModeManager.buildSubscriptionStatus()
+                    setSubscriptionStatus?.invoke(status)
+                    trackTransactionDidSucceed(null, product, purchaseSource, product.hasFreeTrial)
+                    if (shouldDismiss && purchaseSource is PurchaseSource.Internal) {
+                        if (factory.makeSuperwallOptions().paywalls.automaticallyDismiss) {
+                            dismiss(
+                                purchaseSource.paywallInfo.cacheKey,
+                                PaywallResult.Purchased(product.fullIdentifier),
+                            )
+                        }
+                    }
+                }
+                is PurchaseResult.Failed -> {
+                    trackFailure(result.errorMessage, product, purchaseSource)
+                }
+                is PurchaseResult.Cancelled -> {
+                    trackCancelled(product, purchaseSource)
+                }
+                is PurchaseResult.Pending -> {
+                    handlePendingTransaction(purchaseSource)
+                }
+            }
+            return result
+        }
+
+        val rawStoreProduct = product.rawStoreProduct!!
         log(
             message =
                 "!!! Purchasing product ${rawStoreProduct.hasFreeTrial}",
@@ -523,10 +561,10 @@ class TransactionManager(
             }
 
             is PurchaseSource.ExternalPurchase, is PurchaseSource.ObserverMode -> {
-                if (isObserved) {
+                if (isObserved && product.rawStoreProduct != null) {
                     transactionsInProgress.put(
                         product.fullIdentifier,
-                        product.rawStoreProduct.underlyingProductDetails,
+                        product.rawStoreProduct!!.underlyingProductDetails,
                     )
                 }
                 if (!storeManager.hasCached(product.fullIdentifier)) {
@@ -771,6 +809,17 @@ class TransactionManager(
      */
     suspend fun tryToRestorePurchases(paywallView: PaywallView?): RestorationResult {
         log(message = "Attempting Restore")
+
+        // Test mode intercept: simulate restore without real billing
+        if (testModeManager?.isTestMode == true && testModeTransactionHandler != null) {
+            val result = testModeTransactionHandler.handleRestore()
+            if (result is RestorationResult.Restored) {
+                val status = testModeManager.buildSubscriptionStatus()
+                setSubscriptionStatus?.invoke(status)
+            }
+            return result
+        }
+
         val paywallInfo = paywallView?.state?.info ?: PaywallInfo.empty()
         paywallView?.updateState(PaywallViewState.Updates.SetLoadingState(PaywallLoadingState.LoadingPurchase))
 

@@ -365,6 +365,15 @@ internal object LatestWebCustomerInfo : Storable<CustomerInfo> {
         get() = CustomerInfo.serializer()
 }
 
+internal object IsTestModeActiveSubscription : Storable<Boolean> {
+    override val key: String
+        get() = "store.isTestModeActiveSubscription"
+    override val directory: SearchPathDirectory
+        get() = SearchPathDirectory.APP_SPECIFIC_DOCUMENTS
+    override val serializer: KSerializer<Boolean>
+        get() = Boolean.serializer()
+}
+
 internal object LastWebEntitlementsFetchDate : Storable<Long> {
     override val key: String
         get() = "store.lastWebEntitlementsFetchDate"

@@ -18,6 +18,7 @@ import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.product.receipt.ReceiptManager
 import com.superwall.sdk.store.coordinator.ProductsFetcher
+import com.superwall.sdk.store.testmode.TestModeManager
 import java.util.Date
 
 class StoreManager(
@@ -27,6 +28,7 @@ class StoreManager(
     private val track: suspend (InternalSuperwallEvent) -> Unit = {
         Superwall.instance.track(it)
     },
+    var testModeManager: TestModeManager? = null,
 ) : ProductsFetcher,
     StoreKit {
     val receiptManager by lazy(receiptManagerFactory)
@@ -235,7 +237,15 @@ class StoreManager(
         productsByFullId[fullProductIdentifier] = storeProduct
     }
 
-    override fun getProductFromCache(productId: String): StoreProduct? = productsByFullId[productId]
+    override fun getProductFromCache(productId: String): StoreProduct? {
+        // Check test products first when in test mode
+        testModeManager?.let { manager ->
+            if (manager.isTestMode) {
+                manager.testProductsByFullId[productId]?.let { return it }
+            }
+        }
+        return productsByFullId[productId]
+    }
 
     override fun hasCached(productId: String): Boolean = productsByFullId.contains(productId)
 
