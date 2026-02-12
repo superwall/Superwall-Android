@@ -2,6 +2,11 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.7.1
+
+### Enhancements
+- Adds improved constructors for `SuperwallOptions`,`PaywallOptions` and `PaywallPresentationHandler`, allowing a DSL like usage,i.e. ` PaywallPresentationHandler { onPresent { ... } }` 
+
 ## 2.7.0
 
 ### Enhancements
