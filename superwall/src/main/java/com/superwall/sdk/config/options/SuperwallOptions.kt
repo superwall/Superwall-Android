@@ -8,7 +8,11 @@ import java.util.*
 //
 // Pass an instance of this class to
 // ``Superwall/configure(apiKey:purchaseController:options:completion:)-52tke``.
-class SuperwallOptions {
+class SuperwallOptions() {
+    constructor(definition: SuperwallOptions.() -> Unit) : this() {
+        definition()
+    }
+
     // Configures the appearance and behavior of paywalls.
     var paywalls: PaywallOptions = PaywallOptions()
 
@@ -98,7 +102,11 @@ class SuperwallOptions {
     var enableExperimentalDeviceVariables: Boolean = false
 
     // Configuration for printing to the console.
-    class Logging {
+    class Logging() {
+        constructor(definition: Logging.() -> Unit) : this() {
+            definition()
+        }
+
         // Defines the minimum log level to print to the console. Defaults to `warn`.
         var level: LogLevel = LogLevel.warn
 
