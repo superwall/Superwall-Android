@@ -358,8 +358,11 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                 if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
                     // On API < 30, bottom sheet falls back to plain fullscreen
                     applyFullscreenEdgeToEdge(view)
+                } else {
+                    // On API 30+, bottom sheet layout handles content insets via setupBottomSheetLayout,
+                    // but we still need to color the navigation bar to match the paywall background.
+                    applyNavigationBarStyle(view)
                 }
-                // On API 30+, bottom sheet layout handles insets via setupBottomSheetLayout
             }
 
             is PaywallPresentationStyle.Popup -> {
@@ -373,10 +376,32 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                 if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
                     // On API < 30, popup falls back to plain fullscreen
                     applyFullscreenEdgeToEdge(view)
+                } else {
+                    // On API 30+, popup layout handles content insets via setupPopupLayout,
+                    // but we still need to color the navigation bar to match the paywall background.
+                    applyNavigationBarStyle(view)
                 }
-                // On API 30+, popup layout handles insets via setupPopupLayout
             }
         }
+    }
+
+    /**
+     * Applies edge-to-edge navigation bar color to match the paywall background.
+     * Used by Modal, Drawer, and Popup styles where content insets are handled separately.
+     */
+    private fun applyNavigationBarStyle(view: PaywallView) {
+        val bgColor = view.backgroundColor
+        enableEdgeToEdge(
+            navigationBarStyle =
+                when (bgColor.isDarkColor()) {
+                    true -> SystemBarStyle.dark(bgColor)
+                    else ->
+                        SystemBarStyle.light(
+                            scrim = bgColor,
+                            darkScrim = bgColor.readableOverlayColor(),
+                        )
+                },
+        )
     }
 
     /**
@@ -385,19 +410,15 @@ class SuperwallPaywallActivity : AppCompatActivity() {
      * Used by Fullscreen, FullscreenNoAnimation, Push, and None presentation styles.
      */
     private fun applyFullscreenEdgeToEdge(view: PaywallView) {
+        val bgColor = view.backgroundColor
         enableEdgeToEdge(
             navigationBarStyle =
-                when (
-                    view.state.paywall.backgroundColor
-                        .isDarkColor()
-                ) {
-                    true -> SystemBarStyle.dark(view.state.paywall.backgroundColor)
+                when (bgColor.isDarkColor()) {
+                    true -> SystemBarStyle.dark(bgColor)
                     else ->
                         SystemBarStyle.light(
-                            scrim = view.state.paywall.backgroundColor,
-                            darkScrim =
-                                view.state.paywall.backgroundColor
-                                    .readableOverlayColor(),
+                            scrim = bgColor,
+                            darkScrim = bgColor.readableOverlayColor(),
                         )
                 },
         )
