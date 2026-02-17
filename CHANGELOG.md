@@ -6,6 +6,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ### Enhancements
 - Adds improved constructors for `SuperwallOptions`,`PaywallOptions` and `PaywallPresentationHandler`, allowing a DSL like usage,i.e. ` PaywallPresentationHandler { onPresent { ... } }` 
+- Adds haptic feedback action support
 
 ### Fixes
 - Ensures poster is always visible on video preview
