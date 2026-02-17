@@ -55,6 +55,7 @@ import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult.*
 import com.superwall.sdk.paywall.view.PaywallView
 import com.superwall.sdk.paywall.view.PaywallViewState
 import com.superwall.sdk.paywall.view.SuperwallPaywallActivity
+import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 import com.superwall.sdk.paywall.view.delegate.PaywallViewEventCallback
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.Closed
@@ -1277,6 +1278,9 @@ class Superwall(
                         // If a purchase is already in progress, do not start another
                         return@launchWithTracking
                     }
+                    paywallView.updateState(
+                        PaywallViewState.Updates.SetLoadingState(PaywallLoadingState.LoadingPurchase),
+                    )
                     purchaseTask =
                         launch {
                             try {
