@@ -41,6 +41,8 @@ import com.superwall.sdk.misc.MainScope
 import com.superwall.sdk.misc.asEither
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.PaywallURL
+import com.superwall.sdk.paywall.archive.ArchiveWebClient
+import com.superwall.sdk.paywall.archive.models.DecompressedWebArchive
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.view.PaywallViewState
 import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
@@ -193,6 +195,23 @@ class SWWebView(
         }
         this.setBackgroundColor(Color.TRANSPARENT)
         this.webChromeClient = ChromeClient({ activity })
+    }
+
+    internal fun loadFromArchive(archiveFile: DecompressedWebArchive) {
+        val client = ArchiveWebClient(archiveFile)
+        this.webViewClient = client
+        lastLoadedUrl = url
+        prepareWebview()
+        // Enable file access only for archive loading
+        settings.allowFileAccess = true
+        settings.allowFileAccessFromFileURLs = true
+        settings.allowUniversalAccessFromFileURLs = true
+        settings.allowContentAccess = true
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            lastWebViewClient = client
+        }
+        listenToWebviewClientEvents(client)
+        super.loadUrl(transformUri(ArchiveWebClient.OVERRIDE_PATH))
     }
 
     internal fun loadPaywallWithFallbackUrl(paywall: Paywall) {

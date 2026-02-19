@@ -280,6 +280,8 @@ class PaywallMessageHandlerTest {
         val optionsFactory =
             object : com.superwall.sdk.dependencies.OptionsFactory {
                 override fun makeSuperwallOptions(): SuperwallOptions = options
+
+                override fun webArchive(): com.superwall.sdk.paywall.archive.WebArchiveLibrary = throw NotImplementedError()
             }
 
         lateinit var viewRef: PaywallView

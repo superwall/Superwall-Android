@@ -45,10 +45,11 @@ class RequestExecutor(
                 }
 
             var responseMessage: String? = null
-
+            var bytes: ByteArray? = null
             when (responseCode) {
                 in 200..299 -> {
-                    responseMessage = request.inputStream.bufferedReader().use { it.readText() }
+                    bytes = request.inputStream.use { it.readBytes() }
+                    responseMessage = bytes.toString(Charsets.UTF_8)
                     request.disconnect()
                 }
                 HttpURLConnection.HTTP_MOVED_PERM, HttpURLConnection.HTTP_MOVED_TEMP, HttpURLConnection.HTTP_SEE_OTHER -> {
@@ -107,6 +108,7 @@ class RequestExecutor(
                     responseMessage,
                     requestDuration,
                     headers,
+                    bytes,
                 ),
             )
         } catch (e: Throwable) {

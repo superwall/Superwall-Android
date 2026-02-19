@@ -165,6 +165,7 @@ dependencies {
 
     // Browser
     implementation(libs.browser)
+    implementation(libs.webkit)
 
     // Core
     implementation(libs.core)

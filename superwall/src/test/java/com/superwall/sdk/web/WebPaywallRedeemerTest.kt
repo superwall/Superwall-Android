@@ -660,6 +660,15 @@ class WebPaywallRedeemerTest {
                         saved = data as Any?
                     }
 
+                    override fun <T : Any> writeFile(
+                        storable: Storable<T>,
+                        data: String,
+                    ) {}
+
+                    override fun <T : Any> getFileStream(storable: Storable<T>): java.io.FileOutputStream = throw NotImplementedError()
+
+                    override fun <T : Any> readFile(storable: Storable<T>): String? = null
+
                     override fun clean() {
                     }
                 }

@@ -6,6 +6,9 @@ import com.superwall.sdk.When
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.models.paywall.Paywall
+import com.superwall.sdk.models.paywall.WebArchiveManifest
+import com.superwall.sdk.paywall.archive.WebArchiveLibrary
+import com.superwall.sdk.paywall.archive.models.DecompressedWebArchive
 import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.paywall.view.PaywallView
 import com.superwall.sdk.paywall.view.PaywallViewState
@@ -59,6 +62,21 @@ class PaywallPreloadTest {
                         storage = storage,
                         assignments = assignments,
                         paywallManager = paywallManager,
+                        webArchiveLibrary =
+                            object : WebArchiveLibrary {
+                                override fun checkIfArchived(paywallId: String): Boolean = false
+
+                                override suspend fun loadArchive(paywallId: String): Result<DecompressedWebArchive> =
+                                    Result.failure(Exception("not implemented"))
+
+                                override suspend fun downloadManifest(
+                                    paywallId: String,
+                                    paywallUrl: String,
+                                    manifest: WebArchiveManifest?,
+                                ) {}
+
+                                override suspend fun awaitUntilQueueResolved(identifier: String) {}
+                            },
                         track = {},
                     )
 
@@ -122,6 +140,21 @@ class PaywallPreloadTest {
                         storage = storage,
                         assignments = assignments,
                         paywallManager = paywallManager,
+                        webArchiveLibrary =
+                            object : WebArchiveLibrary {
+                                override fun checkIfArchived(paywallId: String): Boolean = false
+
+                                override suspend fun loadArchive(paywallId: String): Result<DecompressedWebArchive> =
+                                    Result.failure(Exception("not implemented"))
+
+                                override suspend fun downloadManifest(
+                                    paywallId: String,
+                                    paywallUrl: String,
+                                    manifest: WebArchiveManifest?,
+                                ) {}
+
+                                override suspend fun awaitUntilQueueResolved(identifier: String) {}
+                            },
                         track = {},
                     )
 

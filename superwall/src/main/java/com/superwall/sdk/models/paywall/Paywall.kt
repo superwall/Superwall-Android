@@ -139,6 +139,8 @@ data class Paywall(
     val isScrollEnabled: Boolean? = true,
     @SerialName("reroute_back_button")
     val rerouteBackButton: ToggleMode? = null,
+    @SerialName("manifest")
+    val manifest: WebArchiveManifest? = null,
 ) : SerializableEntity {
     val playStoreProducts: List<CrossplatformProduct>
         get() =
@@ -314,6 +316,12 @@ data class Paywall(
                 isScrollEnabled = true,
                 rerouteBackButton = ToggleMode.DISABLED,
                 _productItemsV3 = emptyList(),
+                manifest =
+                    WebArchiveManifest(
+                        WebArchiveManifest.Usage.NEVER,
+                        WebArchiveManifest.Document("", ""),
+                        emptyList(),
+                    ),
             )
     }
 

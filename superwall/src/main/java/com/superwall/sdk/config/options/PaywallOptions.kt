@@ -51,6 +51,8 @@ class PaywallOptions() {
     // or ``Superwall/preloadPaywalls(forEvents:)``
     var shouldPreload: Boolean = true
 
+    var shouldArchive: Boolean = false
+
     // Loads paywall template websites from disk, if available. Defaults to `true`.
     //
     // When you save a change to your paywall in the Superwall dashboard, a key is

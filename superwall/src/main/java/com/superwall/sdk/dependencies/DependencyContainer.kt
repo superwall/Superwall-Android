@@ -54,6 +54,7 @@ import com.superwall.sdk.models.paywall.LocalNotificationType
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.network.Api
+import com.superwall.sdk.network.ArchiveService
 import com.superwall.sdk.network.BaseHostService
 import com.superwall.sdk.network.CollectorService
 import com.superwall.sdk.network.EnrichmentService
@@ -64,6 +65,11 @@ import com.superwall.sdk.network.SubscriptionService
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.network.device.DeviceInfo
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
+import com.superwall.sdk.paywall.archive.Base64ArchiveEncoder
+import com.superwall.sdk.paywall.archive.CachedArchiveLibrary
+import com.superwall.sdk.paywall.archive.ManifestDownloader
+import com.superwall.sdk.paywall.archive.StreamArchiveCompressor
+import com.superwall.sdk.paywall.archive.WebArchiveLibrary
 import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.paywall.manager.PaywallViewCache
 import com.superwall.sdk.paywall.presentation.CustomCallbackRegistry
@@ -194,6 +200,7 @@ class DependencyContainer(
     internal val userPermissions: UserPermissions
     internal val customCallbackRegistry: CustomCallbackRegistry
 
+    var archive: WebArchiveLibrary
     var entitlements: Entitlements
     internal lateinit var customerInfoManager: CustomerInfoManager
     lateinit var reedemer: WebPaywallRedeemer
@@ -348,6 +355,7 @@ class DependencyContainer(
                         factory = this,
                         customHttpUrlConnection = httpConnection,
                     ),
+                archiveService = ArchiveService(httpConnection),
                 factory = this,
             )
         errorTracker = ErrorTracker(scope = ioScope, cache = storage)
@@ -380,6 +388,13 @@ class DependencyContainer(
                 ioScope,
             )
 
+        archive =
+            CachedArchiveLibrary(
+                storage,
+                ManifestDownloader(IOScope(), network),
+                StreamArchiveCompressor(encoder = Base64ArchiveEncoder()),
+            )
+
         paywallPreload =
             PaywallPreload(
                 factory = this,
@@ -387,6 +402,7 @@ class DependencyContainer(
                 assignments = assignments,
                 paywallManager = paywallManager,
                 scope = ioScope,
+                webArchiveLibrary = archive,
                 track = {
                     Superwall.instance.track(it)
                 },
@@ -410,6 +426,7 @@ class DependencyContainer(
                 },
                 entitlements = entitlements,
                 webPaywallRedeemer = { reedemer },
+                webArchiveLibrary = archive,
             )
         identityManager =
             IdentityManager(
@@ -948,6 +965,8 @@ class DependencyContainer(
     override fun makeTransactionVerifier(): GoogleBillingWrapper = googleBillingWrapper
 
     override fun makeSuperwallOptions(): SuperwallOptions = configManager.options
+
+    override fun webArchive(): WebArchiveLibrary = archive
 
     override suspend fun makeTriggers(): Set<String> = configManager.triggersByEventName.keys
 

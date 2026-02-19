@@ -1,5 +1,6 @@
 package com.superwall.sdk.network
 
+import android.net.Uri
 import com.superwall.sdk.misc.Either
 import com.superwall.sdk.models.assignment.Assignment
 import com.superwall.sdk.models.assignment.AssignmentPostback
@@ -56,4 +57,9 @@ interface SuperwallAPI {
         externalAccountId: String,
         attributionProps: Map<String, JsonElement>?,
     ): Either<WebRedemptionResponse, NetworkError>
+
+    suspend fun fetchRemoteFile(
+        url: Uri,
+        id: String,
+    ): Either<FileResponse, NetworkError>
 }
