@@ -3,7 +3,11 @@ package com.superwall.sdk.paywall.presentation
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallSkippedReason
 
-class PaywallPresentationHandler {
+class PaywallPresentationHandler() {
+    constructor(definition: PaywallPresentationHandler.() -> Unit) : this() {
+        definition()
+    }
+
     // A block called when the paywall did present
     internal var onPresentHandler: ((PaywallInfo) -> Unit)? = null
 

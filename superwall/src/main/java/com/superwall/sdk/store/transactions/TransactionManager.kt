@@ -602,6 +602,11 @@ class TransactionManager(
                         purchaseSource.paywallInfo.cacheKey,
                         PaywallResult.Purchased(product.fullIdentifier),
                     )
+                } else {
+                    updateState(
+                        purchaseSource.paywallInfo.cacheKey,
+                        PaywallViewState.Updates.SetLoadingState(PaywallLoadingState.Ready),
+                    )
                 }
             }
 

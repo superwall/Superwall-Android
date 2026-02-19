@@ -2,6 +2,18 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.7.1
+
+### Enhancements
+- Adds improved constructors for `SuperwallOptions`,`PaywallOptions` and `PaywallPresentationHandler`, allowing a DSL like usage,i.e. ` PaywallPresentationHandler { onPresent { ... } }` 
+- Adds haptic feedback action support
+
+### Fixes
+- Ensures poster is always visible on video preview
+- Fix bug with loading not dismissing post purchase if user remains in paywall
+- Fix warning about old edge-to-edge API usages
+- Fix shimmerview theme warnings and memory leak
+
 ## 2.7.0
 
 ### Enhancements

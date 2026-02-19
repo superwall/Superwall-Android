@@ -2,6 +2,8 @@ package com.superwall.sdk.paywall.view.webview.messaging
 
 import TemplateLogic
 import android.app.Activity
+import android.os.Build
+import android.view.HapticFeedbackConstants
 import android.webkit.JavascriptInterface
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
@@ -26,6 +28,7 @@ import com.superwall.sdk.permissions.PermissionStatus
 import com.superwall.sdk.permissions.UserPermissions
 import com.superwall.sdk.storage.core_data.convertFromJsonElement
 import com.superwall.sdk.storage.core_data.convertToJsonElement
+import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -258,6 +261,8 @@ class PaywallMessageHandler(
             is PaywallMessage.RequestPermission -> handleRequestPermission(message)
 
             is PaywallMessage.RequestCallback -> handleRequestCallback(message)
+
+            is PaywallMessage.HapticFeedback -> triggerHapticFeedback(message.hapticType)
 
             else -> {
                 Logger.debug(
@@ -788,13 +793,49 @@ class PaywallMessageHandler(
         val isHapticFeedbackEnabled = options.paywalls.isHapticFeedbackEnabled
         val isGameControllerEnabled = options.isGameControllerEnabled
 
-        if (isHapticFeedbackEnabled == false || isGameControllerEnabled == true) {
+        if (!isHapticFeedbackEnabled || isGameControllerEnabled) {
             return
         }
 
-        // Replace this with your platform-specific implementation for haptic feedback
-        // Android doesn't have a direct equivalent to UIImpactFeedbackGenerator
-        // TODO: Implement haptic feedback
+        mainScope.launch {
+            getView()?.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+        }
+    }
+
+    private fun triggerHapticFeedback(hapticType: PaywallMessage.HapticFeedback.HapticType) {
+        withErrorTracking {
+            val options = options.makeSuperwallOptions()
+            if (!options.paywalls.isHapticFeedbackEnabled || options.isGameControllerEnabled) {
+                return
+            }
+
+            val feedbackConstant =
+                when (hapticType) {
+                    PaywallMessage.HapticFeedback.HapticType.LIGHT -> HapticFeedbackConstants.CLOCK_TICK
+                    PaywallMessage.HapticFeedback.HapticType.MEDIUM -> HapticFeedbackConstants.VIRTUAL_KEY
+                    PaywallMessage.HapticFeedback.HapticType.HEAVY -> HapticFeedbackConstants.LONG_PRESS
+                    PaywallMessage.HapticFeedback.HapticType.SUCCESS ->
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                            HapticFeedbackConstants.CONFIRM
+                        } else {
+                            HapticFeedbackConstants.VIRTUAL_KEY
+                        }
+
+                    PaywallMessage.HapticFeedback.HapticType.WARNING -> HapticFeedbackConstants.LONG_PRESS
+                    PaywallMessage.HapticFeedback.HapticType.ERROR ->
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                            HapticFeedbackConstants.REJECT
+                        } else {
+                            HapticFeedbackConstants.LONG_PRESS
+                        }
+
+                    PaywallMessage.HapticFeedback.HapticType.SELECTION -> HapticFeedbackConstants.CLOCK_TICK
+                }
+
+            mainScope.launch {
+                getView()?.performHapticFeedback(feedbackConstant)
+            }
+        }
     }
 
     /**
@@ -819,7 +860,9 @@ class PaywallMessageHandler(
                             try {
                                 val parsed = json.parseToJsonElement(result)
                                 val converted = parsed.convertFromJsonElement()
-                                val stateMap = replaceNullsWithEmpty(converted) as? Map<String, Any> ?: emptyMap()
+                                val stateMap =
+                                    replaceNullsWithEmpty(converted) as? Map<String, Any>
+                                        ?: emptyMap()
                                 continuation.resume(stateMap)
                             } catch (e: Exception) {
                                 Logger.debug(
