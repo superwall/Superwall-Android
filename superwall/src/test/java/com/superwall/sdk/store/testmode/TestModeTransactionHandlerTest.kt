@@ -20,7 +20,13 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TestModeTransactionHandlerTest {
-    private fun makeTestModeManager(): TestModeManager = TestModeManager(mockk(relaxed = true))
+    private fun makeTestModeManager(): TestModeManager {
+        val manager = TestModeManager(mockk(relaxed = true))
+        // Activate test mode so session data can be written
+        val config = mockk<com.superwall.sdk.models.config.Config>(relaxed = true)
+        manager.evaluateTestMode(config, "com.app", null, null, TestModeBehavior.ALWAYS)
+        return manager
+    }
 
     private fun makeProduct(
         identifier: String = "com.test.monthly",

@@ -31,6 +31,11 @@ import org.junit.Test
 class TestModeManagerTest {
     private fun makeStorage(): Storage = mockk(relaxed = true)
 
+    private fun makeManager(
+        storage: Storage = makeStorage(),
+        isTestEnvironment: Boolean = false,
+    ): TestModeManager = TestModeManager(storage, isTestEnvironment)
+
     private fun makeConfig(
         bundleIdConfig: String? = null,
         testModeUserIds: List<TestStoreUser>? = null,
@@ -58,13 +63,23 @@ class TestModeManagerTest {
             entitlements = entitlements,
         )
 
-    // region evaluateTestMode
+    /** Activates test mode via ALWAYS behavior so session data can be written. */
+    private fun activateTestMode(manager: TestModeManager) {
+        manager.evaluateTestMode(
+            makeConfig(),
+            "com.app",
+            null,
+            null,
+            testModeBehavior = TestModeBehavior.ALWAYS,
+        )
+    }
+
+    // region evaluateTestMode (AUTOMATIC behavior, isTestEnvironment = false)
 
     @Test
     fun `evaluateTestMode activates for applicationId mismatch`() {
         Given("a TestModeManager with a config that has a different applicationId") {
-            val storage = makeStorage()
-            val manager = TestModeManager(storage)
+            val manager = makeManager()
             val config = makeConfig(bundleIdConfig = "com.expected.app")
 
             When("evaluateTestMode is called with a different applicationId") {
@@ -84,8 +99,7 @@ class TestModeManagerTest {
     @Test
     fun `evaluateTestMode does not activate for matching bundleId`() {
         Given("a TestModeManager with a config that has the same applicationId") {
-            val storage = makeStorage()
-            val manager = TestModeManager(storage)
+            val manager = makeManager()
             val config = makeConfig(bundleIdConfig = "com.myapp")
 
             When("evaluateTestMode is called with the same applicationId") {
@@ -102,7 +116,7 @@ class TestModeManagerTest {
     @Test
     fun `evaluateTestMode does not activate for null bundleIdConfig`() {
         Given("a config with null bundleIdConfig") {
-            val manager = TestModeManager(makeStorage())
+            val manager = makeManager()
             val config = makeConfig(bundleIdConfig = null)
 
             When("evaluateTestMode is called") {
@@ -119,7 +133,7 @@ class TestModeManagerTest {
     @Test
     fun `evaluateTestMode does not activate for empty bundleIdConfig`() {
         Given("a config with empty bundleIdConfig") {
-            val manager = TestModeManager(makeStorage())
+            val manager = makeManager()
             val config = makeConfig(bundleIdConfig = "")
 
             When("evaluateTestMode is called") {
@@ -136,8 +150,7 @@ class TestModeManagerTest {
     @Test
     fun `evaluateTestMode activates for userId match`() {
         Given("a TestModeManager with a config containing a matching userId") {
-            val storage = makeStorage()
-            val manager = TestModeManager(storage)
+            val manager = makeManager()
             val config =
                 makeConfig(
                     testModeUserIds =
@@ -162,8 +175,7 @@ class TestModeManagerTest {
     @Test
     fun `evaluateTestMode activates for aliasId match`() {
         Given("a TestModeManager with a config containing a matching aliasId") {
-            val storage = makeStorage()
-            val manager = TestModeManager(storage)
+            val manager = makeManager()
             val config =
                 makeConfig(
                     testModeUserIds =
@@ -188,7 +200,7 @@ class TestModeManagerTest {
     @Test
     fun `evaluateTestMode matches first user when multiple configured`() {
         Given("a config with multiple test users") {
-            val manager = TestModeManager(makeStorage())
+            val manager = makeManager()
             val config =
                 makeConfig(
                     testModeUserIds =
@@ -214,8 +226,7 @@ class TestModeManagerTest {
     @Test
     fun `evaluateTestMode does not activate when no conditions match`() {
         Given("a TestModeManager with a config with non-matching users") {
-            val storage = makeStorage()
-            val manager = TestModeManager(storage)
+            val manager = makeManager()
             val config =
                 makeConfig(
                     bundleIdConfig = "com.app",
@@ -237,9 +248,9 @@ class TestModeManagerTest {
     }
 
     @Test
-    fun `evaluateTestMode prioritizes applicationId mismatch over userId match`() {
+    fun `evaluateTestMode prioritizes config match over applicationId mismatch in AUTOMATIC`() {
         Given("a config with both applicationId mismatch and matching userId") {
-            val manager = TestModeManager(makeStorage())
+            val manager = makeManager()
             val config =
                 makeConfig(
                     bundleIdConfig = "com.expected.app",
@@ -253,9 +264,222 @@ class TestModeManagerTest {
                 manager.evaluateTestMode(config, "com.actual.app", "matching-user", null)
             }
 
-            Then("reason is ApplicationIdMismatch, not ConfigMatch") {
+            Then("reason is ConfigMatch because config match is checked first") {
+                assertTrue(manager.isTestMode)
+                assertTrue(manager.testModeReason is TestModeReason.ConfigMatch)
+            }
+        }
+    }
+
+    // endregion
+
+    // region TestModeBehavior
+
+    @Test
+    fun `testModeBehavior NEVER disables test mode even with matching config`() {
+        Given("a manager with NEVER behavior and a matching config") {
+            val manager = makeManager()
+            val config =
+                makeConfig(
+                    testModeUserIds =
+                        listOf(
+                            TestStoreUser(TestStoreUserType.UserId, "matching-user"),
+                        ),
+                )
+
+            When("evaluateTestMode is called with NEVER behavior") {
+                manager.evaluateTestMode(
+                    config,
+                    "com.app",
+                    "matching-user",
+                    null,
+                    testModeBehavior = TestModeBehavior.NEVER,
+                )
+            }
+
+            Then("test mode is not active") {
+                assertFalse(manager.isTestMode)
+                assertNull(manager.testModeReason)
+            }
+        }
+    }
+
+    @Test
+    fun `testModeBehavior ALWAYS enables test mode even with no match`() {
+        Given("a manager with ALWAYS behavior and no matching config") {
+            val manager = makeManager()
+            val config = makeConfig()
+
+            When("evaluateTestMode is called with ALWAYS behavior") {
+                manager.evaluateTestMode(
+                    config,
+                    "com.app",
+                    null,
+                    null,
+                    testModeBehavior = TestModeBehavior.ALWAYS,
+                )
+            }
+
+            Then("test mode is active with TestModeOption reason") {
+                assertTrue(manager.isTestMode)
+                assertTrue(manager.testModeReason is TestModeReason.TestModeOption)
+            }
+        }
+    }
+
+    @Test
+    fun `testModeBehavior WHEN_ENABLED_FOR_USER activates on config match`() {
+        Given("a manager with WHEN_ENABLED_FOR_USER behavior and matching userId") {
+            val manager = makeManager()
+            val config =
+                makeConfig(
+                    testModeUserIds =
+                        listOf(
+                            TestStoreUser(TestStoreUserType.UserId, "test-user"),
+                        ),
+                )
+
+            When("evaluateTestMode is called with WHEN_ENABLED_FOR_USER") {
+                manager.evaluateTestMode(
+                    config,
+                    "com.app",
+                    "test-user",
+                    null,
+                    testModeBehavior = TestModeBehavior.WHEN_ENABLED_FOR_USER,
+                )
+            }
+
+            Then("test mode is active with ConfigMatch reason") {
+                assertTrue(manager.isTestMode)
+                assertTrue(manager.testModeReason is TestModeReason.ConfigMatch)
+            }
+        }
+    }
+
+    @Test
+    fun `testModeBehavior WHEN_ENABLED_FOR_USER does NOT activate on package name mismatch`() {
+        Given("a manager with WHEN_ENABLED_FOR_USER behavior and package name mismatch") {
+            val manager = makeManager()
+            val config = makeConfig(bundleIdConfig = "com.expected.app")
+
+            When("evaluateTestMode is called with WHEN_ENABLED_FOR_USER") {
+                manager.evaluateTestMode(
+                    config,
+                    "com.actual.app",
+                    null,
+                    null,
+                    testModeBehavior = TestModeBehavior.WHEN_ENABLED_FOR_USER,
+                )
+            }
+
+            Then("test mode is not active") {
+                assertFalse(manager.isTestMode)
+                assertNull(manager.testModeReason)
+            }
+        }
+    }
+
+    @Test
+    fun `testModeBehavior AUTOMATIC skips in test environment`() {
+        Given("a manager in a test environment with matching config") {
+            val manager = makeManager(isTestEnvironment = true)
+            val config =
+                makeConfig(
+                    bundleIdConfig = "com.expected.app",
+                    testModeUserIds =
+                        listOf(
+                            TestStoreUser(TestStoreUserType.UserId, "matching-user"),
+                        ),
+                )
+
+            When("evaluateTestMode is called with AUTOMATIC in test env") {
+                manager.evaluateTestMode(
+                    config,
+                    "com.actual.app",
+                    "matching-user",
+                    null,
+                    testModeBehavior = TestModeBehavior.AUTOMATIC,
+                )
+            }
+
+            Then("test mode is not active because test environment is detected") {
+                assertFalse(manager.isTestMode)
+                assertNull(manager.testModeReason)
+            }
+        }
+    }
+
+    @Test
+    fun `testModeBehavior AUTOMATIC activates on config match when not in test env`() {
+        Given("a manager not in test env with matching userId") {
+            val manager = makeManager(isTestEnvironment = false)
+            val config =
+                makeConfig(
+                    testModeUserIds =
+                        listOf(
+                            TestStoreUser(TestStoreUserType.UserId, "test-user"),
+                        ),
+                )
+
+            When("evaluateTestMode is called with AUTOMATIC") {
+                manager.evaluateTestMode(
+                    config,
+                    "com.app",
+                    "test-user",
+                    null,
+                    testModeBehavior = TestModeBehavior.AUTOMATIC,
+                )
+            }
+
+            Then("test mode is active with ConfigMatch reason") {
+                assertTrue(manager.isTestMode)
+                assertTrue(manager.testModeReason is TestModeReason.ConfigMatch)
+            }
+        }
+    }
+
+    @Test
+    fun `testModeBehavior AUTOMATIC activates on package name mismatch when not in test env`() {
+        Given("a manager not in test env with package name mismatch") {
+            val manager = makeManager(isTestEnvironment = false)
+            val config = makeConfig(bundleIdConfig = "com.expected.app")
+
+            When("evaluateTestMode is called with AUTOMATIC") {
+                manager.evaluateTestMode(
+                    config,
+                    "com.actual.app",
+                    null,
+                    null,
+                    testModeBehavior = TestModeBehavior.AUTOMATIC,
+                )
+            }
+
+            Then("test mode is active with ApplicationIdMismatch reason") {
                 assertTrue(manager.isTestMode)
                 assertTrue(manager.testModeReason is TestModeReason.ApplicationIdMismatch)
+            }
+        }
+    }
+
+    @Test
+    fun `package name prefix is treated as extension and does NOT activate test mode`() {
+        Given("a manager with a config packageName and actual is a prefix extension") {
+            val manager = makeManager(isTestEnvironment = false)
+            val config = makeConfig(bundleIdConfig = "com.myapp")
+
+            When("evaluateTestMode is called with a package name that starts with expected + dot") {
+                manager.evaluateTestMode(
+                    config,
+                    "com.myapp.debug",
+                    null,
+                    null,
+                    testModeBehavior = TestModeBehavior.AUTOMATIC,
+                )
+            }
+
+            Then("test mode is not active because it is treated as an extension") {
+                assertFalse(manager.isTestMode)
+                assertNull(manager.testModeReason)
             }
         }
     }
@@ -267,8 +491,9 @@ class TestModeManagerTest {
     @Test
     fun `shouldShowFreeTrial applies UseDefault correctly`() {
         Given("a TestModeManager with UseDefault override") {
-            val manager = TestModeManager(makeStorage())
-            manager.freeTrialOverride = FreeTrialOverride.UseDefault
+            val manager = makeManager()
+            activateTestMode(manager)
+            manager.setFreeTrialOverride(FreeTrialOverride.UseDefault)
 
             Then("it returns the original value") {
                 assertTrue(manager.shouldShowFreeTrial(true))
@@ -280,8 +505,9 @@ class TestModeManagerTest {
     @Test
     fun `shouldShowFreeTrial applies ForceAvailable correctly`() {
         Given("a TestModeManager with ForceAvailable override") {
-            val manager = TestModeManager(makeStorage())
-            manager.freeTrialOverride = FreeTrialOverride.ForceAvailable
+            val manager = makeManager()
+            activateTestMode(manager)
+            manager.setFreeTrialOverride(FreeTrialOverride.ForceAvailable)
 
             Then("it always returns true") {
                 assertTrue(manager.shouldShowFreeTrial(true))
@@ -293,11 +519,24 @@ class TestModeManagerTest {
     @Test
     fun `shouldShowFreeTrial applies ForceUnavailable correctly`() {
         Given("a TestModeManager with ForceUnavailable override") {
-            val manager = TestModeManager(makeStorage())
-            manager.freeTrialOverride = FreeTrialOverride.ForceUnavailable
+            val manager = makeManager()
+            activateTestMode(manager)
+            manager.setFreeTrialOverride(FreeTrialOverride.ForceUnavailable)
 
             Then("it always returns false") {
                 assertFalse(manager.shouldShowFreeTrial(true))
+                assertFalse(manager.shouldShowFreeTrial(false))
+            }
+        }
+    }
+
+    @Test
+    fun `shouldShowFreeTrial returns default when inactive`() {
+        Given("a TestModeManager that is inactive") {
+            val manager = makeManager()
+
+            Then("it returns the original value regardless") {
+                assertTrue(manager.shouldShowFreeTrial(true))
                 assertFalse(manager.shouldShowFreeTrial(false))
             }
         }
@@ -309,9 +548,10 @@ class TestModeManagerTest {
 
     @Test
     fun `fakePurchase adds entitlement IDs`() {
-        Given("a TestModeManager") {
+        Given("a TestModeManager with active test mode") {
             val storage = makeStorage()
-            val manager = TestModeManager(storage)
+            val manager = makeManager(storage)
+            activateTestMode(manager)
 
             When("fakePurchase is called with entitlements") {
                 manager.fakePurchase(
@@ -333,7 +573,8 @@ class TestModeManagerTest {
     @Test
     fun `fakePurchase accumulates entitlements across calls`() {
         Given("a TestModeManager with existing entitlements") {
-            val manager = TestModeManager(makeStorage())
+            val manager = makeManager()
+            activateTestMode(manager)
             manager.fakePurchase(listOf(SuperwallEntitlementRef("premium", null)))
 
             When("fakePurchase is called again with different entitlements") {
@@ -354,7 +595,8 @@ class TestModeManagerTest {
     fun `setEntitlements replaces existing entitlements`() {
         Given("a TestModeManager with existing entitlements") {
             val storage = makeStorage()
-            val manager = TestModeManager(storage)
+            val manager = makeManager(storage)
+            activateTestMode(manager)
             manager.setEntitlements(setOf("old-a", "old-b"))
 
             When("setEntitlements is called with new set") {
@@ -370,9 +612,10 @@ class TestModeManagerTest {
 
     @Test
     fun `setEntitlements with empty set writes false`() {
-        Given("a TestModeManager") {
+        Given("a TestModeManager with active test mode") {
             val storage = makeStorage()
-            val manager = TestModeManager(storage)
+            val manager = makeManager(storage)
+            activateTestMode(manager)
 
             When("setEntitlements is called with an empty set") {
                 manager.setEntitlements(emptySet())
@@ -389,7 +632,8 @@ class TestModeManagerTest {
     fun `resetEntitlements clears all and writes false`() {
         Given("a TestModeManager with entitlements") {
             val storage = makeStorage()
-            val manager = TestModeManager(storage)
+            val manager = makeManager(storage)
+            activateTestMode(manager)
             manager.setEntitlements(setOf("premium", "pro"))
 
             When("resetEntitlements is called") {
@@ -410,7 +654,8 @@ class TestModeManagerTest {
     @Test
     fun `buildSubscriptionStatus returns Active with entitlements`() {
         Given("a TestModeManager with entitlements set") {
-            val manager = TestModeManager(makeStorage())
+            val manager = makeManager()
+            activateTestMode(manager)
             manager.setEntitlements(setOf("premium", "pro"))
 
             When("buildSubscriptionStatus is called") {
@@ -419,8 +664,8 @@ class TestModeManagerTest {
                 Then("it returns Active with correct entitlements") {
                     assertTrue(status is SubscriptionStatus.Active)
                     val active = status as SubscriptionStatus.Active
-                    assertTrue(active.entitlements.contains(Entitlement("premium")))
-                    assertTrue(active.entitlements.contains(Entitlement("pro")))
+                    assertTrue(active.entitlements.any { it.id == "premium" && it.isActive })
+                    assertTrue(active.entitlements.any { it.id == "pro" && it.isActive })
                     assertEquals(2, active.entitlements.size)
                 }
             }
@@ -430,7 +675,7 @@ class TestModeManagerTest {
     @Test
     fun `buildSubscriptionStatus returns Inactive when empty`() {
         Given("a TestModeManager with no entitlements") {
-            val manager = TestModeManager(makeStorage())
+            val manager = makeManager()
 
             When("buildSubscriptionStatus is called") {
                 val status = manager.buildSubscriptionStatus()
@@ -448,8 +693,9 @@ class TestModeManagerTest {
 
     @Test
     fun `setProducts stores products`() {
-        Given("a TestModeManager") {
-            val manager = TestModeManager(makeStorage())
+        Given("a TestModeManager with active test mode") {
+            val manager = makeManager()
+            activateTestMode(manager)
             val products =
                 listOf(
                     makeSuperwallProduct("prod-1"),
@@ -470,8 +716,9 @@ class TestModeManagerTest {
 
     @Test
     fun `setTestProducts stores test product map`() {
-        Given("a TestModeManager") {
-            val manager = TestModeManager(makeStorage())
+        Given("a TestModeManager with active test mode") {
+            val manager = makeManager()
+            activateTestMode(manager)
             val sp = mockk<StoreProduct>(relaxed = true)
             val map = mapOf("prod-1" to sp)
 
@@ -493,7 +740,8 @@ class TestModeManagerTest {
     @Test
     fun `allEntitlements aggregates from all products`() {
         Given("a TestModeManager with products that have entitlements") {
-            val manager = TestModeManager(makeStorage())
+            val manager = makeManager()
+            activateTestMode(manager)
             manager.setProducts(
                 listOf(
                     makeSuperwallProduct(
@@ -528,7 +776,7 @@ class TestModeManagerTest {
     @Test
     fun `allEntitlements returns empty when no products`() {
         Given("a TestModeManager with no products") {
-            val manager = TestModeManager(makeStorage())
+            val manager = makeManager()
 
             Then("allEntitlements returns empty set") {
                 assertTrue(manager.allEntitlements().isEmpty())
@@ -539,7 +787,7 @@ class TestModeManagerTest {
     @Test
     fun `entitlementsForProduct returns entitlements for given product`() {
         Given("a TestModeManager with a product that has entitlements") {
-            val manager = TestModeManager(makeStorage())
+            val manager = makeManager()
             val product =
                 makeSuperwallProduct(
                     "prod-1",
@@ -568,8 +816,9 @@ class TestModeManagerTest {
 
     @Test
     fun `setOverriddenSubscriptionStatus stores and clears status`() {
-        Given("a TestModeManager") {
-            val manager = TestModeManager(makeStorage())
+        Given("a TestModeManager with active test mode") {
+            val manager = makeManager()
+            activateTestMode(manager)
 
             When("a status is set") {
                 val status = SubscriptionStatus.Active(setOf(Entitlement("premium")))
@@ -598,7 +847,7 @@ class TestModeManagerTest {
     fun `clearTestModeState resets all fields`() {
         Given("a TestModeManager with active test mode") {
             val storage = makeStorage()
-            val manager = TestModeManager(storage)
+            val manager = makeManager(storage)
             val config =
                 makeConfig(
                     testModeUserIds = listOf(TestStoreUser(TestStoreUserType.UserId, "user")),
@@ -607,7 +856,7 @@ class TestModeManagerTest {
             manager.setEntitlements(setOf("premium"))
             manager.setProducts(listOf(makeSuperwallProduct("prod-1")))
             manager.setTestProducts(mapOf("prod-1" to mockk(relaxed = true)))
-            manager.freeTrialOverride = FreeTrialOverride.ForceAvailable
+            manager.setFreeTrialOverride(FreeTrialOverride.ForceAvailable)
             manager.setOverriddenSubscriptionStatus(SubscriptionStatus.Active(setOf(Entitlement("premium"))))
 
             When("clearTestModeState is called") {
@@ -620,9 +869,94 @@ class TestModeManagerTest {
                 assertTrue(manager.products.isEmpty())
                 assertTrue(manager.testProductsByFullId.isEmpty())
                 assertTrue(manager.testEntitlementIds.isEmpty())
+                assertTrue(manager.testEntitlementSelections.isEmpty())
                 assertEquals(FreeTrialOverride.UseDefault, manager.freeTrialOverride)
                 assertNull(manager.overriddenSubscriptionStatus)
                 verify { storage.delete(IsTestModeActiveSubscription) }
+            }
+        }
+    }
+
+    // endregion
+
+    // region state transitions
+
+    @Test
+    fun `state transitions from Inactive to Active and back`() {
+        Given("a fresh TestModeManager") {
+            val manager = makeManager()
+
+            Then("initial state is Inactive") {
+                assertTrue(manager.state is TestModeState.Inactive)
+                assertFalse(manager.isTestMode)
+                assertNull(manager.testModeReason)
+            }
+
+            When("test mode is activated via ALWAYS") {
+                manager.evaluateTestMode(
+                    makeConfig(),
+                    "com.app",
+                    null,
+                    null,
+                    testModeBehavior = TestModeBehavior.ALWAYS,
+                )
+            }
+
+            Then("state is Active with TestModeOption reason") {
+                val state = manager.state
+                assertTrue(state is TestModeState.Active)
+                assertEquals(TestModeReason.TestModeOption, (state as TestModeState.Active).reason)
+                assertTrue(manager.isTestMode)
+                assertEquals(TestModeReason.TestModeOption, manager.testModeReason)
+            }
+
+            When("clearTestModeState is called") {
+                manager.clearTestModeState()
+            }
+
+            Then("state is back to Inactive") {
+                assertTrue(manager.state is TestModeState.Inactive)
+                assertFalse(manager.isTestMode)
+                assertNull(manager.testModeReason)
+            }
+        }
+    }
+
+    @Test
+    fun `session data is only accessible when active`() {
+        Given("a fresh TestModeManager") {
+            val manager = makeManager()
+
+            Then("session data returns defaults when inactive") {
+                assertTrue(manager.products.isEmpty())
+                assertTrue(manager.testProductsByFullId.isEmpty())
+                assertTrue(manager.testEntitlementIds.isEmpty())
+                assertTrue(manager.testEntitlementSelections.isEmpty())
+                assertEquals(FreeTrialOverride.UseDefault, manager.freeTrialOverride)
+                assertNull(manager.overriddenSubscriptionStatus)
+            }
+
+            When("test mode is activated and session data is set") {
+                activateTestMode(manager)
+                manager.setProducts(listOf(makeSuperwallProduct("prod-1")))
+                manager.setEntitlements(setOf("premium"))
+                manager.setFreeTrialOverride(FreeTrialOverride.ForceAvailable)
+            }
+
+            Then("session data is accessible") {
+                assertEquals(1, manager.products.size)
+                assertEquals(setOf("premium"), manager.testEntitlementIds)
+                assertEquals(FreeTrialOverride.ForceAvailable, manager.freeTrialOverride)
+            }
+
+            When("test mode is cleared") {
+                manager.clearTestModeState()
+            }
+
+            Then("session data returns defaults again") {
+                assertTrue(manager.products.isEmpty())
+                assertTrue(manager.testEntitlementIds.isEmpty())
+                assertEquals(FreeTrialOverride.UseDefault, manager.freeTrialOverride)
             }
         }
     }

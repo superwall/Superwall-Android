@@ -2,6 +2,7 @@ package com.superwall.sdk.config
 
 import android.content.Context
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
+import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.TestModeModal.*
 import com.superwall.sdk.config.models.ConfigState
 import com.superwall.sdk.config.models.getConfig
 import com.superwall.sdk.config.options.SuperwallOptions
@@ -26,6 +27,7 @@ import com.superwall.sdk.misc.then
 import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.models.enrichment.Enrichment
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
+import com.superwall.sdk.models.serialization.AnyMapSerializer
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.models.triggers.Trigger
@@ -44,6 +46,7 @@ import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.testmode.TestModeManager
 import com.superwall.sdk.store.testmode.TestStoreProduct
 import com.superwall.sdk.store.testmode.models.SuperwallProductPlatform
+import com.superwall.sdk.store.testmode.ui.TestModeModal
 import com.superwall.sdk.web.WebPaywallRedeemer
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -54,6 +57,7 @@ import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
+import kotlinx.serialization.json.Json
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -301,9 +305,39 @@ open class ConfigManager(
     fun reset() {
         val config = configState.value.getConfig() ?: return
 
+        reevaluateTestMode(config)
         assignments.reset()
         assignments.choosePaywallVariants(config.triggers)
+
         ioScope.launch { preloadPaywalls() }
+    }
+
+    /**
+     * Re-evaluates test mode with the current identity and config.
+     * If test mode was active but the current user no longer qualifies, clears test mode
+     * and resets subscription status. If a new user qualifies, activates test mode and
+     * shows the modal.
+     */
+    fun reevaluateTestMode(config: Config? = configState.value.getConfig()) {
+        config ?: return
+        val wasTestMode = testModeManager?.isTestMode == true
+        testModeManager?.evaluateTestMode(
+            config = config,
+            bundleId = deviceHelper.bundleId,
+            appUserId = identityManager?.invoke()?.appUserId,
+            aliasId = identityManager?.invoke()?.aliasId,
+            testModeBehavior = options.testModeBehavior,
+        )
+        val isNowTestMode = testModeManager?.isTestMode == true
+        if (wasTestMode && !isNowTestMode) {
+            testModeManager?.clearTestModeState()
+            setSubscriptionStatus?.invoke(SubscriptionStatus.Inactive)
+        } else if (!wasTestMode && isNowTestMode) {
+            ioScope.launch {
+                fetchTestModeProducts()
+                presentTestModeModal(config)
+            }
+        }
     }
 
     suspend fun getAssignments() {
@@ -359,6 +393,7 @@ open class ConfigManager(
             bundleId = deviceHelper.bundleId,
             appUserId = identityManager?.invoke()?.appUserId,
             aliasId = identityManager?.invoke()?.aliasId,
+            testModeBehavior = options.testModeBehavior,
         )
         val testModeJustActivated = !wasTestMode && testModeManager?.isTestMode == true
 
@@ -506,7 +541,7 @@ open class ConfigManager(
         val identity = identityManager?.invoke() ?: return
         val activity = activityProvider?.getCurrentActivity() ?: return
 
-        track(InternalSuperwallEvent.TestModeModal(InternalSuperwallEvent.TestModeModal.State.Open))
+        track(InternalSuperwallEvent.TestModeModal(State.Open))
 
         val reason = manager.testModeReason?.description ?: "Test mode activated"
         val allEntitlements =
@@ -516,8 +551,20 @@ open class ConfigManager(
                 ?.sorted()
                 ?: emptyList()
 
+        val dashboardBaseUrl =
+            when (options.networkEnvironment) {
+                is SuperwallOptions.NetworkEnvironment.Developer -> "https://superwall.dev"
+                else -> "https://superwall.com"
+            }
+
+        val deviceAttrsMap = factory.makeSessionDeviceAttributes()
+        val deviceAttributesJson = Json.encodeToString(AnyMapSerializer, deviceAttrsMap)
+        val userAttributesJson = Json.encodeToString(AnyMapSerializer, identity.userAttributes)
+        val apiKey = deviceHelper.storage.apiKey
+        val savedSettings = manager.loadSettings()
+
         val result =
-            com.superwall.sdk.store.testmode.ui.TestModeModal.show(
+            TestModeModal.show(
                 activity = activity,
                 reason = reason,
                 userId = identity.appUserId,
@@ -525,15 +572,22 @@ open class ConfigManager(
                 isIdentified = identity.isLoggedIn,
                 hasPurchaseController = factory.makeHasExternalPurchaseController(),
                 availableEntitlements = allEntitlements,
+                apiKey = apiKey,
+                dashboardBaseUrl = dashboardBaseUrl,
+                deviceAttributes = deviceAttributesJson,
+                userAttributes = userAttributesJson,
+                savedSettings = savedSettings,
             )
 
-        manager.freeTrialOverride = result.freeTrialOverride
-        manager.setEntitlements(result.entitlements)
+        with(manager) {
+            setFreeTrialOverride(result.freeTrialOverride)
+            setEntitlements(result.entitlements)
+            saveSettings()
+            val status = buildSubscriptionStatus()
+            setOverriddenSubscriptionStatus(status)
+            entitlements.setSubscriptionStatus(status)
+        }
 
-        val status = manager.buildSubscriptionStatus()
-        manager.setOverriddenSubscriptionStatus(status)
-        entitlements.setSubscriptionStatus(status)
-
-        track(InternalSuperwallEvent.TestModeModal(InternalSuperwallEvent.TestModeModal.State.Close))
+        track(InternalSuperwallEvent.TestModeModal(State.Close))
     }
 }

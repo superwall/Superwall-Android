@@ -32,13 +32,13 @@ class TestModeReasonTest {
     }
 
     @Test
-    fun `DebugOption has descriptive text`() {
-        Given("a DebugOption reason") {
-            val reason = TestModeReason.DebugOption
+    fun `TestModeOption has descriptive text`() {
+        Given("a TestModeOption reason") {
+            val reason = TestModeReason.TestModeOption
 
             Then("description is not empty") {
                 assertTrue(reason.description.isNotEmpty())
-                assertTrue(reason.description.contains("debug"))
+                assertTrue(reason.description.contains("SuperwallOptions"))
             }
         }
     }

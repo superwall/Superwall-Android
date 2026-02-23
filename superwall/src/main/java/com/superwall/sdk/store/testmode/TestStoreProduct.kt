@@ -34,7 +34,7 @@ class TestStoreProduct(
     }
 
     override val localizedPrice: String by lazy {
-        priceFormatter?.format(price) ?: "$$price"
+        priceFormatter?.format(price) ?: "${currencySymbol ?: "$"}$price"
     }
 
     override val subscriptionPeriod: SubscriptionPeriod? by lazy {

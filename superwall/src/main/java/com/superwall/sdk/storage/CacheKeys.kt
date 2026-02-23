@@ -11,6 +11,8 @@ import com.superwall.sdk.models.serialization.AnySerializer
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
+import com.superwall.sdk.store.testmode.FreeTrialOverride
+import com.superwall.sdk.store.testmode.ui.EntitlementSelection
 import com.superwall.sdk.utilities.DateUtils
 import com.superwall.sdk.utilities.ErrorTracking
 import com.superwall.sdk.utilities.dateFormat
@@ -372,6 +374,21 @@ internal object IsTestModeActiveSubscription : Storable<Boolean> {
         get() = SearchPathDirectory.APP_SPECIFIC_DOCUMENTS
     override val serializer: KSerializer<Boolean>
         get() = Boolean.serializer()
+}
+
+@Serializable
+data class TestModeSettings(
+    val entitlementSelections: List<EntitlementSelection> = emptyList(),
+    val freeTrialOverride: FreeTrialOverride = FreeTrialOverride.UseDefault,
+)
+
+internal object StoredTestModeSettings : Storable<TestModeSettings> {
+    override val key: String
+        get() = "store.testModeSettings"
+    override val directory: SearchPathDirectory
+        get() = SearchPathDirectory.APP_SPECIFIC_DOCUMENTS
+    override val serializer: KSerializer<TestModeSettings>
+        get() = TestModeSettings.serializer()
 }
 
 internal object LastWebEntitlementsFetchDate : Storable<Long> {

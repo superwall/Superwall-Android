@@ -4,7 +4,6 @@ import android.app.Activity
 import android.app.Application
 import android.content.Context
 import android.util.Base64
-import android.util.Log
 import android.webkit.WebSettings
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.ViewModelProvider
@@ -595,10 +594,6 @@ class DependencyContainer(
                                 paywallView.encapsulatingActivity?.get()
                                     ?: activityProvider?.getCurrentActivity()
                             ) as? SuperwallPaywallActivity
-
-                        Log.e("NotificationScheduler", "==============FROM CONFIG======================")
-                        Log.e("NotificationScheduler", "${Json.encodeToString(trialNotifications)}")
-                        Log.e("NotificationScheduler", "================================")
 
                         if (paywallActivity != null) {
                             ioScope.launch {

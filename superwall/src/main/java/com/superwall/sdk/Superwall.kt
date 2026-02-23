@@ -4,7 +4,6 @@ import android.app.Application
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.util.Log
 import androidx.work.WorkManager
 import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.ProductDetails
@@ -100,8 +99,6 @@ import kotlinx.coroutines.flow.scan
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import java.util.Date
 import kotlin.collections.map
 
@@ -1425,10 +1422,6 @@ class Superwall(
                                     .activityProvider
                                     ?.getCurrentActivity()
                         ) as SuperwallPaywallActivity?
-                    Log.e("NotificationScheduler", "==============FROM PAYWALL======================")
-                    Log.e("NotificationScheduler", "${Json.encodeToString(paywallEvent.localNotification)}")
-                    Log.e("NotificationScheduler", "================================")
-
                     // Cancel any existing fallback notification of the same type before scheduling
                     // the dynamic notification from the paywall
                     paywallActivity?.attemptToScheduleNotifications(

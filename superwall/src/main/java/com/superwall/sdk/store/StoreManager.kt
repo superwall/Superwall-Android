@@ -247,7 +247,14 @@ class StoreManager(
         return productsByFullId[productId]
     }
 
-    override fun hasCached(productId: String): Boolean = productsByFullId.contains(productId)
+    override fun hasCached(productId: String): Boolean {
+        testModeManager?.let { manager ->
+            if (manager.isTestMode && manager.testProductsByFullId.containsKey(productId)) {
+                return true
+            }
+        }
+        return productsByFullId.contains(productId)
+    }
 
     override suspend fun consume(purchaseToken: String): Result<String> = billing.consume(purchaseToken)
 

@@ -330,7 +330,9 @@ class TransactionManager(
             return result
         }
 
-        val rawStoreProduct = product.rawStoreProduct!!
+        val rawStoreProduct =
+            product.rawStoreProduct
+                ?: return PurchaseResult.Failed("Missing raw store product for ${product.fullIdentifier}")
         log(
             message =
                 "!!! Purchasing product ${rawStoreProduct.hasFreeTrial}",

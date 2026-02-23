@@ -83,7 +83,7 @@ class TestModeTransactionHandler(
             TestModeRestoreDrawer.show(
                 activity = activity,
                 availableEntitlements = allEntitlements.toList(),
-                currentEntitlements = testModeManager.testEntitlementIds,
+                currentSelections = testModeManager.testEntitlementSelections,
             )
 
         return when (result) {

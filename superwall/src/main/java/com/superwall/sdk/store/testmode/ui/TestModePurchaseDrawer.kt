@@ -1,19 +1,15 @@
 package com.superwall.sdk.store.testmode.ui
 
 import android.app.Activity
-import android.graphics.Color
-import android.graphics.Typeface
-import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
-import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.LinearLayout
-import android.widget.ScrollView
 import android.widget.TextView
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
+import com.superwall.sdk.R
 import kotlinx.coroutines.CompletableDeferred
 
 sealed class PurchaseSimulationResult {
@@ -24,7 +20,7 @@ sealed class PurchaseSimulationResult {
     data object Failed : PurchaseSimulationResult()
 }
 
-class TestModePurchaseDrawer : BottomSheetDialogFragment() {
+internal class TestModePurchaseDrawer : BottomSheetDialogFragment() {
     private var result = CompletableDeferred<PurchaseSimulationResult>()
 
     companion object {
@@ -64,11 +60,28 @@ class TestModePurchaseDrawer : BottomSheetDialogFragment() {
         }
     }
 
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        @Suppress("DEPRECATION")
+        retainInstance = true
+    }
+
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
+        super.onViewCreated(view, savedInstanceState)
+        (view.parent as? View)?.background =
+            ContextCompat.getDrawable(requireContext(), R.drawable.test_mode_sheet_bg)
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?,
     ): View {
+        val view = inflater.inflate(R.layout.test_mode_purchase_drawer, container, false)
+
         val productId = arguments?.getString(ARG_PRODUCT_ID) ?: ""
         val price = arguments?.getString(ARG_PRICE) ?: ""
         val period = arguments?.getString(ARG_PERIOD) ?: ""
@@ -76,180 +89,48 @@ class TestModePurchaseDrawer : BottomSheetDialogFragment() {
         val trialText = arguments?.getString(ARG_TRIAL_TEXT) ?: ""
         val entitlements = arguments?.getStringArrayList(ARG_ENTITLEMENTS) ?: arrayListOf()
 
-        val dp = { px: Int -> (px * resources.displayMetrics.density).toInt() }
-
-        val scroll = ScrollView(requireContext())
-        val root =
-            LinearLayout(requireContext()).apply {
-                orientation = LinearLayout.VERTICAL
-                setPadding(dp(24), dp(20), dp(24), dp(32))
-            }
-
-        // Header
-        val header =
-            LinearLayout(requireContext()).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-            }
-        val badge = makeTestModeBadge(dp)
-        header.addView(badge)
-        header.addView(
-            View(requireContext()).apply {
-                layoutParams = LinearLayout.LayoutParams(0, 0, 1f)
-            },
-        )
-        val closeButton =
-            TextView(requireContext()).apply {
-                text = "\u2715"
-                textSize = 20f
-                setOnClickListener {
-                    result.complete(PurchaseSimulationResult.Abandoned)
-                    dismiss()
-                }
-            }
-        header.addView(closeButton)
-        root.addView(header)
-
-        // Product card
-        val card =
-            LinearLayout(requireContext()).apply {
-                orientation = LinearLayout.VERTICAL
-                setPadding(dp(16), dp(16), dp(16), dp(16))
-                background =
-                    GradientDrawable().apply {
-                        setColor(Color.parseColor("#F5F5F5"))
-                        cornerRadius = dp(12).toFloat()
-                    }
-                layoutParams =
-                    LinearLayout
-                        .LayoutParams(
-                            ViewGroup.LayoutParams.MATCH_PARENT,
-                            ViewGroup.LayoutParams.WRAP_CONTENT,
-                        ).apply { topMargin = dp(16) }
-            }
-
-        card.addView(
-            TextView(requireContext()).apply {
-                text = productId
-                textSize = 16f
-                setTypeface(null, Typeface.BOLD)
-            },
-        )
+        // Populate product card
+        view.findViewById<TextView>(R.id.product_id_text).text = productId
 
         if (hasFreeTrial && trialText.isNotEmpty()) {
-            card.addView(
-                TextView(requireContext()).apply {
-                    text = "$trialText free trial"
-                    textSize = 14f
-                    setTextColor(Color.parseColor("#4CAF50"))
-                    layoutParams =
-                        LinearLayout
-                            .LayoutParams(
-                                ViewGroup.LayoutParams.WRAP_CONTENT,
-                                ViewGroup.LayoutParams.WRAP_CONTENT,
-                            ).apply { topMargin = dp(4) }
-                },
-            )
+            view.findViewById<TextView>(R.id.trial_text).apply {
+                text = "$trialText free trial"
+                visibility = View.VISIBLE
+            }
         }
 
-        card.addView(
-            TextView(requireContext()).apply {
-                text = if (period.isNotEmpty()) "$price / $period" else price
-                textSize = 14f
-                setTextColor(Color.GRAY)
-                layoutParams =
-                    LinearLayout
-                        .LayoutParams(
-                            ViewGroup.LayoutParams.WRAP_CONTENT,
-                            ViewGroup.LayoutParams.WRAP_CONTENT,
-                        ).apply { topMargin = dp(4) }
-            },
-        )
+        view.findViewById<TextView>(R.id.price_text).text =
+            if (period.isNotEmpty()) "$price / $period" else price
 
         if (entitlements.isNotEmpty()) {
-            card.addView(
-                TextView(requireContext()).apply {
-                    text = "Entitlements: ${entitlements.joinToString(", ")}"
-                    textSize = 12f
-                    setTextColor(Color.DKGRAY)
-                    layoutParams =
-                        LinearLayout
-                            .LayoutParams(
-                                ViewGroup.LayoutParams.WRAP_CONTENT,
-                                ViewGroup.LayoutParams.WRAP_CONTENT,
-                            ).apply { topMargin = dp(8) }
-                },
-            )
+            view.findViewById<TextView>(R.id.entitlements_text).apply {
+                text = "Entitlements: ${entitlements.joinToString(", ")}"
+                visibility = View.VISIBLE
+            }
         }
-        root.addView(card)
 
-        // Confirm button
-        val buttonText = if (hasFreeTrial) "Start Free Trial" else "Confirm Purchase"
-        val confirmButton =
-            TextView(requireContext()).apply {
-                text = buttonText
-                textSize = 16f
-                setTextColor(Color.WHITE)
-                setTypeface(null, Typeface.BOLD)
-                gravity = Gravity.CENTER
-                setPadding(dp(16), dp(14), dp(16), dp(14))
-                background =
-                    GradientDrawable().apply {
-                        setColor(Color.parseColor("#2196F3"))
-                        cornerRadius = dp(12).toFloat()
-                    }
-                layoutParams =
-                    LinearLayout
-                        .LayoutParams(
-                            ViewGroup.LayoutParams.MATCH_PARENT,
-                            ViewGroup.LayoutParams.WRAP_CONTENT,
-                        ).apply { topMargin = dp(20) }
-                setOnClickListener {
-                    result.complete(PurchaseSimulationResult.Purchased)
-                    dismiss()
-                }
+        // Confirm button text depends on trial
+        view.findViewById<TextView>(R.id.confirm_button).apply {
+            text = if (hasFreeTrial) "Start Free Trial" else "Confirm Purchase"
+            setOnClickListener {
+                result.complete(PurchaseSimulationResult.Purchased)
+                dismiss()
             }
-        root.addView(confirmButton)
+        }
 
-        // Simulate failure button
-        val failButton =
-            TextView(requireContext()).apply {
-                text = "Simulate Failure"
-                textSize = 14f
-                setTextColor(Color.parseColor("#F44336"))
-                gravity = Gravity.CENTER
-                setPadding(dp(16), dp(12), dp(16), dp(12))
-                layoutParams =
-                    LinearLayout
-                        .LayoutParams(
-                            ViewGroup.LayoutParams.MATCH_PARENT,
-                            ViewGroup.LayoutParams.WRAP_CONTENT,
-                        ).apply { topMargin = dp(8) }
-                setOnClickListener {
-                    result.complete(PurchaseSimulationResult.Failed)
-                    dismiss()
-                }
-            }
-        root.addView(failButton)
+        // Close button
+        view.findViewById<TextView>(R.id.close_button).setOnClickListener {
+            result.complete(PurchaseSimulationResult.Abandoned)
+            dismiss()
+        }
 
-        // Disclaimer
-        root.addView(
-            TextView(requireContext()).apply {
-                text = "This is a simulated purchase. No real transaction will occur."
-                textSize = 11f
-                setTextColor(Color.GRAY)
-                gravity = Gravity.CENTER
-                layoutParams =
-                    LinearLayout
-                        .LayoutParams(
-                            ViewGroup.LayoutParams.MATCH_PARENT,
-                            ViewGroup.LayoutParams.WRAP_CONTENT,
-                        ).apply { topMargin = dp(16) }
-            },
-        )
+        // Fail button
+        view.findViewById<TextView>(R.id.fail_button).setOnClickListener {
+            result.complete(PurchaseSimulationResult.Failed)
+            dismiss()
+        }
 
-        scroll.addView(root)
-        return scroll
+        return view
     }
 
     override fun onDestroy() {
@@ -258,18 +139,4 @@ class TestModePurchaseDrawer : BottomSheetDialogFragment() {
             result.complete(PurchaseSimulationResult.Abandoned)
         }
     }
-
-    private fun makeTestModeBadge(dp: (Int) -> Int): TextView =
-        TextView(requireContext()).apply {
-            text = "TEST MODE"
-            textSize = 11f
-            setTextColor(Color.WHITE)
-            setTypeface(null, Typeface.BOLD)
-            setPadding(dp(10), dp(4), dp(10), dp(4))
-            background =
-                GradientDrawable().apply {
-                    setColor(Color.parseColor("#FF9800"))
-                    cornerRadius = dp(4).toFloat()
-                }
-        }
 }

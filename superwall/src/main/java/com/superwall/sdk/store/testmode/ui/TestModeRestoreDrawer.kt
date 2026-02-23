@@ -1,41 +1,38 @@
 package com.superwall.sdk.store.testmode.ui
 
 import android.app.Activity
-import android.graphics.Color
-import android.graphics.Typeface
-import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
-import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.CheckBox
 import android.widget.LinearLayout
-import android.widget.ScrollView
 import android.widget.TextView
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
+import com.superwall.sdk.R
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.serialization.json.Json
 
-sealed class RestoreSimulationResult {
+internal sealed class RestoreSimulationResult {
     data class Restored(
-        val selectedEntitlements: Set<String>,
+        val selectedEntitlements: List<EntitlementSelection>,
     ) : RestoreSimulationResult()
 
     data object Cancelled : RestoreSimulationResult()
 }
 
-class TestModeRestoreDrawer : BottomSheetDialogFragment() {
+internal class TestModeRestoreDrawer : BottomSheetDialogFragment() {
     private var result = CompletableDeferred<RestoreSimulationResult>()
 
     companion object {
         private const val ARG_ENTITLEMENTS = "entitlements"
-        private const val ARG_CURRENT = "current"
+        private const val ARG_CURRENT_SELECTIONS = "current_selections"
 
         suspend fun show(
             activity: Activity,
             availableEntitlements: List<String>,
-            currentEntitlements: Set<String>,
+            currentSelections: List<EntitlementSelection>,
         ): RestoreSimulationResult {
             val fragmentActivity =
                 activity as? FragmentActivity
@@ -45,7 +42,13 @@ class TestModeRestoreDrawer : BottomSheetDialogFragment() {
             drawer.arguments =
                 Bundle().apply {
                     putStringArrayList(ARG_ENTITLEMENTS, ArrayList(availableEntitlements))
-                    putStringArrayList(ARG_CURRENT, ArrayList(currentEntitlements))
+                    putString(
+                        ARG_CURRENT_SELECTIONS,
+                        Json.encodeToString(
+                            kotlinx.serialization.builtins.ListSerializer(EntitlementSelection.serializer()),
+                            currentSelections,
+                        ),
+                    )
                 }
 
             drawer.show(fragmentActivity.supportFragmentManager, "test_mode_restore")
@@ -53,162 +56,80 @@ class TestModeRestoreDrawer : BottomSheetDialogFragment() {
         }
     }
 
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        @Suppress("DEPRECATION")
+        retainInstance = true
+    }
+
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
+        super.onViewCreated(view, savedInstanceState)
+        (view.parent as? View)?.background =
+            ContextCompat.getDrawable(requireContext(), R.drawable.test_mode_sheet_bg)
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?,
     ): View {
+        val view = inflater.inflate(R.layout.test_mode_restore_drawer, container, false)
+
         val entitlements = arguments?.getStringArrayList(ARG_ENTITLEMENTS) ?: arrayListOf()
-        val current = arguments?.getStringArrayList(ARG_CURRENT)?.toSet() ?: emptySet()
-
-        val dp = { px: Int -> (px * resources.displayMetrics.density).toInt() }
-        val selectedEntitlements = current.toMutableSet()
-
-        val scroll = ScrollView(requireContext())
-        val root =
-            LinearLayout(requireContext()).apply {
-                orientation = LinearLayout.VERTICAL
-                setPadding(dp(24), dp(20), dp(24), dp(32))
-            }
-
-        // Header
-        val header =
-            LinearLayout(requireContext()).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-            }
-        header.addView(makeTestModeBadge(dp))
-        header.addView(
-            View(requireContext()).apply {
-                layoutParams = LinearLayout.LayoutParams(0, 0, 1f)
-            },
-        )
-        header.addView(
-            TextView(requireContext()).apply {
-                text = "\u2715"
-                textSize = 20f
-                setOnClickListener {
-                    result.complete(RestoreSimulationResult.Cancelled)
-                    dismiss()
+        val currentSelectionsJson = arguments?.getString(ARG_CURRENT_SELECTIONS)
+        val currentSelections =
+            currentSelectionsJson?.let {
+                try {
+                    Json.decodeFromString(
+                        kotlinx.serialization.builtins.ListSerializer(EntitlementSelection.serializer()),
+                        it,
+                    )
+                } catch (_: Exception) {
+                    emptyList()
                 }
-            },
-        )
-        root.addView(header)
+            } ?: emptyList()
 
-        // Title
-        root.addView(
-            TextView(requireContext()).apply {
-                text = "Simulate Restore"
-                textSize = 18f
-                setTypeface(null, Typeface.BOLD)
-                layoutParams =
-                    LinearLayout
-                        .LayoutParams(
-                            ViewGroup.LayoutParams.WRAP_CONTENT,
-                            ViewGroup.LayoutParams.WRAP_CONTENT,
-                        ).apply { topMargin = dp(16) }
-            },
-        )
+        val currentByName = currentSelections.associateBy { it.identifier }
 
-        root.addView(
-            TextView(requireContext()).apply {
-                text = "Select the entitlements to restore for this test session."
-                textSize = 14f
-                setTextColor(Color.GRAY)
-                layoutParams =
-                    LinearLayout
-                        .LayoutParams(
-                            ViewGroup.LayoutParams.WRAP_CONTENT,
-                            ViewGroup.LayoutParams.WRAP_CONTENT,
-                        ).apply { topMargin = dp(8) }
-            },
-        )
-
-        // Entitlement checkboxes
-        for (entitlement in entitlements) {
-            val checkbox =
-                CheckBox(requireContext()).apply {
-                    text = entitlement
-                    textSize = 14f
-                    isChecked = entitlement in current
-                    layoutParams =
-                        LinearLayout
-                            .LayoutParams(
-                                ViewGroup.LayoutParams.MATCH_PARENT,
-                                ViewGroup.LayoutParams.WRAP_CONTENT,
-                            ).apply { topMargin = dp(4) }
-                    setOnCheckedChangeListener { _, isChecked ->
-                        if (isChecked) {
-                            selectedEntitlements.add(entitlement)
-                        } else {
-                            selectedEntitlements.remove(entitlement)
-                        }
-                    }
-                }
-            root.addView(checkbox)
+        // Close button
+        view.findViewById<TextView>(R.id.close_button).setOnClickListener {
+            result.complete(RestoreSimulationResult.Cancelled)
+            dismiss()
         }
 
-        if (entitlements.isEmpty()) {
-            root.addView(
-                TextView(requireContext()).apply {
-                    text = "No entitlements available."
-                    textSize = 14f
-                    setTextColor(Color.GRAY)
-                    layoutParams =
-                        LinearLayout
-                            .LayoutParams(
-                                ViewGroup.LayoutParams.WRAP_CONTENT,
-                                ViewGroup.LayoutParams.WRAP_CONTENT,
-                            ).apply { topMargin = dp(8) }
-                },
-            )
+        // Dynamic entitlement rows
+        val entitlementsContainer = view.findViewById<LinearLayout>(R.id.entitlements_container)
+        val rowHolders = mutableListOf<EntitlementRowViewHolder>()
+        if (entitlements.isNotEmpty()) {
+            for (entitlement in entitlements) {
+                val initialSelection =
+                    currentByName[entitlement]
+                        ?: EntitlementSelection(identifier = entitlement)
+                val holder =
+                    EntitlementRowViewHolder(
+                        context = requireContext(),
+                        entitlementName = entitlement,
+                        initialSelection = initialSelection,
+                        onSelectionChanged = {},
+                    )
+                rowHolders.add(holder)
+                entitlementsContainer.addView(holder.view)
+            }
+        } else {
+            view.findViewById<TextView>(R.id.no_entitlements_text).visibility = View.VISIBLE
         }
 
         // Restore button
-        root.addView(
-            TextView(requireContext()).apply {
-                text = "Restore"
-                textSize = 16f
-                setTextColor(Color.WHITE)
-                setTypeface(null, Typeface.BOLD)
-                gravity = Gravity.CENTER
-                setPadding(dp(16), dp(14), dp(16), dp(14))
-                background =
-                    GradientDrawable().apply {
-                        setColor(Color.parseColor("#2196F3"))
-                        cornerRadius = dp(12).toFloat()
-                    }
-                layoutParams =
-                    LinearLayout
-                        .LayoutParams(
-                            ViewGroup.LayoutParams.MATCH_PARENT,
-                            ViewGroup.LayoutParams.WRAP_CONTENT,
-                        ).apply { topMargin = dp(20) }
-                setOnClickListener {
-                    result.complete(RestoreSimulationResult.Restored(selectedEntitlements.toSet()))
-                    dismiss()
-                }
-            },
-        )
+        view.findViewById<TextView>(R.id.restore_button).setOnClickListener {
+            val selections = rowHolders.map { it.currentSelection }
+            result.complete(RestoreSimulationResult.Restored(selections))
+            dismiss()
+        }
 
-        // Disclaimer
-        root.addView(
-            TextView(requireContext()).apply {
-                text = "This is a simulated restore. No real transaction will occur."
-                textSize = 11f
-                setTextColor(Color.GRAY)
-                gravity = Gravity.CENTER
-                layoutParams =
-                    LinearLayout
-                        .LayoutParams(
-                            ViewGroup.LayoutParams.MATCH_PARENT,
-                            ViewGroup.LayoutParams.WRAP_CONTENT,
-                        ).apply { topMargin = dp(16) }
-            },
-        )
-
-        scroll.addView(root)
-        return scroll
+        return view
     }
 
     override fun onDestroy() {
@@ -217,18 +138,4 @@ class TestModeRestoreDrawer : BottomSheetDialogFragment() {
             result.complete(RestoreSimulationResult.Cancelled)
         }
     }
-
-    private fun makeTestModeBadge(dp: (Int) -> Int): TextView =
-        TextView(requireContext()).apply {
-            text = "TEST MODE"
-            textSize = 11f
-            setTextColor(Color.WHITE)
-            setTypeface(null, Typeface.BOLD)
-            setPadding(dp(10), dp(4), dp(10), dp(4))
-            background =
-                GradientDrawable().apply {
-                    setColor(Color.parseColor("#FF9800"))
-                    cornerRadius = dp(4).toFloat()
-                }
-        }
 }
