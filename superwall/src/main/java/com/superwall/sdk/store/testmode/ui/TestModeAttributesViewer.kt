@@ -45,7 +45,7 @@ class TestModeAttributesViewer : DialogFragment() {
         val json = arguments?.getString(ARG_ATTRIBUTES_JSON) ?: "{}"
 
         view.findViewById<TextView>(R.id.viewer_title).text = title
-        view.findViewById<TextView>(R.id.back_button).setOnClickListener {
+        view.findViewById<View>(R.id.back_button).setOnClickListener {
             dismiss()
         }
 

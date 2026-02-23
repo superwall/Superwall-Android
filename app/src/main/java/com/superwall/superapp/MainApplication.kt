@@ -16,7 +16,6 @@ import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.paywall.presentation.register
-import com.superwall.sdk.store.testmode.TestModeBehavior
 import com.superwall.superapp.purchase.RevenueCatPurchaseController
 import kotlinx.coroutines.flow.MutableSharedFlow
 import java.lang.ref.WeakReference
@@ -78,7 +77,6 @@ class MainApplication :
             Keys.CONSTANT_API_KEY,
             options =
                 SuperwallOptions().apply {
-                    testModeBehavior = TestModeBehavior.AUTOMATIC
                     logging.level = LogLevel.debug
                     paywalls =
                         PaywallOptions().apply {

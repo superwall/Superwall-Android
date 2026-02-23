@@ -2,6 +2,13 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.7.2
+
+## Enhancements
+
+- Adds support for "Test Mode", which allows you to simulate in-app purchases without involving Google Play. Test Mode can be enabled through the Superwall dashboard by marking specific users as test store users, or activates automatically when a an application ID mismatch is detected or behavior is set to `ALWAYS`. When active, a configuration modal lets you select starting entitlements and override free trial availability. Purchases are simulated with a UI that lets users complete, abandon, or fail transactions, with all purchase events firing normally for end-to-end paywall testing.
+
+
 ## 2.7.1
 
 ### Enhancements
