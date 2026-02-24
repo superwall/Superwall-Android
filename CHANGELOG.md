@@ -2,6 +2,11 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.7.2.
+
+### Fixes
+- Fixes issue with `enableExperimentalDeviceVariables` option causing subscription status sync to fail
+
 ## 2.7.1
 
 ### Enhancements
