@@ -598,7 +598,7 @@ class DeviceHelper(
                             } else {
                                 it
                             }
-                        }.getSuccess() ?: emptyMap()
+                        }.getSuccess() ?: it
                     }
             }.fold(
                 onSuccess = { deviceTemplate ->
