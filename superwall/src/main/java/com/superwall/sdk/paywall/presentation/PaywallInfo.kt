@@ -215,6 +215,7 @@ data class PaywallInfo(
                 "experiment_id" to experiment?.id,
                 "variant_id" to experiment?.variant?.id,
                 "is_scroll_enabled" to isScrollEnabled,
+                "state" to state,
             )
         params.values.removeAll { it == null }
         val filteredParams = params as MutableMap<String, Any>

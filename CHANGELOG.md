@@ -2,6 +2,11 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.7.3
+
+### Enhancements
+- Adds state and params to `PaywallInfo` for `PaywallClose` events
+
 ## 2.7.2.
 
 ### Fixes
