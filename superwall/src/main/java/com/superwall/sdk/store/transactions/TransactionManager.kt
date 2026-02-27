@@ -319,6 +319,24 @@ class TransactionManager(
                 }
                 is PurchaseResult.Failed -> {
                     trackFailure(result.errorMessage, product, purchaseSource)
+                    if (purchaseSource is PurchaseSource.Internal) {
+                        val superwallOptions = factory.makeSuperwallOptions()
+                        val triggers = factory.makeTriggers()
+                        val transactionFailExists =
+                            triggers.contains(SuperwallEvents.TransactionFail.rawName)
+                        if (superwallOptions.paywalls.shouldShowPurchaseFailureAlert && !transactionFailExists) {
+                            presentAlert(
+                                Error(result.errorMessage),
+                                product,
+                                purchaseSource.state,
+                            )
+                        } else {
+                            updateState(
+                                purchaseSource.paywallInfo.cacheKey,
+                                PaywallViewState.Updates.ToggleSpinner(hidden = true),
+                            )
+                        }
+                    }
                 }
                 is PurchaseResult.Cancelled -> {
                     trackCancelled(product, purchaseSource)
