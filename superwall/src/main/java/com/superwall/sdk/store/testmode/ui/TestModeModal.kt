@@ -20,11 +20,15 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.superwall.sdk.R
+import com.superwall.sdk.Superwall
+import com.superwall.sdk.misc.IOScope
+import com.superwall.sdk.models.serialization.AnyMapSerializer
 import com.superwall.sdk.storage.TestModeSettings
 import com.superwall.sdk.store.testmode.FreeTrialOverride
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 
 internal data class TestModeModalResult(
@@ -37,27 +41,19 @@ internal class TestModeModal : BottomSheetDialogFragment() {
 
     companion object {
         private const val ARG_REASON = "reason"
-        private const val ARG_USER_ID = "user_id"
         private const val ARG_HAS_PURCHASE_CONTROLLER = "has_purchase_controller"
         private const val ARG_ENTITLEMENTS = "entitlements"
         private const val ARG_API_KEY = "api_key"
         private const val ARG_DASHBOARD_BASE_URL = "dashboard_base_url"
-        private const val ARG_DEVICE_ATTRIBUTES = "device_attributes"
-        private const val ARG_USER_ATTRIBUTES = "user_attributes"
         private const val ARG_SAVED_SETTINGS = "saved_settings"
 
         suspend fun show(
             activity: Activity,
             reason: String,
-            userId: String?,
-            aliasId: String?,
-            isIdentified: Boolean,
             hasPurchaseController: Boolean,
             availableEntitlements: List<String>,
             apiKey: String = "",
             dashboardBaseUrl: String = "",
-            deviceAttributes: String = "{}",
-            userAttributes: String = "{}",
             savedSettings: TestModeSettings? = null,
         ): TestModeModalResult {
             return MainScope()
@@ -73,13 +69,10 @@ internal class TestModeModal : BottomSheetDialogFragment() {
                     modal.arguments =
                         Bundle().apply {
                             putString(ARG_REASON, reason)
-                            putString(ARG_USER_ID, userId)
                             putBoolean(ARG_HAS_PURCHASE_CONTROLLER, hasPurchaseController)
                             putStringArrayList(ARG_ENTITLEMENTS, ArrayList(availableEntitlements))
                             putString(ARG_API_KEY, apiKey)
                             putString(ARG_DASHBOARD_BASE_URL, dashboardBaseUrl)
-                            putString(ARG_DEVICE_ATTRIBUTES, deviceAttributes)
-                            putString(ARG_USER_ATTRIBUTES, userAttributes)
                             savedSettings?.let {
                                 putString(
                                     ARG_SAVED_SETTINGS,
@@ -112,13 +105,13 @@ internal class TestModeModal : BottomSheetDialogFragment() {
         val view = inflater.inflate(R.layout.test_mode_modal, container, false)
 
         val reason = arguments?.getString(ARG_REASON) ?: ""
-        val userId = arguments?.getString(ARG_USER_ID)
+        val userId = Superwall.instance.userId
         val hasPurchaseController = arguments?.getBoolean(ARG_HAS_PURCHASE_CONTROLLER) ?: false
         val entitlements = arguments?.getStringArrayList(ARG_ENTITLEMENTS) ?: arrayListOf()
         val apiKey = arguments?.getString(ARG_API_KEY) ?: ""
         val dashboardBaseUrl = arguments?.getString(ARG_DASHBOARD_BASE_URL) ?: ""
-        val deviceAttributes = arguments?.getString(ARG_DEVICE_ATTRIBUTES) ?: "{}"
-        val userAttributes = arguments?.getString(ARG_USER_ATTRIBUTES) ?: "{}"
+        val userAttributes = Json.encodeToString(AnyMapSerializer, Superwall.instance.userAttributes)
+
         val savedSettingsJson = arguments?.getString(ARG_SAVED_SETTINGS)
 
         val savedSettings =
@@ -160,11 +153,16 @@ internal class TestModeModal : BottomSheetDialogFragment() {
             }
         }
 
-        // Device Attributes row
-        view.findViewById<View>(R.id.device_attributes_row).setOnClickListener {
-            val viewer = TestModeAttributesViewer.newInstance("Device Attributes", deviceAttributes)
-            viewer.show(parentFragmentManager, "device_attributes")
+        IOScope().launch {
+            val deviceAttributes = Json.encodeToString(AnyMapSerializer, Superwall.instance.deviceAttributes())
+            MainScope().launch {
+                view.findViewById<View>(R.id.device_attributes_row).setOnClickListener {
+                    val viewer = TestModeAttributesViewer.newInstance("Device Attributes", deviceAttributes)
+                    viewer.show(parentFragmentManager, "device_attributes")
+                }
+            }
         }
+        // Device Attributes row
 
         // User Attributes row
         view.findViewById<View>(R.id.user_attributes_row).setOnClickListener {

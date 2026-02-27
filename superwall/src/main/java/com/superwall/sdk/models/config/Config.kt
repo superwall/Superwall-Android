@@ -27,8 +27,8 @@ data class Config(
     @Transient var locales: Set<String> = emptySet(),
     @SerialName("web2app_config") var webToAppConfig: WebToAppConfig? = null,
     @SerialName("build_id") val buildId: String,
-    @SerialName("bundleIdConfig") val bundleIdConfig: String? = null,
-    @SerialName("testModeUserIds") val testModeUserIds: List<TestStoreUser>? = null,
+    @SerialName("bundle_id_config") val bundleIdConfig: String? = null,
+    @SerialName("test_mode_user_ids") val testModeUserIds: List<TestStoreUser>? = null,
 ) : SerializableEntity {
     init {
         locales = localizationConfig.locales.map { it.locale }.toSet()

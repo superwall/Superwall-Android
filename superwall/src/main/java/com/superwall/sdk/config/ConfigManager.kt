@@ -27,7 +27,6 @@ import com.superwall.sdk.misc.then
 import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.models.enrichment.Enrichment
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
-import com.superwall.sdk.models.serialization.AnyMapSerializer
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.models.triggers.Trigger
@@ -57,7 +56,6 @@ import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
-import kotlinx.serialization.json.Json
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -538,7 +536,6 @@ open class ConfigManager(
 
     private suspend fun presentTestModeModal(config: Config) {
         val manager = testModeManager ?: return
-        val identity = identityManager?.invoke() ?: return
         val activity = activityProvider?.getCurrentActivity() ?: return
 
         track(InternalSuperwallEvent.TestModeModal(State.Open))
@@ -557,9 +554,6 @@ open class ConfigManager(
                 else -> "https://superwall.com"
             }
 
-        val deviceAttrsMap = factory.makeSessionDeviceAttributes()
-        val deviceAttributesJson = Json.encodeToString(AnyMapSerializer, deviceAttrsMap)
-        val userAttributesJson = Json.encodeToString(AnyMapSerializer, identity.userAttributes)
         val apiKey = deviceHelper.storage.apiKey
         val savedSettings = manager.loadSettings()
 
@@ -567,15 +561,10 @@ open class ConfigManager(
             TestModeModal.show(
                 activity = activity,
                 reason = reason,
-                userId = identity.appUserId,
-                aliasId = identity.aliasId,
-                isIdentified = identity.isLoggedIn,
                 hasPurchaseController = factory.makeHasExternalPurchaseController(),
                 availableEntitlements = allEntitlements,
                 apiKey = apiKey,
                 dashboardBaseUrl = dashboardBaseUrl,
-                deviceAttributes = deviceAttributesJson,
-                userAttributes = userAttributesJson,
                 savedSettings = savedSettings,
             )
 
