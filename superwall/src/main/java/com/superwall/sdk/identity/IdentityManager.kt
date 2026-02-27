@@ -94,17 +94,16 @@ class IdentityManager(
                 _appUserId ?: _aliasId
             }
 
-    private var _userAttributes: Map<String, Any> =
-        (storage.read(UserAttributes) ?: emptyMap()).toMutableMap().apply {
-            // Ensure we always have user identifiers
-            put(Keys.appUserId, userId)
-            put(Keys.aliasId, aliasId)
-        }
+    private var _userAttributes: Map<String, Any> = storage.read(UserAttributes) ?: emptyMap()
 
     val userAttributes: Map<String, Any>
         get() =
             runBlocking(queue) {
-                _userAttributes
+                _userAttributes.toMutableMap().apply {
+                    // Ensure we always have user identifiers
+                    put(Keys.appUserId, _appUserId ?: _aliasId)
+                    put(Keys.aliasId, _aliasId)
+                }
             }
 
     val isLoggedIn: Boolean get() = _appUserId != null

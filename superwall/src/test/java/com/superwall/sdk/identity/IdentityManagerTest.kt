@@ -22,6 +22,7 @@ import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -64,6 +65,7 @@ class IdentityManagerTest {
      * Use for synchronous (non-coroutine) tests only.
      */
     private fun createManager(
+        dispatcher: TestScope,
         existingAppUserId: String? = null,
         existingAliasId: String? = null,
         existingSeed: Int? = null,
@@ -79,7 +81,7 @@ class IdentityManagerTest {
             deviceHelper = deviceHelper,
             storage = storage,
             configManager = configManager,
-            ioScope = IOScope(Dispatchers.Unconfined),
+            ioScope = IOScope(dispatcher.coroutineContext),
             neverCalledStaticConfig = { neverCalledStaticConfig },
             notifyUserChange = { notifiedChanges.add(it) },
             completeReset = { resetCalled = true },
@@ -115,260 +117,276 @@ class IdentityManagerTest {
     // region Init
 
     @Test
-    fun `init generates and persists aliasId when none stored`() {
-        Given("no existing aliasId in storage") {
-            val manager =
+    fun `init generates and persists aliasId when none stored`() =
+        runTest {
+            Given("no existing aliasId in storage") {
+                val manager =
+                    When("the manager is created") {
+                        createManager(this@runTest)
+                    }
+
+                Then("a new aliasId is generated and written") {
+                    verify { storage.write(AliasId, any<String>()) }
+                    assertTrue(manager.aliasId.isNotEmpty())
+                }
+            }
+        }
+
+    @Test
+    fun `init generates and persists seed when none stored`() =
+        runTest {
+            Given("no existing seed in storage") {
+                val manager =
+                    When("the manager is created") {
+                        createManager(this@runTest)
+                    }
+
+                Then("a new seed is generated and written") {
+                    verify { storage.write(Seed, any<Int>()) }
+                    assertTrue(manager.seed in 0..99)
+                }
+            }
+        }
+
+    @Test
+    fun `init uses existing aliasId from storage`() =
+        runTest {
+            Given("an existing aliasId in storage") {
+                val existingAlias = "existing-alias-123"
+
+                val manager =
+                    When("the manager is created") {
+                        createManager(this@runTest, existingAliasId = existingAlias)
+                    }
+
+                Then("it uses the stored aliasId") {
+                    assertEquals(existingAlias, manager.aliasId)
+                }
+            }
+        }
+
+    @Test
+    fun `init uses existing seed from storage`() =
+        runTest {
+            Given("an existing seed in storage") {
+                val existingSeed = 42
+
+                val manager =
+                    When("the manager is created") {
+                        createManager(this@runTest, existingSeed = existingSeed)
+                    }
+
+                Then("it uses the stored seed") {
+                    assertEquals(existingSeed, manager.seed)
+                }
+            }
+        }
+
+    @Test
+    fun `init merges generated alias and seed into user attributes`() =
+        runTest {
+            Given("no existing aliasId or seed in storage") {
                 When("the manager is created") {
-                    createManager()
+                    createManager(this@runTest)
                 }
 
-            Then("a new aliasId is generated and written") {
-                verify { storage.write(AliasId, any<String>()) }
-                assertTrue(manager.aliasId.isNotEmpty())
+                Then("user attributes are written to storage") {
+                    verify { storage.write(UserAttributes, any()) }
+                }
             }
         }
-    }
 
     @Test
-    fun `init generates and persists seed when none stored`() {
-        Given("no existing seed in storage") {
-            val manager =
+    fun `init does not merge attributes when alias and seed already exist`() =
+        runTest {
+            Given("existing aliasId and seed in storage") {
                 When("the manager is created") {
-                    createManager()
+                    createManager(this@runTest, existingAliasId = "existing", existingSeed = 50)
                 }
 
-            Then("a new seed is generated and written") {
-                verify { storage.write(Seed, any<Int>()) }
-                assertTrue(manager.seed in 0..99)
-            }
-        }
-    }
-
-    @Test
-    fun `init uses existing aliasId from storage`() {
-        Given("an existing aliasId in storage") {
-            val existingAlias = "existing-alias-123"
-
-            val manager =
-                When("the manager is created") {
-                    createManager(existingAliasId = existingAlias)
+                Then("user attributes are not merged during init") {
+                    verify(exactly = 0) { storage.write(UserAttributes, any()) }
                 }
-
-            Then("it uses the stored aliasId") {
-                assertEquals(existingAlias, manager.aliasId)
             }
         }
-    }
-
-    @Test
-    fun `init uses existing seed from storage`() {
-        Given("an existing seed in storage") {
-            val existingSeed = 42
-
-            val manager =
-                When("the manager is created") {
-                    createManager(existingSeed = existingSeed)
-                }
-
-            Then("it uses the stored seed") {
-                assertEquals(existingSeed, manager.seed)
-            }
-        }
-    }
-
-    @Test
-    fun `init merges generated alias and seed into user attributes`() {
-        Given("no existing aliasId or seed in storage") {
-            When("the manager is created") {
-                createManager()
-            }
-
-            Then("user attributes are written to storage") {
-                verify { storage.write(UserAttributes, any()) }
-            }
-        }
-    }
-
-    @Test
-    fun `init does not merge attributes when alias and seed already exist`() {
-        Given("existing aliasId and seed in storage") {
-            When("the manager is created") {
-                createManager(existingAliasId = "existing", existingSeed = 50)
-            }
-
-            Then("user attributes are not merged during init") {
-                verify(exactly = 0) { storage.write(UserAttributes, any()) }
-            }
-        }
-    }
 
     // endregion
 
     // region userId
 
     @Test
-    fun `userId returns aliasId when no appUserId set`() {
-        Given("no logged in user") {
-            val manager = createManager(existingAliasId = "alias-abc")
+    fun `userId returns aliasId when no appUserId set`() =
+        runTest {
+            Given("no logged in user") {
+                val manager = createManager(this@runTest, existingAliasId = "alias-abc")
 
-            val userId =
-                When("userId is accessed") {
-                    manager.userId
+                val userId =
+                    When("userId is accessed") {
+                        manager.userId
+                    }
+
+                Then("it returns the aliasId") {
+                    assertEquals("alias-abc", userId)
                 }
-
-            Then("it returns the aliasId") {
-                assertEquals("alias-abc", userId)
             }
         }
-    }
 
     @Test
-    fun `userId returns appUserId when logged in`() {
-        Given("a logged in user") {
-            val manager =
-                createManager(
-                    existingAppUserId = "user-123",
-                    existingAliasId = "alias-abc",
-                )
+    fun `userId returns appUserId when logged in`() =
+        runTest {
+            Given("a logged in user") {
+                val manager =
+                    createManager(
+                        this@runTest,
+                        existingAppUserId = "user-123",
+                        existingAliasId = "alias-abc",
+                    )
 
-            val userId =
-                When("userId is accessed") {
-                    manager.userId
+                val userId =
+                    When("userId is accessed") {
+                        manager.userId
+                    }
+
+                Then("it returns the appUserId") {
+                    assertEquals("user-123", userId)
                 }
-
-            Then("it returns the appUserId") {
-                assertEquals("user-123", userId)
             }
         }
-    }
 
     @Test
-    fun `isLoggedIn is false when no appUserId`() {
-        Given("no appUserId stored") {
-            val manager = createManager()
+    fun `isLoggedIn is false when no appUserId`() =
+        runTest {
+            Given("no appUserId stored") {
+                val manager = createManager(this@runTest)
 
-            Then("isLoggedIn is false") {
-                assertFalse(manager.isLoggedIn)
+                Then("isLoggedIn is false") {
+                    assertFalse(manager.isLoggedIn)
+                }
             }
         }
-    }
 
     @Test
-    fun `isLoggedIn is true when appUserId exists`() {
-        Given("an appUserId stored") {
-            val manager = createManager(existingAppUserId = "user-123")
+    fun `isLoggedIn is true when appUserId exists`() =
+        runTest {
+            Given("an appUserId stored") {
+                val manager = createManager(this@runTest, existingAppUserId = "user-123")
 
-            Then("isLoggedIn is true") {
-                assertTrue(manager.isLoggedIn)
+                Then("isLoggedIn is true") {
+                    assertTrue(manager.isLoggedIn)
+                }
             }
         }
-    }
 
     // endregion
 
     // region externalAccountId
 
     @Test
-    fun `externalAccountId returns userId directly when passIdentifiersToPlayStore is true`() {
-        Given("passIdentifiersToPlayStore is enabled") {
-            val options = SuperwallOptions().apply { passIdentifiersToPlayStore = true }
-            every { configManager.options } returns options
+    fun `externalAccountId returns userId directly when passIdentifiersToPlayStore is true`() =
+        runTest {
+            Given("passIdentifiersToPlayStore is enabled") {
+                val options = SuperwallOptions().apply { passIdentifiersToPlayStore = true }
+                every { configManager.options } returns options
 
-            val manager = createManager(existingAppUserId = "user-123")
+                val manager = createManager(this@runTest, existingAppUserId = "user-123")
 
-            val externalId =
-                When("externalAccountId is accessed") {
-                    manager.externalAccountId
+                val externalId =
+                    When("externalAccountId is accessed") {
+                        manager.externalAccountId
+                    }
+
+                Then("it returns the raw userId") {
+                    assertEquals("user-123", externalId)
                 }
-
-            Then("it returns the raw userId") {
-                assertEquals("user-123", externalId)
             }
         }
-    }
 
     @Test
-    fun `externalAccountId returns sha of userId when passIdentifiersToPlayStore is false`() {
-        Given("passIdentifiersToPlayStore is disabled") {
-            val options = SuperwallOptions().apply { passIdentifiersToPlayStore = false }
-            every { configManager.options } returns options
+    fun `externalAccountId returns sha of userId when passIdentifiersToPlayStore is false`() =
+        runTest {
+            Given("passIdentifiersToPlayStore is disabled") {
+                val options = SuperwallOptions().apply { passIdentifiersToPlayStore = false }
+                every { configManager.options } returns options
 
-            val manager =
-                IdentityManager(
-                    deviceHelper = deviceHelper,
-                    storage = storage,
-                    configManager = configManager,
-                    ioScope = IOScope(Dispatchers.Unconfined),
-                    neverCalledStaticConfig = { false },
-                    stringToSha = { "sha256-of-$it" },
-                    notifyUserChange = {},
-                    completeReset = {},
-                    track = {},
-                )
+                val manager =
+                    IdentityManager(
+                        deviceHelper = deviceHelper,
+                        storage = storage,
+                        configManager = configManager,
+                        ioScope = IOScope(Dispatchers.Unconfined),
+                        neverCalledStaticConfig = { false },
+                        stringToSha = { "sha256-of-$it" },
+                        notifyUserChange = {},
+                        completeReset = {},
+                        track = {},
+                    )
 
-            val externalId =
-                When("externalAccountId is accessed") {
-                    manager.externalAccountId
+                val externalId =
+                    When("externalAccountId is accessed") {
+                        manager.externalAccountId
+                    }
+
+                Then("it returns the sha of the userId") {
+                    assertTrue(externalId.startsWith("sha256-of-"))
                 }
-
-            Then("it returns the sha of the userId") {
-                assertTrue(externalId.startsWith("sha256-of-"))
             }
         }
-    }
 
     // endregion
 
     // region reset
 
     @Test
-    fun `reset clears appUserId and generates new alias and seed`() {
-        Given("a logged in user") {
-            val manager =
-                createManager(
-                    existingAppUserId = "user-123",
-                    existingAliasId = "old-alias",
-                    existingSeed = 42,
-                )
-            val oldAlias = manager.aliasId
+    fun `reset clears appUserId and generates new alias and seed`() =
+        runTest {
+            Given("a logged in user") {
+                val manager =
+                    createManager(
+                        this@runTest,
+                        existingAppUserId = "user-123",
+                        existingAliasId = "old-alias",
+                        existingSeed = 42,
+                    )
+                val oldAlias = manager.aliasId
 
-            When("reset is called not during identify") {
-                manager.reset(duringIdentify = false)
-            }
+                When("reset is called not during identify") {
+                    manager.reset(duringIdentify = false)
+                }
 
-            Then("appUserId is cleared") {
-                assertNull(manager.appUserId)
-            }
+                Then("appUserId is cleared") {
+                    assertNull(manager.appUserId)
+                }
 
-            And("a new aliasId is generated") {
-                assertNotEquals(oldAlias, manager.aliasId)
-            }
+                And("a new aliasId is generated") {
+                    assertNotEquals(oldAlias, manager.aliasId)
+                }
 
-            And("appUserId deletion is persisted") {
-                verify { storage.delete(AppUserId) }
+                And("appUserId deletion is persisted") {
+                    verify { storage.delete(AppUserId) }
+                }
             }
         }
-    }
 
     @Test
-    fun `reset during identify does not emit identity`() {
-        Given("a logged in user") {
-            val manager = createManager(existingAppUserId = "user-123")
+    fun `reset during identify does not emit identity`() =
+        runTest {
+            Given("a logged in user") {
+                val manager = createManager(this@runTest, existingAppUserId = "user-123")
 
-            When("reset is called during identify") {
-                manager.reset(duringIdentify = true)
-            }
+                When("reset is called during identify") {
+                    manager.reset(duringIdentify = true)
+                }
 
-            Then("appUserId is cleared") {
-                assertNull(manager.appUserId)
-            }
+                Then("appUserId is cleared") {
+                    assertNull(manager.appUserId)
+                }
 
-            And("new alias and seed are persisted") {
-                verify(atLeast = 2) { storage.write(AliasId, any<String>()) }
-                verify(atLeast = 2) { storage.write(Seed, any<Int>()) }
+                And("new alias and seed are persisted") {
+                    verify(atLeast = 2) { storage.write(AliasId, any<String>()) }
+                    verify(atLeast = 2) { storage.write(Seed, any<Int>()) }
+                }
             }
         }
-    }
 
     // endregion
 
@@ -509,7 +527,7 @@ class IdentityManagerTest {
     // region configure
 
     @Test
-    fun `configure calls getAssignments when shouldGetAssignments is true`() =
+    fun `configure does not call getAssignments on first app open when not logged in`() =
         runTest {
             Given("a first app open with no static config called") {
                 val testScope = IOScope(this@runTest.coroutineContext)
@@ -526,8 +544,8 @@ class IdentityManagerTest {
                     advanceUntilIdle()
                 }
 
-                Then("getAssignments is called") {
-                    coVerify { configManager.getAssignments() }
+                Then("getAssignments is not called") {
+                    coVerify(exactly = 0) { configManager.getAssignments() }
                 }
             }
         }

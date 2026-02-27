@@ -18,8 +18,8 @@ import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.UserAttributes
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -44,24 +44,26 @@ class IdentityManagerUserAttributesTest {
     private var trackedEvents: MutableList<Any> = mutableListOf()
 
     @Before
-    fun setup() {
-        storage = mockk(relaxed = true)
-        configManager = mockk(relaxed = true)
-        deviceHelper = mockk(relaxed = true)
-        resetCalled = false
-        trackedEvents = mutableListOf()
+    fun setup() =
+        runTest {
+            storage = mockk(relaxed = true)
+            configManager = mockk(relaxed = true)
+            deviceHelper = mockk(relaxed = true)
+            resetCalled = false
+            trackedEvents = mutableListOf()
 
-        every { storage.read(AppUserId) } returns null
-        every { storage.read(AliasId) } returns null
-        every { storage.read(Seed) } returns null
-        every { storage.read(UserAttributes) } returns null
-        every { storage.read(DidTrackFirstSeen) } returns null
-        every { deviceHelper.appInstalledAtString } returns "2024-01-01"
-        every { configManager.options } returns SuperwallOptions()
-        every { configManager.configState } returns MutableStateFlow(ConfigState.None)
-    }
+            every { storage.read(AppUserId) } returns null
+            every { storage.read(AliasId) } returns null
+            every { storage.read(Seed) } returns null
+            every { storage.read(UserAttributes) } returns null
+            every { storage.read(DidTrackFirstSeen) } returns null
+            every { deviceHelper.appInstalledAtString } returns "2024-01-01"
+            every { configManager.options } returns SuperwallOptions()
+            every { configManager.configState } returns MutableStateFlow(ConfigState.None)
+        }
 
     private fun createManager(
+        scope: TestScope,
         existingAppUserId: String? = null,
         existingAliasId: String? = null,
         existingSeed: Int? = null,
@@ -76,7 +78,7 @@ class IdentityManagerUserAttributesTest {
             deviceHelper = deviceHelper,
             storage = storage,
             configManager = configManager,
-            ioScope = IOScope(Dispatchers.Unconfined),
+            ioScope = IOScope(scope.coroutineContext),
             neverCalledStaticConfig = { false },
             notifyUserChange = {},
             completeReset = { resetCalled = true },
@@ -111,41 +113,43 @@ class IdentityManagerUserAttributesTest {
     // region Fresh install - userAttributes should contain identity fields
 
     @Test
-    fun `fresh install - userAttributes contains aliasId after init merge`() {
-        Given("a fresh install with no stored data") {
-            val manager =
-                When("the manager is created and init merge completes") {
-                    createManager()
+    fun `fresh install - userAttributes contains aliasId after init merge`() =
+        runTest {
+            Given("a fresh install with no stored data") {
+                val manager =
+                    When("the manager is created and init merge completes") {
+                        createManager(this@runTest)
+                    }
+
+                // Allow scope.launch from init's mergeUserAttributes to complete
+                Thread.sleep(200)
+
+                Then("userAttributes contains aliasId") {
+                    val attrs = manager.userAttributes
+                    assertTrue(
+                        "userAttributes should contain aliasId key, got: $attrs",
+                        attrs.containsKey("aliasId"),
+                    )
+                    assertEquals(manager.aliasId, attrs["aliasId"])
                 }
 
-            // Allow scope.launch from init's mergeUserAttributes to complete
-            Thread.sleep(200)
-
-            Then("userAttributes contains aliasId") {
-                val attrs = manager.userAttributes
-                assertTrue(
-                    "userAttributes should contain aliasId key, got: $attrs",
-                    attrs.containsKey("aliasId"),
-                )
-                assertEquals(manager.aliasId, attrs["aliasId"])
-            }
-
-            And("userAttributes contains seed") {
-                val attrs = manager.userAttributes
-                assertTrue(
-                    "userAttributes should contain seed key, got: $attrs",
-                    attrs.containsKey("seed"),
-                )
-                assertEquals(manager.seed, attrs["seed"])
+                And("userAttributes contains seed") {
+                    val attrs = manager.userAttributes
+                    assertTrue(
+                        "userAttributes should contain seed key, got: $attrs",
+                        attrs.containsKey("seed"),
+                    )
+                    assertEquals(manager.seed, attrs["seed"])
+                }
             }
         }
-    }
 
     @Test
     fun `fresh install - identify adds appUserId to userAttributes`() =
         runTest {
             Given("a fresh install") {
-                val configState = MutableStateFlow<ConfigState>(ConfigState.Retrieved(Config.stub()))
+                val configState =
+                    MutableStateFlow<ConfigState>(ConfigState.Retrieved(Config.stub()))
                 every { configManager.configState } returns configState
                 val testScope = IOScope(this@runTest.coroutineContext)
 
@@ -186,40 +190,42 @@ class IdentityManagerUserAttributesTest {
     // region Returning user - userAttributes loaded from storage
 
     @Test
-    fun `returning user - userAttributes loaded from storage preserves identity fields`() {
-        Given("a returning user with stored attributes including identity fields") {
-            val storedAttrs =
-                mapOf(
-                    "aliasId" to "stored-alias",
-                    "seed" to 42,
-                    "appUserId" to "user-123",
-                    "applicationInstalledAt" to "2024-01-01",
-                    "customKey" to "customValue",
-                )
-
-            val manager =
-                When("the manager is created") {
-                    createManager(
-                        existingAliasId = "stored-alias",
-                        existingSeed = 42,
-                        existingAppUserId = "user-123",
-                        existingAttributes = storedAttrs,
+    fun `returning user - userAttributes loaded from storage preserves identity fields`() =
+        runTest {
+            Given("a returning user with stored attributes including identity fields") {
+                val storedAttrs =
+                    mapOf(
+                        "aliasId" to "stored-alias",
+                        "seed" to 42,
+                        "appUserId" to "user-123",
+                        "applicationInstalledAt" to "2024-01-01",
+                        "customKey" to "customValue",
                     )
+
+                val manager =
+                    When("the manager is created") {
+                        createManager(
+                            this@runTest,
+                            existingAliasId = "stored-alias",
+                            existingSeed = 42,
+                            existingAppUserId = "user-123",
+                            existingAttributes = storedAttrs,
+                        )
+                    }
+
+                Then("userAttributes contains aliasId") {
+                    assertEquals("stored-alias", manager.userAttributes["aliasId"])
                 }
 
-            Then("userAttributes contains aliasId") {
-                assertEquals("stored-alias", manager.userAttributes["aliasId"])
-            }
+                And("userAttributes contains appUserId") {
+                    assertEquals("user-123", manager.userAttributes["appUserId"])
+                }
 
-            And("userAttributes contains appUserId") {
-                assertEquals("user-123", manager.userAttributes["appUserId"])
-            }
-
-            And("userAttributes contains custom attributes") {
-                assertEquals("customValue", manager.userAttributes["customKey"])
+                And("userAttributes contains custom attributes") {
+                    assertEquals("customValue", manager.userAttributes["customKey"])
+                }
             }
         }
-    }
 
     @Test
     fun `returning user - same identify is no-op and preserves userAttributes`() =
@@ -232,7 +238,8 @@ class IdentityManagerUserAttributesTest {
                         "appUserId" to "user-123",
                         "applicationInstalledAt" to "2024-01-01",
                     )
-                val configState = MutableStateFlow<ConfigState>(ConfigState.Retrieved(Config.stub()))
+                val configState =
+                    MutableStateFlow<ConfigState>(ConfigState.Retrieved(Config.stub()))
                 every { configManager.configState } returns configState
                 val testScope = IOScope(this@runTest.coroutineContext)
 
@@ -266,54 +273,57 @@ class IdentityManagerUserAttributesTest {
     // region BUG SCENARIO: UserAttributes storage empty but individual IDs survive
 
     @Test
-    fun `BUG - returning user with empty UserAttributes storage but valid individual IDs`() {
-        Given("a returning user where UserAttributes failed to load but AliasId and AppUserId loaded fine") {
-            val manager =
-                When("the manager is created") {
-                    createManager(
-                        existingAliasId = "stored-alias",
-                        existingSeed = 42,
-                        existingAppUserId = "user-123",
-                        existingAttributes = null, // UserAttributes deserialization failed
-                    )
+    fun `BUG - returning user with empty UserAttributes storage but valid individual IDs`() =
+        runTest {
+            Given("a returning user where UserAttributes failed to load but AliasId and AppUserId loaded fine") {
+                val manager =
+                    When("the manager is created") {
+                        createManager(
+                            this@runTest,
+                            existingAliasId = "stored-alias",
+                            existingSeed = 42,
+                            existingAppUserId = "user-123",
+                            existingAttributes = null, // UserAttributes deserialization failed
+                        )
+                    }
+
+                // Allow any async merges to complete
+                Thread.sleep(200)
+
+                Then("aliasId individual field is correct") {
+                    assertEquals("stored-alias", manager.aliasId)
                 }
 
-            // Allow any async merges to complete
-            Thread.sleep(200)
+                And("appUserId individual field is correct") {
+                    assertEquals("user-123", manager.appUserId)
+                }
 
-            Then("aliasId individual field is correct") {
-                assertEquals("stored-alias", manager.aliasId)
-            }
+                And("userAttributes SHOULD contain aliasId (currently may not!)") {
+                    val attrs = manager.userAttributes
+                    assertTrue(
+                        "userAttributes should contain aliasId but got: $attrs",
+                        attrs.containsKey("aliasId"),
+                    )
+                    assertEquals("stored-alias", attrs["aliasId"])
+                }
 
-            And("appUserId individual field is correct") {
-                assertEquals("user-123", manager.appUserId)
-            }
-
-            And("userAttributes SHOULD contain aliasId (currently may not!)") {
-                val attrs = manager.userAttributes
-                assertTrue(
-                    "userAttributes should contain aliasId but got: $attrs",
-                    attrs.containsKey("aliasId"),
-                )
-                assertEquals("stored-alias", attrs["aliasId"])
-            }
-
-            And("userAttributes SHOULD contain appUserId (currently may not!)") {
-                val attrs = manager.userAttributes
-                assertTrue(
-                    "userAttributes should contain appUserId but got: $attrs",
-                    attrs.containsKey("appUserId"),
-                )
-                assertEquals("user-123", attrs["appUserId"])
+                And("userAttributes SHOULD contain appUserId (currently may not!)") {
+                    val attrs = manager.userAttributes
+                    assertTrue(
+                        "userAttributes should contain appUserId but got: $attrs",
+                        attrs.containsKey("appUserId"),
+                    )
+                    assertEquals("user-123", attrs["appUserId"])
+                }
             }
         }
-    }
 
     @Test
     fun `BUG - returning user with empty storage, same identify, then setUserAttributes`() =
         runTest {
             Given("UserAttributes failed to load, individual IDs exist") {
-                val configState = MutableStateFlow<ConfigState>(ConfigState.Retrieved(Config.stub()))
+                val configState =
+                    MutableStateFlow<ConfigState>(ConfigState.Retrieved(Config.stub()))
                 every { configManager.configState } returns configState
                 val testScope = IOScope(this@runTest.coroutineContext)
 
@@ -402,60 +412,63 @@ class IdentityManagerUserAttributesTest {
     // region Reset scenarios
 
     @Test
-    fun `reset generates new identity and populates userAttributes`() {
-        Given("an identified user") {
-            val manager =
-                createManager(
-                    existingAppUserId = "user-123",
-                    existingAliasId = "old-alias",
-                    existingSeed = 42,
-                    existingAttributes =
-                        mapOf(
-                            "aliasId" to "old-alias",
-                            "seed" to 42,
-                            "appUserId" to "user-123",
-                            "applicationInstalledAt" to "2024-01-01",
-                        ),
-                )
+    fun `reset generates new identity and populates userAttributes`() =
+        runTest {
+            Given("an identified user") {
+                val manager =
+                    createManager(
+                        this@runTest,
+                        existingAppUserId = "user-123",
+                        existingAliasId = "old-alias",
+                        existingSeed = 42,
+                        existingAttributes =
+                            mapOf(
+                                "aliasId" to "old-alias",
+                                "seed" to 42,
+                                "appUserId" to "user-123",
+                                "applicationInstalledAt" to "2024-01-01",
+                            ),
+                    )
 
-            When("reset is called") {
-                manager.reset(duringIdentify = false)
-            }
+                When("reset is called") {
+                    manager.reset(duringIdentify = false)
+                }
 
-            // Allow async operations
-            Thread.sleep(200)
+                // Allow async operations
+                Thread.sleep(200)
 
-            Then("userAttributes contains the NEW aliasId") {
-                val attrs = manager.userAttributes
-                val newAlias = manager.aliasId
-                assertTrue(
-                    "userAttributes should contain aliasId, got: $attrs",
-                    attrs.containsKey("aliasId"),
-                )
-                assertEquals(newAlias, attrs["aliasId"])
-            }
+                Then("userAttributes contains the NEW aliasId") {
+                    val attrs = manager.userAttributes
+                    val newAlias = manager.aliasId
+                    assertTrue(
+                        "userAttributes should contain aliasId, got: $attrs",
+                        attrs.containsKey("aliasId"),
+                    )
+                    assertEquals(newAlias, attrs["aliasId"])
+                }
 
-            And("userAttributes contains the new seed") {
-                val attrs = manager.userAttributes
-                assertTrue(
-                    "userAttributes should contain seed, got: $attrs",
-                    attrs.containsKey("seed"),
-                )
-            }
+                And("userAttributes contains the new seed") {
+                    val attrs = manager.userAttributes
+                    assertTrue(
+                        "userAttributes should contain seed, got: $attrs",
+                        attrs.containsKey("seed"),
+                    )
+                }
 
-            And("appUserId is cleared from userAttributes") {
-                val attrs = manager.userAttributes
-                // After reset, appUserId should NOT be in attributes (it's null)
-                // This is expected - anonymous user after reset
+                And("appUserId is cleared from userAttributes") {
+                    val attrs = manager.userAttributes
+                    // After reset, appUserId should NOT be in attributes (it's null)
+                    // This is expected - anonymous user after reset
+                }
             }
         }
-    }
 
     @Test
     fun `reset during identify followed by new identify populates userAttributes`() =
         runTest {
             Given("a user identified as user-A") {
-                val configState = MutableStateFlow<ConfigState>(ConfigState.Retrieved(Config.stub()))
+                val configState =
+                    MutableStateFlow<ConfigState>(ConfigState.Retrieved(Config.stub()))
                 every { configManager.configState } returns configState
                 val testScope = IOScope(this@runTest.coroutineContext)
 
@@ -508,7 +521,8 @@ class IdentityManagerUserAttributesTest {
     fun `setUserAttributes does not remove identity fields`() =
         runTest {
             Given("a fresh install where init merge has completed") {
-                val configState = MutableStateFlow<ConfigState>(ConfigState.Retrieved(Config.stub()))
+                val configState =
+                    MutableStateFlow<ConfigState>(ConfigState.Retrieved(Config.stub()))
                 every { configManager.configState } returns configState
                 val testScope = IOScope(this@runTest.coroutineContext)
 
@@ -520,7 +534,10 @@ class IdentityManagerUserAttributesTest {
                 advanceUntilIdle()
 
                 val attrsBefore = manager.userAttributes
-                assertNotNull("aliasId should exist before setUserAttributes", attrsBefore["aliasId"])
+                assertNotNull(
+                    "aliasId should exist before setUserAttributes",
+                    attrsBefore["aliasId"],
+                )
                 assertEquals("user-123", attrsBefore["appUserId"])
 
                 When("setUserAttributes is called with unrelated attributes") {
@@ -555,7 +572,8 @@ class IdentityManagerUserAttributesTest {
         runTest {
             Given("a manager with identity fields in userAttributes") {
                 val testScope = IOScope(this@runTest.coroutineContext)
-                val configState = MutableStateFlow<ConfigState>(ConfigState.Retrieved(Config.stub()))
+                val configState =
+                    MutableStateFlow<ConfigState>(ConfigState.Retrieved(Config.stub()))
                 every { configManager.configState } returns configState
 
                 val manager = createManagerWithScope(testScope)
@@ -582,41 +600,6 @@ class IdentityManagerUserAttributesTest {
                 }
             }
         }
-
-    @Test
-    fun `setUserAttributes with dollar-prefixed aliasId overwrites identity aliasId`() =
-        runTest {
-            Given("a manager with identity fields in userAttributes") {
-                val testScope = IOScope(this@runTest.coroutineContext)
-                val configState = MutableStateFlow<ConfigState>(ConfigState.Retrieved(Config.stub()))
-                every { configManager.configState } returns configState
-
-                val manager = createManagerWithScope(testScope)
-                manager.identify("user-123")
-                Thread.sleep(200)
-                advanceUntilIdle()
-
-                val originalAlias = manager.userAttributes["aliasId"]
-
-                When("setUserAttributes is called with dollar-aliasId") {
-                    // $ prefix gets stripped by mergeAttributes, so $aliasId -> aliasId
-                    manager.mergeUserAttributes(mapOf("\$aliasId" to "overwritten"))
-                    Thread.sleep(200)
-                    advanceUntilIdle()
-                }
-
-                Then("aliasId in userAttributes is overwritten") {
-                    // Documents that $-prefixed keys can collide with identity fields
-                    val attrs = manager.userAttributes
-                    assertEquals("overwritten", attrs["aliasId"])
-                }
-
-                And("the individual aliasId field is NOT affected") {
-                    assertEquals(originalAlias, manager.aliasId)
-                }
-            }
-        }
-
     // endregion
 
     // region Consistency: individual fields vs userAttributes map
@@ -625,7 +608,8 @@ class IdentityManagerUserAttributesTest {
     fun `after identify - aliasId field and userAttributes aliasId are consistent`() =
         runTest {
             Given("a fresh install") {
-                val configState = MutableStateFlow<ConfigState>(ConfigState.Retrieved(Config.stub()))
+                val configState =
+                    MutableStateFlow<ConfigState>(ConfigState.Retrieved(Config.stub()))
                 every { configManager.configState } returns configState
                 val testScope = IOScope(this@runTest.coroutineContext)
 
@@ -658,130 +642,136 @@ class IdentityManagerUserAttributesTest {
         }
 
     @Test
-    fun `after reset - aliasId field and userAttributes aliasId are consistent`() {
-        Given("an identified user") {
-            val manager =
-                createManager(
-                    existingAppUserId = "user-123",
-                    existingAliasId = "old-alias",
-                    existingSeed = 42,
-                    existingAttributes =
-                        mapOf(
-                            "aliasId" to "old-alias",
-                            "seed" to 42,
-                            "appUserId" to "user-123",
-                            "applicationInstalledAt" to "2024-01-01",
-                        ),
-                )
+    fun `after reset - aliasId field and userAttributes aliasId are consistent`() =
+        runTest {
+            Given("an identified user") {
+                val manager =
+                    createManager(
+                        this@runTest,
+                        existingAppUserId = "user-123",
+                        existingAliasId = "old-alias",
+                        existingSeed = 42,
+                        existingAttributes =
+                            mapOf(
+                                "aliasId" to "old-alias",
+                                "seed" to 42,
+                                "appUserId" to "user-123",
+                                "applicationInstalledAt" to "2024-01-01",
+                            ),
+                    )
 
-            When("reset is called") {
-                manager.reset(duringIdentify = false)
-            }
+                When("reset is called") {
+                    manager.reset(duringIdentify = false)
+                }
 
-            Thread.sleep(200)
+                Thread.sleep(200)
 
-            Then("aliasId field matches userAttributes aliasId") {
-                assertEquals(
-                    manager.aliasId,
-                    manager.userAttributes["aliasId"],
-                )
-            }
+                Then("aliasId field matches userAttributes aliasId") {
+                    assertEquals(
+                        manager.aliasId,
+                        manager.userAttributes["aliasId"],
+                    )
+                }
 
-            And("seed field matches userAttributes seed") {
-                assertEquals(
-                    manager.seed,
-                    manager.userAttributes["seed"],
-                )
+                And("seed field matches userAttributes seed") {
+                    assertEquals(
+                        manager.seed,
+                        manager.userAttributes["seed"],
+                    )
+                }
             }
         }
-    }
 
     // endregion
 
     // region Partial storage: some fields loaded, some not
 
     @Test
-    fun `UserAttributes has identity fields but AliasId storage is empty`() {
-        Given("UserAttributes loaded fine but AliasId storage is empty (newly generated)") {
-            // This shouldn't normally happen but tests resilience
-            val manager =
-                When("manager is created with UserAttributes but no AliasId") {
-                    createManager(
-                        existingAliasId = null, // will generate new
-                        existingSeed = null, // will generate new
-                        existingAppUserId = null,
-                        existingAttributes =
-                            mapOf(
-                                "someCustomKey" to "value",
-                                "applicationInstalledAt" to "2024-01-01",
-                            ),
+    fun `UserAttributes has identity fields but AliasId storage is empty`() =
+        runTest {
+            Given("UserAttributes loaded fine but AliasId storage is empty (newly generated)") {
+                // This shouldn't normally happen but tests resilience
+                val manager =
+                    When("manager is created with UserAttributes but no AliasId") {
+                        createManager(
+                            this@runTest,
+                            existingAliasId = null, // will generate new
+                            existingSeed = null, // will generate new
+                            existingAppUserId = null,
+                            existingAttributes =
+                                mapOf(
+                                    "someCustomKey" to "value",
+                                    "applicationInstalledAt" to "2024-01-01",
+                                ),
+                        )
+                    }
+
+                // Allow init merge to complete
+                Thread.sleep(200)
+
+                Then("userAttributes contains the newly generated aliasId") {
+                    val attrs = manager.userAttributes
+                    assertTrue(
+                        "aliasId should be merged into existing userAttributes, got: $attrs",
+                        attrs.containsKey("aliasId"),
                     )
+                    assertEquals(manager.aliasId, attrs["aliasId"])
                 }
 
-            // Allow init merge to complete
-            Thread.sleep(200)
-
-            Then("userAttributes contains the newly generated aliasId") {
-                val attrs = manager.userAttributes
-                assertTrue(
-                    "aliasId should be merged into existing userAttributes, got: $attrs",
-                    attrs.containsKey("aliasId"),
-                )
-                assertEquals(manager.aliasId, attrs["aliasId"])
-            }
-
-            And("custom attributes from storage are preserved") {
-                assertEquals("value", manager.userAttributes["someCustomKey"])
+                And("custom attributes from storage are preserved") {
+                    assertEquals("value", manager.userAttributes["someCustomKey"])
+                }
             }
         }
-    }
 
     @Test
-    fun `UserAttributes empty, AliasId and AppUserId exist - no identify called`() {
-        Given("empty UserAttributes but individual IDs in storage, no identify") {
-            val manager =
-                When("manager is created") {
-                    createManager(
-                        existingAliasId = "stored-alias",
-                        existingSeed = 42,
-                        existingAppUserId = "user-123",
-                        existingAttributes = null,
+    fun `UserAttributes empty, AliasId and AppUserId exist - no identify called`() =
+        runTest {
+            Given("empty UserAttributes but individual IDs in storage, no identify") {
+                val manager =
+                    When("manager is created") {
+                        createManager(
+                            this@runTest,
+                            existingAliasId = "stored-alias",
+                            existingSeed = 42,
+                            existingAppUserId = "user-123",
+                            existingAttributes = null,
+                        )
+                    }
+
+                // Allow any async operations to complete
+                Thread.sleep(200)
+
+                Then("the individual fields are correct") {
+                    assertEquals("stored-alias", manager.aliasId)
+                    assertEquals("user-123", manager.appUserId)
+                    assertEquals(42, manager.seed)
+                }
+
+                And("userAttributes SHOULD contain aliasId - tests the gap") {
+                    // This is the core of the bug: init block skips merge when
+                    // AliasId exists in storage, so aliasId never gets into
+                    // the empty _userAttributes map.
+                    val attrs = manager.userAttributes
+                    assertTrue(
+                        "aliasId should be in userAttributes even when loaded from " +
+                            "individual storage. Individual aliasId=${manager.aliasId}, " +
+                            "but userAttributes=$attrs",
+                        attrs.containsKey("aliasId"),
                     )
                 }
 
-            // Allow any async operations to complete
-            Thread.sleep(200)
-
-            Then("the individual fields are correct") {
-                assertEquals("stored-alias", manager.aliasId)
-                assertEquals("user-123", manager.appUserId)
-                assertEquals(42, manager.seed)
-            }
-
-            And("userAttributes SHOULD contain aliasId - tests the gap") {
-                // This is the core of the bug: init block skips merge when
-                // AliasId exists in storage, so aliasId never gets into
-                // the empty _userAttributes map.
-                val attrs = manager.userAttributes
-                assertTrue(
-                    "aliasId should be in userAttributes even when loaded from " +
-                        "individual storage. Individual aliasId=${manager.aliasId}, " +
-                        "but userAttributes=$attrs",
-                    attrs.containsKey("aliasId"),
-                )
-            }
-
-            And("userAttributes SHOULD contain appUserId - tests the gap") {
-                val attrs = manager.userAttributes
-                assertTrue(
-                    "appUserId should be in userAttributes even when loaded from " +
-                        "individual storage. Individual appUserId=${manager.appUserId}, " +
-                        "but userAttributes=$attrs",
-                    attrs.containsKey("appUserId"),
-                )
+                And("userAttributes SHOULD contain appUserId - tests the gap") {
+                    val attrs = manager.userAttributes
+                    assertTrue(
+                        "appUserId should be in userAttributes even when loaded from " +
+                            "individual storage. Individual appUserId=${manager.appUserId}, " +
+                            "but userAttributes=$attrs",
+                        attrs.containsKey("appUserId"),
+                    )
+                }
             }
         }
-    }
 
     // endregion
 }
