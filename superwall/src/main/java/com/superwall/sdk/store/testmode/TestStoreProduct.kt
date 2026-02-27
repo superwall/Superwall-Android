@@ -146,19 +146,19 @@ class TestStoreProduct(
 
     override val dailyPrice: String by lazy {
         val sp = subscriptionPeriod ?: return@lazy "n/a"
-        if (price == BigDecimal.ZERO) return@lazy priceFormatter?.format(BigDecimal.ZERO) ?: "$0.00"
+        if (price.compareTo(BigDecimal.ZERO) == 0) return@lazy priceFormatter?.format(BigDecimal.ZERO) ?: "$0.00"
         priceFormatter?.format(sp.pricePerDay(price)) ?: "n/a"
     }
 
     override val weeklyPrice: String by lazy {
         val sp = subscriptionPeriod ?: return@lazy "n/a"
-        if (price == BigDecimal.ZERO) return@lazy priceFormatter?.format(BigDecimal.ZERO) ?: "$0.00"
+        if (price.compareTo(BigDecimal.ZERO) == 0) return@lazy priceFormatter?.format(BigDecimal.ZERO) ?: "$0.00"
         priceFormatter?.format(sp.pricePerWeek(price)) ?: "n/a"
     }
 
     override val monthlyPrice: String by lazy {
         val sp = subscriptionPeriod ?: return@lazy "n/a"
-        if (price == BigDecimal.ZERO) return@lazy priceFormatter?.format(BigDecimal.ZERO) ?: "$0.00"
+        if (price.compareTo(BigDecimal.ZERO) == 0) return@lazy priceFormatter?.format(BigDecimal.ZERO) ?: "$0.00"
         priceFormatter?.format(sp.pricePerMonth(price)) ?: "n/a"
     }
 

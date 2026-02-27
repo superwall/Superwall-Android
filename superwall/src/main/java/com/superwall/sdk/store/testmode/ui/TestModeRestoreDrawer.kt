@@ -111,6 +111,7 @@ internal class TestModeRestoreDrawer : BottomSheetDialogFragment() {
                 val holder =
                     EntitlementRowViewHolder(
                         context = requireContext(),
+                        parent = entitlementsContainer,
                         entitlementName = entitlement,
                         initialSelection = initialSelection,
                         onSelectionChanged = {},

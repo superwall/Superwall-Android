@@ -3,6 +3,7 @@ package com.superwall.sdk.store.testmode.ui
 import android.content.Context
 import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.LinearLayout
@@ -13,11 +14,12 @@ import com.superwall.sdk.R
 
 internal class EntitlementRowViewHolder(
     private val context: Context,
+    parent: ViewGroup,
     entitlementName: String,
     initialSelection: EntitlementSelection,
     private val onSelectionChanged: (EntitlementSelection) -> Unit,
 ) {
-    val view: View = LayoutInflater.from(context).inflate(R.layout.test_mode_entitlement_row, null)
+    val view: View = LayoutInflater.from(context).inflate(R.layout.test_mode_entitlement_row, parent, false)
 
     private val nameText: TextView = view.findViewById(R.id.entitlement_name)
     private val stateSpinner: Spinner = view.findViewById(R.id.state_spinner)

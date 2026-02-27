@@ -189,6 +189,7 @@ class TestModeManager(
 
     fun resetEntitlements() {
         session?.entitlementIds?.clear()
+        session?.entitlementSelections = emptyList()
         storage.write(IsTestModeActiveSubscription, false)
     }
 

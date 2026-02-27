@@ -22,13 +22,16 @@ import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.superwall.sdk.R
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.misc.IOScope
+import com.superwall.sdk.misc.MainScope
 import com.superwall.sdk.models.serialization.AnyMapSerializer
 import com.superwall.sdk.storage.TestModeSettings
 import com.superwall.sdk.store.testmode.FreeTrialOverride
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 
 internal data class TestModeModalResult(
@@ -56,8 +59,8 @@ internal class TestModeModal : BottomSheetDialogFragment() {
             dashboardBaseUrl: String = "",
             savedSettings: TestModeSettings? = null,
         ): TestModeModalResult {
-            return MainScope()
-                .async {
+            return withContext(Dispatchers.Main) {
+                return@withContext async {
                     val fragmentActivity =
                         activity as? FragmentActivity
                             ?: return@async TestModeModalResult(
@@ -85,6 +88,7 @@ internal class TestModeModal : BottomSheetDialogFragment() {
                     modal.show(fragmentActivity.supportFragmentManager, "test_mode_modal")
                     return@async modal.result.await()
                 }.await()
+            }
         }
     }
 
@@ -96,6 +100,9 @@ internal class TestModeModal : BottomSheetDialogFragment() {
         (view.parent as? View)?.background =
             ContextCompat.getDrawable(requireContext(), R.drawable.test_mode_sheet_bg)
     }
+
+    val ioScope = IOScope()
+    val mainScope = MainScope()
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -153,9 +160,9 @@ internal class TestModeModal : BottomSheetDialogFragment() {
             }
         }
 
-        IOScope().launch {
+        ioScope.launch {
             val deviceAttributes = Json.encodeToString(AnyMapSerializer, Superwall.instance.deviceAttributes())
-            MainScope().launch {
+            mainScope.launch {
                 view.findViewById<View>(R.id.device_attributes_row).setOnClickListener {
                     val viewer = TestModeAttributesViewer.newInstance("Device Attributes", deviceAttributes)
                     viewer.show(parentFragmentManager, "device_attributes")
@@ -212,6 +219,7 @@ internal class TestModeModal : BottomSheetDialogFragment() {
                 val holder =
                     EntitlementRowViewHolder(
                         context = requireContext(),
+                        parent = entitlementsContainer,
                         entitlementName = entitlement,
                         initialSelection = initialSelection,
                         onSelectionChanged = {},
@@ -234,12 +242,6 @@ internal class TestModeModal : BottomSheetDialogFragment() {
         }
 
         return view
-    }
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        @Suppress("DEPRECATION")
-        retainInstance = true
     }
 
     override fun onDestroy() {
