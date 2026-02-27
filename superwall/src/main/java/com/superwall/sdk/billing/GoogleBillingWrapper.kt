@@ -20,6 +20,7 @@ import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.AppLifecycleObserver
 import com.superwall.sdk.misc.Either
 import com.superwall.sdk.misc.IOScope
+import com.superwall.sdk.misc.retryOrNull
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import kotlinx.coroutines.CompletableDeferred
@@ -31,6 +32,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.coroutines.resume
@@ -51,6 +53,8 @@ class GoogleBillingWrapper(
     Billing {
     companion object {
         private val productsCache = ConcurrentHashMap<String, Either<StoreProduct, Throwable>>()
+        private const val QUERY_PURCHASES_TIMEOUT_MS = 10_000L
+        private const val QUERY_PURCHASES_MAX_RETRIES = 3
     }
 
     interface Factory :
@@ -125,9 +129,9 @@ class GoogleBillingWrapper(
     }
 
     override suspend fun queryAllPurchases(): List<Purchase> {
-        val apps = queryType(ProductType.INAPP) ?: emptyList()
-        val subs = queryType(ProductType.SUBS) ?: emptyList()
-        return apps + subs
+        val apps = retryOrNull(QUERY_PURCHASES_MAX_RETRIES) { queryType(ProductType.INAPP).getOrThrow() }
+        val subs = retryOrNull(QUERY_PURCHASES_MAX_RETRIES) { queryType(ProductType.SUBS).getOrThrow() }
+        return (apps ?: emptyList()) + (subs ?: emptyList())
     }
 
     override suspend fun consume(purchaseToken: String): Result<String> =
@@ -520,14 +524,15 @@ class GoogleBillingWrapper(
         }
     }
 
-    fun withConnectedClient(receivingFunction: BillingClient.() -> Unit) {
-        billingClient?.takeIf { it.isReady }?.let {
-            it.receivingFunction()
-        } ?: Logger.debug(
-            LogLevel.error,
-            LogScope.productsManager,
-            "Billing client not ready",
-        )
+    fun withConnectedClient(receivingFunction: BillingClient.() -> Unit): Unit? {
+        return billingClient?.takeIf { it.isReady }?.receivingFunction() ?: run {
+            Logger.debug(
+                LogLevel.error,
+                LogScope.productsManager,
+                "Billing client not ready",
+            )
+            return@run null
+        }
     }
 
     override fun onPurchasesUpdated(
@@ -659,8 +664,8 @@ class GoogleBillingWrapper(
                 )
             }
 
-    suspend fun queryType(type: String): List<Purchase> {
-        val deferred = CompletableDeferred<List<Purchase>>()
+    suspend fun queryType(type: String): Result<List<Purchase>> {
+        val deferred = CompletableDeferred<Result<List<Purchase>>>()
         val params =
             QueryPurchasesParams
                 .newBuilder()
@@ -675,14 +680,19 @@ class GoogleBillingWrapper(
                         scope = LogScope.nativePurchaseController,
                         message = "Unable to query for purchases.",
                     )
+                    deferred.complete(Result.failure(Throwable("Billing query failed with code ${billingResult.responseCode}")))
                     return@queryPurchasesAsync
                 }
 
-                deferred.complete(purchasesList)
+                deferred.complete(Result.success(purchasesList))
             }
-        }
+        } ?: deferred.complete(
+            Result.failure(Throwable("Billing client not ready")),
+        )
 
-        return deferred.await()
+        return withTimeoutOrNull(QUERY_PURCHASES_TIMEOUT_MS) {
+            deferred.await()
+        } ?: Result.failure(Throwable("Query purchases timed out"))
     }
 }
 
