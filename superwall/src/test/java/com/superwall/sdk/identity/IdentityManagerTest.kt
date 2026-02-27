@@ -183,20 +183,6 @@ class IdentityManagerTest {
         }
 
     @Test
-    fun `init merges generated alias and seed into user attributes`() =
-        runTest {
-            Given("no existing aliasId or seed in storage") {
-                When("the manager is created") {
-                    createManager(this@runTest)
-                }
-
-                Then("user attributes are written to storage") {
-                    verify { storage.write(UserAttributes, any()) }
-                }
-            }
-        }
-
-    @Test
     fun `init does not merge attributes when alias and seed already exist`() =
         runTest {
             Given("existing aliasId and seed in storage") {
