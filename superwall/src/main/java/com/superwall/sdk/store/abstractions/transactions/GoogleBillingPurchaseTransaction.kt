@@ -56,10 +56,10 @@ data class GoogleBillingPurchaseTransaction(
         originalTransactionDate = Date(transaction.purchaseTime),
         webOrderLineItemID = null, // Not available in transaction, kept as iOS complement.
         appBundleId = null, // Not available in transaction, kept as iOS complement.
-        subscriptionGroupId = null, // Not available in transaction, kept as iOS complement.
+        subscriptionGroupId = null, // Base plan ID, filled after purchase from product.
         isUpgraded = null, // Not available in transaction, kept as iOS complement.
-        expirationDate = null, // Not available in transaction, kept as iOS complement. Available on `StoreProductType` object.
-        offerId = null, // Not available in transaction, kept as iOS complement. Available on `StoreProductType` object
+        expirationDate = null, // Expiration date, filled after purchase from product.
+        offerId = null, // Offer ID, filled after purchase from product
         revocationDate = null, // Not available in transaction, kept as iOS complement
         appAccountToken = null, // iOS property only, kept as complement
         payment = StorePayment(transaction),

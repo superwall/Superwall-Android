@@ -168,7 +168,7 @@ class WebPaywallRedeemer(
     suspend fun redeem(redemption: RedeemType) {
         //     delay(10.seconds)
         Logger.debug(
-            LogLevel.error,
+            LogLevel.debug,
             LogScope.webEntitlements,
             "Starting redemption of type ${
                 when (redemption) {
@@ -425,6 +425,14 @@ class WebPaywallRedeemer(
                                 it.printStackTrace()
                             },
                             onSuccess = { newEntitlements ->
+                                Logger.debug(
+                                    logLevel = LogLevel.debug,
+                                    scope = LogScope.webEntitlements,
+                                    message = "Discovered web entitlements",
+                                    info =
+                                        mapOf("entitlements" to newEntitlements.map { it.id }.joinToString(",")),
+                                )
+
                                 val latestRedeemResponse =
                                     storage.read(LatestRedemptionResponse)
                                 val existingWebEntitlements =

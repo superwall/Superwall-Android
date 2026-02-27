@@ -7,7 +7,6 @@ import com.android.billingclient.api.BillingClientStateListener
 import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.PendingPurchasesParams
 import com.android.billingclient.api.Purchase
-import com.android.billingclient.api.Purchase.PurchaseState
 import com.android.billingclient.api.PurchasesUpdatedListener
 import com.android.billingclient.api.QueryPurchasesParams
 import com.superwall.sdk.delegate.InternalPurchaseResult
@@ -126,8 +125,8 @@ class GoogleBillingWrapper(
     }
 
     override suspend fun queryAllPurchases(): List<Purchase> {
-        val apps = billingClient?.queryType(ProductType.INAPP) ?: emptyList()
-        val subs = billingClient?.queryType(ProductType.SUBS) ?: emptyList()
+        val apps = queryType(ProductType.INAPP) ?: emptyList()
+        val subs = queryType(ProductType.SUBS) ?: emptyList()
         return apps + subs
     }
 
@@ -659,6 +658,32 @@ class GoogleBillingWrapper(
                     "latestSubscriptionWillAutoRenew" to it.isAutoRenewing,
                 )
             }
+
+    suspend fun queryType(type: String): List<Purchase> {
+        val deferred = CompletableDeferred<List<Purchase>>()
+        val params =
+            QueryPurchasesParams
+                .newBuilder()
+                .setProductType(type)
+                .build()
+
+        withConnectedClient {
+            queryPurchasesAsync(params) { billingResult, purchasesList ->
+                if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
+                    Logger.debug(
+                        logLevel = LogLevel.error,
+                        scope = LogScope.nativePurchaseController,
+                        message = "Unable to query for purchases.",
+                    )
+                    return@queryPurchasesAsync
+                }
+
+                deferred.complete(purchasesList)
+            }
+        }
+
+        return deferred.await()
+    }
 }
 
 fun Pair<BillingResult, List<Purchase>?>.toInternalResult(): List<InternalPurchaseResult> {
@@ -672,29 +697,4 @@ fun Pair<BillingResult, List<Purchase>?>.toInternalResult(): List<InternalPurcha
     } else {
         listOf(InternalPurchaseResult.Failed(Exception(result.responseCode.toString())))
     }
-}
-
-suspend fun BillingClient.queryType(type: String): List<Purchase> {
-    val deferred = CompletableDeferred<List<Purchase>>()
-
-    val params =
-        QueryPurchasesParams
-            .newBuilder()
-            .setProductType(type)
-            .build()
-
-    queryPurchasesAsync(params) { billingResult, purchasesList ->
-        if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
-            Logger.debug(
-                logLevel = LogLevel.error,
-                scope = LogScope.nativePurchaseController,
-                message = "Unable to query for purchases.",
-            )
-            return@queryPurchasesAsync
-        }
-
-        deferred.complete(purchasesList)
-    }
-
-    return deferred.await()
 }

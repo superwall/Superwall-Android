@@ -2,6 +2,15 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+
+## 2.7.4
+
+### Enhancements
+- Improved logging in web entitlement redeeming
+- Adds active entitlements to subscription status change event
+- Ensures purchases are always queried with connected clients
+- Adds `expirationDate`, `subsc
+
 ## 2.7.3
 
 ### Enhancements
