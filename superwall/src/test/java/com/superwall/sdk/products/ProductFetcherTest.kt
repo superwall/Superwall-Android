@@ -1029,7 +1029,7 @@ class ProductFetcherInstrumentedTest {
                     ),
             )
 
-        val selectedOffer = storeProduct.rawStoreProduct.selectedOffer
+        val selectedOffer = storeProduct.rawStoreProduct!!.selectedOffer
         assertTrue(
             selectedOffer is RawStoreProduct.SelectedOfferDetails.OneTime,
             "Expected SelectedOfferDetails.OneTime, got ${selectedOffer?.javaClass?.simpleName}",
@@ -1059,7 +1059,7 @@ class ProductFetcherInstrumentedTest {
                     ),
             )
 
-        val selectedOffer = storeProduct.rawStoreProduct.selectedOffer
+        val selectedOffer = storeProduct.rawStoreProduct!!.selectedOffer
         assertNotNull(selectedOffer, "Expected selectedOffer to be non-null")
         assertTrue(
             selectedOffer is RawStoreProduct.SelectedOfferDetails.OneTime,

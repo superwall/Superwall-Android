@@ -459,6 +459,16 @@ sealed class SuperwallEvent {
             get() = "cel_expression_result"
     }
 
+    class TestModeModalOpen : SuperwallEvent() {
+        override val rawName: String
+            get() = SuperwallEvents.TestModeModalOpen.rawName
+    }
+
+    class TestModeModalClose : SuperwallEvent() {
+        override val rawName: String
+            get() = SuperwallEvents.TestModeModalClose.rawName
+    }
+
     object RedemptionComplete : SuperwallPlacement() {
         override val rawName: String
             get() = SuperwallEvents.RedemptionComplete.rawName

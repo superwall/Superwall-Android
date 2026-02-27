@@ -275,6 +275,14 @@ class Superwall(
      * @param subscriptionStatus The entitlement status of the user.
      */
     fun setSubscriptionStatus(subscriptionStatus: SubscriptionStatus) {
+        if (dependencyContainer.testModeManager.isTestMode) {
+            Logger.debug(
+                LogLevel.warn,
+                LogScope.superwallCore,
+                "setSubscriptionStatus ignored: test mode is active",
+            )
+            return
+        }
         entitlements.setSubscriptionStatus(subscriptionStatus)
     }
 
@@ -289,6 +297,14 @@ class Superwall(
      * @param entitlements A list of entitlements.
      * */
     fun setSubscriptionStatus(vararg entitlements: String) {
+        if (dependencyContainer.testModeManager.isTestMode) {
+            Logger.debug(
+                LogLevel.warn,
+                LogScope.superwallCore,
+                "setSubscriptionStatus ignored: test mode is active",
+            )
+            return
+        }
         if (entitlements.isEmpty()) {
             this@Superwall.entitlements.setSubscriptionStatus(SubscriptionStatus.Inactive)
         } else {
@@ -307,6 +323,9 @@ class Superwall(
 
     internal fun internallySetSubscriptionStatus(toStatus: SubscriptionStatus) {
         if (dependencyContainer.makeHasExternalPurchaseController()) {
+            return
+        }
+        if (dependencyContainer.testModeManager.isTestMode) {
             return
         }
         val webEntitlements = dependencyContainer.entitlements.web
@@ -1403,7 +1422,6 @@ class Superwall(
                                     .activityProvider
                                     ?.getCurrentActivity()
                         ) as SuperwallPaywallActivity?
-
                     // Cancel any existing fallback notification of the same type before scheduling
                     // the dynamic notification from the paywall
                     paywallActivity?.attemptToScheduleNotifications(

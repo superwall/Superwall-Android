@@ -113,6 +113,8 @@ import com.superwall.sdk.store.StoreManager
 import com.superwall.sdk.store.abstractions.product.receipt.ReceiptManager
 import com.superwall.sdk.store.abstractions.transactions.GoogleBillingPurchaseTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
+import com.superwall.sdk.store.testmode.TestModeManager
+import com.superwall.sdk.store.testmode.TestModeTransactionHandler
 import com.superwall.sdk.store.transactions.TransactionManager
 import com.superwall.sdk.utilities.DateUtils
 import com.superwall.sdk.utilities.ErrorTracker
@@ -123,6 +125,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.ClassDiscriminatorMode
 import kotlinx.serialization.json.Json
 import java.lang.ref.WeakReference
@@ -195,6 +198,8 @@ class DependencyContainer(
     internal val customCallbackRegistry: CustomCallbackRegistry
 
     var entitlements: Entitlements
+    internal val testModeManager: TestModeManager
+    internal val testModeTransactionHandler: TestModeTransactionHandler
     internal lateinit var customerInfoManager: CustomerInfoManager
     lateinit var reedemer: WebPaywallRedeemer
     private val uiScope
@@ -256,6 +261,12 @@ class DependencyContainer(
         storage =
             LocalStorage(context = context, ioScope = ioScope(), factory = this, json = json(), _apiKey = apiKey)
         entitlements = Entitlements(storage)
+        testModeManager = TestModeManager(storage)
+        testModeTransactionHandler =
+            TestModeTransactionHandler(
+                testModeManager = testModeManager,
+                activityProvider = activityProvider,
+            )
 
         customerInfoManager =
             CustomerInfoManager(
@@ -286,6 +297,7 @@ class DependencyContainer(
                         customerInfoManager = { customerInfoManager },
                     )
                 },
+                testModeManager = testModeManager,
             )
 
         delegateAdapter = SuperwallDelegateAdapter()
@@ -398,6 +410,7 @@ class DependencyContainer(
                 storeManager = storeManager,
                 storage = storage,
                 network = network,
+                fullNetwork = network,
                 options = options,
                 factory = this,
                 paywallManager = paywallManager,
@@ -410,6 +423,12 @@ class DependencyContainer(
                 },
                 entitlements = entitlements,
                 webPaywallRedeemer = { reedemer },
+                testModeManager = testModeManager,
+                identityManager = { identityManager },
+                activityProvider = activityProvider,
+                setSubscriptionStatus = { status ->
+                    entitlements.setSubscriptionStatus(status)
+                },
             )
         identityManager =
             IdentityManager(
@@ -486,6 +505,11 @@ class DependencyContainer(
                 storage = storage,
                 activityProvider,
                 factory = this,
+                testModeManager = testModeManager,
+                testModeTransactionHandler = testModeTransactionHandler,
+                setSubscriptionStatus = { status ->
+                    entitlements.setSubscriptionStatus(status)
+                },
                 track = {
                     Superwall.instance.track(it)
                 },
@@ -793,7 +817,7 @@ class DependencyContainer(
             locale = deviceHelper.locale,
         )
 
-    override fun makeIsSandbox(): Boolean = deviceHelper.isSandbox
+    override fun makeIsSandbox(): Boolean = testModeManager.isTestMode || deviceHelper.isSandbox
 
     override suspend fun makeSessionDeviceAttributes(): HashMap<String, Any> {
         val attributes = deviceHelper.getTemplateDevice().toMutableMap()
@@ -1133,7 +1157,7 @@ class DependencyContainer(
                 it.purchaseToken,
                 it.orderId,
                 it.products.first(),
-                if (product.rawStoreProduct.isSubscription) {
+                if (product.rawStoreProduct?.isSubscription == true) {
                     TransactionReceipt.ProductType.SUBSCRIPTION
                 } else {
                     TransactionReceipt.ProductType.IAP
