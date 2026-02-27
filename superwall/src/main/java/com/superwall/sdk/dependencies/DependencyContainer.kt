@@ -416,6 +416,9 @@ class DependencyContainer(
                 storage = storage,
                 deviceHelper = deviceHelper,
                 configManager = configManager,
+                neverCalledStaticConfig = {
+                    storage.neverCalledStaticConfig
+                },
                 ioScope = ioScope,
                 stringToSha = {
                     val bytes = this.toString().toByteArray()
