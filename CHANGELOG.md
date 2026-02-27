@@ -9,7 +9,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 - Improved logging in web entitlement redeeming
 - Adds active entitlements to subscription status change event
 - Ensures purchases are always queried with connected clients
-- Adds `expirationDate`, `subsc
+- Adds `expirationDate`, `subscriptionGroupId` and `offerId` to `StoreTransactionType`
 
 ## 2.7.3
 
