@@ -331,6 +331,16 @@ class AutomaticPurchaseController(
         val allPurchases = (subscriptionPurchases ?: emptyList()) + (inAppPurchases ?: emptyList())
         val hasActivePurchaseOrSubscription =
             allPurchases.any { it.purchaseState == Purchase.PurchaseState.PURCHASED }
+
+        Logger.debug(
+            logLevel = LogLevel.debug,
+            scope = LogScope.nativePurchaseController,
+            message = "Found purchases: ${allPurchases.mapIndexed { i, it ->
+                val items = it.products.joinToString(",")
+                "<$i. Products: $items id: ${it.orderId} time: ${it.purchaseTime} state: ${it.purchaseState} >"
+            }}",
+        )
+
         val status: SubscriptionStatus =
             if (hasActivePurchaseOrSubscription) {
                 allPurchases
@@ -342,6 +352,12 @@ class AutomaticPurchaseController(
                         res
                     }.toSet()
                     .let { entitlements ->
+                        Logger.debug(
+                            logLevel = LogLevel.debug,
+                            scope = LogScope.nativePurchaseController,
+                            message = "Found entitlements: ${entitlements.joinToString { it.id }}",
+                        )
+
                         entitlementsInfo.activeDeviceEntitlements = entitlements
                         if (entitlements.isNotEmpty()) {
                             SubscriptionStatus.Active(
