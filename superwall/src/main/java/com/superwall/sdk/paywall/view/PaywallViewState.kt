@@ -276,7 +276,8 @@ data class PaywallViewState(
         class SetPaywallState(
             val state: Map<String, Any>,
         ) : Updates({ viewState ->
-                viewState.copy(paywall = viewState.paywall.copy(state = state))
+                val dropStyle = state.filterNot { it.key == "style" }
+                viewState.copy(paywall = viewState.paywall.copy(state = dropStyle))
             })
 
         /**
