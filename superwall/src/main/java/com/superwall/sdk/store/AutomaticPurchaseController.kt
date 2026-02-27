@@ -39,6 +39,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.min
+import kotlin.time.Duration.Companion.seconds
 
 private val BILLING_INSANTIATION_ERROR =
     """Cannot create Google Play Billing Client. This can be caused by:
@@ -368,6 +369,7 @@ class AutomaticPurchaseController(
 
         if (failed && count < MAX_RETRIES) {
             scope.launch {
+                delay(count.seconds)
                 syncSubscriptionStatusAndWait(count + 1)
             }
         }
