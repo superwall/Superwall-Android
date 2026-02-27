@@ -65,4 +65,6 @@ enum class SuperwallEvents(
     PermissionDenied("permission_denied"),
     PaywallPreloadStart("paywallPreload_start"),
     PaywallPreloadComplete("paywallPreload_complete"),
+    TestModeModalOpen("testModeModal_open"),
+    TestModeModalClose("testModeModal_close"),
 }

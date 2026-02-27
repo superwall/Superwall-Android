@@ -320,8 +320,8 @@ class ProductFetcherInstrumentedTest {
         assertEquals("com.ui_tests.quarterly2:test-2:free-trial-offer", storeProduct.fullIdentifier)
         assertEquals("USD", storeProduct.currencyCode)
         assertEquals(currencySymbol, storeProduct.currencySymbol) // This actually just returns "$" in the main app.
-        assertEquals("${currencySymbol}0.33", storeProduct.dailyPrice)
-        assertEquals("${currencySymbol}2.49", storeProduct.weeklyPrice)
+        assertEquals("${currencySymbol}0.32", storeProduct.dailyPrice)
+        assertEquals("${currencySymbol}2.30", storeProduct.weeklyPrice)
         assertEquals("${currencySymbol}9.99", storeProduct.monthlyPrice)
         assertEquals("${currencySymbol}119.88", storeProduct.yearlyPrice)
         assertEquals(30, storeProduct.periodDays)
@@ -371,8 +371,8 @@ class ProductFetcherInstrumentedTest {
         assertEquals("com.ui_tests.quarterly2:test-2:trial-and-paid-offer", storeProduct.fullIdentifier)
         assertEquals("USD", storeProduct.currencyCode)
         assertEquals(currencySymbol, storeProduct.currencySymbol) // This actually just returns "$" in the main app.
-        assertEquals("${currencySymbol}0.33", storeProduct.dailyPrice)
-        assertEquals("${currencySymbol}2.49", storeProduct.weeklyPrice)
+        assertEquals("${currencySymbol}0.32", storeProduct.dailyPrice)
+        assertEquals("${currencySymbol}2.30", storeProduct.weeklyPrice)
         assertEquals("${currencySymbol}9.99", storeProduct.monthlyPrice)
         assertEquals("${currencySymbol}119.88", storeProduct.yearlyPrice)
         assertEquals(30, storeProduct.periodDays)
@@ -422,7 +422,7 @@ class ProductFetcherInstrumentedTest {
         assertEquals("USD", storeProduct.currencyCode)
         assertEquals(currencySymbol, storeProduct.currencySymbol) // This actually just returns "$" in the main app.
         assertEquals("${currencySymbol}0.29", storeProduct.dailyPrice)
-        assertEquals("${currencySymbol}2.24", storeProduct.weeklyPrice)
+        assertEquals("${currencySymbol}2.07", storeProduct.weeklyPrice)
         assertEquals("${currencySymbol}8.99", storeProduct.monthlyPrice)
         assertEquals("${currencySymbol}107.88", storeProduct.yearlyPrice)
         assertEquals(30, storeProduct.periodDays)
@@ -442,7 +442,7 @@ class ProductFetcherInstrumentedTest {
         assertEquals(BigDecimal("6.74"), storeProduct.trialPeriodPrice)
         assertEquals("${currencySymbol}0.22", storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.day))
         assertEquals("${currencySymbol}6.74", storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.month))
-        assertEquals("${currencySymbol}1.68", storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.week))
+        assertEquals("${currencySymbol}1.55", storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.week))
         assertEquals("${currencySymbol}20.22", storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.year))
         assertEquals("${currencySymbol}6.74", storeProduct.localizedTrialPeriodPrice)
 
@@ -473,8 +473,8 @@ class ProductFetcherInstrumentedTest {
         assertEquals("com.ui_tests.quarterly2:test-2:sw-auto", storeProduct.fullIdentifier)
         assertEquals("USD", storeProduct.currencyCode)
         assertEquals(currencySymbol, storeProduct.currencySymbol) // This actually just returns "$" in the main app.
-        assertEquals("${currencySymbol}0.33", storeProduct.dailyPrice)
-        assertEquals("${currencySymbol}2.49", storeProduct.weeklyPrice)
+        assertEquals("${currencySymbol}0.32", storeProduct.dailyPrice)
+        assertEquals("${currencySymbol}2.30", storeProduct.weeklyPrice)
         assertEquals("${currencySymbol}9.99", storeProduct.monthlyPrice)
         assertEquals("${currencySymbol}119.88", storeProduct.yearlyPrice)
         assertEquals(30, storeProduct.periodDays)
@@ -525,7 +525,7 @@ class ProductFetcherInstrumentedTest {
         assertEquals("USD", storeProduct.currencyCode)
         assertEquals(currencySymbol, storeProduct.currencySymbol) // This actually just returns "$" in the main app.
         assertEquals("${currencySymbol}0.09", storeProduct.dailyPrice)
-        assertEquals("${currencySymbol}0.74", storeProduct.weeklyPrice)
+        assertEquals("${currencySymbol}0.69", storeProduct.weeklyPrice)
         assertEquals("${currencySymbol}2.99", storeProduct.monthlyPrice)
         assertEquals("${currencySymbol}35.88", storeProduct.yearlyPrice)
         assertEquals(30, storeProduct.periodDays)
@@ -547,7 +547,7 @@ class ProductFetcherInstrumentedTest {
         assertEquals(BigDecimal("1.99"), storeProduct.trialPeriodPrice)
         assertEquals("${currencySymbol}0.06", storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.day))
         assertEquals("${currencySymbol}1.99", storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.month))
-        assertEquals("${currencySymbol}0.49", storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.week))
+        assertEquals("${currencySymbol}0.45", storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.week))
         assertEquals("${currencySymbol}1.99", storeProduct.trialPeriodPricePerUnit(SubscriptionPeriod.Unit.year))
         assertEquals("${currencySymbol}1.99", storeProduct.localizedTrialPeriodPrice)
 
@@ -714,8 +714,8 @@ class ProductFetcherInstrumentedTest {
         assertEquals("com.ui_tests.quarterly2", storeProduct.fullIdentifier)
         assertEquals("USD", storeProduct.currencyCode)
         assertEquals(currencySymbol, storeProduct.currencySymbol) // This actually just returns "$" in the main app.
-        assertEquals("${currencySymbol}0.33", storeProduct.dailyPrice)
-        assertEquals("${currencySymbol}2.49", storeProduct.weeklyPrice)
+        assertEquals("${currencySymbol}0.32", storeProduct.dailyPrice)
+        assertEquals("${currencySymbol}2.30", storeProduct.weeklyPrice)
         assertEquals("${currencySymbol}9.99", storeProduct.monthlyPrice)
         assertEquals("${currencySymbol}119.88", storeProduct.yearlyPrice)
         assertEquals(30, storeProduct.periodDays)
@@ -1029,7 +1029,7 @@ class ProductFetcherInstrumentedTest {
                     ),
             )
 
-        val selectedOffer = storeProduct.rawStoreProduct.selectedOffer
+        val selectedOffer = storeProduct.rawStoreProduct!!.selectedOffer
         assertTrue(
             selectedOffer is RawStoreProduct.SelectedOfferDetails.OneTime,
             "Expected SelectedOfferDetails.OneTime, got ${selectedOffer?.javaClass?.simpleName}",
@@ -1059,7 +1059,7 @@ class ProductFetcherInstrumentedTest {
                     ),
             )
 
-        val selectedOffer = storeProduct.rawStoreProduct.selectedOffer
+        val selectedOffer = storeProduct.rawStoreProduct!!.selectedOffer
         assertNotNull(selectedOffer, "Expected selectedOffer to be non-null")
         assertTrue(
             selectedOffer is RawStoreProduct.SelectedOfferDetails.OneTime,

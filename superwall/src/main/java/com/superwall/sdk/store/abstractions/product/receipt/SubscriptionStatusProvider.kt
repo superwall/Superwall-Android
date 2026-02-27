@@ -96,7 +96,7 @@ class PlayBillingSubscriptionStatusProvider(
         if (product == null) return null
 
         val phasesWithoutTrial =
-            when (val offer = product.rawStoreProduct.selectedOffer) {
+            when (val offer = product.rawStoreProduct?.selectedOffer) {
                 is RawStoreProduct.SelectedOfferDetails.Subscription -> {
                     offer.underlying.pricingPhases.pricingPhaseList
                         .dropWhile { it.priceAmountMicros == 0L }
@@ -136,13 +136,13 @@ class PlayBillingSubscriptionStatusProvider(
             PurchaseState.PURCHASED -> {
                 if (product == null) return false
 
-                when (product.rawStoreProduct.underlyingProductDetails.productType) {
+                when (product.rawStoreProduct?.underlyingProductDetails?.productType) {
                     com.android.billingclient.api.BillingClient.ProductType.INAPP -> {
                         // Non-consumable is always active if purchased
                         true
                     }
                     com.android.billingclient.api.BillingClient.ProductType.SUBS -> {
-                        val subscriptionPeriod = product.rawStoreProduct.subscriptionPeriod
+                        val subscriptionPeriod = product.rawStoreProduct?.subscriptionPeriod
                         if (subscriptionPeriod != null) {
                             val periodMillis = subscriptionPeriod.toMillis
                             val expirationTime = purchase.purchaseTime + periodMillis

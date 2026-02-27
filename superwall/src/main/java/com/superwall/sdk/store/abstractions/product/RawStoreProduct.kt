@@ -684,8 +684,8 @@ class RawStoreProduct(
             SubscriptionPeriod.Unit.day -> {
                 when (trialSubscriptionPeriod?.unit) {
                     SubscriptionPeriod.Unit.day -> BigDecimal(1)
-                    SubscriptionPeriod.Unit.week -> BigDecimal(7)
-                    SubscriptionPeriod.Unit.month -> BigDecimal(30)
+                    SubscriptionPeriod.Unit.week -> BigDecimal(365).divide(BigDecimal(52), 6, RoundingMode.DOWN)
+                    SubscriptionPeriod.Unit.month -> BigDecimal(365).divide(BigDecimal(12), 6, RoundingMode.DOWN)
                     SubscriptionPeriod.Unit.year -> BigDecimal(365)
                     else -> BigDecimal.ZERO
                 }
@@ -694,14 +694,14 @@ class RawStoreProduct(
             SubscriptionPeriod.Unit.week -> {
                 when (trialSubscriptionPeriod?.unit) {
                     SubscriptionPeriod.Unit.day ->
-                        BigDecimal(1).divide(
-                            BigDecimal(7),
+                        BigDecimal(52).divide(
+                            BigDecimal(365),
                             6,
                             RoundingMode.DOWN,
                         )
 
                     SubscriptionPeriod.Unit.week -> BigDecimal(1)
-                    SubscriptionPeriod.Unit.month -> BigDecimal(4)
+                    SubscriptionPeriod.Unit.month -> BigDecimal(52).divide(BigDecimal(12), 6, RoundingMode.DOWN)
                     SubscriptionPeriod.Unit.year -> BigDecimal(52)
                     else -> BigDecimal.ZERO
                 }
@@ -710,15 +710,15 @@ class RawStoreProduct(
             SubscriptionPeriod.Unit.month -> {
                 when (trialSubscriptionPeriod?.unit) {
                     SubscriptionPeriod.Unit.day ->
-                        BigDecimal(1).divide(
-                            BigDecimal(30),
+                        BigDecimal(12).divide(
+                            BigDecimal(365),
                             6,
                             RoundingMode.DOWN,
                         )
 
                     SubscriptionPeriod.Unit.week ->
-                        BigDecimal(1).divide(
-                            BigDecimal(4),
+                        BigDecimal(12).divide(
+                            BigDecimal(52),
                             6,
                             RoundingMode.DOWN,
                         )

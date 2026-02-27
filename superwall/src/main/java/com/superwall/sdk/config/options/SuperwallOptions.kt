@@ -2,6 +2,7 @@ package com.superwall.sdk.config.options
 
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
+import com.superwall.sdk.store.testmode.TestModeBehavior
 import java.util.*
 
 // Options for configuring Superwall, including paywall presentation and appearance.
@@ -118,6 +119,9 @@ class SuperwallOptions() {
     var logging: Logging = Logging()
 
     var useMockReviews: Boolean = false
+
+    // Controls when test mode activates. Defaults to `AUTOMATIC`.
+    var testModeBehavior: TestModeBehavior = TestModeBehavior.AUTOMATIC
 }
 
 internal fun SuperwallOptions.NetworkEnvironment.toMap(): Map<String, Any> =
@@ -143,4 +147,5 @@ internal fun SuperwallOptions.toMap(): Map<String, Any> =
         localeIdentifier?.let { "locale_identifier" to it },
         "is_game_controller_enabled" to isGameControllerEnabled,
         "logging" to logging.toMap(),
+        "test_mode_behavior" to testModeBehavior.name,
     ).toMap()
