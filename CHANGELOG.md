@@ -12,6 +12,9 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 - Ensures purchases are always queried with connected clients
 - Adds `expirationDate`, `subscriptionGroupId` and `offerId` to `StoreTransactionType`
 
+## Fixes
+- Improve rounding to match editor's pricing consistently
+
 ## 2.7.3
 
 ### Enhancements
