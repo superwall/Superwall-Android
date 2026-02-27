@@ -702,7 +702,7 @@ class RawStoreProduct(
 
                     SubscriptionPeriod.Unit.week -> BigDecimal(1)
                     SubscriptionPeriod.Unit.month -> BigDecimal(52).divide(BigDecimal(12), 6, RoundingMode.DOWN)
-                    SubscriptionPeriod.Unit.year -> BigDecimal(365).divide(BigDecimal(7), 6, RoundingMode.DOWN)
+                    SubscriptionPeriod.Unit.year -> BigDecimal(52)
                     else -> BigDecimal.ZERO
                 }
             }

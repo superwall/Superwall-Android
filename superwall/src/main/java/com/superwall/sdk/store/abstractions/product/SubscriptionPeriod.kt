@@ -120,7 +120,7 @@ data class SubscriptionPeriod(
                 Unit.day -> BigDecimal(52).divide(BigDecimal(365), calculationScale, roundingMode)
                 Unit.week -> BigDecimal.ONE
                 Unit.month -> BigDecimal(52).divide(BigDecimal(12), calculationScale, roundingMode)
-                Unit.year -> BigDecimal(365).divide(BigDecimal(7), calculationScale, roundingMode)
+                Unit.year -> BigDecimal(52)
             } * BigDecimal(this.value)
 
         return price.divide(periodsPerWeek, outputScale, roundingMode)
