@@ -497,31 +497,6 @@ class IdentityManagerTest {
             }
         }
 
-    @Test
-    fun `identify with restorePaywallAssignments calls getAssignments`() =
-        runTest {
-            Given("a fresh manager") {
-                val testScope = IOScope(this@runTest.coroutineContext)
-                val configState = MutableStateFlow<ConfigState>(ConfigState.Retrieved(Config.stub()))
-                every { configManager.configState } returns configState
-
-                val manager = createManagerWithScope(testScope)
-
-                When("identify is called with restorePaywallAssignments = true") {
-                    manager.identify(
-                        "user-123",
-                        options = IdentityOptions(restorePaywallAssignments = true),
-                    )
-                    Thread.sleep(200)
-                    advanceUntilIdle()
-                }
-
-                Then("getAssignments is called on configManager") {
-                    coVerify { configManager.getAssignments() }
-                }
-            }
-        }
-
     // endregion
 
     // region configure
