@@ -2,6 +2,12 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+
+## 2.7.5
+
+## Enhancements
+- Adds local resource support, enabling loading local resources in paywalls, using `Superwall.instance.localResources` to load from URI or Android resources
+
 ## 2.7.4
 
 ## Enhancements
