@@ -57,6 +57,7 @@ import com.superwall.sdk.paywall.view.PaywallViewState
 import com.superwall.sdk.paywall.view.SuperwallPaywallActivity
 import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 import com.superwall.sdk.paywall.view.delegate.PaywallViewEventCallback
+import com.superwall.sdk.paywall.view.webview.PaywallResource
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.Closed
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.Custom
@@ -207,6 +208,25 @@ class Superwall(
         set(value) {
             options.paywalls.overrideProductsByName = value
         }
+
+    /**
+     * A mapping of local resource IDs to local paywall resources.
+     *
+     * Use this to serve paywall assets (images, videos, Lottie animations) from local files
+     * instead of fetching them over the network. When a paywall references a `localResourceId`,
+     * the SDK will look up the corresponding resource in this map.
+     *
+     * ```kotlin
+     * Superwall.instance.localResources = mapOf(
+     *     "hero-video" to PaywallResource.FromUri(Uri.fromFile(File(context.filesDir, "onboarding.mp4"))),
+     *     "hero-image" to PaywallResource.FromResources(R.drawable.hero),
+     *     "bg-animation" to PaywallResource.FromResources(R.raw.lottie_bg),
+     * )
+     * ```
+     *
+     * Paywall HTML usage: `<video src="swlocal://hero-video" autoplay></video>`
+     */
+    var localResources: Map<String, PaywallResource> = emptyMap()
 
     internal val _customerInfo: MutableStateFlow<CustomerInfo> =
         MutableStateFlow(CustomerInfo.empty())
