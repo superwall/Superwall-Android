@@ -205,7 +205,10 @@ class IdentityManager(
                     }
 
                     configManager.checkForWebEntitlements()
-                    configManager.reevaluateTestMode()
+                    configManager.reevaluateTestMode(
+                        appUserId = _appUserId,
+                        aliasId = _aliasId,
+                    )
 
                     if (options?.restorePaywallAssignments == true) {
                         identityJobs +=
