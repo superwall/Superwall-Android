@@ -52,6 +52,9 @@ class CurrentActivityTracker :
     override fun onActivityPaused(activity: Activity) {}
 
     override fun onActivityStopped(activity: Activity) {
+        // Only clear the strong reference (activityState) to avoid leaking the Activity.
+        // Keep the WeakReference (currentActivity) so getCurrentActivity() still works
+        // during brief stop/start transitions for background callbacks.
         if (currentActivity?.get() === activity) {
             activityState.value = null
         }

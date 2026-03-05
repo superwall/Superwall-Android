@@ -313,10 +313,10 @@ class RenewedSubscriptionActiveStatusTest {
             When("creating the adapter without product") {
                 val adapter = PlayStorePurchaseAdapter.fromPurchase(purchase, productsById).first()
 
-                Then("isActive is true due to null expiration") {
+                Then("isActive is true because purchaseState is PURCHASED") {
                     assertNull(adapter.expirationDate)
                     assertTrue(
-                        "Without product info, null expiration means isActive=true",
+                        "Without product info, isActive=true is still correct since purchaseState=PURCHASED",
                         adapter.isActive,
                     )
                 }
