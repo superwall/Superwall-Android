@@ -24,6 +24,7 @@ import com.superwall.sdk.storage.TestModeSettings
 import com.superwall.sdk.store.testmode.FreeTrialOverride
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -174,6 +175,7 @@ internal object TestModeModal {
 
             dialog.setContentView(view)
             dialog.setOnDismissListener {
+                ioScope.cancel()
                 if (!result.isCompleted) {
                     result.complete(
                         TestModeModalResult(

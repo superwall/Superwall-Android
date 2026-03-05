@@ -53,7 +53,7 @@ class PaywallManager(
             val activeKey = cache.activePaywallVcKey
             cache
                 .getAllPaywallViews()
-                .filter { it.state.paywall.identifier != activeKey }
+                .filter { it.state.cacheKey != activeKey }
                 .forEach { it.destroyWebview() }
             cache.removeAll()
         }
