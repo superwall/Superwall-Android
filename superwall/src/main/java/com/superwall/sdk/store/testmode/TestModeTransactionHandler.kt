@@ -6,6 +6,7 @@ import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.ActivityProvider
+import com.superwall.sdk.misc.CurrentActivityTracker
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.store.abstractions.product.StoreProductType
 import com.superwall.sdk.store.testmode.models.SuperwallProduct
@@ -18,13 +19,21 @@ import com.superwall.sdk.store.transactions.TransactionManager.PurchaseSource
 class TestModeTransactionHandler(
     private val testModeManager: TestModeManager,
     private val activityProvider: ActivityProvider,
+    private val activityTracker: CurrentActivityTracker? = null,
 ) {
+    /**
+     * Returns the actual foreground activity. Prefers the lifecycle-tracked activity
+     * (which sees SuperwallPaywallActivity) over the user-provided ActivityProvider
+     * (which may always return the root activity, e.g. in Expo/React Native).
+     */
+    private fun getForegroundActivity() = activityTracker?.getCurrentActivity() ?: activityProvider.getCurrentActivity()
+
     suspend fun handlePurchase(
         product: StoreProductType,
         purchaseSource: PurchaseSource,
     ): PurchaseResult {
         val activity =
-            activityProvider.getCurrentActivity()
+            getForegroundActivity()
                 ?: return PurchaseResult.Failed("Activity not found - required for test mode purchase drawer")
 
         val superwallProduct =
@@ -68,7 +77,7 @@ class TestModeTransactionHandler(
 
     suspend fun handleRestore(): RestorationResult {
         val activity =
-            activityProvider.getCurrentActivity()
+            getForegroundActivity()
                 ?: return RestorationResult.Failed(Throwable("Activity not found"))
 
         val allEntitlements = testModeManager.allEntitlements()

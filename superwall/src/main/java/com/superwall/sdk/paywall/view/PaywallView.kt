@@ -898,9 +898,11 @@ class PaywallView(
     }
 
     private fun recreateWebview() {
-        webView.detach(this)
+        val oldWebView = webView
+        oldWebView.detach(this)
+        oldWebView.destroyView()
         webView =
-            SWWebView(context, webView.messageHandler, options = {
+            SWWebView(context, oldWebView.messageHandler, options = {
                 factory.makeSuperwallOptions().paywalls
             })
         webView.attach(this)

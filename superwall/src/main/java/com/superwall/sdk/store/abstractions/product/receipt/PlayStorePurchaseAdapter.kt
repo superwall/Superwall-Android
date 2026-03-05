@@ -78,19 +78,13 @@ class PlayStorePurchaseAdapter(
         }
     }
 
-    private fun calculateIsActive(): Boolean {
-        val now = System.currentTimeMillis()
-
-        return when (purchase.purchaseState) {
+    private fun calculateIsActive(): Boolean =
+        when (purchase.purchaseState) {
+            PurchaseState.PURCHASED -> true
             PurchaseState.PENDING -> false
-            PurchaseState.PURCHASED -> {
-                val expiration = expirationDate
-                expiration == null || expiration.time > now
-            }
             PurchaseState.UNSPECIFIED_STATE -> false
             else -> false
         }
-    }
 
     companion object {
         /**

@@ -17,6 +17,7 @@ import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.ActivityProvider
+import com.superwall.sdk.misc.CurrentActivityTracker
 import com.superwall.sdk.misc.Either
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.awaitFirstValidConfig
@@ -79,6 +80,7 @@ open class ConfigManager(
     private val testModeManager: TestModeManager? = null,
     private val identityManager: (() -> IdentityManager)? = null,
     private val activityProvider: ActivityProvider? = null,
+    private val activityTracker: CurrentActivityTracker? = null,
     private val setSubscriptionStatus: ((SubscriptionStatus) -> Unit)? = null,
     private val awaitUtilNetwork: suspend () -> Unit = {
         context.awaitUntilNetworkExists()
@@ -316,14 +318,18 @@ open class ConfigManager(
      * and resets subscription status. If a new user qualifies, activates test mode and
      * shows the modal.
      */
-    fun reevaluateTestMode(config: Config? = configState.value.getConfig()) {
+    fun reevaluateTestMode(
+        config: Config? = configState.value.getConfig(),
+        appUserId: String? = null,
+        aliasId: String? = null,
+    ) {
         config ?: return
         val wasTestMode = testModeManager?.isTestMode == true
         testModeManager?.evaluateTestMode(
             config = config,
             bundleId = deviceHelper.bundleId,
-            appUserId = identityManager?.invoke()?.appUserId,
-            aliasId = identityManager?.invoke()?.aliasId,
+            appUserId = appUserId ?: identityManager?.invoke()?.appUserId,
+            aliasId = aliasId ?: identityManager?.invoke()?.aliasId,
             testModeBehavior = options.testModeBehavior,
         )
         val isNowTestMode = testModeManager?.isTestMode == true
@@ -396,6 +402,13 @@ open class ConfigManager(
         val testModeJustActivated = !wasTestMode && testModeManager?.isTestMode == true
 
         if (testModeManager?.isTestMode == true) {
+            // Set a default subscription status immediately so the paywall pipeline
+            // doesn't timeout waiting for it while the test mode modal is shown.
+            if (testModeJustActivated) {
+                val defaultStatus = testModeManager.buildSubscriptionStatus()
+                testModeManager.setOverriddenSubscriptionStatus(defaultStatus)
+                entitlements.setSubscriptionStatus(defaultStatus)
+            }
             ioScope.launch {
                 fetchTestModeProducts()
                 if (testModeJustActivated) {
@@ -536,7 +549,26 @@ open class ConfigManager(
 
     private suspend fun presentTestModeModal(config: Config) {
         val manager = testModeManager ?: return
-        val activity = activityProvider?.getCurrentActivity() ?: return
+        // Prefer the lifecycle-tracked activity (sees the actual foreground activity,
+        // e.g. SuperwallPaywallActivity) over the user-provided ActivityProvider
+        // (which in Expo/RN may always return the root MainActivity).
+        val activity =
+            activityTracker?.getCurrentActivity()
+                ?: activityProvider?.getCurrentActivity()
+                ?: activityTracker?.awaitActivity(10.seconds)
+        if (activity == null) {
+            Logger.debug(
+                LogLevel.warn,
+                LogScope.superwallCore,
+                "Test mode modal could not be presented: no activity available. Setting default subscription status.",
+            )
+            with(manager) {
+                val status = buildSubscriptionStatus()
+                setOverriddenSubscriptionStatus(status)
+                entitlements.setSubscriptionStatus(status)
+            }
+            return
+        }
 
         track(InternalSuperwallEvent.TestModeModal(State.Open))
 
