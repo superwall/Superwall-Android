@@ -4,6 +4,10 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## 2.7.5
 
+## Enhancements
+- Add appstack integration attribute identifier
+
+## Fixes
 - Ensure test mode does not interfere with expo
 - Ensure isActive is properly returned and not calculated via expiration date
 - Fix potential memory leak when webview crashes
