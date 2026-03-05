@@ -130,8 +130,7 @@ class AutomaticPurchaseController(
             Logger.debug(
                 LogLevel.error,
                 LogScope.nativePurchaseController,
-                "IllegalStateException when connecting to billing client for " +
-                    "ExternalNativePurchaseController: ${e.message}",
+                "IllegalStateException when connecting to billing client for " + "ExternalNativePurchaseController: ${e.message}",
             )
         }
     }
@@ -335,10 +334,12 @@ class AutomaticPurchaseController(
         Logger.debug(
             logLevel = LogLevel.debug,
             scope = LogScope.nativePurchaseController,
-            message = "Found purchases: ${allPurchases.mapIndexed { i, it ->
-                val items = it.products.joinToString(",")
-                "<$i. Products: $items id: ${it.orderId} time: ${it.purchaseTime} state: ${it.purchaseState} >"
-            }}",
+            message = "Found purchases: ${
+                allPurchases.mapIndexed { i, it ->
+                    val items = it.products.joinToString(",")
+                    "<$i. Products: $items id: ${it.orderId} time: ${it.purchaseTime} state: ${it.purchaseState} >"
+                }
+            }",
         )
 
         val status: SubscriptionStatus =
@@ -361,9 +362,7 @@ class AutomaticPurchaseController(
                         entitlementsInfo.activeDeviceEntitlements = entitlements
                         if (entitlements.isNotEmpty()) {
                             SubscriptionStatus.Active(
-                                entitlements
-                                    .map { it.copy(isActive = true) }
-                                    .toSet(),
+                                entitlements.map { it.copy(isActive = true) }.toSet(),
                             )
                         } else {
                             SubscriptionStatus.Inactive
@@ -394,11 +393,7 @@ class AutomaticPurchaseController(
     private suspend fun queryPurchasesOfType(productType: String): Result<List<Purchase>> {
         val deferred = CompletableDeferred<Result<List<Purchase>>>()
 
-        val params =
-            QueryPurchasesParams
-                .newBuilder()
-                .setProductType(productType)
-                .build()
+        val params = QueryPurchasesParams.newBuilder().setProductType(productType).build()
 
         if (!billingClient.isReady) {
             return Result.failure(IllegalStateException("Billing client not ready"))

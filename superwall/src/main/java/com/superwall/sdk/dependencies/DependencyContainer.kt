@@ -236,20 +236,15 @@ class DependencyContainer(
             ProcessLifecycleOwner.get().lifecycle.addObserver(appLifecycleObserver)
         }
 
-        // If activity provider exists, let it be. Otherwise, create our own.
-        val activityProvider: ActivityProvider
+        // Always register a lifecycle tracker so we can find the actual foreground activity
+        // (e.g. SuperwallPaywallActivity) even when the user provides their own ActivityProvider.
+        val currentActivityTracker = CurrentActivityTracker()
+        (context.applicationContext as Application).registerActivityLifecycleCallbacks(
+            currentActivityTracker,
+        )
 
-        if (this.activityProvider == null) {
-            val currentActivityTracker = CurrentActivityTracker()
-
-            (context.applicationContext as Application).registerActivityLifecycleCallbacks(
-                currentActivityTracker,
-            )
-            activityProvider = currentActivityTracker
-            this.activityProvider = activityProvider
-        } else {
-            activityProvider = this.activityProvider!!
-        }
+        val activityProvider: ActivityProvider = this.activityProvider ?: currentActivityTracker
+        this.activityProvider = activityProvider
 
         googleBillingWrapper =
             GoogleBillingWrapper(
@@ -266,6 +261,7 @@ class DependencyContainer(
             TestModeTransactionHandler(
                 testModeManager = testModeManager,
                 activityProvider = activityProvider,
+                activityTracker = currentActivityTracker,
             )
 
         customerInfoManager =
@@ -426,6 +422,7 @@ class DependencyContainer(
                 testModeManager = testModeManager,
                 identityManager = { identityManager },
                 activityProvider = activityProvider,
+                activityTracker = currentActivityTracker,
                 setSubscriptionStatus = { status ->
                     entitlements.setSubscriptionStatus(status)
                 },

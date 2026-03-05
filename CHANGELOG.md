@@ -2,6 +2,13 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.7.5
+
+- Ensure test mode does not interfere with expo
+- Ensure isActive is properly returned and not calculated via expiration date
+- Fix potential memory leak when webview crashes
+- Ensure O(n) cleanup doesn't run multiple times
+
 ## 2.7.4
 
 ## Enhancements
