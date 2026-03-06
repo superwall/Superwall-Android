@@ -440,6 +440,92 @@ class StoreManagerTest {
         }
 
     @Test
+    fun `test concurrent waiters receive error when in-flight fetch fails`() =
+        runTest {
+            Given("a product whose fetch will fail") {
+                val billingDeferred = CompletableDeferred<Set<StoreProduct>>()
+
+                coEvery { billing.awaitGetProducts(any()) } coAnswers { billingDeferred.await() }
+
+                When("two callers request the same product and the fetch fails") {
+                    val first = async { runCatching { storeManager.getProductsWithoutPaywall(listOf("product1")) } }
+                    val second = async { runCatching { storeManager.getProductsWithoutPaywall(listOf("product1")) } }
+
+                    // Fail the billing call
+                    billingDeferred.completeExceptionally(RuntimeException("billing error"))
+
+                    val result1 = first.await()
+                    val result2 = second.await()
+
+                    Then("both callers should receive the error") {
+                        junitAssertTrue(result1.isFailure)
+                        junitAssertTrue(result2.isFailure)
+                        assertEquals("billing error", result1.exceptionOrNull()?.message)
+                        assertEquals("billing error", result2.exceptionOrNull()?.message)
+                    }
+
+                    And("the product is retryable on the next call") {
+                        val product =
+                            mockk<StoreProduct> {
+                                every { fullIdentifier } returns "product1"
+                            }
+                        coEvery { billing.awaitGetProducts(any()) } returns setOf(product)
+
+                        val result3 = storeManager.getProductsWithoutPaywall(listOf("product1"))
+                        assertEquals(product, result3["product1"])
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `test getProducts sets failAt on failure and clears on success`() =
+        runTest {
+            Given("a paywall whose product fetch fails then succeeds") {
+                val paywall =
+                    Paywall.stub().copy(
+                        productIds = listOf("product1:basePlan1:sw-auto"),
+                        _productItemsV3 =
+                            listOf(
+                                CrossplatformProduct(
+                                    compositeId = "product1:basePlan1:sw-auto",
+                                    storeProduct =
+                                        CrossplatformProduct.StoreProduct.PlayStore(
+                                            productIdentifier = "product1",
+                                            basePlanIdentifier = "basePlan1",
+                                            offer = Offer.Automatic(),
+                                        ),
+                                    entitlements = entitlementsBasic.toList(),
+                                    name = "Item1",
+                                ),
+                            ),
+                    )
+                val product =
+                    mockk<StoreProduct> {
+                        every { fullIdentifier } returns "product1:basePlan1:sw-auto"
+                        every { attributes } returns mapOf("attr1" to "value1")
+                    }
+
+                coEvery { billing.awaitGetProducts(any()) } throws
+                    RuntimeException("Service unavailable") andThen setOf(product)
+
+                When("the first fetch fails") {
+                    storeManager.getProducts(paywall = paywall)
+
+                    Then("failAt should be set") {
+                        junitAssertTrue(paywall.productsLoadingInfo.failAt != null)
+                    }
+
+                    And("a retry succeeds and the result contains the product") {
+                        val result = storeManager.getProducts(paywall = paywall)
+                        assertEquals(1, result.productsByFullId.size)
+                        assertEquals(product, result.productsByFullId["product1:basePlan1:sw-auto"])
+                    }
+                }
+            }
+        }
+
+    @Test
     fun `test cacheProduct completes pending loading deferred`() =
         runTest {
             Given("a product that is currently loading") {

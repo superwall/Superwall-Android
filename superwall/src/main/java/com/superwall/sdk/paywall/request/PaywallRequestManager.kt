@@ -83,8 +83,9 @@ class PaywallRequestManager(
                     if (!(isPreloading && paywall.identifier == factory.activePaywallId())) {
                         // If products failed to load previously (e.g. billing was unavailable
                         // during preload), retry loading them now.
-                        if (paywall.productVariables.isNullOrEmpty() && paywall.productIds.isNotEmpty()) {
+                        if (paywall.productsLoadingInfo.failAt != null && paywall.productIds.isNotEmpty()) {
                             paywall = addProducts(paywall, request)
+                            paywall.productsLoadingInfo.failAt = null
                             paywallsByHash[requestHash] = paywall
                         }
                         return@withContext updatePaywall(paywall, request)
