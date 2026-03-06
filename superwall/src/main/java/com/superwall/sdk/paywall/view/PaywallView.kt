@@ -299,9 +299,13 @@ class PaywallView(
                     "Timeout triggered - paywall wasn't loaded in ${timeout.inWholeSeconds} seconds"
                 controller.currentState
                     .filter { it.loadingState == PaywallLoadingState.Ready }
+                    .map { Result.success(it.loadingState) }
                     .timeout(timeout)
-                    .catch {
-                        if (it is TimeoutCancellationException) {
+                    .catch { err ->
+                        Result.failure<PaywallLoadingState>(err)
+                    }.first()
+                    .onFailure { e ->
+                        if (e is TimeoutCancellationException) {
                             state.paywallStatePublisher?.emit(
                                 PaywallState.PresentationError(
                                     PaywallErrors.Timeout(msg),
@@ -309,20 +313,20 @@ class PaywallView(
                             )
                             mainScope.launch {
                                 updateState(WebLoadingFailed)
-
-                                val trackedEvent =
-                                    InternalSuperwallEvent.PaywallWebviewLoad(
-                                        state =
-                                            InternalSuperwallEvent.PaywallWebviewLoad.State.Fail(
-                                                WebviewError.Timeout(msg),
-                                                listOf(info.url.value),
-                                            ),
-                                        paywallInfo = info,
-                                    )
-                                factory.track(trackedEvent)
                             }
+
+                            val trackedEvent =
+                                InternalSuperwallEvent.PaywallWebviewLoad(
+                                    state =
+                                        InternalSuperwallEvent.PaywallWebviewLoad.State.Fail(
+                                            WebviewError.Timeout(msg),
+                                            listOf(info.url.value),
+                                        ),
+                                    paywallInfo = info,
+                                )
+                            factory.track(trackedEvent)
                         }
-                    }.first()
+                    }
             }
         }
 
@@ -372,19 +376,19 @@ class PaywallView(
         factory
             .delegate()
             .willPresentPaywall(info)
-        /*if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            try {
-                // Temporary disabled
-                // webView.setRendererPriorityPolicy(RENDERER_PRIORITY_IMPORTANT, true)
-            } catch (e: Throwable) {
-                Logger.debug(
-                    LogLevel.info,
-                    LogScope.paywallView,
-                    "Cannot set webview priority when beginning presentation",
-                    error = e,
-                )
-            }
-        }*/
+            /*if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                try {
+                    // Temporary disabled
+                    // webView.setRendererPriorityPolicy(RENDERER_PRIORITY_IMPORTANT, true)
+                } catch (e: Throwable) {
+                    Logger.debug(
+                        LogLevel.info,
+                        LogScope.paywallView,
+                        "Cannot set webview priority when beginning presentation",
+                        error = e,
+                    )
+                }
+            }*/
         webView.scrollTo(0, 0)
         if (loadingState is PaywallLoadingState.Ready) {
             webView.messageHandler.handle(PaywallMessage.TemplateParamsAndUserAttributes)
@@ -558,9 +562,9 @@ class PaywallView(
         }
     }
 
-    //endregion
+//endregion
 
-    //region Lifecycle
+//region Lifecycle
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
@@ -584,7 +588,7 @@ class PaywallView(
     }
 
     // Lets the view know that presentation has finished.
-    // Only called once per presentation.
+// Only called once per presentation.
     fun onViewCreated() {
         state.viewCreatedCompletion?.invoke(true)
         controller.updateState(ClearViewCreatedCompletion)
@@ -648,9 +652,9 @@ class PaywallView(
         }
     }
 
-    //endregion
+//endregion
 
-    //region Presentation
+//region Presentation
 
     private fun dismiss(presentationIsAnimated: Boolean) {
         // TODO: SW-2162 Implement animation support
@@ -782,9 +786,9 @@ class PaywallView(
         }
     }
 
-    //endregion
+//endregion
 
-    //region State
+//region State
 
     internal fun loadingStateDidChange() {
         if (state.isPresented) {
