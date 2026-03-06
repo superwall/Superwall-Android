@@ -35,7 +35,7 @@ class StoreManager(
     StoreKit {
     val receiptManager by lazy(receiptManagerFactory)
 
-    private var productsByFullId: MutableMap<String, ProductState> = mutableMapOf()
+    private var productsByFullId: MutableMap<String, ProductState> = java.util.concurrent.ConcurrentHashMap()
 
     private data class ProductProcessingResult(
         val fullProductIdsToLoad: Set<String>,
@@ -147,24 +147,32 @@ class StoreManager(
             states.entries
                 .filter { (_, state) -> state !is ProductState.Loaded && state !is ProductState.Loading }
                 .associate { (id, _) ->
-                    val deferred = CompletableDeferred<StoreProduct?>()
+                    val deferred = CompletableDeferred<StoreProduct>()
                     productsByFullId[id] = ProductState.Loading(deferred)
                     id to deferred
                 }
 
         // Await all in-flight products in parallel
         val awaited =
-            loading
-                .awaitAll()
-                .filterNotNull()
-                .associateBy { it.fullIdentifier }
+            try {
+                loading
+                    .awaitAll()
+                    .associateBy { it.fullIdentifier }
+            } catch (e: Throwable) {
+                // In-flight fetch failed; clean up new deferreds
+                newDeferreds.forEach { (id, deferred) ->
+                    productsByFullId[id] = ProductState.Error(e)
+                    deferred.completeExceptionally(e)
+                }
+                throw e
+            }
 
         val fetched = fetchNewProducts(newDeferreds)
 
         return cached + awaited + fetched
     }
 
-    private suspend fun fetchNewProducts(deferreds: Map<String, CompletableDeferred<StoreProduct?>>): Map<String, StoreProduct> {
+    private suspend fun fetchNewProducts(deferreds: Map<String, CompletableDeferred<StoreProduct>>): Map<String, StoreProduct> {
         if (deferreds.isEmpty()) return emptyMap()
 
         return try {
@@ -178,15 +186,16 @@ class StoreManager(
 
             // Mark products not returned by billing as errors
             (deferreds.keys - fetched.keys).forEach { id ->
-                productsByFullId[id] = ProductState.Error(Exception("Product $id not found in store"))
-                deferreds[id]?.complete(null)
+                val error = Exception("Product $id not found in store")
+                productsByFullId[id] = ProductState.Error(error)
+                deferreds[id]?.completeExceptionally(error)
             }
 
             fetched
         } catch (error: Throwable) {
             deferreds.forEach { (id, deferred) ->
                 productsByFullId[id] = ProductState.Error(error)
-                deferred.complete(null)
+                deferred.completeExceptionally(error)
             }
             throw error
         }

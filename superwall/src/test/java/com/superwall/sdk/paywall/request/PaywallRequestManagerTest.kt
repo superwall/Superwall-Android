@@ -427,8 +427,12 @@ class PaywallRequestManagerTest {
         }
 
     @Test
-    fun test_cachedPaywall_retriesProducts_whenProductVariablesEmpty() =
+    fun test_cachedPaywall_retriesProducts_whenProductsLoadFailed() =
         runTest {
+            val loadingInfo =
+                mockk<Paywall.LoadingInfo>(relaxed = true) {
+                    every { failAt } returns java.util.Date()
+                }
             val paywall =
                 mockk<Paywall>(relaxed = true) {
                     every { identifier } returns "test_paywall"
@@ -437,10 +441,9 @@ class PaywallRequestManagerTest {
                             every { startAt } returns null
                             every { endAt } returns null
                         }
-                    every { productsLoadingInfo } returns mockk(relaxed = true)
+                    every { productsLoadingInfo } returns loadingInfo
                     every { productItems } returns emptyList()
                     every { productIds } returns listOf("product1:basePlan1:sw-auto")
-                    every { productVariables } returns null
                     every { getInfo(any()) } returns mockk<PaywallInfo>()
                 }
             val request =
@@ -463,7 +466,7 @@ class PaywallRequestManagerTest {
 
             requestManager.getPaywall(request)
 
-            // Second call should hit cache and retry addProducts because productVariables is empty
+            // Second call should hit cache and retry addProducts because failAt is set
             requestManager.getPaywall(request)
 
             // Network only called once (cached), but storeManager.getProducts called twice (initial + retry)
@@ -472,9 +475,8 @@ class PaywallRequestManagerTest {
         }
 
     @Test
-    fun test_cachedPaywall_skipsRetry_whenProductVariablesPopulated() =
+    fun test_cachedPaywall_skipsRetry_whenProductsLoadSucceeded() =
         runTest {
-            val productVariable = mockk<com.superwall.sdk.models.product.ProductVariable>()
             val paywall =
                 mockk<Paywall>(relaxed = true) {
                     every { identifier } returns "test_paywall"
@@ -483,10 +485,12 @@ class PaywallRequestManagerTest {
                             every { startAt } returns null
                             every { endAt } returns null
                         }
-                    every { productsLoadingInfo } returns mockk(relaxed = true)
+                    every { productsLoadingInfo } returns
+                        mockk(relaxed = true) {
+                            every { failAt } returns null
+                        }
                     every { productItems } returns emptyList()
                     every { productIds } returns listOf("product1:basePlan1:sw-auto")
-                    every { productVariables } returns listOf(productVariable)
                     every { getInfo(any()) } returns mockk<PaywallInfo>()
                 }
             val request =
@@ -519,6 +523,10 @@ class PaywallRequestManagerTest {
     @Test
     fun test_preloadFailure_thenPresentationRetries() =
         runTest {
+            val loadingInfo =
+                mockk<Paywall.LoadingInfo>(relaxed = true) {
+                    every { failAt } returns java.util.Date()
+                }
             val paywall =
                 mockk<Paywall>(relaxed = true) {
                     every { identifier } returns "test_paywall"
@@ -527,10 +535,9 @@ class PaywallRequestManagerTest {
                             every { startAt } returns null
                             every { endAt } returns null
                         }
-                    every { productsLoadingInfo } returns mockk(relaxed = true)
+                    every { productsLoadingInfo } returns loadingInfo
                     every { productItems } returns emptyList()
                     every { productIds } returns listOf("product1:basePlan1:sw-auto")
-                    every { productVariables } returns null
                     every { getInfo(any()) } returns mockk<PaywallInfo>()
                 }
 
