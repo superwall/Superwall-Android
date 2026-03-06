@@ -84,9 +84,13 @@ class PaywallRequestManager(
                         // If products failed to load previously (e.g. billing was unavailable
                         // during preload), retry loading them now.
                         if (paywall.productsLoadingInfo.failAt != null && paywall.productIds.isNotEmpty()) {
-                            paywall = addProducts(paywall, request)
+                            // Clear failAt before retry. StoreManager.getProducts will re-set it
+                            // if a transient error occurs, so we can check afterward.
                             paywall.productsLoadingInfo.failAt = null
-                            paywallsByHash[requestHash] = paywall
+                            paywall = addProducts(paywall, request)
+                            if (paywall.productsLoadingInfo.failAt == null) {
+                                paywallsByHash[requestHash] = paywall
+                            }
                         }
                         return@withContext updatePaywall(paywall, request)
                     } else {
