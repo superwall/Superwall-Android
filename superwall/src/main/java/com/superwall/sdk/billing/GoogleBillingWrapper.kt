@@ -265,9 +265,15 @@ class GoogleBillingWrapper(
                     }
 
                     override fun onError(error: BillingError) {
-                        // Don't cache billing errors — they may be transient
-                        // (service unavailable, disconnected, network).
-                        // Only the onReceived path caches genuinely missing products.
+                        // Cache BillingNotAvailable — it's a permanent device state
+                        // that won't resolve, so retrying is wasteful.
+                        // Other billing errors (service unavailable, disconnected, network)
+                        // are transient and should NOT be cached to allow retry.
+                        if (error is BillingError.BillingNotAvailable) {
+                            missingFullProductIds.forEach { fullProductId ->
+                                productsCache[fullProductId] = Either.Failure(error)
+                            }
+                        }
                         continuation.resumeWithException(error)
                     }
                 },

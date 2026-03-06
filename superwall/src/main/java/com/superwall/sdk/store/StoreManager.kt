@@ -132,25 +132,30 @@ class StoreManager(
     }
 
     private suspend fun fetchOrAwaitProducts(fullProductIds: Set<String>): Map<String, StoreProduct> {
-        val states = fullProductIds.associateWith { productsByFullId[it] }
+        val cached = mutableMapOf<String, StoreProduct>()
+        val loading = mutableListOf<CompletableDeferred<StoreProduct>>()
+        val newDeferreds = mutableMapOf<String, CompletableDeferred<StoreProduct>>()
 
-        val cached =
-            states.entries
-                .mapNotNull { (id, state) -> (state as? ProductState.Loaded)?.let { id to it.product } }
-                .toMap()
-
-        val loading =
-            states.entries
-                .mapNotNull { (_, state) -> (state as? ProductState.Loading)?.deferred }
-
-        val newDeferreds =
-            states.entries
-                .filter { (_, state) -> state !is ProductState.Loaded && state !is ProductState.Loading }
-                .associate { (id, _) ->
+        for (id in fullProductIds) {
+            val state =
+                productsByFullId.computeIfAbsent(id) {
+                    val deferred = CompletableDeferred<StoreProduct>()
+                    newDeferreds[id] = deferred
+                    ProductState.Loading(deferred)
+                }
+            when (state) {
+                is ProductState.Loaded -> cached[id] = state.product
+                is ProductState.Loading -> {
+                    if (id !in newDeferreds) loading.add(state.deferred)
+                }
+                is ProductState.Error -> {
+                    // Error state already exists — replace atomically for retry
                     val deferred = CompletableDeferred<StoreProduct>()
                     productsByFullId[id] = ProductState.Loading(deferred)
-                    id to deferred
+                    newDeferreds[id] = deferred
                 }
+            }
+        }
 
         // Await all in-flight products in parallel
         val awaited =
