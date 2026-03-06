@@ -140,8 +140,8 @@ data class PaywallViewState(
 
         object ResetPresentationPreparations : Updates({ state ->
             state.copy(
-                presentationWillPrepare = false,
-                presentationDidFinishPrepare = true,
+                presentationWillPrepare = true,
+                presentationDidFinishPrepare = false,
             )
         })
 
