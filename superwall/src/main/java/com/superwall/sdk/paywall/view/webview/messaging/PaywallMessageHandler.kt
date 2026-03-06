@@ -420,16 +420,12 @@ class PaywallMessageHandler(
             // block selection
             messageHandler?.evaluate(selectionString, null)
             messageHandler?.evaluate(preventZoom, null)
-            ioScope.launch {
-                mainScope.launch {
-                    flushPendingMessagesInternal()
-                    messageHandler?.updateState(
-                        PaywallViewState.Updates.SetLoadingState(
-                            PaywallLoadingState.Ready,
-                        ),
-                    )
-                }
-            }
+            flushPendingMessagesInternal()
+            messageHandler?.updateState(
+                PaywallViewState.Updates.SetLoadingState(
+                    PaywallLoadingState.Ready,
+                ),
+            )
         }
     }
 

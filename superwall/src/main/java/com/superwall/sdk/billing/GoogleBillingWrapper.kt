@@ -48,6 +48,14 @@ class GoogleBillingWrapper(
     val ioScope: IOScope,
     val appLifecycleObserver: AppLifecycleObserver,
     val factory: Factory,
+    val createBillingClient: (PurchasesUpdatedListener) -> BillingClient = {
+        BillingClient
+            .newBuilder(context)
+            .setListener(it)
+            .enablePendingPurchases(
+                PendingPurchasesParams.newBuilder().enableOneTimeProducts().build(),
+            ).build()
+    },
 ) : PurchasesUpdatedListener,
     BillingClientStateListener,
     Billing {
@@ -55,6 +63,11 @@ class GoogleBillingWrapper(
         private val productsCache = ConcurrentHashMap<String, Either<StoreProduct, Throwable>>()
         private const val QUERY_PURCHASES_TIMEOUT_MS = 10_000L
         private const val QUERY_PURCHASES_MAX_RETRIES = 3
+
+        @androidx.annotation.VisibleForTesting
+        internal fun clearProductsCache() {
+            productsCache.clear()
+        }
     }
 
     interface Factory :
@@ -164,13 +177,7 @@ class GoogleBillingWrapper(
     fun startConnection() {
         synchronized(this@GoogleBillingWrapper) {
             if (billingClient == null) {
-                billingClient =
-                    BillingClient
-                        .newBuilder(context)
-                        .setListener(this@GoogleBillingWrapper)
-                        .enablePendingPurchases(
-                            PendingPurchasesParams.newBuilder().enableOneTimeProducts().build(),
-                        ).build()
+                billingClient = createBillingClient(this)
             }
 
             reconnectionAlreadyScheduled = false
@@ -258,10 +265,9 @@ class GoogleBillingWrapper(
                     }
 
                     override fun onError(error: BillingError) {
-                        // Identify and handle missing products
-                        missingFullProductIds.forEach { fullProductId ->
-                            productsCache[fullProductId] = Either.Failure(error)
-                        }
+                        // Don't cache billing errors — they may be transient
+                        // (service unavailable, disconnected, network).
+                        // Only the onReceived path caches genuinely missing products.
                         continuation.resumeWithException(error)
                     }
                 },
