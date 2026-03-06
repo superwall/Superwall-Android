@@ -615,7 +615,10 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                         if (isModal && newState == BottomSheetBehavior.STATE_HALF_EXPANDED) {
                             bottomSheetBehavior.state = BottomSheetBehavior.STATE_EXPANDED
                         } else if (newState == BottomSheetBehavior.STATE_HIDDEN) {
-                            finish()
+                            paywallView()?.dismiss(
+                                result = PaywallResult.Declined(),
+                                closeReason = PaywallCloseReason.ManualClose,
+                            ) ?: finish()
                         }
                     }
                 }
