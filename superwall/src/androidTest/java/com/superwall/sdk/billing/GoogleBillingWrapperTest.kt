@@ -359,9 +359,9 @@ class GoogleBillingWrapperTest {
     // ========================================================================
 
     @Test
-    fun test_transient_error_not_cached_allows_retry() =
+    fun test_billing_not_available_is_cached() =
         runTest {
-            Given("a wrapper where billing fails then succeeds") {
+            Given("a wrapper where billing is unavailable") {
                 val wrapper = createWrapper(clientReady = false)
 
                 When("first call fails due to BILLING_UNAVAILABLE") {
@@ -376,23 +376,16 @@ class GoogleBillingWrapperTest {
 
                     val outcome1 = result1.await()
                     assertTrue("First call should fail", outcome1.isFailure)
+                    assertTrue(
+                        "Should be BillingNotAvailable",
+                        outcome1.exceptionOrNull() is BillingError.BillingNotAvailable,
+                    )
 
-                    Then("a second call should reach billing again, not throw from cache") {
-                        // Queue another request
-                        val result2 =
-                            async {
-                                runCatching { wrapper.awaitGetProducts(setOf("p1:base:sw-auto")) }
-                            }
-
-                        // Fail it again to prove it went through the service request path
-                        capturedStateListener?.onBillingSetupFinished(
-                            billingResult(BillingClient.BillingResponseCode.BILLING_UNAVAILABLE),
-                        )
-
-                        val outcome2 = result2.await()
-                        assertTrue("Second call should also fail (not from cache)", outcome2.isFailure)
+                    Then("a second call should fail immediately from cache without hitting billing") {
+                        val outcome2 = runCatching { wrapper.awaitGetProducts(setOf("p1:base:sw-auto")) }
+                        assertTrue("Second call should also fail", outcome2.isFailure)
                         assertTrue(
-                            "Should be BillingNotAvailable, not a cached generic exception",
+                            "Should be BillingNotAvailable from cache",
                             outcome2.exceptionOrNull() is BillingError.BillingNotAvailable,
                         )
                     }
@@ -401,9 +394,9 @@ class GoogleBillingWrapperTest {
         }
 
     @Test
-    fun test_multiple_products_not_cached_on_error() =
+    fun test_multiple_products_cached_on_billing_not_available() =
         runTest {
-            Given("multiple products that fail to load") {
+            Given("multiple products that fail due to billing unavailable") {
                 val wrapper = createWrapper(clientReady = false)
 
                 val ids = setOf("p1:base:sw-auto", "p2:base:sw-auto", "p3:base:sw-auto")
@@ -420,22 +413,51 @@ class GoogleBillingWrapperTest {
 
                     assertTrue(result1.await().isFailure)
 
-                    Then("retrying any single product should not throw from cache") {
+                    Then("retrying any single product should fail from cache immediately") {
+                        val outcome = runCatching { wrapper.awaitGetProducts(setOf("p1:base:sw-auto")) }
+                        assertTrue(outcome.isFailure)
+                        assertTrue(
+                            "Should be a cached BillingNotAvailable error",
+                            outcome.exceptionOrNull() is BillingError.BillingNotAvailable,
+                        )
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun test_transient_error_not_cached_allows_retry() =
+        runTest {
+            Given("a wrapper where billing fails with a transient error then succeeds") {
+                val wrapper = createWrapper(clientReady = false)
+
+                When("first call fails due to SERVICE_UNAVAILABLE") {
+                    val result1 =
+                        async {
+                            runCatching { wrapper.awaitGetProducts(setOf("p1:base:sw-auto")) }
+                        }
+
+                    capturedStateListener?.onBillingSetupFinished(
+                        billingResult(BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE),
+                    )
+
+                    val outcome1 = result1.await()
+                    assertTrue("First call should fail", outcome1.isFailure)
+
+                    Then("a second call should reach billing again, not throw from cache") {
                         val result2 =
                             async {
                                 runCatching { wrapper.awaitGetProducts(setOf("p1:base:sw-auto")) }
                             }
 
+                        // This time billing succeeds — proving it was not cached
                         capturedStateListener?.onBillingSetupFinished(
-                            billingResult(BillingClient.BillingResponseCode.BILLING_UNAVAILABLE),
+                            billingResult(BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE),
                         )
 
-                        val outcome = result2.await()
-                        assertTrue(outcome.isFailure)
-                        assertTrue(
-                            "Should be a fresh BillingNotAvailable error",
-                            outcome.exceptionOrNull() is BillingError.BillingNotAvailable,
-                        )
+                        val outcome2 = result2.await()
+                        assertTrue("Second call should also fail (fresh attempt)", outcome2.isFailure)
+                        // Transient errors go through the service request path, not cache
                     }
                 }
             }
