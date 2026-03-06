@@ -5,7 +5,7 @@ import kotlinx.coroutines.CompletableDeferred
 
 sealed class ProductState {
     class Loading(
-        val deferred: CompletableDeferred<StoreProduct?> = CompletableDeferred(),
+        val deferred: CompletableDeferred<StoreProduct> = CompletableDeferred(),
     ) : ProductState()
 
     data class Loaded(
