@@ -83,10 +83,18 @@ class PaywallRequestManager(
                     if (!(isPreloading && paywall.identifier == factory.activePaywallId())) {
                         // If products failed to load previously (e.g. billing was unavailable
                         // during preload), retry loading them now.
-                        if (paywall.productsLoadingInfo.failAt != null && paywall.productIds.isNotEmpty()) {
-                            // Clear failAt before retry. StoreManager.getProducts will re-set it
-                            // if a transient error occurs, so we can check afterward.
-                            paywall.productsLoadingInfo.failAt = null
+                        // Synchronize to avoid TOCTOU race: two concurrent requests
+                        // both observing failAt != null and triggering duplicate addProducts.
+                        val shouldRetry =
+                            synchronized(paywall.productsLoadingInfo) {
+                                if (paywall.productsLoadingInfo.failAt != null && paywall.productIds.isNotEmpty()) {
+                                    paywall.productsLoadingInfo.failAt = null
+                                    true
+                                } else {
+                                    false
+                                }
+                            }
+                        if (shouldRetry) {
                             paywall = addProducts(paywall, request)
                             if (paywall.productsLoadingInfo.failAt == null) {
                                 paywallsByHash[requestHash] = paywall
