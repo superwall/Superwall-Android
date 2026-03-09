@@ -22,6 +22,7 @@ import com.superwall.sdk.store.testmode.TestModeManager
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.awaitAll
 import java.util.Date
+import java.util.concurrent.ConcurrentHashMap
 
 class StoreManager(
     val purchaseController: InternalPurchaseController,
@@ -35,7 +36,7 @@ class StoreManager(
     StoreKit {
     val receiptManager by lazy(receiptManagerFactory)
 
-    private var productsByFullId: MutableMap<String, ProductState> = java.util.concurrent.ConcurrentHashMap()
+    private var productsByFullId: ConcurrentHashMap<String, ProductState> = ConcurrentHashMap()
 
     private data class ProductProcessingResult(
         val fullProductIdsToLoad: Set<String>,
@@ -148,6 +149,7 @@ class StoreManager(
                 is ProductState.Loading -> {
                     if (id !in newDeferreds) loading.add(state.deferred)
                 }
+
                 is ProductState.Error -> {
                     // Error state already exists — replace atomically for retry
                     val deferred = CompletableDeferred<StoreProduct>()
