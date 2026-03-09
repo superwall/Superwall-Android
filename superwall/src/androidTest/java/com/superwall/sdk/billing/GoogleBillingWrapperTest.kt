@@ -21,8 +21,12 @@ import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -31,6 +35,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import kotlin.coroutines.CoroutineContext
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(AndroidJUnit4::class)
@@ -50,7 +55,10 @@ class GoogleBillingWrapperTest {
             .setDebugMessage(message)
             .build()
 
-    private fun createWrapper(clientReady: Boolean = false): GoogleBillingWrapper {
+    private fun createWrapper(
+        clientReady: Boolean = false,
+        ioContext: CoroutineContext = Dispatchers.Unconfined,
+    ): GoogleBillingWrapper {
         startConnectionCount = 0
         mockBillingClient =
             mockk(relaxed = true) {
@@ -70,7 +78,7 @@ class GoogleBillingWrapperTest {
 
         return GoogleBillingWrapper(
             context = context,
-            ioScope = IOScope(Dispatchers.Unconfined),
+            ioScope = IOScope(ioContext),
             appLifecycleObserver = AppLifecycleObserver(),
             factory = factory,
             createBillingClient = { listener ->
@@ -131,12 +139,17 @@ class GoogleBillingWrapperTest {
     fun test_successful_connection_resets_reconnect_timer() =
         runTest {
             Given("a wrapper that had a failed connection attempt") {
-                val wrapper = createWrapper(clientReady = false)
+                val wrapper =
+                    createWrapper(
+                        clientReady = false,
+                        ioContext = UnconfinedTestDispatcher(testScheduler),
+                    )
 
                 // Simulate a transient error to bump reconnect timer
                 capturedStateListener?.onBillingSetupFinished(
                     billingResult(BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE),
                 )
+                advanceUntilIdle()
 
                 When("connection succeeds") {
                     every { mockBillingClient.isReady } returns true
@@ -216,6 +229,9 @@ class GoogleBillingWrapperTest {
                             runCatching { wrapper.awaitGetProducts(setOf("p1:base:sw-auto")) }
                         }
 
+                    // Advance so the async block runs and adds its request to the queue
+                    advanceUntilIdle()
+
                     capturedStateListener?.onBillingSetupFinished(
                         billingResult(BillingClient.BillingResponseCode.BILLING_UNAVAILABLE),
                     )
@@ -241,6 +257,9 @@ class GoogleBillingWrapperTest {
                             runCatching { wrapper.awaitGetProducts(setOf("p1:base:sw-auto")) }
                         }
 
+                    // Advance so the async block runs and adds its request to the queue
+                    advanceUntilIdle()
+
                     capturedStateListener?.onBillingSetupFinished(
                         billingResult(BillingClient.BillingResponseCode.FEATURE_NOT_SUPPORTED),
                     )
@@ -258,12 +277,17 @@ class GoogleBillingWrapperTest {
     fun test_service_unavailable_retries_connection_without_failing_requests() =
         runTest {
             Given("a wrapper with a pending request") {
-                val wrapper = createWrapper(clientReady = false)
+                createWrapper(
+                    clientReady = false,
+                    ioContext = UnconfinedTestDispatcher(testScheduler),
+                )
 
                 When("billing setup returns SERVICE_UNAVAILABLE") {
                     capturedStateListener?.onBillingSetupFinished(
                         billingResult(BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE),
                     )
+                    // Advance virtual time so the delayed retry fires
+                    advanceUntilIdle()
 
                     Then("startConnection should be called again for retry") {
                         // init calls startConnection once, SERVICE_UNAVAILABLE triggers a retry
@@ -280,12 +304,16 @@ class GoogleBillingWrapperTest {
     fun test_service_disconnected_retries_connection() =
         runTest {
             Given("a wrapper") {
-                createWrapper(clientReady = false)
+                createWrapper(
+                    clientReady = false,
+                    ioContext = UnconfinedTestDispatcher(testScheduler),
+                )
 
                 When("billing setup returns SERVICE_DISCONNECTED") {
                     capturedStateListener?.onBillingSetupFinished(
                         billingResult(BillingClient.BillingResponseCode.SERVICE_DISCONNECTED),
                     )
+                    advanceUntilIdle()
 
                     Then("it should schedule a reconnection") {
                         assertTrue(startConnectionCount >= 2)
@@ -298,12 +326,16 @@ class GoogleBillingWrapperTest {
     fun test_network_error_retries_connection() =
         runTest {
             Given("a wrapper") {
-                createWrapper(clientReady = false)
+                createWrapper(
+                    clientReady = false,
+                    ioContext = UnconfinedTestDispatcher(testScheduler),
+                )
 
                 When("billing setup returns NETWORK_ERROR") {
                     capturedStateListener?.onBillingSetupFinished(
                         billingResult(BillingClient.BillingResponseCode.NETWORK_ERROR),
                     )
+                    advanceUntilIdle()
 
                     Then("it should schedule a reconnection") {
                         assertTrue(startConnectionCount >= 2)
@@ -370,6 +402,9 @@ class GoogleBillingWrapperTest {
                             runCatching { wrapper.awaitGetProducts(setOf("p1:base:sw-auto")) }
                         }
 
+                    // Advance so the async block runs and adds its request to the queue
+                    advanceUntilIdle()
+
                     capturedStateListener?.onBillingSetupFinished(
                         billingResult(BillingClient.BillingResponseCode.BILLING_UNAVAILABLE),
                     )
@@ -407,6 +442,9 @@ class GoogleBillingWrapperTest {
                             runCatching { wrapper.awaitGetProducts(ids) }
                         }
 
+                    // Advance so the async block runs and adds its request to the queue
+                    advanceUntilIdle()
+
                     capturedStateListener?.onBillingSetupFinished(
                         billingResult(BillingClient.BillingResponseCode.BILLING_UNAVAILABLE),
                     )
@@ -428,36 +466,42 @@ class GoogleBillingWrapperTest {
     @Test
     fun test_transient_error_not_cached_allows_retry() =
         runTest {
-            Given("a wrapper where billing fails with a transient error then succeeds") {
+            Given("a wrapper where SERVICE_UNAVAILABLE retries then BILLING_UNAVAILABLE drains") {
                 val wrapper = createWrapper(clientReady = false)
 
-                When("first call fails due to SERVICE_UNAVAILABLE") {
+                When("SERVICE_UNAVAILABLE occurs, requests stay queued; then BILLING_UNAVAILABLE drains them") {
                     val result1 =
                         async {
                             runCatching { wrapper.awaitGetProducts(setOf("p1:base:sw-auto")) }
                         }
 
+                    // Advance so the async block runs and adds its request to the queue
+                    advanceUntilIdle()
+
+                    // SERVICE_UNAVAILABLE retries connection but does NOT drain requests
                     capturedStateListener?.onBillingSetupFinished(
                         billingResult(BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE),
                     )
 
+                    // BILLING_UNAVAILABLE drains all pending requests with BillingNotAvailable
+                    capturedStateListener?.onBillingSetupFinished(
+                        billingResult(BillingClient.BillingResponseCode.BILLING_UNAVAILABLE),
+                    )
+
                     val outcome1 = result1.await()
                     assertTrue("First call should fail", outcome1.isFailure)
+                    assertTrue(
+                        "Should be BillingNotAvailable",
+                        outcome1.exceptionOrNull() is BillingError.BillingNotAvailable,
+                    )
 
-                    Then("a second call should reach billing again, not throw from cache") {
-                        val result2 =
-                            async {
-                                runCatching { wrapper.awaitGetProducts(setOf("p1:base:sw-auto")) }
-                            }
-
-                        // This time billing succeeds — proving it was not cached
-                        capturedStateListener?.onBillingSetupFinished(
-                            billingResult(BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE),
+                    Then("product is cached as BillingNotAvailable, second call fails from cache") {
+                        val outcome2 = runCatching { wrapper.awaitGetProducts(setOf("p1:base:sw-auto")) }
+                        assertTrue("Second call should also fail", outcome2.isFailure)
+                        assertTrue(
+                            "Should be BillingNotAvailable from cache",
+                            outcome2.exceptionOrNull() is BillingError.BillingNotAvailable,
                         )
-
-                        val outcome2 = result2.await()
-                        assertTrue("Second call should also fail (fresh attempt)", outcome2.isFailure)
-                        // Transient errors go through the service request path, not cache
                     }
                 }
             }
@@ -519,11 +563,12 @@ class GoogleBillingWrapperTest {
                         mutableListOf(purchase),
                     )
 
-                    // Give the coroutine time to emit
-                    advanceUntilIdle()
-
                     Then("purchaseResults should contain a Purchased result") {
-                        val result = wrapper.purchaseResults.value
+                        // onPurchasesUpdated emits on Dispatchers.IO; wait for it on a real dispatcher
+                        val result =
+                            withContext(Dispatchers.Default) {
+                                wrapper.purchaseResults.filterNotNull().first()
+                            }
                         assertTrue(
                             "Should emit Purchased",
                             result is InternalPurchaseResult.Purchased,
@@ -549,12 +594,14 @@ class GoogleBillingWrapperTest {
                         null,
                     )
 
-                    advanceUntilIdle()
-
                     Then("purchaseResults should contain Cancelled") {
+                        val result =
+                            withContext(Dispatchers.Default) {
+                                wrapper.purchaseResults.filterNotNull().first()
+                            }
                         assertTrue(
                             "Should emit Cancelled",
-                            wrapper.purchaseResults.value is InternalPurchaseResult.Cancelled,
+                            result is InternalPurchaseResult.Cancelled,
                         )
                     }
                 }
@@ -573,12 +620,14 @@ class GoogleBillingWrapperTest {
                         null,
                     )
 
-                    advanceUntilIdle()
-
                     Then("purchaseResults should contain Failed") {
+                        val result =
+                            withContext(Dispatchers.Default) {
+                                wrapper.purchaseResults.filterNotNull().first()
+                            }
                         assertTrue(
                             "Should emit Failed",
-                            wrapper.purchaseResults.value is InternalPurchaseResult.Failed,
+                            result is InternalPurchaseResult.Failed,
                         )
                     }
                 }
@@ -597,12 +646,14 @@ class GoogleBillingWrapperTest {
                         null,
                     )
 
-                    advanceUntilIdle()
-
                     Then("purchaseResults should contain Failed (not Purchased)") {
+                        val result =
+                            withContext(Dispatchers.Default) {
+                                wrapper.purchaseResults.filterNotNull().first()
+                            }
                         assertTrue(
                             "OK with null purchases should emit Failed",
-                            wrapper.purchaseResults.value is InternalPurchaseResult.Failed,
+                            result is InternalPurchaseResult.Failed,
                         )
                     }
                 }
@@ -659,29 +710,30 @@ class GoogleBillingWrapperTest {
     fun test_multiple_transient_errors_only_schedule_one_retry() =
         runTest {
             Given("a wrapper") {
-                createWrapper(clientReady = false)
+                createWrapper(
+                    clientReady = false,
+                    ioContext = UnconfinedTestDispatcher(testScheduler),
+                )
                 val countAfterInit = startConnectionCount
 
-                When("SERVICE_UNAVAILABLE fires twice in a row") {
+                When("SERVICE_UNAVAILABLE fires twice in a row before retry completes") {
                     capturedStateListener?.onBillingSetupFinished(
                         billingResult(BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE),
                     )
-                    val countAfterFirst = startConnectionCount
-
+                    // Don't advance yet — the retry is delayed and reconnectionAlreadyScheduled is true
                     capturedStateListener?.onBillingSetupFinished(
                         billingResult(BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE),
                     )
-                    val countAfterSecond = startConnectionCount
 
-                    Then("the first triggers a retry but the second is suppressed (already scheduled)") {
-                        assertTrue(
-                            "First SERVICE_UNAVAILABLE should trigger retry",
-                            countAfterFirst > countAfterInit,
-                        )
+                    // Now advance virtual time so the single scheduled retry fires
+                    advanceUntilIdle()
+                    val countAfterRetries = startConnectionCount
+
+                    Then("only one retry should have been scheduled (init + 1 retry)") {
                         assertEquals(
-                            "Second SERVICE_UNAVAILABLE should not trigger another retry",
-                            countAfterFirst,
-                            countAfterSecond,
+                            "Should have exactly one retry beyond init",
+                            countAfterInit + 1,
+                            countAfterRetries,
                         )
                     }
                 }
@@ -725,6 +777,8 @@ class GoogleBillingWrapperTest {
                             runCatching { wrapper.awaitGetProducts(setOf("p1:base:sw-auto")) }
                         }
 
+                    advanceUntilIdle()
+
                     capturedStateListener?.onBillingSetupFinished(
                         billingResult(
                             BillingClient.BillingResponseCode.BILLING_UNAVAILABLE,
@@ -756,6 +810,8 @@ class GoogleBillingWrapperTest {
                     async {
                         runCatching { wrapper.awaitGetProducts(setOf("p1:base:sw-auto")) }
                     }
+
+                advanceUntilIdle()
 
                 When("SERVICE_UNAVAILABLE occurs (requests stay in queue)") {
                     capturedStateListener?.onBillingSetupFinished(

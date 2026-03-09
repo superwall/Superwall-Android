@@ -302,7 +302,7 @@ class PaywallView(
                     .map { Result.success(it.loadingState) }
                     .timeout(timeout)
                     .catch { err ->
-                        Result.failure<PaywallLoadingState>(err)
+                        emit(Result.failure<PaywallLoadingState>(err))
                     }.first()
                     .onFailure { e ->
                         if (e is TimeoutCancellationException) {

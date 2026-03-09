@@ -151,8 +151,13 @@ class StoreManager(
                 is ProductState.Error -> {
                     // Error state already exists — replace atomically for retry
                     val deferred = CompletableDeferred<StoreProduct>()
-                    productsByFullId[id] = ProductState.Loading(deferred)
-                    newDeferreds[id] = deferred
+                    if (productsByFullId.replace(id, state, ProductState.Loading(deferred))) {
+                        newDeferreds[id] = deferred
+                    } else {
+                        (productsByFullId[id] as? ProductState.Loading)?.deferred?.let {
+                            loading.add(it)
+                        }
+                    }
                 }
             }
         }
@@ -192,7 +197,10 @@ class StoreManager(
             // Mark products not returned by billing as errors
             (deferreds.keys - fetched.keys).forEach { id ->
                 val error = Exception("Product $id not found in store")
-                productsByFullId[id] = ProductState.Error(error)
+                // Only set error if not already successfully cached by an external caller
+                if (productsByFullId[id] !is ProductState.Loaded) {
+                    productsByFullId[id] = ProductState.Error(error)
+                }
                 deferreds[id]?.completeExceptionally(error)
             }
 
