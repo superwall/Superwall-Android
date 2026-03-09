@@ -2,6 +2,15 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.7.6
+
+## Fixes
+- Fix concurrency issue with early paywall displays and product loading
+- Improve edge case handling in billing
+- Improve paywall timeout cases and failAt stamping
+- Fix issue with param templating in re-presentation
+- Fix race issue with test mode
+
 ## 2.7.5
 
 ## Enhancements
