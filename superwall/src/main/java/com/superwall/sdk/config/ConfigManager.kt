@@ -304,8 +304,6 @@ open class ConfigManager(
 
     fun reset() {
         val config = configState.value.getConfig() ?: return
-
-        reevaluateTestMode(config)
         assignments.reset()
         assignments.choosePaywallVariants(config.triggers)
 
