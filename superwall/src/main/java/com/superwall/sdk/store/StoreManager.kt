@@ -138,7 +138,7 @@ class StoreManager(
 
         for (id in fullProductIds) {
             val state =
-                productsByFullId.computeIfAbsent(id) {
+                productsByFullId.getOrPut(id) {
                     val deferred = CompletableDeferred<StoreProduct>()
                     newDeferreds[id] = deferred
                     ProductState.Loading(deferred)
