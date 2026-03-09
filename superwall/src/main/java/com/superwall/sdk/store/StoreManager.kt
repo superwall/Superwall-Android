@@ -151,11 +151,14 @@ class StoreManager(
                 is ProductState.Error -> {
                     // Error state already exists — replace atomically for retry
                     val deferred = CompletableDeferred<StoreProduct>()
-                    if (productsByFullId.replace(id, state, ProductState.Loading(deferred))) {
-                        newDeferreds[id] = deferred
-                    } else {
-                        (productsByFullId[id] as? ProductState.Loading)?.deferred?.let {
-                            loading.add(it)
+                    synchronized(productsByFullId) {
+                        if (productsByFullId[id] is ProductState.Error) {
+                            productsByFullId[id] = ProductState.Loading(deferred)
+                            newDeferreds[id] = deferred
+                        } else {
+                            (productsByFullId[id] as? ProductState.Loading)?.deferred?.let {
+                                loading.add(it)
+                            }
                         }
                     }
                 }

@@ -448,7 +448,12 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         initBottomSheetBehavior(isModal, height)
         val container =
             activityView.findViewById<FrameLayout>(com.superwall.sdk.R.id.container)
-        activityView.setOnClickListener { finish() }
+        activityView.setOnClickListener {
+            paywallView()?.dismiss(
+                result = PaywallResult.Declined(),
+                closeReason = PaywallCloseReason.ManualClose,
+            ) ?: finish()
+        }
         container.addView(paywallView)
         container.requestLayout()
         val radius =
