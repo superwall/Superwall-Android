@@ -5,6 +5,10 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## 2.7.7
 
+## Enhancements
+- Adds support for local resource loading in paywalls via `Superwall.instance.localResources`
+
+## Fixes
 - Fix issues with stripe period types failing to deserialize
 
 ## 2.7.6
