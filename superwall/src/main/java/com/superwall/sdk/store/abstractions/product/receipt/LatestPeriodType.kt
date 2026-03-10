@@ -1,40 +1,25 @@
 package com.superwall.sdk.store.abstractions.product.receipt
 
-import kotlinx.serialization.KSerializer
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.descriptors.PrimitiveKind
-import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
-import kotlinx.serialization.descriptors.SerialDescriptor
-import kotlinx.serialization.encoding.Decoder
-import kotlinx.serialization.encoding.Encoder
 
-@Serializable(with = LatestPeriodTypeSerializer::class)
+@Serializable
 enum class LatestPeriodType {
+    @SerialName("trial")
     TRIAL,
+
+    @SerialName("code")
     CODE,
+
+    @SerialName("subscription")
     SUBSCRIPTION,
+
+    @SerialName("promotional")
     PROMOTIONAL,
+
+    @SerialName("winback")
     WINBACK,
+
+    @SerialName("revoked")
     REVOKED,
-}
-
-object LatestPeriodTypeSerializer : KSerializer<LatestPeriodType> {
-    override val descriptor: SerialDescriptor =
-        PrimitiveSerialDescriptor("LatestPeriodType", PrimitiveKind.STRING)
-
-    override fun serialize(
-        encoder: Encoder,
-        value: LatestPeriodType,
-    ) {
-        encoder.encodeString(value.name.lowercase())
-    }
-
-    override fun deserialize(decoder: Decoder): LatestPeriodType {
-        val value = decoder.decodeString()
-        return LatestPeriodType.entries.find {
-            it.name.equals(value, ignoreCase = true)
-        } ?: throw kotlinx.serialization.SerializationException(
-            "LatestPeriodType does not contain element with name '$value'",
-        )
-    }
 }
