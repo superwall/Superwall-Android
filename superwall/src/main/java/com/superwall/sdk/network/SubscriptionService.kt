@@ -31,6 +31,7 @@ class SubscriptionService(
             namingStrategy = null
             explicitNulls = false
             ignoreUnknownKeys = true
+            // Ensure we fallback on default values
             coerceInputValues = true
         }
 
