@@ -20,7 +20,6 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -122,7 +121,7 @@ class IdentityManagerUserAttributesTest {
                     }
 
                 // Allow scope.launch from init's mergeUserAttributes to complete
-                Thread.sleep(200)
+                Thread.sleep(100)
 
                 Then("userAttributes contains aliasId") {
                     val attrs = manager.userAttributes
@@ -157,8 +156,8 @@ class IdentityManagerUserAttributesTest {
 
                 When("identify is called with a new userId") {
                     manager.identify("user-123")
-                    Thread.sleep(200)
-                    advanceUntilIdle()
+                    Thread.sleep(100)
+                    Thread.sleep(100)
                 }
 
                 Then("userAttributes contains appUserId") {
@@ -254,8 +253,8 @@ class IdentityManagerUserAttributesTest {
 
                 When("identify is called with the SAME userId") {
                     manager.identify("user-123")
-                    Thread.sleep(200)
-                    advanceUntilIdle()
+                    Thread.sleep(100)
+                    Thread.sleep(100)
                 }
 
                 Then("userAttributes still contains aliasId") {
@@ -288,7 +287,7 @@ class IdentityManagerUserAttributesTest {
                     }
 
                 // Allow any async merges to complete
-                Thread.sleep(200)
+                Thread.sleep(100)
 
                 Then("aliasId individual field is correct") {
                     assertEquals("stored-alias", manager.aliasId)
@@ -338,14 +337,14 @@ class IdentityManagerUserAttributesTest {
 
                 When("identify is called with the SAME userId (early return, no saveIds)") {
                     manager.identify("user-123")
-                    Thread.sleep(200)
-                    advanceUntilIdle()
+                    Thread.sleep(100)
+                    Thread.sleep(100)
                 }
 
                 And("setUserAttributes is called with custom data") {
                     manager.mergeUserAttributes(mapOf("name" to "John"))
-                    Thread.sleep(200)
-                    advanceUntilIdle()
+                    Thread.sleep(100)
+                    Thread.sleep(100)
                 }
 
                 Then("userAttributes should contain the custom attribute") {
@@ -388,8 +387,8 @@ class IdentityManagerUserAttributesTest {
 
                 When("setUserAttributes is called without any identify") {
                     manager.mergeUserAttributes(mapOf("name" to "John"))
-                    Thread.sleep(200)
-                    advanceUntilIdle()
+                    Thread.sleep(100)
+                    Thread.sleep(100)
                 }
 
                 Then("userAttributes contains custom attribute") {
@@ -435,7 +434,7 @@ class IdentityManagerUserAttributesTest {
                 }
 
                 // Allow async operations
-                Thread.sleep(200)
+                Thread.sleep(100)
 
                 Then("userAttributes contains the NEW aliasId") {
                     val attrs = manager.userAttributes
@@ -489,8 +488,8 @@ class IdentityManagerUserAttributesTest {
 
                 When("identify is called with a DIFFERENT userId (triggers reset)") {
                     manager.identify("user-B")
-                    Thread.sleep(300)
-                    advanceUntilIdle()
+                    Thread.sleep(100)
+                    Thread.sleep(100)
                 }
 
                 Then("appUserId is user-B") {
@@ -530,8 +529,8 @@ class IdentityManagerUserAttributesTest {
 
                 // First identify to get appUserId into attributes
                 manager.identify("user-123")
-                Thread.sleep(200)
-                advanceUntilIdle()
+                Thread.sleep(100)
+                Thread.sleep(100)
 
                 val attrsBefore = manager.userAttributes
                 assertNotNull(
@@ -544,8 +543,8 @@ class IdentityManagerUserAttributesTest {
                     manager.mergeUserAttributes(
                         mapOf("name" to "John", "email" to "john@example.com"),
                     )
-                    Thread.sleep(200)
-                    advanceUntilIdle()
+                    Thread.sleep(100)
+                    Thread.sleep(100)
                 }
 
                 Then("custom attributes are added") {
@@ -578,13 +577,13 @@ class IdentityManagerUserAttributesTest {
 
                 val manager = createManagerWithScope(testScope)
                 manager.identify("user-123")
-                Thread.sleep(200)
-                advanceUntilIdle()
+                Thread.sleep(100)
+                Thread.sleep(100)
 
                 When("setUserAttributes is called with aliasId = null") {
                     manager.mergeUserAttributes(mapOf("aliasId" to null))
-                    Thread.sleep(200)
-                    advanceUntilIdle()
+                    Thread.sleep(100)
+                    Thread.sleep(100)
                 }
 
                 Then("aliasId is removed from userAttributes") {
@@ -615,8 +614,8 @@ class IdentityManagerUserAttributesTest {
 
                 val manager = createManagerWithScope(testScope)
                 manager.identify("user-123")
-                Thread.sleep(200)
-                advanceUntilIdle()
+                Thread.sleep(100)
+                Thread.sleep(100)
 
                 Then("aliasId field matches userAttributes aliasId") {
                     assertEquals(
@@ -664,7 +663,7 @@ class IdentityManagerUserAttributesTest {
                     manager.reset(duringIdentify = false)
                 }
 
-                Thread.sleep(200)
+                Thread.sleep(100)
 
                 Then("aliasId field matches userAttributes aliasId") {
                     assertEquals(
@@ -707,7 +706,7 @@ class IdentityManagerUserAttributesTest {
                     }
 
                 // Allow init merge to complete
-                Thread.sleep(200)
+                Thread.sleep(100)
 
                 Then("userAttributes contains the newly generated aliasId") {
                     val attrs = manager.userAttributes
@@ -740,7 +739,7 @@ class IdentityManagerUserAttributesTest {
                     }
 
                 // Allow any async operations to complete
-                Thread.sleep(200)
+                Thread.sleep(100)
 
                 Then("the individual fields are correct") {
                     assertEquals("stored-alias", manager.aliasId)

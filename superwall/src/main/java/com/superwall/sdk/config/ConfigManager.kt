@@ -21,6 +21,7 @@ import com.superwall.sdk.misc.CurrentActivityTracker
 import com.superwall.sdk.misc.Either
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.awaitFirstValidConfig
+import com.superwall.sdk.misc.engine.SdkState
 import com.superwall.sdk.misc.fold
 import com.superwall.sdk.misc.into
 import com.superwall.sdk.misc.onError
@@ -272,6 +273,7 @@ open class ConfigManager(
                 }
             }.then {
                 configState.update { _ -> ConfigState.Retrieved(it) }
+                identityManager?.invoke()?.engine?.dispatch(SdkState.Updates.ConfigReady)
             }.then {
                 if (isConfigFromCache) {
                     ioScope.launch { refreshConfiguration() }
@@ -458,6 +460,7 @@ open class ConfigManager(
     }.then { config ->
         processConfig(config)
         configState.update { ConfigState.Retrieved(config) }
+        identityManager?.invoke()?.engine?.dispatch(SdkState.Updates.ConfigReady)
         track(
             InternalSuperwallEvent.ConfigRefresh(
                 isCached = false,
