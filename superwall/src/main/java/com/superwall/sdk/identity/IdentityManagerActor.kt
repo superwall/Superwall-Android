@@ -68,7 +68,7 @@ data class IdentityState(
                     val base =
                         if (state.appUserId != null) {
                             dispatch(SdkState.Updates.FullResetOnIdentify)
-                            effect { IdentityEffect.CompleteReset }
+                            effect { Actions.CompleteReset }
                             IdentityState(appInstalledAtString = state.appInstalledAtString)
                         } else {
                             state
@@ -94,12 +94,12 @@ data class IdentityState(
                     track(InternalSuperwallEvent.IdentityAlias())
 
                     defer(until = { it.configReady }) {
-                        effect { IdentityEffect.ResolveSeed(sanitized) }
-                        effect { IdentityEffect.FetchAssignments }
-                        effect { IdentityEffect.ReevaluateTestMode(sanitized, base.aliasId) }
+                        effect { Actions.ResolveSeed(sanitized) }
+                        effect { Actions.FetchAssignments }
+                        effect { Actions.ReevaluateTestMode(sanitized, base.aliasId) }
                     }
 
-                    effect { IdentityEffect.CheckWebEntitlements }
+                    effect { Actions.CheckWebEntitlements }
 
                     val waitForAssignments = options?.restorePaywallAssignments == true
 
@@ -173,7 +173,7 @@ data class IdentityState(
                     )
                 }
                 if (shouldNotify) {
-                    effect { IdentityEffect.NotifyUserChange(merged) }
+                    effect { Actions.NotifyUserChange(merged) }
                 }
                 state.copy(userAttributes = merged)
             })
@@ -196,7 +196,7 @@ data class IdentityState(
                     )
                 if (needsAssignments) {
                     defer(until = { it.configReady }) {
-                        effect { IdentityEffect.FetchAssignments }
+                        effect { Actions.FetchAssignments }
                     }
                     state.copy(pending = state.pending + Pending.Assignments)
                 } else {
@@ -231,12 +231,74 @@ data class IdentityState(
             fresh.copy(userAttributes = merged, isReady = true)
         })
     }
+
+    internal sealed class Actions(
+        val execute: suspend IdentityEffectDeps.(dispatch: (SdkEvent) -> Unit) -> Unit,
+    ) : Effect {
+        data class ResolveSeed(
+            val userId: String,
+        ) : Actions({ dispatch ->
+                val config = configProvider()
+                if (config?.featureFlags?.enableUserIdSeed == true) {
+                    userId.sha256MappedToRange()?.let {
+                        dispatch(SdkState.Updates.UpdateIdentity(IdentityState.Updates.SeedResolved(it)))
+                    } ?: dispatch(SdkState.Updates.UpdateIdentity(IdentityState.Updates.SeedSkipped))
+                } else {
+                    dispatch(SdkState.Updates.UpdateIdentity(IdentityState.Updates.SeedSkipped))
+                }
+            })
+
+        object FetchAssignments : Actions({ dispatch ->
+            try {
+                fetchAssignments?.invoke()
+            } finally {
+                dispatch(SdkState.Updates.UpdateIdentity(IdentityState.Updates.AssignmentsCompleted))
+            }
+        })
+
+        object CheckWebEntitlements : Actions({ dispatch ->
+            webPaywallRedeemer?.invoke()?.redeem(WebPaywallRedeemer.RedeemType.Existing)
+        })
+
+        data class ReevaluateTestMode(
+            val appUserId: String?,
+            val aliasId: String,
+        ) : Actions({ dispatch ->
+                configProvider()?.let {
+                    testModeManager?.evaluateTestMode(
+                        config = it,
+                        bundleId = deviceHelper.bundleId,
+                        appUserId = appUserId,
+                        aliasId = aliasId,
+                    )
+                }
+            })
+
+        data class NotifyUserChange(
+            val attributes: Map<String, Any>,
+        ) : Actions(
+                { dispatch ->
+
+                    notifyUserChange?.invoke(attributes)
+                        ?: delegate?.let {
+                            withContext(Dispatchers.Main) {
+                                it().userAttributesDidChange(attributes)
+                            }
+                        }
+                },
+            )
+
+        object CompleteReset : Actions({ dispatch ->
+            completeReset()
+        })
+    }
+
+    /**
+     * Builds initial IdentityState from storage BEFORE the engine starts.
+     * This is synchronous — same as the current IdentityManager constructor.
+     */
 }
 
-/**
- * Builds initial IdentityState from storage BEFORE the engine starts.
- * This is synchronous — same as the current IdentityManager constructor.
- */
 internal fun createInitialIdentityState(
     storage: Storage,
     appInstalledAtString: String,
@@ -287,65 +349,4 @@ internal fun createInitialIdentityState(
         isReady = false,
         appInstalledAtString = appInstalledAtString,
     )
-}
-
-internal sealed class IdentityEffect(
-    val execute: suspend IdentityEffectDeps.(dispatch: (SdkEvent) -> Unit) -> Unit,
-) : Effect {
-    data class ResolveSeed(
-        val userId: String,
-    ) : IdentityEffect({ dispatch ->
-            val config = configProvider()
-            if (config?.featureFlags?.enableUserIdSeed == true) {
-                userId.sha256MappedToRange()?.let {
-                    dispatch(SdkState.Updates.UpdateIdentity(IdentityState.Updates.SeedResolved(it)))
-                } ?: dispatch(SdkState.Updates.UpdateIdentity(IdentityState.Updates.SeedSkipped))
-            } else {
-                dispatch(SdkState.Updates.UpdateIdentity(IdentityState.Updates.SeedSkipped))
-            }
-        })
-
-    object FetchAssignments : IdentityEffect({ dispatch ->
-        try {
-            fetchAssignments?.invoke()
-        } finally {
-            dispatch(SdkState.Updates.UpdateIdentity(IdentityState.Updates.AssignmentsCompleted))
-        }
-    })
-
-    object CheckWebEntitlements : IdentityEffect({ dispatch ->
-        webPaywallRedeemer?.invoke()?.redeem(WebPaywallRedeemer.RedeemType.Existing)
-    })
-
-    data class ReevaluateTestMode(
-        val appUserId: String?,
-        val aliasId: String,
-    ) : IdentityEffect({ dispatch ->
-            configProvider()?.let {
-                testModeManager?.evaluateTestMode(
-                    config = it,
-                    bundleId = deviceHelper.bundleId,
-                    appUserId = appUserId,
-                    aliasId = aliasId,
-                )
-            }
-        })
-
-    data class NotifyUserChange(
-        val attributes: Map<String, Any>,
-    ) : IdentityEffect(
-            { dispatch ->
-
-                notifyUserChange?.invoke(attributes)
-                    ?: delegate?.let {
-                        withContext(Dispatchers.Main) {
-                            it().userAttributesDidChange(attributes)
-                        }
-                    }
-            },
-        )
-
-    object CompleteReset : IdentityEffect({ dispatch ->
-        completeReset()
-    })
 }

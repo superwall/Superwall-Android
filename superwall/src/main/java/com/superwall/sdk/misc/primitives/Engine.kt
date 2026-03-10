@@ -56,6 +56,11 @@ internal class Engine(
                             is Failure -> _state.value // keep current state on error
                         }
                     }
+                // 2. Run immediate effects (storage writes) before publishing state
+                for (effect in fx.immediate) {
+                    withErrorTracking { runEffect(effect, ::dispatch) }
+                }
+
                 _state.value = next
 
                 if (enableLogging && prev !== next) {
@@ -66,7 +71,7 @@ internal class Engine(
                     )
                 }
 
-                // 2. Process effects
+                // 3. Process async effects
                 if (enableLogging && fx.pending.isNotEmpty()) {
                     Logger.debug(
                         logLevel = LogLevel.debug,
@@ -88,7 +93,7 @@ internal class Engine(
                     }
                 }
 
-                // 3. Check deferred batches against new state
+                // 4. Check deferred batches against new state
                 if (deferred.isNotEmpty()) {
                     val ready = deferred.filter { it.until(next) }
                     if (ready.isNotEmpty()) {

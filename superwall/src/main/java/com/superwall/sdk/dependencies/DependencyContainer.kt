@@ -447,6 +447,9 @@ class DependencyContainer(
                 },
             )
 
+        // Wire engine to ConfigManager for state sync
+        configManager.engineRef = { identityManager.engine }
+
         reedemer =
             WebPaywallRedeemer(
                 context = context,

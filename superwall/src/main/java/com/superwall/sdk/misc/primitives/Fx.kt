@@ -12,15 +12,22 @@ import com.superwall.sdk.storage.Storable
 internal class Fx {
     internal val pending = mutableListOf<Effect>()
 
+    /**
+     * Effects that must complete before the new state is published.
+     * Typically storage writes/deletes — so that observers reading storage
+     * always see data consistent with the latest state.
+     */
+    internal val immediate = mutableListOf<Effect>()
+
     fun <T : Any> persist(
         storable: Storable<T>,
         value: T,
     ) {
-        pending += Effect.Persist(storable, value)
+        immediate += Effect.Persist(storable, value)
     }
 
     fun delete(storable: Storable<*>) {
-        pending += Effect.Delete(storable)
+        immediate += Effect.Delete(storable)
     }
 
     fun track(event: Trackable) {
