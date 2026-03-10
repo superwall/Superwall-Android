@@ -89,6 +89,10 @@ class SWWebView(
     }
     override var onScrollChangeListener: PaywallWebUI.OnScrollChangeListener? = null
 
+    private val localResourceHandler by lazy {
+        LocalResourceHandler(context) { Superwall.instance.localResources }
+    }
+
     override fun detach(fromView: ViewGroup) {
         fromView.removeView(this)
     }
@@ -230,6 +234,7 @@ class SWWebView(
                         }
                     }
                 },
+                localResourceHandler = localResourceHandler,
             )
         this.webViewClient = client
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
@@ -285,6 +290,7 @@ class SWWebView(
                         }
                     }
                 },
+                localResourceHandler = localResourceHandler,
             )
         this.webViewClient = client
 
