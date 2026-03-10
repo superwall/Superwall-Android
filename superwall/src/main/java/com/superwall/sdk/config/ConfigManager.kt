@@ -25,6 +25,7 @@ import com.superwall.sdk.misc.engine.SdkState
 import com.superwall.sdk.misc.fold
 import com.superwall.sdk.misc.into
 import com.superwall.sdk.misc.onError
+import com.superwall.sdk.misc.primitives.Engine
 import com.superwall.sdk.misc.then
 import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.models.enrichment.Enrichment
@@ -62,6 +63,17 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
+/**
+ * Facade over config state management.
+ *
+ * Maintains backward compatibility with existing consumers and tests while
+ * also dispatching state updates to the engine when available. This is the
+ * adapter layer: existing code reads from [configState], [triggersByEventName],
+ * etc. as before. Internally, state changes are also dispatched to the engine's
+ * [ConfigSlice] so that engine consumers can read from [SdkState.config].
+ *
+ * When [engineRef] is null (e.g. in tests), operates in standalone mode.
+ */
 open class ConfigManager(
     private val context: Context,
     private val storeManager: StoreManager,
@@ -95,6 +107,21 @@ open class ConfigManager(
         StoreTransactionFactory,
         HasExternalPurchaseControllerFactory
 
+    // -----------------------------------------------------------------------
+    // Engine integration — set by DependencyContainer after engine is created.
+    // When null, operates in standalone mode (backward compat for tests).
+    // -----------------------------------------------------------------------
+
+    internal var engineRef: (() -> Engine)? = null
+
+    private fun dispatchConfig(update: ConfigSlice.Updates) {
+        engineRef?.invoke()?.dispatch(SdkState.Updates.UpdateConfig(update))
+    }
+
+    // -----------------------------------------------------------------------
+    // State — local MutableStateFlow for backward compat with existing consumers
+    // -----------------------------------------------------------------------
+
     // The configuration of the Superwall dashboard
     internal val configState = MutableStateFlow<ConfigState>(ConfigState.None)
 
@@ -104,6 +131,7 @@ open class ConfigManager(
             configState.value
                 .also {
                     if (it is ConfigState.Failed) {
+                        dispatchConfig(ConfigSlice.Updates.RetryFetch)
                         ioScope.launch {
                             fetchConfiguration()
                         }
@@ -131,6 +159,7 @@ open class ConfigManager(
 
     suspend fun fetchConfiguration() {
         if (configState.value != ConfigState.Retrieving) {
+            dispatchConfig(ConfigSlice.Updates.FetchRequested)
             fetchConfig()
         }
     }
@@ -159,6 +188,7 @@ open class ConfigManager(
                                     .getConfig {
                                         // Emit retrying state
                                         configState.update { ConfigState.Retrying }
+                                        dispatchConfig(ConfigSlice.Updates.Retrying)
                                         configRetryCount.incrementAndGet()
                                         awaitUtilNetwork()
                                     }.into {
@@ -185,6 +215,7 @@ open class ConfigManager(
                         network
                             .getConfig {
                                 configState.update { ConfigState.Retrying }
+                                dispatchConfig(ConfigSlice.Updates.Retrying)
                                 configRetryCount.incrementAndGet()
                                 context.awaitUntilNetworkExists()
                             }
@@ -273,7 +304,17 @@ open class ConfigManager(
                 }
             }.then {
                 configState.update { _ -> ConfigState.Retrieved(it) }
-                identityManager?.invoke()?.engine?.dispatch(SdkState.Updates.ConfigReady)
+                // Dispatch to engine: config retrieved
+                dispatchConfig(
+                    ConfigSlice.Updates.ConfigRetrieved(
+                        config = it,
+                        isCached = isConfigFromCache,
+                        fetchDuration = configDuration,
+                        retryCount = configRetryCount.get(),
+                        isEnrichmentCached = isEnrichmentFromCache,
+                        enrichmentFailed = enrichmentResult.getThrowable() != null,
+                    ),
+                )
             }.then {
                 if (isConfigFromCache) {
                     ioScope.launch { refreshConfiguration() }
@@ -290,6 +331,12 @@ open class ConfigManager(
                     { e ->
                         e.printStackTrace()
                         configState.update { ConfigState.Failed(e) }
+                        dispatchConfig(
+                            ConfigSlice.Updates.ConfigFailed(
+                                error = e,
+                                wasConfigCached = isConfigFromCache,
+                            ),
+                        )
                         if (!isConfigFromCache) {
                             refreshConfiguration()
                         }
@@ -460,7 +507,15 @@ open class ConfigManager(
     }.then { config ->
         processConfig(config)
         configState.update { ConfigState.Retrieved(config) }
-        identityManager?.invoke()?.engine?.dispatch(SdkState.Updates.ConfigReady)
+        // Dispatch to engine: config refreshed
+        dispatchConfig(
+            ConfigSlice.Updates.ConfigRefreshed(
+                config = config,
+                oldConfig = this@ConfigManager.config,
+                fetchDuration = fetchDuration,
+                retryCount = retryCount,
+            ),
+        )
         track(
             InternalSuperwallEvent.ConfigRefresh(
                 isCached = false,
