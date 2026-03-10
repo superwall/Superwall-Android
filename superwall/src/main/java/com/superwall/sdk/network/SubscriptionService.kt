@@ -31,6 +31,7 @@ class SubscriptionService(
             namingStrategy = null
             explicitNulls = false
             ignoreUnknownKeys = true
+            coerceInputValues = true
         }
 
     suspend fun redeemToken(
