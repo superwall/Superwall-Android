@@ -2,6 +2,11 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+
+## 2.7.7
+
+- Fix issues with stripe period types failing to deserialize
+
 ## 2.7.6
 
 ## Fixes
