@@ -2,12 +2,16 @@ package com.superwall.sdk.identity
 
 import com.superwall.sdk.And
 import com.superwall.sdk.Given
+import com.superwall.sdk.SdkState
 import com.superwall.sdk.Then
 import com.superwall.sdk.When
 import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.config.models.ConfigState
 import com.superwall.sdk.config.options.SuperwallOptions
+import com.superwall.sdk.configState
+import com.superwall.sdk.identityState
 import com.superwall.sdk.misc.IOScope
+import com.superwall.sdk.misc.primitives.Actor
 import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.storage.AliasId
@@ -18,6 +22,8 @@ import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.UserAttributes
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
@@ -73,6 +79,12 @@ class IdentityManagerUserAttributesTest {
         existingSeed?.let { every { storage.read(Seed) } returns it }
         existingAttributes?.let { every { storage.read(UserAttributes) } returns it }
 
+        val sdkActor =
+            Actor(
+                SdkState(identity = createInitialIdentityState(storage, "2024-01-01")),
+                CoroutineScope(Dispatchers.Unconfined),
+            )
+
         return IdentityManager(
             deviceHelper = deviceHelper,
             storage = storage,
@@ -81,7 +93,9 @@ class IdentityManagerUserAttributesTest {
             neverCalledStaticConfig = { false },
             notifyUserChange = {},
             completeReset = { resetCalled = true },
-            track = { trackedEvents.add(it) },
+            trackEvent = { trackedEvents.add(it) },
+            actor = sdkActor.identityState(),
+            configActor = sdkActor.configState(),
         )
     }
 
@@ -97,6 +111,12 @@ class IdentityManagerUserAttributesTest {
         existingSeed?.let { every { storage.read(Seed) } returns it }
         existingAttributes?.let { every { storage.read(UserAttributes) } returns it }
 
+        val sdkActor =
+            Actor(
+                SdkState(identity = createInitialIdentityState(storage, "2024-01-01")),
+                CoroutineScope(Dispatchers.Unconfined),
+            )
+
         return IdentityManager(
             deviceHelper = deviceHelper,
             storage = storage,
@@ -105,7 +125,9 @@ class IdentityManagerUserAttributesTest {
             neverCalledStaticConfig = { false },
             notifyUserChange = {},
             completeReset = { resetCalled = true },
-            track = { trackedEvents.add(it) },
+            trackEvent = { trackedEvents.add(it) },
+            actor = sdkActor.identityState(),
+            configActor = sdkActor.configState(),
         )
     }
 

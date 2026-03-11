@@ -2,7 +2,6 @@ package com.superwall.sdk.config
 
 import android.content.Context
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
-import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.TestModeModal.*
 import com.superwall.sdk.config.models.ConfigState
 import com.superwall.sdk.config.models.getConfig
 import com.superwall.sdk.config.options.SuperwallOptions
@@ -13,22 +12,11 @@ import com.superwall.sdk.dependencies.RequestFactory
 import com.superwall.sdk.dependencies.RuleAttributesFactory
 import com.superwall.sdk.dependencies.StoreTransactionFactory
 import com.superwall.sdk.identity.IdentityManager
-import com.superwall.sdk.logger.LogLevel
-import com.superwall.sdk.logger.LogScope
-import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.ActivityProvider
 import com.superwall.sdk.misc.CurrentActivityTracker
-import com.superwall.sdk.misc.Either
 import com.superwall.sdk.misc.IOScope
-import com.superwall.sdk.misc.awaitFirstValidConfig
-import com.superwall.sdk.misc.engine.SdkState
-import com.superwall.sdk.misc.fold
-import com.superwall.sdk.misc.into
-import com.superwall.sdk.misc.onError
-import com.superwall.sdk.misc.primitives.Engine
-import com.superwall.sdk.misc.then
+import com.superwall.sdk.misc.primitives.StateActor
 import com.superwall.sdk.models.config.Config
-import com.superwall.sdk.models.enrichment.Enrichment
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.ExperimentID
@@ -38,67 +26,51 @@ import com.superwall.sdk.network.SuperwallAPI
 import com.superwall.sdk.network.awaitUntilNetworkExists
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.paywall.manager.PaywallManager
-import com.superwall.sdk.storage.DisableVerboseEvents
-import com.superwall.sdk.storage.LatestConfig
-import com.superwall.sdk.storage.LatestEnrichment
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.Entitlements
 import com.superwall.sdk.store.StoreManager
-import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.testmode.TestModeManager
-import com.superwall.sdk.store.testmode.TestStoreProduct
-import com.superwall.sdk.store.testmode.models.SuperwallProductPlatform
-import com.superwall.sdk.store.testmode.ui.TestModeModal
 import com.superwall.sdk.web.WebPaywallRedeemer
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.take
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeout
-import java.util.concurrent.atomic.AtomicInteger
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 
 /**
- * Facade over config state management.
+ * Facade over the config state of the shared SDK actor.
  *
- * Maintains backward compatibility with existing consumers and tests while
- * also dispatching state updates to the engine when available. This is the
- * adapter layer: existing code reads from [configState], [triggersByEventName],
- * etc. as before. Internally, state changes are also dispatched to the engine's
- * [ConfigSlice] so that engine consumers can read from [SdkState.config].
- *
- * When [engineRef] is null (e.g. in tests), operates in standalone mode.
+ * Implements [ConfigContext] directly — actions receive `this` as
+ * their context, eliminating the intermediate object.
  */
 open class ConfigManager(
-    private val context: Context,
-    private val storeManager: StoreManager,
-    private val entitlements: Entitlements,
-    private val storage: Storage,
-    private val network: SuperwallAPI,
-    private val fullNetwork: Network? = null,
-    private val deviceHelper: DeviceHelper,
-    var options: SuperwallOptions,
-    private val paywallManager: PaywallManager,
-    private val webPaywallRedeemer: () -> WebPaywallRedeemer,
-    private val factory: Factory,
-    private val assignments: Assignments,
-    private val paywallPreload: PaywallPreload,
-    private val ioScope: IOScope,
-    private val track: suspend (InternalSuperwallEvent) -> Unit,
-    private val testModeManager: TestModeManager? = null,
-    private val identityManager: (() -> IdentityManager)? = null,
-    private val activityProvider: ActivityProvider? = null,
-    private val activityTracker: CurrentActivityTracker? = null,
-    private val setSubscriptionStatus: ((SubscriptionStatus) -> Unit)? = null,
-    private val awaitUtilNetwork: suspend () -> Unit = {
+    override val context: Context,
+    override val storeManager: StoreManager,
+    override val entitlements: Entitlements,
+    override val storage: Storage,
+    override val network: SuperwallAPI,
+    override val fullNetwork: Network? = null,
+    override val deviceHelper: DeviceHelper,
+    override var options: SuperwallOptions,
+    override val paywallManager: PaywallManager,
+    override val webPaywallRedeemer: () -> WebPaywallRedeemer,
+    override val factory: Factory,
+    override val assignments: Assignments,
+    override val paywallPreload: PaywallPreload,
+    override val ioScope: IOScope,
+    override val track: suspend (InternalSuperwallEvent) -> Unit,
+    override val testModeManager: TestModeManager? = null,
+    override val identityManager: (() -> IdentityManager)? = null,
+    override val activityProvider: ActivityProvider? = null,
+    override val activityTracker: CurrentActivityTracker? = null,
+    override val setSubscriptionStatus: ((SubscriptionStatus) -> Unit)? = null,
+    override val awaitUntilNetwork: suspend () -> Unit = {
         context.awaitUntilNetworkExists()
     },
-) {
+    override val actor: StateActor<SdkConfigState>,
+    actorScope: CoroutineScope = ioScope,
+) : ConfigContext {
     interface Factory :
         RequestFactory,
         DeviceInfoFactory,
@@ -107,564 +79,116 @@ open class ConfigManager(
         StoreTransactionFactory,
         HasExternalPurchaseControllerFactory
 
-    // -----------------------------------------------------------------------
-    // Engine integration — set by DependencyContainer after engine is created.
-    // When null, operates in standalone mode (backward compat for tests).
-    // -----------------------------------------------------------------------
+    // -- ConfigContext: scope + options + configState --
 
-    internal var engineRef: (() -> Engine)? = null
+    override val scope: CoroutineScope = actorScope
 
-    private fun dispatchConfig(update: ConfigSlice.Updates) {
-        engineRef?.invoke()?.dispatch(SdkState.Updates.UpdateConfig(update))
+    // Need `override` on a mutable property — use backing field
+    override val configState: MutableStateFlow<ConfigState> = MutableStateFlow(ConfigState.None)
+
+    init {
+        // Keep configState in sync with actor state changes
+        ioScope.launch {
+            actor.state.collect { slice ->
+                val newState =
+                    when (slice.phase) {
+                        is SdkConfigState.Phase.None -> ConfigState.None
+                        is SdkConfigState.Phase.Retrieving -> ConfigState.Retrieving
+                        is SdkConfigState.Phase.Retrying -> ConfigState.Retrying
+                        is SdkConfigState.Phase.Retrieved -> ConfigState.Retrieved(slice.phase.config)
+                        is SdkConfigState.Phase.Failed -> ConfigState.Failed(slice.phase.error)
+                    }
+                configState.value = newState
+            }
+        }
     }
 
     // -----------------------------------------------------------------------
-    // State — local MutableStateFlow for backward compat with existing consumers
+    // State reads
     // -----------------------------------------------------------------------
 
-    // The configuration of the Superwall dashboard
-    internal val configState = MutableStateFlow<ConfigState>(ConfigState.None)
-
-    // Convenience variable to access config
+    /** Convenience variable to access config. */
     val config: Config?
         get() =
             configState.value
                 .also {
                     if (it is ConfigState.Failed) {
-                        dispatchConfig(ConfigSlice.Updates.RetryFetch)
-                        ioScope.launch {
-                            fetchConfiguration()
-                        }
+                        actor.dispatch(this, SdkConfigState.Actions.FetchConfig)
                     }
                 }.getConfig()
 
-    // A flow that emits just once only when `config` is non-`nil`.
+    /** A flow that emits just once only when `config` is non-null. */
     val hasConfig: Flow<Config> =
         configState
             .mapNotNull { it.getConfig() }
             .take(1)
 
-    // A dictionary of triggers by their event name.
-    private var _triggersByEventName = mutableMapOf<String, Trigger>()
+    /** A dictionary of triggers by their event name. */
     var triggersByEventName: Map<String, Trigger>
-        get() = _triggersByEventName
+        get() = actor.state.value.triggersByEventName
         set(value) {
-            _triggersByEventName = value.toMutableMap()
+            actor.update(SdkConfigState.Updates.ConfigRetrieved(actor.state.value.config ?: return))
         }
 
-    // A memory store of assignments that are yet to be confirmed.
-
+    /** A memory store of assignments that are yet to be confirmed. */
     val unconfirmedAssignments: Map<ExperimentID, Experiment.Variant>
         get() = assignments.unconfirmedAssignments
 
+    // -----------------------------------------------------------------------
+    // Actions — dispatch with self as context
+    // -----------------------------------------------------------------------
+
     suspend fun fetchConfiguration() {
         if (configState.value != ConfigState.Retrieving) {
-            dispatchConfig(ConfigSlice.Updates.FetchRequested)
-            fetchConfig()
-        }
-    }
-
-    private suspend fun fetchConfig() {
-        configState.update { ConfigState.Retrieving }
-        val oldConfig = storage.read(LatestConfig)
-        val status = entitlements.status.value
-        val CACHE_LIMIT = if (status is SubscriptionStatus.Active) 500.milliseconds else 1.seconds
-        var isConfigFromCache = false
-        var isEnrichmentFromCache = false
-
-        // If config is cached, get config from the network but timeout after 300ms
-        // and default to the cached version. Then, refresh in the background.
-        val configRetryCount: AtomicInteger = AtomicInteger(0)
-        var configDuration = 0L
-        val configDeferred =
-            ioScope.async {
-                val start = System.currentTimeMillis()
-                (
-                    if (oldConfig?.featureFlags?.enableConfigRefresh == true) {
-                        try {
-                            // If config refresh is enabled, try loading with a timeout
-                            withTimeout(CACHE_LIMIT) {
-                                network
-                                    .getConfig {
-                                        // Emit retrying state
-                                        configState.update { ConfigState.Retrying }
-                                        dispatchConfig(ConfigSlice.Updates.Retrying)
-                                        configRetryCount.incrementAndGet()
-                                        awaitUtilNetwork()
-                                    }.into {
-                                        if (it is Either.Failure) {
-                                            isConfigFromCache = true
-                                            Either.Success(oldConfig)
-                                        } else {
-                                            it
-                                        }
-                                    }
-                            }
-                        } catch (e: Throwable) {
-                            e.printStackTrace()
-                            // If fetching config fails, default to the cached version
-                            // Note: Only a timeout exception is possible here
-                            oldConfig?.let {
-                                isConfigFromCache = true
-                                Either.Success(it)
-                            } ?: Either.Failure(e)
-                        }
-                    } else {
-                        // If config refresh is disabled or there is no cache
-                        // just fetch with a normal retry
-                        network
-                            .getConfig {
-                                configState.update { ConfigState.Retrying }
-                                dispatchConfig(ConfigSlice.Updates.Retrying)
-                                configRetryCount.incrementAndGet()
-                                context.awaitUntilNetworkExists()
-                            }
-                    }
-                ).also {
-                    configDuration = System.currentTimeMillis() - start
-                }
+            actor.dispatchAndAwait(this, SdkConfigState.Actions.FetchConfig) {
+                it.phase is SdkConfigState.Phase.Retrieved || it.phase is SdkConfigState.Phase.Failed
             }
-
-        val enrichmentDeferred =
-            ioScope.async {
-                val cached = storage.read(LatestEnrichment)
-                if (oldConfig?.featureFlags?.enableConfigRefresh == true) {
-                    // If we have a cached config and refresh was enabled, try loading with
-                    // a timeout or load from cache
-                    val res =
-                        deviceHelper
-                            .getEnrichment(0, CACHE_LIMIT)
-                            .then {
-                                storage.write(LatestEnrichment, it)
-                            }
-                    if (res.getSuccess() == null) {
-                        // Loading timed out, we default to cached version
-                        cached?.let {
-                            deviceHelper.setEnrichment(cached)
-                            isEnrichmentFromCache = true
-                            Either.Success(it)
-                        } ?: res
-                    } else {
-                        res
-                    }
-                } else {
-                    // If there's no cached enrichment and config refresh is disabled,
-                    // try to fetch with 1 sec timeout or fail.
-                    deviceHelper.getEnrichment(0, 1.seconds)
-                }
-            }
-
-        val attributesDeferred = ioScope.async { factory.makeSessionDeviceAttributes() }
-
-        // Await results from both operations
-        val (result, enriched) =
-            listOf(
-                configDeferred,
-                enrichmentDeferred,
-            ).awaitAll()
-        val attributes = attributesDeferred.await()
-        ioScope.launch {
-            @Suppress("UNCHECKED_CAST")
-            track(InternalSuperwallEvent.DeviceAttributes(attributes as HashMap<String, Any>))
         }
-        val configResult = result as Either<Config, Throwable>
-        val enrichmentResult = enriched as Either<Enrichment, Throwable>
-        configResult
-            .then {
-                ioScope.launch {
-                    track(
-                        InternalSuperwallEvent.ConfigRefresh(
-                            isCached = isConfigFromCache,
-                            buildId = it.buildId,
-                            fetchDuration = configDuration,
-                            retryCount = configRetryCount.get(),
-                        ),
-                    )
-                }
-            }.then(::processConfig)
-            .then {
-                if (testModeManager?.isTestMode != true) {
-                    ioScope.launch {
-                        checkForWebEntitlements()
-                    }
-                }
-            }.then {
-                if (testModeManager?.isTestMode != true && options.paywalls.shouldPreload) {
-                    val productIds = it.paywalls.flatMap { it.productIds }.toSet()
-                    try {
-                        storeManager.products(productIds)
-                    } catch (e: Throwable) {
-                        Logger.debug(
-                            logLevel = LogLevel.error,
-                            scope = LogScope.productsManager,
-                            message = "Failed to preload products",
-                            error = e,
-                        )
-                    }
-                }
-            }.then {
-                configState.update { _ -> ConfigState.Retrieved(it) }
-                // Dispatch to engine: config retrieved
-                dispatchConfig(
-                    ConfigSlice.Updates.ConfigRetrieved(
-                        config = it,
-                        isCached = isConfigFromCache,
-                        fetchDuration = configDuration,
-                        retryCount = configRetryCount.get(),
-                        isEnrichmentCached = isEnrichmentFromCache,
-                        enrichmentFailed = enrichmentResult.getThrowable() != null,
-                    ),
-                )
-            }.then {
-                if (isConfigFromCache) {
-                    ioScope.launch { refreshConfiguration() }
-                }
-                if (isEnrichmentFromCache || enrichmentResult.getThrowable() != null) {
-                    ioScope.launch { deviceHelper.getEnrichment(6, 1.seconds) }
-                }
-            }.fold(
-                onSuccess =
-                    {
-                        ioScope.launch { preloadPaywalls() }
-                    },
-                onFailure =
-                    { e ->
-                        e.printStackTrace()
-                        configState.update { ConfigState.Failed(e) }
-                        dispatchConfig(
-                            ConfigSlice.Updates.ConfigFailed(
-                                error = e,
-                                wasConfigCached = isConfigFromCache,
-                            ),
-                        )
-                        if (!isConfigFromCache) {
-                            refreshConfiguration()
-                        }
-                        track(InternalSuperwallEvent.ConfigFail(e.message ?: "Unknown error"))
-                        Logger.debug(
-                            logLevel = LogLevel.error,
-                            scope = LogScope.superwallCore,
-                            message = "Failed to Fetch Configuration",
-                            error = e,
-                        )
-                    },
-            )
     }
 
     fun reset() {
-        val config = configState.value.getConfig() ?: return
-        assignments.reset()
-        assignments.choosePaywallVariants(config.triggers)
-
-        ioScope.launch { preloadPaywalls() }
+        actor.dispatch(this, SdkConfigState.Actions.ResetAssignments)
     }
 
     /**
      * Re-evaluates test mode with the current identity and config.
-     * If test mode was active but the current user no longer qualifies, clears test mode
-     * and resets subscription status. If a new user qualifies, activates test mode and
-     * shows the modal.
      */
     fun reevaluateTestMode(
-        config: Config? = configState.value.getConfig(),
+        config: Config? = this.config,
         appUserId: String? = null,
         aliasId: String? = null,
     ) {
-        config ?: return
-        val wasTestMode = testModeManager?.isTestMode == true
-        testModeManager?.evaluateTestMode(
-            config = config,
-            bundleId = deviceHelper.bundleId,
-            appUserId = appUserId ?: identityManager?.invoke()?.appUserId,
-            aliasId = aliasId ?: identityManager?.invoke()?.aliasId,
-            testModeBehavior = options.testModeBehavior,
+        actor.dispatch(
+            this,
+            SdkConfigState.Actions.ReevaluateTestMode(
+                config = config,
+                appUserId = appUserId,
+                aliasId = aliasId,
+            ),
         )
-        val isNowTestMode = testModeManager?.isTestMode == true
-        if (wasTestMode && !isNowTestMode) {
-            testModeManager?.clearTestModeState()
-            setSubscriptionStatus?.invoke(SubscriptionStatus.Inactive)
-        } else if (!wasTestMode && isNowTestMode) {
-            ioScope.launch {
-                fetchTestModeProducts()
-                presentTestModeModal(config)
-            }
-        }
     }
 
     suspend fun getAssignments() {
-        val config = configState.awaitFirstValidConfig() ?: return
-
-        config.triggers.takeUnless { it.isEmpty() }?.let { triggers ->
-            try {
-                assignments
-                    .getAssignments(triggers)
-                    .then {
-                        ioScope.launch { preloadPaywalls() }
-                    }.onError {
-                        Logger.debug(
-                            logLevel = LogLevel.error,
-                            scope = LogScope.configManager,
-                            message = "Error retrieving assignments.",
-                            error = it,
-                        )
-                    }
-            } catch (e: Throwable) {
-                e.printStackTrace()
-                Logger.debug(
-                    logLevel = LogLevel.error,
-                    scope = LogScope.configManager,
-                    message = "Error retrieving assignments.",
-                    error = e,
-                )
-            }
-        }
+        actor.dispatchAwait(this, SdkConfigState.Actions.FetchAssignments)
     }
 
-    private fun processConfig(config: Config) {
-        storage.write(DisableVerboseEvents, config.featureFlags.disableVerboseEvents)
-        if (config.featureFlags.enableConfigRefresh) {
-            storage.write(LatestConfig, config)
-        }
-        triggersByEventName = ConfigLogic.getTriggersByEventName(config.triggers)
-        assignments.choosePaywallVariants(config.triggers)
-        // Extract entitlements from both products (ProductItem) and productsV3 (CrossplatformProduct)
-        ConfigLogic.extractEntitlementsByProductId(config.products).let {
-            entitlements.addEntitlementsByProductId(it)
-        }
-        config.productsV3?.let { productsV3 ->
-            ConfigLogic.extractEntitlementsByProductIdFromCrossplatform(productsV3).let {
-                entitlements.addEntitlementsByProductId(it)
-            }
-        }
+    // -----------------------------------------------------------------------
+    // Preloading Paywalls
+    // -----------------------------------------------------------------------
 
-        // Test mode evaluation
-        val wasTestMode = testModeManager?.isTestMode == true
-        testModeManager?.evaluateTestMode(
-            config = config,
-            bundleId = deviceHelper.bundleId,
-            appUserId = identityManager?.invoke()?.appUserId,
-            aliasId = identityManager?.invoke()?.aliasId,
-            testModeBehavior = options.testModeBehavior,
-        )
-        val testModeJustActivated = !wasTestMode && testModeManager?.isTestMode == true
-
-        if (testModeManager?.isTestMode == true) {
-            // Set a default subscription status immediately so the paywall pipeline
-            // doesn't timeout waiting for it while the test mode modal is shown.
-            if (testModeJustActivated) {
-                val defaultStatus = testModeManager.buildSubscriptionStatus()
-                testModeManager.setOverriddenSubscriptionStatus(defaultStatus)
-                entitlements.setSubscriptionStatus(defaultStatus)
-            }
-            ioScope.launch {
-                fetchTestModeProducts()
-                if (testModeJustActivated) {
-                    presentTestModeModal(config)
-                }
-            }
-        } else {
-            if (wasTestMode) {
-                testModeManager?.clearTestModeState()
-                setSubscriptionStatus?.invoke(SubscriptionStatus.Inactive)
-            }
-            ioScope.launch {
-                storeManager.loadPurchasedProducts(entitlements.entitlementsByProductId)
-            }
-        }
+    fun preloadAllPaywalls() {
+        actor.dispatch(this, SdkConfigState.Actions.PreloadPaywalls)
     }
 
-// Preloading Paywalls
-
-    // Preloads paywalls.
-    private suspend fun preloadPaywalls() {
-        if (!options.paywalls.shouldPreload) return
-        preloadAllPaywalls()
+    fun preloadPaywallsByNames(eventNames: Set<String>) {
+        actor.dispatch(this, SdkConfigState.Actions.PreloadPaywallsByNames(eventNames))
     }
 
-    // Preloads paywalls referenced by triggers.
-    suspend fun preloadAllPaywalls() =
-        paywallPreload.preloadAllPaywalls(
-            configState.awaitFirstValidConfig(),
-            context,
-        )
-
-    // Preloads paywalls referenced by the provided triggers.
-    suspend fun preloadPaywallsByNames(eventNames: Set<String>) =
-        paywallPreload.preloadPaywallsByNames(
-            configState.awaitFirstValidConfig(),
-            eventNames,
-        )
-
-    private suspend fun Either<Config, *>.handleConfigUpdate(
-        fetchDuration: Long,
-        retryCount: Int,
-    ) = then {
-        paywallManager.resetPaywallRequestCache()
-        val oldConfig = config
-        if (oldConfig != null) {
-            paywallPreload.removeUnusedPaywallVCsFromCache(oldConfig, it)
-        }
-    }.then { config ->
-        processConfig(config)
-        configState.update { ConfigState.Retrieved(config) }
-        // Dispatch to engine: config refreshed
-        dispatchConfig(
-            ConfigSlice.Updates.ConfigRefreshed(
-                config = config,
-                oldConfig = this@ConfigManager.config,
-                fetchDuration = fetchDuration,
-                retryCount = retryCount,
-            ),
-        )
-        track(
-            InternalSuperwallEvent.ConfigRefresh(
-                isCached = false,
-                buildId = config.buildId,
-                fetchDuration = fetchDuration,
-                retryCount = retryCount,
-            ),
-        )
-    }.fold(
-        onSuccess = { newConfig ->
-            ioScope.launch { preloadPaywalls() }
-        },
-        onFailure = {
-            Logger.debug(
-                logLevel = LogLevel.warn,
-                scope = LogScope.superwallCore,
-                message = "Failed to refresh configuration.",
-                info = null,
-                error = it,
-            )
-        },
-    )
-
-    internal suspend fun refreshConfiguration(force: Boolean = false) {
-        // Make sure config already exists
-        val oldConfig = config ?: return
-
-        // Ensure the config refresh feature flag is enabled
-        if (!force && !oldConfig.featureFlags.enableConfigRefresh) {
-            return
-        }
-
-        ioScope.launch {
-            deviceHelper.getEnrichment(0, 1.seconds)
-        }
-
-        val retryCount: AtomicInteger = AtomicInteger(0)
-        val startTime = System.currentTimeMillis()
-        network
-            .getConfig {
-                retryCount.incrementAndGet()
-                context.awaitUntilNetworkExists()
-            }.handleConfigUpdate(
-                retryCount = retryCount.get(),
-                fetchDuration = System.currentTimeMillis() - startTime,
-            )
+    internal fun refreshConfiguration(force: Boolean = false) {
+        actor.dispatch(this, SdkConfigState.Actions.RefreshConfig(force))
     }
 
-    suspend fun checkForWebEntitlements() {
-        ioScope.launch {
-            webPaywallRedeemer().redeem(WebPaywallRedeemer.RedeemType.Existing)
-        }
-    }
-
-    private suspend fun fetchTestModeProducts() {
-        val net = fullNetwork ?: return
-        val manager = testModeManager ?: return
-
-        net.getSuperwallProducts().fold(
-            onSuccess = { response ->
-                val androidProducts =
-                    response.data.filter { it.platform == SuperwallProductPlatform.ANDROID && it.price != null }
-                manager.setProducts(androidProducts)
-
-                val productsByFullId =
-                    androidProducts.associate { superwallProduct ->
-                        val testProduct = TestStoreProduct(superwallProduct)
-                        superwallProduct.identifier to StoreProduct(testProduct)
-                    }
-                manager.setTestProducts(productsByFullId)
-
-                Logger.debug(
-                    LogLevel.info,
-                    LogScope.superwallCore,
-                    "Test mode: loaded ${androidProducts.size} products",
-                )
-            },
-            onFailure = { error ->
-                Logger.debug(
-                    LogLevel.error,
-                    LogScope.superwallCore,
-                    "Test mode: failed to fetch products - ${error.message}",
-                )
-            },
-        )
-    }
-
-    private suspend fun presentTestModeModal(config: Config) {
-        val manager = testModeManager ?: return
-        // Prefer the lifecycle-tracked activity (sees the actual foreground activity,
-        // e.g. SuperwallPaywallActivity) over the user-provided ActivityProvider
-        // (which in Expo/RN may always return the root MainActivity).
-        val activity =
-            activityTracker?.getCurrentActivity()
-                ?: activityProvider?.getCurrentActivity()
-                ?: activityTracker?.awaitActivity(10.seconds)
-        if (activity == null) {
-            Logger.debug(
-                LogLevel.warn,
-                LogScope.superwallCore,
-                "Test mode modal could not be presented: no activity available. Setting default subscription status.",
-            )
-            with(manager) {
-                val status = buildSubscriptionStatus()
-                setOverriddenSubscriptionStatus(status)
-                entitlements.setSubscriptionStatus(status)
-            }
-            return
-        }
-
-        track(InternalSuperwallEvent.TestModeModal(State.Open))
-
-        val reason = manager.testModeReason?.description ?: "Test mode activated"
-        val allEntitlements =
-            config.productsV3
-                ?.flatMap { it.entitlements.map { e -> e.id } }
-                ?.distinct()
-                ?.sorted()
-                ?: emptyList()
-
-        val dashboardBaseUrl =
-            when (options.networkEnvironment) {
-                is SuperwallOptions.NetworkEnvironment.Developer -> "https://superwall.dev"
-                else -> "https://superwall.com"
-            }
-
-        val apiKey = deviceHelper.storage.apiKey
-        val savedSettings = manager.loadSettings()
-
-        val result =
-            TestModeModal.show(
-                activity = activity,
-                reason = reason,
-                hasPurchaseController = factory.makeHasExternalPurchaseController(),
-                availableEntitlements = allEntitlements,
-                apiKey = apiKey,
-                dashboardBaseUrl = dashboardBaseUrl,
-                savedSettings = savedSettings,
-            )
-
-        with(manager) {
-            setFreeTrialOverride(result.freeTrialOverride)
-            setEntitlements(result.entitlements)
-            saveSettings()
-            val status = buildSubscriptionStatus()
-            setOverriddenSubscriptionStatus(status)
-            entitlements.setSubscriptionStatus(status)
-        }
-
-        track(InternalSuperwallEvent.TestModeModal(State.Close))
+    fun checkForWebEntitlements() {
+        actor.dispatch(this, SdkConfigState.Actions.CheckWebEntitlements)
     }
 }

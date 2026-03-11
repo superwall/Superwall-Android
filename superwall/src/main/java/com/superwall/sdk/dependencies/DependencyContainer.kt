@@ -8,6 +8,7 @@ import android.webkit.WebSettings
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.ViewModelProvider
 import com.android.billingclient.api.Purchase
+import com.superwall.sdk.SdkState
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.AttributionManager
 import com.superwall.sdk.analytics.ClassifierDataFactory
@@ -28,6 +29,7 @@ import com.superwall.sdk.config.ConfigLogic
 import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.config.PaywallPreload
 import com.superwall.sdk.config.options.SuperwallOptions
+import com.superwall.sdk.configState
 import com.superwall.sdk.customer.CustomerInfoManager
 import com.superwall.sdk.debug.DebugManager
 import com.superwall.sdk.debug.DebugView
@@ -36,6 +38,8 @@ import com.superwall.sdk.delegate.SuperwallDelegateAdapter
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.identity.IdentityInfo
 import com.superwall.sdk.identity.IdentityManager
+import com.superwall.sdk.identity.createInitialIdentityState
+import com.superwall.sdk.identityState
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
@@ -44,6 +48,9 @@ import com.superwall.sdk.misc.AppLifecycleObserver
 import com.superwall.sdk.misc.CurrentActivityTracker
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.MainScope
+import com.superwall.sdk.misc.primitives.Actor
+import com.superwall.sdk.misc.primitives.DebugInterceptor
+import com.superwall.sdk.misc.primitives.asStateActor
 import com.superwall.sdk.models.config.ComputedPropertyRequest
 import com.superwall.sdk.models.config.FeatureFlags
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
@@ -110,6 +117,7 @@ import com.superwall.sdk.store.AutomaticPurchaseController
 import com.superwall.sdk.store.Entitlements
 import com.superwall.sdk.store.InternalPurchaseController
 import com.superwall.sdk.store.StoreManager
+import com.superwall.sdk.store.StoreProductCache
 import com.superwall.sdk.store.abstractions.product.receipt.ReceiptManager
 import com.superwall.sdk.store.abstractions.transactions.GoogleBillingPurchaseTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
@@ -121,6 +129,8 @@ import com.superwall.sdk.utilities.ErrorTracker
 import com.superwall.sdk.utilities.dateFormat
 import com.superwall.sdk.web.DeepLinkReferrer
 import com.superwall.sdk.web.WebPaywallRedeemer
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -281,6 +291,16 @@ class DependencyContainer(
                 javaPurchaseController = null,
                 context,
             )
+        val storeActor =
+            Actor(
+                StoreProductCache(),
+                CoroutineScope(
+                    java.util.concurrent.Executors
+                        .newSingleThreadExecutor()
+                        .asCoroutineDispatcher(),
+                ),
+            )
+        DebugInterceptor.install(storeActor, name = "Store")
         storeManager =
             StoreManager(
                 purchaseController = purchaseController,
@@ -294,6 +314,8 @@ class DependencyContainer(
                     )
                 },
                 testModeManager = testModeManager,
+                actor = storeActor.asStateActor(),
+                scope = ioScope,
             )
 
         delegateAdapter = SuperwallDelegateAdapter()
@@ -400,6 +422,19 @@ class DependencyContainer(
                 },
             )
 
+        // Shared actor for the entire SDK — identity + config in one state.
+        val initialIdentity = createInitialIdentityState(storage, deviceHelper.appInstalledAtString)
+        val sdkActor =
+            Actor(
+                SdkState(identity = initialIdentity),
+                CoroutineScope(
+                    java.util.concurrent.Executors
+                        .newSingleThreadExecutor()
+                        .asCoroutineDispatcher(),
+                ),
+            )
+        DebugInterceptor.install(sdkActor, name = "Sdk")
+
         configManager =
             ConfigManager(
                 context = context,
@@ -426,6 +461,7 @@ class DependencyContainer(
                 setSubscriptionStatus = { status ->
                     entitlements.setSubscriptionStatus(status)
                 },
+                actor = sdkActor.configState(),
             )
         identityManager =
             IdentityManager(
@@ -445,10 +481,9 @@ class DependencyContainer(
                 notifyUserChange = {
                     delegate().userAttributesDidChange(it)
                 },
+                actor = sdkActor.identityState().apply { },
+                configActor = sdkActor.configState(),
             )
-
-        // Wire engine to ConfigManager for state sync
-        configManager.engineRef = { identityManager.engine }
 
         reedemer =
             WebPaywallRedeemer(
