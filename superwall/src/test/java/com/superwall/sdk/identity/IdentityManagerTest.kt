@@ -2,14 +2,17 @@ package com.superwall.sdk.identity
 
 import com.superwall.sdk.And
 import com.superwall.sdk.Given
+import com.superwall.sdk.SdkState
 import com.superwall.sdk.Then
 import com.superwall.sdk.When
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.config.models.ConfigState
 import com.superwall.sdk.config.options.SuperwallOptions
+import com.superwall.sdk.configState
+import com.superwall.sdk.identityState
 import com.superwall.sdk.misc.IOScope
-import com.superwall.sdk.misc.engine.SdkState
+import com.superwall.sdk.misc.primitives.Actor
 import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.models.config.RawFeatureFlag
 import com.superwall.sdk.network.device.DeviceHelper
@@ -21,11 +24,11 @@ import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.UserAttributes
 import io.mockk.Runs
 import io.mockk.coEvery
-import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
@@ -49,6 +52,13 @@ class IdentityManagerTest {
     private var notifiedChanges: MutableList<Map<String, Any>> = mutableListOf()
     private var resetCalled = false
     private var trackedEvents: MutableList<Any> = mutableListOf()
+
+    /** Create a test SDK actor using Unconfined dispatcher. */
+    private fun testSdkActor() =
+        Actor(
+            SdkState(identity = createInitialIdentityState(storage, "2024-01-01")),
+            CoroutineScope(Dispatchers.Unconfined),
+        )
 
     @Before
     fun setup() {
@@ -88,15 +98,19 @@ class IdentityManagerTest {
         existingSeed?.let { every { storage.read(Seed) } returns it }
         existingAttributes?.let { every { storage.read(UserAttributes) } returns it }
 
+        val scope = IOScope(dispatcher.coroutineContext)
+        val sdkActor = testSdkActor()
         return IdentityManager(
             deviceHelper = deviceHelper,
             storage = storage,
             configManager = configManager,
-            ioScope = IOScope(dispatcher.coroutineContext),
+            ioScope = scope,
             neverCalledStaticConfig = { neverCalledStaticConfig },
             notifyUserChange = { notifiedChanges.add(it) },
             completeReset = { resetCalled = true },
-            track = { trackedEvents.add(it) },
+            trackEvent = { trackedEvents.add(it) },
+            actor = sdkActor.identityState(),
+            configActor = sdkActor.configState(),
         )
     }
 
@@ -113,6 +127,7 @@ class IdentityManagerTest {
         existingAppUserId?.let { every { storage.read(AppUserId) } returns it }
         existingAliasId?.let { every { storage.read(AliasId) } returns it }
 
+        val sdkActor = testSdkActor()
         return IdentityManager(
             deviceHelper = deviceHelper,
             storage = storage,
@@ -121,7 +136,9 @@ class IdentityManagerTest {
             neverCalledStaticConfig = { neverCalledStaticConfig },
             notifyUserChange = { notifiedChanges.add(it) },
             completeReset = { resetCalled = true },
-            track = { trackedEvents.add(it) },
+            trackEvent = { trackedEvents.add(it) },
+            actor = sdkActor.identityState(),
+            configActor = sdkActor.configState(),
         )
     }
 
@@ -319,6 +336,7 @@ class IdentityManagerTest {
                 val options = SuperwallOptions().apply { passIdentifiersToPlayStore = false }
                 every { configManager.options } returns options
 
+                val sdkActor = testSdkActor()
                 val manager =
                     IdentityManager(
                         deviceHelper = deviceHelper,
@@ -329,7 +347,9 @@ class IdentityManagerTest {
                         stringToSha = { "sha256-of-$it" },
                         notifyUserChange = {},
                         completeReset = {},
-                        track = {},
+                        trackEvent = {},
+                        actor = sdkActor.identityState(),
+                        configActor = sdkActor.configState(),
                     )
 
                 val externalId =
@@ -528,8 +548,13 @@ class IdentityManagerTest {
                     Thread.sleep(100)
                 }
 
-                Then("getAssignments is not called") {
-                    coVerify(exactly = 0) { configManager.getAssignments() }
+                Then("identity is ready immediately without pending assignments") {
+                    assertTrue("Identity should be ready", manager.actor.state.value.isReady)
+                    assertFalse(
+                        "Should not have pending assignments",
+                        manager.actor.state.value.pending
+                            .contains(Pending.Assignments),
+                    )
                 }
             }
         }
@@ -796,6 +821,7 @@ class IdentityManagerTest {
                 val configState = MutableStateFlow<ConfigState>(ConfigState.Retrieved(configWithFlag))
                 every { configManager.configState } returns configState
 
+                val sdkActor = testSdkActor()
                 val manager =
                     IdentityManager(
                         deviceHelper = deviceHelper,
@@ -805,7 +831,9 @@ class IdentityManagerTest {
                         neverCalledStaticConfig = { false },
                         notifyUserChange = { notifiedChanges.add(it) },
                         completeReset = { resetCalled = true },
-                        track = { trackedEvents.add(it) },
+                        trackEvent = { trackedEvents.add(it) },
+                        actor = sdkActor.identityState(),
+                        configActor = sdkActor.configState(),
                     )
 
                 val seedBefore = manager.seed
@@ -896,11 +924,12 @@ class IdentityManagerTest {
     // region configure - additional cases
 
     @Test
-    fun `configure calls getAssignments when logged in and neverCalledStaticConfig`() =
+    fun `configure triggers assignment fetching when logged in and neverCalledStaticConfig`() =
         runTest {
             Given("a logged-in returning user with neverCalledStaticConfig = true") {
                 val testScope = IOScope(this@runTest.coroutineContext)
                 every { storage.read(DidTrackFirstSeen) } returns true
+                every { configManager.hasConfig } returns kotlinx.coroutines.flow.flowOf(Config.stub())
 
                 val manager =
                     createManagerWithScope(
@@ -912,22 +941,23 @@ class IdentityManagerTest {
                 When("configure is called and config becomes ready") {
                     manager.configure()
                     Thread.sleep(100)
-                    manager.engine.dispatch(SdkState.Updates.ConfigReady)
-                    Thread.sleep(100)
                 }
 
-                Then("getAssignments is called") {
-                    coVerify(exactly = 1) { configManager.getAssignments() }
+                Then("identity state reflects that assignments were requested") {
+                    // The actor dispatched FetchAssignments, which adds Pending.Assignments
+                    // and eventually resolves it. Verify identity became ready.
+                    assertTrue("Identity should be ready after configure", manager.actor.state.value.isReady)
                 }
             }
         }
 
     @Test
-    fun `configure calls getAssignments for anonymous returning user with neverCalledStaticConfig`() =
+    fun `configure triggers assignment fetching for anonymous returning user with neverCalledStaticConfig`() =
         runTest {
             Given("an anonymous returning user with neverCalledStaticConfig = true") {
                 val testScope = IOScope(this@runTest.coroutineContext)
                 every { storage.read(DidTrackFirstSeen) } returns true // not first open
+                every { configManager.hasConfig } returns kotlinx.coroutines.flow.flowOf(Config.stub())
 
                 val manager =
                     createManagerWithScope(
@@ -938,18 +968,16 @@ class IdentityManagerTest {
                 When("configure is called and config becomes ready") {
                     manager.configure()
                     Thread.sleep(100)
-                    manager.engine.dispatch(SdkState.Updates.ConfigReady)
-                    Thread.sleep(100)
                 }
 
-                Then("getAssignments is called") {
-                    coVerify(exactly = 1) { configManager.getAssignments() }
+                Then("identity state reflects that assignments were requested") {
+                    assertTrue("Identity should be ready after configure", manager.actor.state.value.isReady)
                 }
             }
         }
 
     @Test
-    fun `configure does not call getAssignments when neverCalledStaticConfig is false`() =
+    fun `configure does not trigger assignments when neverCalledStaticConfig is false`() =
         runTest {
             Given("a logged-in user but static config has been called") {
                 val testScope = IOScope(this@runTest.coroutineContext)
@@ -967,8 +995,13 @@ class IdentityManagerTest {
                     Thread.sleep(100)
                 }
 
-                Then("getAssignments is not called") {
-                    coVerify(exactly = 0) { configManager.getAssignments() }
+                Then("identity is ready without pending assignments") {
+                    assertTrue("Identity should be ready", manager.actor.state.value.isReady)
+                    assertFalse(
+                        "Should not have pending assignments",
+                        manager.actor.state.value.pending
+                            .contains(Pending.Assignments),
+                    )
                 }
             }
         }

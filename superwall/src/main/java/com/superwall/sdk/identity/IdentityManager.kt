@@ -2,94 +2,62 @@ package com.superwall.sdk.identity
 
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
+import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.config.ConfigManager
+import com.superwall.sdk.config.SdkConfigState
 import com.superwall.sdk.delegate.SuperwallDelegateAdapter
 import com.superwall.sdk.misc.IOScope
-import com.superwall.sdk.misc.engine.SdkState
-import com.superwall.sdk.misc.engine.createEffectRunner
-import com.superwall.sdk.misc.primitives.Engine
+import com.superwall.sdk.misc.primitives.StateActor
+import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.storage.DidTrackFirstSeen
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.testmode.TestModeManager
 import com.superwall.sdk.web.WebPaywallRedeemer
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
-import java.util.concurrent.Executors
 
 /**
- * Facade over the Engine-based identity system.
+ * Facade over the identity state of the shared SDK actor.
  *
- * External API is identical to the old IdentityManager — all callers
- * (Superwall.kt, DependencyContainer, PublicIdentity) remain unchanged.
- *
- * Internally, every method dispatches an [IdentityState.Updates] event to the
- * engine, and every property reads from `engine.state.value.identity`.
+ * Implements [IdentityContext] directly — actions receive `this` as
+ * their context, eliminating the intermediate object.
  */
 class IdentityManager(
-    private val deviceHelper: DeviceHelper,
-    private val storage: Storage,
-    private val configManager: ConfigManager,
+    override val deviceHelper: DeviceHelper,
+    override val storage: Storage,
+    override val configManager: ConfigManager,
     private val ioScope: IOScope,
     private val neverCalledStaticConfig: () -> Boolean,
     private val stringToSha: (String) -> String = { it },
-    private val notifyUserChange: (change: Map<String, Any>) -> Unit,
-    private val completeReset: () -> Unit = {
+    override val notifyUserChange: (change: Map<String, Any>) -> Unit,
+    override val completeReset: () -> Unit = {
         Superwall.instance.reset(duringIdentify = true)
     },
-    private val track: suspend (TrackableSuperwallEvent) -> Unit = {
+    private val trackEvent: suspend (TrackableSuperwallEvent) -> Unit = {
         Superwall.instance.track(it)
     },
-    private val webPaywallRedeemer: (() -> WebPaywallRedeemer)? = null,
-    private val testModeManager: TestModeManager? = null,
+    override val webPaywallRedeemer: (() -> WebPaywallRedeemer)? = null,
+    override val testModeManager: TestModeManager? = null,
     private val delegate: (() -> SuperwallDelegateAdapter)? = null,
-) {
-    // Single-threaded dispatcher for the engine loop
-    private val engineDispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
-    private val engineScope = CoroutineScope(engineDispatcher)
+    override val actor: StateActor<IdentityState>,
+    private val configActor: StateActor<SdkConfigState>,
+) : IdentityContext {
+    // -- IdentityContext implementation --
 
-    // Root reducer: routes SdkEvent subtypes to slice reducers
-
-    // The engine — single event loop, one source of truth
-    internal val engine: Engine
-
-    init {
-        val initial =
-            SdkState(
-                identity = createInitialIdentityState(storage, deviceHelper.appInstalledAtString),
-            )
-
-        val runEffect =
-            createEffectRunner(
-                storage = storage,
-                track = { track(it as TrackableSuperwallEvent) },
-                configProvider = { configManager.config },
-                webPaywallRedeemer = webPaywallRedeemer,
-                testModeManager = testModeManager,
-                deviceHelper = deviceHelper,
-                delegate = delegate,
-                completeReset = completeReset,
-                fetchAssignments = { configManager.getAssignments() },
-                notifyUserChange = notifyUserChange,
-            )
-
-        engine =
-            Engine(
-                initial = initial,
-                runEffect = runEffect,
-                scope = engineScope,
-            )
-    }
+    override val scope: CoroutineScope get() = ioScope
+    override val configProvider: () -> Config? get() = { configManager.config }
+    override val configState: StateActor<SdkConfigState> get() = configActor
+    override val track: suspend (Trackable) -> Unit = { trackEvent(it as TrackableSuperwallEvent) }
 
     // -----------------------------------------------------------------------
     // State reads — no runBlocking, no locks, just read the StateFlow
     // -----------------------------------------------------------------------
 
-    private val identity get() = engine.state.value.identity
+    private val identity get() = actor.state.value
 
     val appUserId: String? get() = identity.appUserId
 
@@ -112,19 +80,16 @@ class IdentityManager(
             }
 
     val hasIdentity: Flow<Boolean>
-        get() = engine.state.map { it.identity.isReady }.filter { it }
+        get() = actor.state.map { it.isReady }.filter { it }
 
     // -----------------------------------------------------------------------
-    // Actions — dispatch events instead of mutating state directly
+    // Actions — dispatch with self as context
     // -----------------------------------------------------------------------
-
-    private fun dispatchIdentity(update: IdentityState.Updates) {
-        engine.dispatch(SdkState.Updates.UpdateIdentity(update))
-    }
 
     fun configure() {
-        dispatchIdentity(
-            IdentityState.Updates.Configure(
+        actor.dispatch(
+            this,
+            IdentityState.Actions.Configure(
                 neverCalledStaticConfig = neverCalledStaticConfig(),
                 isFirstAppOpen = !(storage.read(DidTrackFirstSeen) ?: false),
             ),
@@ -135,16 +100,12 @@ class IdentityManager(
         userId: String,
         options: IdentityOptions? = null,
     ) {
-        dispatchIdentity(IdentityState.Updates.Identify(userId, options))
+        actor.dispatch(this, IdentityState.Actions.Identify(userId, options))
     }
 
     fun reset(duringIdentify: Boolean) {
-        if (duringIdentify) {
-            // No-op: when called from Superwall.reset(duringIdentify=true) during
-            // an identify flow, the Identify reducer already handles identity reset
-            // inline. The completeReset callback only resets OTHER managers.
-        } else {
-            dispatchIdentity(IdentityState.Updates.Reset)
+        if (!duringIdentify) {
+            actor.dispatch(this, IdentityState.Actions.Reset)
         }
     }
 
@@ -152,10 +113,12 @@ class IdentityManager(
         newUserAttributes: Map<String, Any?>,
         shouldTrackMerge: Boolean = true,
     ) {
-        dispatchIdentity(
-            IdentityState.Updates.AttributesMerged(
+        actor.dispatch(
+            this,
+            IdentityState.Actions.MergeAttributes(
                 attrs = newUserAttributes,
                 shouldTrackMerge = shouldTrackMerge,
+                shouldNotify = false,
             ),
         )
     }
@@ -164,8 +127,9 @@ class IdentityManager(
         newUserAttributes: Map<String, Any?>,
         shouldTrackMerge: Boolean = true,
     ) {
-        dispatchIdentity(
-            IdentityState.Updates.AttributesMerged(
+        actor.dispatch(
+            this,
+            IdentityState.Actions.MergeAttributes(
                 attrs = newUserAttributes,
                 shouldTrackMerge = shouldTrackMerge,
                 shouldNotify = true,
