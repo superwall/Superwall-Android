@@ -2,6 +2,11 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.7.8
+
+## Fixes
+- Fix serialization issue with R8 and dates
+- Fix scope cancellation for test mode
 
 ## 2.7.7
 
