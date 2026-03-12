@@ -99,9 +99,8 @@ fun Any?.convertToJsonElement(): JsonElement =
 
         else -> {
             // Fallback: handle Date by Java class check in case R8 optimizes away the
-            // instanceof check above, and convert any other unknown types to their string
-            // representation instead of crashing.
-            if (this != null && Date::class.java.isInstance(this)) {
+            // instanceof check above. Any other unknown types are converted to null.
+            if (Date::class.java.isInstance(this)) {
                 JsonPrimitive((this as Date).time)
             } else {
                 JsonNull
