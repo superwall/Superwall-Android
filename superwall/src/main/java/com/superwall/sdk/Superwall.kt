@@ -1337,6 +1337,30 @@ class Superwall(
                         }
                 }
 
+                is PaywallWebEvent.InitiateReplacement -> {
+                    if (purchaseTask != null) {
+                        return@launchWithTracking
+                    }
+                    paywallView.updateState(
+                        PaywallViewState.Updates.SetLoadingState(PaywallLoadingState.LoadingPurchase),
+                    )
+                    purchaseTask =
+                        launch {
+                            try {
+                                dependencyContainer.transactionManager.purchase(
+                                    Internal(
+                                        paywallEvent.productId,
+                                        paywallView.controller.state,
+                                        paywallEvent.replacementMode,
+                                    ),
+                                    shouldDismiss = paywallEvent.shouldDismiss,
+                                )
+                            } finally {
+                                purchaseTask = null
+                            }
+                        }
+                }
+
                 is InitiateRestore -> {
                     dependencyContainer.transactionManager.tryToRestorePurchases(paywallView)
                 }
