@@ -50,7 +50,7 @@ private val BILLING_INSANTIATION_ERROR =
 class AutomaticPurchaseController(
     var context: Context,
     val scope: IOScope,
-    val entitlementsInfo: Entitlements,
+    val entitlementsInfo: () -> Entitlements,
     val getBilling: (Context, PurchasesUpdatedListener) -> BillingClient = { ctx, listener ->
         try {
             BillingClient
@@ -349,7 +349,7 @@ class AutomaticPurchaseController(
                         it.products
                     }.toSet()
                     .flatMap {
-                        val res = entitlementsInfo.byProductId(it)
+                        val res = entitlementsInfo().byProductId(it)
                         res
                     }.toSet()
                     .let { entitlements ->
@@ -359,7 +359,7 @@ class AutomaticPurchaseController(
                             message = "Found entitlements: ${entitlements.joinToString { it.id }}",
                         )
 
-                        entitlementsInfo.activeDeviceEntitlements = entitlements
+                        entitlementsInfo().activeDeviceEntitlements = entitlements
                         if (entitlements.isNotEmpty()) {
                             SubscriptionStatus.Active(
                                 entitlements.map { it.copy(isActive = true) }.toSet(),
