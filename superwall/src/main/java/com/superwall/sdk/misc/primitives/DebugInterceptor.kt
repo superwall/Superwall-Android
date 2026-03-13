@@ -5,7 +5,7 @@ import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 
 /**
- * Installs debug interceptors on an [Actor] that log every action dispatch
+ * Installs debug interceptors on an [StateActor] that log every action dispatch
  * and state update, building a traceable timeline of what happened and why.
  *
  * Usage:
@@ -25,15 +25,15 @@ import com.superwall.sdk.logger.Logger
  */
 object DebugInterceptor {
     /**
-     * Install debug logging on an [Actor].
+     * Install debug logging on an [StateActor].
      *
      * @param actor The actor to instrument.
      * @param name A human-readable label for log output (e.g. "Identity", "Config").
      * @param scope The [LogScope] to log under. Defaults to [LogScope.superwallCore].
      * @param level The [LogLevel] to log at. Defaults to [LogLevel.debug].
      */
-    fun <S> install(
-        actor: Actor<S>,
+    fun <Ctx, S> install(
+        actor: StateActor<Ctx, S>,
         name: String,
         scope: LogScope = LogScope.superwallCore,
         level: LogLevel = LogLevel.debug,
@@ -58,6 +58,18 @@ object DebugInterceptor {
                 message = "Interceptor: [$name] action → $actionName",
             )
             next()
+        }
+
+        actor.onActionExecution { action, next ->
+            val actionName = action.labelOf()
+            val start = System.nanoTime()
+            next()
+            val elapsedMs = (System.nanoTime() - start) / 1_000_000
+            Logger.debug(
+                logLevel = level,
+                scope = scope,
+                message = "Interceptor: [$name] action ✓ $actionName | ${elapsedMs}ms",
+            )
         }
     }
 

@@ -15,8 +15,8 @@ import kotlinx.coroutines.launch
  * concurrent updates from multiple actions are safe.
  *
  * Dispatch modes:
- * - [action]: fire-and-forget — launches in the actor's scope.
- * - [actionAndAwait]: dispatch + suspend until state matches a condition.
+ * - [effect]: fire-and-forget — launches in the actor's scope.
+ * - [immediateUntil]: dispatch + suspend until state matches a condition.
  *
  * ## Interceptors
  *
@@ -30,12 +30,13 @@ import kotlinx.coroutines.launch
  * }
  * ```
  */
-class Actor<S>(
+class StateActor<Context, S>(
     initial: S,
     internal val scope: CoroutineScope,
-) {
+) : StateStore<S>,
+    Actor<Context, S> {
     private val _state = MutableStateFlow(initial)
-    val state: StateFlow<S> = _state.asStateFlow()
+    override val state: StateFlow<S> = _state.asStateFlow()
 
     // -- Interceptor chains --------------------------------------------------
 
@@ -44,6 +45,13 @@ class Actor<S>(
     }
 
     private var actionInterceptors: List<(action: Any, next: () -> Unit) -> Unit> = emptyList()
+
+    /**
+     * Async interceptors that wrap the suspend execution of each action.
+     * Unlike [onAction] (which wraps the dispatch/launch), these run
+     * _inside_ the coroutine and can measure wall-clock execution time.
+     */
+    private var asyncActionInterceptors: List<suspend (action: Any, next: suspend () -> Unit) -> Unit> = emptyList()
 
     /**
      * Add an update interceptor. Call `next(reducer)` to proceed,
@@ -57,23 +65,43 @@ class Actor<S>(
     /**
      * Add an action interceptor. Call `next()` to proceed,
      * or skip to suppress the action. Action is [Any] — cast to inspect.
+     *
+     * Note: `next()` launches a coroutine and returns immediately.
+     * To measure action execution time, use [onActionExecution] instead.
      */
     fun onAction(interceptor: (action: Any, next: () -> Unit) -> Unit) {
         actionInterceptors = actionInterceptors + interceptor
     }
 
+    /**
+     * Add an async interceptor that wraps the action's suspend execution.
+     * Runs inside the coroutine — `next()` suspends until the action completes.
+     *
+     * ```kotlin
+     * actor.onActionExecution { action, next ->
+     *     val start = System.nanoTime()
+     *     next()  // suspends until the action finishes
+     *     val ms = (System.nanoTime() - start) / 1_000_000
+     *     println("${action::class.simpleName} took ${ms}ms")
+     * }
+     * ```
+     */
+    fun onActionExecution(interceptor: suspend (action: Any, next: suspend () -> Unit) -> Unit) {
+        asyncActionInterceptors = asyncActionInterceptors + interceptor
+    }
+
     /** Atomic state mutation using CAS retry, routed through update interceptors. */
-    fun update(reducer: Reducer<S>) {
+    override fun update(reducer: Reducer<S>) {
         updateChain(reducer)
     }
 
     /** Fire-and-forget: launch action in actor's scope, routed through interceptors. */
-    fun <Ctx> action(
+    override fun <Ctx> effect(
         ctx: Ctx,
         action: TypedAction<Ctx>,
     ) {
         val execute = {
-            scope.launch { action.execute.invoke(ctx) }
+            scope.launch { runAsyncInterceptorChain(action) { action.execute.invoke(ctx) } }
             Unit
         }
         runInterceptorChain(action, execute)
@@ -84,12 +112,12 @@ class Actor<S>(
      *
      * Actor-native awaiting: fire the action, observe the state transition.
      */
-    suspend fun <Ctx> actionAndAwait(
+    override suspend fun <Ctx> immediateUntil(
         ctx: Ctx,
         action: TypedAction<Ctx>,
         until: (S) -> Boolean,
     ): S {
-        action(ctx, action)
+        effect(ctx, action)
         return state.first { until(it) }
     }
 
@@ -98,7 +126,7 @@ class Actor<S>(
      * Goes through action interceptors. Use for cross-slice coordination
      * where the caller needs to await the action finishing.
      */
-    suspend fun <Ctx> dispatchAwait(
+    override suspend fun <Ctx> immediate(
         ctx: Ctx,
         action: TypedAction<Ctx>,
     ) {
@@ -114,20 +142,26 @@ class Actor<S>(
             chain()
         }
         if (shouldExecute) {
-            action.execute.invoke(ctx)
+            runAsyncInterceptorChain(action) { action.execute.invoke(ctx) }
         }
     }
 
-    /**
-     * Create a scoped projection of this actor onto a sub-state.
-     *
-     * The returned [ScopedState] reads/writes only the sub-state,
-     * automatically lifting reducers and mapping state.
-     */
-    fun <Sub> scoped(
-        get: (S) -> Sub,
-        set: (S, Sub) -> S,
-    ): ScopedState<S, Sub> = ScopedState(this, get, set)
+    private suspend fun runAsyncInterceptorChain(
+        action: Any,
+        terminal: suspend () -> Unit,
+    ) {
+        if (asyncActionInterceptors.isEmpty()) {
+            terminal()
+        } else {
+            var chain: suspend () -> Unit = terminal
+            for (i in asyncActionInterceptors.indices.reversed()) {
+                val interceptor = asyncActionInterceptors[i]
+                val next = chain
+                chain = { interceptor(action, next) }
+            }
+            chain()
+        }
+    }
 
     private fun runInterceptorChain(
         action: Any,
@@ -150,132 +184,33 @@ class Actor<S>(
 /**
  * Common interface for reading, updating, and dispatching on state.
  *
- * Both [Actor] (root) and [ScopedState] (projection) implement this.
- * Contexts depend on [StateActor] — they never see the concrete type.
+ * Both [StateActor] (root) and [ScopedState] (projection) implement this.
+ * Contexts depend on [StateStore] — they never see the concrete type.
  */
-interface StateActor<S> {
+interface StateStore<S> {
     val state: StateFlow<S>
 
     /** Atomic state mutation. */
     fun update(reducer: Reducer<S>)
+}
 
+interface Actor<Ctx, S> {
     /** Fire-and-forget action dispatch. */
-    fun <Ctx> dispatch(
+    fun <Ctx> effect(
         ctx: Ctx,
         action: TypedAction<Ctx>,
     )
 
     /** Dispatch action inline, suspending until it completes. */
-    suspend fun <Ctx> dispatchAwait(
+    suspend fun <Ctx> immediate(
         ctx: Ctx,
         action: TypedAction<Ctx>,
     )
 
     /** Dispatch action, suspending until state matches [until]. */
-    suspend fun <Ctx> dispatchAndAwait(
+    suspend fun <Ctx> immediateUntil(
         ctx: Ctx,
         action: TypedAction<Ctx>,
         until: (S) -> Boolean,
     ): S
-}
-
-/**
- * Wraps an [Actor] as a [StateActor] — useful for standalone actors
- * that aren't part of a composite root (e.g. product cache).
- */
-fun <S> Actor<S>.asStateActor(): StateActor<S> =
-    object : StateActor<S> {
-        override val state = this@asStateActor.state
-
-        override fun update(reducer: Reducer<S>) = this@asStateActor.update(reducer)
-
-        override fun <Ctx> dispatch(
-            ctx: Ctx,
-            action: TypedAction<Ctx>,
-        ) = this@asStateActor.action(ctx, action)
-
-        override suspend fun <Ctx> dispatchAwait(
-            ctx: Ctx,
-            action: TypedAction<Ctx>,
-        ) = this@asStateActor.dispatchAwait(ctx, action)
-
-        override suspend fun <Ctx> dispatchAndAwait(
-            ctx: Ctx,
-            action: TypedAction<Ctx>,
-            until: (S) -> Boolean,
-        ) = this@asStateActor.actionAndAwait(ctx, action, until)
-    }
-
-/**
- * A scoped projection of an [Actor] onto a sub-state.
- *
- * Domain actions see only their state — they call [update] with
- * `Reducer<Sub>` and read [state] as `StateFlow<Sub>`. The lifting
- * to the root state is automatic and invisible to the action.
- *
- * ```kotlin
- * val identity = sdkActor.scoped(
- *     get = { it.identity },
- *     set = { root, sub -> root.copy(identity = sub) },
- * )
- *
- * // Inside identity actions:
- * actor.update(IdentityState.Updates.Identify("user"))  // just works
- * actor.state.value.aliasId  // reads IdentityState, not SdkState
- * ```
- */
-class ScopedState<Root, Sub>(
-    private val root: Actor<Root>,
-    private val get: (Root) -> Sub,
-    private val set: (Root, Sub) -> Root,
-) : StateActor<Sub> {
-    /** Projected state — only the sub-state. */
-    override val state: StateFlow<Sub> by lazy {
-        val initial = get(root.state.value)
-        val derived = MutableStateFlow(initial)
-        root.scope.launch {
-            root.state.collect { derived.value = get(it) }
-        }
-        derived.asStateFlow()
-    }
-
-    /** Update only the sub-state. Automatically lifts to root. */
-    override fun update(reducer: Reducer<Sub>) {
-        root.update(
-            object : Reducer<Root> {
-                override val reduce: (Root) -> Root = { rootState ->
-                    set(rootState, reducer.reduce(get(rootState)))
-                }
-            },
-        )
-    }
-
-    /** Fire-and-forget action dispatch in the root actor's scope. */
-    override fun <Ctx> dispatch(
-        ctx: Ctx,
-        action: TypedAction<Ctx>,
-    ) {
-        root.action(ctx, action)
-    }
-
-    /**
-     * Dispatch action inline and suspend until it completes.
-     * Goes through the root actor's interceptors.
-     */
-    override suspend fun <Ctx> dispatchAwait(
-        ctx: Ctx,
-        action: TypedAction<Ctx>,
-    ) {
-        root.dispatchAwait(ctx, action)
-    }
-
-    /** Dispatch action and suspend until the sub-state matches [until]. */
-    override suspend fun <Ctx> dispatchAndAwait(
-        ctx: Ctx,
-        action: TypedAction<Ctx>,
-        until: (Sub) -> Boolean,
-    ): Sub {
-        root.action(ctx, action)
-        return state.first { until(it) }
-    }
 }

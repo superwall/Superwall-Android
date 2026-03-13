@@ -4,11 +4,11 @@ import com.superwall.sdk.storage.Storable
 import com.superwall.sdk.storage.Storage
 
 /**
- * SDK-level actor context — extends [ActorContext] with storage helpers.
+ * SDK-level actor context — extends [StoreContext] with storage helpers.
  *
  * All Superwall domain contexts (IdentityContext, ConfigContext) extend this.
  */
-interface SdkContext<S, Self : SdkContext<S, Self>> : ActorContext<S, Self> {
+interface BaseContext<S, Self : BaseContext<S, Self>> : StoreContext<S, Self> {
     val storage: Storage
 
     /** Persist a value to storage. */
@@ -18,6 +18,11 @@ interface SdkContext<S, Self : SdkContext<S, Self>> : ActorContext<S, Self> {
     ) {
         storage.write(storable, value)
     }
+
+    fun <T : Any> read(storable: Storable<T>): Result<T> =
+        storage.read(storable)?.let {
+            Result.success(it)
+        } ?: Result.failure(IllegalArgumentException("Not found"))
 
     /** Delete a value from storage. */
     fun delete(storable: Storable<*>) {

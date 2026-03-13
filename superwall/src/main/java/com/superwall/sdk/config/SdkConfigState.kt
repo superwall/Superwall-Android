@@ -2,6 +2,7 @@ package com.superwall.sdk.config
 
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.TestModeModal.*
+import com.superwall.sdk.identity.IdentityState
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
@@ -18,6 +19,7 @@ import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.models.triggers.Trigger
+import com.superwall.sdk.storage.DisableVerboseEvents
 import com.superwall.sdk.storage.LatestConfig
 import com.superwall.sdk.storage.LatestEnrichment
 import com.superwall.sdk.store.abstractions.product.StoreProduct
@@ -47,6 +49,10 @@ data class SdkConfigState(
 
         data class Retrieved(
             val config: Config,
+            val isCachedConfig: Boolean = false,
+            val isCachedEnrichment: Boolean = false,
+            val fetchDuration: Long = 0,
+            val retryCount: Int = 0,
         ) : Phase()
 
         data class Failed(
@@ -85,10 +91,21 @@ data class SdkConfigState(
          */
         data class ConfigRetrieved(
             val config: Config,
+            val isCachedConfig: Boolean = false,
+            val isCachedEnrichment: Boolean = false,
+            val fetchDuration: Long = 0,
+            val retryCount: Int = 0,
         ) : Updates({ state ->
                 val triggersByEventName = ConfigLogic.getTriggersByEventName(config.triggers)
                 state.copy(
-                    phase = Phase.Retrieved(config),
+                    phase =
+                        Phase.Retrieved(
+                            config = config,
+                            isCachedConfig = isCachedConfig,
+                            isCachedEnrichment = isCachedEnrichment,
+                            fetchDuration = fetchDuration,
+                            retryCount = retryCount,
+                        ),
                     triggersByEventName = triggersByEventName,
                 )
             })
@@ -168,11 +185,12 @@ data class SdkConfigState(
     ) : TypedAction<ConfigContext> {
         /**
          * Main fetch logic: network config + enrichment + device attributes in parallel,
-         * then process config, entitlements, test mode, preloading.
+         * then process config and update state. Side effects (web entitlements,
+         * product preloading, cache recovery) are handled by [HandlePostFetch].
          */
         object FetchConfig : Actions(
             action@{
-                actor.update(Updates.FetchRequested)
+                update(Updates.FetchRequested)
 
                 val oldConfig = storage.read(LatestConfig)
                 val status = entitlements.status.value
@@ -193,7 +211,7 @@ data class SdkConfigState(
                                     withTimeout(cacheLimit) {
                                         network
                                             .getConfig {
-                                                actor.update(Updates.Retrying)
+                                                update(Updates.Retrying)
                                                 configRetryCount.incrementAndGet()
                                                 awaitUntilNetwork()
                                             }.into {
@@ -215,7 +233,7 @@ data class SdkConfigState(
                             } else {
                                 network
                                     .getConfig {
-                                        actor.update(Updates.Retrying)
+                                        update(Updates.Retrying)
                                         configRetryCount.incrementAndGet()
                                         awaitUntilNetwork()
                                     }
@@ -249,7 +267,7 @@ data class SdkConfigState(
                         }
                     }
 
-                val attributesDeferred = ioScope.async { factory.makeSessionDeviceAttributes() }
+                val attributesDeferred = ioScope.async { makeSessionDeviceAttributes() }
 
                 val (result, enriched) =
                     listOf(
@@ -264,56 +282,39 @@ data class SdkConfigState(
 
                 @Suppress("UNCHECKED_CAST")
                 val configResult = result as Either<Config, Throwable>
+
+                @Suppress("UNCHECKED_CAST")
                 val enrichmentResult = enriched as? Either<*, Throwable>
 
                 configResult
-                    .then {
-                        ioScope.launch {
-                            track(
-                                InternalSuperwallEvent.ConfigRefresh(
-                                    isCached = isConfigFromCache,
-                                    buildId = it.buildId,
-                                    fetchDuration = configDuration,
-                                    retryCount = configRetryCount.get(),
+                    .then { config ->
+                        ProcessConfig(config).execute.invoke(this@action)
+                    }.then {
+                        actor.update(
+                            Updates.ConfigRetrieved(
+                                config = it,
+                                isCachedConfig = isConfigFromCache,
+                                isCachedEnrichment =
+                                    isEnrichmentFromCache ||
+                                        enrichmentResult?.getThrowable() != null,
+                                fetchDuration = configDuration,
+                                retryCount = configRetryCount.get(),
+                            ),
+                        )
+                    }.fold(
+                        onSuccess = { config ->
+                            // Push config to identity so it can configure without awaiting
+                            sdkContext.effect(
+                                IdentityState.Actions.Configure(
+                                    config = config,
+                                    neverCalledStaticConfig = neverCalledStaticConfig(),
                                 ),
                             )
-                        }
-                    }.then { config ->
-                        processConfig(config)
-                    }.then {
-                        if (testModeManager?.isTestMode != true) {
-                            effect(CheckWebEntitlements)
-                        }
-                    }.then {
-                        if (testModeManager?.isTestMode != true && options.paywalls.shouldPreload) {
-                            val productIds = it.paywalls.flatMap { pw -> pw.productIds }.toSet()
-                            try {
-                                storeManager.products(productIds)
-                            } catch (e: Throwable) {
-                                Logger.debug(
-                                    logLevel = LogLevel.error,
-                                    scope = LogScope.productsManager,
-                                    message = "Failed to preload products",
-                                    error = e,
-                                )
-                            }
-                        }
-                    }.then {
-                        actor.update(Updates.ConfigRetrieved(it))
-                    }.then {
-                        if (isConfigFromCache) {
-                            effect(RefreshConfig())
-                        }
-                        if (isEnrichmentFromCache || enrichmentResult?.getThrowable() != null) {
-                            ioScope.launch { deviceHelper.getEnrichment(6, 1.seconds) }
-                        }
-                    }.fold(
-                        onSuccess = {
-                            effect(PreloadPaywalls)
+                            effect(HandlePostFetch)
                         },
                         onFailure = { e ->
                             e.printStackTrace()
-                            actor.update(Updates.ConfigFailed(e))
+                            update(Updates.ConfigFailed(e))
                             if (!isConfigFromCache) {
                                 RefreshConfig().execute.invoke(this@action)
                             }
@@ -326,6 +327,67 @@ data class SdkConfigState(
                             )
                         },
                     )
+            },
+        )
+
+        /**
+         * Post-fetch side effects after config is successfully retrieved.
+         * Reads fetch metadata from [Phase.Retrieved] state to decide:
+         * - Track [InternalSuperwallEvent.ConfigRefresh]
+         * - Check web entitlements
+         * - Preload store products
+         * - Trigger cache recovery ([RefreshConfig], enrichment retry)
+         * - Preload paywalls
+         */
+        object HandlePostFetch : Actions(
+            action@{
+                val phase = actor.state.value.phase as? Phase.Retrieved ?: return@action
+                val config = phase.config
+
+                // Track config refresh event
+                ioScope.launch {
+                    track(
+                        InternalSuperwallEvent.ConfigRefresh(
+                            isCached = phase.isCachedConfig,
+                            buildId = config.buildId,
+                            fetchDuration = phase.fetchDuration,
+                            retryCount = phase.retryCount,
+                        ),
+                    )
+                }
+
+                // Check web entitlements
+                if (testModeManager?.isTestMode != true) {
+                    effect(CheckWebEntitlements)
+                }
+
+                // Preload store products
+                if (testModeManager?.isTestMode != true && options.paywalls.shouldPreload) {
+                    val productIds = config.paywalls.flatMap { pw -> pw.productIds }.toSet()
+                    try {
+                        storeManager.products(productIds)
+                    } catch (e: Throwable) {
+                        Logger.debug(
+                            logLevel = LogLevel.error,
+                            scope = LogScope.productsManager,
+                            message = "Failed to preload products",
+                            error = e,
+                        )
+                    }
+                }
+
+                // Cache recovery: refresh config if it was served from cache
+                if (phase.isCachedConfig) {
+                    effect(RefreshConfig())
+                }
+
+                // Retry enrichment if it was cached or failed
+                if (phase.isCachedEnrichment) {
+                    ioScope.launch { deviceHelper.getEnrichment(6, 1.seconds) }
+                }
+
+                // Preload paywalls
+                effect(PreloadPaywalls)
             },
         )
 
@@ -360,8 +422,8 @@ data class SdkConfigState(
                                 paywallPreload.removeUnusedPaywallVCsFromCache(currentConfig, it)
                             }
                         }.then { config ->
-                            processConfig(config)
-                            actor.update(Updates.ConfigRefreshed(config))
+                            ProcessConfig(config).execute.invoke(this@action)
+                            update(Updates.ConfigRefreshed(config))
                             track(
                                 InternalSuperwallEvent.ConfigRefresh(
                                     isCached = false,
@@ -456,6 +518,58 @@ data class SdkConfigState(
                 },
             )
 
+        /**
+         * Process a fetched config: persist flags, extract entitlements,
+         * choose assignments, evaluate test mode.
+         */
+        data class ProcessConfig(
+            val config: Config,
+        ) : Actions({
+                storage.write(DisableVerboseEvents, config.featureFlags.disableVerboseEvents)
+                if (config.featureFlags.enableConfigRefresh) {
+                    storage.write(LatestConfig, config)
+                }
+                assignments.choosePaywallVariants(config.triggers)
+
+                // Extract entitlements from products and productsV3
+                ConfigLogic.extractEntitlementsByProductId(config.products).let {
+                    entitlements.addEntitlementsByProductId(it)
+                }
+                config.productsV3?.let { productsV3 ->
+                    ConfigLogic.extractEntitlementsByProductIdFromCrossplatform(productsV3).let {
+                        entitlements.addEntitlementsByProductId(it)
+                    }
+                }
+
+                // Test mode evaluation
+                val wasTestMode = testModeManager?.isTestMode == true
+                testModeManager?.evaluateTestMode(
+                    config = config,
+                    bundleId = deviceHelper.bundleId,
+                    appUserId = identityManager?.invoke()?.appUserId,
+                    aliasId = identityManager?.invoke()?.aliasId,
+                    testModeBehavior = options.testModeBehavior,
+                )
+                val testModeJustActivated = !wasTestMode && testModeManager?.isTestMode == true
+
+                if (testModeManager?.isTestMode == true) {
+                    if (testModeJustActivated) {
+                        val defaultStatus = testModeManager!!.buildSubscriptionStatus()
+                        testModeManager!!.setOverriddenSubscriptionStatus(defaultStatus)
+                        entitlements.setSubscriptionStatus(defaultStatus)
+                    }
+                    effect(FetchTestModeProducts(config, testModeJustActivated))
+                } else {
+                    if (wasTestMode) {
+                        testModeManager?.clearTestModeState()
+                        setSubscriptionStatus?.invoke(SubscriptionStatus.Inactive)
+                    }
+                    ioScope.launch {
+                        storeManager.loadPurchasedProducts(entitlements.entitlementsByProductId)
+                    }
+                }
+            })
+
         /** Check for web entitlements (fire-and-forget). */
         object CheckWebEntitlements : Actions({
             ioScope.launch {
@@ -467,12 +581,11 @@ data class SdkConfigState(
          * Re-evaluates test mode with the current identity and config.
          */
         data class ReevaluateTestMode(
-            val config: Config? = null,
             val appUserId: String? = null,
             val aliasId: String? = null,
         ) : Actions(
                 action@{
-                    val resolvedConfig = config ?: actor.state.value.config ?: return@action
+                    val resolvedConfig = state.value.config ?: return@action
                     val wasTestMode = testModeManager?.isTestMode == true
                     testModeManager?.evaluateTestMode(
                         config = resolvedConfig,
@@ -583,7 +696,7 @@ data class SdkConfigState(
                         TestModeModal.show(
                             activity = activity,
                             reason = reason,
-                            hasPurchaseController = factory.makeHasExternalPurchaseController(),
+                            hasPurchaseController = makeHasExternalPurchaseController(),
                             availableEntitlements = allEntitlements,
                             apiKey = apiKey,
                             dashboardBaseUrl = dashboardBaseUrl,

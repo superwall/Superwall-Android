@@ -1,6 +1,7 @@
 package com.superwall.sdk.identity
 
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
+import com.superwall.sdk.config.Assignments
 import com.superwall.sdk.config.SdkConfigState
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
@@ -8,13 +9,14 @@ import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.primitives.Reducer
 import com.superwall.sdk.misc.primitives.TypedAction
 import com.superwall.sdk.misc.sha256MappedToRange
+import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.storage.AliasId
 import com.superwall.sdk.storage.AppUserId
+import com.superwall.sdk.storage.DidTrackFirstSeen
 import com.superwall.sdk.storage.Seed
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.UserAttributes
 import com.superwall.sdk.web.WebPaywallRedeemer
-import kotlinx.coroutines.flow.first
 
 internal object Keys {
     const val APP_USER_ID = "appUserId"
@@ -166,41 +168,24 @@ data class IdentityState(
     internal sealed class Actions(
         override val execute: suspend IdentityContext.() -> Unit,
     ) : TypedAction<IdentityContext> {
+        /**
+         * Dispatched by the config slice after config is successfully retrieved.
+         * Receives the config directly — no cross-slice awaiting needed.
+         */
         data class Configure(
+            val config: Config,
             val neverCalledStaticConfig: Boolean,
-            val isFirstAppOpen: Boolean,
         ) : Actions({
-                if (neverCalledStaticConfig) {
-                    // Static config was never called — check if assignments are needed,
-                    // and if so, wait for config to become available first.
-                    val needsAssignments =
-                        IdentityLogic.shouldGetAssignments(
-                            isLoggedIn = actor.state.value.isLoggedIn,
-                            neverCalledStaticConfig = true,
-                            isFirstAppOpen = isFirstAppOpen,
-                        )
-                    if (needsAssignments) {
-                        configManager.hasConfig.first()
-                        actor.update(Updates.Configure(needsAssignments = true))
-                        effect(FetchAssignments)
-                    } else {
-                        // No assignments needed — mark identity as ready immediately
-                        actor.update(Updates.Configure(needsAssignments = false))
-                    }
-                } else {
-                    val needsAssignments =
-                        IdentityLogic.shouldGetAssignments(
-                            isLoggedIn = actor.state.value.isLoggedIn,
-                            neverCalledStaticConfig = neverCalledStaticConfig,
-                            isFirstAppOpen = isFirstAppOpen,
-                        )
-
-                    if (needsAssignments) {
-                        actor.update(Updates.Configure(needsAssignments = true))
-                        effect(FetchAssignments)
-                    } else {
-                        actor.update(Updates.Configure(needsAssignments = false))
-                    }
+                val isFirstAppOpen = !(storage.read(DidTrackFirstSeen) ?: false)
+                val needsAssignments =
+                    IdentityLogic.shouldGetAssignments(
+                        isLoggedIn = actor.state.value.isLoggedIn,
+                        neverCalledStaticConfig = neverCalledStaticConfig,
+                        isFirstAppOpen = isFirstAppOpen,
+                    )
+                update(Updates.Configure(needsAssignments = needsAssignments))
+                if (needsAssignments) {
+                    effect(FetchAssignments)
                 }
             })
 
@@ -215,44 +200,54 @@ data class IdentityState(
                         scope = LogScope.identityManager,
                         message = "The provided userId was null or empty.",
                     )
-                } else if (sanitized != actor.state.value.appUserId) {
-                    val wasLoggedIn = actor.state.value.appUserId != null
+                } else if (sanitized != state.value.appUserId) {
+                    val wasLoggedIn = state.value.appUserId != null
 
                     // If switching users, reset other managers BEFORE updating state
                     // so storage.reset() doesn't wipe the new IDs
                     if (wasLoggedIn) {
                         completeReset()
+                        immediate(Reset)
                     }
 
-                    // Update state (pure)
-                    actor.update(Updates.Identify(sanitized))
+                    // Update state (pure) — persistence handled by interceptor
+                    update(Updates.Identify(sanitized))
 
-                    // Side effects: persist new IDs (after reset, so they aren't wiped)
-                    val newState = actor.state.value
-                    persist(AppUserId, sanitized)
-                    persist(AliasId, newState.aliasId)
-                    persist(Seed, newState.seed)
-                    persist(UserAttributes, newState.userAttributes)
-
-                    // Track
-                    track(InternalSuperwallEvent.IdentityAlias())
-
-                    // Fire-and-forget sub-actions
-                    effect(ResolveSeed(sanitized))
-                    effect(CheckWebEntitlements)
-                    effect(
-                        ReevaluateTestMode(
-                            appUserId = sanitized,
-                            aliasId = newState.aliasId,
+                    val newState = state.value
+                    immediate(
+                        IdentityChanged(
+                            sanitized,
+                            newState.aliasId,
+                            options?.restorePaywallAssignments,
                         ),
                     )
+                }
+            })
 
-                    // Fetch assignments — inline if restoring, fire-and-forget otherwise
-                    if (options?.restorePaywallAssignments == true) {
-                        FetchAssignments.execute.invoke(this)
-                    } else {
-                        effect(FetchAssignments)
-                    }
+        data class IdentityChanged(
+            val id: String,
+            val alias: String,
+            val restoreAssignments: Boolean?,
+        ) : Actions({
+                // Track
+                val id = id
+                track(InternalSuperwallEvent.IdentityAlias())
+
+                // Fire-and-forget sub-actions
+                effect(ResolveSeed(id))
+                effect(CheckWebEntitlements)
+                sdkContext.effect(
+                    SdkConfigState.Actions.ReevaluateTestMode(
+                        id,
+                        alias,
+                    ),
+                )
+
+                // Fetch assignments — inline if restoring, fire-and-forget otherwise
+                if (restoreAssignments == true) {
+                    immediate(FetchAssignments)
+                } else {
+                    effect(FetchAssignments)
                 }
             })
 
@@ -260,26 +255,24 @@ data class IdentityState(
             val userId: String,
         ) : Actions({
                 try {
-                    val config = configManager.hasConfig.first()
-                    if (config.featureFlags.enableUserIdSeed) {
+                    val config = sdkContext.state.awaitConfig()
+                    if (config != null && config.featureFlags.enableUserIdSeed) {
                         userId.sha256MappedToRange()?.let { mapped ->
-                            actor.update(Updates.SeedResolved(mapped))
-                            persist(Seed, mapped)
-                            persist(UserAttributes, actor.state.value.userAttributes)
-                        } ?: actor.update(Updates.SeedSkipped)
+                            update(Updates.SeedResolved(mapped))
+                        } ?: update(Updates.SeedSkipped)
                     } else {
-                        actor.update(Updates.SeedSkipped)
+                        update(Updates.SeedSkipped)
                     }
                 } catch (_: Exception) {
-                    actor.update(Updates.SeedSkipped)
+                    update(Updates.SeedSkipped)
                 }
             })
 
         object FetchAssignments : Actions({
             try {
-                configState.dispatchAwait(configCtx, SdkConfigState.Actions.FetchAssignments)
+                sdkContext.immediate(SdkConfigState.Actions.FetchAssignments)
             } finally {
-                actor.update(Updates.AssignmentsCompleted)
+                update(Updates.AssignmentsCompleted)
             }
         })
 
@@ -287,37 +280,23 @@ data class IdentityState(
             webPaywallRedeemer?.invoke()?.redeem(WebPaywallRedeemer.RedeemType.Existing)
         })
 
-        data class ReevaluateTestMode(
-            val appUserId: String?,
-            val aliasId: String,
-        ) : Actions({
-                configProvider()?.let {
-                    configManager.reevaluateTestMode(
-                        config = it,
-                        appUserId = appUserId,
-                        aliasId = aliasId,
-                    )
-                }
-            })
-
         data class MergeAttributes(
             val attrs: Map<String, Any?>,
             val shouldTrackMerge: Boolean = true,
             val shouldNotify: Boolean = false,
         ) : Actions({
-                actor.update(Updates.AttributesMerged(attrs))
-                val merged = actor.state.value.userAttributes
-                persist(UserAttributes, merged)
+                update(Updates.AttributesMerged(attrs))
                 if (shouldTrackMerge) {
+                    val current = actor.state.value
                     track(
                         InternalSuperwallEvent.Attributes(
-                            appInstalledAtString = actor.state.value.appInstalledAtString,
-                            audienceFilterParams = HashMap(merged),
+                            appInstalledAtString = current.appInstalledAtString,
+                            audienceFilterParams = HashMap(current.userAttributes),
                         ),
                     )
                 }
                 if (shouldNotify) {
-                    effect(NotifyUserChange(merged))
+                    effect(NotifyUserChange(actor.state.value.userAttributes))
                 }
             })
 
@@ -328,16 +307,7 @@ data class IdentityState(
             })
 
         object Reset : Actions({
-            actor.update(Updates.Reset)
-            val fresh = actor.state.value
-            persist(AliasId, fresh.aliasId)
-            persist(Seed, fresh.seed)
-            delete(AppUserId)
-            persist(UserAttributes, fresh.userAttributes)
-        })
-
-        object CompleteReset : Actions({
-            completeReset()
+            update(Updates.Reset)
         })
     }
 }

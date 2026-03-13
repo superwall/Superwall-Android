@@ -1,12 +1,12 @@
 package com.superwall.sdk.config
 
 import android.content.Context
+import com.superwall.sdk.SdkContext
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.config.models.ConfigState
 import com.superwall.sdk.config.models.getConfig
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.dependencies.DeviceHelperFactory
-import com.superwall.sdk.dependencies.DeviceInfoFactory
 import com.superwall.sdk.dependencies.HasExternalPurchaseControllerFactory
 import com.superwall.sdk.dependencies.RequestFactory
 import com.superwall.sdk.dependencies.RuleAttributesFactory
@@ -16,6 +16,7 @@ import com.superwall.sdk.misc.ActivityProvider
 import com.superwall.sdk.misc.CurrentActivityTracker
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.primitives.StateActor
+import com.superwall.sdk.misc.primitives.StateStore
 import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.triggers.Experiment
@@ -55,7 +56,7 @@ open class ConfigManager(
     override var options: SuperwallOptions,
     override val paywallManager: PaywallManager,
     override val webPaywallRedeemer: () -> WebPaywallRedeemer,
-    override val factory: Factory,
+    factory: Factory,
     override val assignments: Assignments,
     override val paywallPreload: PaywallPreload,
     override val ioScope: IOScope,
@@ -68,12 +69,20 @@ open class ConfigManager(
     override val awaitUntilNetwork: suspend () -> Unit = {
         context.awaitUntilNetworkExists()
     },
-    override val actor: StateActor<SdkConfigState>,
+    override val actor: StateActor<ConfigContext, SdkConfigState>,
+    @Suppress("EXPOSED_PARAMETER_TYPE")
+    override val sdkContext: SdkContext,
+    override val neverCalledStaticConfig: () -> Boolean,
     actorScope: CoroutineScope = ioScope,
-) : ConfigContext {
+) : ConfigContext,
+    StateStore<SdkConfigState> by actor,
+    RequestFactory by factory,
+    RuleAttributesFactory by factory,
+    DeviceHelperFactory by factory,
+    StoreTransactionFactory by factory,
+    HasExternalPurchaseControllerFactory by factory {
     interface Factory :
         RequestFactory,
-        DeviceInfoFactory,
         RuleAttributesFactory,
         DeviceHelperFactory,
         StoreTransactionFactory,
@@ -84,12 +93,12 @@ open class ConfigManager(
     override val scope: CoroutineScope = actorScope
 
     // Need `override` on a mutable property — use backing field
-    override val configState: MutableStateFlow<ConfigState> = MutableStateFlow(ConfigState.None)
+    val configState: MutableStateFlow<ConfigState> = MutableStateFlow(ConfigState.None)
 
     init {
         // Keep configState in sync with actor state changes
         ioScope.launch {
-            actor.state.collect { slice ->
+            state.collect { slice ->
                 val newState =
                     when (slice.phase) {
                         is SdkConfigState.Phase.None -> ConfigState.None
@@ -113,7 +122,7 @@ open class ConfigManager(
             configState.value
                 .also {
                     if (it is ConfigState.Failed) {
-                        actor.dispatch(this, SdkConfigState.Actions.FetchConfig)
+                        effect(SdkConfigState.Actions.FetchConfig)
                     }
                 }.getConfig()
 
@@ -125,9 +134,9 @@ open class ConfigManager(
 
     /** A dictionary of triggers by their event name. */
     var triggersByEventName: Map<String, Trigger>
-        get() = actor.state.value.triggersByEventName
+        get() = state.value.triggersByEventName
         set(value) {
-            actor.update(SdkConfigState.Updates.ConfigRetrieved(actor.state.value.config ?: return))
+            update(SdkConfigState.Updates.ConfigRetrieved(state.value.config ?: return))
         }
 
     /** A memory store of assignments that are yet to be confirmed. */
@@ -138,16 +147,12 @@ open class ConfigManager(
     // Actions — dispatch with self as context
     // -----------------------------------------------------------------------
 
-    suspend fun fetchConfiguration() {
-        if (configState.value != ConfigState.Retrieving) {
-            actor.dispatchAndAwait(this, SdkConfigState.Actions.FetchConfig) {
-                it.phase is SdkConfigState.Phase.Retrieved || it.phase is SdkConfigState.Phase.Failed
-            }
-        }
+    fun fetchConfiguration() {
+        effect(SdkConfigState.Actions.FetchConfig)
     }
 
     fun reset() {
-        actor.dispatch(this, SdkConfigState.Actions.ResetAssignments)
+        effect(SdkConfigState.Actions.ResetAssignments)
     }
 
     /**
@@ -158,10 +163,8 @@ open class ConfigManager(
         appUserId: String? = null,
         aliasId: String? = null,
     ) {
-        actor.dispatch(
-            this,
+        effect(
             SdkConfigState.Actions.ReevaluateTestMode(
-                config = config,
                 appUserId = appUserId,
                 aliasId = aliasId,
             ),
@@ -169,7 +172,7 @@ open class ConfigManager(
     }
 
     suspend fun getAssignments() {
-        actor.dispatchAwait(this, SdkConfigState.Actions.FetchAssignments)
+        immediate(SdkConfigState.Actions.FetchAssignments)
     }
 
     // -----------------------------------------------------------------------
@@ -177,18 +180,18 @@ open class ConfigManager(
     // -----------------------------------------------------------------------
 
     fun preloadAllPaywalls() {
-        actor.dispatch(this, SdkConfigState.Actions.PreloadPaywalls)
+        effect(SdkConfigState.Actions.PreloadPaywalls)
     }
 
     fun preloadPaywallsByNames(eventNames: Set<String>) {
-        actor.dispatch(this, SdkConfigState.Actions.PreloadPaywallsByNames(eventNames))
+        effect(SdkConfigState.Actions.PreloadPaywallsByNames(eventNames))
     }
 
     internal fun refreshConfiguration(force: Boolean = false) {
-        actor.dispatch(this, SdkConfigState.Actions.RefreshConfig(force))
+        effect(SdkConfigState.Actions.RefreshConfig(force))
     }
 
     fun checkForWebEntitlements() {
-        actor.dispatch(this, SdkConfigState.Actions.CheckWebEntitlements)
+        effect(SdkConfigState.Actions.CheckWebEntitlements)
     }
 }
