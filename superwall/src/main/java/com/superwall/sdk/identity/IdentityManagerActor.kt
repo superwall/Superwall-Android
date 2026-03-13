@@ -60,6 +60,7 @@ data class IdentityState(
     ) : Reducer<IdentityState> {
         data class Identify(
             val userId: String,
+            val restoreAssignments: Boolean,
         ) : Updates({ state ->
                 val sanitized = IdentityLogic.sanitize(userId)
                 if (sanitized.isNullOrEmpty() || sanitized == state.appUserId) {
@@ -88,8 +89,10 @@ data class IdentityState(
                     base.copy(
                         appUserId = sanitized,
                         userAttributes = merged,
-                        pending =
-                            setOf(Pending.Seed, Pending.Assignments),
+                        pending = buildSet {
+                            add(Pending.Seed)
+                            if (restoreAssignments) add(Pending.Assignments)
+                        },
                         isReady = false,
                     )
                 }
@@ -211,7 +214,7 @@ data class IdentityState(
                     }
 
                     // Update state (pure) — persistence handled by interceptor
-                    update(Updates.Identify(sanitized))
+                    update(Updates.Identify(sanitized, options?.restorePaywallAssignments == true))
 
                     val newState = state.value
                     immediate(
