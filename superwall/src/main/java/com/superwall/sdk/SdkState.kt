@@ -2,33 +2,32 @@ package com.superwall.sdk
 
 import com.superwall.sdk.config.SdkConfigState
 import com.superwall.sdk.identity.IdentityState
-import com.superwall.sdk.misc.primitives.Actor
-import com.superwall.sdk.misc.primitives.ScopedState
+import com.superwall.sdk.misc.primitives.StateStore
+import com.superwall.sdk.models.config.Config
+import com.superwall.sdk.store.EntitlementsState
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 
 /**
- * Root state composing all domain states.
+ * Read-only facade over all domain states.
  *
- * A single [Actor]<[SdkState]> holds the truth for the entire SDK.
- * Domain actions never see this type — they operate on their own
- * [ScopedState] projection. Only cross-cutting actions work at this level.
+ * Each property delegates to the live [StateStore] of its slice —
+ * no monolithic root state, no copying.
  */
-data class SdkState(
-    val identity: IdentityState = IdentityState(),
-    val config: SdkConfigState = SdkConfigState(),
+class SdkState(
+    private val identityStore: () -> StateStore<IdentityState>,
+    private val configStore: () -> StateStore<SdkConfigState>,
+    private val entitlementsStore: () -> StateStore<EntitlementsState>,
 ) {
+    val identity: IdentityState get() = identityStore().state.value
+    val config: SdkConfigState get() = configStore().state.value
+    val entitlements: EntitlementsState get() = entitlementsStore().state.value
     val isReady: Boolean get() = identity.isReady && config.isRetrieved
+
+    /** Suspend until config has been retrieved, then return it. */
+    suspend fun awaitConfig(): Config? =
+        configStore()
+            .state
+            .map { (it.phase as? SdkConfigState.Phase.Retrieved)?.config }
+            .first { it != null }
 }
-
-/** Scoped projection for identity state. */
-fun Actor<SdkState>.identityState(): ScopedState<SdkState, IdentityState> =
-    scoped(
-        get = { it.identity },
-        set = { root, sub -> root.copy(identity = sub) },
-    )
-
-/** Scoped projection for config state. */
-fun Actor<SdkState>.configState(): ScopedState<SdkState, SdkConfigState> =
-    scoped(
-        get = { it.config },
-        set = { root, sub -> root.copy(config = sub) },
-    )

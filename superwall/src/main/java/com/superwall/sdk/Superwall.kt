@@ -660,17 +660,7 @@ class Superwall(
                         dependencyContainer.storage.recordAppInstall {
                             track(event = it)
                         }
-                        // Implicitly wait
-                        dependencyContainer.configManager.fetchConfiguration()
-                        dependencyContainer.identityManager.configure()
-                    }.toResult().fold({
-                        CoroutineScope(Dispatchers.Main).launch {
-                            completion?.invoke(Result.success(Unit))
-                        }
-                    }, {
-                        CoroutineScope(Dispatchers.Main).launch {
-                            completion?.invoke(Result.failure(it))
-                        }
+                    }.toResult().fold({}, {
                         Logger.debug(
                             logLevel = LogLevel.error,
                             scope = LogScope.superwallCore,
@@ -678,6 +668,10 @@ class Superwall(
                             error = it,
                         )
                     })
+                    dependencyContainer.configManager.fetchConfiguration()
+                    CoroutineScope(Dispatchers.Main).launch {
+                        completion?.invoke(Result.success(Unit))
+                    }
                 }
             }
         }
@@ -811,7 +805,9 @@ class Superwall(
      */
     internal fun reset(duringIdentify: Boolean) {
         withErrorTracking {
-            dependencyContainer.identityManager.reset(duringIdentify)
+            if (!duringIdentify) {
+                dependencyContainer.identityManager.reset()
+            }
             dependencyContainer.storage.reset()
             dependencyContainer.paywallManager.resetCache()
             presentationItems.reset()
