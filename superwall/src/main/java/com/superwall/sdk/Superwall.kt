@@ -1415,11 +1415,6 @@ class Superwall(
                                     )
                                 }
                             }
-                            dismiss(
-                                paywallView,
-                                result = Declined(),
-                                closeReason = PaywallCloseReason.SystemLogic,
-                            )
                         } catch (e: Exception) {
                             Logger.debug(
                                 logLevel = LogLevel.error,
