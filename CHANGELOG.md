@@ -5,7 +5,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 ## 2.7.9
 
 ## Fixes
-- Fix review dialog not showing
+- Fix review dialog closing paywall
 
 ## 2.7.8
 
