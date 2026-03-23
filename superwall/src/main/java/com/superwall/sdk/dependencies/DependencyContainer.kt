@@ -8,6 +8,8 @@ import android.webkit.WebSettings
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.ViewModelProvider
 import com.android.billingclient.api.Purchase
+import com.superwall.sdk.SdkContextImpl
+import com.superwall.sdk.SdkContext
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.AttributionManager
 import com.superwall.sdk.analytics.ClassifierDataFactory
@@ -34,8 +36,12 @@ import com.superwall.sdk.debug.DebugView
 import com.superwall.sdk.deeplinks.DeepLinkRouter
 import com.superwall.sdk.delegate.SuperwallDelegateAdapter
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
+import com.superwall.sdk.identity.IdentityContext
 import com.superwall.sdk.identity.IdentityInfo
 import com.superwall.sdk.identity.IdentityManager
+import com.superwall.sdk.identity.IdentityPersistenceInterceptor
+import com.superwall.sdk.identity.IdentityState
+import com.superwall.sdk.identity.createInitialIdentityState
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
@@ -44,6 +50,8 @@ import com.superwall.sdk.misc.AppLifecycleObserver
 import com.superwall.sdk.misc.CurrentActivityTracker
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.MainScope
+import com.superwall.sdk.misc.primitives.DebugInterceptor
+import com.superwall.sdk.misc.primitives.SequentialActor
 import com.superwall.sdk.models.config.ComputedPropertyRequest
 import com.superwall.sdk.models.config.FeatureFlags
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
@@ -125,7 +133,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.ClassDiscriminatorMode
 import kotlinx.serialization.json.Json
 import java.lang.ref.WeakReference
@@ -254,7 +261,13 @@ class DependencyContainer(
                 this,
             )
         storage =
-            LocalStorage(context = context, ioScope = ioScope(), factory = this, json = json(), _apiKey = apiKey)
+            LocalStorage(
+                context = context,
+                ioScope = ioScope(),
+                factory = this,
+                json = json(),
+                _apiKey = apiKey
+            )
         entitlements = Entitlements(storage)
         testModeManager = TestModeManager(storage)
         testModeTransactionHandler =
@@ -400,6 +413,18 @@ class DependencyContainer(
                 },
             )
 
+        // Identity actor setup
+        val initialIdentity = createInitialIdentityState(storage, deviceHelper.appInstalledAtString)
+        val identityActor = SequentialActor<IdentityContext, IdentityState>(initialIdentity)
+
+        DebugInterceptor.install(identityActor, name = "Identity")
+        IdentityPersistenceInterceptor.install(identityActor, storage)
+
+        val sdkContext: SdkContext =
+            SdkContextImpl(
+                configManager = { configManager },
+            )
+
         configManager =
             ConfigManager(
                 context = context,
@@ -427,14 +452,12 @@ class DependencyContainer(
                     entitlements.setSubscriptionStatus(status)
                 },
             )
+
         identityManager =
             IdentityManager(
                 storage = storage,
                 deviceHelper = deviceHelper,
-                configManager = configManager,
-                neverCalledStaticConfig = {
-                    storage.neverCalledStaticConfig
-                },
+                options = { options },
                 ioScope = ioScope,
                 stringToSha = {
                     val bytes = this.toString().toByteArray()
@@ -445,6 +468,8 @@ class DependencyContainer(
                 notifyUserChange = {
                     delegate().userAttributesDidChange(it)
                 },
+                actor = identityActor,
+                sdkContext = sdkContext,
             )
 
         reedemer =
@@ -591,9 +616,9 @@ class DependencyContainer(
 
                         val paywallActivity =
                             (
-                                paywallView.encapsulatingActivity?.get()
-                                    ?: activityProvider?.getCurrentActivity()
-                            ) as? SuperwallPaywallActivity
+                                    paywallView.encapsulatingActivity?.get()
+                                        ?: activityProvider?.getCurrentActivity()
+                                    ) as? SuperwallPaywallActivity
 
                         if (paywallActivity != null) {
                             ioScope.launch {
@@ -610,7 +635,12 @@ class DependencyContainer(
                             )
                         }
                         // Await message delivery to ensure webview has time to process before dismiss
-                        paywallView.webView.messageHandler.handle(PaywallMessage.TrialStarted(trialEndDate, id))
+                        paywallView.webView.messageHandler.handle(
+                            PaywallMessage.TrialStarted(
+                                trialEndDate,
+                                id
+                            )
+                        )
                     }
                 },
             )
@@ -702,8 +732,8 @@ class DependencyContainer(
                 "X-Low-Power-Mode" to deviceHelper.isLowPowerModeEnabled.toString(),
                 "X-Is-Sandbox" to deviceHelper.isSandbox.toString(),
                 "X-Entitlement-Status" to
-                    Superwall.instance.entitlements.status.value
-                        .toString(),
+                        Superwall.instance.entitlements.status.value
+                            .toString(),
                 "Content-Type" to "application/json",
                 "X-Current-Time" to dateFormat(DateUtils.ISO_MILLIS).format(Date()),
                 "X-Static-Config-Build-Id" to (configManager.config?.buildId ?: ""),
@@ -800,7 +830,8 @@ class DependencyContainer(
         return view
     }
 
-    override fun makeCache(): PaywallViewCache = PaywallViewCache(context, makeViewStore(), activityProvider!!, deviceHelper)
+    override fun makeCache(): PaywallViewCache =
+        PaywallViewCache(context, makeViewStore(), activityProvider!!, deviceHelper)
 
     override fun activePaywallId(): String? =
         paywallManager.currentView
@@ -835,9 +866,11 @@ class DependencyContainer(
             audienceFilterParams = HashMap(identityManager.userAttributes),
         )
 
-    override fun makeHasExternalPurchaseController(): Boolean = storeManager.purchaseController.hasExternalPurchaseController
+    override fun makeHasExternalPurchaseController(): Boolean =
+        storeManager.purchaseController.hasExternalPurchaseController
 
-    override fun makeHasInternalPurchaseController(): Boolean = storeManager.purchaseController.hasInternalPurchaseController
+    override fun makeHasInternalPurchaseController(): Boolean =
+        storeManager.purchaseController.hasInternalPurchaseController
 
     override fun isWebToAppEnabled(): Boolean = configManager.config?.featureFlags?.web2App ?: false
 
@@ -927,7 +960,8 @@ class DependencyContainer(
 
     override fun makeFeatureFlags(): FeatureFlags? = configManager.config?.featureFlags
 
-    override fun makeComputedPropertyRequests(): List<ComputedPropertyRequest> = configManager.config?.allComputedProperties ?: emptyList()
+    override fun makeComputedPropertyRequests(): List<ComputedPropertyRequest> =
+        configManager.config?.allComputedProperties ?: emptyList()
 
     override suspend fun makeIdentityInfo(): IdentityInfo =
         IdentityInfo(
@@ -965,7 +999,8 @@ class DependencyContainer(
             appSessionId = appSessionManager.appSession.id,
         )
 
-    override suspend fun activeProductIds(): List<String> = storeManager.receiptManager.purchases.toList()
+    override suspend fun activeProductIds(): List<String> =
+        storeManager.receiptManager.purchases.toList()
 
     override suspend fun makeIdentityManager(): IdentityManager = identityManager
 
@@ -992,7 +1027,8 @@ class DependencyContainer(
         get() = ViewModelFactory()
     private val vmProvider = ViewModelProvider(storeOwner, vmFactory)
 
-    override fun makeViewStore(): ViewStorageViewModel = vmProvider[ViewStorageViewModel::class.java]
+    override fun makeViewStore(): ViewStorageViewModel =
+        vmProvider[ViewStorageViewModel::class.java]
 
     private var _mainScope: MainScope? = null
     private var _ioScope: IOScope? = null
@@ -1056,7 +1092,8 @@ class DependencyContainer(
 
     override fun context(): Context = context
 
-    override fun experimentalProperties(): Map<String, Any> = storeManager.receiptManager.experimentalProperties()
+    override fun experimentalProperties(): Map<String, Any> =
+        storeManager.receiptManager.experimentalProperties()
 
     override fun getCurrentUserAttributes(): Map<String, Any> = identityManager.userAttributes
 
@@ -1064,7 +1101,8 @@ class DependencyContainer(
 
     override fun demandScore(): Int? = deviceHelper.demandScore
 
-    override suspend fun track(event: TrackableSuperwallEvent): Result<TrackingResult> = Superwall.instance.track(event)
+    override suspend fun track(event: TrackableSuperwallEvent): Result<TrackingResult> =
+        Superwall.instance.track(event)
 
     override fun delegate(): SuperwallDelegateAdapter = delegateAdapter
 
@@ -1098,7 +1136,8 @@ class DependencyContainer(
         delegateAdapter.didRedeemLink(redemptionResult)
     }
 
-    override fun maxAge(): Long = configManager.config?.webToAppConfig?.entitlementsMaxAgeMs ?: 86400000L
+    override fun maxAge(): Long =
+        configManager.config?.webToAppConfig?.entitlementsMaxAgeMs ?: 86400000L
 
     override fun getActiveDeviceEntitlements(): Set<com.superwall.sdk.models.entitlements.Entitlement> =
         entitlements.activeDeviceEntitlements
@@ -1140,7 +1179,8 @@ class DependencyContainer(
             ?.flatMap { entitlements.byProductId(it) }
             ?.toSet() ?: emptySet()
 
-    override fun getPaywallInfo(): PaywallInfo = Superwall.instance.paywallView?.info ?: PaywallInfo.empty()
+    override fun getPaywallInfo(): PaywallInfo =
+        Superwall.instance.paywallView?.info ?: PaywallInfo.empty()
 
     override fun trackRestorationFailed(message: String) {
         trackRestorationFailure(message)
