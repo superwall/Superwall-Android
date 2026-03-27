@@ -96,21 +96,25 @@ class DeepLinkReferrer(
 
     override suspend fun checkForReferral(): Result<String> =
         try {
-            withTimeoutOrNull(30.seconds) {
-                while (referrerClient?.isReady != true) {
-                    // no-op
-                }
-                referrerClient?.installReferrer?.installReferrer?.toString()
-            }.let {
-                val query = it?.getUrlParams() ?: emptyMap()
-                val code = query["code"]?.firstOrNull()
-                referrerClient?.endConnection()
-                referrerClient = null
-                if (code == null) {
-                    Result.failure(IllegalStateException("Play store cannot connect"))
-                } else {
-                    Result.success(code)
-                }
+            val query = getInstallReferrerParams(30.seconds)
+            val code = query["code"]?.firstOrNull()
+            if (code == null) {
+                Result.failure(IllegalStateException("Play store cannot connect"))
+            } else {
+                Result.success(code)
+            }
+        } catch (e: Throwable) {
+            Result.failure(e)
+        }
+
+    suspend fun checkForMmpClickId(): Result<Long> =
+        try {
+            val query = getInstallReferrerParams(5.seconds)
+            val clickId = query["sw_mmp_click_id"]?.firstOrNull()?.toLongOrNull()
+            if (clickId == null) {
+                Result.failure(IllegalStateException("Play store MMP click id not found"))
+            } else {
+                Result.success(clickId)
             }
         } catch (e: Throwable) {
             Result.failure(e)
@@ -137,17 +141,30 @@ class DeepLinkReferrer(
                 )
             }
 
+    private suspend fun getInstallReferrerParams(timeout: kotlin.time.Duration): Map<String, List<String>> {
+        val rawReferrer =
+            withTimeoutOrNull(timeout) {
+                while (referrerClient?.isReady != true) {
+                    // no-op
+                }
+                referrerClient?.installReferrer?.installReferrer?.toString()
+            }
+
+        referrerClient?.endConnection()
+        referrerClient = null
+
+        return rawReferrer?.getUrlParams() ?: emptyMap()
+    }
+
     private fun String.getUrlParams(): Map<String, List<String>> {
-        val urlParts = split("\\?".toRegex()).filter(String::isNotEmpty)
-        if (urlParts.size < 2) {
+        val query = trim().removePrefix("?")
+        if (query.isEmpty()) {
             return emptyMap()
         }
-        val query = urlParts[1]
-        return listOf("item").associateWith { key ->
-            query
-                .split("&?$key=".toRegex())
-                .filter(String::isNotEmpty)
-                .map { URLDecoder.decode(it, "UTF-8") }
+
+        val uri = Uri.parse("https://superwall.invalid/?$query")
+        return uri.queryParameterNames.associateWith { key ->
+            uri.getQueryParameters(key).map { URLDecoder.decode(it, "UTF-8") }
         }
     }
 }

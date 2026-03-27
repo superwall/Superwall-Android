@@ -132,6 +132,28 @@ object DidTrackAppInstall : Storable<Boolean> {
         get() = Boolean.serializer()
 }
 
+object DidCompleteMMPInstallAttributionRequest : Storable<Boolean> {
+    override val key: String
+        get() = "store.didCompleteMMPInstallAttributionRequest"
+
+    override val directory: SearchPathDirectory
+        get() = SearchPathDirectory.APP_SPECIFIC_DOCUMENTS
+
+    override val serializer: KSerializer<Boolean>
+        get() = Boolean.serializer()
+}
+
+object IsEligibleForMMPInstallAttributionMatch : Storable<Boolean> {
+    override val key: String
+        get() = "store.isEligibleForMMPInstallAttributionMatch"
+
+    override val directory: SearchPathDirectory
+        get() = SearchPathDirectory.APP_SPECIFIC_DOCUMENTS
+
+    override val serializer: KSerializer<Boolean>
+        get() = Boolean.serializer()
+}
+
 object DidTrackFirstSeen : Storable<Boolean> {
     override val key: String
         get() = "store.didTrackFirstSeen.v2"

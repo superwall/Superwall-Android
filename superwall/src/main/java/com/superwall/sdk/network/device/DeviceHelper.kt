@@ -276,8 +276,20 @@ class DeviceHelper(
     val currencySymbol: String
         get() = _currency?.symbol ?: ""
 
+    val timezoneOffsetSeconds: Int
+        get() = TimeZone.getDefault().rawOffset / 1000
+
     val secondsFromGMT: String
-        get() = (TimeZone.getDefault().rawOffset / 1000).toString()
+        get() = timezoneOffsetSeconds.toString()
+
+    val screenWidth: Int
+        get() = classifier.getScreenWidth()
+
+    val screenHeight: Int
+        get() = classifier.getScreenHeight()
+
+    val devicePixelRatio: Double
+        get() = context.resources.displayMetrics.density.toDouble()
 
     val isFirstAppOpen: Boolean
         get() = !storage.didTrackFirstSession
@@ -327,6 +339,9 @@ class DeviceHelper(
 
     val appInstalledAtString: String
         get() = dateFormat(DateUtils.SIMPLE).format(appInstallDate)
+
+    val appInstalledAtMillis: Long
+        get() = appInstallDate.time
 
     var interfaceStyleOverride: InterfaceStyle? = null
 
