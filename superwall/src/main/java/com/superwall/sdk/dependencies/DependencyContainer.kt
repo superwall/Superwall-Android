@@ -435,7 +435,7 @@ class DependencyContainer(
                             ),
                     ),
                 factory = this,
-                )
+            )
         errorTracker = ErrorTracker(scope = ioScope, cache = storage)
         paywallRequestManager =
             PaywallRequestManager(
