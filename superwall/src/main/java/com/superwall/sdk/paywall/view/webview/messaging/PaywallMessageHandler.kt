@@ -264,6 +264,18 @@ class PaywallMessageHandler(
 
             is PaywallMessage.HapticFeedback -> triggerHapticFeedback(message.hapticType)
 
+            is PaywallMessage.PageView -> {
+                val paywallInfo = messageHandler?.state?.info ?: return
+                ioScope.launch {
+                    track(
+                        InternalSuperwallEvent.PaywallPageView(
+                            paywallInfo = paywallInfo,
+                            data = message.data,
+                        ),
+                    )
+                }
+            }
+
             else -> {
                 Logger.debug(
                     LogLevel.error,
