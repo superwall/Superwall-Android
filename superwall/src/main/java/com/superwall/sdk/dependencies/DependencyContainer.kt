@@ -58,6 +58,7 @@ import com.superwall.sdk.network.BaseHostService
 import com.superwall.sdk.network.CollectorService
 import com.superwall.sdk.network.EnrichmentService
 import com.superwall.sdk.network.JsonFactory
+import com.superwall.sdk.network.MmpService
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.network.RequestExecutor
 import com.superwall.sdk.network.SubscriptionService
@@ -356,8 +357,31 @@ class DependencyContainer(
                         factory = this,
                         customHttpUrlConnection = httpConnection,
                     ),
+                mmpService =
+                    MmpService(
+                        host = api.subscription.host,
+                        version = "/",
+                        factory = this,
+                        json =
+                            Json(from = json()) {
+                                ignoreUnknownKeys = true
+                                namingStrategy = null
+                            },
+                        customHttpUrlConnection =
+                            CustomHttpUrlConnection(
+                                json =
+                                    Json(from = json()) {
+                                        ignoreUnknownKeys = true
+                                        namingStrategy = null
+                                    },
+                                requestExecutor =
+                                    RequestExecutor { debugging, requestId ->
+                                        makeHeaders(debugging, requestId)
+                                    },
+                            ),
+                    ),
                 factory = this,
-            )
+                )
         errorTracker = ErrorTracker(scope = ioScope, cache = storage)
         paywallRequestManager =
             PaywallRequestManager(

@@ -68,6 +68,7 @@ import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedUR
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedUrlInChrome
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.RequestPermission
 import com.superwall.sdk.storage.LatestCustomerInfo
+import com.superwall.sdk.storage.DidTrackAppInstall
 import com.superwall.sdk.storage.ReviewCount
 import com.superwall.sdk.storage.ReviewData
 import com.superwall.sdk.storage.StoredSubscriptionStatus
@@ -80,6 +81,7 @@ import com.superwall.sdk.store.transactions.TransactionManager
 import com.superwall.sdk.store.transactions.TransactionManager.PurchaseSource.*
 import com.superwall.sdk.utilities.flatten
 import com.superwall.sdk.utilities.withErrorTracking
+import com.superwall.sdk.web.DeepLinkReferrer
 import com.superwall.sdk.web.WebPaywallRedeemer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -677,12 +679,33 @@ class Superwall(
 
                 ioScope.launch {
                     withErrorTracking {
+                        val hadTrackedAppInstallBeforeConfigure =
+                            dependencyContainer.storage.read(DidTrackAppInstall) ?: false
+
                         dependencyContainer.storage.recordAppInstall {
                             track(event = it)
                         }
+
                         // Implicitly wait
-                        dependencyContainer.configManager.fetchConfiguration()
                         dependencyContainer.identityManager.configure()
+
+                        if (
+                            dependencyContainer.storage.shouldAttemptInitialMMPInstallAttributionMatch(
+                                hadTrackedAppInstallBeforeConfigure = hadTrackedAppInstallBeforeConfigure,
+                                appInstalledAtMillis = dependencyContainer.deviceHelper.appInstalledAtMillis,
+                            )
+                        ) {
+                            val installReferrerClickId =
+                                DeepLinkReferrer({ context }, ioScope)
+                                    .checkForMmpClickId()
+                                    .getOrNull()
+
+                            dependencyContainer.storage.recordMMPInstallAttributionRequest {
+                                dependencyContainer.network.matchMMPInstall(installReferrerClickId)
+                            }
+                        }
+
+                        dependencyContainer.configManager.fetchConfiguration()
                     }.toResult().fold({
                         CoroutineScope(Dispatchers.Main).launch {
                             completion?.invoke(Result.success(Unit))
