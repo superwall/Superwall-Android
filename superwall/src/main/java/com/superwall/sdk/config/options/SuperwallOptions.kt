@@ -66,6 +66,8 @@ class SuperwallOptions() {
             override val collectorHost: String,
             override val scheme: String,
             override val port: Int?,
+            override val subscriptionHost: String = baseHost,
+            override val enrichmentHost: String = baseHost,
         ) : NetworkEnvironment(baseHost)
     }
 
@@ -129,6 +131,8 @@ internal fun SuperwallOptions.NetworkEnvironment.toMap(): Map<String, Any> =
         "host_domain" to hostDomain,
         "base_host" to baseHost,
         "collector_host" to collectorHost,
+        "subscription_host" to subscriptionHost,
+        "enrichment_host" to enrichmentHost,
         "scheme" to scheme,
         port?.let { "port" to it },
     ).toMap()

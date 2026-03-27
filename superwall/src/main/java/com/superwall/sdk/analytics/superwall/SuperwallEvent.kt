@@ -261,6 +261,16 @@ sealed class SuperwallEvent {
             get() = "user_attributes"
     }
 
+    /**
+     * When install attribution is resolved or fails to resolve.
+     */
+    data class AttributionMatch(
+        val info: AttributionMatchInfo,
+    ) : SuperwallEvent() {
+        override val rawName: String
+            get() = "attribution_match"
+    }
+
     data class NonRecurringProductPurchase(
         val product: TransactionProduct,
         val paywallInfo: PaywallInfo,
