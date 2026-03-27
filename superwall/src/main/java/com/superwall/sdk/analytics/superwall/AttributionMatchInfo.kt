@@ -1,7 +1,7 @@
 package com.superwall.sdk.analytics.superwall
 
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
 /**
  * Information about an install attribution result emitted by Superwall.
