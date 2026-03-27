@@ -1,8 +1,8 @@
 package com.superwall.sdk.network
 
 import com.superwall.sdk.Superwall
-import com.superwall.sdk.analytics.superwall.AttributionMatchInfo
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
+import com.superwall.sdk.analytics.superwall.AttributionMatchInfo
 import com.superwall.sdk.dependencies.ApiFactory
 import com.superwall.sdk.identity.setUserAttributes
 import com.superwall.sdk.logger.LogLevel
@@ -53,9 +53,10 @@ open class Network(
     private val subscriptionService: SubscriptionService,
 ) : SuperwallAPI {
     private fun currentIsoTimestamp(): String =
-        dateFormat(DateUtils.ISO_MILLIS).apply {
-            timeZone = TimeZone.getTimeZone("UTC")
-        }.format(Date()) + "Z"
+        dateFormat(DateUtils.ISO_MILLIS)
+            .apply {
+                timeZone = TimeZone.getTimeZone("UTC")
+            }.format(Date()) + "Z"
 
     private fun jsonElementToValue(value: JsonElement): Any? =
         when (value) {
@@ -78,14 +79,15 @@ open class Network(
 
     private fun mergeMMPAcquisitionAttributesIfNeeded(acquisitionAttributes: Map<String, JsonElement>) {
         val attributes =
-            acquisitionAttributes.mapNotNull { (key, value) ->
-                val converted = jsonElementToValue(value)
-                if (converted != null) {
-                    key to converted
-                } else {
-                    null
-                }
-            }.toMap()
+            acquisitionAttributes
+                .mapNotNull { (key, value) ->
+                    val converted = jsonElementToValue(value)
+                    if (converted != null) {
+                        key to converted
+                    } else {
+                        null
+                    }
+                }.toMap()
 
         if (attributes.isEmpty()) {
             return
@@ -259,8 +261,9 @@ open class Network(
                         AttributionMatchInfo(
                             provider = AttributionMatchInfo.Provider.MMP,
                             matched = response.matched,
-                            source = readJsonString(response.acquisitionAttributes, "acquisition_source")
-                                ?: response.network,
+                            source =
+                                readJsonString(response.acquisitionAttributes, "acquisition_source")
+                                    ?: response.network,
                             confidence = response.confidence,
                             matchScore = response.matchScore,
                             reason = readJsonString(response.breakdown, "reason"),

@@ -305,7 +305,9 @@ class DeviceHelper(
         get() = classifier.getScreenHeight()
 
     val devicePixelRatio: Double
-        get() = context.resources.displayMetrics.density.toDouble()
+        get() =
+            context.resources.displayMetrics.density
+                .toDouble()
 
     val isFirstAppOpen: Boolean
         get() = !storage.didTrackFirstSession

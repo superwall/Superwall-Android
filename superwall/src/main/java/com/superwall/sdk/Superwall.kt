@@ -67,8 +67,8 @@ import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedDe
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedURL
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.OpenedUrlInChrome
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent.RequestPermission
-import com.superwall.sdk.storage.LatestCustomerInfo
 import com.superwall.sdk.storage.DidTrackAppInstall
+import com.superwall.sdk.storage.LatestCustomerInfo
 import com.superwall.sdk.storage.ReviewCount
 import com.superwall.sdk.storage.ReviewData
 import com.superwall.sdk.storage.StoredSubscriptionStatus
