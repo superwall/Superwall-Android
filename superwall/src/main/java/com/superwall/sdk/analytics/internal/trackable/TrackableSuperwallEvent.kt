@@ -1,5 +1,6 @@
 package com.superwall.sdk.analytics.internal.trackable
 
+import com.superwall.sdk.analytics.superwall.AttributionMatchInfo
 import com.superwall.sdk.analytics.superwall.SuperwallEvent
 import com.superwall.sdk.paywall.view.webview.messaging.PageViewData
 import com.superwall.sdk.analytics.superwall.TransactionProduct
@@ -142,6 +143,21 @@ sealed class InternalSuperwallEvent(
             hashMapOf(
                 "application_installed_at" to appInstalledAtString,
             )
+    }
+
+    class AttributionMatch(
+        val info: AttributionMatchInfo,
+        override val audienceFilterParams: Map<String, Any> = emptyMap(),
+    ) : InternalSuperwallEvent(SuperwallEvent.AttributionMatch(info)) {
+        override suspend fun getSuperwallParameters(): Map<String, Any> =
+            listOfNotNull(
+                "provider" to info.provider.rawName,
+                "matched" to info.matched,
+                info.source?.let { "source" to it },
+                info.confidence?.let { "confidence" to it.rawName },
+                info.matchScore?.let { "match_score" to it },
+                info.reason?.let { "reason" to it },
+            ).toMap()
     }
 
     class IdentityAlias(

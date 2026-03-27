@@ -59,6 +59,7 @@ enum class SuperwallEvents(
     ReviewGranted("review_granted"),
     ReviewDenied("review_denied"),
     IntegrationAttributes("integration_attributes"),
+    AttributionMatch("attribution_match"),
     CustomerInfoDidChange("customerInfo_didChange"),
     PermissionRequested("permission_requested"),
     PermissionGranted("permission_granted"),
