@@ -210,14 +210,18 @@ open class LocalStorage(
         return true
     }
 
-    suspend fun recordMMPInstallAttributionRequest(matchRequest: suspend () -> Boolean) {
+    fun recordMMPInstallAttributionRequest(matchRequest: suspend () -> Boolean) {
         val didCompleteRequest = read(DidCompleteMMPInstallAttributionRequest) ?: false
         if (didCompleteRequest) {
             return
         }
 
-        if (matchRequest()) {
-            write(DidCompleteMMPInstallAttributionRequest, true)
+        // Intentionally fire-and-forget so the initial config fetch stays on the startup critical path,
+        // matching the iOS SDK behavior.
+        ioScope.launch {
+            if (matchRequest()) {
+                write(DidCompleteMMPInstallAttributionRequest, true)
+            }
         }
     }
 
