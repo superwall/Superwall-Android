@@ -210,16 +210,14 @@ open class LocalStorage(
         return true
     }
 
-    fun recordMMPInstallAttributionRequest(matchRequest: suspend () -> Boolean) {
+    suspend fun recordMMPInstallAttributionRequest(matchRequest: suspend () -> Boolean) {
         val didCompleteRequest = read(DidCompleteMMPInstallAttributionRequest) ?: false
         if (didCompleteRequest) {
             return
         }
 
-        ioScope.launch {
-            if (matchRequest()) {
-                write(DidCompleteMMPInstallAttributionRequest, true)
-            }
+        if (matchRequest()) {
+            write(DidCompleteMMPInstallAttributionRequest, true)
         }
     }
 
