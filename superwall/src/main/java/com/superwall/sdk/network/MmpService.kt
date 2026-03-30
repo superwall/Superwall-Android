@@ -35,7 +35,7 @@ data class MmpMatchResponse(
     val matched: Boolean,
     val confidence: AttributionMatchInfo.Confidence? = null,
     val matchScore: Double? = null,
-    val clickId: Int? = null,
+    val clickId: Long? = null,
     val linkId: String? = null,
     val network: String? = null,
     val redirectUrl: String? = null,
