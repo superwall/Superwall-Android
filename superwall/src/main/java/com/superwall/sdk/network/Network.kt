@@ -37,7 +37,6 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.doubleOrNull
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 import java.util.Date
 import java.util.TimeZone
@@ -109,7 +108,7 @@ open class Network(
     private fun readJsonString(
         value: Map<String, JsonElement>?,
         key: String,
-    ): String? = value?.get(key)?.jsonPrimitive?.contentOrNull
+    ): String? = (value?.get(key) as? JsonPrimitive)?.contentOrNull
 
     override suspend fun sendEvents(events: EventsRequest): Either<Unit, NetworkError> =
         collectorService

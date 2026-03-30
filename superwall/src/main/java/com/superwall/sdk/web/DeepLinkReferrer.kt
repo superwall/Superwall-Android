@@ -13,7 +13,6 @@ import com.superwall.sdk.misc.IOScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
-import java.net.URLDecoder
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -27,10 +26,11 @@ class DeepLinkReferrer(
     context: () -> Context,
     private val scope: IOScope,
 ) : CheckForReferral {
-    private var referrerClient: InstallReferrerClient?
+    private var referrerClient: InstallReferrerClient? = null
+    private val readyReferrerClient: InstallReferrerClient?
         get() {
-            if (field?.isReady == true) {
-                return field
+            if (referrerClient?.isReady == true) {
+                return referrerClient
             } else {
                 return null
             }
@@ -62,7 +62,7 @@ class DeepLinkReferrer(
                         finished = {
                             when (it) {
                                 InstallReferrerClient.InstallReferrerResponse.OK -> {
-                                    referrerClient?.installReferrer?.installReferrer
+                                    readyReferrerClient?.installReferrer?.installReferrer
                                 }
 
                                 else -> {
@@ -144,10 +144,10 @@ class DeepLinkReferrer(
     private suspend fun getInstallReferrerParams(timeout: kotlin.time.Duration): Map<String, List<String>> {
         val rawReferrer =
             withTimeoutOrNull(timeout) {
-                while (referrerClient?.isReady != true) {
+                while (readyReferrerClient == null) {
                     // no-op
                 }
-                referrerClient?.installReferrer?.installReferrer?.toString()
+                readyReferrerClient?.installReferrer?.installReferrer?.toString()
             }
 
         referrerClient?.endConnection()
@@ -164,7 +164,7 @@ class DeepLinkReferrer(
 
         val uri = Uri.parse("https://superwall.invalid/?$query")
         return uri.queryParameterNames.associateWith { key ->
-            uri.getQueryParameters(key).map { URLDecoder.decode(it, "UTF-8") }
+            uri.getQueryParameters(key)
         }
     }
 }
