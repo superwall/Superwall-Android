@@ -68,6 +68,8 @@ class NetworkMock : SuperwallAPI {
     @Throws(Exception::class)
     override suspend fun getAssignments(): Either<List<Assignment>, NetworkError> = Either.Success(assignments)
 
+    override suspend fun matchMMPInstall(installReferrerClickId: Long?): Boolean = false
+
     override suspend fun webEntitlementsByUserId(
         userId: UserId,
         deviceId: DeviceVendorId,

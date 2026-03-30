@@ -10,6 +10,7 @@ import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.IOScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
@@ -145,7 +146,7 @@ class DeepLinkReferrer(
         val rawReferrer =
             withTimeoutOrNull(timeout) {
                 while (readyReferrerClient == null) {
-                    // no-op
+                    delay(50)
                 }
                 readyReferrerClient?.installReferrer?.installReferrer?.toString()
             }
