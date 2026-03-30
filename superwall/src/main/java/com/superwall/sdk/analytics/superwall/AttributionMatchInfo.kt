@@ -23,9 +23,6 @@ data class AttributionMatchInfo(
     ) {
         @SerialName("mmp")
         MMP("mmp"),
-
-        @SerialName("apple_search_ads")
-        APPLE_SEARCH_ADS("apple_search_ads"),
     }
 
     /**
