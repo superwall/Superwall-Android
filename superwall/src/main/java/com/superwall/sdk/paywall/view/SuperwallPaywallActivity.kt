@@ -713,7 +713,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
 
         val paywallVc = paywallView() ?: return
         mainScope.launch {
-            paywallVc.beforeOnDestroy(isActivityFinishing = isFinishing)
+            paywallVc.beforeOnDestroy(forceCleanup = isFinishing)
         }
     }
 
@@ -723,7 +723,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         val paywallVc = paywallView() ?: return
 
         mainScope.launch {
-            paywallVc.destroyed(isActivityFinishing = isFinishing)
+            paywallVc.destroyed(forceCleanup = isFinishing)
         }
     }
 
