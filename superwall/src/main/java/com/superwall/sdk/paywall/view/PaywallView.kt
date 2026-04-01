@@ -398,8 +398,8 @@ class PaywallView(
         }
     }
 
-    fun beforeOnDestroy() {
-        if (state.isBrowserViewPresented) {
+    fun beforeOnDestroy(forceCleanup: Boolean = false) {
+        if (state.isBrowserViewPresented && !forceCleanup) {
             return
         }
         factory.updatePaywallInfo(info)
@@ -408,8 +408,8 @@ class PaywallView(
             .willDismissPaywall(info)
     }
 
-    suspend fun destroyed() {
-        if (state.isBrowserViewPresented) {
+    suspend fun destroyed(forceCleanup: Boolean = false) {
+        if (state.isBrowserViewPresented && !forceCleanup) {
             return
         }
 
