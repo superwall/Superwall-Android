@@ -35,6 +35,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.children
+import androidx.core.view.doOnLayout
 import androidx.core.view.updateLayoutParams
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetBehavior.BottomSheetCallback
@@ -564,30 +565,21 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             }
         }
         bottomSheetBehavior.skipCollapsed = true
+        // Start hidden so the sheet slides up from the bottom
+        bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
 
-        val setState = {
-            if (!isModal) {
-                // Expanded by default
-                bottomSheetBehavior.state = BottomSheetBehavior.STATE_HALF_EXPANDED
-            } else {
-                bottomSheetBehavior.state = BottomSheetBehavior.STATE_EXPANDED
-            }
+        val targetState = if (!isModal) {
+            BottomSheetBehavior.STATE_HALF_EXPANDED
+        } else {
+            BottomSheetBehavior.STATE_EXPANDED
         }
 
-        // Check if we need to delay state change for Samsung devices on Android 14
-        val isSamsungAndroid14 =
-            Build.VERSION.SDK_INT == Build.VERSION_CODES.UPSIDE_DOWN_CAKE &&
-                (
-                    Build.MANUFACTURER.equals("samsung", ignoreCase = true) ||
-                        Build.BRAND.equals("samsung", ignoreCase = true)
-                )
-
-        if (isSamsungAndroid14) {
-            // Post state change to next frame after layout is complete
-            // This fixes timing issues on Samsung devices with Android 14
-            content.post { setState() }
-        } else {
-            setState()
+        // Wait for layout to complete before expanding, so the slide-up
+        // animation runs correctly on all devices (including Samsung).
+        content.doOnLayout {
+            content.post {
+                bottomSheetBehavior.state = targetState
+            }
         }
         content.invalidate()
         var currentWebViewScroll = 0
