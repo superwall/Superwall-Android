@@ -19,6 +19,7 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.delay
 
 class PaywallPreload(
     val factory: Factory,
@@ -52,6 +53,30 @@ class PaywallPreload(
                         preloadingDisabled = config.preloadingDisabled,
                     )
                 val confirmedAssignments = storage.getConfirmedAssignments()
+
+                // If there's a prioritized campaign, preload its paywalls first.
+                val prioritizedCampaignId = config.prioritizedCampaignId
+                if (prioritizedCampaignId != null) {
+                    val prioritizedTriggers =
+                        triggers.filter { trigger ->
+                            trigger.rules.any { it.experimentGroupId == prioritizedCampaignId }
+                        }.toSet()
+                    if (prioritizedTriggers.isNotEmpty()) {
+                        val prioritizedIds =
+                            ConfigLogic.getAllActiveTreatmentPaywallIds(
+                                triggers = prioritizedTriggers,
+                                confirmedAssignments = confirmedAssignments,
+                                unconfirmedAssignments = assignments.unconfirmedAssignments,
+                                expressionEvaluator = expressionEvaluator,
+                            )
+                        preloadPaywalls(paywallIdentifiers = prioritizedIds)
+
+                        // Delay before preloading the rest to avoid resource contention.
+                        delay(5000)
+                    }
+                }
+
+                // Then preload all remaining paywalls.
                 val paywallIds =
                     ConfigLogic.getAllActiveTreatmentPaywallIds(
                         triggers = triggers,
