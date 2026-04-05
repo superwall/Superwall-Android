@@ -33,6 +33,10 @@ open class LocalStorage(
     val coreDataManager: CoreDataManager = CoreDataManager(context = context),
 ) : Storage,
     CoroutineScope {
+    companion object {
+        private const val MMP_INSTALL_ATTRIBUTION_WINDOW_MS = 7L * 24 * 60 * 60 * 1000
+    }
+
     interface Factory :
         DeviceHelperFactory,
         HasExternalPurchaseControllerFactory
@@ -177,6 +181,48 @@ open class LocalStorage(
             trackEvent(event)
         }
         write(DidTrackAppInstall, true)
+    }
+
+    private fun isMMPInstallAttributionWindowOpen(appInstalledAtMillis: Long): Boolean {
+        val ageMs = System.currentTimeMillis() - appInstalledAtMillis
+        return ageMs in 0..MMP_INSTALL_ATTRIBUTION_WINDOW_MS
+    }
+
+    fun shouldAttemptInitialMMPInstallAttributionMatch(
+        hadTrackedAppInstallBeforeConfigure: Boolean,
+        appInstalledAtMillis: Long,
+    ): Boolean {
+        val didCompleteRequest = read(DidCompleteMMPInstallAttributionRequest) ?: false
+        if (didCompleteRequest) {
+            return false
+        }
+
+        val isEligible = read(IsEligibleForMMPInstallAttributionMatch) ?: false
+        if (hadTrackedAppInstallBeforeConfigure && !isEligible) {
+            return false
+        }
+
+        if (!isMMPInstallAttributionWindowOpen(appInstalledAtMillis)) {
+            return false
+        }
+
+        write(IsEligibleForMMPInstallAttributionMatch, true)
+        return true
+    }
+
+    fun recordMMPInstallAttributionRequest(matchRequest: suspend () -> Boolean) {
+        val didCompleteRequest = read(DidCompleteMMPInstallAttributionRequest) ?: false
+        if (didCompleteRequest) {
+            return
+        }
+
+        // Intentionally fire-and-forget so the initial config fetch stays on the startup critical path,
+        // matching the iOS SDK behavior.
+        ioScope.launch {
+            if (matchRequest()) {
+                write(DidCompleteMMPInstallAttributionRequest, true)
+            }
+        }
     }
 
     open fun clearCachedSessionEvents() {
