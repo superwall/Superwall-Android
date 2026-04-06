@@ -4,10 +4,13 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## 2.7.10
 
+## Potentially impactful changes
+- Billing errors on register are now wrapped in `SubscriptionStatusTimeout` errors
+- This is used to clarify that the status is timing out due to billing errors. If you are depending on the `NoPaywallView` to distinguish between these, ensure you are checking for the proper status.
+
 ## Enhancements
 - Adds onboarding analytics
 - Adds prioritized preloading support
-- Improves error messages for billing errors
 - Improved error handling
 
 ## Fixes
