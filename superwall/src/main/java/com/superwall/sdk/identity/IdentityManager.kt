@@ -15,6 +15,7 @@ import com.superwall.sdk.web.WebPaywallRedeemer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 /**
@@ -45,10 +46,6 @@ class IdentityManager(
     override val scope: CoroutineScope get() = ioScope
     override val track: suspend (Trackable) -> Unit = { trackEvent(it as TrackableSuperwallEvent) }
 
-    // -----------------------------------------------------------------------
-    // State reads
-    // -----------------------------------------------------------------------
-
     private val identity get() = actor.state.value
 
     val appUserId: String? get() = identity.appUserId
@@ -68,10 +65,6 @@ class IdentityManager(
 
     val hasIdentity: Flow<Boolean>
         get() = actor.state.map { it.isReady }.filter { it }
-
-    // -----------------------------------------------------------------------
-    // Actions — dispatch with self as context
-    // -----------------------------------------------------------------------
 
     fun configure(neverCalledStaticConfig: Boolean) {
         effect(
@@ -116,5 +109,9 @@ class IdentityManager(
                 shouldNotify = true,
             ),
         )
+    }
+
+    suspend fun awaitLatestIdentity(): IdentityState {
+        return actor.state.first { state -> !state.hasPendingIdentityResolution }
     }
 }

@@ -30,7 +30,14 @@ data class IdentityState(
     val phase: Phase = Phase.Pending(setOf(Pending.Configuration)),
     val appInstalledAtString: String = "",
 ) {
-    enum class Pending { Configuration, Seed, Assignments }
+    sealed class Pending {
+        object Configuration : Pending()
+        data class Identification(val id: String) : Pending()
+        object Attributes : Pending()
+        object Reset : Pending()
+        object Seed : Pending()
+        object Assignments : Pending()
+    }
 
     sealed class Phase {
         data class Pending(val items: Set<IdentityState.Pending>) : Phase()
@@ -53,15 +60,21 @@ data class IdentityState(
     val pending: Set<Pending>
         get() = (phase as? Phase.Pending)?.items ?: emptySet()
 
+    val hasPendingIdentityResolution: Boolean
+        get() =
+            pending.any { pending ->
+                pending is Pending.Identification ||
+                    pending is Pending.Attributes ||
+                    pending is Pending.Reset ||
+                    pending is Pending.Seed ||
+                    pending is Pending.Assignments
+            }
+
     fun resolve(item: Pending): IdentityState {
         val current = (phase as? Phase.Pending)?.items ?: return this
         val next = current - item
         return copy(phase = if (next.isEmpty()) Phase.Ready else Phase.Pending(next))
     }
-
-    // -----------------------------------------------------------------------
-    // Pure state mutations — (IdentityState) -> IdentityState, nothing else
-    // -----------------------------------------------------------------------
 
     internal sealed class Updates(
         override val reduce: (IdentityState) -> IdentityState,
@@ -70,14 +83,11 @@ data class IdentityState(
             val userId: String,
             val restoreAssignments: Boolean,
         ) : Updates({ state ->
-                // userId is already sanitized by Actions.Identify before dispatch.
                 if (userId == state.appUserId) {
                     state
                 } else {
                     val base =
                         if (state.appUserId != null) {
-                            // Switching users — start fresh identity, no phase
-                            // since we set it explicitly below.
                             IdentityState(
                                 appInstalledAtString = state.appInstalledAtString,
                                 phase = Phase.Ready,
@@ -98,10 +108,11 @@ data class IdentityState(
                             appInstalledAtString = state.appInstalledAtString,
                         )
 
+                    val existing = (state.phase as? Phase.Pending)?.items.orEmpty()
                     base.copy(
                         appUserId = userId,
                         userAttributes = merged,
-                        phase = Phase.Pending(buildSet {
+                        phase = Phase.Pending(existing + buildSet {
                             add(Pending.Seed)
                             if (restoreAssignments) add(Pending.Assignments)
                         }),
@@ -149,6 +160,33 @@ data class IdentityState(
             state.resolve(Pending.Assignments)
         })
 
+        data class BeginIdentify(val id: String) : Updates({ state ->
+            val existing = (state.phase as? Phase.Pending)?.items ?: emptySet()
+            state.copy(phase = Phase.Pending(existing + Pending.Identification(id)))
+        })
+
+        data class EndIdentify(val id: String) : Updates({ state ->
+            state.resolve(Pending.Identification(id))
+        })
+
+        object BeginAttributes : Updates({ state ->
+            val existing = (state.phase as? Phase.Pending)?.items ?: emptySet()
+            state.copy(phase = Phase.Pending(existing + Pending.Attributes))
+        })
+
+        object EndAttributes : Updates({ state ->
+            state.resolve(Pending.Attributes)
+        })
+
+        object BeginReset : Updates({ state ->
+            val existing = (state.phase as? Phase.Pending)?.items ?: emptySet()
+            state.copy(phase = Phase.Pending(existing + Pending.Reset))
+        })
+
+        object EndReset : Updates({ state ->
+            state.resolve(Pending.Reset)
+        })
+
         data class Configure(
             val needsAssignments: Boolean,
         ) : Updates({ state ->
@@ -178,28 +216,24 @@ data class IdentityState(
                     oldAttributes = emptyMap(),
                     appInstalledAtString = state.appInstalledAtString,
                 )
-            // Default phase is Pending(Configuration) — identity is NOT ready.
-            // This gates paywall presentation during the reset window.
-            // The calling action is responsible for restoring readiness.
-            fresh.copy(userAttributes = merged)
+            val existing = (state.phase as? Phase.Pending)?.items.orEmpty()
+            val nextPhase =
+                if (existing.isEmpty()) {
+                    Phase.Ready
+                } else {
+                    Phase.Pending(existing)
+                }
+            fresh.copy(
+                userAttributes = merged,
+                phase = nextPhase,
+            )
         })
 
-        object ResetComplete : Updates({ state ->
-            state.copy(phase = Phase.Ready)
-        })
     }
-
-    // -----------------------------------------------------------------------
-    // Async work — actions have full access to IdentityContext
-    // -----------------------------------------------------------------------
 
     internal sealed class Actions(
         override val execute: suspend IdentityContext.() -> Unit,
     ) : TypedAction<IdentityContext> {
-        /**
-         * Called after config has been fetched. Evaluates whether assignments
-         * are needed and resolves the Configuration pending item.
-         */
         data class Configure(
             val neverCalledStaticConfig: Boolean,
         ) : Actions({
@@ -230,8 +264,7 @@ data class IdentityState(
                 } else if (sanitized != state.value.appUserId) {
                     val wasLoggedIn = state.value.appUserId != null
 
-                    // If switching users, reset other managers BEFORE updating state
-                    // so storage.reset() doesn't wipe the new IDs
+                    // Reset other managers BEFORE updating state so storage.reset() doesn't wipe the new IDs
                     if (wasLoggedIn) {
                         completeReset()
                         immediate(Reset)
@@ -258,7 +291,6 @@ data class IdentityState(
         ) : Actions({
                 track(InternalSuperwallEvent.IdentityAlias())
 
-                // Fire-and-forget sub-actions
                 effect(ResolveSeed(id))
                 effect(CheckWebEntitlements)
                 sdkContext.reevaluateTestMode(id, alias)
@@ -326,21 +358,14 @@ data class IdentityState(
                 notifyUserChange?.invoke(attributes)
             })
 
-        /** Resets identity state only. Used during identify when switching users. */
         object Reset : Actions({
             update(Updates.Reset)
         })
 
-        /**
-         * Full reset from public API. Drops identity readiness so paywall
-         * presentation is gated, performs Superwall cleanup, then restores
-         * readiness. Matches iOS behavior where identitySubject is set to
-         * false during the reset window.
-         */
+        /** Matches iOS behavior where identitySubject is set to false during the reset window. */
         object FullReset : Actions({
             update(Updates.Reset)         // identity not ready
             completeReset()               // storage, config, paywall cache cleanup
-            update(Updates.ResetComplete) // identity ready
         })
     }
 }

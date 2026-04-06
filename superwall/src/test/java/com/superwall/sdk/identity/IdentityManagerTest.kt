@@ -44,6 +44,24 @@ class IdentityManagerTest {
     private var resetCalled = false
     private var trackedEvents: MutableList<Any> = mutableListOf()
 
+    private fun installPrintlnDebug(actor: StateActor<IdentityContext, IdentityState>, name: String) {
+        actor.onUpdate { reducer, next ->
+            next(reducer)
+            println("[$name] update -> $reducer")
+        }
+        actor.onAction { action, next ->
+            println("[$name] action -> $action")
+            next()
+        }
+        actor.onActionExecution { action, next ->
+            try {
+                next()
+            } finally {
+                println("[$name] action done -> $action")
+            }
+        }
+    }
+
     /** Create a test identity actor using Unconfined dispatcher. */
     private fun testIdentityActor(): StateActor<IdentityContext, IdentityState> {
         val actor =
@@ -51,6 +69,8 @@ class IdentityManagerTest {
                 createInitialIdentityState(storage, "2024-01-01"),
                 CoroutineScope(Dispatchers.Unconfined),
             )
+        installPrintlnDebug(actor, name = "IdentityTest")
+        IdentityPendingInterceptor.install(actor)
         IdentityPersistenceInterceptor.install(actor, storage)
         return actor
     }
@@ -196,11 +216,16 @@ class IdentityManagerTest {
         }
 
     @Test
-    fun `init does not merge attributes when alias and seed already exist`() =
+    fun `init does not merge attributes when alias, seed, and attributes already exist`() =
         runTest {
-            Given("existing aliasId and seed in storage") {
+            Given("existing aliasId, seed, and non-empty attributes in storage") {
                 When("the manager is created") {
-                    createManager(this@runTest, existingAliasId = "existing", existingSeed = 50)
+                    createManager(
+                        this@runTest,
+                        existingAliasId = "existing",
+                        existingSeed = 50,
+                        existingAttributes = mapOf("aliasId" to "existing", "seed" to 50),
+                    )
                 }
 
                 Then("user attributes are not merged during init") {
@@ -380,8 +405,6 @@ class IdentityManagerTest {
 
                 When("identify is called with a new userId") {
                     manager.identify("new-user-456")
-                    // Internal queue dispatches asynchronously
-                    Thread.sleep(100)
                 }
 
                 Then("appUserId is set") {
