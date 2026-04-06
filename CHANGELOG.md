@@ -2,6 +2,22 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.7.10
+
+## Potentially impactful changes
+- Billing errors on register are now wrapped in `SubscriptionStatusTimeout` errors
+- This is used to clarify that the status is timing out due to billing errors. If you are depending on the `NoPaywallView` to distinguish between these, ensure you are checking for the proper status.
+
+## Enhancements
+- Adds onboarding analytics
+- Adds prioritized preloading support
+- Improved error handling
+
+## Fixes
+- Prevents paywalls from dismissing on return from deep link
+- Fixes deadlock in `SerialTaskManager`
+- Fix issues with bottom sheet on certain Samsung devices
+
 ## 2.7.9
 
 ## Fixes
