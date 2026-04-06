@@ -13,7 +13,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 ## Fixes
 - Prevents paywalls from dismissing on return from deep link
 - Fixes deadlock in `SerialTaskManager`
-- Fix issues with bottom sheet on certain
+- Fix issues with bottom sheet on certain Samsung devices
 
 ## 2.7.9
 
