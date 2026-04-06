@@ -2,6 +2,19 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.7.10
+
+## Enhancements
+- Adds onboarding analytics
+- Adds prioritized preloading support
+- Improves error messages for billing errors
+- Improved error handling
+
+## Fixes
+- Prevents paywalls from dismissing on return from deep link
+- Fixes deadlock in `SerialTaskManager`
+- Fix issues with bottom sheet on certain
+
 ## 2.7.9
 
 ## Fixes
