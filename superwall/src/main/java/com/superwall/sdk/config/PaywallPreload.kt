@@ -55,6 +55,7 @@ class PaywallPreload(
                 val confirmedAssignments = storage.getConfirmedAssignments()
 
                 // If there's a prioritized campaign, preload its paywalls first.
+                var remainingTriggers = triggers
                 val prioritizedCampaignId = config.prioritizedCampaignId
                 if (prioritizedCampaignId != null) {
                     val prioritizedTriggers =
@@ -70,6 +71,7 @@ class PaywallPreload(
                                 expressionEvaluator = expressionEvaluator,
                             )
                         preloadPaywalls(paywallIdentifiers = prioritizedIds)
+                        remainingTriggers = triggers - prioritizedTriggers
 
                         // Delay before preloading the rest to avoid resource contention.
                         delay(5000)
@@ -79,7 +81,7 @@ class PaywallPreload(
                 // Then preload all remaining paywalls.
                 val paywallIds =
                     ConfigLogic.getAllActiveTreatmentPaywallIds(
-                        triggers = triggers,
+                        triggers = remainingTriggers,
                         confirmedAssignments = confirmedAssignments,
                         unconfirmedAssignments = assignments.unconfirmedAssignments,
                         expressionEvaluator = expressionEvaluator,

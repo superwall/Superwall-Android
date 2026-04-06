@@ -54,7 +54,7 @@ internal suspend fun getPaywallView(
     return try {
         val isForPresentation =
             request.flags.type != PresentationRequestType.GetImplicitPresentationResult &&
-                request.flags.type != PresentationRequestType.GetPresentationResult
+                    request.flags.type != PresentationRequestType.GetPresentationResult
         val delegate = request.flags.type.paywallViewDelegateAdapter
 
         val webviewExists = webViewExists()
@@ -78,7 +78,7 @@ internal suspend fun getPaywallView(
                 scope = LogScope.paywallPresentation,
                 message =
                     "Paywalls cannot be presented because the Android System WebView has been disabled" +
-                        " by the user.",
+                            " by the user.",
             )
             Result.failure(PaywallPresentationRequestStatusReason.NoPaywallView())
         }
@@ -101,10 +101,11 @@ private suspend fun presentationFailure(
         error = error,
     )
     paywallStatePublisher?.emit(PaywallState.PresentationError(error))
-    if(error is BillingError)
+    if (error is BillingError) {
         return PaywallPresentationRequestStatusReason.SubscriptionStatusTimeout(
-            "Google Play Billing is not available: ${error.message}"
+            "Google Play Billing is not available or has an error: ${error.message}"
         )
+    }
     return PaywallPresentationRequestStatusReason.NoPaywallView(
         "The paywall view could not be created: ${error.message}"
     )

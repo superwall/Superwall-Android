@@ -19,7 +19,7 @@ sealed class PaywallPresentationRequestStatusReason(
     val description: String,
     val info: String,
 ) : Throwable() {
-    /** Trying to prbroesent paywall when debugger is launched. */
+    /** Trying to present paywall when debugger is launched. */
     class DebuggerPresented :
         PaywallPresentationRequestStatusReason(
             "debugger_presented",
