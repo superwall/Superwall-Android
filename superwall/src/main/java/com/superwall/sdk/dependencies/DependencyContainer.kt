@@ -39,6 +39,7 @@ import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.identity.IdentityContext
 import com.superwall.sdk.identity.IdentityInfo
 import com.superwall.sdk.identity.IdentityManager
+import com.superwall.sdk.identity.IdentityPendingInterceptor
 import com.superwall.sdk.identity.IdentityPersistenceInterceptor
 import com.superwall.sdk.identity.IdentityState
 import com.superwall.sdk.identity.createInitialIdentityState
@@ -418,6 +419,7 @@ class DependencyContainer(
         val identityActor = SequentialActor<IdentityContext, IdentityState>(initialIdentity)
 
         DebugInterceptor.install(identityActor, name = "Identity")
+        IdentityPendingInterceptor.install(identityActor)
         IdentityPersistenceInterceptor.install(identityActor, storage)
 
         val sdkContext: SdkContext =

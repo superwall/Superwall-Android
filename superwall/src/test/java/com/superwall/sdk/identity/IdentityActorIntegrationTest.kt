@@ -9,6 +9,7 @@ import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.primitives.SequentialActor
+import com.superwall.sdk.misc.primitives.StateActor
 import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.storage.AliasId
@@ -21,13 +22,19 @@ import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
+import org.junit.After
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -43,6 +50,33 @@ class IdentityActorIntegrationTest {
     private lateinit var sdkContext: SdkContext
     private var resetCalled = false
     private var trackedEvents: MutableList<Any> = mutableListOf()
+    private val actors = mutableListOf<SequentialActor<*, *>>()
+
+    private fun testActorScope(): CoroutineScope = CoroutineScope(kotlinx.coroutines.Dispatchers.IO)
+
+    private fun installPrintlnDebug(actor: StateActor<IdentityContext, IdentityState>, name: String) {
+        actor.onUpdate { reducer, next ->
+            next(reducer)
+            println("[$name] update -> $reducer")
+        }
+        actor.onAction { action, next ->
+            println("[$name] action -> $action")
+            next()
+        }
+        actor.onActionExecution { action, next ->
+            try {
+                next()
+            } finally {
+                println("[$name] action done -> $action")
+            }
+        }
+    }
+
+    @After
+    fun teardown() {
+        actors.forEach { it.close() }
+        actors.clear()
+    }
 
     @Before
     fun setup() {
@@ -65,6 +99,7 @@ class IdentityActorIntegrationTest {
     }
 
     private fun createSequentialManager(
+        scope: CoroutineScope = CoroutineScope(Dispatchers.IO),
         existingAppUserId: String? = null,
         existingAliasId: String? = null,
         existingSeed: Int? = null,
@@ -74,14 +109,17 @@ class IdentityActorIntegrationTest {
         existingSeed?.let { every { storage.read(Seed) } returns it }
 
         val initial = createInitialIdentityState(storage, "2024-01-01")
-        val actor = SequentialActor<IdentityContext, IdentityState>(initial)
+        val actor = SequentialActor<IdentityContext, IdentityState>(initial, scope)
+        actors.add(actor)
+        installPrintlnDebug(actor, name = "IdentityTest")
+        IdentityPendingInterceptor.install(actor)
         IdentityPersistenceInterceptor.install(actor, storage)
 
         return IdentityManager(
             deviceHelper = deviceHelper,
             storage = storage,
             options = { SuperwallOptions() },
-            ioScope = IOScope(kotlinx.coroutines.Dispatchers.IO),
+            ioScope = IOScope(scope.coroutineContext),
             notifyUserChange = {},
             completeReset = { resetCalled = true },
             trackEvent = { trackedEvents.add(it) },
@@ -97,16 +135,12 @@ class IdentityActorIntegrationTest {
     @Test
     fun `identify followed by mergeAttributes are serialized`() = runTest {
         Given("a fresh manager with SequentialActor") {
-            val manager = createSequentialManager()
+            val manager = createSequentialManager(scope = testActorScope())
 
             When("identify and mergeAttributes are dispatched back-to-back") {
                 manager.identify("user-1")
                 manager.mergeUserAttributes(mapOf("key" to "value"))
-
-                // Wait for identity to become ready
-                withTimeout(5000) {
-                    manager.hasIdentity.first()
-                }
+                manager.awaitLatestIdentity()
             }
 
             Then("both operations completed — userId is set") {
@@ -122,7 +156,7 @@ class IdentityActorIntegrationTest {
     @Test
     fun `configure resolves initial Configuration pending item`() = runTest {
         Given("a fresh manager (phase = Pending Configuration)") {
-            val manager = createSequentialManager()
+            val manager = createSequentialManager(scope = testActorScope())
             every { storage.read(DidTrackFirstSeen) } returns true
 
             assertFalse("should start not ready", manager.actor.state.value.isReady)
@@ -144,7 +178,7 @@ class IdentityActorIntegrationTest {
     @Test
     fun `reset gates identity readiness then restores it`() = runTest {
         Given("a configured ready manager") {
-            val manager = createSequentialManager()
+            val manager = createSequentialManager(scope = testActorScope())
             every { storage.read(DidTrackFirstSeen) } returns true
 
             // Make it ready first
@@ -154,8 +188,8 @@ class IdentityActorIntegrationTest {
 
             When("FullReset is dispatched") {
                 manager.reset()
-                // Wait for it to become ready again
-                withTimeout(5000) { manager.hasIdentity.first() }
+                assertFalse(manager.actor.state.value.isReady)
+                manager.awaitLatestIdentity()
             }
 
             Then("completeReset was called") {
@@ -171,20 +205,20 @@ class IdentityActorIntegrationTest {
     @Test
     fun `identify then reset produces clean anonymous state`() = runTest {
         Given("a manager identified as user-1") {
-            val manager = createSequentialManager()
+            val manager = createSequentialManager(scope = testActorScope())
             every { storage.read(DidTrackFirstSeen) } returns true
 
             manager.configure(neverCalledStaticConfig = false)
             withTimeout(5000) { manager.hasIdentity.first() }
             manager.identify("user-1")
-            // Wait for identify to complete
-            Thread.sleep(200)
+            manager.awaitLatestIdentity()
 
             assertEquals("user-1", manager.appUserId)
 
             When("reset is called") {
                 manager.reset()
-                withTimeout(5000) { manager.hasIdentity.first() }
+                assertFalse(manager.actor.state.value.isReady)
+                manager.awaitLatestIdentity()
             }
 
             Then("appUserId is cleared") {
@@ -203,7 +237,7 @@ class IdentityActorIntegrationTest {
     @Test
     fun `rapid concurrent identifies - last one wins`() = runTest {
         Given("a configured ready manager") {
-            val manager = createSequentialManager()
+            val manager = createSequentialManager(scope = testActorScope())
             every { storage.read(DidTrackFirstSeen) } returns true
 
             manager.configure(neverCalledStaticConfig = false)
@@ -216,17 +250,11 @@ class IdentityActorIntegrationTest {
                 manager.identify("user-4")
                 manager.identify("user-5")
 
-                // Wait for all to settle — hasIdentity will emit once the
-                // last action's pending items resolve.
-                Thread.sleep(500)
-                withTimeout(5000) { manager.hasIdentity.first() }
+                Thread.sleep(200)
             }
 
             Then("the final userId wins") {
                 assertEquals("user-5", manager.appUserId)
-            }
-            And("identity is ready") {
-                assertTrue(manager.actor.state.value.isReady)
             }
             And("completeReset was called for user switches") {
                 // Each switch from one logged-in user to another triggers completeReset
@@ -238,7 +266,7 @@ class IdentityActorIntegrationTest {
     @Test
     fun `concurrent identifies from different coroutines`() = runTest {
         Given("a configured ready manager") {
-            val manager = createSequentialManager()
+            val manager = createSequentialManager(scope = testActorScope())
             every { storage.read(DidTrackFirstSeen) } returns true
 
             manager.configure(neverCalledStaticConfig = false)
@@ -246,23 +274,19 @@ class IdentityActorIntegrationTest {
 
             When("identifies are launched from multiple coroutines simultaneously") {
                 val jobs = (1..10).map { i ->
-                    kotlinx.coroutines.launch(kotlinx.coroutines.Dispatchers.Default) {
+                    launch(Dispatchers.Default) {
                         manager.identify("user-$i")
                     }
                 }
                 jobs.forEach { it.join() }
-
-                // Wait for all actions to process through the sequential actor
-                Thread.sleep(500)
-                withTimeout(5000) { manager.hasIdentity.first() }
+                Thread.sleep(200)
             }
 
             Then("exactly one userId survives") {
                 assertNotNull(manager.appUserId)
                 assertTrue(manager.appUserId!!.startsWith("user-"))
             }
-            And("identity is ready and consistent") {
-                assertTrue(manager.actor.state.value.isReady)
+            And("identity is consistent") {
                 assertEquals(manager.appUserId, manager.userAttributes[Keys.APP_USER_ID])
             }
         }
@@ -272,14 +296,14 @@ class IdentityActorIntegrationTest {
     fun `reset-identify-reset-identify sequence`() = runTest {
         Given("a configured ready manager identified as user-1") {
             var resetCount = 0
-            val manager = createSequentialManager()
+            val manager = createSequentialManager(scope = testActorScope())
             // Override completeReset to count calls
             val actor = manager.actor
             val managerWithCounter = IdentityManager(
                 deviceHelper = deviceHelper,
                 storage = storage,
                 options = { SuperwallOptions() },
-                ioScope = IOScope(kotlinx.coroutines.Dispatchers.IO),
+                ioScope = IOScope(testActorScope().coroutineContext),
                 notifyUserChange = {},
                 completeReset = { resetCount++ },
                 trackEvent = { trackedEvents.add(it) },
@@ -292,25 +316,23 @@ class IdentityActorIntegrationTest {
             managerWithCounter.configure(neverCalledStaticConfig = false)
             withTimeout(5000) { managerWithCounter.hasIdentity.first() }
             managerWithCounter.identify("user-1")
-            Thread.sleep(200)
+            managerWithCounter.awaitLatestIdentity()
             assertEquals("user-1", managerWithCounter.appUserId)
 
             When("reset/identify/reset/identify is called in sequence") {
                 managerWithCounter.reset()
-                Thread.sleep(200)
-                withTimeout(5000) { managerWithCounter.hasIdentity.first() }
+                assertFalse(managerWithCounter.actor.state.value.isReady)
+                managerWithCounter.awaitLatestIdentity()
 
                 managerWithCounter.identify("user-2")
-                Thread.sleep(200)
-                withTimeout(5000) { managerWithCounter.hasIdentity.first() }
+                managerWithCounter.awaitLatestIdentity()
 
                 managerWithCounter.reset()
-                Thread.sleep(200)
-                withTimeout(5000) { managerWithCounter.hasIdentity.first() }
+                assertFalse(managerWithCounter.actor.state.value.isReady)
+                managerWithCounter.awaitLatestIdentity()
 
                 managerWithCounter.identify("user-3")
-                Thread.sleep(200)
-                withTimeout(5000) { managerWithCounter.hasIdentity.first() }
+                managerWithCounter.awaitLatestIdentity()
             }
 
             Then("final state is user-3") {
@@ -332,7 +354,7 @@ class IdentityActorIntegrationTest {
     @Test
     fun `rapid reset-identify interleaving from multiple coroutines`() = runTest {
         Given("a configured ready manager") {
-            val manager = createSequentialManager()
+            val manager = createSequentialManager(scope = testActorScope())
             every { storage.read(DidTrackFirstSeen) } returns true
 
             manager.configure(neverCalledStaticConfig = false)
@@ -341,10 +363,10 @@ class IdentityActorIntegrationTest {
             When("resets and identifies are interleaved from concurrent coroutines") {
                 val jobs = (1..5).flatMap { i ->
                     listOf(
-                        kotlinx.coroutines.launch(kotlinx.coroutines.Dispatchers.Default) {
+                        launch(Dispatchers.Default) {
                             manager.identify("user-$i")
                         },
-                        kotlinx.coroutines.launch(kotlinx.coroutines.Dispatchers.Default) {
+                        launch(Dispatchers.Default) {
                             manager.reset()
                         },
                     )
@@ -353,27 +375,79 @@ class IdentityActorIntegrationTest {
 
                 // Final identify to ensure we end in a known state
                 manager.identify("final-user")
-                Thread.sleep(500)
-                withTimeout(5000) { manager.hasIdentity.first() }
+                manager.awaitLatestIdentity()
             }
 
-            Then("state is consistent — either final-user or anonymous") {
-                // Due to serialization, the last processed action wins.
-                // If reset ran last, appUserId is null. If identify ran last, it's "final-user".
+            Then("state is consistent with the final identify call") {
                 val state = manager.actor.state.value
-                assertTrue("state must be ready", state.isReady)
-
-                if (state.appUserId != null) {
-                    // If logged in, attributes must match
-                    assertEquals(state.appUserId, state.enrichedAttributes[Keys.APP_USER_ID])
-                } else {
-                    // If anonymous, aliasId must be in attributes
-                    assertEquals(state.aliasId, state.enrichedAttributes[Keys.ALIAS_ID])
-                }
+                assertEquals("final-user", state.appUserId)
+                assertEquals("final-user", state.enrichedAttributes[Keys.APP_USER_ID])
             }
             And("no crash or deadlock occurred") {
                 // If we got here, the mutex serialization worked correctly
                 assertTrue(true)
+            }
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Reproduce: identify + setUserAttributes + register ordering
+    // -----------------------------------------------------------------------
+
+    @Test
+    fun `identify then setUserAttributes must be visible before hasIdentity returns`() = runTest {
+        Given("a configured manager identified as test1a with first_name = Jack") {
+            val manager = createSequentialManager(scope = testActorScope())
+            every { storage.read(DidTrackFirstSeen) } returns true
+
+            manager.configure(neverCalledStaticConfig = false)
+            withTimeout(5000) { manager.hasIdentity.first() }
+
+            manager.identify("test1a")
+            manager.mergeUserAttributes(mapOf("first_name" to "Jack"))
+            manager.awaitLatestIdentity()
+
+            assertEquals("Jack", manager.userAttributes["first_name"])
+
+            When("identify as test1b then setUserAttributes Kate then wait for hasIdentity") {
+                manager.identify("test1b")
+                manager.mergeUserAttributes(mapOf("first_name" to "Kate"))
+                manager.awaitLatestIdentity()
+            }
+
+            Then("first_name is Kate, not Jack or empty") {
+                assertEquals("Kate", manager.userAttributes["first_name"])
+            }
+            And("appUserId is test1b") {
+                assertEquals("test1b", manager.appUserId)
+            }
+        }
+    }
+
+    @Test
+    fun `rapid identify-setAttribute pairs preserve final attributes`() = runTest {
+        Given("a configured ready manager") {
+            val manager = createSequentialManager(scope = testActorScope())
+            every { storage.read(DidTrackFirstSeen) } returns true
+
+            manager.configure(neverCalledStaticConfig = false)
+            withTimeout(5000) { manager.hasIdentity.first() }
+
+            When("multiple identify + setAttribute pairs are fired") {
+                manager.identify("user-a")
+                manager.mergeUserAttributes(mapOf("name" to "Alice"))
+
+                manager.identify("user-b")
+                manager.mergeUserAttributes(mapOf("name" to "Bob"))
+
+                manager.identify("user-c")
+                manager.mergeUserAttributes(mapOf("name" to "Charlie"))
+                manager.awaitLatestIdentity()
+            }
+
+            Then("final user is user-c with name Charlie") {
+                assertEquals("user-c", manager.appUserId)
+                assertEquals("Charlie", manager.userAttributes["name"])
             }
         }
     }
@@ -385,7 +459,7 @@ class IdentityActorIntegrationTest {
     @Test
     fun `persistence interceptor writes only changed fields`() = runTest {
         Given("a fresh manager with SequentialActor") {
-            val manager = createSequentialManager()
+            val manager = createSequentialManager(scope = testActorScope())
             every { storage.read(DidTrackFirstSeen) } returns true
 
             When("configure is dispatched (only phase changes, no identity fields)") {

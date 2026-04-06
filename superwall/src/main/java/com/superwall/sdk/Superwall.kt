@@ -829,7 +829,8 @@ class Superwall(
     }
 
     /**
-     * Asynchronously resets. Presentation of paywalls is suspended until reset completes.
+     * Coordinates reset through the identity actor. Presentation of paywalls is
+     * suspended until reset completes.
      */
     internal fun reset(duringIdentify: Boolean = false) {
         withErrorTracking {

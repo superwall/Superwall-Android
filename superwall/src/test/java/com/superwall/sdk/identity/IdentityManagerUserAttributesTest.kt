@@ -40,6 +40,24 @@ class IdentityManagerUserAttributesTest {
     private var resetCalled = false
     private var trackedEvents: MutableList<Any> = mutableListOf()
 
+    private fun installPrintlnDebug(actor: StateActor<IdentityContext, IdentityState>, name: String) {
+        actor.onUpdate { reducer, next ->
+            next(reducer)
+            println("[$name] update -> $reducer")
+        }
+        actor.onAction { action, next ->
+            println("[$name] action -> $action")
+            next()
+        }
+        actor.onActionExecution { action, next ->
+            try {
+                next()
+            } finally {
+                println("[$name] action done -> $action")
+            }
+        }
+    }
+
     @Before
     fun setup() =
         runTest {
@@ -87,6 +105,8 @@ class IdentityManagerUserAttributesTest {
                 createInitialIdentityState(storage, "2024-01-01"),
                 CoroutineScope(Dispatchers.Unconfined),
             )
+        installPrintlnDebug(actor, name = "IdentityTest")
+        IdentityPendingInterceptor.install(actor)
         IdentityPersistenceInterceptor.install(actor, storage)
         return actor
     }

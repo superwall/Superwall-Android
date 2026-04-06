@@ -422,7 +422,7 @@ class IdentityStateReducerTest {
     // -----------------------------------------------------------------------
 
     @Test
-    fun `Reset - creates fresh identity with Pending Configuration`() =
+    fun `Reset - creates fresh identity and preserves readiness`() =
         Given("a logged-in state with attributes") {
             val state = readyState(
                 appUserId = "user-1",
@@ -448,9 +448,9 @@ class IdentityStateReducerTest {
             And("custom attributes are cleared") {
                 assertNull(result.userAttributes["custom"])
             }
-            And("phase is Pending Configuration (not Ready)") {
-                assertEquals(Phase.Pending(setOf(Pending.Configuration)), result.phase)
-                assertFalse(result.isReady)
+            And("phase stays Ready") {
+                assertEquals(Phase.Ready, result.phase)
+                assertTrue(result.isReady)
             }
             And("appInstalledAtString is preserved") {
                 assertEquals("2024-01-01", result.appInstalledAtString)
@@ -472,39 +472,7 @@ class IdentityStateReducerTest {
             Then("aliasId is regenerated") {
                 assertNotEquals("old-alias", result.aliasId)
             }
-            And("state is not ready") {
-                assertFalse(result.isReady)
-            }
-        }
-
-    // -----------------------------------------------------------------------
-    // Updates.ResetComplete
-    // -----------------------------------------------------------------------
-
-    @Test
-    fun `ResetComplete - sets phase to Ready`() =
-        Given("a pending state (after Reset)") {
-            val state = pendingState(Pending.Configuration)
-
-            val result = When("ResetComplete is applied") {
-                Updates.ResetComplete.reduce(state)
-            }
-
-            Then("state is Ready") {
-                assertTrue(result.isReady)
-            }
-        }
-
-    @Test
-    fun `ResetComplete - on already Ready state is no-op`() =
-        Given("a Ready state") {
-            val state = readyState()
-
-            val result = When("ResetComplete is applied") {
-                Updates.ResetComplete.reduce(state)
-            }
-
-            Then("state remains Ready") {
+            And("state remains ready") {
                 assertTrue(result.isReady)
             }
         }
@@ -698,27 +666,22 @@ class IdentityStateReducerTest {
         }
 
     @Test
-    fun `reset then complete flow`() =
+    fun `reset preserves existing pending markers`() =
         Given("a logged-in ready state") {
-            val initial = readyState(appUserId = "user-1")
+            val initial =
+                readyState(appUserId = "user-1").copy(
+                    phase = Phase.Pending(setOf(Pending.Reset)),
+                )
 
             val afterReset = When("Reset is applied") {
                 Updates.Reset.reduce(initial)
             }
 
-            Then("identity is not ready") {
-                assertFalse(afterReset.isReady)
+            Then("reset pending is preserved") {
+                assertEquals(Phase.Pending(setOf(Pending.Reset)), afterReset.phase)
             }
             And("user is cleared") {
                 assertNull(afterReset.appUserId)
-            }
-
-            val afterComplete = When("ResetComplete is applied") {
-                Updates.ResetComplete.reduce(afterReset)
-            }
-
-            Then("identity is ready again") {
-                assertTrue(afterComplete.isReady)
             }
         }
 }
