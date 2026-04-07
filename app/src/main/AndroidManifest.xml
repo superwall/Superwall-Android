@@ -40,6 +40,12 @@
             android:theme="@style/Theme.MyApplication" />
 
         <activity
+            android:name=".test.TimelineViewerActivity"
+            android:exported="false"
+            android:label="Event Timeline Viewer"
+            android:theme="@style/Theme.MyApplication" />
+
+        <activity
             android:name=".test.WebTestActivity"
             android:exported="false"
             android:label="@string/title_activity_uitest"
