@@ -63,8 +63,21 @@ fun writeTimelineToFile(
 }
 
 /**
+ * Overload that derives the filename from [UITestInfo] directly.
+ * Used by [screenshotFlow] where no JUnit [Description] is available.
+ */
+fun writeTimelineToFile(testInfo: UITestInfo) {
+    writeTimelineToFile(
+        testInfo,
+        testClassName = "Test${testInfo.number}",
+        testMethodName = testInfo.testCaseType.titleText(testInfo.number).replace(" ", "_"),
+    )
+}
+
+/**
  * JUnit TestWatcher that automatically writes the [com.superwall.superapp.test.EventTimeline]
  * from a [UITestInfo] to a JSON file on the device after each test finishes (pass or fail).
+ * Uses JUnit's [Description] for reliable test class/method naming.
  *
  * Add to any test class:
  * ```
