@@ -22,7 +22,6 @@ import com.superwall.sdk.paywall.view.delegate.PaywallViewDelegateAdapter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.junit.After
@@ -93,7 +92,7 @@ class PaywallViewDismissTest {
 
     @Test
     fun dismiss_purchased_emits_dismissed_and_clears_publisher() =
-        runTest {
+        runBlocking {
             var callbackShouldDismiss: Boolean? = null
             val finished = kotlinx.coroutines.CompletableDeferred<Unit>()
             val callback =
@@ -114,34 +113,30 @@ class PaywallViewDismissTest {
             val publisher = MutableSharedFlow<PaywallState>(replay = 1, extraBufferCapacity = 1)
             val request = makeRequest()
             Given("a paywall view configured with a dismissal callback") {
-                runBlocking {
-                    withContext(Dispatchers.Main) {
-                        view.set(request, publisher, null)
-                        view.onViewCreated()
-                    }
+                withContext(Dispatchers.Main) {
+                    view.set(request, publisher, null)
+                    view.onViewCreated()
                 }
 
                 When("the paywall is dismissed after a purchase due to system logic") {
-                    runBlocking {
-                        withContext(Dispatchers.Main) {
-                            view.dismiss(
-                                result = PaywallResult.Purchased(productId = "product1"),
-                                closeReason = PaywallCloseReason.SystemLogic,
-                            )
-                        }
+                    withContext(Dispatchers.Main) {
+                        view.dismiss(
+                            result = PaywallResult.Purchased(productId = "product1"),
+                            closeReason = PaywallCloseReason.SystemLogic,
+                        )
+                    }
 
-                        delayFor(100.milliseconds)
+                    delayFor(100.milliseconds)
 
-                        withContext(Dispatchers.Main) {
-                            view.beforeOnDestroy()
-                            view.destroyed()
-                        }
+                    withContext(Dispatchers.Main) {
+                        view.beforeOnDestroy()
+                        view.destroyed()
+                    }
 
-                        withContext(Dispatchers.IO) {
-                            try {
-                                withTimeout(3000) { finished.await() }
-                            } catch (_: Throwable) {
-                            }
+                    withContext(Dispatchers.IO) {
+                        try {
+                            withTimeout(3000) { finished.await() }
+                        } catch (_: Throwable) {
                         }
                     }
 
@@ -168,7 +163,7 @@ class PaywallViewDismissTest {
 
     @Test
     fun dismiss_declined_for_next_paywall_does_not_clear_publisher() =
-        runTest {
+        runBlocking {
             val callback =
                 object : PaywallViewCallback {
                     override fun onFinished(
@@ -185,23 +180,19 @@ class PaywallViewDismissTest {
             val publisher = MutableSharedFlow<PaywallState>(replay = 1, extraBufferCapacity = 1)
             val request = makeRequest()
             Given("a paywall view configured to continue to the next paywall") {
-                runBlocking {
-                    withContext(Dispatchers.Main) {
-                        view.set(request, publisher, null)
-                        view.onViewCreated()
-                    }
+                withContext(Dispatchers.Main) {
+                    view.set(request, publisher, null)
+                    view.onViewCreated()
                 }
 
                 When("the paywall is dismissed as declined for the next paywall") {
-                    runBlocking {
-                        withContext(Dispatchers.Main) {
-                            view.dismiss(
-                                result = PaywallResult.Declined(),
-                                closeReason = PaywallCloseReason.ForNextPaywall,
-                            )
-                            view.beforeOnDestroy()
-                            view.destroyed()
-                        }
+                    withContext(Dispatchers.Main) {
+                        view.dismiss(
+                            result = PaywallResult.Declined(),
+                            closeReason = PaywallCloseReason.ForNextPaywall,
+                        )
+                        view.beforeOnDestroy()
+                        view.destroyed()
                     }
 
                     val dismissed = publisher.replayCache.lastOrNull() as? PaywallState.Dismissed

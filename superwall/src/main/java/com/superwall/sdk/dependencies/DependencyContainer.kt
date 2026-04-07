@@ -418,7 +418,7 @@ class DependencyContainer(
         val initialIdentity = createInitialIdentityState(storage, deviceHelper.appInstalledAtString)
         val identityActor = SequentialActor<IdentityContext, IdentityState>(initialIdentity)
 
-        DebugInterceptor.install(identityActor, name = "Identity")
+        // DebugInterceptor.install(identityActor, name = "Identity")
         IdentityPendingInterceptor.install(identityActor)
         IdentityPersistenceInterceptor.install(identityActor, storage)
 

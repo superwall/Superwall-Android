@@ -27,9 +27,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -164,9 +162,7 @@ class IdentityActorIntegrationTest {
             When("configure is dispatched") {
                 manager.configure(neverCalledStaticConfig = false)
 
-                withTimeout(5000) {
-                    manager.hasIdentity.first()
-                }
+                manager.hasIdentity.first()
             }
 
             Then("identity is ready") {
@@ -183,7 +179,7 @@ class IdentityActorIntegrationTest {
 
             // Make it ready first
             manager.configure(neverCalledStaticConfig = false)
-            withTimeout(5000) { manager.hasIdentity.first() }
+            manager.hasIdentity.first()
             assertTrue("should be ready after configure", manager.actor.state.value.isReady)
 
             When("FullReset is dispatched") {
@@ -209,7 +205,7 @@ class IdentityActorIntegrationTest {
             every { storage.read(DidTrackFirstSeen) } returns true
 
             manager.configure(neverCalledStaticConfig = false)
-            withTimeout(5000) { manager.hasIdentity.first() }
+            manager.hasIdentity.first()
             manager.identify("user-1")
             manager.awaitLatestIdentity()
 
@@ -241,7 +237,7 @@ class IdentityActorIntegrationTest {
             every { storage.read(DidTrackFirstSeen) } returns true
 
             manager.configure(neverCalledStaticConfig = false)
-            withTimeout(5000) { manager.hasIdentity.first() }
+            manager.hasIdentity.first()
 
             When("multiple identifies are fired concurrently") {
                 manager.identify("user-1")
@@ -270,7 +266,7 @@ class IdentityActorIntegrationTest {
             every { storage.read(DidTrackFirstSeen) } returns true
 
             manager.configure(neverCalledStaticConfig = false)
-            withTimeout(5000) { manager.hasIdentity.first() }
+            manager.hasIdentity.first()
 
             When("identifies are launched from multiple coroutines simultaneously") {
                 val jobs = (1..10).map { i ->
@@ -314,7 +310,7 @@ class IdentityActorIntegrationTest {
             every { storage.read(DidTrackFirstSeen) } returns true
 
             managerWithCounter.configure(neverCalledStaticConfig = false)
-            withTimeout(5000) { managerWithCounter.hasIdentity.first() }
+            managerWithCounter.hasIdentity.first()
             managerWithCounter.identify("user-1")
             managerWithCounter.awaitLatestIdentity()
             assertEquals("user-1", managerWithCounter.appUserId)
@@ -358,7 +354,7 @@ class IdentityActorIntegrationTest {
             every { storage.read(DidTrackFirstSeen) } returns true
 
             manager.configure(neverCalledStaticConfig = false)
-            withTimeout(5000) { manager.hasIdentity.first() }
+            manager.hasIdentity.first()
 
             When("resets and identifies are interleaved from concurrent coroutines") {
                 val jobs = (1..5).flatMap { i ->
@@ -401,7 +397,7 @@ class IdentityActorIntegrationTest {
             every { storage.read(DidTrackFirstSeen) } returns true
 
             manager.configure(neverCalledStaticConfig = false)
-            withTimeout(5000) { manager.hasIdentity.first() }
+            manager.hasIdentity.first()
 
             manager.identify("test1a")
             manager.mergeUserAttributes(mapOf("first_name" to "Jack"))
@@ -431,7 +427,7 @@ class IdentityActorIntegrationTest {
             every { storage.read(DidTrackFirstSeen) } returns true
 
             manager.configure(neverCalledStaticConfig = false)
-            withTimeout(5000) { manager.hasIdentity.first() }
+            manager.hasIdentity.first()
 
             When("multiple identify + setAttribute pairs are fired") {
                 manager.identify("user-a")
@@ -464,7 +460,7 @@ class IdentityActorIntegrationTest {
 
             When("configure is dispatched (only phase changes, no identity fields)") {
                 manager.configure(neverCalledStaticConfig = false)
-                withTimeout(5000) { manager.hasIdentity.first() }
+                manager.hasIdentity.first()
             }
 
             Then("no identity field writes occurred (only phase changed)") {
