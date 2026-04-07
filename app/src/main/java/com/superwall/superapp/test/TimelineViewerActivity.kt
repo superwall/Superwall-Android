@@ -2,6 +2,7 @@ package com.superwall.superapp.test
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
@@ -45,6 +46,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.superwall.sdk.analytics.superwall.SuperwallEvent
 import com.superwall.superapp.ui.theme.MyApplicationTheme
 
 class TimelineViewerActivity : ComponentActivity() {
@@ -159,6 +161,8 @@ private fun TimelineDetailScreen(
     timeline: EventTimeline,
     onBack: () -> Unit,
 ) {
+    BackHandler { onBack() }
+
     val events by timeline.eventsFlow.collectAsState()
     var firstSelected by remember { mutableStateOf<Int?>(null) }
     var secondSelected by remember { mutableStateOf<Int?>(null) }
@@ -379,8 +383,8 @@ private fun PreloadSection(events: List<TimedEvent>) {
 
     val preloadDuration by remember(events) {
         derivedStateOf {
-            val configAttr = events.firstOrNull { it.eventName == "config_attributes" }
-            val lastWebviewComplete = events.lastOrNull { it.eventName == "paywallWebviewLoad_complete" }
+            val configAttr = events.firstOrNull { it.event is SuperwallEvent.ConfigAttributes }
+            val lastWebviewComplete = events.lastOrNull { it.event is SuperwallEvent.PaywallWebviewLoadComplete }
             if (configAttr != null && lastWebviewComplete != null) {
                 lastWebviewComplete.elapsed - configAttr.elapsed
             } else {
@@ -392,8 +396,8 @@ private fun PreloadSection(events: List<TimedEvent>) {
     val preloadCounts by remember(events) {
         derivedStateOf {
             LoadCounts(
-                started = events.count { it.eventName == "paywallPreload_start" },
-                completed = events.count { it.eventName == "paywallPreload_complete" },
+                started = events.count { it.event is SuperwallEvent.PaywallPreloadStart },
+                completed = events.count { it.event is SuperwallEvent.PaywallPreloadComplete },
                 failed = 0, // no preload error event exists
             )
         }
@@ -402,10 +406,10 @@ private fun PreloadSection(events: List<TimedEvent>) {
     val responseCounts by remember(events) {
         derivedStateOf {
             LoadCounts(
-                started = events.count { it.eventName == "paywallResponseLoad_start" },
-                completed = events.count { it.eventName == "paywallResponseLoad_complete" },
+                started = events.count { it.event is SuperwallEvent.PaywallResponseLoadStart },
+                completed = events.count { it.event is SuperwallEvent.PaywallResponseLoadComplete },
                 failed = events.count {
-                    it.eventName == "paywallResponseLoad_fail" || it.eventName == "paywallResponseLoad_notFound"
+                    it.event is SuperwallEvent.PaywallResponseLoadFail || it.event is SuperwallEvent.PaywallResponseLoadNotFound
                 },
             )
         }
@@ -414,10 +418,10 @@ private fun PreloadSection(events: List<TimedEvent>) {
     val webviewCounts by remember(events) {
         derivedStateOf {
             LoadCounts(
-                started = events.count { it.eventName == "paywallWebviewLoad_start" },
-                completed = events.count { it.eventName == "paywallWebviewLoad_complete" },
+                started = events.count { it.event is SuperwallEvent.PaywallWebviewLoadStart },
+                completed = events.count { it.event is SuperwallEvent.PaywallWebviewLoadComplete },
                 failed = events.count {
-                    it.eventName == "paywallWebviewLoad_fail" || it.eventName == "paywallWebviewLoad_timeout"
+                    it.event is SuperwallEvent.PaywallWebviewLoadFail || it.event is SuperwallEvent.PaywallWebviewLoadTimeout
                 },
             )
         }
@@ -426,9 +430,9 @@ private fun PreloadSection(events: List<TimedEvent>) {
     val productsCounts by remember(events) {
         derivedStateOf {
             LoadCounts(
-                started = events.count { it.eventName == "paywallProductsLoad_start" },
-                completed = events.count { it.eventName == "paywallProductsLoad_complete" },
-                failed = events.count { it.eventName == "paywallProductsLoad_fail" },
+                started = events.count { it.event is SuperwallEvent.PaywallProductsLoadStart },
+                completed = events.count { it.event is SuperwallEvent.PaywallProductsLoadComplete },
+                failed = events.count { it.event is SuperwallEvent.PaywallProductsLoadFail },
             )
         }
     }

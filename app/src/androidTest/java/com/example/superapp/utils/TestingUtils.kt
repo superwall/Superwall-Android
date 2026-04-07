@@ -21,6 +21,7 @@ import com.superwall.sdk.config.models.ConfigurationStatus
 import com.superwall.sdk.paywall.view.ShimmerView
 import com.superwall.superapp.MainActivity
 import com.superwall.superapp.test.EventTimeline
+import com.superwall.superapp.test.TimelineStore
 import com.superwall.superapp.test.UITestInfo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -95,16 +96,6 @@ fun Dropshots.screenshotFlow(
     val flow = ScreenshotTestFlow(testInfo).apply(flow)
     val scenario = ActivityScenario.launch(MainActivity::class.java)
     val testCase = testInfo
-    // Capture caller info for timeline output
-    val callerFrame = Thread.currentThread().stackTrace
-        .firstOrNull { frame ->
-            frame.methodName != "screenshotFlow" &&
-                !frame.className.startsWith("java.") &&
-                !frame.className.startsWith("dalvik.") &&
-                frame.className.contains("Test")
-        }
-    val testClassName = callerFrame?.className?.substringAfterLast('.') ?: "UnknownTest"
-    val testMethodName = callerFrame?.methodName ?: "unknownMethod"
 
     println("-----------")
     println("Executing test case: ${testCase.number}")
@@ -141,7 +132,8 @@ fun Dropshots.screenshotFlow(
             throw e
         } finally {
             scope.cancel()
-            writeTimelineToFile(testCase, testClassName, testMethodName)
+            writeTimelineToFile(testCase)
+            TimelineStore.remove("Test #${testCase.number}")
         }
     }
     closeActivity()
