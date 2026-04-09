@@ -1,6 +1,9 @@
 package com.superwall.superapp.test
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -45,9 +48,12 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.sp
 import com.superwall.sdk.analytics.superwall.SuperwallEvent
 import com.superwall.superapp.ui.theme.MyApplicationTheme
+import org.json.JSONArray
+import org.json.JSONObject
 
 class TimelineViewerActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -85,11 +91,13 @@ private fun TimelineViewerRoot() {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun TimelineListScreen(
     timelines: Map<String, EventTimeline>,
     onSelect: (String, EventTimeline) -> Unit,
 ) {
+    val context = LocalContext.current
     Column(modifier = Modifier.fillMaxSize()) {
         Text(
             text = "Event Timelines",
@@ -118,7 +126,19 @@ private fun TimelineListScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp, vertical = 4.dp)
-                                .clickable { onSelect(name, timeline) },
+                                .combinedClickable(
+                                    onClick = { onSelect(name, timeline) },
+                                    onLongClick = {
+                                        val json = JSONArray(
+                                            timeline.toSerializableList().map { entry ->
+                                                JSONObject(entry.mapValues { (_, v) -> v ?: JSONObject.NULL })
+                                            },
+                                        ).toString(2)
+                                        val clipboard = context.getSystemService(ClipboardManager::class.java)
+                                        clipboard.setPrimaryClip(ClipData.newPlainText("Timeline: $name", json))
+                                        Toast.makeText(context, "Copied ${timeline.allEvents().size} events as JSON", Toast.LENGTH_SHORT).show()
+                                    },
+                                ),
                             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
