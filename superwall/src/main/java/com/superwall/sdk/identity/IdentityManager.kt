@@ -10,7 +10,6 @@ import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.primitives.StateActor
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.storage.Storage
-import com.superwall.sdk.store.testmode.TestModeManager
 import com.superwall.sdk.web.WebPaywallRedeemer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -25,7 +24,6 @@ import kotlinx.coroutines.flow.map
  * their context, eliminating the intermediate object.
  */
 class IdentityManager(
-    override val deviceHelper: DeviceHelper,
     override val storage: Storage,
     private val ioScope: IOScope,
     private val stringToSha: (String) -> String = { it },
@@ -37,8 +35,7 @@ class IdentityManager(
         Superwall.instance.track(it)
     },
     private val options: () -> SuperwallOptions,
-    override val webPaywallRedeemer: (() -> WebPaywallRedeemer)? = null,
-    override val testModeManager: TestModeManager? = null,
+    override val webPaywallRedeemer: () -> WebPaywallRedeemer,
     override val actor: StateActor<IdentityContext, IdentityState>,
     @Suppress("EXPOSED_PARAMETER_TYPE")
     override val sdkContext: SdkContext,

@@ -458,7 +458,6 @@ class DependencyContainer(
         identityManager =
             IdentityManager(
                 storage = storage,
-                deviceHelper = deviceHelper,
                 options = { options },
                 ioScope = ioScope,
                 stringToSha = {
@@ -470,6 +469,7 @@ class DependencyContainer(
                 notifyUserChange = {
                     delegate().userAttributesDidChange(it)
                 },
+                webPaywallRedeemer = { reedemer },
                 actor = identityActor,
                 sdkContext = sdkContext,
             )

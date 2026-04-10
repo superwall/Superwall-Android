@@ -565,7 +565,7 @@ class IdentityStateReducerTest {
         }
 
     @Test
-    fun `enrichedAttributes - uses aliasId as userId when no appUserId`() =
+    fun `enrichedAttributes - omits appUserId when anonymous`() =
         Given("an anonymous state") {
             val state = readyState(appUserId = null, aliasId = "alias-1")
 
@@ -573,8 +573,14 @@ class IdentityStateReducerTest {
                 state.enrichedAttributes
             }
 
-            Then("appUserId key contains aliasId") {
-                assertEquals("alias-1", enriched[Keys.APP_USER_ID])
+            Then("appUserId key is absent (matches iOS behavior)") {
+                assertFalse(
+                    "anonymous user_attributes must not inject appUserId fallback",
+                    enriched.containsKey(Keys.APP_USER_ID),
+                )
+            }
+            And("aliasId is still present") {
+                assertEquals("alias-1", enriched[Keys.ALIAS_ID])
             }
         }
 
