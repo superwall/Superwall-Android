@@ -87,13 +87,13 @@ class IdentityManagerUserAttributesTest {
         existingAttributes?.let { every { storage.read(UserAttributes) } returns it }
 
         return IdentityManager(
-            deviceHelper = deviceHelper,
             storage = storage,
             options = { SuperwallOptions() },
             ioScope = IOScope(scope.coroutineContext),
             notifyUserChange = {},
             completeReset = { resetCalled = true },
             trackEvent = { trackedEvents.add(it) },
+            webPaywallRedeemer = { mockk(relaxed = true) },
             actor = testActor(),
             sdkContext = mockk(relaxed = true),
         )
@@ -124,13 +124,13 @@ class IdentityManagerUserAttributesTest {
         existingAttributes?.let { every { storage.read(UserAttributes) } returns it }
 
         return IdentityManager(
-            deviceHelper = deviceHelper,
             storage = storage,
             options = { SuperwallOptions() },
             ioScope = ioScope,
             notifyUserChange = {},
             completeReset = { resetCalled = true },
             trackEvent = { trackedEvents.add(it) },
+            webPaywallRedeemer = { mockk(relaxed = true) },
             actor = testActor(),
             sdkContext = mockk(relaxed = true),
         )

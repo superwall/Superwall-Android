@@ -114,13 +114,13 @@ class IdentityActorIntegrationTest {
         IdentityPersistenceInterceptor.install(actor, storage)
 
         return IdentityManager(
-            deviceHelper = deviceHelper,
             storage = storage,
             options = { SuperwallOptions() },
             ioScope = IOScope(scope.coroutineContext),
             notifyUserChange = {},
             completeReset = { resetCalled = true },
             trackEvent = { trackedEvents.add(it) },
+            webPaywallRedeemer = { mockk(relaxed = true) },
             actor = actor,
             sdkContext = sdkContext,
         )
@@ -296,13 +296,13 @@ class IdentityActorIntegrationTest {
             // Override completeReset to count calls
             val actor = manager.actor
             val managerWithCounter = IdentityManager(
-                deviceHelper = deviceHelper,
                 storage = storage,
                 options = { SuperwallOptions() },
                 ioScope = IOScope(testActorScope().coroutineContext),
                 notifyUserChange = {},
                 completeReset = { resetCount++ },
                 trackEvent = { trackedEvents.add(it) },
+                webPaywallRedeemer = { mockk(relaxed = true) },
                 actor = actor,
                 sdkContext = sdkContext,
             )

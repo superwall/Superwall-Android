@@ -110,13 +110,13 @@ class IdentityManagerTest {
 
         val scope = IOScope(dispatcher.coroutineContext)
         return IdentityManager(
-            deviceHelper = deviceHelper,
             storage = storage,
             options = { superwallOptions },
             ioScope = scope,
             notifyUserChange = { notifiedChanges.add(it) },
             completeReset = { resetCalled = true },
             trackEvent = { trackedEvents.add(it) },
+            webPaywallRedeemer = { mockk(relaxed = true) },
             actor = testIdentityActor(),
             sdkContext = mockk(relaxed = true),
         )
@@ -135,13 +135,13 @@ class IdentityManagerTest {
         existingAliasId?.let { every { storage.read(AliasId) } returns it }
 
         return IdentityManager(
-            deviceHelper = deviceHelper,
             storage = storage,
             options = { SuperwallOptions() },
             ioScope = ioScope,
             notifyUserChange = { notifiedChanges.add(it) },
             completeReset = { resetCalled = true },
             trackEvent = { trackedEvents.add(it) },
+            webPaywallRedeemer = { mockk(relaxed = true) },
             actor = testIdentityActor(),
             sdkContext = mockk(relaxed = true),
         )
@@ -335,7 +335,6 @@ class IdentityManagerTest {
 
                 val manager =
                     IdentityManager(
-                        deviceHelper = deviceHelper,
                         storage = storage,
                         options = { testOptions },
                         ioScope = IOScope(Dispatchers.Unconfined),
@@ -343,6 +342,7 @@ class IdentityManagerTest {
                         notifyUserChange = {},
                         completeReset = {},
                         trackEvent = {},
+                        webPaywallRedeemer = { mockk(relaxed = true) },
                         actor = testIdentityActor(),
                         sdkContext = mockk(relaxed = true),
                     )
@@ -781,13 +781,13 @@ class IdentityManagerTest {
 
                 val manager =
                     IdentityManager(
-                        deviceHelper = deviceHelper,
                         storage = storage,
                         options = { SuperwallOptions() },
                         ioScope = IOScope(this@runTest.coroutineContext),
                         notifyUserChange = { notifiedChanges.add(it) },
                         completeReset = { resetCalled = true },
                         trackEvent = { trackedEvents.add(it) },
+                        webPaywallRedeemer = { mockk(relaxed = true) },
                         actor = testIdentityActor(),
                         sdkContext = sdkContext,
                     )
@@ -1010,7 +1010,7 @@ class IdentityManagerTest {
     // region userAttributes getter invariant
 
     @Test
-    fun `userAttributes getter always injects identity fields even when internal map is empty`() =
+    fun `userAttributes getter always injects aliasId but omits appUserId when anonymous`() =
         runTest {
             Given("a manager with no stored attributes") {
                 val manager = createManager(this@runTest, existingAliasId = "test-alias", existingSeed = 55)
@@ -1024,10 +1024,12 @@ class IdentityManagerTest {
                     assertEquals("test-alias", attrs["aliasId"])
                 }
 
-                And("userAttributes always contains appUserId (falls back to aliasId when anonymous)") {
+                And("userAttributes does NOT contain appUserId when anonymous (matches iOS)") {
                     val attrs = manager.userAttributes
-                    assertTrue(attrs.containsKey("appUserId"))
-                    assertEquals("test-alias", attrs["appUserId"])
+                    assertFalse(
+                        "anonymous user_attributes must not inject appUserId fallback, got: $attrs",
+                        attrs.containsKey("appUserId"),
+                    )
                 }
             }
         }
