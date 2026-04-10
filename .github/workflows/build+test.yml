@@ -40,9 +40,78 @@ jobs:
 
     # Run Build & Test the Project
     - name: Build gradle project
-      run: ./gradlew build
+      run: ./gradlew build -x lint -x lintDebug -x lintVitalRelease
 
-    - name: Run unit and instrumentation tests with coverage
+    - name: Build test project
+      run: ./gradlew :app:assembleAndroidTest -DtestBuildType=debug -x lint -x lintDebug -x lintVitalRelease
+
+    - name: Run tests on Firebase Test Lab
+      uses: asadmansr/Firebase-Test-Lab-Action@v1.0
+      with:
+        arg-spec: '.github/firebase-tests.yml:android-pixel-7'
+      env:
+        SERVICE_ACCOUNT: ${{ secrets.SERVICE_ACCOUNT }}
+
+  unit-tests:
+    runs-on: macos-15-intel
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+        ref: ${{ github.head_ref }}
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Set Up JDK
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'zulu'
+        java-version: '17'
+        cache: 'gradle'
+
+    - name: Change wrapper permissions
+      run: chmod +x ./gradlew
+
+    - name: Run unit tests with coverage
+      run: ./gradlew :superwall:testDebugUnitTest -x lint -x lintDebug -x lintVitalRelease
+
+    - name: Upload unit test coverage data
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: unit-test-coverage
+        path: superwall/build/jacoco/
+
+    - name: Upload unit test reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: unit-test-reports
+        path: |
+          superwall/build/reports/tests/
+          superwall/build/test-results/
+
+  instrumentation-tests:
+    runs-on: macos-15-intel
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+        ref: ${{ github.head_ref }}
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Set Up JDK
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'zulu'
+        java-version: '17'
+        cache: 'gradle'
+
+    - name: Change wrapper permissions
+      run: chmod +x ./gradlew
+
+    - name: Run instrumentation tests with coverage
       uses: reactivecircus/android-emulator-runner@v2
       with:
         api-level: 33
@@ -61,21 +130,59 @@ jobs:
           -camera-back none
           -camera-front none
           -no-snapshot-save
-        script: ./gradlew :superwall:jacocoFullReport
+        script: ./gradlew :superwall:connectedDebugAndroidTest -x lint -x lintDebug -x lintVitalRelease
 
-    - name: Build test project
-      run: ./gradlew :app:assembleAndroidTest -DtestBuildType=debug
-
-    - name: Upload test reports
+    - name: Upload instrumentation test coverage data
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: test-reports
+        name: instrumentation-test-coverage
+        path: superwall/build/outputs/code_coverage/
+
+    - name: Upload instrumentation test reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: instrumentation-test-reports
         path: |
-          **/build/reports/tests/
-          **/build/test-results/
-          **/build/reports/androidTests/connected/
-          **/build/outputs/code_coverage/
+          superwall/build/reports/androidTests/connected/
+          superwall/build/outputs/androidTest-results/
+
+  coverage-report:
+    runs-on: macos-15-intel
+    needs: [unit-tests, instrumentation-tests]
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+        ref: ${{ github.head_ref }}
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Set Up JDK
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'zulu'
+        java-version: '17'
+        cache: 'gradle'
+
+    - name: Change wrapper permissions
+      run: chmod +x ./gradlew
+
+    - name: Download unit test coverage data
+      uses: actions/download-artifact@v4
+      with:
+        name: unit-test-coverage
+        path: superwall/build/jacoco/
+
+    - name: Download instrumentation test coverage data
+      uses: actions/download-artifact@v4
+      with:
+        name: instrumentation-test-coverage
+        path: superwall/build/outputs/code_coverage/
+
+    - name: Generate combined coverage report
+      run: ./gradlew :superwall:compileDebugSources :superwall:jacocoTestReport -x testDebugUnitTest -x lint -x lintDebug -x lintVitalRelease
 
     - name: Upload coverage report
       uses: actions/upload-artifact@v4
@@ -107,10 +214,3 @@ jobs:
           git commit -m "Update coverage badge [skip ci]"
           git push origin HEAD:${{ github.head_ref }}
         fi
-
-    - name: Run tests on Firebase Test Lab
-      uses: asadmansr/Firebase-Test-Lab-Action@v1.0
-      with:
-        arg-spec: '.github/firebase-tests.yml:android-pixel-7'
-      env:
-        SERVICE_ACCOUNT: ${{ secrets.SERVICE_ACCOUNT }}

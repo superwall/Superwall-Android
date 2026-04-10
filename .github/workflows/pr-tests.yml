@@ -5,7 +5,7 @@ on:
     branches: [ develop ]
 
 jobs:
-  test:
+  unit-tests:
     runs-on: macos-15-intel
 
     steps:
@@ -37,7 +37,58 @@ jobs:
     - name: Change wrapper permissions
       run: chmod +x ./gradlew
 
-    - name: Run unit and instrumentation tests with coverage
+    - name: Run unit tests with coverage
+      run: ./gradlew :superwall:testDebugUnitTest -x lint -x lintDebug -x lintVitalRelease
+
+    - name: Upload unit test coverage data
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: unit-test-coverage
+        path: superwall/build/jacoco/
+
+    - name: Upload unit test reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: unit-test-reports
+        path: |
+          superwall/build/reports/tests/
+          superwall/build/test-results/
+
+  instrumentation-tests:
+    runs-on: macos-15-intel
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ github.head_ref }}
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
+
+    - name: Cache Gradle packages
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
+
+    - name: Change wrapper permissions
+      run: chmod +x ./gradlew
+
+    - name: Run instrumentation tests with coverage
       uses: reactivecircus/android-emulator-runner@v2
       with:
         api-level: 33
@@ -56,18 +107,71 @@ jobs:
           -camera-back none
           -camera-front none
           -no-snapshot-save
-        script: ./gradlew :superwall:jacocoFullReport
+        script: ./gradlew :superwall:connectedDebugAndroidTest -x lint -x lintDebug -x lintVitalRelease
 
-    - name: Upload test reports
+    - name: Upload instrumentation test coverage data
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: test-reports
+        name: instrumentation-test-coverage
+        path: superwall/build/outputs/code_coverage/
+
+    - name: Upload instrumentation test reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: instrumentation-test-reports
         path: |
-          **/build/reports/tests/
-          **/build/test-results/
-          **/build/reports/androidTests/connected/
-          **/build/outputs/code_coverage/
+          superwall/build/reports/androidTests/connected/
+          superwall/build/outputs/androidTest-results/
+
+  coverage-report:
+    runs-on: macos-15-intel
+    needs: [unit-tests, instrumentation-tests]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ github.head_ref }}
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
+
+    - name: Cache Gradle packages
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
+
+    - name: Change wrapper permissions
+      run: chmod +x ./gradlew
+
+    - name: Download unit test coverage data
+      uses: actions/download-artifact@v4
+      with:
+        name: unit-test-coverage
+        path: superwall/build/jacoco/
+
+    - name: Download instrumentation test coverage data
+      uses: actions/download-artifact@v4
+      with:
+        name: instrumentation-test-coverage
+        path: superwall/build/outputs/code_coverage/
+
+    - name: Generate combined coverage report
+      run: ./gradlew :superwall:compileDebugSources :superwall:jacocoTestReport -x testDebugUnitTest -x lint -x lintDebug -x lintVitalRelease
 
     - name: Upload coverage report
       uses: actions/upload-artifact@v4
