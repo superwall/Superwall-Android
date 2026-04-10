@@ -66,27 +66,41 @@ class TimelineViewerActivity : ComponentActivity() {
     }
 }
 
+private sealed class TimelineSelection {
+    object AllEvents : TimelineSelection()
+    data class Single(val name: String, val timeline: EventTimeline) : TimelineSelection()
+}
+
 @Composable
 private fun TimelineViewerRoot() {
-    var selectedTimeline by remember { mutableStateOf<Pair<String, EventTimeline>?>(null) }
+    var selected by remember { mutableStateOf<TimelineSelection?>(null) }
     val timelines by TimelineStore.timelinesFlow.collectAsState()
+    val mergedEvents by TimelineStore.mergedFlow.collectAsState()
 
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background,
     ) {
-        if (selectedTimeline == null) {
-            TimelineListScreen(
+        when (val sel = selected) {
+            null -> TimelineListScreen(
                 timelines = timelines,
-                onSelect = { name, timeline -> selectedTimeline = name to timeline },
+                mergedEvents = mergedEvents,
+                onSelectAll = { selected = TimelineSelection.AllEvents },
+                onSelectTimeline = { name, timeline -> selected = TimelineSelection.Single(name, timeline) },
             )
-        } else {
-            val (name, timeline) = selectedTimeline!!
-            TimelineDetailScreen(
-                name = name,
-                timeline = timeline,
-                onBack = { selectedTimeline = null },
+            is TimelineSelection.AllEvents -> TimelineDetailScreen(
+                name = "All Events",
+                events = mergedEvents,
+                onBack = { selected = null },
             )
+            is TimelineSelection.Single -> {
+                val events by sel.timeline.eventsFlow.collectAsState()
+                TimelineDetailScreen(
+                    name = sel.name,
+                    events = events,
+                    onBack = { selected = null },
+                )
+            }
         }
     }
 }
@@ -95,7 +109,9 @@ private fun TimelineViewerRoot() {
 @Composable
 private fun TimelineListScreen(
     timelines: Map<String, EventTimeline>,
-    onSelect: (String, EventTimeline) -> Unit,
+    mergedEvents: List<TimedEvent>,
+    onSelectAll: () -> Unit,
+    onSelectTimeline: (String, EventTimeline) -> Unit,
 ) {
     val context = LocalContext.current
     Column(modifier = Modifier.fillMaxSize()) {
@@ -119,6 +135,24 @@ private fun TimelineListScreen(
             }
         } else {
             LazyColumn {
+                if (mergedEvents.isNotEmpty()) {
+                    item(key = "__all_events__") {
+                        AllEventsCard(
+                            events = mergedEvents,
+                            onClick = onSelectAll,
+                            onLongClick = {
+                                val json = JSONArray(
+                                    mergedEvents.toSerializableList().map { entry ->
+                                        JSONObject(entry.mapValues { (_, v) -> v ?: JSONObject.NULL })
+                                    },
+                                ).toString(2)
+                                val clipboard = context.getSystemService(ClipboardManager::class.java)
+                                clipboard.setPrimaryClip(ClipData.newPlainText("All Events", json))
+                                Toast.makeText(context, "Copied ${mergedEvents.size} events as JSON", Toast.LENGTH_SHORT).show()
+                            },
+                        )
+                    }
+                }
                 timelines.entries.sortedByDescending { it.value.allEvents().size }.forEach { (name, timeline) ->
                     item(key = name) {
                         val liveEvents by timeline.eventsFlow.collectAsState()
@@ -127,7 +161,7 @@ private fun TimelineListScreen(
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp, vertical = 4.dp)
                                 .combinedClickable(
-                                    onClick = { onSelect(name, timeline) },
+                                    onClick = { onSelectTimeline(name, timeline) },
                                     onLongClick = {
                                         val json = JSONArray(
                                             timeline.toSerializableList().map { entry ->
@@ -176,14 +210,59 @@ private fun TimelineListScreen(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
+private fun AllEventsCard(
+    events: List<TimedEvent>,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "All Events",
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = "${events.size} events (merged across all timelines)",
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                val lastElapsed = events.lastOrNull()?.elapsed
+                Text(
+                    text = if (lastElapsed != null) formatDuration(lastElapsed.inWholeMilliseconds) else "--",
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    fontFamily = FontFamily.Monospace,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
 private fun TimelineDetailScreen(
     name: String,
-    timeline: EventTimeline,
+    events: List<TimedEvent>,
     onBack: () -> Unit,
 ) {
     BackHandler { onBack() }
 
-    val events by timeline.eventsFlow.collectAsState()
     var firstSelected by remember { mutableStateOf<Int?>(null) }
     var secondSelected by remember { mutableStateOf<Int?>(null) }
 
@@ -231,8 +310,9 @@ private fun TimelineDetailScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
+                val totalMs = events.lastOrNull()?.elapsed?.inWholeMilliseconds ?: 0L
                 Text(
-                    text = "Total: ${formatDuration(timeline.totalDuration().inWholeMilliseconds)}",
+                    text = "Total: ${formatDuration(totalMs)}",
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
                     style = MaterialTheme.typography.titleMedium,

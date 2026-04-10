@@ -107,14 +107,17 @@ class EventTimeline(
         _events.any { it.event is T }
 
     /** Serialize all events to a list of maps for JSON output. */
-    fun toSerializableList(): List<Map<String, Any?>> =
-        _events.map { event ->
-            mapOf(
-                "eventName" to event.eventName,
-                "eventType" to event.eventType,
-                "elapsedMs" to event.elapsed.inWholeMilliseconds,
-                "epochMillis" to event.epochMillis,
-                "params" to event.params.mapValues { (_, v) -> v.toString() },
-            )
-        }
+    fun toSerializableList(): List<Map<String, Any?>> = _events.toList().toSerializableList()
 }
+
+/** Top-level serializer so the merged-view (which is a bare list, not a timeline) can reuse it. */
+fun List<TimedEvent>.toSerializableList(): List<Map<String, Any?>> =
+    map { event ->
+        mapOf(
+            "eventName" to event.eventName,
+            "eventType" to event.eventType,
+            "elapsedMs" to event.elapsed.inWholeMilliseconds,
+            "epochMillis" to event.epochMillis,
+            "params" to event.params.mapValues { (_, v) -> v.toString() },
+        )
+    }

@@ -83,7 +83,7 @@ class MainApplication :
                     logging.level = LogLevel.debug
                     paywalls =
                         PaywallOptions().apply {
-                            shouldPreload = true
+                            shouldPreload = false
                         }
                 },
         )
