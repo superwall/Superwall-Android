@@ -60,6 +60,20 @@ jobs:
         ref: ${{ github.head_ref }}
         token: ${{ secrets.GITHUB_TOKEN }}
 
+    # Reclaim ~10+ GB on the runner before the AVD cache restore + emulator boot.
+    # Ubuntu runners ship near-full and instrumentation jobs can hit "no space
+    # left on device" around the emulator boot or coverage write otherwise.
+    - name: Free disk space
+      uses: jlumbroso/free-disk-space@v1.3.1
+      with:
+        android: false        # keep Android SDK / tools
+        tool-cache: true      # rm -rf "$AGENT_TOOLSDIRECTORY"
+        dotnet: true          # rm -rf /usr/share/dotnet
+        haskell: true         # rm -rf /opt/ghc
+        swap-storage: true    # rm -f /mnt/swapfile (4 GiB)
+        docker-images: false  # slow (~16s), skip
+        large-packages: false # slow (includes google-cloud-sdk), skip
+
     - name: Enable KVM
       run: |
         echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
