@@ -142,11 +142,12 @@ mavenPublishing {
 }
 
 tasks.register("generateBuildInfo") {
+    val versionValue = version.toString()
+    val outputFile = layout.buildDirectory.file("version.json")
+    outputs.file(outputFile)
     doLast {
-        var buildInfo = mapOf("version" to version)
-        val jsonOutput = JsonBuilder(buildInfo).toPrettyString()
-        val outputFile = File("${project.buildDir}/version.json")
-        outputFile.writeText(jsonOutput)
+        val jsonOutput = JsonBuilder(mapOf("version" to versionValue)).toPrettyString()
+        outputFile.get().asFile.writeText(jsonOutput)
     }
 }
 
