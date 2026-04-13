@@ -246,7 +246,7 @@ class IdentityActorIntegrationTest {
                 manager.identify("user-4")
                 manager.identify("user-5")
 
-                Thread.sleep(200)
+                manager.awaitLatestIdentity()
             }
 
             Then("the final userId wins") {
@@ -275,7 +275,7 @@ class IdentityActorIntegrationTest {
                     }
                 }
                 jobs.forEach { it.join() }
-                Thread.sleep(200)
+                manager.awaitLatestIdentity()
             }
 
             Then("exactly one userId survives") {

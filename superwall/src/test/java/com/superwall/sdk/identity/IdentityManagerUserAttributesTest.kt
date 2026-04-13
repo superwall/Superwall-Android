@@ -148,7 +148,7 @@ class IdentityManagerUserAttributesTest {
                     }
 
                 // Allow scope.launch from init's mergeUserAttributes to complete
-                Thread.sleep(100)
+                manager.awaitLatestIdentity()
 
                 Then("userAttributes contains aliasId") {
                     val attrs = manager.userAttributes
@@ -180,8 +180,7 @@ class IdentityManagerUserAttributesTest {
 
                 When("identify is called with a new userId") {
                     manager.identify("user-123")
-                    Thread.sleep(100)
-                    Thread.sleep(100)
+                    manager.awaitLatestIdentity()
                 }
 
                 Then("userAttributes contains appUserId") {
@@ -275,8 +274,7 @@ class IdentityManagerUserAttributesTest {
 
                 When("identify is called with the SAME userId") {
                     manager.identify("user-123")
-                    Thread.sleep(100)
-                    Thread.sleep(100)
+                    manager.awaitLatestIdentity()
                 }
 
                 Then("userAttributes still contains aliasId") {
@@ -309,7 +307,7 @@ class IdentityManagerUserAttributesTest {
                     }
 
                 // Allow any async merges to complete
-                Thread.sleep(100)
+                manager.awaitLatestIdentity()
 
                 Then("aliasId individual field is correct") {
                     assertEquals("stored-alias", manager.aliasId)
@@ -356,14 +354,12 @@ class IdentityManagerUserAttributesTest {
 
                 When("identify is called with the SAME userId (early return, no saveIds)") {
                     manager.identify("user-123")
-                    Thread.sleep(100)
-                    Thread.sleep(100)
+                    manager.awaitLatestIdentity()
                 }
 
                 And("setUserAttributes is called with custom data") {
                     manager.mergeUserAttributes(mapOf("name" to "John"))
-                    Thread.sleep(100)
-                    Thread.sleep(100)
+                    manager.awaitLatestIdentity()
                 }
 
                 Then("userAttributes should contain the custom attribute") {
@@ -406,8 +402,7 @@ class IdentityManagerUserAttributesTest {
 
                 When("setUserAttributes is called without any identify") {
                     manager.mergeUserAttributes(mapOf("name" to "John"))
-                    Thread.sleep(100)
-                    Thread.sleep(100)
+                    manager.awaitLatestIdentity()
                 }
 
                 Then("userAttributes contains custom attribute") {
@@ -453,7 +448,7 @@ class IdentityManagerUserAttributesTest {
                 }
 
                 // Allow async operations
-                Thread.sleep(100)
+                manager.awaitLatestIdentity()
 
                 Then("userAttributes contains the NEW aliasId") {
                     val attrs = manager.userAttributes
@@ -504,8 +499,7 @@ class IdentityManagerUserAttributesTest {
 
                 When("identify is called with a DIFFERENT userId (triggers reset)") {
                     manager.identify("user-B")
-                    Thread.sleep(100)
-                    Thread.sleep(100)
+                    manager.awaitLatestIdentity()
                 }
 
                 Then("appUserId is user-B") {
@@ -542,8 +536,7 @@ class IdentityManagerUserAttributesTest {
 
                 // First identify to get appUserId into attributes
                 manager.identify("user-123")
-                Thread.sleep(100)
-                Thread.sleep(100)
+                manager.awaitLatestIdentity()
 
                 val attrsBefore = manager.userAttributes
                 assertNotNull(
@@ -556,8 +549,7 @@ class IdentityManagerUserAttributesTest {
                     manager.mergeUserAttributes(
                         mapOf("name" to "John", "email" to "john@example.com"),
                     )
-                    Thread.sleep(100)
-                    Thread.sleep(100)
+                    manager.awaitLatestIdentity()
                 }
 
                 Then("custom attributes are added") {
@@ -587,13 +579,11 @@ class IdentityManagerUserAttributesTest {
 
                 val manager = createManagerWithScope(testScope)
                 manager.identify("user-123")
-                Thread.sleep(100)
-                Thread.sleep(100)
+                manager.awaitLatestIdentity()
 
                 When("setUserAttributes is called with aliasId = null") {
                     manager.mergeUserAttributes(mapOf("aliasId" to null))
-                    Thread.sleep(100)
-                    Thread.sleep(100)
+                    manager.awaitLatestIdentity()
                 }
 
                 Then("aliasId is removed from userAttributes") {
@@ -621,8 +611,7 @@ class IdentityManagerUserAttributesTest {
 
                 val manager = createManagerWithScope(testScope)
                 manager.identify("user-123")
-                Thread.sleep(100)
-                Thread.sleep(100)
+                manager.awaitLatestIdentity()
 
                 Then("aliasId field matches userAttributes aliasId") {
                     assertEquals(
@@ -670,7 +659,7 @@ class IdentityManagerUserAttributesTest {
                     manager.reset()
                 }
 
-                Thread.sleep(100)
+                manager.awaitLatestIdentity()
 
                 Then("aliasId field matches userAttributes aliasId") {
                     assertEquals(
@@ -713,7 +702,7 @@ class IdentityManagerUserAttributesTest {
                     }
 
                 // Allow init merge to complete
-                Thread.sleep(100)
+                manager.awaitLatestIdentity()
 
                 Then("userAttributes contains the newly generated aliasId") {
                     val attrs = manager.userAttributes
@@ -746,7 +735,7 @@ class IdentityManagerUserAttributesTest {
                     }
 
                 // Allow any async operations to complete
-                Thread.sleep(100)
+                manager.awaitLatestIdentity()
 
                 Then("the individual fields are correct") {
                     assertEquals("stored-alias", manager.aliasId)
