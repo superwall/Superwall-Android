@@ -39,9 +39,11 @@ jobs:
     - name: Change wrapper permissions
       run: chmod +x ./gradlew
 
-    # Assemble (no tests / no lint — those run in dedicated jobs)
+    # Assemble only the SDK modules + :app (used by Firebase Test Lab below).
+    # Skip :example:app and :test_app — they're sample/maestro targets, not
+    # gating artifacts for PRs, and rebuilding them adds minutes per run.
     - name: Assemble gradle project
-      run: ./gradlew assemble -x lint -x lintDebug -x lintVitalRelease
+      run: ./gradlew :superwall:assemble :superwall-compose:assemble :app:assemble -x lint -x lintDebug -x lintVitalRelease
 
     - name: Build test project
       run: ./gradlew :app:assembleAndroidTest -DtestBuildType=debug -x lint -x lintDebug -x lintVitalRelease
