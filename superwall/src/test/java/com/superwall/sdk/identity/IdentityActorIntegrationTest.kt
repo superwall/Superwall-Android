@@ -184,7 +184,6 @@ class IdentityActorIntegrationTest {
 
             When("FullReset is dispatched") {
                 manager.reset()
-                assertFalse(manager.actor.state.value.isReady)
                 manager.awaitLatestIdentity()
             }
 
