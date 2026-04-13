@@ -15,6 +15,7 @@ import com.superwall.sdk.BuildConfig
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.DefaultClassifierDataFactory
 import com.superwall.sdk.analytics.DeviceClassifier
+import com.superwall.sdk.analytics.Tier
 import com.superwall.sdk.dependencies.ExperimentalPropertiesFactory
 import com.superwall.sdk.dependencies.IdentityInfoFactory
 import com.superwall.sdk.dependencies.IdentityManagerFactory
@@ -266,6 +267,7 @@ class DeviceHelper(
     val deviceId: String
         get() = DeviceVendorId(VendorId(vendorId)).value
 
+    val deviceTier: Tier by lazy { classifier.deviceTier() }
     var platformWrapper: String = ""
     var platformWrapperVersion: String = ""
 

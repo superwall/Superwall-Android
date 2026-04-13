@@ -25,6 +25,7 @@ import com.superwall.sdk.R
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEvents
 import com.superwall.sdk.config.options.PaywallOptions
+import com.superwall.sdk.config.options.computedShouldPreload
 import com.superwall.sdk.dependencies.AttributesFactory
 import com.superwall.sdk.dependencies.DelegateAdapterFactory
 import com.superwall.sdk.dependencies.DeviceHelperFactory
@@ -690,7 +691,7 @@ class PaywallView(
                 state = InternalSuperwallEvent.ShimmerLoad.State.Started,
                 paywallId = state.paywall.identifier,
                 visibleDuration = null,
-                preloadingEnabled = factory.makeSuperwallOptions().paywalls.shouldPreload,
+                preloadingEnabled = factory.makeSuperwallOptions().computedShouldPreload(deviceHelper.deviceTier),
                 delay =
                     state.paywall.presentation.delay
                         .toDouble(),
@@ -743,7 +744,7 @@ class PaywallView(
                     delay =
                         state.paywall.presentation.delay
                             .toDouble(),
-                    preloadingEnabled = factory.makeSuperwallOptions().paywalls.shouldPreload,
+                    preloadingEnabled = factory.makeSuperwallOptions().computedShouldPreload(deviceHelper.deviceTier),
                 )
             factory.track(trackedEvent)
         }
