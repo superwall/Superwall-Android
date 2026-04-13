@@ -2,6 +2,12 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+
+## 2.7.11
+
+## Enhancements
+- Improved startup performance and reduced blockage of caller threads
+
 ## 2.7.10
 
 ## Potentially impactful changes

@@ -9,7 +9,7 @@ import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.paywall.view.PaywallView
 import com.superwall.sdk.paywall.view.PaywallViewState
-import com.superwall.sdk.paywall.view.webview.webViewExists
+import com.superwall.sdk.paywall.view.webview.WebviewChecker
 import com.superwall.sdk.storage.LocalStorage
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -50,7 +50,7 @@ class PaywallPreloadTest {
                 } returns emptySet()
 
                 mockkStatic("com.superwall.sdk.paywall.view.webview.SWWebViewKt")
-                every { webViewExists() } returns true
+                every { WebviewChecker.webviewExists } returns true
 
                 val preload =
                     PaywallPreload(

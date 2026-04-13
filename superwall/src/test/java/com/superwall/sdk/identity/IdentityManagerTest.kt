@@ -216,15 +216,19 @@ class IdentityManagerTest {
         }
 
     @Test
-    fun `init does not merge attributes when alias and seed already exist`() =
+    fun `init does not merge attributes when alias, seed, and attributes already exist`() =
         runTest {
-            Given("existing aliasId and seed in storage") {
+            Given("existing aliasId, seed, and non-empty attributes in storage") {
                 When("the manager is created") {
-                    createManager(this@runTest, existingAliasId = "existing", existingSeed = 50)
-                }
-
-                Then("user attributes are not merged during init") {
-                    verify(exactly = 0) { storage.write(UserAttributes, any()) }
+                    createManager(
+                        this@runTest,
+                        existingAliasId = "existing",
+                        existingSeed = 50,
+                        existingAttributes = mapOf("aliasId" to "existing", "seed" to 50),
+                    )
+                    Then("user attributes are not merged during init") {
+                        verify(exactly = 0) { storage.write(UserAttributes, any()) }
+                    }
                 }
             }
         }

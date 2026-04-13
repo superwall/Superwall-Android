@@ -13,7 +13,7 @@ import com.superwall.sdk.models.triggers.Trigger
 import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.paywall.presentation.rule_logic.javascript.RuleEvaluator
 import com.superwall.sdk.paywall.request.ResponseIdentifiers
-import com.superwall.sdk.paywall.view.webview.webViewExists
+import com.superwall.sdk.paywall.view.webview.WebviewChecker
 import com.superwall.sdk.storage.LocalStorage
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
@@ -116,7 +116,7 @@ class PaywallPreload(
             ),
         )
 
-        val webviewExists = webViewExists()
+        val webviewExists = WebviewChecker.webviewExists
         if (webviewExists) {
             scope.launchWithTracking {
                 // List to hold all the Deferred objects

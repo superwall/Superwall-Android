@@ -103,11 +103,11 @@ import com.superwall.sdk.paywall.view.ViewModelFactory
 import com.superwall.sdk.paywall.view.ViewStorageViewModel
 import com.superwall.sdk.paywall.view.delegate.PaywallViewDelegateAdapter
 import com.superwall.sdk.paywall.view.webview.SWWebView
+import com.superwall.sdk.paywall.view.webview.WebviewChecker
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessage
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessageHandler
 import com.superwall.sdk.paywall.view.webview.templating.models.JsonVariables
 import com.superwall.sdk.paywall.view.webview.templating.models.Variables
-import com.superwall.sdk.paywall.view.webview.webViewExists
 import com.superwall.sdk.permissions.UserPermissions
 import com.superwall.sdk.permissions.UserPermissionsImpl
 import com.superwall.sdk.review.MockReviewManager
@@ -684,7 +684,7 @@ class DependencyContainer(
          * For more info check https://issuetracker.google.com/issues/245155339
          */
         ioScope.launch {
-            if (webViewExists()) {
+            if (WebviewChecker.webviewExists) {
                 // Due to issues with webview's internals approach to loading,
                 // We need to catch this and in case of failure, retry
                 // as failure is random and time-based
