@@ -253,7 +253,8 @@ class SWWebView(
 
     // ???
     // https://stackoverflow.com/questions/20968707/capturing-keypress-events-in-android-webview
-    override fun onCreateInputConnection(outAttrs: EditorInfo?): InputConnection = BaseInputConnection(this, false)
+    override fun onCreateInputConnection(outAttrs: EditorInfo?): InputConnection =
+        BaseInputConnection(this, false)
 
     override fun dispatchKeyEvent(event: KeyEvent?): Boolean {
         if (event == null || !Superwall.instance.options.isGameControllerEnabled) {
@@ -571,13 +572,16 @@ class SWWebView(
     }
 }
 
-internal fun webViewExists(): Boolean =
-    try {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            WebView.getCurrentWebViewPackage() != null
-        } else {
-            runCatching { CookieManager.getInstance() }.isSuccess
+object WebviewChecker {
+    val webviewExists by lazy {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                WebView.getCurrentWebViewPackage() != null
+            } else {
+                runCatching { CookieManager.getInstance() }.isSuccess
+            }
+        } catch (e: Throwable) {
+            false
         }
-    } catch (e: Throwable) {
-        false
     }
+}

@@ -1,6 +1,5 @@
 
 import groovy.json.JsonBuilder
-import java.io.ByteArrayOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 
@@ -46,14 +45,17 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
 
-        val gitSha =
-            project
-                .exec {
-                    commandLine("git", "rev-parse", "--short", "HEAD")
-                    standardOutput = ByteArrayOutputStream()
-                }.toString()
-                .trim()
-        buildConfigField("String", "GIT_SHA", "\"${gitSha}\"")
+        val gitSha: String = runCatching {
+            providers
+                .environmentVariable("GITHUB_SHA")
+                .map { it.take(7) }
+                .orElse(
+                    providers.exec {
+                        commandLine("git", "rev-parse", "--short", "HEAD")
+                    }.standardOutput.asText.map { it.trim() },
+                ).get()
+        }.getOrDefault("unknown")
+        buildConfigField("String", "GIT_SHA", "\"$gitSha\"")
 
         val currentTime = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'").format(Date())
         buildConfigField("String", "BUILD_TIME", "\"${currentTime}\"")

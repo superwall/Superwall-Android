@@ -682,7 +682,9 @@ class Superwall(
                         }
                         // Implicitly wait
                         dependencyContainer.configManager.fetchConfiguration()
-                        dependencyContainer.identityManager.configure()
+                        dependencyContainer.identityManager.configure(
+                            neverCalledStaticConfig = dependencyContainer.storage.neverCalledStaticConfig,
+                        )
                     }.toResult().fold({
                         CoroutineScope(Dispatchers.Main).launch {
                             completion?.invoke(Result.success(Unit))
@@ -827,18 +829,26 @@ class Superwall(
     }
 
     /**
-     * Asynchronously resets. Presentation of paywalls is suspended until reset completes.
+     * Coordinates reset through the identity actor. Presentation of paywalls is
+     * suspended until reset completes.
      */
-    internal fun reset(duringIdentify: Boolean) {
+    internal fun reset(duringIdentify: Boolean = false) {
         withErrorTracking {
-            dependencyContainer.identityManager.reset(duringIdentify)
-            dependencyContainer.storage.reset()
-            dependencyContainer.paywallManager.resetCache()
-            presentationItems.reset()
-            dependencyContainer.configManager.reset()
-            dependencyContainer.reedemer.clear(RedemptionOwnershipType.AppUser)
-            ioScope.launch {
-                track(InternalSuperwallEvent.Reset)
+            if (!duringIdentify) {
+                // Public reset — delegate to identity actor which coordinates
+                // dropping readiness, running cleanup, and restoring readiness.
+                dependencyContainer.identityManager.reset()
+            } else {
+                // Called from identity actor's completeReset during identify
+                // or full reset — just do cleanup without touching identity.
+                dependencyContainer.storage.reset()
+                dependencyContainer.paywallManager.resetCache()
+                presentationItems.reset()
+                dependencyContainer.configManager.reset()
+                dependencyContainer.reedemer.clear(RedemptionOwnershipType.AppUser)
+                ioScope.launch {
+                    track(InternalSuperwallEvent.Reset)
+                }
             }
         }
     }

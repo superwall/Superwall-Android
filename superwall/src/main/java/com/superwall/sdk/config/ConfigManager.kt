@@ -6,6 +6,7 @@ import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.Tes
 import com.superwall.sdk.config.models.ConfigState
 import com.superwall.sdk.config.models.getConfig
 import com.superwall.sdk.config.options.SuperwallOptions
+import com.superwall.sdk.config.options.computedShouldPreload
 import com.superwall.sdk.dependencies.DeviceHelperFactory
 import com.superwall.sdk.dependencies.DeviceInfoFactory
 import com.superwall.sdk.dependencies.HasExternalPurchaseControllerFactory
@@ -257,7 +258,7 @@ open class ConfigManager(
                     }
                 }
             }.then {
-                if (testModeManager?.isTestMode != true && options.paywalls.shouldPreload) {
+                if (testModeManager?.isTestMode != true && options.computedShouldPreload(deviceHelper.deviceTier)) {
                     val productIds = it.paywalls.flatMap { it.productIds }.toSet()
                     try {
                         storeManager.products(productIds)
@@ -428,7 +429,7 @@ open class ConfigManager(
 
     // Preloads paywalls.
     private suspend fun preloadPaywalls() {
-        if (!options.paywalls.shouldPreload) return
+        if (!options.computedShouldPreload(deviceHelper.deviceTier)) return
         preloadAllPaywalls()
     }
 
