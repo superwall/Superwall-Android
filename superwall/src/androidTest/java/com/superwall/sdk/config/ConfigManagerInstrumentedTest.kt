@@ -289,13 +289,11 @@ class ConfigManagerTests {
 
     @Test
     fun test_loadAssignments_saveAssignmentsFromServer() =
-        runTest(timeout = 5.minutes) {
+        runTest(timeout = 30.seconds) {
             Given("we have a ConfigManager with assignments from the server") {
                 // get context
                 val context = InstrumentationRegistry.getInstrumentation().targetContext
 
-                val dependencyContainer =
-                    DependencyContainer(context, null, null, activityProvider = null, apiKey = "")
                 val network = NetworkMock()
                 val storage = StorageMock(context = context, coroutineScope = backgroundScope)
                 val assignmentStore = Assignments(storage, network, backgroundScope)
@@ -310,9 +308,9 @@ class ConfigManagerTests {
                         context = context,
                         storage = storage,
                         network = network,
-                        paywallManager = dependencyContainer.paywallManager,
-                        storeManager = dependencyContainer.storeManager,
-                        factory = dependencyContainer,
+                        paywallManager = mockk(relaxed = true),
+                        storeManager = mockk(relaxed = true),
+                        factory = mockk(relaxed = true),
                         deviceHelper = mockDeviceHelper,
                         assignments = assignmentStore,
                         paywallPreload = preload,
@@ -348,7 +346,7 @@ class ConfigManagerTests {
 
                 When("we get assignments") {
                     configManager.getAssignments()
-                    delay(1)
+                    advanceUntilIdle()
                 }
 
                 Then("the assignments should be stored correctly") {

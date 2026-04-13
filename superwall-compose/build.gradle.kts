@@ -22,9 +22,6 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // Configuration-cache safe: use GITHUB_SHA from CI when set, otherwise
-        // fall back to `git rev-parse` via providers.exec (tracked Provider API).
-        // Final fallback prevents a crash if .git is missing.
         val gitSha: String = runCatching {
             providers
                 .environmentVariable("GITHUB_SHA")
