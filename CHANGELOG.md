@@ -7,6 +7,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## Enhancements
 - Improved startup performance and reduced blockage of caller threads
+- Add `PaywallOptions.preloadDeviceOverrides` - this allows you to override `shouldPreload` for different device tiers, i.e. disable it for low-end devices. For more details, see KDoc.
 
 ## Fixes
 - Reduce CookieManager ANR potential
