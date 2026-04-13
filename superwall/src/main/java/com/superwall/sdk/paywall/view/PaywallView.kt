@@ -436,6 +436,7 @@ class PaywallView(
         state.paywallStatePublisher?.emit(PaywallState.Dismissed(info, result))
 
         if (!state.callbackInvoked) {
+            controller.updateState(CallbackInvoked)
             callback?.onFinished(
                 paywall = this,
                 result = result,
