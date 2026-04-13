@@ -8,6 +8,10 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 ## Enhancements
 - Improved startup performance and reduced blockage of caller threads
 
+## Fixes
+- Reduce CookieManager ANR potential
+- Fix concurrency issues with double onFinished calls being invoked
+
 ## 2.7.10
 
 ## Potentially impactful changes

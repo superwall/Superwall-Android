@@ -49,7 +49,7 @@ class PaywallPreloadTest {
                     ConfigLogic.getAllActiveTreatmentPaywallIds(any(), any(), any(), any())
                 } returns emptySet()
 
-                mockkStatic("com.superwall.sdk.paywall.view.webview.SWWebViewKt")
+                mockkObject(WebviewChecker)
                 every { WebviewChecker.webviewExists } returns true
 
                 val preload =

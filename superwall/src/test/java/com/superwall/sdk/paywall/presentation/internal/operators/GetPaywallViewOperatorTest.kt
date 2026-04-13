@@ -94,6 +94,7 @@ class GetPaywallViewOperatorTest {
     fun failsWhenWebViewMissing() =
         runTest {
             Given("the device has no WebView available") {
+                mockkObject(WebviewChecker)
                 every { WebviewChecker.webviewExists } returns false
 
                 val result =
@@ -120,6 +121,7 @@ class GetPaywallViewOperatorTest {
     fun returnsPaywallViewWhenSuccessful() =
         runTest {
             Given("the WebView exists and paywall manager returns a view") {
+                mockkObject(WebviewChecker)
                 every { WebviewChecker.webviewExists } returns true
                 coEvery {
                     paywallManager.getPaywallView(
@@ -152,6 +154,7 @@ class GetPaywallViewOperatorTest {
     fun emitsErrorWhenPaywallManagerFails() =
         runTest {
             Given("the WebView exists but paywall manager throws") {
+                mockkObject(WebviewChecker)
                 every { WebviewChecker.webviewExists } returns true
                 val error = IllegalStateException("boom")
                 coEvery {
