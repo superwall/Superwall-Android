@@ -83,8 +83,8 @@ jobs:
         ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.ORG_GRADLE_PROJECT_signingInMemoryKeyId }}
         ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.ORG_GRADLE_PROJECT_signingInMemoryKey }}
       run: |
-        ./gradlew :superwall:publish
-        ./gradlew :superwall-compose:publish
+        ./gradlew :superwall:publish --no-configuration-cache
+        ./gradlew :superwall-compose:publish --no-configuration-cache
 
     - name: Determine prerelease status
       id: prerelease
