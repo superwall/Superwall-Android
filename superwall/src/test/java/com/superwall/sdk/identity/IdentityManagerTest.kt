@@ -377,7 +377,7 @@ class IdentityManagerTest {
 
                 When("reset is called not during identify") {
                     manager.reset()
-                    Thread.sleep(100)
+                    manager.awaitLatestIdentity()
                 }
 
                 Then("appUserId is cleared") {
@@ -431,11 +431,11 @@ class IdentityManagerTest {
 
                 // First identify
                 manager.identify("user-123")
-                Thread.sleep(200)
+                manager.awaitLatestIdentity()
 
                 When("identify is called again with the same userId") {
                     manager.identify("user-123")
-                    Thread.sleep(100)
+                    manager.awaitLatestIdentity()
                 }
 
                 Then("completeReset is not called") {
@@ -454,7 +454,7 @@ class IdentityManagerTest {
 
                 When("identify is called with an empty string") {
                     manager.identify("")
-                    Thread.sleep(100)
+                    manager.awaitLatestIdentity()
                 }
 
                 Then("appUserId remains null") {
@@ -479,7 +479,7 @@ class IdentityManagerTest {
 
                 When("identify is called with a different userId") {
                     manager.identify("user-B")
-                    Thread.sleep(100)
+                    manager.awaitLatestIdentity()
                 }
 
                 Then("completeReset is called") {
@@ -510,7 +510,7 @@ class IdentityManagerTest {
 
                 When("configure is dispatched") {
                     manager.effect(IdentityState.Actions.Configure(neverCalledStaticConfig = true))
-                    Thread.sleep(100)
+                    manager.awaitLatestIdentity()
                 }
 
                 Then("identity is ready immediately without pending assignments") {
@@ -538,7 +538,7 @@ class IdentityManagerTest {
 
                 When("mergeUserAttributes is called with new attributes") {
                     manager.mergeUserAttributes(mapOf("name" to "Test User"))
-                    Thread.sleep(100)
+                    manager.awaitLatestIdentity()
                 }
 
                 Then("merged attributes are written to storage") {
@@ -562,7 +562,7 @@ class IdentityManagerTest {
                         mapOf("key" to "value"),
                         shouldTrackMerge = true,
                     )
-                    Thread.sleep(100)
+                    manager.awaitLatestIdentity()
                 }
 
                 Then("an Attributes event is tracked") {
@@ -584,7 +584,7 @@ class IdentityManagerTest {
                         mapOf("key" to "value"),
                         shouldTrackMerge = false,
                     )
-                    Thread.sleep(100)
+                    manager.awaitLatestIdentity()
                 }
 
                 Then("no event is tracked") {
@@ -603,7 +603,7 @@ class IdentityManagerTest {
 
                 When("mergeAndNotify is called") {
                     manager.mergeAndNotify(mapOf("key" to "value"))
-                    Thread.sleep(100)
+                    manager.awaitLatestIdentity()
                 }
 
                 Then("notifyUserChange callback is invoked") {
@@ -622,7 +622,7 @@ class IdentityManagerTest {
 
                 When("mergeUserAttributes is called (not mergeAndNotify)") {
                     manager.mergeUserAttributes(mapOf("key" to "value"))
-                    Thread.sleep(100)
+                    manager.awaitLatestIdentity()
                 }
 
                 Then("notifyUserChange callback is NOT invoked") {
@@ -648,7 +648,7 @@ class IdentityManagerTest {
                         "user-restore",
                         options = IdentityOptions(restorePaywallAssignments = true),
                     )
-                    Thread.sleep(100)
+                    manager.awaitLatestIdentity()
                 }
 
                 Then("appUserId is set") {
@@ -671,7 +671,7 @@ class IdentityManagerTest {
 
                 When("identify is called with restorePaywallAssignments = false (default)") {
                     manager.identify("user-no-restore")
-                    Thread.sleep(100)
+                    manager.awaitLatestIdentity()
                 }
 
                 Then("appUserId is set") {
@@ -698,7 +698,7 @@ class IdentityManagerTest {
 
                 When("identify is called with whitespace-only string") {
                     manager.identify("   \n\t   ")
-                    Thread.sleep(100)
+                    manager.awaitLatestIdentity()
                 }
 
                 Then("appUserId remains null") {
@@ -721,7 +721,7 @@ class IdentityManagerTest {
 
                 When("identify is called with a new userId") {
                     manager.identify("user-track-test")
-                    Thread.sleep(100)
+                    manager.awaitLatestIdentity()
                 }
 
                 Then("an IdentityAlias event is tracked") {
@@ -743,7 +743,7 @@ class IdentityManagerTest {
 
                 When("identify is called") {
                     manager.identify("user-side-effects")
-                    Thread.sleep(100)
+                    manager.awaitLatestIdentity()
                 }
 
                 Then("appUserId is persisted") {
@@ -796,7 +796,7 @@ class IdentityManagerTest {
 
                 When("identify is called with a userId") {
                     manager.identify("deterministic-user")
-                    Thread.sleep(100)
+                    manager.awaitLatestIdentity()
                 }
 
                 Then("seed is updated based on the userId hash") {
@@ -827,7 +827,7 @@ class IdentityManagerTest {
 
                 When("configure is dispatched") {
                     manager.effect(IdentityState.Actions.Configure(neverCalledStaticConfig = false))
-                    Thread.sleep(100)
+                    manager.awaitLatestIdentity()
                 }
 
                 Then("hasIdentity emits true") {
@@ -859,7 +859,7 @@ class IdentityManagerTest {
 
                 When("configure is dispatched") {
                     manager.effect(IdentityState.Actions.Configure(neverCalledStaticConfig = false))
-                    Thread.sleep(100)
+                    manager.awaitLatestIdentity()
                     advanceUntilIdle()
                 }
 
@@ -892,7 +892,7 @@ class IdentityManagerTest {
 
                 When("configure is dispatched") {
                     manager.effect(IdentityState.Actions.Configure(neverCalledStaticConfig = true))
-                    Thread.sleep(100)
+                    manager.awaitLatestIdentity()
                 }
 
                 Then("identity state reflects that assignments were requested") {
@@ -915,7 +915,7 @@ class IdentityManagerTest {
 
                 When("configure is dispatched") {
                     manager.effect(IdentityState.Actions.Configure(neverCalledStaticConfig = true))
-                    Thread.sleep(100)
+                    manager.awaitLatestIdentity()
                 }
 
                 Then("identity state reflects that assignments were requested") {
@@ -939,7 +939,7 @@ class IdentityManagerTest {
 
                 When("configure is dispatched") {
                     manager.effect(IdentityState.Actions.Configure(neverCalledStaticConfig = false))
-                    Thread.sleep(100)
+                    manager.awaitLatestIdentity()
                 }
 
                 Then("identity is ready without pending assignments") {
@@ -982,7 +982,7 @@ class IdentityManagerTest {
                     manager.reset()
                 }
 
-                Thread.sleep(100)
+                manager.awaitLatestIdentity()
 
                 Then("custom attributes are gone") {
                     val attrs = manager.userAttributes
@@ -1045,7 +1045,7 @@ class IdentityManagerTest {
 
                 When("identify is called") {
                     manager.identify("real-user")
-                    Thread.sleep(100)
+                    manager.awaitLatestIdentity()
                 }
 
                 Then("userAttributes appUserId reflects the identified user") {
@@ -1080,7 +1080,7 @@ class IdentityManagerTest {
                         }
                     job1.join()
                     job2.join()
-                    Thread.sleep(100)
+                    manager.awaitLatestIdentity()
                 }
 
                 Then("appUserId is set correctly") {
