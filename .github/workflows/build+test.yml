@@ -197,9 +197,10 @@ jobs:
 
   instrumentation-tests:
     runs-on: ubuntu-latest
-    needs: [warm-emulator-cache]
-    # Run even if warm-emulator-cache failed — the per-shard warm-up step below
-    # acts as a fallback. Don't run on workflow cancellation.
+    needs: [warm-emulator-cache, prebuild-test-apks]
+    # Run even if warm-emulator-cache or prebuild-test-apks failed — the per-shard
+    # warm-up step below acts as an AVD fallback, and a cold gradle cache just
+    # means the shards rebuild (current behavior). Don't run on workflow cancellation.
     if: ${{ !cancelled() }}
     strategy:
       fail-fast: false
