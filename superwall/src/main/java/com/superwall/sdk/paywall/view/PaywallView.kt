@@ -27,6 +27,7 @@ import com.superwall.sdk.analytics.superwall.SuperwallEvents
 import com.superwall.sdk.config.options.PaywallOptions
 import com.superwall.sdk.config.options.computedShouldPreload
 import com.superwall.sdk.dependencies.AttributesFactory
+import com.superwall.sdk.dependencies.CustomerInfoFactory
 import com.superwall.sdk.dependencies.DelegateAdapterFactory
 import com.superwall.sdk.dependencies.DeviceHelperFactory
 import com.superwall.sdk.dependencies.EnrichmentFactory
@@ -154,6 +155,7 @@ class PaywallView(
         EnrichmentFactory,
         TrackingFactory,
         DelegateAdapterFactory,
+        CustomerInfoFactory,
         PresentationFactory
     //region Public properties
 
@@ -215,10 +217,13 @@ class PaywallView(
     //region Initialization
 
     private var stateListener: Job? = null
+    private var customerInfoListener: Job? = null
 
     private fun stopStateListener() {
         stateListener?.cancel()
         stateListener = null
+        customerInfoListener?.cancel()
+        customerInfoListener = null
     }
 
     private fun startStateListener() {
@@ -230,6 +235,12 @@ class PaywallView(
                     .map { it.loadingState }
                     .distinctUntilChanged { old, new -> old::class == new::class }
                     .collectLatest { loadingStateDidChange() }
+            }
+        customerInfoListener =
+            ioScope.launch {
+                factory.customerInfoFlow().collect {
+                    controller.updateState(PaywallViewState.Updates.SetCustomerInfo(it))
+                }
             }
     }
 

@@ -31,6 +31,7 @@ import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.config.PaywallPreload
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.customer.CustomerInfoManager
+import com.superwall.sdk.models.customer.CustomerInfo
 import com.superwall.sdk.debug.DebugManager
 import com.superwall.sdk.debug.DebugView
 import com.superwall.sdk.deeplinks.DeepLinkRouter
@@ -179,6 +180,7 @@ class DependencyContainer(
     GoogleBillingWrapper.Factory,
     ClassifierDataFactory,
     ExperimentalPropertiesFactory,
+    CustomerInfoFactory,
     WebPaywallRedeemer.Factory {
     internal val getPaywallComponentsFactory: GetPaywallComponentsFactory by lazy {
         DefaultGetPaywallComponentsFactory(Superwall.instance)
@@ -1107,6 +1109,9 @@ class DependencyContainer(
         Superwall.instance.track(event)
 
     override fun delegate(): SuperwallDelegateAdapter = delegateAdapter
+
+    override fun customerInfoFlow(): StateFlow<CustomerInfo> =
+        Superwall.instance.customerInfo
 
     override fun updatePaywallInfo(paywallInfo: PaywallInfo) {
         Superwall.instance.presentationItems.paywallInfo = paywallInfo
