@@ -15,6 +15,7 @@ import com.superwall.sdk.misc.map
 import com.superwall.sdk.misc.mapError
 import com.superwall.sdk.misc.onError
 import com.superwall.sdk.misc.then
+import com.superwall.sdk.models.customer.CustomerInfo
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.network.Network
@@ -36,6 +37,8 @@ interface PaywallRequestManagerDepFactory :
     DeviceInfoFactory,
     ConfigManagerFactory {
     fun activePaywallId(): String?
+
+    fun currentCustomerInfo(): CustomerInfo
 }
 
 class PaywallRequestManager(
@@ -342,6 +345,7 @@ class PaywallRequestManager(
                     productItems = result.productItems,
                     productsByFullId = result.productsByFullId,
                     isFreeTrialAvailableOverride = request.overrides.isFreeTrial,
+                    customerInfo = factory.currentCustomerInfo(),
                 )
             paywall.productVariables = outcome.productVariables
             paywall.isFreeTrialAvailable = outcome.isFreeTrialAvailable

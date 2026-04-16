@@ -843,6 +843,8 @@ class DependencyContainer(
             ?.paywall
             ?.identifier
 
+    override fun currentCustomerInfo(): CustomerInfo = Superwall.instance.getCustomerInfo()
+
     override fun makeDeviceInfo(): DeviceInfo =
         DeviceInfo(
             appInstalledAtString = deviceHelper.appInstalledAtString,

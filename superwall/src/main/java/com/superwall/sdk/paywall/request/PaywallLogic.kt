@@ -4,9 +4,11 @@ import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.TrackingResult
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.Trackable
+import com.superwall.sdk.models.customer.CustomerInfo
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.product.ProductItem
 import com.superwall.sdk.models.product.ProductVariable
+import com.superwall.sdk.models.product.Store
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 
@@ -94,25 +96,40 @@ object PaywallLogic {
         productItems: List<ProductItem>,
         productsByFullId: Map<String, StoreProduct>,
         isFreeTrialAvailableOverride: Boolean?,
+        customerInfo: CustomerInfo,
     ): ProductProcessingOutcome {
         val productVariables = mutableListOf<ProductVariable>()
         var hasFreeTrial = false
 
         for (productItem in productItems) {
-            // Get storeProduct
-            val storeProduct = productsByFullId[productItem.fullProductId] ?: continue
+            val storeProduct = productsByFullId[productItem.fullProductId]
 
-            val productVariable =
-                ProductVariable(
-                    name = productItem.name,
-                    attributes = storeProduct.attributes,
+            if (storeProduct != null) {
+                productVariables.add(
+                    ProductVariable(
+                        name = productItem.name,
+                        attributes = storeProduct.attributes,
+                    ),
                 )
-
-            productVariables.add(productVariable)
-
-            if (!hasFreeTrial) {
-                hasFreeTrial = storeProduct.hasFreeTrial
             }
+
+            if (hasFreeTrial) continue
+
+            hasFreeTrial =
+                when (val type = productItem.type) {
+                    is ProductItem.StoreProductType.PlayStore,
+                    is ProductItem.StoreProductType.AppStore,
+                    is ProductItem.StoreProductType.Other,
+                    -> storeProduct?.hasFreeTrial == true
+
+                    is ProductItem.StoreProductType.Stripe ->
+                        (type.product.trialDays ?: 0) > 0 &&
+                            !customerInfo.hasEverSubscribedOn(Store.STRIPE)
+
+                    is ProductItem.StoreProductType.Paddle ->
+                        (type.product.trialDays ?: 0) > 0 &&
+                            !customerInfo.hasEverSubscribedOn(Store.PADDLE)
+                }
         }
 
         // Use the override if it is set
@@ -125,4 +142,7 @@ object PaywallLogic {
             isFreeTrialAvailable = hasFreeTrial,
         )
     }
+
+    private fun CustomerInfo.hasEverSubscribedOn(store: Store): Boolean =
+        subscriptions.any { it.store == store }
 }
