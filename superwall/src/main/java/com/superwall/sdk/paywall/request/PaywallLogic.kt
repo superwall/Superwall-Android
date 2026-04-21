@@ -171,13 +171,13 @@ object PaywallLogic {
         customerInfo: CustomerInfo,
         introOfferEligibility: IntroOfferEligibility,
     ): Boolean {
+        if ((trialDays ?: 0) <= 0) return false
+
         when (introOfferEligibility) {
             IntroOfferEligibility.INELIGIBLE -> return false
             IntroOfferEligibility.ELIGIBLE -> return true
             IntroOfferEligibility.AUTOMATIC -> Unit
         }
-
-        if ((trialDays ?: 0) <= 0) return false
 
         if (entitlements.isEmpty()) {
             Logger.debug(

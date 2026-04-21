@@ -584,7 +584,8 @@ class PaywallLogicTest {
     }
 
     @Test
-    fun test_paywallEligible_forcesTrue_evenWithoutTrialDays() {
+    fun test_paywallEligible_stillRequiresTrialDays() {
+        // ELIGIBLE is a force-allow when a trial is configured, not a pure force-show flag.
         val outcome =
             PaywallLogic.getVariablesAndFreeTrial(
                 productItems = listOf(stripeItem(trialDays = 0)),
@@ -594,7 +595,7 @@ class PaywallLogicTest {
                 introOfferEligibility = IntroOfferEligibility.ELIGIBLE,
             )
 
-        assertTrue(outcome.isFreeTrialAvailable)
+        assertFalse(outcome.isFreeTrialAvailable)
     }
 
     @Test
