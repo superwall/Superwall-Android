@@ -207,6 +207,7 @@ class PaywallRequestManagerTest {
     fun test_preload_active_paywall() =
         runTest {
             manager(this@runTest.coroutineContext)
+            every { factory.currentCustomerInfo() } returns CustomerInfo.empty()
             Given("a preload request for an active paywall") {
                 val paywallId = "test_paywall"
                 val originalExperiment =
