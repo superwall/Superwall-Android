@@ -20,6 +20,7 @@ import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.MainScope
 import com.superwall.sdk.models.config.ComputedPropertyRequest
 import com.superwall.sdk.models.config.FeatureFlags
+import com.superwall.sdk.models.customer.CustomerInfo
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
@@ -145,6 +146,10 @@ fun interface TrackingFactory {
 
 interface DelegateAdapterFactory {
     fun delegate(): SuperwallDelegateAdapter
+}
+
+fun interface CustomerInfoFactory {
+    fun customerInfoFlow(): StateFlow<CustomerInfo>
 }
 
 interface PresentationFactory {
