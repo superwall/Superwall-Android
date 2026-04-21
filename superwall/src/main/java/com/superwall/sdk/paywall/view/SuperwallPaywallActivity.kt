@@ -667,6 +667,22 @@ class SuperwallPaywallActivity : AppCompatActivity() {
     }
 
     private fun hideBottomSheetAndFinish() {
+        val content = contentView as? ViewGroup
+        if (content != null && content is CoordinatorLayout && content.childCount > 0) {
+            val bottomSheetBehavior = BottomSheetBehavior.from(content.getChildAt(0))
+            // Remove the callback so the STATE_HIDDEN transition below
+            // doesn't re-enter finish() via paywallView().dismiss().
+            bottomSheetCallback?.let {
+                bottomSheetBehavior.removeBottomSheetCallback(it)
+                bottomSheetCallback = null
+            }
+            // Post the state change so the slide-down animation runs
+            // correctly on all devices (including Samsung).
+            content.post {
+                bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
+            }
+        }
+
         val colorFrom = Color.argb(200, 0, 0, 0)
         val colorTo = Color.argb(0, 0, 0, 0)
 

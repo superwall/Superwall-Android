@@ -2,6 +2,13 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.7.12
+
+## Enhancements
+- Add fallback for local assets
+
+## Fixes
+- Fix dismiss animation for bottom sheets and modals on newer Samsung devices
 
 ## 2.7.11
 
