@@ -221,18 +221,9 @@ data class PaywallInfo(
                 "is_scroll_enabled" to isScrollEnabled,
                 "state" to state,
             )
-        if (!customerInfo.isPlaceholder) {
-            params["customer_user_id"] = customerInfo.userId
-            params["customer_active_entitlement_ids"] =
-                customerInfo.entitlements
-                    .filter { it.isActive }
-                    .map { it.id }
-                    .sorted()
-                    .joinToString(",")
-            params["customer_active_product_ids"] =
-                customerInfo.activeSubscriptionProductIds.sorted().joinToString(",")
-            params["customer_has_active_subscription"] =
-                customerInfo.subscriptions.any { it.isActive }
+        val customerParams = customerInfo.toParams()
+        if (customerParams.isNotEmpty()) {
+            params["customer_info"] = customerParams
         }
         params.values.removeAll { it == null }
         val filteredParams = params as MutableMap<String, Any>

@@ -346,6 +346,7 @@ class PaywallRequestManager(
                     productsByFullId = result.productsByFullId,
                     isFreeTrialAvailableOverride = request.overrides.isFreeTrial,
                     customerInfo = factory.currentCustomerInfo(),
+                    introOfferEligibility = paywall.introOfferEligibility,
                 )
             paywall.productVariables = outcome.productVariables
             paywall.isFreeTrialAvailable = outcome.isFreeTrialAvailable
