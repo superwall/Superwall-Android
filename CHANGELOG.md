@@ -5,7 +5,8 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 ## 2.7.12
 
 ## Enhancements
-- Add fallback for local assets
+- Add customer info to paywall info and tracked events
+- Add stripe/paddle intro offer eligibility
 
 ## Fixes
 - Fix dismiss animation for bottom sheets and modals on newer Samsung devices

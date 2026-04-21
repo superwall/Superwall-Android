@@ -3,6 +3,7 @@ package com.superwall.sdk.paywall.request
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.misc.Either
 import com.superwall.sdk.misc.IOScope
+import com.superwall.sdk.models.customer.CustomerInfo
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.product.ProductItem
 import com.superwall.sdk.models.triggers.Experiment
@@ -52,6 +53,7 @@ class PaywallRequestManagerTest {
                 every { makeDeviceInfo() } returns deviceInfo
                 every { makeStaticPaywall(any(), any()) } returns null
                 every { activePaywallId() } returns null
+                every { currentCustomerInfo() } returns CustomerInfo.empty()
             }
 
         ioScope = IOScope(Dispatchers.Unconfined)
@@ -410,6 +412,7 @@ class PaywallRequestManagerTest {
                 mockk<ProductItem> {
                     every { name } returns "primary"
                     every { fullProductId } returns "com.example.product1"
+                    every { type } returns mockk<ProductItem.StoreProductType.PlayStore>(relaxed = true)
                 }
             val storeProduct = mockk<StoreProduct>(relaxed = true)
 
