@@ -10,8 +10,10 @@ import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.superwall.sdk.Superwall
+import com.superwall.sdk.analytics.Tier
 import com.superwall.sdk.config.models.ConfigState
 import com.superwall.sdk.config.models.getConfig
+import com.superwall.sdk.misc.primitives.SequentialActor
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.dependencies.DependencyContainer
 import com.superwall.sdk.misc.Either
@@ -33,6 +35,7 @@ import com.superwall.sdk.network.SuperwallAPI
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.storage.CONSTANT_API_KEY
+import com.superwall.sdk.storage.DisableVerboseEvents
 import com.superwall.sdk.storage.LatestConfig
 import com.superwall.sdk.storage.LatestEnrichment
 import com.superwall.sdk.storage.LatestRedemptionResponse
@@ -66,6 +69,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonObject
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -76,16 +80,27 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 class ConfigManagerUnderTest(
-    private val context: Context,
-    private val storage: Storage,
-    private val network: SuperwallAPI,
-    private val paywallManager: PaywallManager,
-    private val storeManager: StoreManager,
-    private val factory: Factory,
-    private val deviceHelper: DeviceHelper,
-    private val assignments: Assignments,
-    private val paywallPreload: PaywallPreload,
-    private val ioScope: CoroutineScope,
+    context: Context,
+    storage: Storage,
+    network: SuperwallAPI,
+    paywallManager: PaywallManager,
+    storeManager: StoreManager,
+    factory: Factory,
+    deviceHelper: DeviceHelper,
+    assignments: Assignments,
+    paywallPreload: PaywallPreload,
+    ioScope: CoroutineScope,
+    private val testOptions: SuperwallOptions = SuperwallOptions(),
+    testEntitlements: Entitlements =
+        Entitlements(
+            mockk<Storage>(relaxUnitFun = true) {
+                every { read(StoredSubscriptionStatus) } returns SubscriptionStatus.Unknown
+                every { read(StoredEntitlementsByProductId) } returns emptyMap()
+                every { read(LatestRedemptionResponse) } returns null
+            },
+        ),
+    webRedeemer: WebPaywallRedeemer = mockk(relaxed = true),
+    injectedTestMode: com.superwall.sdk.store.testmode.TestMode? = null,
 ) : ConfigManager(
         context = context,
         storage = storage,
@@ -94,24 +109,26 @@ class ConfigManagerUnderTest(
         storeManager = storeManager,
         factory = factory,
         deviceHelper = deviceHelper,
-        options = SuperwallOptions(),
+        options = testOptions,
         assignments = assignments,
         paywallPreload = paywallPreload,
         ioScope = IOScope(ioScope.coroutineContext),
         track = {},
-        entitlements =
-            Entitlements(
-                mockk<Storage>(relaxUnitFun = true) {
-                    every { read(StoredSubscriptionStatus) } returns SubscriptionStatus.Unknown
-                    every { read(StoredEntitlementsByProductId) } returns emptyMap()
-                    every { read(LatestRedemptionResponse) } returns null
-                },
-            ),
+        entitlements = testEntitlements,
         awaitUtilNetwork = {},
-        webPaywallRedeemer = { mockk<WebPaywallRedeemer>(relaxed = true) },
+        webPaywallRedeemer = { webRedeemer },
+        testMode = injectedTestMode,
+        actor = SequentialActor(
+            ConfigState.None,
+            IOScope(ioScope.coroutineContext),
+        ),
     ) {
-    suspend fun setConfig(config: Config) {
-        configState.emit(ConfigState.Retrieved(config))
+    fun setConfig(config: Config) {
+        applyRetrievedConfigForTesting(config)
+    }
+
+    fun setState(state: ConfigState) {
+        setConfigStateForTesting(state)
     }
 }
 
@@ -121,6 +138,7 @@ class ConfigManagerTests {
         mockk<DeviceHelper> {
             every { appVersion } returns "1.0"
             every { locale } returns "en-US"
+            every { deviceTier } returns Tier.MID
             coEvery { getTemplateDevice() } returns emptyMap()
             coEvery {
                 getEnrichment(any(), any())
@@ -358,6 +376,706 @@ class ConfigManagerTests {
                 }
             }
             return@runTest
+        }
+
+    @Test
+    fun test_config_getter_failed_state_returns_null_and_triggers_refetch() =
+        runTest(timeout = 30.seconds) {
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+            val dependencyContainer =
+                DependencyContainer(context, null, null, activityProvider = null, apiKey = "")
+            val network = spyk(NetworkMock())
+            val storage = StorageMock(context = context, coroutineScope = backgroundScope)
+            val assignments = Assignments(storage, network, backgroundScope)
+            val preload =
+                mockk<PaywallPreload> {
+                    coEvery { preloadAllPaywalls(any(), any()) } just Runs
+                    coEvery { preloadPaywallsByNames(any(), any()) } just Runs
+                    coEvery { removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
+                }
+
+            val configManager =
+                ConfigManagerUnderTest(
+                    context = context,
+                    storage = storage,
+                    network = network,
+                    paywallManager = dependencyContainer.paywallManager,
+                    storeManager = dependencyContainer.storeManager,
+                    factory = dependencyContainer,
+                    deviceHelper = mockDeviceHelper,
+                    assignments = assignments,
+                    paywallPreload = preload,
+                    ioScope = backgroundScope,
+                )
+
+
+            val config = configManager.config
+            advanceUntilIdle()
+
+            assertNull(config)
+            assertTrue(network.getConfigCalled)
+        }
+
+    @Test
+    fun test_hasConfig_emits_when_config_is_set() =
+        runTest(timeout = 30.seconds) {
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+            val dependencyContainer =
+                DependencyContainer(context, null, null, activityProvider = null, apiKey = "")
+            val network = NetworkMock()
+            val storage = StorageMock(context = context, coroutineScope = backgroundScope)
+            val assignments = Assignments(storage, network, backgroundScope)
+            val preload =
+                mockk<PaywallPreload> {
+                    coEvery { preloadAllPaywalls(any(), any()) } just Runs
+                    coEvery { preloadPaywallsByNames(any(), any()) } just Runs
+                    coEvery { removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
+                }
+
+            val configManager =
+                ConfigManagerUnderTest(
+                    context = context,
+                    storage = storage,
+                    network = network,
+                    paywallManager = dependencyContainer.paywallManager,
+                    storeManager = dependencyContainer.storeManager,
+                    factory = dependencyContainer,
+                    deviceHelper = mockDeviceHelper,
+                    assignments = assignments,
+                    paywallPreload = preload,
+                    ioScope = backgroundScope,
+                )
+
+            val expected = Config.stub().copy(buildId = "has-config")
+
+            val emitted =
+                launch {
+                    assertEquals(expected.buildId, configManager.hasConfig.first().buildId)
+                }
+
+            advanceUntilIdle()
+            configManager.setConfig(expected)
+            advanceUntilIdle()
+            emitted.join()
+        }
+
+    @Test
+    fun test_refreshConfiguration_without_config_does_not_hit_network() =
+        runTest(timeout = 30.seconds) {
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+            val dependencyContainer =
+                DependencyContainer(context, null, null, activityProvider = null, apiKey = "")
+            val network = spyk(NetworkMock())
+            val storage = StorageMock(context = context, coroutineScope = backgroundScope)
+            val assignments = Assignments(storage, network, backgroundScope)
+            val preload =
+                mockk<PaywallPreload> {
+                    coEvery { preloadAllPaywalls(any(), any()) } just Runs
+                    coEvery { preloadPaywallsByNames(any(), any()) } just Runs
+                    coEvery { removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
+                }
+
+            val configManager =
+                ConfigManagerUnderTest(
+                    context = context,
+                    storage = storage,
+                    network = network,
+                    paywallManager = dependencyContainer.paywallManager,
+                    storeManager = dependencyContainer.storeManager,
+                    factory = dependencyContainer,
+                    deviceHelper = mockDeviceHelper,
+                    assignments = assignments,
+                    paywallPreload = preload,
+                    ioScope = backgroundScope,
+                )
+
+            configManager.refreshConfiguration()
+
+            coVerify(exactly = 0) { network.getConfig(any()) }
+        }
+
+    @Test
+    fun test_refreshConfiguration_with_flag_disabled_and_force_false_does_not_hit_network() =
+        runTest(timeout = 30.seconds) {
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+            val dependencyContainer =
+                DependencyContainer(context, null, null, activityProvider = null, apiKey = "")
+            val network = spyk(NetworkMock())
+            val storage = StorageMock(context = context, coroutineScope = backgroundScope)
+            val assignments = Assignments(storage, network, backgroundScope)
+            val preload =
+                mockk<PaywallPreload> {
+                    coEvery { preloadAllPaywalls(any(), any()) } just Runs
+                    coEvery { preloadPaywallsByNames(any(), any()) } just Runs
+                    coEvery { removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
+                }
+
+            val configManager =
+                ConfigManagerUnderTest(
+                    context = context,
+                    storage = storage,
+                    network = network,
+                    paywallManager = dependencyContainer.paywallManager,
+                    storeManager = dependencyContainer.storeManager,
+                    factory = dependencyContainer,
+                    deviceHelper = mockDeviceHelper,
+                    assignments = assignments,
+                    paywallPreload = preload,
+                    ioScope = backgroundScope,
+                )
+
+            configManager.setConfig(Config.stub().copy(rawFeatureFlags = emptyList()))
+            configManager.refreshConfiguration(force = false)
+
+            coVerify(exactly = 0) { network.getConfig(any()) }
+        }
+
+    @Test
+    fun test_refreshConfiguration_force_true_ignores_disabled_flag() =
+        runTest(timeout = 30.seconds) {
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+            val dependencyContainer =
+                DependencyContainer(context, null, null, activityProvider = null, apiKey = "")
+            val network =
+                spyk(NetworkMock().apply {
+                    configReturnValue = Config.stub().copy(buildId = "forced-refresh")
+                })
+            val storage = StorageMock(context = context, coroutineScope = backgroundScope)
+            val assignments = Assignments(storage, network, backgroundScope)
+            val preload =
+                mockk<PaywallPreload> {
+                    coEvery { preloadAllPaywalls(any(), any()) } just Runs
+                    coEvery { preloadPaywallsByNames(any(), any()) } just Runs
+                    coEvery { removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
+                }
+
+            val paywallManager =
+                mockk<PaywallManager>(relaxed = true) {
+                    every { currentView } returns null
+                }
+
+            val configManager =
+                ConfigManagerUnderTest(
+                    context = context,
+                    storage = storage,
+                    network = network,
+                    paywallManager = paywallManager,
+                    storeManager = dependencyContainer.storeManager,
+                    factory = dependencyContainer,
+                    deviceHelper = mockDeviceHelper,
+                    assignments = assignments,
+                    paywallPreload = preload,
+                    ioScope = backgroundScope,
+                )
+
+            configManager.setConfig(Config.stub().copy(rawFeatureFlags = emptyList()))
+            configManager.refreshConfiguration(force = true)
+
+            coVerify(exactly = 1) { network.getConfig(any()) }
+        }
+
+    @Test
+    fun test_reset_without_config_does_not_preload() =
+        runTest(timeout = 30.seconds) {
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+            val dependencyContainer =
+                DependencyContainer(context, null, null, activityProvider = null, apiKey = "")
+            val network = NetworkMock()
+            val storage = StorageMock(context = context, coroutineScope = backgroundScope)
+            val assignments = Assignments(storage, network, backgroundScope)
+            val preload =
+                mockk<PaywallPreload> {
+                    coEvery { preloadAllPaywalls(any(), any()) } just Runs
+                    coEvery { preloadPaywallsByNames(any(), any()) } just Runs
+                    coEvery { removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
+                }
+
+            val configManager =
+                ConfigManagerUnderTest(
+                    context = context,
+                    storage = storage,
+                    network = network,
+                    paywallManager = dependencyContainer.paywallManager,
+                    storeManager = dependencyContainer.storeManager,
+                    factory = dependencyContainer,
+                    deviceHelper = mockDeviceHelper,
+                    assignments = assignments,
+                    paywallPreload = preload,
+                    ioScope = backgroundScope,
+                )
+
+            configManager.reset()
+            advanceUntilIdle()
+
+            coVerify(exactly = 0) { preload.preloadAllPaywalls(any(), any()) }
+            assertTrue(configManager.unconfirmedAssignments.isEmpty())
+        }
+
+    @Test
+    fun test_reset_with_config_rebuilds_assignments_and_preloads() =
+        runTest(timeout = 30.seconds) {
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+            val dependencyContainer =
+                DependencyContainer(context, null, null, activityProvider = null, apiKey = "")
+            val network = NetworkMock()
+            val storage = StorageMock(context = context, coroutineScope = backgroundScope)
+            val assignments = Assignments(storage, network, backgroundScope)
+            val preload =
+                mockk<PaywallPreload> {
+                    coEvery { preloadAllPaywalls(any(), any()) } just Runs
+                    coEvery { preloadPaywallsByNames(any(), any()) } just Runs
+                    coEvery { removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
+                }
+
+            val configManager =
+                ConfigManagerUnderTest(
+                    context = context,
+                    storage = storage,
+                    network = network,
+                    paywallManager = dependencyContainer.paywallManager,
+                    storeManager = dependencyContainer.storeManager,
+                    factory = dependencyContainer,
+                    deviceHelper = mockDeviceHelper,
+                    assignments = assignments,
+                    paywallPreload = preload,
+                    ioScope = backgroundScope,
+                )
+
+            val variant = VariantOption.stub().apply { id = "variant-a" }
+            val trigger =
+                Trigger.stub().apply {
+                    rules =
+                        listOf(
+                            TriggerRule.stub().apply {
+                                experimentId = "experiment-a"
+                                variants = listOf(variant)
+                            },
+                        )
+                }
+            configManager.setConfig(
+                Config.stub().apply {
+                    triggers = setOf(trigger)
+                },
+            )
+
+            configManager.reset()
+            advanceUntilIdle()
+
+            coVerify(exactly = 1) { preload.preloadAllPaywalls(any(), context) }
+            assertFalse(configManager.unconfirmedAssignments.isEmpty())
+        }
+
+    @Test
+    fun test_preloadAllPaywalls_waits_for_config_then_preloads() =
+        runTest(timeout = 30.seconds) {
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+            val dependencyContainer =
+                DependencyContainer(context, null, null, activityProvider = null, apiKey = "")
+            val network = NetworkMock()
+            val storage = StorageMock(context = context, coroutineScope = backgroundScope)
+            val assignments = Assignments(storage, network, backgroundScope)
+            val preload =
+                mockk<PaywallPreload> {
+                    coEvery { preloadAllPaywalls(any(), any()) } just Runs
+                    coEvery { preloadPaywallsByNames(any(), any()) } just Runs
+                    coEvery { removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
+                }
+
+            val configManager =
+                ConfigManagerUnderTest(
+                    context = context,
+                    storage = storage,
+                    network = network,
+                    paywallManager = dependencyContainer.paywallManager,
+                    storeManager = dependencyContainer.storeManager,
+                    factory = dependencyContainer,
+                    deviceHelper = mockDeviceHelper,
+                    assignments = assignments,
+                    paywallPreload = preload,
+                    ioScope = backgroundScope,
+                )
+
+            val job = launch { configManager.preloadAllPaywalls() }
+            advanceUntilIdle()
+            coVerify(exactly = 0) { preload.preloadAllPaywalls(any(), any()) }
+
+            val config = Config.stub().copy(buildId = "preload-all")
+            configManager.setConfig(config)
+            advanceUntilIdle()
+            job.join()
+
+            coVerify(exactly = 1) { preload.preloadAllPaywalls(config, context) }
+        }
+
+    @Test
+    fun test_preloadPaywallsByNames_waits_for_config_then_preloads() =
+        runTest(timeout = 30.seconds) {
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+            val dependencyContainer =
+                DependencyContainer(context, null, null, activityProvider = null, apiKey = "")
+            val network = NetworkMock()
+            val storage = StorageMock(context = context, coroutineScope = backgroundScope)
+            val assignments = Assignments(storage, network, backgroundScope)
+            val preload =
+                mockk<PaywallPreload> {
+                    coEvery { preloadAllPaywalls(any(), any()) } just Runs
+                    coEvery { preloadPaywallsByNames(any(), any()) } just Runs
+                    coEvery { removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
+                }
+
+            val configManager =
+                ConfigManagerUnderTest(
+                    context = context,
+                    storage = storage,
+                    network = network,
+                    paywallManager = dependencyContainer.paywallManager,
+                    storeManager = dependencyContainer.storeManager,
+                    factory = dependencyContainer,
+                    deviceHelper = mockDeviceHelper,
+                    assignments = assignments,
+                    paywallPreload = preload,
+                    ioScope = backgroundScope,
+                )
+
+            val eventNames = setOf("campaign_trigger")
+            val job = launch { configManager.preloadPaywallsByNames(eventNames) }
+            advanceUntilIdle()
+            coVerify(exactly = 0) { preload.preloadPaywallsByNames(any(), any()) }
+
+            val config = Config.stub().copy(buildId = "preload-named")
+            configManager.setConfig(config)
+            advanceUntilIdle()
+            job.join()
+
+            coVerify(exactly = 1) { preload.preloadPaywallsByNames(config, eventNames) }
+        }
+
+    @Test
+    fun test_fetchConfiguration_updates_trigger_cache_and_persists_feature_flags() =
+        runTest(timeout = 30.seconds) {
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+            val dependencyContainer =
+                DependencyContainer(context, null, null, activityProvider = null, apiKey = "")
+            val network =
+                NetworkMock().apply {
+                    configReturnValue =
+                        Config.stub().copy(
+                            rawFeatureFlags =
+                                listOf(
+                                    RawFeatureFlag("enable_config_refresh_v2", true),
+                                    RawFeatureFlag("disable_verbose_events", true),
+                                ),
+                        )
+                }
+            val storage = spyk(StorageMock(context = context, coroutineScope = backgroundScope))
+            val assignments = Assignments(storage, network, backgroundScope)
+            val preload =
+                mockk<PaywallPreload> {
+                    coEvery { preloadAllPaywalls(any(), any()) } just Runs
+                    coEvery { preloadPaywallsByNames(any(), any()) } just Runs
+                    coEvery { removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
+                }
+
+            val configManager =
+                ConfigManagerUnderTest(
+                    context = context,
+                    storage = storage,
+                    network = network,
+                    paywallManager = dependencyContainer.paywallManager,
+                    storeManager = dependencyContainer.storeManager,
+                    factory = dependencyContainer,
+                    deviceHelper = mockDeviceHelper,
+                    assignments = assignments,
+                    paywallPreload = preload,
+                    ioScope = backgroundScope,
+                )
+
+            configManager.fetchConfiguration()
+            configManager.configState.first { it is ConfigState.Retrieved }
+
+            assertEquals(
+                configManager.config?.triggers?.associateBy { it.eventName }?.keys,
+                configManager.triggersByEventName.keys,
+            )
+            verify { storage.write(DisableVerboseEvents, true) }
+            verify { storage.write(LatestConfig, any()) }
+        }
+
+    @Test
+    fun test_fetchConfiguration_loads_purchased_products_when_not_in_test_mode() =
+        runTest(timeout = 30.seconds) {
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+            val network = NetworkMock()
+            val storage = StorageMock(context = context, coroutineScope = backgroundScope)
+            val storeManager =
+                mockk<StoreManager>(relaxed = true) {
+                    coEvery { loadPurchasedProducts(any()) } just Runs
+                    coEvery { products(any()) } returns emptySet()
+                }
+            val entitlements =
+                Entitlements(
+                    mockk<Storage>(relaxUnitFun = true) {
+                        every { read(StoredSubscriptionStatus) } returns SubscriptionStatus.Unknown
+                        every { read(StoredEntitlementsByProductId) } returns emptyMap()
+                        every { read(LatestRedemptionResponse) } returns null
+                    },
+                )
+            val dependencyContainer =
+                mockk<DependencyContainer>(relaxed = true) {
+                    every { storeManager } returns storeManager
+                    coEvery { makeSessionDeviceAttributes() } returns hashMapOf()
+                    coEvery { provideRuleEvaluator(any()) } returns mockk()
+                    every { deviceHelper } returns mockDeviceHelper
+                }
+            val assignments = Assignments(storage, network, backgroundScope)
+            val preload =
+                mockk<PaywallPreload> {
+                    coEvery { preloadAllPaywalls(any(), any()) } just Runs
+                    coEvery { preloadPaywallsByNames(any(), any()) } just Runs
+                    coEvery { removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
+                }
+
+            val configManager =
+                ConfigManagerUnderTest(
+                    context = context,
+                    storage = storage,
+                    network = network,
+                    paywallManager = mockk(relaxed = true),
+                    storeManager = storeManager,
+                    factory = dependencyContainer,
+                    deviceHelper = mockDeviceHelper,
+                    assignments = assignments,
+                    paywallPreload = preload,
+                    ioScope = backgroundScope,
+                    testEntitlements = entitlements,
+                )
+
+            configManager.fetchConfiguration()
+            configManager.configState.first { it is ConfigState.Retrieved }
+            advanceUntilIdle()
+
+            coVerify(exactly = 1) { storeManager.loadPurchasedProducts(any()) }
+        }
+
+    @Test
+    fun test_fetchConfiguration_redeems_existing_web_entitlements_when_not_in_test_mode() =
+        runTest(timeout = 30.seconds) {
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+            val dependencyContainer =
+                DependencyContainer(context, null, null, activityProvider = null, apiKey = "")
+            val network = NetworkMock()
+            val storage = StorageMock(context = context, coroutineScope = backgroundScope)
+            val assignments = Assignments(storage, network, backgroundScope)
+            val preload =
+                mockk<PaywallPreload> {
+                    coEvery { preloadAllPaywalls(any(), any()) } just Runs
+                    coEvery { preloadPaywallsByNames(any(), any()) } just Runs
+                    coEvery { removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
+                }
+            val redeemer = mockk<WebPaywallRedeemer>(relaxed = true)
+
+            val configManager =
+                ConfigManagerUnderTest(
+                    context = context,
+                    storage = storage,
+                    network = network,
+                    paywallManager = dependencyContainer.paywallManager,
+                    storeManager = dependencyContainer.storeManager,
+                    factory = dependencyContainer,
+                    deviceHelper = mockDeviceHelper,
+                    assignments = assignments,
+                    paywallPreload = preload,
+                    ioScope = backgroundScope,
+                    webRedeemer = redeemer,
+                )
+
+            configManager.fetchConfiguration()
+            configManager.configState.first { it is ConfigState.Retrieved }
+            advanceUntilIdle()
+
+            coVerify(exactly = 1) { redeemer.redeem(WebPaywallRedeemer.RedeemType.Existing) }
+        }
+
+    @Test
+    fun test_fetchConfiguration_preloads_products_when_preloading_enabled() =
+        runTest(timeout = 30.seconds) {
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+            val config =
+                Config.stub().copy(
+                    paywalls =
+                        listOf(
+                            com.superwall.sdk.models.paywall.Paywall.stub().copy(productIds = listOf("prod.a", "prod.b")),
+                            com.superwall.sdk.models.paywall.Paywall.stub().copy(productIds = listOf("prod.b", "prod.c")),
+                        ),
+                )
+            val network = NetworkMock().apply { configReturnValue = config }
+            val storage = StorageMock(context = context, coroutineScope = backgroundScope)
+            val storeManager =
+                mockk<StoreManager>(relaxed = true) {
+                    coEvery { products(any()) } returns emptySet()
+                    coEvery { loadPurchasedProducts(any()) } just Runs
+                }
+            val dependencyContainer =
+                mockk<DependencyContainer>(relaxed = true) {
+                    every { storeManager } returns storeManager
+                    coEvery { makeSessionDeviceAttributes() } returns hashMapOf()
+                    coEvery { provideRuleEvaluator(any()) } returns mockk()
+                    every { deviceHelper } returns mockDeviceHelper
+                }
+            val assignments = Assignments(storage, network, backgroundScope)
+            val preload =
+                mockk<PaywallPreload> {
+                    coEvery { preloadAllPaywalls(any(), any()) } just Runs
+                    coEvery { preloadPaywallsByNames(any(), any()) } just Runs
+                    coEvery { removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
+                }
+            val options =
+                SuperwallOptions().apply {
+                    paywalls.shouldPreload = true
+                }
+
+            val configManager =
+                ConfigManagerUnderTest(
+                    context = context,
+                    storage = storage,
+                    network = network,
+                    paywallManager = mockk(relaxed = true),
+                    storeManager = storeManager,
+                    factory = dependencyContainer,
+                    deviceHelper = mockDeviceHelper,
+                    assignments = assignments,
+                    paywallPreload = preload,
+                    ioScope = backgroundScope,
+                    testOptions = options,
+                )
+
+            configManager.fetchConfiguration()
+            configManager.configState.first { it is ConfigState.Retrieved }
+            advanceUntilIdle()
+
+            coVerify(exactly = 1) {
+                storeManager.products(
+                    match { it == setOf("prod.a", "prod.b", "prod.c") },
+                )
+            }
+        }
+
+    @Test
+    fun test_refreshConfiguration_success_resets_request_cache_and_removes_unused_paywalls() =
+        runTest(timeout = 30.seconds) {
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+            val oldConfig =
+                Config.stub().copy(
+                    buildId = "old",
+                    rawFeatureFlags = listOf(RawFeatureFlag("enable_config_refresh_v2", true)),
+                )
+            val newConfig =
+                Config.stub().copy(
+                    buildId = "new",
+                    rawFeatureFlags = listOf(RawFeatureFlag("enable_config_refresh_v2", true)),
+                )
+            val network = mockk<Network> {
+                coEvery { getConfig(any()) } returns Either.Success(newConfig)
+                coEvery { getEnrichment(any(), any(), any()) } returns Either.Success(mockk())
+            }
+            val storage = StorageMock(context = context, coroutineScope = backgroundScope)
+            val paywallManager =
+                mockk<PaywallManager>(relaxed = true) {
+                    every { currentView } returns null
+                }
+            val storeManager =
+                mockk<StoreManager>(relaxed = true) {
+                    coEvery { loadPurchasedProducts(any()) } just Runs
+                }
+            val paywallPreload =
+                mockk<PaywallPreload> {
+                    coEvery { preloadAllPaywalls(any(), any()) } just Runs
+                    coEvery { preloadPaywallsByNames(any(), any()) } just Runs
+                    coEvery { removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
+                }
+            val dependencyContainer =
+                mockk<DependencyContainer>(relaxed = true) {
+                    every { paywallManager } returns paywallManager
+                    every { storeManager } returns storeManager
+                    every { deviceHelper } returns mockDeviceHelper
+                    coEvery { makeSessionDeviceAttributes() } returns hashMapOf()
+                    coEvery { provideRuleEvaluator(any()) } returns mockk()
+                }
+            val assignments = Assignments(storage, network, backgroundScope)
+            val configManager =
+                spyk(
+                    ConfigManagerUnderTest(
+                        context = context,
+                        storage = storage,
+                        network = network,
+                        paywallManager = paywallManager,
+                        storeManager = storeManager,
+                        factory = dependencyContainer,
+                        deviceHelper = mockDeviceHelper,
+                        assignments = assignments,
+                        paywallPreload = paywallPreload,
+                        ioScope = backgroundScope,
+                    ),
+                ) {
+                    every { config } returns oldConfig
+                }
+
+            configManager.refreshConfiguration()
+            advanceUntilIdle()
+
+            verify(exactly = 1) { paywallManager.resetPaywallRequestCache() }
+            coVerify(exactly = 1) { paywallPreload.removeUnusedPaywallVCsFromCache(oldConfig, newConfig) }
+        }
+
+    @Test
+    fun test_fetchConfiguration_emits_retrieving_then_failed_without_cache() =
+        runTest(timeout = 30.seconds) {
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+            val dependencyContainer =
+                DependencyContainer(context, null, null, activityProvider = null, apiKey = "")
+            val network = mockk<SuperwallAPI> {
+                coEvery { getConfig(any()) } throws IllegalStateException("fetch failed")
+                coEvery { getEnrichment(any(), any(), any()) } returns Either.Failure(NetworkError.Unknown())
+            }
+            val storage = spyk(StorageMock(context = context, coroutineScope = backgroundScope)) {
+                every { read(LatestConfig) } returns null
+                every { read(LatestEnrichment) } returns null
+            }
+            val assignments = Assignments(storage, network, backgroundScope)
+            val preload =
+                mockk<PaywallPreload> {
+                    coEvery { preloadAllPaywalls(any(), any()) } just Runs
+                    coEvery { preloadPaywallsByNames(any(), any()) } just Runs
+                    coEvery { removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
+                }
+
+            val states = mutableListOf<ConfigState>()
+            val configManager =
+                ConfigManagerUnderTest(
+                    context = context,
+                    storage = storage,
+                    network = network,
+                    paywallManager = dependencyContainer.paywallManager,
+                    storeManager = dependencyContainer.storeManager,
+                    factory = dependencyContainer,
+                    deviceHelper = mockDeviceHelper,
+                    assignments = assignments,
+                    paywallPreload = preload,
+                    ioScope = backgroundScope,
+                )
+
+            val collectJob =
+                launch {
+                    configManager.configState
+                        .onEach { states.add(it) }
+                        .first { it is ConfigState.Failed }
+                }
+
+            configManager.fetchConfiguration()
+            collectJob.join()
+
+            assertTrue(states.any { it is ConfigState.Retrieving })
+            assertTrue(states.last() is ConfigState.Failed)
         }
 
     @Test

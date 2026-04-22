@@ -178,7 +178,7 @@ object UITestHandler {
                 Superwall.instance.identify(userId = "test0")
                 Superwall.instance.setUserAttributes(attributes = mapOf("first_name" to "Jack"))
                 Superwall.instance.register(
-                    placement = "present_data",
+                    placement = "entitlements_test_basic",
                 )
                 Log.e("Registering event", "done")
             },

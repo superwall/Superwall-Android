@@ -122,7 +122,7 @@ import com.superwall.sdk.store.StoreManager
 import com.superwall.sdk.store.abstractions.product.receipt.ReceiptManager
 import com.superwall.sdk.store.abstractions.transactions.GoogleBillingPurchaseTransaction
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
-import com.superwall.sdk.store.testmode.TestModeManager
+import com.superwall.sdk.store.testmode.TestMode
 import com.superwall.sdk.store.testmode.TestModeTransactionHandler
 import com.superwall.sdk.store.transactions.TransactionManager
 import com.superwall.sdk.utilities.DateUtils
@@ -206,7 +206,7 @@ class DependencyContainer(
     internal val customCallbackRegistry: CustomCallbackRegistry
 
     var entitlements: Entitlements
-    internal val testModeManager: TestModeManager
+    internal val testMode: TestMode
     internal val testModeTransactionHandler: TestModeTransactionHandler
     internal lateinit var customerInfoManager: CustomerInfoManager
     lateinit var reedemer: WebPaywallRedeemer
@@ -270,10 +270,27 @@ class DependencyContainer(
                 _apiKey = apiKey
             )
         entitlements = Entitlements(storage)
-        testModeManager = TestModeManager(storage)
+        val options = options ?: SuperwallOptions()
+        testMode =
+            TestMode(
+                storage = storage,
+                getSuperwallProducts = { network.getSuperwallProducts() },
+                entitlements = entitlements,
+                activityProvider = { this.activityProvider },
+                activityTracker = { currentActivityTracker },
+                hasExternalPurchaseController = { makeHasExternalPurchaseController() },
+                apiKey = { storage.apiKey },
+                dashboardBaseUrl = {
+                    when (options.networkEnvironment) {
+                        is SuperwallOptions.NetworkEnvironment.Developer -> "https://superwall.dev"
+                        else -> "https://superwall.com"
+                    }
+                },
+                track = { Superwall.instance.track(it) },
+            )
         testModeTransactionHandler =
             TestModeTransactionHandler(
-                testModeManager = testModeManager,
+                testMode = testMode,
                 activityProvider = activityProvider,
                 activityTracker = currentActivityTracker,
             )
@@ -307,7 +324,7 @@ class DependencyContainer(
                         customerInfoManager = { customerInfoManager },
                     )
                 },
-                testModeManager = testModeManager,
+                testMode = testMode,
             )
 
         delegateAdapter = SuperwallDelegateAdapter()
@@ -319,7 +336,6 @@ class DependencyContainer(
                         makeHeaders(debugging, requestId)
                     },
             )
-        val options = options ?: SuperwallOptions()
 
         api = Api(networkEnvironment = options.networkEnvironment)
         network =
@@ -427,13 +443,22 @@ class DependencyContainer(
                 configManager = { configManager },
             )
 
+        // Config actor setup — the SequentialActor serializes all state-mutating
+        // actions (fetch, refresh, reset, reevaluate test mode) through a single
+        // FIFO queue, so applying a new config can never race with a variant pick.
+        val configActor =
+            SequentialActor<com.superwall.sdk.config.ConfigContext, com.superwall.sdk.config.models.ConfigState>(
+                com.superwall.sdk.config.models.ConfigState.None,
+                ioScope,
+            )
+        // DebugInterceptor.install(configActor, name = "Config")
+
         configManager =
             ConfigManager(
                 context = context,
                 storeManager = storeManager,
                 storage = storage,
                 network = network,
-                fullNetwork = network,
                 options = options,
                 factory = this,
                 paywallManager = paywallManager,
@@ -446,13 +471,15 @@ class DependencyContainer(
                 },
                 entitlements = entitlements,
                 webPaywallRedeemer = { reedemer },
-                testModeManager = testModeManager,
+                testMode = testMode,
                 identityManager = { identityManager },
-                activityProvider = activityProvider,
-                activityTracker = currentActivityTracker,
                 setSubscriptionStatus = { status ->
                     entitlements.setSubscriptionStatus(status)
                 },
+                activateTestMode = { config, justActivated ->
+                    testMode.activate(config, justActivated)
+                },
+                actor = configActor,
             )
 
         identityManager =
@@ -529,7 +556,7 @@ class DependencyContainer(
                 storage = storage,
                 activityProvider,
                 factory = this,
-                testModeManager = testModeManager,
+                testMode = testMode,
                 testModeTransactionHandler = testModeTransactionHandler,
                 setSubscriptionStatus = { status ->
                     entitlements.setSubscriptionStatus(status)
@@ -847,7 +874,7 @@ class DependencyContainer(
             locale = deviceHelper.locale,
         )
 
-    override fun makeIsSandbox(): Boolean = testModeManager.isTestMode || deviceHelper.isSandbox
+    override fun makeIsSandbox(): Boolean = testMode.isTestMode || deviceHelper.isSandbox
 
     override suspend fun makeSessionDeviceAttributes(): HashMap<String, Any> {
         val attributes = deviceHelper.getTemplateDevice().toMutableMap()

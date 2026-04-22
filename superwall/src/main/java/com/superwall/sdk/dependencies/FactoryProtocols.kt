@@ -44,7 +44,7 @@ import com.superwall.sdk.paywall.view.webview.templating.models.JsonVariables
 import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.storage.core_data.CoreDataManager
 import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
-import com.superwall.sdk.store.testmode.TestModeManager
+import com.superwall.sdk.store.testmode.TestMode
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -253,6 +253,6 @@ interface CoreDataManagerFactory {
     fun makeCoreDataManager(): CoreDataManager
 }
 
-internal interface TestModeManagerFactory {
-    fun makeTestModeManager(): TestModeManager?
+internal interface TestModeFactory {
+    fun makeTestMode(): TestMode?
 }
