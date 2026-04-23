@@ -270,6 +270,92 @@ class AutomaticPurchaseController(
         return value
     }
 
+    suspend fun replaceProduct(
+        activity: Activity,
+        productDetails: ProductDetails,
+        basePlanId: String?,
+        offerId: String?,
+        replacementMode: Int,
+    ): PurchaseResult {
+        purchaseResults.value = null
+
+        val fullId =
+            buildFullId(
+                subscriptionId = productDetails.productId,
+                basePlanId = basePlanId,
+                offerId = offerId,
+            )
+
+        val rawStoreProduct =
+            RawStoreProduct(
+                underlyingProductDetails = productDetails,
+                fullIdentifier = fullId,
+                basePlanType = BasePlanType.from(basePlanId),
+                offerType = OfferType.from(offerId),
+            )
+
+        val offerToken =
+            when (val offer = rawStoreProduct.selectedOffer) {
+                is RawStoreProduct.SelectedOfferDetails.Subscription -> offer.underlying.offerToken
+                is RawStoreProduct.SelectedOfferDetails.OneTime -> {
+                    if (offer.purchaseOptionId != null || offerId != null) {
+                        offer.underlying.offerToken
+                    } else {
+                        null
+                    }
+                }
+                null -> null
+            }
+
+        val hasOfferToken = !offerToken.isNullOrEmpty()
+
+        val productDetailsParams =
+            BillingFlowParams.ProductDetailsParams
+                .newBuilder()
+                .setProductDetails(productDetails)
+                .also {
+                    if (hasOfferToken) {
+                        it.setOfferToken(offerToken!!)
+                    }
+                }.build()
+
+        isConnected.first { it }
+
+        val oldToken =
+            findActiveSubscriptionToken()
+                ?: return PurchaseResult.Failed("No active subscription found for replacement")
+
+        val subscriptionUpdateParams =
+            BillingFlowParams.SubscriptionUpdateParams
+                .newBuilder()
+                .setOldPurchaseToken(oldToken)
+                .setSubscriptionReplacementMode(replacementMode)
+                .build()
+
+        val flowParams =
+            BillingFlowParams
+                .newBuilder()
+                .apply {
+                    setObfuscatedAccountId(Superwall.instance.externalAccountId)
+                }.setProductDetailsParamsList(listOf(productDetailsParams))
+                .setSubscriptionUpdateParams(subscriptionUpdateParams)
+                .build()
+
+        billingClient.launchBillingFlow(activity, flowParams)
+
+        val value = purchaseResults.first { it != null } ?: PurchaseResult.Failed("Purchase failed")
+        return value
+    }
+
+    private suspend fun findActiveSubscriptionToken(): String? {
+        isConnected.first { it }
+        val purchases =
+            queryPurchasesOfType(BillingClient.ProductType.SUBS).getOrNull() ?: return null
+        return purchases
+            .firstOrNull { it.purchaseState == Purchase.PurchaseState.PURCHASED }
+            ?.purchaseToken
+    }
+
     override suspend fun restorePurchases(): RestorationResult {
         syncSubscriptionStatusAndWait()
         return RestorationResult.Restored()

@@ -180,6 +180,18 @@ class PaywallMessageHandler(
                     shouldDismiss = message.shouldDismiss,
                 )
 
+            is PaywallMessage.ReplaceProduct -> {
+                detectHiddenPaywallEvent("replace_product")
+                hapticFeedback()
+                messageHandler?.eventDidOccur(
+                    PaywallWebEvent.InitiateReplacement(
+                        productId = message.productId,
+                        replacementMode = message.replacementMode,
+                        shouldDismiss = message.shouldDismiss,
+                    ),
+                )
+            }
+
             is PaywallMessage.PaywallOpen -> {
                 if (messageHandler?.state?.paywall?.paywalljsVersion == null) {
                     queue.offer(message)
