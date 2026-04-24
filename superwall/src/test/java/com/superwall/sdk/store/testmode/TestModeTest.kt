@@ -962,4 +962,93 @@ class TestModeTest {
     }
 
     // endregion
+
+    // region activate() — UI flow wiring
+
+    @Test
+    fun `activate refreshes products by calling getSuperwallProducts and filters to Android`() =
+        kotlinx.coroutines.test.runTest {
+            val storage = makeStorage()
+            val androidProduct = makeSuperwallProduct("prod-android")
+            val iosProduct =
+                SuperwallProduct(
+                    identifier = "prod-ios",
+                    platform = SuperwallProductPlatform.IOS,
+                    price = SuperwallProductPrice(amount = 999, currency = "USD"),
+                )
+            val response =
+                com.superwall.sdk.store.testmode.models.SuperwallProductsResponse(
+                    data = listOf(androidProduct, iosProduct),
+                )
+            var getProductsCalls = 0
+            val manager =
+                TestMode(
+                    storage = storage,
+                    isTestEnvironment = false,
+                    getSuperwallProducts = {
+                        getProductsCalls++
+                        com.superwall.sdk.misc.Either.Success(response)
+                    },
+                    // No activity available → activate short-circuits the modal step.
+                    activityProvider = { null },
+                    activityTracker = { null },
+                )
+            activateTestMode(manager)
+
+            // justActivated = false → only refreshes products, never tries the modal.
+            manager.activate(makeConfig(), justActivated = false)
+
+            assertEquals(1, getProductsCalls)
+            assertEquals(
+                "Only Android products should be registered",
+                listOf("prod-android"),
+                manager.products.map { it.identifier },
+            )
+        }
+
+    @Test
+    fun `activate with empty product response leaves the catalog empty`() =
+        kotlinx.coroutines.test.runTest {
+            val storage = makeStorage()
+            val manager =
+                TestMode(
+                    storage = storage,
+                    isTestEnvironment = false,
+                    getSuperwallProducts = {
+                        com.superwall.sdk.misc.Either.Success(
+                            com.superwall.sdk.store.testmode.models.SuperwallProductsResponse(data = emptyList()),
+                        )
+                    },
+                )
+            activateTestMode(manager)
+
+            manager.activate(makeConfig(), justActivated = false)
+
+            assertTrue(manager.products.isEmpty())
+        }
+
+    @Test
+    fun `activate swallows network failure and leaves products unchanged`() =
+        kotlinx.coroutines.test.runTest {
+            val storage = makeStorage()
+            val manager =
+                TestMode(
+                    storage = storage,
+                    isTestEnvironment = false,
+                    getSuperwallProducts = {
+                        com.superwall.sdk.misc.Either.Failure(
+                            com.superwall.sdk.network.NetworkError.Unknown(),
+                        )
+                    },
+                )
+            activateTestMode(manager)
+            // Seed a product so we can verify the failure path leaves it untouched.
+            manager.setProducts(listOf(makeSuperwallProduct("prev")))
+
+            manager.activate(makeConfig(), justActivated = false)
+
+            assertEquals(listOf("prev"), manager.products.map { it.identifier })
+        }
+
+    // endregion
 }

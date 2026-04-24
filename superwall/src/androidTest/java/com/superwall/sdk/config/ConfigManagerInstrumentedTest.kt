@@ -113,7 +113,7 @@ class ConfigManagerUnderTest(
         assignments = assignments,
         paywallPreload = paywallPreload,
         ioScope = IOScope(ioScope.coroutineContext),
-        track = {},
+        tracker = {},
         entitlements = testEntitlements,
         awaitUtilNetwork = {},
         webPaywallRedeemer = { webRedeemer },
@@ -1612,6 +1612,462 @@ class ConfigManagerTests {
                     }
                 }
             }
+        }
+
+    // -------------------------------------------------------------------
+    // Regression guards added during the actor refactor follow-up work.
+    // Each test calls out the specific fix it guards so future refactors
+    // know what they're preserving.
+    // -------------------------------------------------------------------
+
+    private fun makeUnderTest(
+        backgroundScope: CoroutineScope,
+        network: SuperwallAPI,
+        storage: Storage,
+        assignments: Assignments,
+        preload: PaywallPreload,
+        deviceHelper: DeviceHelper = mockDeviceHelper,
+        options: SuperwallOptions = SuperwallOptions().apply { paywalls.shouldPreload = false },
+        testModeImpl: com.superwall.sdk.store.testmode.TestMode? = null,
+    ): ConfigManagerUnderTest {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val container =
+            DependencyContainer(context, null, null, activityProvider = null, apiKey = "")
+        return ConfigManagerUnderTest(
+            context = context,
+            storage = storage,
+            network = network,
+            paywallManager = container.paywallManager,
+            storeManager = container.storeManager,
+            factory = container,
+            deviceHelper = deviceHelper,
+            assignments = assignments,
+            paywallPreload = preload,
+            ioScope = backgroundScope,
+            testOptions = options,
+            injectedTestMode = testModeImpl,
+        )
+    }
+
+    // Test 1: isRetryingCallback plumbing — when the network layer invokes
+    // the retry callback, the config actor must transition to Retrying. Pre-fix,
+    // Network.getConfig swallowed the callback, so this transition never fired.
+    @Test
+    fun test_isRetryingCallback_invokes_Retrying_state() =
+        runTest(timeout = 30.seconds) {
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+            val retryInvocations = java.util.concurrent.atomic.AtomicInteger(0)
+            val network = mockk<SuperwallAPI> {
+                coEvery { getConfig(any()) } coAnswers {
+                    val cb = firstArg<suspend () -> Unit>()
+                    // Simulate two retries before succeeding.
+                    cb()
+                    cb()
+                    retryInvocations.set(2)
+                    Either.Success(Config.stub())
+                }
+                coEvery { getEnrichment(any(), any(), any()) } returns Either.Success(Enrichment.stub())
+            }
+            val storage =
+                spyk(StorageMock(context = context, coroutineScope = backgroundScope)) {
+                    every { read(LatestConfig) } returns null
+                    every { read(LatestEnrichment) } returns null
+                }
+            val assignments = Assignments(storage, network, backgroundScope)
+            val preload =
+                mockk<PaywallPreload> {
+                    coEvery { preloadAllPaywalls(any(), any()) } just Runs
+                    coEvery { preloadPaywallsByNames(any(), any()) } just Runs
+                    coEvery { removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
+                }
+
+            val seen = mutableListOf<ConfigState>()
+            val configManager = makeUnderTest(backgroundScope, network, storage, assignments, preload)
+
+            val collector =
+                launch {
+                    configManager.configState
+                        .onEach { seen.add(it) }
+                        .first { it is ConfigState.Retrieved }
+                }
+            configManager.fetchConfiguration()
+            collector.join()
+
+            assertEquals(2, retryInvocations.get())
+            assertTrue(
+                "Expected at least one Retrying state after isRetryingCallback invocation, got $seen",
+                seen.any { it is ConfigState.Retrying },
+            )
+        }
+
+    // Test 2: cached-config success enqueues PreloadIfEnabled BEFORE RefreshConfig.
+    // Guards the fix for the "refresh queued ahead of preload" regression.
+    @Test
+    fun test_cached_config_success_preloads_before_refresh() =
+        runTest(timeout = 30.seconds) {
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+            val cached =
+                Config.stub().copy(
+                    buildId = "cached",
+                    rawFeatureFlags = listOf(RawFeatureFlag("enable_config_refresh_v2", true)),
+                )
+            val fresh = Config.stub().copy(buildId = "fresh")
+            val getConfigCalls = java.util.concurrent.atomic.AtomicInteger(0)
+            val network = mockk<SuperwallAPI> {
+                coEvery { getConfig(any()) } coAnswers {
+                    val n = getConfigCalls.incrementAndGet()
+                    if (n == 1) {
+                        // First call is the timed fetch inside initial FetchConfig.
+                        // Make it slow enough that the cached fallback wins.
+                        delay(2_000)
+                        Either.Success(fresh)
+                    } else {
+                        Either.Success(fresh)
+                    }
+                }
+                coEvery { getEnrichment(any(), any(), any()) } returns Either.Success(Enrichment.stub())
+            }
+            val storage =
+                spyk(StorageMock(context = context, coroutineScope = backgroundScope)) {
+                    every { read(LatestConfig) } returns cached
+                    every { read(LatestEnrichment) } returns Enrichment.stub()
+                }
+            val assignments = Assignments(storage, network, backgroundScope)
+            val preload =
+                mockk<PaywallPreload> {
+                    coEvery { preloadAllPaywalls(any(), any()) } just Runs
+                    coEvery { preloadPaywallsByNames(any(), any()) } just Runs
+                    coEvery { removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
+                }
+            val options = SuperwallOptions().apply { paywalls.shouldPreload = true }
+            val configManager =
+                makeUnderTest(backgroundScope, network, storage, assignments, preload, options = options)
+
+            configManager.fetchConfiguration()
+            // Wait until refresh completes (second getConfig call returns).
+            configManager.configState
+                .first { it is ConfigState.Retrieved && it.config.buildId == "fresh" }
+            advanceUntilIdle()
+
+            io.mockk.coVerifyOrder {
+                preload.preloadAllPaywalls(any(), any())
+                network.getConfig(any())
+            }
+            assertTrue(
+                "Expected two network.getConfig calls (cached + refresh), got ${getConfigCalls.get()}",
+                getConfigCalls.get() >= 2,
+            )
+        }
+
+    // Test 3: cold-start failure must auto-retry FetchConfig (not no-op RefreshConfig).
+    // Guards the claim-3 fix.
+    @Test
+    fun test_cold_start_failure_auto_retries_fetchConfig() =
+        runTest(timeout = 30.seconds) {
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+            val calls = java.util.concurrent.atomic.AtomicInteger(0)
+            val network = mockk<SuperwallAPI> {
+                coEvery { getConfig(any()) } coAnswers {
+                    calls.incrementAndGet()
+                    Either.Failure(NetworkError.Unknown())
+                }
+                coEvery { getEnrichment(any(), any(), any()) } returns Either.Success(Enrichment.stub())
+            }
+            val storage =
+                spyk(StorageMock(context = context, coroutineScope = backgroundScope)) {
+                    every { read(LatestConfig) } returns null
+                    every { read(LatestEnrichment) } returns null
+                }
+            val assignments = Assignments(storage, network, backgroundScope)
+            val preload =
+                mockk<PaywallPreload> {
+                    coEvery { preloadAllPaywalls(any(), any()) } just Runs
+                    coEvery { preloadPaywallsByNames(any(), any()) } just Runs
+                    coEvery { removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
+                }
+            val configManager = makeUnderTest(backgroundScope, network, storage, assignments, preload)
+
+            // Kick it off, then drain the queue for a few passes so the failure
+            // handler has a chance to enqueue retries.
+            configManager.fetchConfiguration()
+            // Give the retry loop a couple of cycles to spin.
+            delay(100)
+            advanceUntilIdle()
+
+            assertTrue(
+                "Expected >=2 getConfig calls (initial + auto-retry), got ${calls.get()}",
+                calls.get() >= 2,
+            )
+            assertTrue(configManager.configState.value is ConfigState.Failed)
+        }
+
+    // Test 4: refreshConfiguration() called while initial fetch is in-flight is a no-op.
+    // Guards the fix for the redundant-refresh regression triggered by AppSessionManager.onStart.
+    @Test
+    fun test_refreshConfiguration_is_noop_when_no_retrieved_config() =
+        runTest(timeout = 30.seconds) {
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+            val network = spyk(NetworkMock())
+            val storage = StorageMock(context = context, coroutineScope = backgroundScope)
+            val assignments = Assignments(storage, network, backgroundScope)
+            val preload =
+                mockk<PaywallPreload> {
+                    coEvery { preloadAllPaywalls(any(), any()) } just Runs
+                    coEvery { preloadPaywallsByNames(any(), any()) } just Runs
+                    coEvery { removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
+                }
+            val configManager = makeUnderTest(backgroundScope, network, storage, assignments, preload)
+
+            // Pin state to Retrieving so refreshConfiguration sees no retrieved config.
+            configManager.setState(ConfigState.Retrieving)
+            configManager.refreshConfiguration(force = false)
+            advanceUntilIdle()
+
+            coVerify(exactly = 0) { network.getConfig(any()) }
+
+            // Also verify None state is a no-op.
+            configManager.setState(ConfigState.None)
+            configManager.refreshConfiguration(force = false)
+            advanceUntilIdle()
+            coVerify(exactly = 0) { network.getConfig(any()) }
+        }
+
+    // Test 5: reevaluateTestMode observes the new state synchronously on the caller's thread.
+    // If someone converts it back to an actor-queued action, this fails.
+    @Test
+    fun test_reevaluateTestMode_is_synchronous() =
+        runTest(timeout = 30.seconds) {
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+            val network = NetworkMock()
+            val storage = StorageMock(context = context, coroutineScope = backgroundScope)
+            val assignments = Assignments(storage, network, backgroundScope)
+            val preload =
+                mockk<PaywallPreload> {
+                    coEvery { preloadAllPaywalls(any(), any()) } just Runs
+                    coEvery { preloadPaywallsByNames(any(), any()) } just Runs
+                    coEvery { removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
+                }
+            val testModeImpl =
+                com.superwall.sdk.store.testmode.TestMode(storage = storage, isTestEnvironment = false)
+            every { mockDeviceHelper.bundleId } returns "com.superwall.test"
+
+            val config =
+                Config.stub().copy(
+                    testModeUserIds =
+                        listOf(
+                            com.superwall.sdk.store.testmode.models.TestStoreUser(
+                                type = com.superwall.sdk.store.testmode.models.TestStoreUserType.UserId,
+                                value = "test-user",
+                            ),
+                        ),
+                )
+            val configManager =
+                makeUnderTest(
+                    backgroundScope,
+                    network,
+                    storage,
+                    assignments,
+                    preload,
+                    testModeImpl = testModeImpl,
+                )
+
+            assertFalse("Test mode should start inactive", testModeImpl.isTestMode)
+
+            // Call reevaluateTestMode with a matching appUserId — assert state flipped
+            // on the NEXT LINE (no advanceUntilIdle, no yield).
+            configManager.reevaluateTestMode(config = config, appUserId = "test-user")
+
+            assertTrue("Test mode must be active synchronously", testModeImpl.isTestMode)
+        }
+
+    // Test 6: reset() mutates assignments synchronously.
+    // Guards against re-actorizing reset() without a sync contract.
+    @Test
+    fun test_reset_mutates_assignments_synchronously() =
+        runTest(timeout = 30.seconds) {
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+            val network = NetworkMock()
+            val storage = StorageMock(context = context, coroutineScope = backgroundScope)
+            val assignments = spyk(Assignments(storage, network, backgroundScope))
+            val preload =
+                mockk<PaywallPreload> {
+                    coEvery { preloadAllPaywalls(any(), any()) } just Runs
+                    coEvery { preloadPaywallsByNames(any(), any()) } just Runs
+                    coEvery { removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
+                }
+            val configManager = makeUnderTest(backgroundScope, network, storage, assignments, preload)
+            configManager.setConfig(Config.stub())
+
+            configManager.reset()
+            // No advanceUntilIdle, no yield — the mutating parts must already have run.
+            verify(exactly = 1) { assignments.reset() }
+            verify(exactly = 1) { assignments.choosePaywallVariants(any()) }
+        }
+
+    // Test 7: concurrent fetchConfiguration() calls don't fan out to multiple network fetches.
+    // The in-flight guard (Retrieving/Retrying) in fetchConfiguration() should dedup.
+    @Test
+    fun test_concurrent_fetchConfiguration_calls_dedup() =
+        runTest(timeout = 30.seconds) {
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+            val calls = java.util.concurrent.atomic.AtomicInteger(0)
+            val network = mockk<SuperwallAPI> {
+                coEvery { getConfig(any()) } coAnswers {
+                    calls.incrementAndGet()
+                    delay(500) // keep the first call in-flight
+                    Either.Success(Config.stub())
+                }
+                coEvery { getEnrichment(any(), any(), any()) } returns Either.Success(Enrichment.stub())
+            }
+            val storage =
+                spyk(StorageMock(context = context, coroutineScope = backgroundScope)) {
+                    every { read(LatestConfig) } returns null
+                    every { read(LatestEnrichment) } returns null
+                }
+            val assignments = Assignments(storage, network, backgroundScope)
+            val preload =
+                mockk<PaywallPreload> {
+                    coEvery { preloadAllPaywalls(any(), any()) } just Runs
+                    coEvery { preloadPaywallsByNames(any(), any()) } just Runs
+                    coEvery { removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
+                }
+            val configManager = makeUnderTest(backgroundScope, network, storage, assignments, preload)
+
+            // Kick the first fetch on a background coroutine so we can observe
+            // the Retrieving state before calling again.
+            val first = launch { configManager.fetchConfiguration() }
+            // Wait until the actor starts the initial fetch.
+            configManager.configState.first { it is ConfigState.Retrieving }
+            // Now a second call should bail out (guarded) — it must not queue
+            // another FetchConfig behind the first.
+            configManager.fetchConfiguration()
+            first.join()
+
+            assertEquals(
+                "Expected exactly one network.getConfig while Retrieving — got ${calls.get()}",
+                1,
+                calls.get(),
+            )
+        }
+
+    // Test 8: ApplyConfig (now a sub-action) runs all its side effects before state → Retrieved.
+    // If it regresses to fire-after-Retrieved, triggersByEventName would be stale by then.
+    @Test
+    fun test_applyConfig_side_effects_happen_before_retrieved() =
+        runTest(timeout = 30.seconds) {
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+            val config =
+                Config.stub().copy(
+                    triggers = setOf(Trigger.stub().copy(eventName = "my_event")),
+                    rawFeatureFlags = listOf(RawFeatureFlag("disable_verbose_events", true)),
+                )
+            val network = mockk<SuperwallAPI> {
+                coEvery { getConfig(any()) } returns Either.Success(config)
+                coEvery { getEnrichment(any(), any(), any()) } returns Either.Success(Enrichment.stub())
+            }
+            val storage =
+                spyk(StorageMock(context = context, coroutineScope = backgroundScope)) {
+                    every { read(LatestConfig) } returns null
+                    every { read(LatestEnrichment) } returns null
+                }
+            val assignments = Assignments(storage, network, backgroundScope)
+            val preload =
+                mockk<PaywallPreload> {
+                    coEvery { preloadAllPaywalls(any(), any()) } just Runs
+                    coEvery { preloadPaywallsByNames(any(), any()) } just Runs
+                    coEvery { removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
+                }
+            val triggersSnapshotOnRetrieved = mutableListOf<String>()
+            val configManager = makeUnderTest(backgroundScope, network, storage, assignments, preload)
+
+            val collector =
+                launch {
+                    configManager.configState
+                        .first { it is ConfigState.Retrieved }
+                    triggersSnapshotOnRetrieved.addAll(configManager.triggersByEventName.keys)
+                }
+            configManager.fetchConfiguration()
+            collector.join()
+
+            assertTrue(
+                "triggersByEventName must be populated by the time state → Retrieved, got $triggersSnapshotOnRetrieved",
+                triggersSnapshotOnRetrieved.contains("my_event"),
+            )
+            verify { storage.write(DisableVerboseEvents, true) }
+        }
+
+    // Test 9: ApplyConfig only writes LatestConfig when enableConfigRefresh is true.
+    // Guards the conditional branch inside ApplyConfig.
+    @Test
+    fun test_applyConfig_skips_latestConfig_write_when_flag_off() =
+        runTest(timeout = 30.seconds) {
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+            // No rawFeatureFlags → enableConfigRefresh defaults to false.
+            val config = Config.stub()
+            val network = mockk<SuperwallAPI> {
+                coEvery { getConfig(any()) } returns Either.Success(config)
+                coEvery { getEnrichment(any(), any(), any()) } returns Either.Success(Enrichment.stub())
+            }
+            val storage =
+                spyk(StorageMock(context = context, coroutineScope = backgroundScope)) {
+                    every { read(LatestConfig) } returns null
+                    every { read(LatestEnrichment) } returns null
+                }
+            val assignments = Assignments(storage, network, backgroundScope)
+            val preload =
+                mockk<PaywallPreload> {
+                    coEvery { preloadAllPaywalls(any(), any()) } just Runs
+                    coEvery { preloadPaywallsByNames(any(), any()) } just Runs
+                    coEvery { removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
+                }
+            val configManager = makeUnderTest(backgroundScope, network, storage, assignments, preload)
+
+            configManager.fetchConfiguration()
+            configManager.configState.first { it is ConfigState.Retrieved }
+            advanceUntilIdle()
+
+            verify(exactly = 0) { storage.write(LatestConfig, any()) }
+            // Sanity: the other ApplyConfig writes still happen.
+            verify { storage.write(DisableVerboseEvents, any()) }
+        }
+
+    // Test 10: getAssignments() gates on Retrieved before dispatching.
+    // It must NOT dispatch the GetAssignments action while state is None,
+    // or we'd deadlock the actor queue on awaitFirstValidConfig.
+    @Test
+    fun test_getAssignments_waits_for_retrieved_before_dispatch() =
+        runTest(timeout = 30.seconds) {
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+            val network = spyk(NetworkMock())
+            val storage = StorageMock(context = context, coroutineScope = backgroundScope)
+            val serverAssignments = Assignments(storage, network, backgroundScope)
+            val preload =
+                mockk<PaywallPreload> {
+                    coEvery { preloadAllPaywalls(any(), any()) } just Runs
+                    coEvery { preloadPaywallsByNames(any(), any()) } just Runs
+                    coEvery { removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
+                }
+            val configManager =
+                makeUnderTest(backgroundScope, network, storage, serverAssignments, preload)
+
+            // State starts at None — launch getAssignments and verify it is
+            // suspended BEFORE the action runs (no server call yet).
+            val gatheredJob = launch { configManager.getAssignments() }
+            delay(200)
+            assertTrue(
+                "getAssignments should still be suspended while no Retrieved config exists",
+                gatheredJob.isActive,
+            )
+            coVerify(exactly = 0) { network.getAssignments() }
+
+            // Flip state to Retrieved. Now the action should proceed.
+            configManager.setConfig(
+                Config.stub().copy(triggers = setOf(Trigger.stub().copy(eventName = "e1"))),
+            )
+            gatheredJob.join()
+            advanceUntilIdle()
+
+            coVerify(atLeast = 1) { network.getAssignments() }
         }
 
     @After
