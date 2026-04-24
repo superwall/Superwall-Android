@@ -216,19 +216,32 @@ sealed class ConfigState {
                 }.then { config ->
                     update(Updates.SetRetrieved(config))
                 }.then {
-                    if (isConfigFromCache) {
-                        effect(RefreshConfig())
-                    }
                     if (isEnrichmentFromCache || enrichmentResult.getThrowable() != null) {
                         scope.launch { deviceHelper.getEnrichment(6, 1.seconds) }
                     }
                 }.fold(
-                    onSuccess = { effect(PreloadIfEnabled) },
+                    onSuccess = {
+                        // Preload first so cached-config boot stays fast; queue
+                        // a follow-up network refresh behind it (matches the old
+                        // parallel-launch behavior well enough).
+                        effect(PreloadIfEnabled)
+                        if (isConfigFromCache) {
+                            effect(RefreshConfig())
+                        }
+                    },
                     onFailure = { e ->
                         e.printStackTrace()
                         update(Updates.SetFailed(e))
+                        // Match old behavior: on a non-cached failure, kick a
+                        // fresh FetchConfig. Old code did this implicitly via
+                        // refreshConfiguration() reading the `config` getter,
+                        // which had a side effect of launching fetchConfiguration.
+                        // RefreshConfig alone is a no-op here because there's
+                        // no retrieved config to refresh. We dispatch via
+                        // scope.launch to dodge the Kotlin "self-reference in
+                        // nested object initializer" check.
                         if (!isConfigFromCache) {
-                            effect(RefreshConfig())
+                            retryFetchConfig()
                         }
                         track(InternalSuperwallEvent.ConfigFail(e.message ?: "Unknown error"))
                         Logger.debug(
@@ -288,48 +301,6 @@ sealed class ConfigState {
                         )
                     },
                 )
-        })
-
-        /**
-         * Clears in-memory assignments, re-picks paywall variants from the
-         * current config, and kicks off a preload. No state transition, but
-         * mutates [com.superwall.sdk.config.Assignments] so it serializes
-         * with [FetchConfig]/[RefreshConfig] which also pick variants.
-         */
-        object Reset : Actions(exec@{
-            val config = state.value.getConfig() ?: return@exec
-            assignments.reset()
-            assignments.choosePaywallVariants(config.triggers)
-            effect(PreloadIfEnabled)
-        })
-
-        /**
-         * Re-evaluate test mode with the given identity. If test mode was on
-         * but no longer qualifies: clear and reset subscription status. If
-         * newly qualifies: activate test mode UI off-queue.
-         */
-        data class ReevaluateTestMode(
-            val configOverride: Config? = null,
-            val appUserId: String? = null,
-            val aliasId: String? = null,
-        ) : Actions(exec@{
-            val config = configOverride ?: state.value.getConfig() ?: return@exec
-            val manager = testMode ?: return@exec
-            val wasTestMode = manager.isTestMode
-            manager.evaluateTestMode(
-                config = config,
-                bundleId = deviceHelper.bundleId,
-                appUserId = appUserId ?: identityManager?.invoke()?.appUserId,
-                aliasId = aliasId ?: identityManager?.invoke()?.aliasId,
-                testModeBehavior = options.testModeBehavior,
-            )
-            val isNowTestMode = manager.isTestMode
-            if (wasTestMode && !isNowTestMode) {
-                manager.clearTestModeState()
-                setSubscriptionStatus?.invoke(SubscriptionStatus.Inactive)
-            } else if (!wasTestMode && isNowTestMode) {
-                scope.launch { activateTestMode(config, true) }
-            }
         })
 
         /**
