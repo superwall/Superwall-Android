@@ -23,6 +23,7 @@ abstract class NetworkService {
         isForDebugging: Boolean = false,
         requestId: String = UUID.randomUUID().toString(),
         retryCount: Int = NetworkConsts.retryCount(),
+        noinline isRetryingCallback: (suspend () -> Unit)? = null,
     ): Either<T, NetworkError> where T : @Serializable Any =
         customHttpUrlConnection.request(
             buildRequestData = {
@@ -40,6 +41,7 @@ abstract class NetworkService {
                 )
             },
             retryCount = retryCount,
+            isRetryingCallback = isRetryingCallback,
         )
 
     suspend inline fun <reified T> post(

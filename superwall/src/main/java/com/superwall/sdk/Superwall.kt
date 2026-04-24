@@ -295,7 +295,7 @@ class Superwall(
      * @param subscriptionStatus The entitlement status of the user.
      */
     fun setSubscriptionStatus(subscriptionStatus: SubscriptionStatus) {
-        if (dependencyContainer.testModeManager.isTestMode) {
+        if (dependencyContainer.testMode.isTestMode) {
             Logger.debug(
                 LogLevel.warn,
                 LogScope.superwallCore,
@@ -317,7 +317,7 @@ class Superwall(
      * @param entitlements A list of entitlements.
      * */
     fun setSubscriptionStatus(vararg entitlements: String) {
-        if (dependencyContainer.testModeManager.isTestMode) {
+        if (dependencyContainer.testMode.isTestMode) {
             Logger.debug(
                 LogLevel.warn,
                 LogScope.superwallCore,
@@ -345,7 +345,7 @@ class Superwall(
         if (dependencyContainer.makeHasExternalPurchaseController()) {
             return
         }
-        if (dependencyContainer.testModeManager.isTestMode) {
+        if (dependencyContainer.testMode.isTestMode) {
             return
         }
         val webEntitlements = dependencyContainer.entitlements.web
@@ -467,7 +467,7 @@ class Superwall(
 
     val configurationStateListener: Flow<ConfigurationStatus>
         get() =
-            dependencyContainer.configManager.configState.asSharedFlow().map {
+            dependencyContainer.configManager.configState.map {
                 when (it) {
                     is ConfigState.Retrieved -> ConfigurationStatus.Configured
                     is ConfigState.Failed -> ConfigurationStatus.Failed
