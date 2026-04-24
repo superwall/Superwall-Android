@@ -37,7 +37,6 @@ interface ConfigContext : BaseContext<ConfigState, ConfigContext> {
     val factory: ConfigManager.Factory
     val assignments: Assignments
     val paywallPreload: PaywallPreload
-    //val track: suspend (InternalSuperwallEvent) -> Unit
     val testMode: TestMode?
     val identityManager: (() -> IdentityManager)?
     val setSubscriptionStatus: ((SubscriptionStatus) -> Unit)?
