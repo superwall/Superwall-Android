@@ -653,7 +653,7 @@ class DeviceHelper(
     }
 }
 
-private fun String.asPadded(): String {
+internal fun String.asPadded(): String {
     val components = split("-")
     if (components.isEmpty()) {
         return ""
@@ -673,7 +673,7 @@ private fun String.asPadded(): String {
         // Pad beta number and add to appendix
         if (appendixComponents.size > 1) {
             appendixVersion =
-                String.format("%03d", appendixComponents[1].toIntOrNull() ?: 0)
+                String.format(Locale.US, "%03d", appendixComponents[1].toIntOrNull() ?: 0)
             appendix += ".$appendixVersion"
         }
     }
@@ -682,15 +682,15 @@ private fun String.asPadded(): String {
     val versionComponents = versionNumber.split(".")
     var newVersion = ""
     if (versionComponents.isNotEmpty()) {
-        val major = String.format("%03d", versionComponents[0].toIntOrNull() ?: 0)
+        val major = String.format(Locale.US, "%03d", versionComponents[0].toIntOrNull() ?: 0)
         newVersion += major
     }
     if (versionComponents.size > 1) {
-        val minor = String.format("%03d", versionComponents[1].toIntOrNull() ?: 0)
+        val minor = String.format(Locale.US, "%03d", versionComponents[1].toIntOrNull() ?: 0)
         newVersion += ".$minor"
     }
     if (versionComponents.size > 2) {
-        val patch = String.format("%03d", versionComponents[2].toIntOrNull() ?: 0)
+        val patch = String.format(Locale.US, "%03d", versionComponents[2].toIntOrNull() ?: 0)
         newVersion += ".$patch"
     }
 
