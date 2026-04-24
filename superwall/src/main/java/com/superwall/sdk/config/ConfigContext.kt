@@ -57,4 +57,12 @@ interface ConfigContext : BaseContext<ConfigState, ConfigContext> {
 
     /** Publish derived triggers-by-event-name map after processing a new config. */
     fun setTriggers(triggers: Map<String, Trigger>)
+
+    /**
+     * Re-dispatch [ConfigState.Actions.FetchConfig] from inside the action's
+     * own failure path. Defined here (not inline) so the reference to the
+     * `FetchConfig` object lives outside its own initializer — Kotlin forbids
+     * self-references in the constructor of a nested object.
+     */
+    fun retryFetchConfig()
 }

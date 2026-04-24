@@ -109,6 +109,10 @@ open class ConfigManager(
         triggersByEventName = triggers
     }
 
+    override fun retryFetchConfig() {
+        effect(ConfigState.Actions.FetchConfig)
+    }
+
     val unconfirmedAssignments: Map<ExperimentID, Experiment.Variant>
         get() = assignments.unconfirmedAssignments
 
@@ -118,8 +122,17 @@ open class ConfigManager(
         immediate(ConfigState.Actions.FetchConfig)
     }
 
+    /**
+     * Synchronous on the caller's thread for the mutating parts — matches
+     * pre-actor behavior where a caller could read `unconfirmedAssignments`
+     * right after `reset()` and see the new picks. Only the follow-up
+     * preload goes through the actor queue.
+     */
     fun reset() {
-        effect(ConfigState.Actions.Reset)
+        val config = actor.state.value.getConfig() ?: return
+        assignments.reset()
+        assignments.choosePaywallVariants(config.triggers)
+        effect(ConfigState.Actions.PreloadIfEnabled)
     }
 
     /**
@@ -127,19 +140,32 @@ open class ConfigManager(
      * If test mode was active but the current user no longer qualifies, clears test mode
      * and resets subscription status. If a new user qualifies, activates test mode and
      * shows the modal.
+     *
+     * Synchronous on the caller's thread for the mutating parts — matches
+     * pre-actor behavior. Only the test-mode modal launch is off-thread.
      */
     fun reevaluateTestMode(
         config: Config? = actor.state.value.getConfig(),
         appUserId: String? = null,
         aliasId: String? = null,
     ) {
-        effect(
-            ConfigState.Actions.ReevaluateTestMode(
-                configOverride = config,
-                appUserId = appUserId,
-                aliasId = aliasId,
-            ),
+        val resolvedConfig = config ?: return
+        val manager = testMode ?: return
+        val wasTestMode = manager.isTestMode
+        manager.evaluateTestMode(
+            config = resolvedConfig,
+            bundleId = deviceHelper.bundleId,
+            appUserId = appUserId ?: identityManager?.invoke()?.appUserId,
+            aliasId = aliasId ?: identityManager?.invoke()?.aliasId,
+            testModeBehavior = options.testModeBehavior,
         )
+        val isNowTestMode = manager.isTestMode
+        if (wasTestMode && !isNowTestMode) {
+            manager.clearTestModeState()
+            setSubscriptionStatus?.invoke(SubscriptionStatus.Inactive)
+        } else if (!wasTestMode && isNowTestMode) {
+            ioScope.launch { activateTestMode(resolvedConfig, true) }
+        }
     }
 
     suspend fun getAssignments() {
