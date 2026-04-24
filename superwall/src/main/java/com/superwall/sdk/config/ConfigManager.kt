@@ -146,11 +146,14 @@ open class ConfigManager(
      * pre-actor behavior. Only the test-mode modal launch is off-thread.
      */
     fun reevaluateTestMode(
-        config: Config? = actor.state.value.getConfig(),
+        config: Config? = null,
         appUserId: String? = null,
         aliasId: String? = null,
     ) {
-        val resolvedConfig = config ?: return
+        // Resolve config inside the body, not as a default parameter value —
+        // evaluating actor state inside a default param runs on every call
+        // even when the method is mocked/stubbed, which trips MockK.
+        val resolvedConfig = config ?: actor.state.value.getConfig() ?: return
         val manager = testMode ?: return
         val wasTestMode = manager.isTestMode
         manager.evaluateTestMode(

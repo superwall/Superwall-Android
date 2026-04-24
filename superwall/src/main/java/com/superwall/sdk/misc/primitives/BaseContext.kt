@@ -34,9 +34,7 @@ interface BaseContext<S, Self : BaseContext<S, Self>> : StoreContext<S, Self> {
         storage.delete(storable as Storable<Any>)
     }
 
-    suspend fun track(trackableSuperwallEvent: TrackableSuperwallEvent) {
-        scope.launch {
-            tracker(trackableSuperwallEvent)
-        }
+    fun track(event: TrackableSuperwallEvent) {
+        scope.launch { tracker(event) }
     }
 }
