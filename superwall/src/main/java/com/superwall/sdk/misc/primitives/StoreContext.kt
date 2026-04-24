@@ -48,7 +48,7 @@ interface StoreContext<S, Self : StoreContext<S, Self>> : StateStore<S> {
         actor.immediateUntil(this as Self, action, until)
     }
 
-    suspend fun sideEffect(what: suspend () -> Unit){
+    fun sideEffect(what: suspend () -> Unit){
         scope.launch { what() }
     }
 }
