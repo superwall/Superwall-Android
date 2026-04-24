@@ -562,6 +562,7 @@ class IdentityManagerTest {
                         shouldTrackMerge = true,
                     )
                     manager.awaitLatestIdentity()
+                    advanceUntilIdle()
                 }
 
                 Then("an Attributes event is tracked") {
@@ -721,6 +722,7 @@ class IdentityManagerTest {
                 When("identify is called with a new userId") {
                     manager.identify("user-track-test")
                     manager.awaitLatestIdentity()
+                    advanceUntilIdle()
                 }
 
                 Then("an IdentityAlias event is tracked") {
