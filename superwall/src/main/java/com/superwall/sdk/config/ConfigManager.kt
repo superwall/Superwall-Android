@@ -2,6 +2,7 @@ package com.superwall.sdk.config
 
 import android.content.Context
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
+import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.config.models.ConfigState
 import com.superwall.sdk.config.models.getConfig
 import com.superwall.sdk.config.options.SuperwallOptions
@@ -61,7 +62,7 @@ open class ConfigManager(
     override val assignments: Assignments,
     override val paywallPreload: PaywallPreload,
     private val ioScope: IOScope,
-    override val track: suspend (InternalSuperwallEvent) -> Unit,
+    override val tracker: suspend (TrackableSuperwallEvent) -> Unit,
     override val testMode: TestMode? = null,
     override val identityManager: (() -> IdentityManager)? = null,
     override val setSubscriptionStatus: ((SubscriptionStatus) -> Unit)? = null,
@@ -184,13 +185,9 @@ open class ConfigManager(
     }
 
     internal suspend fun refreshConfiguration(force: Boolean = false) {
+        // Means config is currently being fetched, dont schedule refresh
+        if (actor.state.value.getConfig() == null) return
         immediate(ConfigState.Actions.RefreshConfig(force = force))
-    }
-
-    suspend fun checkForWebEntitlements() {
-        ioScope.launch {
-            webPaywallRedeemer().redeem(WebPaywallRedeemer.RedeemType.Existing)
-        }
     }
 
     // ---- Test-only helpers -------------------------------------------------

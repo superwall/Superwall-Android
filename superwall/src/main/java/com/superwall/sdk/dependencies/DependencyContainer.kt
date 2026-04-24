@@ -466,7 +466,7 @@ class DependencyContainer(
                 assignments = assignments,
                 ioScope = ioScope,
                 paywallPreload = paywallPreload,
-                track = {
+                tracker = {
                     Superwall.instance.track(it)
                 },
                 entitlements = entitlements,

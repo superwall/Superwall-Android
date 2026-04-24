@@ -15,6 +15,5 @@ interface IdentityContext : BaseContext<IdentityState, IdentityContext> {
     val sdkContext: SdkContext
     val webPaywallRedeemer: () -> WebPaywallRedeemer
     val completeReset: () -> Unit
-    val track: suspend (Trackable) -> Unit
     val notifyUserChange: ((Map<String, Any>) -> Unit)?
 }

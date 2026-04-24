@@ -1,7 +1,9 @@
 package com.superwall.sdk.misc.primitives
 
+import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.storage.Storable
 import com.superwall.sdk.storage.Storage
+import kotlinx.coroutines.launch
 
 /**
  * SDK-level actor context — extends [StoreContext] with storage helpers.
@@ -10,6 +12,8 @@ import com.superwall.sdk.storage.Storage
  */
 interface BaseContext<S, Self : BaseContext<S, Self>> : StoreContext<S, Self> {
     val storage: Storage
+
+    val tracker: suspend (TrackableSuperwallEvent) -> Unit
 
     /** Persist a value to storage. */
     fun <T : Any> persist(
@@ -28,5 +32,11 @@ interface BaseContext<S, Self : BaseContext<S, Self>> : StoreContext<S, Self> {
     fun delete(storable: Storable<*>) {
         @Suppress("UNCHECKED_CAST")
         storage.delete(storable as Storable<Any>)
+    }
+
+    suspend fun track(trackableSuperwallEvent: TrackableSuperwallEvent) {
+        scope.launch {
+            tracker(trackableSuperwallEvent)
+        }
     }
 }

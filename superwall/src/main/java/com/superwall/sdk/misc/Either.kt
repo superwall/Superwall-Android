@@ -39,6 +39,22 @@ suspend fun <In, E : Throwable> Either<In, E>.then(then: suspend (In) -> Unit): 
         is Either.Failure -> this
     }
 
+suspend fun <In, E : Throwable> Either<In, E>.thenIf(boolean: Boolean,then: suspend (In) -> Unit): Either<In, E> =
+    when (this) {
+        is Either.Success -> {
+            try {
+                then(this.value)
+                this
+            } catch (e: Throwable) {
+                (e as? E)?.let { Either.Failure(it) }
+                    ?: Either.Failure(IllegalStateException("Error in then block", e) as E)
+            }
+        }
+
+        is Either.Failure -> this
+    }
+
+
 fun <In, Out, E : Throwable> Either<In, E>.map(transform: (In) -> Out): Either<Out, E> =
     when (this) {
         is Either.Success -> Either.Success(transform(this.value))

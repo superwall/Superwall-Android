@@ -15,6 +15,7 @@ import com.superwall.sdk.misc.onError
 import com.superwall.sdk.misc.primitives.Reducer
 import com.superwall.sdk.misc.primitives.TypedAction
 import com.superwall.sdk.misc.then
+import com.superwall.sdk.misc.thenIf
 import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.models.enrichment.Enrichment
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
@@ -178,7 +179,6 @@ sealed class ConfigState {
 
             configResult
                 .then { config ->
-                    scope.launch {
                         track(
                             InternalSuperwallEvent.ConfigRefresh(
                                 isCached = isConfigFromCache,
@@ -187,15 +187,11 @@ sealed class ConfigState {
                                 retryCount = configRetryCount.get(),
                             ),
                         )
-                    }
                 }.then { config -> immediate(ApplyConfig(config)) }
-                .then { config ->
-                    if (testMode?.isTestMode != true) {
-                        scope.launch {
+                .thenIf(testMode?.isTestMode != true) {
+                        sideEffect {
                             webPaywallRedeemer().redeem(WebPaywallRedeemer.RedeemType.Existing)
                         }
-                    }
-                    config
                 }.then { config ->
                     if (testMode?.isTestMode != true &&
                         options.computedShouldPreload(deviceHelper.deviceTier)
