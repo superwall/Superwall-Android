@@ -86,13 +86,13 @@ open class ConfigManager(
     internal val configState: StateFlow<ConfigState> get() = actor.state
 
     val config: Config?
-        get() =
-            actor.state.value
-                .also {
-                    if (it is ConfigState.Failed) {
-                        actor.effect(this, ConfigState.Actions.FetchConfig)
-                    }
-                }.getConfig()
+        get() {
+            val current = actor.state.value
+            if (current is ConfigState.Failed) {
+                effect(ConfigState.Actions.FetchConfig)
+            }
+            return current.getConfig()
+        }
 
     val hasConfig: Flow<Config> =
         actor.state
@@ -109,6 +109,8 @@ open class ConfigManager(
     override fun setTriggers(triggers: Map<String, Trigger>) {
         triggersByEventName = triggers
     }
+
+    override val autoRetryCount = java.util.concurrent.atomic.AtomicInteger(0)
 
     override fun retryFetchConfig() {
         effect(ConfigState.Actions.FetchConfig)

@@ -228,15 +228,13 @@ sealed class ConfigState {
                     onFailure = { e ->
                         e.printStackTrace()
                         update(Updates.SetFailed(e))
-                        // Match old behavior: on a non-cached failure, kick a
-                        // fresh FetchConfig. Old code did this implicitly via
-                        // refreshConfiguration() reading the `config` getter,
-                        // which had a side effect of launching fetchConfiguration.
-                        // RefreshConfig alone is a no-op here because there's
-                        // no retrieved config to refresh. We dispatch via
-                        // scope.launch to dodge the Kotlin "self-reference in
-                        // nested object initializer" check.
-                        if (!isConfigFromCache) {
+                        // Bounded auto-retry: matches old behavior where
+                        // refreshConfiguration's `config` getter side-effect
+                        // implicitly relaunched fetchConfiguration after each
+                        // failure. Cap at 1 retry per Failed transition so a
+                        // hard-down server can't saturate the actor queue.
+                        // The counter resets on Retrieved (in ApplyConfig).
+                        if (!isConfigFromCache && autoRetryCount.incrementAndGet() <= 1) {
                             retryFetchConfig()
                         }
                         track(InternalSuperwallEvent.ConfigFail(e.message ?: "Unknown error"))
@@ -307,6 +305,9 @@ sealed class ConfigState {
          * stay serialized with the surrounding fetch.
          */
         data class ApplyConfig(val config: Config) : Actions({
+            // Reset cold-start retry budget — a successful apply means the
+            // network came back and the next failure starts the budget over.
+            autoRetryCount.set(0)
             storage.write(DisableVerboseEvents, config.featureFlags.disableVerboseEvents)
             if (config.featureFlags.enableConfigRefresh) {
                 storage.write(LatestConfig, config)

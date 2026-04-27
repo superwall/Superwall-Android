@@ -58,10 +58,14 @@ interface ConfigContext : BaseContext<ConfigState, ConfigContext> {
     fun setTriggers(triggers: Map<String, Trigger>)
 
     /**
-     * Re-dispatch [ConfigState.Actions.FetchConfig] from inside the action's
-     * own failure path. Defined here (not inline) so the reference to the
-     * `FetchConfig` object lives outside its own initializer — Kotlin forbids
-     * self-references in the constructor of a nested object.
+     * Mutable counter tracking consecutive cold-start failures. Bounded
+     * auto-retry uses this — one extra retry per Failed transition, then
+     * stop. Reset on a successful ApplyConfig.
      */
+    val autoRetryCount: java.util.concurrent.atomic.AtomicInteger
+
+    /** Re-dispatch [ConfigState.Actions.FetchConfig]. Indirection lives on
+     *  the context so the action body can reference it without tripping
+     *  Kotlin's self-reference-in-nested-object check. */
     fun retryFetchConfig()
 }
