@@ -30,4 +30,14 @@ sealed class PaywallCloseReason {
                 is ForNextPaywall, None -> false
                 else -> true
             }
+
+    val description: String
+        get() =
+            when (this) {
+                is SystemLogic -> "systemLogic"
+                is ForNextPaywall -> "forNextPaywall"
+                is WebViewFailedToLoad -> "webViewFailedToLoad"
+                is ManualClose -> "manualClose"
+                is None -> "none"
+            }
 }

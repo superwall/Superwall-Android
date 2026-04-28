@@ -2,6 +2,8 @@ package com.superwall.sdk.paywall.presentation
 
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallSkippedReason
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 
 class PaywallPresentationHandler() {
     constructor(definition: PaywallPresentationHandler.() -> Unit) : this() {

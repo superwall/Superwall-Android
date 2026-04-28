@@ -214,10 +214,14 @@ data class PaywallInfo(
                 "paywall_products_load_complete_time" to productsLoadCompleteTime,
                 "paywall_products_load_fail_time" to productsLoadFailTime,
                 "paywall_products_load_duration" to productsLoadDuration,
-                // TODO remove in next major update
                 "trigger_session_id" to "",
                 "experiment_id" to experiment?.id,
                 "variant_id" to experiment?.variant?.id,
+                "cache_key" to cacheKey,
+                "build_id" to buildId,
+                "close_reason" to closeReason.description,
+                "shimmerView_load_start_time" to shimmerLoadStartTime,
+                "shimmerView_load_complete_time" to shimmerLoadCompleteTime,
                 "is_scroll_enabled" to isScrollEnabled,
                 "state" to state,
             )
