@@ -103,6 +103,9 @@ open class ConfigManagerUnderTest(
     webRedeemer: WebPaywallRedeemer = mockk(relaxed = true),
     injectedTestMode: com.superwall.sdk.store.testmode.TestMode? = null,
     testAwaitUtilNetwork: suspend () -> Unit = {},
+    injectedTracker: suspend (com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent) -> Unit = {},
+    injectedSetSubscriptionStatus: ((SubscriptionStatus) -> Unit)? = null,
+    injectedActivateTestMode: suspend (Config, Boolean) -> Unit = { _, _ -> },
 ) : ConfigManager(
         context = context,
         storage = storage,
@@ -115,11 +118,13 @@ open class ConfigManagerUnderTest(
         assignments = assignments,
         paywallPreload = paywallPreload,
         ioScope = IOScope(ioScope.coroutineContext),
-        tracker = {},
+        tracker = injectedTracker,
         entitlements = testEntitlements,
         awaitUtilNetwork = testAwaitUtilNetwork,
         webPaywallRedeemer = { webRedeemer },
         testMode = injectedTestMode,
+        setSubscriptionStatus = injectedSetSubscriptionStatus,
+        activateTestMode = injectedActivateTestMode,
         actor = SequentialActor(
             ConfigState.None,
             IOScope(ioScope.coroutineContext),
@@ -1639,6 +1644,11 @@ class ConfigManagerTests {
         deviceHelper: DeviceHelper = mockDeviceHelper,
         options: SuperwallOptions = SuperwallOptions().apply { paywalls.shouldPreload = false },
         testModeImpl: com.superwall.sdk.store.testmode.TestMode? = null,
+        storeManager: StoreManager? = null,
+        webRedeemer: WebPaywallRedeemer = mockk(relaxed = true),
+        tracker: suspend (com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent) -> Unit = {},
+        setSubscriptionStatus: ((SubscriptionStatus) -> Unit)? = null,
+        activateTestMode: suspend (Config, Boolean) -> Unit = { _, _ -> },
     ): ConfigManagerUnderTest {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val container =
@@ -1648,7 +1658,7 @@ class ConfigManagerTests {
             storage = storage,
             network = network,
             paywallManager = container.paywallManager,
-            storeManager = container.storeManager,
+            storeManager = storeManager ?: container.storeManager,
             factory = container,
             deviceHelper = deviceHelper,
             assignments = assignments,
@@ -1656,6 +1666,10 @@ class ConfigManagerTests {
             ioScope = backgroundScope,
             testOptions = options,
             injectedTestMode = testModeImpl,
+            webRedeemer = webRedeemer,
+            injectedTracker = tracker,
+            injectedSetSubscriptionStatus = setSubscriptionStatus,
+            injectedActivateTestMode = activateTestMode,
         )
     }
 

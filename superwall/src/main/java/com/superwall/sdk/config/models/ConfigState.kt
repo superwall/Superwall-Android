@@ -19,7 +19,6 @@ import com.superwall.sdk.misc.thenIf
 import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.models.enrichment.Enrichment
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
-import com.superwall.sdk.network.awaitUntilNetworkExists
 import com.superwall.sdk.storage.DisableVerboseEvents
 import com.superwall.sdk.storage.LatestConfig
 import com.superwall.sdk.storage.LatestEnrichment
@@ -131,7 +130,7 @@ sealed class ConfigState {
                             network.getConfig {
                                 update(Updates.SetRetrying)
                                 configRetryCount.incrementAndGet()
-                                context.awaitUntilNetworkExists()
+                                awaitUtilNetwork()
                             }
                         }
                     ).also {
@@ -260,7 +259,7 @@ sealed class ConfigState {
             val result =
                 network.getConfig {
                     retryCount.incrementAndGet()
-                    context.awaitUntilNetworkExists()
+                    awaitUtilNetwork()
                 }
 
             result
