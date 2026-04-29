@@ -6,6 +6,7 @@ import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.config.models.ConfigState
 import com.superwall.sdk.config.options.SuperwallOptions
+import com.superwall.sdk.identity.IdentityManager
 import com.superwall.sdk.misc.Either
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.primitives.SequentialActor
@@ -26,9 +27,12 @@ import com.superwall.sdk.store.StoreManager
 import com.superwall.sdk.store.testmode.TestMode
 import com.superwall.sdk.store.testmode.TestModeBehavior
 import com.superwall.sdk.web.WebPaywallRedeemer
+import com.superwall.sdk.models.assignment.Assignment
+import com.superwall.sdk.storage.DisableVerboseEvents
 import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.coVerifyOrder
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
@@ -49,11 +53,6 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.seconds
 
-/**
- * Unit-test counterpart to ConfigManagerInstrumentedTest. Covers the same
- * Action/Reducer flows without an emulator — every collaborator is mocked,
- * including Context (which is never dereferenced by actions).
- */
 class ConfigManagerTest {
     private fun config(
         buildId: String = "stub",
@@ -94,9 +93,13 @@ class ConfigManagerTest {
         networkConfigAnswer: (suspend (suspend () -> Unit) -> Either<Config, NetworkError>)? = null,
         deviceTier: Tier = Tier.MID,
         shouldPreload: Boolean = false,
+        preloadDeviceOverrides: Map<Tier, Boolean> = emptyMap(),
         testModeBehavior: TestModeBehavior = TestModeBehavior.AUTOMATIC,
         injectedTestMode: TestMode? = null,
         assignments: Assignments = mockk(relaxed = true),
+        identityManager: IdentityManager? = null,
+        storeManagerOverride: StoreManager? = null,
+        entitlementsOverride: Entitlements? = null,
     ): Setup {
         val context = mockk<Context>(relaxed = true)
         val storage =
@@ -128,10 +131,11 @@ class ConfigManagerTest {
                 coEvery { getEnrichment(any(), any()) } returns Either.Success(Enrichment.stub())
             }
         val storeManager =
-            mockk<StoreManager>(relaxed = true) {
-                coEvery { products(any()) } returns emptySet()
-                coEvery { loadPurchasedProducts(any()) } just Runs
-            }
+            storeManagerOverride
+                ?: mockk<StoreManager>(relaxed = true) {
+                    coEvery { products(any()) } returns emptySet()
+                    coEvery { loadPurchasedProducts(any()) } just Runs
+                }
         val preload =
             mockk<PaywallPreload> {
                 coEvery { preloadAllPaywalls(any(), any()) } just Runs
@@ -145,10 +149,12 @@ class ConfigManagerTest {
                 coEvery { makeSessionDeviceAttributes() } returns HashMap()
                 every { makeHasExternalPurchaseController() } returns false
             }
-        val entitlements = mockk<Entitlements>(relaxed = true)
-        every { entitlements.status } returns
-            kotlinx.coroutines.flow.MutableStateFlow(SubscriptionStatus.Unknown)
-        every { entitlements.entitlementsByProductId } returns emptyMap()
+        val entitlements =
+            entitlementsOverride ?: mockk<Entitlements>(relaxed = true).also {
+                every { it.status } returns
+                    kotlinx.coroutines.flow.MutableStateFlow(SubscriptionStatus.Unknown)
+                every { it.entitlementsByProductId } returns emptyMap()
+            }
 
         val tracked = CopyOnWriteArrayList<TrackableSuperwallEvent>()
         val statuses = mutableListOf<SubscriptionStatus>()
@@ -157,6 +163,7 @@ class ConfigManagerTest {
         val options =
             SuperwallOptions().apply {
                 paywalls.shouldPreload = shouldPreload
+                paywalls.preloadDeviceOverrides = preloadDeviceOverrides
                 this.testModeBehavior = testModeBehavior
             }
 
@@ -181,6 +188,7 @@ class ConfigManagerTest {
                 activateTestMode = { _, justActivated ->
                     if (justActivated) activateCalls.incrementAndGet()
                 },
+                identityManager = identityManager?.let { im -> { im } },
             )
         return Setup(
             manager,
@@ -196,8 +204,6 @@ class ConfigManagerTest {
             activateCalls,
         )
     }
-
-    // ---- autoRetryCount lifecycle --------------------------------------
 
     @Test
     fun `autoRetryCount resets after a successful apply`() =
@@ -229,8 +235,6 @@ class ConfigManagerTest {
             advanceUntilIdle()
             assertEquals("Counter must reset on Retrieved — fresh budget", 5, calls.get())
         }
-
-    // ---- reevaluateTestMode three branches -----------------------------
 
     @Test
     fun `reevaluateTestMode deactivates when user no longer qualifies`() =
@@ -299,8 +303,6 @@ class ConfigManagerTest {
             assertEquals("activateTestMode must not fire on no-op", 0, s.activateCalls.get())
         }
 
-    // ---- test-mode initial-fetch path skips ----------------------------
-
     @Test
     fun `fetchConfig in test mode skips web entitlements and product preload`() =
         runTest(timeout = 30.seconds) {
@@ -322,8 +324,6 @@ class ConfigManagerTest {
             coVerify(exactly = 0) { s.storeManager.products(any()) }
             coVerify(exactly = 0) { s.webRedeemer.redeem(any()) }
         }
-
-    // ---- RefreshConfig fan-out -----------------------------------------
 
     @Test
     fun `refreshConfig runs full applyConfig fanout`() =
@@ -358,8 +358,6 @@ class ConfigManagerTest {
             verify { s.storage.write(LatestConfig, refreshed) }
         }
 
-    // ---- public preload bypasses tier gate -----------------------------
-
     @Test
     fun `preloadAllPaywalls bypasses shouldPreload gate`() =
         runTest(timeout = 30.seconds) {
@@ -383,8 +381,6 @@ class ConfigManagerTest {
 
             coVerify(exactly = 1) { s.preload.preloadPaywallsByNames(any(), eq(setOf("evt"))) }
         }
-
-    // ---- tracking emissions --------------------------------------------
 
     @Test
     fun `tracking emits ConfigRefresh isCached false and DeviceAttributes on fresh fetch`() =
@@ -449,8 +445,6 @@ class ConfigManagerTest {
             assertTrue("Expected at least one ConfigFail, got ${s.tracked}", fails.isNotEmpty())
         }
 
-    // ---- FetchConfig dedup against Retrying ----------------------------
-
     @Test
     fun `fetchConfig skips when already in Retrying state`() =
         runTest(timeout = 30.seconds) {
@@ -474,8 +468,6 @@ class ConfigManagerTest {
             assertEquals("Expected exactly one network.getConfig", 1, calls.get())
         }
 
-    // ---- enrichment success cache write --------------------------------
-
     @Test
     fun `enrichment success writes LatestEnrichment on cached boot`() =
         runTest(timeout = 30.seconds) {
@@ -487,12 +479,1022 @@ class ConfigManagerTest {
                     cachedConfig = cached,
                     cachedEnrichment = null,
                 )
-            // The shared mock returns Enrichment.stub() — verify the write path fires.
             s.manager.fetchConfiguration()
             s.manager.configState.first { it is ConfigState.Retrieved }
             advanceUntilIdle()
 
             verify(atLeast = 1) { s.storage.write(LatestEnrichment, freshEnrichment) }
+        }
+
+    @Test
+    fun `applyConfig populates entitlements from products and productsV3`() =
+        runTest(timeout = 30.seconds) {
+            val productMap = mapOf("p1" to setOf<com.superwall.sdk.models.entitlements.Entitlement>())
+            val crossplatformMap = mapOf("p2" to setOf<com.superwall.sdk.models.entitlements.Entitlement>())
+            io.mockk.mockkObject(ConfigLogic)
+            try {
+                every { ConfigLogic.extractEntitlementsByProductId(any()) } returns productMap
+                every { ConfigLogic.extractEntitlementsByProductIdFromCrossplatform(any()) } returns crossplatformMap
+                every { ConfigLogic.getTriggersByEventName(any()) } returns emptyMap()
+
+                val entitlements = mockk<Entitlements>(relaxed = true).also {
+                    every { it.status } returns kotlinx.coroutines.flow.MutableStateFlow(SubscriptionStatus.Unknown)
+                    every { it.entitlementsByProductId } returns emptyMap()
+                }
+                val configWithV3 =
+                    Config.stub().copy(productsV3 = listOf(mockk(relaxed = true)))
+                val s =
+                    setup(
+                        backgroundScope,
+                        networkConfig = Either.Success(configWithV3),
+                        entitlementsOverride = entitlements,
+                    )
+
+                s.manager.fetchConfiguration()
+                s.manager.configState.first { it is ConfigState.Retrieved }
+                advanceUntilIdle()
+
+                verify(exactly = 1) { entitlements.addEntitlementsByProductId(productMap) }
+                verify(exactly = 1) { entitlements.addEntitlementsByProductId(crossplatformMap) }
+            } finally {
+                io.mockk.unmockkObject(ConfigLogic)
+            }
+        }
+
+    @Test
+    fun `applyConfig skips crossplatform entitlements when productsV3 is null`() =
+        runTest(timeout = 30.seconds) {
+            io.mockk.mockkObject(ConfigLogic)
+            try {
+                val productMap = mapOf("p1" to setOf<com.superwall.sdk.models.entitlements.Entitlement>())
+                every { ConfigLogic.extractEntitlementsByProductId(any()) } returns productMap
+                every { ConfigLogic.extractEntitlementsByProductIdFromCrossplatform(any()) } returns emptyMap()
+                every { ConfigLogic.getTriggersByEventName(any()) } returns emptyMap()
+
+                val entitlements = mockk<Entitlements>(relaxed = true).also {
+                    every { it.status } returns kotlinx.coroutines.flow.MutableStateFlow(SubscriptionStatus.Unknown)
+                    every { it.entitlementsByProductId } returns emptyMap()
+                }
+                val s =
+                    setup(
+                        backgroundScope,
+                        networkConfig = Either.Success(Config.stub().copy(productsV3 = null)),
+                        entitlementsOverride = entitlements,
+                    )
+
+                s.manager.fetchConfiguration()
+                s.manager.configState.first { it is ConfigState.Retrieved }
+                advanceUntilIdle()
+
+                verify(exactly = 1) { entitlements.addEntitlementsByProductId(productMap) }
+                verify(exactly = 0) {
+                    ConfigLogic.extractEntitlementsByProductIdFromCrossplatform(any())
+                }
+            } finally {
+                io.mockk.unmockkObject(ConfigLogic)
+            }
+        }
+
+    @Test
+    fun `applyConfig falls back to identityManager for appUserId and aliasId`() =
+        runTest(timeout = 30.seconds) {
+            val identity =
+                mockk<IdentityManager>(relaxed = true) {
+                    every { appUserId } returns "from-identity"
+                    every { aliasId } returns "alias-from-identity"
+                }
+            val storageForTm = mockk<Storage>(relaxed = true)
+            val testMode = spyk(TestMode(storage = storageForTm, isTestEnvironment = false))
+            val s =
+                setup(
+                    backgroundScope,
+                    injectedTestMode = testMode,
+                    identityManager = identity,
+                )
+
+            s.manager.fetchConfiguration()
+            s.manager.configState.first { it is ConfigState.Retrieved }
+            advanceUntilIdle()
+
+            verify(atLeast = 1) {
+                testMode.evaluateTestMode(
+                    config = any(),
+                    bundleId = "com.test",
+                    appUserId = "from-identity",
+                    aliasId = "alias-from-identity",
+                    testModeBehavior = any(),
+                )
+            }
+        }
+
+    @Test
+    fun `reevaluateTestMode falls back to identityManager when ids omitted`() =
+        runTest(timeout = 30.seconds) {
+            val identity =
+                mockk<IdentityManager>(relaxed = true) {
+                    every { appUserId } returns "from-identity"
+                    every { aliasId } returns "alias-from-identity"
+                }
+            val storageForTm = mockk<Storage>(relaxed = true)
+            val testMode = spyk(TestMode(storage = storageForTm, isTestEnvironment = false))
+            val s =
+                setup(
+                    backgroundScope,
+                    testModeBehavior = TestModeBehavior.AUTOMATIC,
+                    injectedTestMode = testMode,
+                    identityManager = identity,
+                )
+
+            s.manager.reevaluateTestMode(config = Config.stub())
+            advanceUntilIdle()
+
+            verify(atLeast = 1) {
+                testMode.evaluateTestMode(
+                    config = any(),
+                    bundleId = "com.test",
+                    appUserId = "from-identity",
+                    aliasId = "alias-from-identity",
+                    testModeBehavior = any(),
+                )
+            }
+        }
+
+    @Test
+    fun `fetchConfig completes when storeManager_products throws`() =
+        runTest(timeout = 30.seconds) {
+            val storeManager =
+                mockk<StoreManager>(relaxed = true) {
+                    coEvery { products(any()) } throws RuntimeException("billing exploded")
+                    coEvery { loadPurchasedProducts(any()) } just Runs
+                }
+            val s =
+                setup(
+                    backgroundScope,
+                    networkConfig = Either.Success(Config.stub().copy(buildId = "ok")),
+                    shouldPreload = true, // forces the products() call
+                    storeManagerOverride = storeManager,
+                )
+
+            s.manager.fetchConfiguration()
+            s.manager.configState.first { it is ConfigState.Retrieved }
+            advanceUntilIdle()
+
+            assertEquals(
+                "ok",
+                (s.manager.configState.value as ConfigState.Retrieved).config.buildId,
+            )
+            coVerify(atLeast = 1) { storeManager.products(any()) }
+        }
+
+    @Test
+    fun `tier override false suppresses preload even when shouldPreload is true`() =
+        runTest(timeout = 30.seconds) {
+            val s =
+                setup(
+                    backgroundScope,
+                    deviceTier = Tier.LOW,
+                    shouldPreload = true,
+                    preloadDeviceOverrides = mapOf(Tier.LOW to false),
+                )
+
+            s.manager.fetchConfiguration()
+            s.manager.configState.first { it is ConfigState.Retrieved }
+            advanceUntilIdle()
+
+            coVerify(exactly = 0) { s.preload.preloadAllPaywalls(any(), any()) }
+        }
+
+    @Test
+    fun `tier override true forces preload even when shouldPreload is false`() =
+        runTest(timeout = 30.seconds) {
+            val s =
+                setup(
+                    backgroundScope,
+                    deviceTier = Tier.LOW,
+                    shouldPreload = false,
+                    preloadDeviceOverrides = mapOf(Tier.LOW to true),
+                )
+
+            s.manager.fetchConfiguration()
+            s.manager.configState.first { it is ConfigState.Retrieved }
+            advanceUntilIdle()
+
+            coVerify(atLeast = 1) { s.preload.preloadAllPaywalls(any(), any()) }
+        }
+
+    @Test
+    fun `getAssignments success triggers PreloadIfEnabled`() =
+        runTest(timeout = 30.seconds) {
+            val configWithTriggers =
+                Config.stub().copy(triggers = setOf(Trigger.stub().copy(eventName = "evt")))
+            val assignments =
+                mockk<Assignments>(relaxed = true) {
+                    coEvery { getAssignments(any()) } returns Either.Success(emptyList())
+                }
+            val s =
+                setup(
+                    backgroundScope,
+                    shouldPreload = true,
+                    assignments = assignments,
+                )
+            s.manager.applyRetrievedConfigForTesting(configWithTriggers)
+            // Reset the mock so we only count post-assignment preloads.
+            io.mockk.clearMocks(s.preload, answers = false)
+            coEvery { s.preload.preloadAllPaywalls(any(), any()) } just Runs
+            coEvery { s.preload.preloadPaywallsByNames(any(), any()) } just Runs
+            coEvery { s.preload.removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
+
+            s.manager.getAssignments()
+            advanceUntilIdle()
+
+            coVerify(atLeast = 1) { s.preload.preloadAllPaywalls(any(), any()) }
+        }
+
+    @Test
+    fun `getAssignments suspends until config is Retrieved`() =
+        runTest(timeout = 30.seconds) {
+            val assignments = mockk<Assignments>(relaxed = true) {
+                coEvery { getAssignments(any()) } returns Either.Success(emptyList())
+            }
+            val s = setup(backgroundScope, assignments = assignments)
+
+            val job = launch { s.manager.getAssignments() }
+            delay(50)
+            assertTrue("getAssignments should still be suspended", job.isActive)
+            coVerify(exactly = 0) { assignments.getAssignments(any()) }
+
+            s.manager.applyRetrievedConfigForTesting(
+                Config.stub().copy(triggers = setOf(Trigger.stub().copy(eventName = "e"))),
+            )
+            job.join()
+            advanceUntilIdle()
+
+            coVerify(atLeast = 1) { assignments.getAssignments(any()) }
+        }
+
+    @Test
+    fun `getAssignments with no triggers does not hit the network`() =
+        runTest(timeout = 30.seconds) {
+            val assignments = mockk<Assignments>(relaxed = true)
+            val s = setup(backgroundScope, assignments = assignments)
+            s.manager.applyRetrievedConfigForTesting(Config.stub().copy(triggers = emptySet()))
+
+            s.manager.getAssignments()
+            advanceUntilIdle()
+
+            coVerify(exactly = 0) { assignments.getAssignments(any()) }
+        }
+
+    @Test
+    fun `getAssignments network error is swallowed and state stays Retrieved`() =
+        runTest(timeout = 30.seconds) {
+            val assignments = mockk<Assignments>(relaxed = true) {
+                coEvery { getAssignments(any()) } returns Either.Failure(NetworkError.Unknown())
+            }
+            val s = setup(backgroundScope, assignments = assignments)
+            s.manager.applyRetrievedConfigForTesting(
+                Config.stub().copy(triggers = setOf(Trigger.stub().copy(eventName = "e"))),
+            )
+
+            s.manager.getAssignments()
+            advanceUntilIdle()
+
+            assertTrue(s.manager.configState.value is ConfigState.Retrieved)
+        }
+
+    @Test
+    fun `refreshConfiguration without retrieved config does not hit network`() =
+        runTest(timeout = 30.seconds) {
+            val s = setup(backgroundScope)
+            s.manager.refreshConfiguration()
+            advanceUntilIdle()
+            coVerify(exactly = 0) { s.network.getConfig(any()) }
+        }
+
+    @Test
+    fun `refreshConfiguration with flag disabled and force false does not hit network`() =
+        runTest(timeout = 30.seconds) {
+            val s = setup(backgroundScope)
+            s.manager.applyRetrievedConfigForTesting(Config.stub()) // no enableConfigRefresh flag
+            io.mockk.clearMocks(s.network, answers = false)
+            coEvery { s.network.getConfig(any()) } returns Either.Success(Config.stub())
+
+            s.manager.refreshConfiguration(force = false)
+            advanceUntilIdle()
+
+            coVerify(exactly = 0) { s.network.getConfig(any()) }
+        }
+
+    @Test
+    fun `refreshConfiguration force true ignores disabled flag`() =
+        runTest(timeout = 30.seconds) {
+            val s = setup(
+                backgroundScope,
+                networkConfig = Either.Success(Config.stub().copy(buildId = "forced")),
+            )
+            s.manager.applyRetrievedConfigForTesting(Config.stub())
+            io.mockk.clearMocks(s.network, answers = false)
+            coEvery { s.network.getConfig(any()) } returns Either.Success(Config.stub().copy(buildId = "forced"))
+            coEvery { s.network.getEnrichment(any(), any(), any()) } returns Either.Success(Enrichment.stub())
+
+            s.manager.refreshConfiguration(force = true)
+            advanceUntilIdle()
+
+            coVerify(atLeast = 1) { s.network.getConfig(any()) }
+        }
+
+    @Test
+    fun `refreshConfiguration is noop when state is Retrieving or None`() =
+        runTest(timeout = 30.seconds) {
+            val s = setup(backgroundScope)
+
+            s.manager.setConfigStateForTesting(ConfigState.Retrieving)
+            s.manager.refreshConfiguration(force = false)
+            advanceUntilIdle()
+            coVerify(exactly = 0) { s.network.getConfig(any()) }
+
+            s.manager.setConfigStateForTesting(ConfigState.None)
+            s.manager.refreshConfiguration(force = false)
+            advanceUntilIdle()
+            coVerify(exactly = 0) { s.network.getConfig(any()) }
+        }
+
+    @Test
+    fun `refreshConfiguration success resets paywall request cache and removes unused`() =
+        runTest(timeout = 30.seconds) {
+            val oldConfig = config(buildId = "old", enableRefresh = true)
+            val newConfig = config(buildId = "new", enableRefresh = true)
+            val paywallManager = mockk<PaywallManager>(relaxed = true)
+            val preload = mockk<PaywallPreload>(relaxed = true) {
+                coEvery { preloadAllPaywalls(any(), any()) } just Runs
+                coEvery { preloadPaywallsByNames(any(), any()) } just Runs
+                coEvery { removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
+            }
+            val s = setup(backgroundScope)
+            val mgr = ConfigManagerForTest(
+                context = mockk(relaxed = true),
+                storage = s.storage,
+                network = mockk<SuperwallAPI> {
+                    coEvery { getConfig(any()) } returns Either.Success(newConfig)
+                    coEvery { getEnrichment(any(), any(), any()) } returns Either.Success(Enrichment.stub())
+                },
+                deviceHelper = s.deviceHelper,
+                paywallManager = paywallManager,
+                storeManager = s.storeManager,
+                preload = preload,
+                webRedeemer = s.webRedeemer,
+                factory = mockk(relaxed = true) {
+                    coEvery { makeSessionDeviceAttributes() } returns HashMap()
+                },
+                entitlements = mockk(relaxed = true) {
+                    every { status } returns kotlinx.coroutines.flow.MutableStateFlow(SubscriptionStatus.Unknown)
+                    every { entitlementsByProductId } returns emptyMap()
+                },
+                assignments = mockk(relaxed = true),
+                options = SuperwallOptions().apply { paywalls.shouldPreload = false },
+                ioScope = backgroundScope,
+                testMode = null,
+                tracker = {},
+                setSubscriptionStatus = null,
+                activateTestMode = { _, _ -> },
+            )
+            mgr.applyRetrievedConfigForTesting(oldConfig)
+
+            mgr.refreshConfiguration()
+            advanceUntilIdle()
+
+            verify(atLeast = 1) { paywallManager.resetPaywallRequestCache() }
+            coVerify(atLeast = 1) { preload.removeUnusedPaywallVCsFromCache(oldConfig, newConfig) }
+        }
+
+    @Test
+    fun `refreshConfig failure preserves Retrieved state`() =
+        runTest(timeout = 30.seconds) {
+            val oldConfig = config(buildId = "old", enableRefresh = true)
+            val s = setup(
+                backgroundScope,
+                networkConfig = Either.Failure(NetworkError.Unknown()),
+            )
+            s.manager.applyRetrievedConfigForTesting(oldConfig)
+
+            s.manager.refreshConfiguration(force = true)
+            advanceUntilIdle()
+
+            assertTrue(s.manager.configState.value is ConfigState.Retrieved)
+            assertEquals("old", s.manager.config?.buildId)
+        }
+
+    @Test
+    fun `reset without config does not preload`() =
+        runTest(timeout = 30.seconds) {
+            val s = setup(backgroundScope)
+            s.manager.reset()
+            advanceUntilIdle()
+            coVerify(exactly = 0) { s.preload.preloadAllPaywalls(any(), any()) }
+        }
+
+    @Test
+    fun `reset with config rebuilds assignments synchronously`() =
+        runTest(timeout = 30.seconds) {
+            val assignments = mockk<Assignments>(relaxed = true)
+            val s = setup(backgroundScope, assignments = assignments)
+            s.manager.applyRetrievedConfigForTesting(Config.stub())
+            io.mockk.clearMocks(assignments, answers = false)
+            io.mockk.justRun { assignments.reset() }
+            io.mockk.justRun { assignments.choosePaywallVariants(any()) }
+
+            s.manager.reset()
+            verify(exactly = 1) { assignments.reset() }
+            verify(exactly = 1) { assignments.choosePaywallVariants(any()) }
+        }
+
+    @Test
+    fun `preloadAllPaywalls suspends until config is Retrieved`() =
+        runTest(timeout = 30.seconds) {
+            val s = setup(backgroundScope)
+            val job = launch { s.manager.preloadAllPaywalls() }
+            delay(50)
+            coVerify(exactly = 0) { s.preload.preloadAllPaywalls(any(), any()) }
+
+            val cfg = Config.stub().copy(buildId = "preload-all")
+            s.manager.applyRetrievedConfigForTesting(cfg)
+            job.join()
+            advanceUntilIdle()
+
+            coVerify(exactly = 1) { s.preload.preloadAllPaywalls(eq(cfg), any()) }
+        }
+
+    @Test
+    fun `preloadPaywallsByNames suspends until config is Retrieved`() =
+        runTest(timeout = 30.seconds) {
+            val s = setup(backgroundScope)
+            val names = setOf("evt")
+            val job = launch { s.manager.preloadPaywallsByNames(names) }
+            delay(50)
+            coVerify(exactly = 0) { s.preload.preloadPaywallsByNames(any(), any()) }
+
+            val cfg = Config.stub().copy(buildId = "preload-named")
+            s.manager.applyRetrievedConfigForTesting(cfg)
+            job.join()
+            advanceUntilIdle()
+
+            coVerify(exactly = 1) { s.preload.preloadPaywallsByNames(eq(cfg), eq(names)) }
+        }
+
+    @Test
+    fun `fetchConfiguration updates trigger cache and persists feature flags`() =
+        runTest(timeout = 30.seconds) {
+            val cfg = Config.stub().copy(
+                triggers = setOf(Trigger.stub().copy(eventName = "evt_a")),
+                rawFeatureFlags = listOf(
+                    RawFeatureFlag("enable_config_refresh_v2", true),
+                    RawFeatureFlag("disable_verbose_events", true),
+                ),
+            )
+            val s = setup(backgroundScope, networkConfig = Either.Success(cfg))
+
+            s.manager.fetchConfiguration()
+            s.manager.configState.first { it is ConfigState.Retrieved }
+            advanceUntilIdle()
+
+            assertEquals(setOf("evt_a"), s.manager.triggersByEventName.keys)
+            verify { s.storage.write(DisableVerboseEvents, true) }
+            verify { s.storage.write(LatestConfig, cfg) }
+        }
+
+    @Test
+    fun `fetchConfiguration loads purchased products when not in test mode`() =
+        runTest(timeout = 30.seconds) {
+            val storeManager = mockk<StoreManager>(relaxed = true) {
+                coEvery { products(any()) } returns emptySet()
+                coEvery { loadPurchasedProducts(any()) } just Runs
+            }
+            val s = setup(backgroundScope, storeManagerOverride = storeManager)
+
+            s.manager.fetchConfiguration()
+            s.manager.configState.first { it is ConfigState.Retrieved }
+            advanceUntilIdle()
+
+            coVerify(atLeast = 1) { storeManager.loadPurchasedProducts(any()) }
+        }
+
+    @Test
+    fun `fetchConfiguration redeems existing web entitlements when not in test mode`() =
+        runTest(timeout = 30.seconds) {
+            val s = setup(backgroundScope)
+            s.manager.fetchConfiguration()
+            s.manager.configState.first { it is ConfigState.Retrieved }
+            advanceUntilIdle()
+
+            coVerify(atLeast = 1) { s.webRedeemer.redeem(WebPaywallRedeemer.RedeemType.Existing) }
+        }
+
+    @Test
+    fun `fetchConfiguration preloads products when preloading enabled`() =
+        runTest(timeout = 30.seconds) {
+            val cfg = Config.stub().copy(
+                paywalls = listOf(
+                    com.superwall.sdk.models.paywall.Paywall.stub().copy(productIds = listOf("a", "b")),
+                    com.superwall.sdk.models.paywall.Paywall.stub().copy(productIds = listOf("b", "c")),
+                ),
+            )
+            val storeManager = mockk<StoreManager>(relaxed = true) {
+                coEvery { products(any()) } returns emptySet()
+                coEvery { loadPurchasedProducts(any()) } just Runs
+            }
+            val s = setup(
+                backgroundScope,
+                networkConfig = Either.Success(cfg),
+                shouldPreload = true,
+                storeManagerOverride = storeManager,
+            )
+
+            s.manager.fetchConfiguration()
+            s.manager.configState.first { it is ConfigState.Retrieved }
+            advanceUntilIdle()
+
+            coVerify(exactly = 1) {
+                storeManager.products(match { it == setOf("a", "b", "c") })
+            }
+        }
+
+    @Test
+    fun `fetchConfiguration emits Retrieving then Failed without cache`() =
+        runTest(timeout = 30.seconds) {
+            val s = setup(
+                backgroundScope,
+                networkConfig = Either.Failure(NetworkError.Unknown()),
+            )
+            val states = CopyOnWriteArrayList<ConfigState>()
+            val collector = CoroutineScope(Dispatchers.Unconfined).launch {
+                s.manager.configState.collect { states.add(it) }
+            }
+            s.manager.fetchConfiguration()
+            advanceUntilIdle()
+            collector.cancel()
+
+            assertTrue("Expected Retrieving in lineage, got $states", states.any { it is ConfigState.Retrieving })
+            assertTrue("Expected last state Failed, got ${states.last()}", states.last() is ConfigState.Failed)
+        }
+
+    @Test
+    fun `cached config wins when network getConfig returns Failure`() =
+        runTest(timeout = 30.seconds) {
+            val cached = config(buildId = "cached", enableRefresh = true)
+            val s = setup(
+                backgroundScope,
+                cachedConfig = cached,
+                cachedEnrichment = Enrichment.stub(),
+                networkConfig = Either.Failure(NetworkError.Unknown()),
+            )
+
+            s.manager.fetchConfiguration()
+            s.manager.configState.first { it is ConfigState.Retrieved }
+            advanceUntilIdle()
+
+            assertEquals("cached", s.manager.config?.buildId)
+        }
+
+    @Test
+    fun `quick network success returns fresh config`() =
+        runTest(timeout = 30.seconds) {
+            val fresh = Config.stub().copy(buildId = "fresh")
+            val s = setup(backgroundScope, networkConfig = Either.Success(fresh))
+
+            s.manager.fetchConfiguration()
+            s.manager.configState.first { it is ConfigState.Retrieved }
+            advanceUntilIdle()
+
+            assertEquals("fresh", s.manager.config?.buildId)
+        }
+
+    @Test
+    fun `cached path with delayed network falls back to cache`() =
+        runTest(timeout = 30.seconds) {
+            val cached = config(buildId = "cached", enableRefresh = true)
+            val s = setup(
+                backgroundScope,
+                cachedConfig = cached,
+                cachedEnrichment = Enrichment.stub(),
+                networkConfig = Either.Failure(NetworkError.Unknown()),
+            )
+
+            s.manager.fetchConfiguration()
+            s.manager.configState.first { (it as? ConfigState.Retrieved)?.config?.buildId == "cached" }
+            advanceUntilIdle()
+
+            assertEquals("cached", s.manager.config?.buildId)
+        }
+
+    @Test
+    fun `network retry callback transitions state to Retrying`() =
+        runTest(timeout = 30.seconds) {
+            val retries = AtomicInteger(0)
+            val s = setup(
+                backgroundScope,
+                networkConfigAnswer = { cb ->
+                    cb()
+                    cb()
+                    retries.set(2)
+                    Either.Success(Config.stub())
+                },
+            )
+            val seen = CopyOnWriteArrayList<ConfigState>()
+            val collector = CoroutineScope(Dispatchers.Unconfined).launch {
+                s.manager.configState.collect { seen.add(it) }
+            }
+            s.manager.fetchConfiguration()
+            advanceUntilIdle()
+            collector.cancel()
+
+            assertEquals(2, retries.get())
+            assertTrue("Expected Retrying in $seen", seen.any { it is ConfigState.Retrying })
+        }
+
+    @Test
+    fun `cached config success preloads before refresh`() =
+        runTest(timeout = 30.seconds) {
+            val cached = config(buildId = "cached", enableRefresh = true)
+            val fresh = config(buildId = "fresh", enableRefresh = true)
+            val getCalls = AtomicInteger(0)
+            val s = setup(
+                backgroundScope,
+                cachedConfig = cached,
+                cachedEnrichment = Enrichment.stub(),
+                shouldPreload = true,
+                networkConfigAnswer = {
+                    val n = getCalls.incrementAndGet()
+                    if (n == 1) Either.Failure(NetworkError.Unknown()) // cached fallback wins
+                    else Either.Success(fresh)
+                },
+            )
+
+            s.manager.fetchConfiguration()
+            s.manager.configState.first { (it as? ConfigState.Retrieved)?.config?.buildId == "fresh" }
+            advanceUntilIdle()
+
+            coVerifyOrder {
+                s.preload.preloadAllPaywalls(any(), any())
+                s.network.getConfig(any())
+            }
+            assertTrue(getCalls.get() >= 2)
+        }
+
+    @Test
+    fun `concurrent fetchConfiguration calls dedup while Retrieving`() =
+        runTest(timeout = 30.seconds) {
+            val calls = AtomicInteger(0)
+            val s = setup(
+                backgroundScope,
+                networkConfigAnswer = {
+                    calls.incrementAndGet()
+                    delay(300)
+                    Either.Success(Config.stub())
+                },
+            )
+
+            val first = launch { s.manager.fetchConfiguration() }
+            s.manager.configState.first { it is ConfigState.Retrieving }
+            s.manager.fetchConfiguration() // must early-return
+            first.join()
+
+            assertEquals(1, calls.get())
+        }
+
+    @Test
+    fun `reevaluateTestMode flips state synchronously`() =
+        runTest(timeout = 30.seconds) {
+            val storage = mockk<Storage>(relaxed = true)
+            val testMode = TestMode(storage = storage, isTestEnvironment = false)
+            val s = setup(
+                backgroundScope,
+                injectedTestMode = testMode,
+                testModeBehavior = TestModeBehavior.ALWAYS,
+            )
+            assertFalse(testMode.isTestMode)
+
+            s.manager.reevaluateTestMode(config = Config.stub(), appUserId = "u")
+            assertTrue(testMode.isTestMode)
+        }
+
+    @Test
+    fun `applyConfig side effects happen before Retrieved`() =
+        runTest(timeout = 30.seconds) {
+            val cfg = Config.stub().copy(
+                triggers = setOf(Trigger.stub().copy(eventName = "evt")),
+                rawFeatureFlags = listOf(RawFeatureFlag("disable_verbose_events", true)),
+            )
+            val s = setup(backgroundScope, networkConfig = Either.Success(cfg))
+
+            val triggersAtRetrieved = mutableListOf<String>()
+            val collector = launch {
+                s.manager.configState.first { it is ConfigState.Retrieved }
+                triggersAtRetrieved.addAll(s.manager.triggersByEventName.keys)
+            }
+            s.manager.fetchConfiguration()
+            collector.join()
+
+            assertTrue(triggersAtRetrieved.contains("evt"))
+            verify { s.storage.write(DisableVerboseEvents, true) }
+        }
+
+    @Test
+    fun `applyConfig skips LatestConfig write when refresh flag off`() =
+        runTest(timeout = 30.seconds) {
+            val s = setup(backgroundScope, networkConfig = Either.Success(Config.stub()))
+
+            s.manager.fetchConfiguration()
+            s.manager.configState.first { it is ConfigState.Retrieved }
+            advanceUntilIdle()
+
+            verify(exactly = 0) { s.storage.write(LatestConfig, any()) }
+            verify { s.storage.write(DisableVerboseEvents, any()) }
+        }
+
+    @Test
+    fun `applyConfig with null testMode loads purchased products`() =
+        runTest(timeout = 30.seconds) {
+            val storeManager = mockk<StoreManager>(relaxed = true) {
+                coEvery { loadPurchasedProducts(any()) } just Runs
+                coEvery { products(any()) } returns emptySet()
+            }
+            val s = setup(backgroundScope, injectedTestMode = null, storeManagerOverride = storeManager)
+
+            s.manager.fetchConfiguration()
+            s.manager.configState.first { it is ConfigState.Retrieved }
+            advanceUntilIdle()
+
+            coVerify(atLeast = 1) { storeManager.loadPurchasedProducts(any()) }
+        }
+
+    @Test
+    fun `applyConfig testMode just-activated publishes subscription status`() =
+        runTest(timeout = 30.seconds) {
+            val storage = mockk<Storage>(relaxed = true)
+            val testMode = TestMode(storage = storage, isTestEnvironment = false)
+            val s = setup(
+                backgroundScope,
+                injectedTestMode = testMode,
+                testModeBehavior = TestModeBehavior.ALWAYS,
+            )
+            assertFalse(testMode.isTestMode)
+
+            s.manager.fetchConfiguration()
+            advanceUntilIdle()
+
+            assertTrue(testMode.isTestMode)
+            assertTrue(testMode.overriddenSubscriptionStatus != null)
+        }
+
+    @Test
+    fun `applyConfig deactivates testMode when user no longer qualifies`() =
+        runTest(timeout = 30.seconds) {
+            val storage = mockk<Storage>(relaxed = true)
+            val testMode = spyk(TestMode(storage = storage, isTestEnvironment = false))
+            testMode.evaluateTestMode(
+                Config.stub(), "com.app", null, null,
+                testModeBehavior = TestModeBehavior.ALWAYS,
+            )
+            assertTrue(testMode.isTestMode)
+
+            val s = setup(
+                backgroundScope,
+                injectedTestMode = testMode,
+                testModeBehavior = TestModeBehavior.AUTOMATIC,
+            )
+
+            s.manager.fetchConfiguration()
+            advanceUntilIdle()
+
+            assertFalse(testMode.isTestMode)
+            verify(atLeast = 1) { testMode.clearTestModeState() }
+        }
+
+    @Test
+    fun `enrichment failure with cached fallback uses cache and schedules retry`() =
+        runTest(timeout = 30.seconds) {
+            val cachedEnrichment = Enrichment.stub()
+            val cached = config(enableRefresh = true)
+            val helper = mockk<DeviceHelper>(relaxed = true) {
+                every { appVersion } returns "1.0"
+                every { locale } returns "en-US"
+                every { deviceTier } returns Tier.MID
+                every { bundleId } returns "com.test"
+                every { setEnrichment(any()) } just Runs
+                coEvery { getTemplateDevice() } returns emptyMap()
+                coEvery { getEnrichment(any(), any()) } returns Either.Failure(NetworkError.Unknown())
+            }
+            val s = setup(
+                backgroundScope,
+                cachedConfig = cached,
+                cachedEnrichment = cachedEnrichment,
+            )
+            val mgr = ConfigManagerForTest(
+                context = mockk(relaxed = true),
+                storage = s.storage,
+                network = s.network,
+                deviceHelper = helper,
+                paywallManager = mockk(relaxed = true),
+                storeManager = s.storeManager,
+                preload = s.preload,
+                webRedeemer = s.webRedeemer,
+                factory = mockk(relaxed = true) {
+                    coEvery { makeSessionDeviceAttributes() } returns HashMap()
+                },
+                entitlements = mockk(relaxed = true) {
+                    every { status } returns kotlinx.coroutines.flow.MutableStateFlow(SubscriptionStatus.Unknown)
+                    every { entitlementsByProductId } returns emptyMap()
+                },
+                assignments = mockk(relaxed = true),
+                options = SuperwallOptions(),
+                ioScope = backgroundScope,
+                testMode = null,
+                tracker = {},
+                setSubscriptionStatus = null,
+                activateTestMode = { _, _ -> },
+            )
+
+            mgr.fetchConfiguration()
+            mgr.configState.first { it is ConfigState.Retrieved }
+            advanceUntilIdle()
+
+            verify { helper.setEnrichment(cachedEnrichment) }
+            coVerify(atLeast = 1) { helper.getEnrichment(6, 1.seconds) }
+        }
+
+    @Test
+    fun `enrichment failure with no cache still reaches Retrieved`() =
+        runTest(timeout = 30.seconds) {
+            val helper = mockk<DeviceHelper>(relaxed = true) {
+                every { appVersion } returns "1.0"
+                every { locale } returns "en-US"
+                every { deviceTier } returns Tier.MID
+                every { bundleId } returns "com.test"
+                every { setEnrichment(any()) } just Runs
+                coEvery { getTemplateDevice() } returns emptyMap()
+                coEvery { getEnrichment(any(), any()) } returns Either.Failure(NetworkError.Unknown())
+            }
+            val s = setup(backgroundScope)
+            val mgr = ConfigManagerForTest(
+                context = mockk(relaxed = true),
+                storage = s.storage,
+                network = s.network,
+                deviceHelper = helper,
+                paywallManager = mockk(relaxed = true),
+                storeManager = s.storeManager,
+                preload = s.preload,
+                webRedeemer = s.webRedeemer,
+                factory = mockk(relaxed = true) {
+                    coEvery { makeSessionDeviceAttributes() } returns HashMap()
+                },
+                entitlements = mockk(relaxed = true) {
+                    every { status } returns kotlinx.coroutines.flow.MutableStateFlow(SubscriptionStatus.Unknown)
+                    every { entitlementsByProductId } returns emptyMap()
+                },
+                assignments = mockk(relaxed = true),
+                options = SuperwallOptions(),
+                ioScope = backgroundScope,
+                testMode = null,
+                tracker = {},
+                setSubscriptionStatus = null,
+                activateTestMode = { _, _ -> },
+            )
+
+            mgr.fetchConfiguration()
+            mgr.configState.first { it is ConfigState.Retrieved }
+            advanceUntilIdle()
+
+            coVerify(atLeast = 1) { helper.getEnrichment(6, 1.seconds) }
+        }
+
+    @Test
+    fun `cached path retry callback invokes awaitUtilNetwork`() =
+        runTest(timeout = 30.seconds) {
+            val cached = config(enableRefresh = true)
+            val awaitCalls = AtomicInteger(0)
+            val network = mockk<SuperwallAPI> {
+                coEvery { getConfig(any()) } coAnswers {
+                    val cb = firstArg<suspend () -> Unit>()
+                    cb()
+                    Either.Success(cached)
+                }
+                coEvery { getEnrichment(any(), any(), any()) } returns Either.Success(Enrichment.stub())
+            }
+            val storage = mockk<Storage>(relaxed = true) {
+                every { read(LatestConfig) } returns cached
+                every { read(LatestEnrichment) } returns null
+                every { write(any(), any<Any>()) } just Runs
+            }
+            val mgr = ConfigManagerForTest(
+                context = mockk(relaxed = true),
+                storage = storage,
+                network = network,
+                deviceHelper = mockk(relaxed = true) {
+                    every { appVersion } returns "1.0"
+                    every { locale } returns "en-US"
+                    every { deviceTier } returns Tier.MID
+                    every { bundleId } returns "com.test"
+                    every { setEnrichment(any()) } just Runs
+                    coEvery { getTemplateDevice() } returns emptyMap()
+                    coEvery { getEnrichment(any(), any()) } returns Either.Success(Enrichment.stub())
+                },
+                paywallManager = mockk(relaxed = true),
+                storeManager = mockk(relaxed = true) {
+                    coEvery { products(any()) } returns emptySet()
+                    coEvery { loadPurchasedProducts(any()) } just Runs
+                },
+                preload = mockk(relaxed = true) {
+                    coEvery { preloadAllPaywalls(any(), any()) } just Runs
+                    coEvery { preloadPaywallsByNames(any(), any()) } just Runs
+                    coEvery { removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
+                },
+                webRedeemer = mockk(relaxed = true),
+                factory = mockk(relaxed = true) {
+                    coEvery { makeSessionDeviceAttributes() } returns HashMap()
+                },
+                entitlements = mockk(relaxed = true) {
+                    every { status } returns kotlinx.coroutines.flow.MutableStateFlow(SubscriptionStatus.Unknown)
+                    every { entitlementsByProductId } returns emptyMap()
+                },
+                assignments = mockk(relaxed = true),
+                options = SuperwallOptions(),
+                ioScope = backgroundScope,
+                testMode = null,
+                tracker = {},
+                setSubscriptionStatus = null,
+                activateTestMode = { _, _ -> },
+                awaitUtilNetwork = { awaitCalls.incrementAndGet() },
+            )
+
+            mgr.fetchConfiguration()
+            mgr.configState.first { it is ConfigState.Retrieved }
+            advanceUntilIdle()
+
+            assertTrue("awaitUtilNetwork must fire on retry callback, got ${awaitCalls.get()}", awaitCalls.get() >= 1)
+        }
+
+    @Test
+    fun `config getter on Failed returns null and dispatches a refetch`() =
+        runTest(timeout = 30.seconds) {
+            val calls = AtomicInteger(0)
+            val s = setup(
+                backgroundScope,
+                networkConfigAnswer = {
+                    val n = calls.incrementAndGet()
+                    if (n == 1) Either.Failure(NetworkError.Unknown())
+                    else Either.Success(Config.stub())
+                },
+            )
+            s.manager.setConfigStateForTesting(ConfigState.Failed(Exception("boom")))
+            assertEquals(null, s.manager.config)
+            advanceUntilIdle()
+            assertTrue("Expected getter to trigger a refetch, calls=${calls.get()}", calls.get() >= 1)
+        }
+
+    @Test
+    fun `config getter on Retrieved does not dispatch fetch`() =
+        runTest(timeout = 30.seconds) {
+            val s = setup(backgroundScope)
+            s.manager.applyRetrievedConfigForTesting(Config.stub())
+            io.mockk.clearMocks(s.network, answers = false)
+            coEvery { s.network.getConfig(any()) } returns Either.Success(Config.stub())
+
+            repeat(5) { s.manager.config }
+            advanceUntilIdle()
+            coVerify(exactly = 0) { s.network.getConfig(any()) }
+        }
+
+    @Test
+    fun `hasConfig emits when config is set`() =
+        runTest(timeout = 30.seconds) {
+            val s = setup(backgroundScope)
+            val expected = Config.stub().copy(buildId = "has-config")
+            val emitted = launch {
+                assertEquals(expected.buildId, s.manager.hasConfig.first().buildId)
+            }
+            s.manager.applyRetrievedConfigForTesting(expected)
+            advanceUntilIdle()
+            emitted.join()
+        }
+
+    @Test
+    fun `hasConfig emits exactly once`() =
+        runTest(timeout = 30.seconds) {
+            val s = setup(backgroundScope)
+            val emissions = mutableListOf<Config>()
+            val collector = launch {
+                s.manager.hasConfig.collect { emissions.add(it) }
+            }
+            s.manager.applyRetrievedConfigForTesting(Config.stub().copy(buildId = "first"))
+            advanceUntilIdle()
+            s.manager.setConfigStateForTesting(ConfigState.None)
+            advanceUntilIdle()
+            s.manager.applyRetrievedConfigForTesting(Config.stub().copy(buildId = "second"))
+            advanceUntilIdle()
+            collector.cancel()
+
+            assertEquals(1, emissions.size)
+            assertEquals("first", emissions.single().buildId)
         }
 }
 
@@ -518,6 +1520,8 @@ internal class ConfigManagerForTest(
     tracker: suspend (TrackableSuperwallEvent) -> Unit,
     setSubscriptionStatus: ((SubscriptionStatus) -> Unit)?,
     activateTestMode: suspend (Config, Boolean) -> Unit,
+    identityManager: (() -> IdentityManager)? = null,
+    awaitUtilNetwork: suspend () -> Unit = {},
 ) : ConfigManager(
         context = context,
         storeManager = storeManager,
@@ -534,8 +1538,9 @@ internal class ConfigManagerForTest(
         ioScope = IOScope(Dispatchers.Unconfined),
         tracker = tracker,
         testMode = testMode,
+        identityManager = identityManager,
         setSubscriptionStatus = setSubscriptionStatus,
-        awaitUtilNetwork = {}, // no Context-based default
+        awaitUtilNetwork = awaitUtilNetwork,
         activateTestMode = activateTestMode,
         actor = SequentialActor(ConfigState.None, CoroutineScope(Dispatchers.Unconfined)),
     )

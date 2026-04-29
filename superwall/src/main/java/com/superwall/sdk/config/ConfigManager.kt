@@ -37,17 +37,6 @@ import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
 
-/**
- * Facade over the config state of the shared SDK actor.
- *
- * Implements [ConfigContext] directly — actions receive `this` as their
- * context, eliminating the intermediate object. Public API is unchanged:
- * state-mutating entry points dispatch [ConfigState.Actions] through the
- * actor. Read-only entry points (`preloadAllPaywalls`, `preloadPaywallsByNames`,
- * `getAssignments`) await a valid config on the caller's scope and then
- * dispatch an action — so they never suspend on state transitions while
- * holding the queue.
- */
 open class ConfigManager(
     override val context: Context,
     override val storeManager: StoreManager,
@@ -82,7 +71,6 @@ open class ConfigManager(
 
     override val scope: CoroutineScope get() = ioScope
 
-    /** Exposed to existing call sites — back-compat with the old `MutableStateFlow`. */
     internal val configState: StateFlow<ConfigState> get() = actor.state
 
     val config: Config?
@@ -110,12 +98,6 @@ open class ConfigManager(
         triggersByEventName = triggers
     }
 
-    override val autoRetryCount = java.util.concurrent.atomic.AtomicInteger(0)
-
-    override fun retryFetchConfig() {
-        effect(ConfigState.Actions.FetchConfig)
-    }
-
     val unconfirmedAssignments: Map<ExperimentID, Experiment.Variant>
         get() = assignments.unconfirmedAssignments
 
@@ -125,12 +107,7 @@ open class ConfigManager(
         immediate(ConfigState.Actions.FetchConfig)
     }
 
-    /**
-     * Synchronous on the caller's thread for the mutating parts — matches
-     * pre-actor behavior where a caller could read `unconfirmedAssignments`
-     * right after `reset()` and see the new picks. Only the follow-up
-     * preload goes through the actor queue.
-     */
+    // Sync on caller for the mutation; preload follow-up goes through the actor.
     fun reset() {
         val config = actor.state.value.getConfig() ?: return
         assignments.reset()
@@ -138,23 +115,12 @@ open class ConfigManager(
         effect(ConfigState.Actions.PreloadIfEnabled)
     }
 
-    /**
-     * Re-evaluates test mode with the current identity and config.
-     * If test mode was active but the current user no longer qualifies, clears test mode
-     * and resets subscription status. If a new user qualifies, activates test mode and
-     * shows the modal.
-     *
-     * Synchronous on the caller's thread for the mutating parts — matches
-     * pre-actor behavior. Only the test-mode modal launch is off-thread.
-     */
     fun reevaluateTestMode(
         config: Config? = null,
         appUserId: String? = null,
         aliasId: String? = null,
     ) {
-        // Resolve config inside the body, not as a default parameter value —
-        // evaluating actor state inside a default param runs on every call
-        // even when the method is mocked/stubbed, which trips MockK.
+        // Resolved in body, not as default param — actor reads in defaults trip MockK.
         val resolvedConfig = config ?: actor.state.value.getConfig() ?: return
         val manager = testMode ?: return
         val wasTestMode = manager.isTestMode
@@ -190,19 +156,14 @@ open class ConfigManager(
     }
 
     internal suspend fun refreshConfiguration(force: Boolean = false) {
-        // Means config is currently being fetched, dont schedule refresh
         if (actor.state.value.getConfig() == null) return
         immediate(ConfigState.Actions.RefreshConfig(force = force))
     }
 
-    // ---- Test-only helpers -------------------------------------------------
-
-    /** Force the state to [ConfigState.Retrieved] with [config]. Tests only. */
     internal fun applyRetrievedConfigForTesting(config: Config) {
         actor.update(ConfigState.Updates.SetRetrieved(config))
     }
 
-    /** Force the actor to any state without going through a fetch. Tests only. */
     internal fun setConfigStateForTesting(state: ConfigState) {
         actor.update(ConfigState.Updates.Set(state))
     }

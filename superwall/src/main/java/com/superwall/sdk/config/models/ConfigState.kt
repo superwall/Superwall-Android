@@ -44,13 +44,9 @@ sealed class ConfigState {
 
     data class Failed(
         val throwable: Throwable,
+        val retryCount: Int = 0,
     ) : ConfigState()
 
-    /**
-     * Pure state transitions. Reducers are `(ConfigState) -> ConfigState` —
-     * no side effects. All work (network, storage, tracking) belongs in
-     * [Actions].
-     */
     internal sealed class Updates(
         override val reduce: (ConfigState) -> ConfigState,
     ) : Reducer<ConfigState> {
@@ -60,31 +56,23 @@ sealed class ConfigState {
 
         data class SetRetrieved(val config: Config) : Updates({ Retrieved(config) })
 
-        data class SetFailed(val error: Throwable) : Updates({ Failed(error) })
+        data class SetFailed(
+            val error: Throwable,
+            val retryCount: Int = 0,
+        ) : Updates({ Failed(error, retryCount) })
 
-        /** Used by tests to force any state without going through a fetch. */
         data class Set(val state: ConfigState) : Updates({ state })
     }
 
-    /**
-     * Side-effecting operations dispatched on the config actor. Actions
-     * run sequentially on [com.superwall.sdk.misc.primitives.SequentialActor]
-     * and call [com.superwall.sdk.misc.primitives.StateStore.update] with a
-     * pure [Updates] reducer when they need to mutate state.
-     *
-     * Actions that read config state (`Preload*`, `GetAssignments`) expect
-     * the caller to have awaited `state.awaitFirstValidConfig()` before
-     * dispatching, so they never suspend on state transitions while holding
-     * the queue. In practice every public entry point does this, and
-     * internal `effect()` calls only fire after a successful fetch.
-     */
     internal sealed class Actions(
         override val execute: suspend ConfigContext.() -> Unit,
     ) : TypedAction<ConfigContext> {
-        /** Primary fetch pipeline: config + enrichment + device attributes in parallel. */
         object FetchConfig : Actions(exec@{
             val current = state.value
             if (current is Retrieving || current is Retrying) return@exec
+
+            // Capture before transitioning out of Failed; Retrieved resets the lineage.
+            val priorRetries = (current as? Failed)?.retryCount ?: 0
 
             update(Updates.SetRetrieving)
 
@@ -216,38 +204,38 @@ sealed class ConfigState {
                     }
                 }.fold(
                     onSuccess = {
-                        // Preload first so cached-config boot stays fast; queue
-                        // a follow-up network refresh behind it (matches the old
-                        // parallel-launch behavior well enough).
+                        // Preload before refresh — cached boot serves cached paywalls fast.
                         effect(PreloadIfEnabled)
                         if (isConfigFromCache) {
                             effect(RefreshConfig())
                         }
                     },
                     onFailure = { e ->
-                        e.printStackTrace()
-                        update(Updates.SetFailed(e))
-                        // Bounded auto-retry: matches old behavior where
-                        // refreshConfiguration's `config` getter side-effect
-                        // implicitly relaunched fetchConfiguration after each
-                        // failure. Cap at 1 retry per Failed transition so a
-                        // hard-down server can't saturate the actor queue.
-                        // The counter resets on Retrieved (in ApplyConfig).
-                        if (!isConfigFromCache && autoRetryCount.incrementAndGet() <= 1) {
-                            retryFetchConfig()
-                        }
-                        track(InternalSuperwallEvent.ConfigFail(e.message ?: "Unknown error"))
-                        Logger.debug(
-                            logLevel = LogLevel.error,
-                            scope = LogScope.superwallCore,
-                            message = "Failed to Fetch Configuration",
-                            error = e,
-                        )
+                        immediate(HandleFetchFailure(e, priorRetries, isConfigFromCache))
                     },
                 )
         })
 
-        /** Background refresh after we already have a config. */
+        data class HandleFetchFailure(
+            val error: Throwable,
+            val priorRetries: Int,
+            val isConfigFromCache: Boolean,
+        ) : Actions({
+            error.printStackTrace()
+            val newRetries = priorRetries + 1
+            update(Updates.SetFailed(error, retryCount = newRetries))
+            if (!isConfigFromCache && newRetries <= 1) {
+                effect(FetchConfig)
+            }
+            track(InternalSuperwallEvent.ConfigFail(error.message ?: "Unknown error"))
+            Logger.debug(
+                logLevel = LogLevel.error,
+                scope = LogScope.superwallCore,
+                message = "Failed to Fetch Configuration",
+                error = error,
+            )
+        })
+
         data class RefreshConfig(val force: Boolean = false) : Actions(exec@{
             val oldConfig = state.value.getConfig() ?: return@exec
             if (!force && !oldConfig.featureFlags.enableConfigRefresh) return@exec
@@ -296,17 +284,7 @@ sealed class ConfigState {
                 )
         })
 
-        /**
-         * Applies a freshly-fetched [config]: persists it, rebuilds triggers,
-         * syncs entitlements, and runs test-mode evaluation. Invoked via
-         * `immediate(ApplyConfig(config))` from [FetchConfig] and [RefreshConfig]
-         * — runs inline (re-entrant) on the actor consumer, so state mutations
-         * stay serialized with the surrounding fetch.
-         */
         data class ApplyConfig(val config: Config) : Actions({
-            // Reset cold-start retry budget — a successful apply means the
-            // network came back and the next failure starts the budget over.
-            autoRetryCount.set(0)
             storage.write(DisableVerboseEvents, config.featureFlags.disableVerboseEvents)
             if (config.featureFlags.enableConfigRefresh) {
                 storage.write(LatestConfig, config)
@@ -352,14 +330,12 @@ sealed class ConfigState {
             }
         })
 
-        /** Preload paywalls when options + device tier allow it. */
         object PreloadIfEnabled : Actions(exec@{
             if (!options.computedShouldPreload(deviceHelper.deviceTier)) return@exec
             val config = state.value.getConfig() ?: return@exec
             paywallPreload.preloadAllPaywalls(config, context)
         })
 
-        /** Unconditional preload — public API entry point. */
         object PreloadAll : Actions(exec@{
             val config = state.value.getConfig() ?: return@exec
             paywallPreload.preloadAllPaywalls(config, context)
@@ -372,7 +348,6 @@ sealed class ConfigState {
             paywallPreload.preloadPaywallsByNames(config, eventNames)
         })
 
-        /** Confirm assignments against the server for all current triggers. */
         object GetAssignments : Actions(exec@{
             val config = state.value.getConfig() ?: return@exec
             config.triggers.takeUnless { it.isEmpty() }?.let { triggers ->

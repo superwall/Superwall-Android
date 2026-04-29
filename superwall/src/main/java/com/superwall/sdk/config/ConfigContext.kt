@@ -17,14 +17,6 @@ import com.superwall.sdk.store.StoreManager
 import com.superwall.sdk.store.testmode.TestMode
 import com.superwall.sdk.web.WebPaywallRedeemer
 
-/**
- * All dependencies available to [ConfigState.Actions] running on the
- * config actor.
- *
- * The facade [ConfigManager] implements this interface directly — actions
- * receive `this` as their receiver and can read dependencies, dispatch
- * sub-actions, and apply pure [ConfigState.Updates] reducers to state.
- */
 interface ConfigContext : BaseContext<ConfigState, ConfigContext> {
     val context: Context
     val storeManager: StoreManager
@@ -41,31 +33,7 @@ interface ConfigContext : BaseContext<ConfigState, ConfigContext> {
     val identityManager: (() -> IdentityManager)?
     val setSubscriptionStatus: ((SubscriptionStatus) -> Unit)?
     val awaitUtilNetwork: suspend () -> Unit
-
-    /**
-     * Runs the test-mode UI flow: refreshes test products and (when
-     * [justActivated] is true) presents the test-mode modal. Always invoked
-     * via `scope.launch` from inside actions because the modal blocks on
-     * user interaction and would otherwise pin the actor queue.
-     *
-     * Wired by `DependencyContainer` to a closure over `TestMode`,
-     * the subscription network call, and the current activity — none of
-     * which need to leak into the config slice directly.
-     */
     val activateTestMode: suspend (config: Config, justActivated: Boolean) -> Unit
 
-    /** Publish derived triggers-by-event-name map after processing a new config. */
     fun setTriggers(triggers: Map<String, Trigger>)
-
-    /**
-     * Mutable counter tracking consecutive cold-start failures. Bounded
-     * auto-retry uses this — one extra retry per Failed transition, then
-     * stop. Reset on a successful ApplyConfig.
-     */
-    val autoRetryCount: java.util.concurrent.atomic.AtomicInteger
-
-    /** Re-dispatch [ConfigState.Actions.FetchConfig]. Indirection lives on
-     *  the context so the action body can reference it without tripping
-     *  Kotlin's self-reference-in-nested-object check. */
-    fun retryFetchConfig()
 }
