@@ -19,27 +19,24 @@ import org.junit.Test
  */
 class SdkContextImplTest {
     @Test
-    fun `reevaluateTestMode forwards appUserId and aliasId to ConfigManager`() {
-        // SdkContextImpl.reevaluateTestMode passes only (appUserId, aliasId) —
-        // we assert the forward reaches ConfigManager with those values. We
-        // don't constrain the `config` arg because ConfigManager resolves it
-        // from actor state by default and we don't want the test to care.
-        val manager =
-            mockk<ConfigManager>(relaxed = true) {
-                every { reevaluateTestMode(any(), any(), any()) } just Runs
+    fun `reevaluateTestMode forwards appUserId and aliasId to ConfigManager`() =
+        runTest {
+            val manager =
+                mockk<ConfigManager>(relaxed = true) {
+                    coEvery { reevaluateTestMode(any(), any(), any()) } just Runs
+                }
+            val ctx = SdkContextImpl(configManager = { manager })
+
+            ctx.reevaluateTestMode(appUserId = "user-1", aliasId = "alias-1")
+
+            coVerify(exactly = 1) {
+                manager.reevaluateTestMode(
+                    config = any(),
+                    appUserId = "user-1",
+                    aliasId = "alias-1",
+                )
             }
-        val ctx = SdkContextImpl(configManager = { manager })
-
-        ctx.reevaluateTestMode(appUserId = "user-1", aliasId = "alias-1")
-
-        verify(exactly = 1) {
-            manager.reevaluateTestMode(
-                config = any(),
-                appUserId = "user-1",
-                aliasId = "alias-1",
-            )
         }
-    }
 
     @Test
     fun `fetchAssignments delegates to ConfigManager_getAssignments`() =
@@ -56,26 +53,24 @@ class SdkContextImplTest {
         }
 
     @Test
-    fun `configManager factory is invoked lazily so teardown-reconfigure swaps are observable`() {
-        // The bridge takes a `() -> ConfigManager`. If someone swaps the concrete
-        // manager (hot reload / teardown), the next call must see the NEW instance
-        // rather than a captured snapshot of the old one.
-        val first =
-            mockk<ConfigManager>(relaxed = true) {
-                every { reevaluateTestMode(any(), any(), any()) } just Runs
-            }
-        val second =
-            mockk<ConfigManager>(relaxed = true) {
-                every { reevaluateTestMode(any(), any(), any()) } just Runs
-            }
-        var current: ConfigManager = first
-        val ctx = SdkContextImpl(configManager = { current })
+    fun `configManager factory is invoked lazily so teardown-reconfigure swaps are observable`() =
+        runTest {
+            val first =
+                mockk<ConfigManager>(relaxed = true) {
+                    coEvery { reevaluateTestMode(any(), any(), any()) } just Runs
+                }
+            val second =
+                mockk<ConfigManager>(relaxed = true) {
+                    coEvery { reevaluateTestMode(any(), any(), any()) } just Runs
+                }
+            var current: ConfigManager = first
+            val ctx = SdkContextImpl(configManager = { current })
 
-        ctx.reevaluateTestMode(null, null)
-        verify(exactly = 1) { first.reevaluateTestMode(any(), any(), any()) }
+            ctx.reevaluateTestMode(null, null)
+            coVerify(exactly = 1) { first.reevaluateTestMode(any(), any(), any()) }
 
-        current = second
-        ctx.reevaluateTestMode(null, null)
-        verify(exactly = 1) { second.reevaluateTestMode(any(), any(), any()) }
-    }
+            current = second
+            ctx.reevaluateTestMode(null, null)
+            coVerify(exactly = 1) { second.reevaluateTestMode(any(), any(), any()) }
+        }
 }

@@ -115,29 +115,21 @@ open class ConfigManager(
         effect(ConfigState.Actions.PreloadIfEnabled)
     }
 
-    fun reevaluateTestMode(
+    suspend fun reevaluateTestMode(
         config: Config? = null,
         appUserId: String? = null,
         aliasId: String? = null,
     ) {
         // Resolved in body, not as default param — actor reads in defaults trip MockK.
         val resolvedConfig = config ?: actor.state.value.getConfig() ?: return
-        val manager = testMode ?: return
-        val wasTestMode = manager.isTestMode
-        manager.evaluateTestMode(
-            config = resolvedConfig,
-            bundleId = deviceHelper.bundleId,
-            appUserId = appUserId ?: identityManager?.invoke()?.appUserId,
-            aliasId = aliasId ?: identityManager?.invoke()?.aliasId,
-            testModeBehavior = options.testModeBehavior,
+        if (testMode == null) return
+        immediate(
+            ConfigState.Actions.ReevaluateTestMode(
+                config = resolvedConfig,
+                appUserId = appUserId,
+                aliasId = aliasId,
+            ),
         )
-        val isNowTestMode = manager.isTestMode
-        if (wasTestMode && !isNowTestMode) {
-            manager.clearTestModeState()
-            setSubscriptionStatus?.invoke(SubscriptionStatus.Inactive)
-        } else if (!wasTestMode && isNowTestMode) {
-            ioScope.launch { activateTestMode(resolvedConfig, true) }
-        }
     }
 
     suspend fun getAssignments() {

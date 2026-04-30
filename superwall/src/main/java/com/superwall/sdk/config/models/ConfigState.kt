@@ -330,6 +330,29 @@ sealed class ConfigState {
             }
         })
 
+        data class ReevaluateTestMode(
+            val config: Config,
+            val appUserId: String?,
+            val aliasId: String?,
+        ) : Actions(exec@{
+            val manager = testMode ?: return@exec
+            val wasTestMode = manager.isTestMode
+            manager.evaluateTestMode(
+                config = config,
+                bundleId = deviceHelper.bundleId,
+                appUserId = appUserId ?: identityManager?.invoke()?.appUserId,
+                aliasId = aliasId ?: identityManager?.invoke()?.aliasId,
+                testModeBehavior = options.testModeBehavior,
+            )
+            val isNowTestMode = manager.isTestMode
+            if (wasTestMode && !isNowTestMode) {
+                manager.clearTestModeState()
+                setSubscriptionStatus?.invoke(SubscriptionStatus.Inactive)
+            } else if (!wasTestMode && isNowTestMode) {
+                scope.launch { activateTestMode(config, true) }
+            }
+        })
+
         object PreloadIfEnabled : Actions(exec@{
             if (!options.computedShouldPreload(deviceHelper.deviceTier)) return@exec
             val config = state.value.getConfig() ?: return@exec

@@ -303,6 +303,48 @@ class ConfigManagerTest {
             assertEquals("activateTestMode must not fire on no-op", 0, s.activateCalls.get())
         }
 
+    // Both reevaluateTestMode and ApplyConfig mutate TestMode.state. They
+    // must be serialized through the config actor — never overlap.
+    @Test
+    fun `reevaluateTestMode and ApplyConfig do not overlap on TestMode state`() =
+        runTest(timeout = 30.seconds) {
+            val storage = mockk<Storage>(relaxed = true)
+            val inFlight = AtomicInteger(0)
+            val maxOverlap = AtomicInteger(0)
+            val testMode = spyk(TestMode(storage = storage, isTestEnvironment = false))
+            // Track in-flight evaluateTestMode calls. If serialization holds,
+            // maxOverlap stays at 1.
+            every {
+                testMode.evaluateTestMode(any(), any(), any(), any(), any())
+            } answers {
+                val n = inFlight.incrementAndGet()
+                maxOverlap.updateAndGet { kotlin.math.max(it, n) }
+                Thread.sleep(20) // simulate non-trivial work
+                inFlight.decrementAndGet()
+                callOriginal()
+            }
+
+            val s = setup(
+                backgroundScope,
+                injectedTestMode = testMode,
+                testModeBehavior = TestModeBehavior.ALWAYS,
+            )
+
+            // Race: drive ApplyConfig (via fetchConfiguration) and
+            // reevaluateTestMode in parallel.
+            val a = launch { s.manager.fetchConfiguration() }
+            val b = launch { s.manager.reevaluateTestMode(config = Config.stub(), appUserId = "u") }
+            val c = launch { s.manager.reevaluateTestMode(config = Config.stub(), appUserId = "v") }
+            a.join(); b.join(); c.join()
+            advanceUntilIdle()
+
+            assertEquals(
+                "evaluateTestMode must never overlap with itself when serialized through the actor — saw ${maxOverlap.get()} concurrent",
+                1,
+                maxOverlap.get(),
+            )
+        }
+
     @Test
     fun `fetchConfig in test mode skips web entitlements and product preload`() =
         runTest(timeout = 30.seconds) {
