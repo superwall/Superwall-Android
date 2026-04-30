@@ -9,7 +9,6 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.config.options.SuperwallOptions
-import com.superwall.sdk.delayFor
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
@@ -32,7 +31,6 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.util.Date
-import kotlin.time.Duration.Companion.milliseconds
 
 @RunWith(AndroidJUnit4::class)
 class PaywallViewDismissTest {
@@ -126,18 +124,16 @@ class PaywallViewDismissTest {
                         )
                     }
 
-                    delayFor(100.milliseconds)
+                    // Wait for dismissView's callback (shouldDismiss=true) to
+                    // fire before tearing the view down; otherwise destroyed()'s
+                    // fallback path can race ahead and emit shouldDismiss=false.
+                    withContext(Dispatchers.IO) {
+                        withTimeout(3000) { finished.await() }
+                    }
 
                     withContext(Dispatchers.Main) {
                         view.beforeOnDestroy()
                         view.destroyed()
-                    }
-
-                    withContext(Dispatchers.IO) {
-                        try {
-                            withTimeout(3000) { finished.await() }
-                        } catch (_: Throwable) {
-                        }
                     }
 
                     val dismissed = publisher.replayCache.lastOrNull() as? PaywallState.Dismissed

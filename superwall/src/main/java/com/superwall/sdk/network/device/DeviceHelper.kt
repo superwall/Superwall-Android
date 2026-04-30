@@ -574,8 +574,7 @@ class DeviceHelper(
                 appBuildStringNumber = appBuildString.toInt(),
                 interfaceStyleMode = if (interfaceStyleOverride == null) "automatic" else "manual",
                 capabilities = capabilities.map { it.name },
-                capabilitiesConfig =
-                    capabilities.toJson(factory.json()),
+                capabilitiesConfig = capabilities.toJson(),
                 platformWrapper = platformWrapper,
                 platformWrapperVersion = platformWrapperVersion,
                 appVersionPadded = appVersionPadded,
