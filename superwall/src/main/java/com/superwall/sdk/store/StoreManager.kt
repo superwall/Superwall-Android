@@ -18,7 +18,7 @@ import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.product.receipt.ReceiptManager
 import com.superwall.sdk.store.coordinator.ProductsFetcher
-import com.superwall.sdk.store.testmode.TestModeManager
+import com.superwall.sdk.store.testmode.TestMode
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.awaitAll
 import java.util.Date
@@ -31,7 +31,7 @@ class StoreManager(
     private val track: suspend (InternalSuperwallEvent) -> Unit = {
         Superwall.instance.track(it)
     },
-    var testModeManager: TestModeManager? = null,
+    var testMode: TestMode? = null,
 ) : ProductsFetcher,
     StoreKit {
     val receiptManager by lazy(receiptManagerFactory)
@@ -319,7 +319,7 @@ class StoreManager(
 
     override fun getProductFromCache(productId: String): StoreProduct? {
         // Check test products first when in test mode
-        testModeManager?.let { manager ->
+        testMode?.let { manager ->
             if (manager.isTestMode) {
                 manager.testProductsByFullId[productId]?.let { return it }
             }
@@ -328,7 +328,7 @@ class StoreManager(
     }
 
     override fun hasCached(productId: String): Boolean {
-        testModeManager?.let { manager ->
+        testMode?.let { manager ->
             if (manager.isTestMode && manager.testProductsByFullId.containsKey(productId)) {
                 return true
             }

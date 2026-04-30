@@ -2,6 +2,7 @@ package com.superwall.sdk.misc.primitives
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 
 /**
  * Pure actor context — the minimal contract for action execution.
@@ -45,5 +46,9 @@ interface StoreContext<S, Self : StoreContext<S, Self>> : StateStore<S> {
         until: (S) -> Boolean,
     ) {
         actor.immediateUntil(this as Self, action, until)
+    }
+
+    fun sideEffect(what: suspend () -> Unit){
+        scope.launch { what() }
     }
 }

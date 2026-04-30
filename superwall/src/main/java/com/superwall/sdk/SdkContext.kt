@@ -10,7 +10,7 @@ import com.superwall.sdk.models.config.Config
  * Keeps the identity slice decoupled from concrete manager types.
  */
 interface SdkContext {
-    fun reevaluateTestMode(appUserId: String?, aliasId: String?)
+    suspend fun reevaluateTestMode(appUserId: String?, aliasId: String?)
 
     suspend fun fetchAssignments()
 
@@ -20,7 +20,7 @@ interface SdkContext {
 class SdkContextImpl(
     private val configManager: () -> ConfigManager,
 ) : SdkContext {
-    override fun reevaluateTestMode(appUserId: String?, aliasId: String?) {
+    override suspend fun reevaluateTestMode(appUserId: String?, aliasId: String?) {
         configManager().reevaluateTestMode(appUserId = appUserId, aliasId = aliasId)
     }
 
