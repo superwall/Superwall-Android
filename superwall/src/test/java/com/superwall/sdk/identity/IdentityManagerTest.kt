@@ -115,7 +115,7 @@ class IdentityManagerTest {
             ioScope = scope,
             notifyUserChange = { notifiedChanges.add(it) },
             completeReset = { resetCalled = true },
-            trackEvent = { trackedEvents.add(it) },
+            tracker = { trackedEvents.add(it) },
             webPaywallRedeemer = { mockk(relaxed = true) },
             actor = testIdentityActor(),
             sdkContext = mockk(relaxed = true),
@@ -140,7 +140,7 @@ class IdentityManagerTest {
             ioScope = ioScope,
             notifyUserChange = { notifiedChanges.add(it) },
             completeReset = { resetCalled = true },
-            trackEvent = { trackedEvents.add(it) },
+            tracker = { trackedEvents.add(it) },
             webPaywallRedeemer = { mockk(relaxed = true) },
             actor = testIdentityActor(),
             sdkContext = mockk(relaxed = true),
@@ -340,7 +340,7 @@ class IdentityManagerTest {
                         stringToSha = { "sha256-of-$it" },
                         notifyUserChange = {},
                         completeReset = {},
-                        trackEvent = {},
+                        tracker = {},
                         webPaywallRedeemer = { mockk(relaxed = true) },
                         actor = testIdentityActor(),
                         sdkContext = mockk(relaxed = true),
@@ -562,6 +562,7 @@ class IdentityManagerTest {
                         shouldTrackMerge = true,
                     )
                     manager.awaitLatestIdentity()
+                    advanceUntilIdle()
                 }
 
                 Then("an Attributes event is tracked") {
@@ -721,6 +722,7 @@ class IdentityManagerTest {
                 When("identify is called with a new userId") {
                     manager.identify("user-track-test")
                     manager.awaitLatestIdentity()
+                    advanceUntilIdle()
                 }
 
                 Then("an IdentityAlias event is tracked") {
@@ -785,7 +787,7 @@ class IdentityManagerTest {
                         ioScope = IOScope(this@runTest.coroutineContext),
                         notifyUserChange = { notifiedChanges.add(it) },
                         completeReset = { resetCalled = true },
-                        trackEvent = { trackedEvents.add(it) },
+                        tracker = { trackedEvents.add(it) },
                         webPaywallRedeemer = { mockk(relaxed = true) },
                         actor = testIdentityActor(),
                         sdkContext = sdkContext,

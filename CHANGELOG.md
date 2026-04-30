@@ -2,6 +2,13 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.7.13
+
+## Fixes
+- Fix `device.appVersionPadded` and `device.sdkVersionPadded` emitting non-ASCII digits on devices whose default locale uses a non-Latin numbering system (e.g. `ar-EG`, `fa-IR`, `bn-BD`), which caused audience-rule version comparisons to misbucket affected users.
+- Ensures timeout applies to HttpUrlConnection for enrichment and subscription API's
+- Remove unnecessary sync access causing ANR lock in React Native
+
 ## 2.7.12
 
 ## Enhancements

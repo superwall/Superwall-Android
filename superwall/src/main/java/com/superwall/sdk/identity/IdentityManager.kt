@@ -31,7 +31,7 @@ class IdentityManager(
     override val completeReset: () -> Unit = {
         Superwall.instance.reset(duringIdentify = true)
     },
-    private val trackEvent: suspend (TrackableSuperwallEvent) -> Unit = {
+    override val tracker: suspend (TrackableSuperwallEvent) -> Unit = {
         Superwall.instance.track(it)
     },
     private val options: () -> SuperwallOptions,
@@ -41,7 +41,6 @@ class IdentityManager(
     override val sdkContext: SdkContext,
 ) : IdentityContext {
     override val scope: CoroutineScope get() = ioScope
-    override val track: suspend (Trackable) -> Unit = { trackEvent(it as TrackableSuperwallEvent) }
 
     private val identity get() = actor.state.value
 

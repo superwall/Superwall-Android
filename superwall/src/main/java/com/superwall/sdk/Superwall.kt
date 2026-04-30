@@ -295,7 +295,7 @@ class Superwall(
      * @param subscriptionStatus The entitlement status of the user.
      */
     fun setSubscriptionStatus(subscriptionStatus: SubscriptionStatus) {
-        if (dependencyContainer.testModeManager.isTestMode) {
+        if (dependencyContainer.testMode.isTestMode) {
             Logger.debug(
                 LogLevel.warn,
                 LogScope.superwallCore,
@@ -317,7 +317,7 @@ class Superwall(
      * @param entitlements A list of entitlements.
      * */
     fun setSubscriptionStatus(vararg entitlements: String) {
-        if (dependencyContainer.testModeManager.isTestMode) {
+        if (dependencyContainer.testMode.isTestMode) {
             Logger.debug(
                 LogLevel.warn,
                 LogScope.superwallCore,
@@ -345,7 +345,7 @@ class Superwall(
         if (dependencyContainer.makeHasExternalPurchaseController()) {
             return
         }
-        if (dependencyContainer.testModeManager.isTestMode) {
+        if (dependencyContainer.testMode.isTestMode) {
             return
         }
         val webEntitlements = dependencyContainer.entitlements.web
@@ -381,7 +381,8 @@ class Superwall(
     /**
      * Properties stored about the device session, set internally by Superwall
      * */
-    suspend fun deviceAttributes(): Map<String, Any?> = dependencyContainer.makeSessionDeviceAttributes()
+    suspend fun deviceAttributes(): Map<String, Any?> =
+        dependencyContainer.makeSessionDeviceAttributes()
 
     /**
      * Gets the current integration identifiers as a map.
@@ -467,7 +468,7 @@ class Superwall(
 
     val configurationStateListener: Flow<ConfigurationStatus>
         get() =
-            dependencyContainer.configManager.configState.asSharedFlow().map {
+            dependencyContainer.configManager.configState.map {
                 when (it) {
                     is ConfigState.Retrieved -> ConfigurationStatus.Configured
                     is ConfigState.Failed -> ConfigurationStatus.Failed
@@ -632,14 +633,12 @@ class Superwall(
         }
     }
 
+    @Volatile
     private lateinit var _dependencyContainer: DependencyContainer
 
     internal val dependencyContainer: DependencyContainer
-        get() {
-            synchronized(this) {
-                return _dependencyContainer
-            }
-        }
+        get() = _dependencyContainer
+
 
     // / Used to serially execute register calls.
     internal val serialTaskManager = SerialTaskManager()
@@ -1204,7 +1203,7 @@ class Superwall(
                     scope = LogScope.superwallCore,
                     message =
                         "You are trying to observe purchases but the SuperwallOption shouldObservePurchases is " +
-                            "false. Please set it to true to be able to observe purchases.",
+                                "false. Please set it to true to be able to observe purchases.",
                 )
                 return@launchWithTracking
             }
@@ -1418,11 +1417,11 @@ class Superwall(
                                     val url =
                                         "https://play.google.com/store/apps/details?id=$packageName"
                                     (
-                                        activityProvider?.getCurrentActivity()
-                                            ?: paywallView.encapsulatingActivity?.get()
-                                    )?.startActivity(
-                                        Intent(Intent.ACTION_VIEW, Uri.parse(url)),
-                                    )
+                                            activityProvider?.getCurrentActivity()
+                                                ?: paywallView.encapsulatingActivity?.get()
+                                            )?.startActivity(
+                                            Intent(Intent.ACTION_VIEW, Uri.parse(url)),
+                                        )
                                 }
                             }
                         } catch (e: Exception) {
@@ -1440,13 +1439,13 @@ class Superwall(
                     val paywallActivity =
 
                         (
-                            paywallView
-                                ?.encapsulatingActivity
-                                ?.get()
-                                ?: dependencyContainer
-                                    .activityProvider
-                                    ?.getCurrentActivity()
-                        ) as SuperwallPaywallActivity?
+                                paywallView
+                                    ?.encapsulatingActivity
+                                    ?.get()
+                                    ?: dependencyContainer
+                                        .activityProvider
+                                        ?.getCurrentActivity()
+                                ) as SuperwallPaywallActivity?
                     // Cancel any existing fallback notification of the same type before scheduling
                     // the dynamic notification from the paywall
                     paywallActivity?.attemptToScheduleNotifications(
