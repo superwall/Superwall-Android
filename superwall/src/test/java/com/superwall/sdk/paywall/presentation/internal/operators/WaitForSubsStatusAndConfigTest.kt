@@ -4,7 +4,7 @@ import com.superwall.sdk.Given
 import com.superwall.sdk.Then
 import com.superwall.sdk.When
 import com.superwall.sdk.analytics.internal.track
-import com.superwall.sdk.config.models.ConfigState
+import com.superwall.sdk.config.ConfigState
 import com.superwall.sdk.dependencies.DependencyContainer
 import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.models.entitlements.SubscriptionStatus

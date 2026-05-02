@@ -1,6 +1,5 @@
 package com.superwall.sdk.config
 
-import com.superwall.sdk.config.models.ConfigState
 import com.superwall.sdk.models.config.Config
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame

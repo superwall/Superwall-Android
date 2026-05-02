@@ -131,10 +131,10 @@ class PaywallPreloadTest {
                     preload.removeUnusedPaywallVCsFromCache(oldConfig, newConfig)
 
                     Then("only removed and changed, non-presented paywalls are cleared from cache") {
-                        verify { paywallManager.removePaywallView("remove") }
-                        verify { paywallManager.removePaywallView("changed") }
-                        verify(exactly = 0) { paywallManager.removePaywallView("keep") }
-                        verify(exactly = 0) { paywallManager.removePaywallView("presented") }
+                        coVerify { paywallManager.removePaywallView("remove") }
+                        coVerify { paywallManager.removePaywallView("changed") }
+                        coVerify(exactly = 0) { paywallManager.removePaywallView("keep") }
+                        coVerify(exactly = 0) { paywallManager.removePaywallView("presented") }
                     }
                 }
             }
