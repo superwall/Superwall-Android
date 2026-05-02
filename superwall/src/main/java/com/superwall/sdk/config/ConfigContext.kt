@@ -1,12 +1,9 @@
 package com.superwall.sdk.config
 
 import android.content.Context
-import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
-import com.superwall.sdk.config.models.ConfigState
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.identity.IdentityManager
 import com.superwall.sdk.misc.primitives.BaseContext
-import com.superwall.sdk.models.config.Config
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.triggers.Trigger
 import com.superwall.sdk.network.SuperwallAPI
@@ -33,7 +30,6 @@ interface ConfigContext : BaseContext<ConfigState, ConfigContext> {
     val identityManager: (() -> IdentityManager)?
     val setSubscriptionStatus: ((SubscriptionStatus) -> Unit)?
     val awaitUtilNetwork: suspend () -> Unit
-    val activateTestMode: suspend (config: Config, justActivated: Boolean) -> Unit
 
     fun setTriggers(triggers: Map<String, Trigger>)
 }

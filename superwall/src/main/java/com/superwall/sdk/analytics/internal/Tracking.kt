@@ -4,7 +4,7 @@ import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
-import com.superwall.sdk.config.models.ConfigState
+import com.superwall.sdk.config.ConfigState
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
