@@ -3,6 +3,7 @@ package com.superwall.sdk.models.customer
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.product.Store
+import com.superwall.sdk.network.JsonFactory
 import com.superwall.sdk.storage.LatestDeviceCustomerInfo
 import com.superwall.sdk.storage.LatestRedemptionResponse
 import com.superwall.sdk.storage.Storage
@@ -10,8 +11,6 @@ import com.superwall.sdk.storage.core_data.convertFromJsonElement
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonNamingStrategy
 import kotlinx.serialization.json.jsonObject
 
 /**
@@ -58,7 +57,7 @@ data class CustomerInfo(
      */
     fun toParams(): Map<String, Any?> {
         if (isPlaceholder) return emptyMap()
-        val obj = paramsJson.encodeToJsonElement(serializer(), this).jsonObject
+        val obj = JsonFactory.JSON.encodeToJsonElement(serializer(), this).jsonObject
         return obj
             .mapValues { (_, value) -> value.convertFromJsonElement() }
     }
@@ -87,16 +86,6 @@ data class CustomerInfo(
         }
 
     companion object {
-        private val paramsJson = Json {
-            try {
-
-                namingStrategy = JsonNamingStrategy.SnakeCase
-            } catch (e: Throwable) {
-            }
-            encodeDefaults = true;
-            ignoreUnknownKeys = true
-        }
-
         /**
          * Creates a blank CustomerInfo instance for testing or default states.
          */
