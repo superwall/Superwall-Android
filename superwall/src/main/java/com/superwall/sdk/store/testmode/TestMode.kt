@@ -18,6 +18,7 @@ import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.storage.StoredTestModeSettings
 import com.superwall.sdk.storage.TestModeSettings
 import com.superwall.sdk.store.Entitlements
+import com.superwall.sdk.store.abstractions.product.ApiStoreProduct
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.testmode.models.SuperwallEntitlementRef
 import com.superwall.sdk.store.testmode.models.SuperwallProduct
@@ -311,7 +312,7 @@ class TestMode(
 
                 val productsByFullId =
                     androidProducts.associate { superwallProduct ->
-                        val testProduct = TestStoreProduct(superwallProduct)
+                        val testProduct = ApiStoreProduct(superwallProduct)
                         superwallProduct.identifier to StoreProduct(testProduct)
                     }
                 setTestProducts(productsByFullId)

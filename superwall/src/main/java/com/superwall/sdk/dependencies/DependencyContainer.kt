@@ -1032,6 +1032,19 @@ class DependencyContainer(
             appSessionId = appSessionManager.appSession.id,
         )
 
+    override suspend fun makeStoreTransaction(
+        customTransactionId: String,
+        productIdentifier: String,
+        purchaseDate: java.util.Date,
+    ): StoreTransaction =
+        StoreTransaction(
+            customTransactionId = customTransactionId,
+            productIdentifier = productIdentifier,
+            purchaseDate = purchaseDate,
+            configRequestId = configManager.config?.requestId ?: "",
+            appSessionId = appSessionManager.appSession.id,
+        )
+
     override suspend fun activeProductIds(): List<String> =
         storeManager.receiptManager.purchases.toList()
 
