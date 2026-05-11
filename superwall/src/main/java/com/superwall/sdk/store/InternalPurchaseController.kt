@@ -7,6 +7,7 @@ import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.delegate.subscription_controller.PurchaseControllerJava
+import com.superwall.sdk.store.abstractions.product.StoreProduct
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
@@ -59,6 +60,16 @@ class InternalPurchaseController(
 // //            } ?: return PurchaseResult.failed(PurchaseError.productUnavailable)
 // //        }
 //        return PurchaseResult.Cancelled()
+    }
+
+    override suspend fun purchase(customProduct: StoreProduct): PurchaseResult {
+        if (kotlinPurchaseController != null) {
+            return kotlinPurchaseController.purchase(customProduct)
+        }
+        // No PurchaseControllerJava overload for custom products yet — callers should
+        // be guarded by TransactionManager against this path when no external controller
+        // is configured.
+        return PurchaseResult.Failed("No PurchaseController configured to handle custom product purchase.")
     }
 
     override suspend fun restorePurchases(): RestorationResult {

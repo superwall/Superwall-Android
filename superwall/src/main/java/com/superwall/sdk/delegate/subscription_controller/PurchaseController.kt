@@ -5,6 +5,7 @@ import androidx.annotation.MainThread
 import com.android.billingclient.api.ProductDetails
 import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
+import com.superwall.sdk.store.abstractions.product.StoreProduct
 
 /**
  * The interface that handles Superwall's subscription-related logic.
@@ -51,4 +52,25 @@ interface PurchaseController {
      */
     @MainThread
     suspend fun restorePurchases(): RestorationResult
+
+    /**
+     * Called when the user initiates purchasing of a **custom** product — a product whose
+     * `store` is `CUSTOM` and whose metadata is sourced from the Superwall API rather than
+     * Google Play. Implement this to route the purchase through your own payment system
+     * (e.g. Stripe, web checkout).
+     *
+     * The default implementation returns `PurchaseResult.Failed` to signal that the
+     * controller does not handle custom products. Override it if you've configured any
+     * custom products in the Superwall dashboard.
+     *
+     * @param customProduct The Superwall [StoreProduct] (with `isCustomProduct == true`) the
+     * user would like to purchase. Its [StoreProduct.customTransactionId] is pre-generated
+     * by the SDK and used as the original transaction identifier in analytics.
+     */
+    @MainThread
+    suspend fun purchase(customProduct: StoreProduct): PurchaseResult =
+        PurchaseResult.Failed(
+            "This PurchaseController does not implement purchase(customProduct:). " +
+                "Override it to handle custom (store == CUSTOM) products.",
+        )
 }

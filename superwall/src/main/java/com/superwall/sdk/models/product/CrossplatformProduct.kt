@@ -122,6 +122,18 @@ data class CrossplatformProduct(
                 )
         }
 
+        @Serializable(with = CustomSerializer::class)
+        @SerialName("CUSTOM")
+        data class Custom(
+            @SerialName("product_identifier")
+            val productIdentifier: String,
+        ) : StoreProduct() {
+            override fun toStoreProductType(): ProductItem.StoreProductType =
+                ProductItem.StoreProductType.Custom(
+                    CustomStoreProduct(productIdentifier = productIdentifier),
+                )
+        }
+
         @Serializable(with = OtherSerializer::class)
         @SerialName("OTHER")
         data class Other(
@@ -150,6 +162,7 @@ data class CrossplatformProduct(
                 is StoreProduct.AppStore -> storeProduct.productIdentifier
                 is StoreProduct.Stripe -> storeProduct.productIdentifier
                 is StoreProduct.Paddle -> storeProduct.productIdentifier
+                is StoreProduct.Custom -> storeProduct.productIdentifier
                 is StoreProduct.Other -> ""
             }
 }
@@ -331,6 +344,38 @@ object PaddleSerializer : KSerializer<CrossplatformProduct.StoreProduct.Paddle> 
     }
 }
 
+object CustomSerializer : KSerializer<CrossplatformProduct.StoreProduct.Custom> {
+    override val descriptor: SerialDescriptor = buildClassSerialDescriptor("Custom")
+
+    override fun serialize(
+        encoder: Encoder,
+        value: CrossplatformProduct.StoreProduct.Custom,
+    ) {
+        val jsonEncoder =
+            encoder as? JsonEncoder
+                ?: throw SerializationException("This class can be saved only by Json")
+        val jsonObj =
+            buildJsonObject {
+                put("store", JsonPrimitive("CUSTOM"))
+                put("product_identifier", JsonPrimitive(value.productIdentifier))
+            }
+        jsonEncoder.encodeJsonElement(jsonObj)
+    }
+
+    override fun deserialize(decoder: Decoder): CrossplatformProduct.StoreProduct.Custom {
+        val jsonDecoder =
+            decoder as? JsonDecoder
+                ?: throw SerializationException("This class can be loaded only by Json")
+        val jsonObject = jsonDecoder.decodeJsonElement() as JsonObject
+
+        val productId =
+            jsonObject["product_identifier"]?.jsonPrimitive?.content
+                ?: throw SerializationException("product_identifier is missing")
+
+        return CrossplatformProduct.StoreProduct.Custom(productId)
+    }
+}
+
 object OtherSerializer : KSerializer<CrossplatformProduct.StoreProduct.Other> {
     override val descriptor: SerialDescriptor = buildClassSerialDescriptor("Other")
 
@@ -407,6 +452,7 @@ object CrossplatformProductSerializer : KSerializer<CrossplatformProduct> {
                     "APP_STORE" -> decoder.json.decodeFromJsonElement<CrossplatformProduct.StoreProduct.AppStore>(storeProductJsonObject)
                     "STRIPE" -> decoder.json.decodeFromJsonElement<CrossplatformProduct.StoreProduct.Stripe>(storeProductJsonObject)
                     "PADDLE" -> decoder.json.decodeFromJsonElement<CrossplatformProduct.StoreProduct.Paddle>(storeProductJsonObject)
+                    "CUSTOM" -> decoder.json.decodeFromJsonElement<CrossplatformProduct.StoreProduct.Custom>(storeProductJsonObject)
                     "OTHER" -> decoder.json.decodeFromJsonElement<CrossplatformProduct.StoreProduct.Other>(storeProductJsonObject)
                     else ->
                         CrossplatformProduct.StoreProduct.Other(

@@ -161,6 +161,20 @@ object PaywallLogic {
                         customerInfo = customerInfo,
                         introOfferEligibility = introOfferEligibility,
                     )
+
+                is ProductItem.StoreProductType.Custom -> {
+                    // Custom product trial info lives on the cached StoreProduct's
+                    // subscription metadata (fetched from /products). Use the same
+                    // entitlement-history check as web products.
+                    val trialDays = productsByFullId[productItem.fullProductId]?.trialPeriodDays ?: 0
+                    isWebTrialAvailable(
+                        name = productItem.name,
+                        trialDays = trialDays,
+                        entitlements = productItem.entitlements,
+                        customerInfo = customerInfo,
+                        introOfferEligibility = introOfferEligibility,
+                    )
+                }
             }
         }
 
