@@ -133,11 +133,21 @@ class StoreManager(
     }
 
     private suspend fun fetchOrAwaitProducts(fullProductIds: Set<String>): Map<String, StoreProduct> {
+        val testProducts = testMode?.takeIf { it.isTestMode }?.testProductsByFullId.orEmpty()
+        val testHits: Map<String, StoreProduct> =
+            if (testProducts.isEmpty()) {
+                emptyMap()
+            } else {
+                fullProductIds.mapNotNull { id -> testProducts[id]?.let { id to it } }.toMap()
+            }
+        val remainingIds = fullProductIds - testHits.keys
+        if (remainingIds.isEmpty()) return testHits
+
         val cached = mutableMapOf<String, StoreProduct>()
         val loading = mutableListOf<CompletableDeferred<StoreProduct>>()
         val newDeferreds = mutableMapOf<String, CompletableDeferred<StoreProduct>>()
 
-        for (id in fullProductIds) {
+        for (id in remainingIds) {
             val state =
                 productsByFullId.getOrPut(id) {
                     val deferred = CompletableDeferred<StoreProduct>()
@@ -181,7 +191,7 @@ class StoreManager(
 
         val fetched = fetchNewProducts(newDeferreds)
 
-        return cached + awaited + fetched
+        return testHits + cached + awaited + fetched
     }
 
     private suspend fun fetchNewProducts(deferreds: Map<String, CompletableDeferred<StoreProduct>>): Map<String, StoreProduct> {

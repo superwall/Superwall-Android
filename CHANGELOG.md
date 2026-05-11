@@ -2,6 +2,14 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.7.14
+
+## Fixes
+
+- Fixes test mode products not being loaded properly in PW
+- Improve exponential backoff retry for Play Service unavailable
+- Fix Custom Info date serialization issues
+
 ## 2.7.13
 
 ## Fixes
