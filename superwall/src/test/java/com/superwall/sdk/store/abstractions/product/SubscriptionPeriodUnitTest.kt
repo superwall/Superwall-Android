@@ -1,5 +1,6 @@
 package com.superwall.sdk.store.abstractions.product
 
+import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.math.BigDecimal
 
@@ -34,11 +35,13 @@ class SubscriptionPeriodUnitTest {
     // A 7-day period is exactly one week, so its weekly price must equal the
     // price. Before the day↔week fix this divided by (7 × 52/365) ≈ 0.997,
     // inflating it (e.g. 6.99 → 7.00).
+    // BigDecimal(String) — the double constructor would store an inexact
+    // binary value. assertEquals — Kotlin's assert() is a no-op without -ea.
     @Test
     fun sevenDayPeriod_weeklyPriceEqualsPrice() {
         val period = SubscriptionPeriod(7, SubscriptionPeriod.Unit.day)
-        val pricePerWeek = period.pricePerWeek(BigDecimal(6.99))
-        assert(pricePerWeek.compareTo(truncateDecimal(BigDecimal(6.99), 2)) == 0)
+        val pricePerWeek = period.pricePerWeek(BigDecimal("6.99"))
+        assertEquals(0, pricePerWeek.compareTo(BigDecimal("6.99")))
     }
 
     // A week is exactly 7 days. Before the fix, pricePerDay for a week product
@@ -47,8 +50,8 @@ class SubscriptionPeriodUnitTest {
     @Test
     fun weeklyPeriod_dailyPriceDividesBySeven() {
         val period = SubscriptionPeriod(1, SubscriptionPeriod.Unit.week)
-        val pricePerDay = period.pricePerDay(BigDecimal(7.00))
-        assert(pricePerDay.compareTo(truncateDecimal(BigDecimal(1.00), 2)) == 0)
+        val pricePerDay = period.pricePerDay(BigDecimal("7.00"))
+        assertEquals(0, pricePerDay.compareTo(BigDecimal("1.00")))
     }
 /* TODO: Re-enable these in CI
     @Test
