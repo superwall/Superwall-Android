@@ -141,7 +141,7 @@ sealed class TrackingLogic {
             input?.let { value ->
                 when (value) {
                     is List<*> -> null
-                    is Map<*, *> -> value
+                    is Map<*, *> -> cleanMap(value)
                     is String -> value
                     is Int, is Float, is Double, is Long, is Boolean -> value
                     is JsonElement -> value.convertFromJsonElement()
@@ -160,6 +160,28 @@ sealed class TrackingLogic {
                     }
                 }
             }
+
+        private fun cleanNested(input: Any?): Any? =
+            input?.let { value ->
+                when (value) {
+                    is List<*> -> cleanList(value)
+                    is Map<*, *> -> cleanMap(value)
+                    else -> clean(value)
+                }
+            }
+
+        private fun cleanMap(value: Map<*, *>): Map<String, Any>? =
+            value
+                .mapNotNull { (key, nestedValue) ->
+                    val cleanedValue = cleanNested(nestedValue) ?: return@mapNotNull null
+                    key?.toString()?.let { it to cleanedValue }
+                }.toMap()
+                .takeIf { it.isNotEmpty() }
+
+        private fun cleanList(value: List<*>): List<Any>? {
+            val cleanedValues = value.mapNotNull { cleanNested(it) }
+            return cleanedValues.ifEmpty { null }
+        }
 
         @Throws(Exception::class)
         fun checkNotSuperwallEvent(event: String) {

@@ -3,6 +3,7 @@ package com.superwall.sdk.compose
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import android.view.View
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -92,9 +93,6 @@ fun PaywallComposable(
     when {
         viewState.value != null -> {
             viewState.value?.let { viewToRender ->
-                LaunchedEffect(viewToRender) {
-                    viewToRender.onViewCreated()
-                }
                 val themeChanged = rememberThemeChanged()
                 AndroidView(
                     modifier = modifier,
@@ -103,7 +101,21 @@ fun PaywallComposable(
                             it.onThemeChanged()
                         }
                     },
-                    factory = { context ->
+                    factory = {
+                        if (viewToRender.isAttachedToWindow) {
+                            viewToRender.onViewCreated()
+                        } else {
+                            viewToRender.addOnAttachStateChangeListener(
+                                object : View.OnAttachStateChangeListener {
+                                    override fun onViewAttachedToWindow(view: View) {
+                                        view.removeOnAttachStateChangeListener(this)
+                                        viewToRender.onViewCreated()
+                                    }
+
+                                    override fun onViewDetachedFromWindow(view: View) = Unit
+                                },
+                            )
+                        }
                         viewToRender
                     },
                     onRelease = {

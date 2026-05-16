@@ -77,6 +77,45 @@ class TrackingLogicTest {
         }
 
     @Test
+    fun processParameters_recursivelyCleansNestedMaps() =
+        runBlocking {
+            val trackable =
+                TrackableTestUtils.fakeTrackable(
+                    rawName = "event_a",
+                    superwallParams =
+                        mapOf(
+                            "customer_info" to
+                                mapOf(
+                                    "userId" to "user-123",
+                                    "subscriptions" to
+                                        listOf(
+                                            mapOf(
+                                                "productId" to "pro_monthly",
+                                                "unsupported" to Any(),
+                                                "nullValue" to null,
+                                            ),
+                                        ),
+                                    "emptyMap" to mapOf("unsupported" to Any()),
+                                    "unsupported" to Any(),
+                                ),
+                        ),
+                    canImplicitlyTrigger = false,
+                )
+
+            val parameters = TrackingLogic.processParameters(trackable, appSessionId = "session-123")
+
+            val customerInfo = parameters.delegateParams["customer_info"] as Map<*, *>
+            val subscriptions = customerInfo["subscriptions"] as List<*>
+            val subscription = subscriptions.first() as Map<*, *>
+            assertEquals("user-123", customerInfo["userId"])
+            assertEquals("pro_monthly", subscription["productId"])
+            assertFalse(subscription.containsKey("unsupported"))
+            assertFalse(subscription.containsKey("nullValue"))
+            assertFalse(customerInfo.containsKey("emptyMap"))
+            assertFalse(customerInfo.containsKey("unsupported"))
+        }
+
+    @Test
     fun isNotDisabledVerboseEvent_handlesVariousEventTypes() {
         val paywallInfo = PaywallInfo.empty()
         val presentationRequest =
