@@ -6,6 +6,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## Enhancements
 - Improves preloading logic to reduce number of preloaded paywalls for certain campaign types
+- Improve display of periodic price in some cases
 
 ## 2.7.14
 
