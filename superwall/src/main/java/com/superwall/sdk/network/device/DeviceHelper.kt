@@ -16,6 +16,8 @@ import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.DefaultClassifierDataFactory
 import com.superwall.sdk.analytics.DeviceClassifier
 import com.superwall.sdk.analytics.Tier
+import com.superwall.sdk.dependencies.ActiveEntitlementsFactory
+import com.superwall.sdk.dependencies.CustomerInfoFactory
 import com.superwall.sdk.dependencies.ExperimentalPropertiesFactory
 import com.superwall.sdk.dependencies.IdentityInfoFactory
 import com.superwall.sdk.dependencies.IdentityManagerFactory
@@ -82,7 +84,9 @@ class DeviceHelper(
         StoreTransactionFactory,
         IdentityManagerFactory,
         ExperimentalPropertiesFactory,
-        OptionsFactory
+        OptionsFactory,
+        CustomerInfoFactory,
+        ActiveEntitlementsFactory
 
     private val json =
         Json {
@@ -478,20 +482,14 @@ class DeviceHelper(
      * localResourceIds.
      */
     suspend fun preloadFingerprint(): String {
-        val customerInfoSnapshot =
-            runCatching { Superwall.instance.getCustomerInfo().toString() }
-                .getOrDefault("")
+        val customerInfoSnapshot = factory.customerInfoFlow().value.toString()
         val activeEntitlements =
-            runCatching {
-                Superwall.instance.entitlements.active
-                    .sortedBy { it.id }
-                    .joinToString(",") { "${it.id}:${it.type.raw}" }
-            }.getOrDefault("")
-        val activeProducts =
-            runCatching { factory.activeProductIds().sorted().joinToString(",") }
-                .getOrDefault("")
-        val reviewRequests =
-            runCatching { reviewRequestsTotal().toString() }.getOrDefault("0")
+            factory
+                .activeEntitlements()
+                .sortedBy { it.id }
+                .joinToString(",") { "${it.id}:${it.type.raw}" }
+        val activeProducts = factory.activeProductIds().sorted().joinToString(",")
+        val reviewRequests = reviewRequestsTotal().toString()
 
         return listOf(
             locale,

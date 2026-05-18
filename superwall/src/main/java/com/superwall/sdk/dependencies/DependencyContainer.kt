@@ -184,6 +184,7 @@ class DependencyContainer(
     ClassifierDataFactory,
     ExperimentalPropertiesFactory,
     CustomerInfoFactory,
+    ActiveEntitlementsFactory,
     WebPaywallRedeemer.Factory {
     internal val getPaywallComponentsFactory: GetPaywallComponentsFactory by lazy {
         DefaultGetPaywallComponentsFactory(Superwall.instance)
@@ -1151,6 +1152,9 @@ class DependencyContainer(
 
     override fun customerInfoFlow(): StateFlow<CustomerInfo> =
         Superwall.instance.customerInfo
+
+    override fun activeEntitlements(): Set<com.superwall.sdk.models.entitlements.Entitlement> =
+        entitlements.active
 
     override fun updatePaywallInfo(paywallInfo: PaywallInfo) {
         Superwall.instance.presentationItems.paywallInfo = paywallInfo

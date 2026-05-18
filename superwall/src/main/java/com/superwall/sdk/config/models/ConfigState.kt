@@ -356,14 +356,20 @@ sealed class ConfigState {
         object PreloadIfEnabled : Actions(exec@{
             if (!options.computedShouldPreload(deviceHelper.deviceTier)) return@exec
             val config = state.value.getConfig() ?: return@exec
-            paywallPreload.lastFingerprint = deviceHelper.preloadFingerprint()
-            paywallPreload.preloadAllPaywalls(config, context)
+            paywallPreload.preloadAllPaywalls(
+                config,
+                context,
+                fingerprint = deviceHelper.preloadFingerprint(),
+            )
         })
 
         object PreloadAll : Actions(exec@{
             val config = state.value.getConfig() ?: return@exec
-            paywallPreload.lastFingerprint = deviceHelper.preloadFingerprint()
-            paywallPreload.preloadAllPaywalls(config, context)
+            paywallPreload.preloadAllPaywalls(
+                config,
+                context,
+                fingerprint = deviceHelper.preloadFingerprint(),
+            )
         })
 
         data class PreloadByNames(

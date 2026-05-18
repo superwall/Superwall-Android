@@ -816,8 +816,6 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         }
     }
 
-
-
     suspend fun attemptToScheduleNotifications(
         notifications: List<LocalNotification>,
         factory: DeviceHelperFactory,

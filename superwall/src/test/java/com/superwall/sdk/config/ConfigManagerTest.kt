@@ -1554,11 +1554,10 @@ class ConfigManagerTest {
                 )
         }
 
-    /** Wires `lastFingerprint` get/set on a PaywallPreload mock to a real holder. */
+    /** Wires `lastFingerprint` on a PaywallPreload mock to a real AtomicReference. */
     private fun bindFingerprintHolder(preload: PaywallPreload): java.util.concurrent.atomic.AtomicReference<String?> {
         val holder = java.util.concurrent.atomic.AtomicReference<String?>(null)
-        every { preload.lastFingerprint } answers { holder.get() }
-        every { preload.lastFingerprint = any() } answers { holder.set(firstArg()) }
+        every { preload.lastFingerprint } returns holder
         return holder
     }
 
@@ -1575,19 +1574,14 @@ class ConfigManagerTest {
             advanceUntilIdle()
 
             // Ignore any preload calls triggered by config retrieval itself.
-            io.mockk.clearMocks(
-                s.preload,
-                answers = false,
-                recordedCalls = true,
-            )
-            // Re-bind the property stubs after clearMocks (which wipes answers).
+            io.mockk.clearMocks(s.preload, answers = false, recordedCalls = true)
             bindFingerprintHolder(s.preload)
-            coEvery { s.preload.preloadAllPaywalls(any(), any()) } just Runs
+            coEvery { s.preload.preloadAllPaywalls(any(), any(), any()) } just Runs
 
             s.manager.recheckPreloadIfNeeded()
             advanceUntilIdle()
 
-            coVerify(exactly = 0) { s.preload.preloadAllPaywalls(any(), any()) }
+            coVerify(exactly = 0) { s.preload.preloadAllPaywalls(any(), any(), any()) }
         }
 
     @Test
@@ -1604,14 +1598,13 @@ class ConfigManagerTest {
             advanceUntilIdle()
 
             io.mockk.clearMocks(s.preload, answers = false, recordedCalls = true)
-            every { s.preload.lastFingerprint } answers { holder.get() }
-            every { s.preload.lastFingerprint = any() } answers { holder.set(firstArg()) }
-            coEvery { s.preload.preloadAllPaywalls(any(), any()) } just Runs
+            every { s.preload.lastFingerprint } returns holder
+            coEvery { s.preload.preloadAllPaywalls(any(), any(), any()) } just Runs
 
             s.manager.recheckPreloadIfNeeded()
             advanceUntilIdle()
 
-            coVerify(exactly = 0) { s.preload.preloadAllPaywalls(any(), any()) }
+            coVerify(exactly = 0) { s.preload.preloadAllPaywalls(any(), any(), any()) }
         }
 
     @Test
@@ -1627,15 +1620,13 @@ class ConfigManagerTest {
             advanceUntilIdle()
 
             io.mockk.clearMocks(s.preload, answers = false, recordedCalls = true)
-            every { s.preload.lastFingerprint } answers { holder.get() }
-            every { s.preload.lastFingerprint = any() } answers { holder.set(firstArg()) }
-            coEvery { s.preload.preloadAllPaywalls(any(), any()) } just Runs
+            every { s.preload.lastFingerprint } returns holder
+            coEvery { s.preload.preloadAllPaywalls(any(), any(), any()) } just Runs
 
             s.manager.recheckPreloadIfNeeded()
             advanceUntilIdle()
 
-            coVerify(exactly = 1) { s.preload.preloadAllPaywalls(eq(cfg), any()) }
-            assertEquals("NEW", holder.get())
+            coVerify(exactly = 1) { s.preload.preloadAllPaywalls(eq(cfg), any(), eq("NEW")) }
         }
 }
 

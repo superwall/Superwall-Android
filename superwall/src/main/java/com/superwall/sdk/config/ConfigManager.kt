@@ -158,9 +158,11 @@ open class ConfigManager(
                 trigger.rules.any { it.preload.behavior == TriggerPreloadBehavior.IF_TRUE }
             }
         if (!hasIfTrue) return
+        // Cheap pre-check; the authoritative dedup + atomic claim lives inside
+        // paywallPreload.preloadAllPaywalls so it commits only when a preload
+        // actually starts (and rolls back if the run is dropped).
         val fingerprint = deviceHelper.preloadFingerprint()
-        if (paywallPreload.lastFingerprint == fingerprint) return
-        paywallPreload.lastFingerprint = fingerprint
+        if (paywallPreload.lastFingerprint.get() == fingerprint) return
         immediate(ConfigState.Actions.PreloadAll)
     }
 
