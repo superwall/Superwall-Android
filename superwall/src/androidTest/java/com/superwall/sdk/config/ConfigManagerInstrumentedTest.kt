@@ -111,6 +111,7 @@ class ConfigManagerTests {
             every { setEnrichment(any()) } just Runs
             coEvery { getTemplateDevice() } returns emptyMap()
             coEvery { getEnrichment(any(), any()) } returns Either.Success(Enrichment.stub())
+            coEvery { preloadFingerprint() } returns "stub-fingerprint"
         }
 
     @Before
