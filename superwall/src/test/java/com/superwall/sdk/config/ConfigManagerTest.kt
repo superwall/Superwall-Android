@@ -15,6 +15,8 @@ import com.superwall.sdk.models.config.RawFeatureFlag
 import com.superwall.sdk.models.enrichment.Enrichment
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.triggers.Trigger
+import com.superwall.sdk.models.triggers.TriggerPreloadBehavior
+import com.superwall.sdk.models.triggers.TriggerRule
 import com.superwall.sdk.network.NetworkError
 import com.superwall.sdk.network.SuperwallAPI
 import com.superwall.sdk.network.device.DeviceHelper
@@ -1537,6 +1539,103 @@ class ConfigManagerTest {
 
             assertEquals(1, emissions.size)
             assertEquals("first", emissions.single().buildId)
+        }
+
+    // MARK: - recheckPreloadIfNeeded
+
+    private fun triggerWith(behavior: TriggerPreloadBehavior, experimentId: String = "exp"): Trigger =
+        Trigger.stub().apply {
+            rules =
+                listOf(
+                    TriggerRule.stub().apply {
+                        this.experimentId = experimentId
+                        this.preload.behavior = behavior
+                    },
+                )
+        }
+
+    /** Wires `lastFingerprint` get/set on a PaywallPreload mock to a real holder. */
+    private fun bindFingerprintHolder(preload: PaywallPreload): java.util.concurrent.atomic.AtomicReference<String?> {
+        val holder = java.util.concurrent.atomic.AtomicReference<String?>(null)
+        every { preload.lastFingerprint } answers { holder.get() }
+        every { preload.lastFingerprint = any() } answers { holder.set(firstArg()) }
+        return holder
+    }
+
+    @Test
+    fun `recheckPreloadIfNeeded is a no-op when config has no IF_TRUE rule`() =
+        runTest(timeout = 5.seconds) {
+            val s = setup(backgroundScope)
+            bindFingerprintHolder(s.preload)
+            coEvery { s.deviceHelper.preloadFingerprint() } returns "X"
+
+            s.manager.applyRetrievedConfigForTesting(
+                config(triggers = setOf(triggerWith(TriggerPreloadBehavior.ALWAYS))),
+            )
+            advanceUntilIdle()
+
+            // Ignore any preload calls triggered by config retrieval itself.
+            io.mockk.clearMocks(
+                s.preload,
+                answers = false,
+                recordedCalls = true,
+            )
+            // Re-bind the property stubs after clearMocks (which wipes answers).
+            bindFingerprintHolder(s.preload)
+            coEvery { s.preload.preloadAllPaywalls(any(), any()) } just Runs
+
+            s.manager.recheckPreloadIfNeeded()
+            advanceUntilIdle()
+
+            coVerify(exactly = 0) { s.preload.preloadAllPaywalls(any(), any()) }
+        }
+
+    @Test
+    fun `recheckPreloadIfNeeded is a no-op when fingerprint has not changed`() =
+        runTest(timeout = 5.seconds) {
+            val s = setup(backgroundScope)
+            val holder = bindFingerprintHolder(s.preload)
+            holder.set("SAME")
+            coEvery { s.deviceHelper.preloadFingerprint() } returns "SAME"
+
+            s.manager.applyRetrievedConfigForTesting(
+                config(triggers = setOf(triggerWith(TriggerPreloadBehavior.IF_TRUE))),
+            )
+            advanceUntilIdle()
+
+            io.mockk.clearMocks(s.preload, answers = false, recordedCalls = true)
+            every { s.preload.lastFingerprint } answers { holder.get() }
+            every { s.preload.lastFingerprint = any() } answers { holder.set(firstArg()) }
+            coEvery { s.preload.preloadAllPaywalls(any(), any()) } just Runs
+
+            s.manager.recheckPreloadIfNeeded()
+            advanceUntilIdle()
+
+            coVerify(exactly = 0) { s.preload.preloadAllPaywalls(any(), any()) }
+        }
+
+    @Test
+    fun `recheckPreloadIfNeeded dispatches preload when fingerprint changes`() =
+        runTest(timeout = 5.seconds) {
+            val s = setup(backgroundScope)
+            val holder = bindFingerprintHolder(s.preload)
+            holder.set("OLD")
+            coEvery { s.deviceHelper.preloadFingerprint() } returns "NEW"
+
+            val cfg = config(triggers = setOf(triggerWith(TriggerPreloadBehavior.IF_TRUE)))
+            s.manager.applyRetrievedConfigForTesting(cfg)
+            advanceUntilIdle()
+
+            io.mockk.clearMocks(s.preload, answers = false, recordedCalls = true)
+            every { s.preload.lastFingerprint } answers { holder.get() }
+            every { s.preload.lastFingerprint = any() } answers { holder.set(firstArg()) }
+            coEvery { s.preload.preloadAllPaywalls(any(), any()) } just Runs
+
+            s.manager.recheckPreloadIfNeeded()
+            advanceUntilIdle()
+
+            coVerify(exactly = 1) { s.preload.preloadAllPaywalls(eq(cfg), any()) }
+            assertEquals("NEW", holder.get())
         }
 }
 

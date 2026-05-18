@@ -36,6 +36,15 @@ class PaywallPreload(
 
     private var currentPreloadingTask: Job? = null
 
+    /**
+     * Fingerprint of the device/store/subscription state at the time of the most
+     * recent preload dispatch. Used by ConfigManager.recheckPreloadIfNeeded to
+     * decide whether attribute changes warrant a re-preload. Seeded by the
+     * PreloadIfEnabled / PreloadAll actions on every dispatch.
+     */
+    @Volatile
+    internal var lastFingerprint: String? = null
+
     suspend fun preloadAllPaywalls(
         config: Config,
         context: Context,

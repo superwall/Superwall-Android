@@ -1,8 +1,10 @@
 package com.superwall.sdk
 
 import android.app.Application
+import android.content.ComponentCallbacks2
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.net.Uri
 import androidx.work.WorkManager
 import com.android.billingclient.api.BillingResult
@@ -720,6 +722,7 @@ class Superwall(
                     )
                     val event = InternalSuperwallEvent.SubscriptionStatusDidChange(newValue)
                     track(event)
+                    dependencyContainer.configManager.recheckPreloadIfNeeded()
                 }
         }
         ioScope.launchWithTracking {
@@ -735,8 +738,33 @@ class Superwall(
                     dependencyContainer.storage.write(LatestCustomerInfo, new)
                     dependencyContainer.delegateAdapter.customerInfoDidChange(old!!, new)
                     track(CustomerInfoDidChange(old, new))
+                    dependencyContainer.configManager.recheckPreloadIfNeeded()
                 }
         }
+        registerConfigurationChangeListener()
+    }
+
+    private var configurationChangeListener: ComponentCallbacks2? = null
+
+    private fun registerConfigurationChangeListener() {
+        // Locale / region / language / timezone / interfaceStyle (when overrides
+        // are off) all reflect Android Configuration. ComponentCallbacks2 fires on
+        // changes and runs on the main thread; bounce through ioScope to call the
+        // suspend recheck.
+        val listener =
+            object : ComponentCallbacks2 {
+                override fun onConfigurationChanged(newConfig: Configuration) {
+                    ioScope.launchWithTracking {
+                        dependencyContainer.configManager.recheckPreloadIfNeeded()
+                    }
+                }
+
+                override fun onLowMemory() = Unit
+
+                override fun onTrimMemory(level: Int) = Unit
+            }
+        configurationChangeListener = listener
+        context.applicationContext.registerComponentCallbacks(listener)
     }
 
     /**
@@ -780,6 +808,7 @@ class Superwall(
             dependencyContainer.deviceHelper.interfaceStyleOverride = interfaceStyle
             ioScope.launch {
                 track(InternalSuperwallEvent.DeviceAttributes(dependencyContainer.makeSessionDeviceAttributes()))
+                dependencyContainer.configManager.recheckPreloadIfNeeded()
             }
         }
     }
@@ -884,6 +913,11 @@ class Superwall(
             // Note: We intentionally do NOT unregister the activity lifecycle callbacks here
             // because the activity provider will be retained and reused in the next configure call.
             // This ensures the current activity is still tracked across hot reload cycles.
+
+            configurationChangeListener?.let {
+                context.applicationContext.unregisterComponentCallbacks(it)
+                configurationChangeListener = null
+            }
         }
     }
 
@@ -1409,6 +1443,7 @@ class Superwall(
                                                 type = paywallEvent.type.rawValue,
                                             ),
                                         )
+                                        dependencyContainer.configManager.recheckPreloadIfNeeded()
                                     }
                                 }
 

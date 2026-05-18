@@ -21,6 +21,7 @@ import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.ExperimentID
 import com.superwall.sdk.models.triggers.Trigger
+import com.superwall.sdk.models.triggers.TriggerPreloadBehavior
 import com.superwall.sdk.network.SuperwallAPI
 import com.superwall.sdk.network.awaitUntilNetworkExists
 import com.superwall.sdk.network.device.DeviceHelper
@@ -139,6 +140,27 @@ open class ConfigManager(
 
     suspend fun preloadAllPaywalls() {
         actor.state.awaitFirstValidConfig()
+        immediate(ConfigState.Actions.PreloadAll)
+    }
+
+    /**
+     * Re-runs preload if any DeviceHelper field referenced by IF_TRUE rules has
+     * changed since the last preload. Cheap no-op when (a) config has no IF_TRUE
+     * rule or (b) the fingerprint matches the last dispatched preload.
+     *
+     * Call this from change-emitting signals (subscription status, configuration
+     * change, interface style override, store readiness, review-request increment).
+     */
+    suspend fun recheckPreloadIfNeeded() {
+        val config = actor.state.value.getConfig() ?: return
+        val hasIfTrue =
+            config.triggers.any { trigger ->
+                trigger.rules.any { it.preload.behavior == TriggerPreloadBehavior.IF_TRUE }
+            }
+        if (!hasIfTrue) return
+        val fingerprint = deviceHelper.preloadFingerprint()
+        if (paywallPreload.lastFingerprint == fingerprint) return
+        paywallPreload.lastFingerprint = fingerprint
         immediate(ConfigState.Actions.PreloadAll)
     }
 

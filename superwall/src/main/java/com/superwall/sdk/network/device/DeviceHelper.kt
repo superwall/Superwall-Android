@@ -470,6 +470,46 @@ class DeviceHelper(
                 "UNKNOWN"
             }
 
+    /**
+     * Stable fingerprint of the device/store/subscription/storage fields that can
+     * affect which paywalls IF_TRUE rules preload. Compared by value to decide
+     * whether to re-run preload after a state change. Excludes iOS-only fields
+     * (storeFrontCountryCode/Id/Currency, appTransactionId) and configure-time
+     * localResourceIds.
+     */
+    suspend fun preloadFingerprint(): String {
+        val customerInfoSnapshot =
+            runCatching { Superwall.instance.getCustomerInfo().toString() }
+                .getOrDefault("")
+        val activeEntitlements =
+            runCatching {
+                Superwall.instance.entitlements.active
+                    .sortedBy { it.id }
+                    .joinToString(",") { "${it.id}:${it.type.raw}" }
+            }.getOrDefault("")
+        val activeProducts =
+            runCatching { factory.activeProductIds().sorted().joinToString(",") }
+                .getOrDefault("")
+        val reviewRequests =
+            runCatching { reviewRequestsTotal().toString() }.getOrDefault("0")
+
+        return listOf(
+            locale,
+            languageCode,
+            regionCode,
+            currencyCode,
+            currencySymbol,
+            secondsFromGMT,
+            interfaceStyle,
+            if (interfaceStyleOverride == null) "automatic" else "manual",
+            reviewRequests,
+            activeEntitlements,
+            customerInfoSnapshot,
+            activeProducts,
+            isSandbox.toString(),
+        ).joinToString("|")
+    }
+
     suspend fun getDeviceAttributes(
         sinceEvent: EventData?,
         computedPropertyRequests: List<ComputedPropertyRequest>,
