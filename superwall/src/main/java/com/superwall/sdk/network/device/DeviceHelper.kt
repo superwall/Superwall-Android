@@ -16,6 +16,8 @@ import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.DefaultClassifierDataFactory
 import com.superwall.sdk.analytics.DeviceClassifier
 import com.superwall.sdk.analytics.Tier
+import com.superwall.sdk.dependencies.ActiveEntitlementsFactory
+import com.superwall.sdk.dependencies.CustomerInfoFactory
 import com.superwall.sdk.dependencies.ExperimentalPropertiesFactory
 import com.superwall.sdk.dependencies.IdentityInfoFactory
 import com.superwall.sdk.dependencies.IdentityManagerFactory
@@ -82,7 +84,9 @@ class DeviceHelper(
         StoreTransactionFactory,
         IdentityManagerFactory,
         ExperimentalPropertiesFactory,
-        OptionsFactory
+        OptionsFactory,
+        CustomerInfoFactory,
+        ActiveEntitlementsFactory
 
     private val json =
         Json {
@@ -469,6 +473,40 @@ class DeviceHelper(
             } catch (e: Throwable) {
                 "UNKNOWN"
             }
+
+    /**
+     * Stable fingerprint of the device/store/subscription/storage fields that can
+     * affect which paywalls IF_TRUE rules preload. Compared by value to decide
+     * whether to re-run preload after a state change. Excludes iOS-only fields
+     * (storeFrontCountryCode/Id/Currency, appTransactionId) and configure-time
+     * localResourceIds.
+     */
+    suspend fun preloadFingerprint(): String {
+        val customerInfoSnapshot = factory.customerInfoFlow().value.toString()
+        val activeEntitlements =
+            factory
+                .activeEntitlements()
+                .sortedBy { it.id }
+                .joinToString(",") { "${it.id}:${it.type.raw}" }
+        val activeProducts = factory.activeProductIds().sorted().joinToString(",")
+        val reviewRequests = reviewRequestsTotal().toString()
+
+        return listOf(
+            locale,
+            languageCode,
+            regionCode,
+            currencyCode,
+            currencySymbol,
+            secondsFromGMT,
+            interfaceStyle,
+            if (interfaceStyleOverride == null) "automatic" else "manual",
+            reviewRequests,
+            activeEntitlements,
+            customerInfoSnapshot,
+            activeProducts,
+            isSandbox.toString(),
+        ).joinToString("|")
+    }
 
     suspend fun getDeviceAttributes(
         sinceEvent: EventData?,

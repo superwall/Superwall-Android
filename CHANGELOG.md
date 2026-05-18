@@ -2,6 +2,11 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.7.15
+
+## Enhancements
+- Improves preloading logic to reduce number of preloaded paywalls for certain campaign types
+
 ## 2.7.14
 
 ## Fixes

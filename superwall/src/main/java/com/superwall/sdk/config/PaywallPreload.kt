@@ -20,6 +20,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
+import java.util.concurrent.atomic.AtomicReference
 
 class PaywallPreload(
     val factory: Factory,
@@ -36,11 +37,32 @@ class PaywallPreload(
 
     private var currentPreloadingTask: Job? = null
 
+    /**
+     * Fingerprint of the device/store/subscription state of the most recent
+     * preload that actually *started* (i.e. wasn't dropped by the "already
+     * running" guard). Compared by ConfigManager.recheckPreloadIfNeeded to
+     * decide whether attribute changes warrant a re-preload. Atomic so concurrent
+     * rechecks don't both claim the same dispatch slot.
+     */
+    internal val lastFingerprint: AtomicReference<String?> = AtomicReference(null)
+
     suspend fun preloadAllPaywalls(
         config: Config,
         context: Context,
+        fingerprint: String? = null,
     ) {
-        if (currentPreloadingTask != null) {
+        if (fingerprint != null) {
+            val previous = lastFingerprint.get()
+            // Already preloaded this exact state, or another caller raced ahead.
+            if (previous == fingerprint) return
+            if (!lastFingerprint.compareAndSet(previous, fingerprint)) return
+            // CAS won; if the preload below is dropped, roll back so future
+            // rechecks can retry.
+            if (currentPreloadingTask != null) {
+                lastFingerprint.compareAndSet(fingerprint, previous)
+                return
+            }
+        } else if (currentPreloadingTask != null) {
             return
         }
 

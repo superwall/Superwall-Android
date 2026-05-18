@@ -4,9 +4,11 @@ package com.superwall.sdk.models.entitlements
 
 import android.annotation.SuppressLint
 import com.superwall.sdk.models.product.Store
+import com.superwall.sdk.models.serialization.DateSerializer
 import com.superwall.sdk.store.abstractions.product.receipt.LatestPeriodType
 import com.superwall.sdk.store.abstractions.product.receipt.LatestSubscriptionState
 import kotlinx.serialization.Contextual
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.util.*
@@ -15,6 +17,7 @@ import java.util.*
  * An entitlement that represents a subscription tier in your app.
  */
 @SuppressLint("UnsafeOptInUsageError")
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class Entitlement(
     /**
@@ -55,6 +58,7 @@ data class Entitlement(
      */
     @SerialName("startsAt")
     @Contextual
+    @Serializable(with = DateSerializer::class)
     val startsAt: Date? = null,
     /**
      * The date that the entitlement was last renewed.
@@ -66,6 +70,7 @@ data class Entitlement(
      */
     @SerialName("renewedAt")
     @Contextual
+    @Serializable(with = DateSerializer::class)
     val renewedAt: Date? = null,
     /**
      * The expiry date of the last transaction that unlocked this entitlement.
@@ -75,6 +80,7 @@ data class Entitlement(
      */
     @SerialName("expiresAt")
     @Contextual
+    @Serializable(with = DateSerializer::class)
     val expiresAt: Date? = null,
     /**
      * Indicates whether the entitlement is active for a lifetime due to the purchase of a non-consumable.
