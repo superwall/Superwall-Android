@@ -131,6 +131,7 @@ class ConfigManagerTest {
                 every { setEnrichment(any()) } just Runs
                 coEvery { getTemplateDevice() } returns emptyMap()
                 coEvery { getEnrichment(any(), any()) } returns Either.Success(Enrichment.stub())
+                coEvery { preloadFingerprint() } returns "stub-fingerprint"
             }
         val storeManager =
             storeManagerOverride
@@ -140,9 +141,10 @@ class ConfigManagerTest {
                 }
         val preload =
             mockk<PaywallPreload> {
-                coEvery { preloadAllPaywalls(any(), any()) } just Runs
+                coEvery { preloadAllPaywalls(any(), any(), any()) } just Runs
                 coEvery { preloadPaywallsByNames(any(), any()) } just Runs
                 coEvery { removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
+                every { lastFingerprint } returns java.util.concurrent.atomic.AtomicReference(null)
             }
         val paywallManager = mockk<PaywallManager>(relaxed = true)
         val webRedeemer = mockk<WebPaywallRedeemer>(relaxed = true)
@@ -411,7 +413,7 @@ class ConfigManagerTest {
             s.manager.preloadAllPaywalls()
             advanceUntilIdle()
 
-            coVerify(exactly = 1) { s.preload.preloadAllPaywalls(any(), any()) }
+            coVerify(exactly = 1) { s.preload.preloadAllPaywalls(any(), any(), any()) }
         }
 
     @Test
@@ -705,7 +707,7 @@ class ConfigManagerTest {
             s.manager.configState.first { it is ConfigState.Retrieved }
             advanceUntilIdle()
 
-            coVerify(exactly = 0) { s.preload.preloadAllPaywalls(any(), any()) }
+            coVerify(exactly = 0) { s.preload.preloadAllPaywalls(any(), any(), any()) }
         }
 
     @Test
@@ -723,7 +725,7 @@ class ConfigManagerTest {
             s.manager.configState.first { it is ConfigState.Retrieved }
             advanceUntilIdle()
 
-            coVerify(atLeast = 1) { s.preload.preloadAllPaywalls(any(), any()) }
+            coVerify(atLeast = 1) { s.preload.preloadAllPaywalls(any(), any(), any()) }
         }
 
     @Test
@@ -744,14 +746,14 @@ class ConfigManagerTest {
             s.manager.applyRetrievedConfigForTesting(configWithTriggers)
             // Reset the mock so we only count post-assignment preloads.
             io.mockk.clearMocks(s.preload, answers = false)
-            coEvery { s.preload.preloadAllPaywalls(any(), any()) } just Runs
+            coEvery { s.preload.preloadAllPaywalls(any(), any(), any()) } just Runs
             coEvery { s.preload.preloadPaywallsByNames(any(), any()) } just Runs
             coEvery { s.preload.removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
 
             s.manager.getAssignments()
             advanceUntilIdle()
 
-            coVerify(atLeast = 1) { s.preload.preloadAllPaywalls(any(), any()) }
+            coVerify(atLeast = 1) { s.preload.preloadAllPaywalls(any(), any(), any()) }
         }
 
     @Test
@@ -870,7 +872,7 @@ class ConfigManagerTest {
             val newConfig = config(buildId = "new", enableRefresh = true)
             val paywallManager = mockk<PaywallManager>(relaxed = true)
             val preload = mockk<PaywallPreload>(relaxed = true) {
-                coEvery { preloadAllPaywalls(any(), any()) } just Runs
+                coEvery { preloadAllPaywalls(any(), any(), any()) } just Runs
                 coEvery { preloadPaywallsByNames(any(), any()) } just Runs
                 coEvery { removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
             }
@@ -934,7 +936,7 @@ class ConfigManagerTest {
             val s = setup(backgroundScope)
             s.manager.reset()
             advanceUntilIdle()
-            coVerify(exactly = 0) { s.preload.preloadAllPaywalls(any(), any()) }
+            coVerify(exactly = 0) { s.preload.preloadAllPaywalls(any(), any(), any()) }
         }
 
     @Test
@@ -958,14 +960,14 @@ class ConfigManagerTest {
             val s = setup(backgroundScope)
             val job = launch { s.manager.preloadAllPaywalls() }
             delay(50)
-            coVerify(exactly = 0) { s.preload.preloadAllPaywalls(any(), any()) }
+            coVerify(exactly = 0) { s.preload.preloadAllPaywalls(any(), any(), any()) }
 
             val cfg = Config.stub().copy(buildId = "preload-all")
             s.manager.applyRetrievedConfigForTesting(cfg)
             job.join()
             advanceUntilIdle()
 
-            coVerify(exactly = 1) { s.preload.preloadAllPaywalls(eq(cfg), any()) }
+            coVerify(exactly = 1) { s.preload.preloadAllPaywalls(eq(cfg), any(), any()) }
         }
 
     @Test
@@ -1178,7 +1180,7 @@ class ConfigManagerTest {
             advanceUntilIdle()
 
             coVerifyOrder {
-                s.preload.preloadAllPaywalls(any(), any())
+                s.preload.preloadAllPaywalls(any(), any(), any())
                 s.network.getConfig(any())
             }
             assertTrue(getCalls.get() >= 2)
@@ -1448,7 +1450,7 @@ class ConfigManagerTest {
                     coEvery { loadPurchasedProducts(any()) } just Runs
                 },
                 preload = mockk(relaxed = true) {
-                    coEvery { preloadAllPaywalls(any(), any()) } just Runs
+                    coEvery { preloadAllPaywalls(any(), any(), any()) } just Runs
                     coEvery { preloadPaywallsByNames(any(), any()) } just Runs
                     coEvery { removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
                 },
