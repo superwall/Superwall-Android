@@ -1445,7 +1445,7 @@ class Superwall(
                                     ?: dependencyContainer
                                         .activityProvider
                                         ?.getCurrentActivity()
-                                ) as SuperwallPaywallActivity?
+                                ) as? SuperwallPaywallActivity?
                     // Cancel any existing fallback notification of the same type before scheduling
                     // the dynamic notification from the paywall
                     paywallActivity?.attemptToScheduleNotifications(
@@ -1456,7 +1456,7 @@ class Superwall(
                         Logger.debug(
                             LogLevel.error,
                             LogScope.paywallView,
-                            message = "No paywall activity alive to schedule notifications",
+                            message = "No superwall paywall activity alive to schedule notifications",
                         )
                     }
                 }

@@ -135,8 +135,11 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import com.superwall.sdk.models.serialization.DateSerializer
 import kotlinx.serialization.json.ClassDiscriminatorMode
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.modules.SerializersModule
+import kotlinx.serialization.modules.contextual
 import java.lang.ref.WeakReference
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
@@ -773,7 +776,14 @@ class DependencyContainer(
         return headers
     }
 
-    private val paywallJson = Json { encodeDefaults = true }
+    private val paywallJson =
+        Json {
+            encodeDefaults = true
+            serializersModule =
+                SerializersModule {
+                    contextual(Date::class, DateSerializer)
+                }
+        }
 
     override suspend fun makePaywallView(
         paywall: Paywall,
@@ -1224,19 +1234,19 @@ class DependencyContainer(
 
     override suspend fun receipts(): List<TransactionReceipt> =
         googleBillingWrapper.queryAllPurchases().map {
-            val id = it.products.first()
-            val product = storeManager.products(setOf(id)).first()
+            val id = it.products.firstOrNull() ?: return@map null
+            val product = storeManager.products(setOf(id)).firstOrNull() ?: return@map null
             TransactionReceipt(
                 it.purchaseToken,
                 it.orderId,
-                it.products.first(),
+                id,
                 if (product.rawStoreProduct?.isSubscription == true) {
                     TransactionReceipt.ProductType.SUBSCRIPTION
                 } else {
                     TransactionReceipt.ProductType.IAP
                 },
             )
-        }
+        }.filterNotNull()
 
     override fun getExternalAccountId(): String = identityManager.externalAccountId
 
