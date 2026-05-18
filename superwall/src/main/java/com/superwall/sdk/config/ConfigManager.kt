@@ -163,7 +163,7 @@ open class ConfigManager(
         // actually starts (and rolls back if the run is dropped).
         val fingerprint = deviceHelper.preloadFingerprint()
         if (paywallPreload.lastFingerprint.get() == fingerprint) return
-        immediate(ConfigState.Actions.PreloadAll)
+        immediate(ConfigState.Actions.PreloadIfEnabled)
     }
 
     suspend fun preloadPaywallsByNames(eventNames: Set<String>) {

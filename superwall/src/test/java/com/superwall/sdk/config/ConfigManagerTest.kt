@@ -1612,7 +1612,8 @@ class ConfigManagerTest {
     @Test
     fun `recheckPreloadIfNeeded dispatches preload when fingerprint changes`() =
         runTest(timeout = 5.seconds) {
-            val s = setup(backgroundScope)
+            // shouldPreload = true so PreloadIfEnabled's gate doesn't short-circuit.
+            val s = setup(backgroundScope, shouldPreload = true)
             val holder = bindFingerprintHolder(s.preload)
             holder.set("OLD")
             coEvery { s.deviceHelper.preloadFingerprint() } returns "NEW"
@@ -1629,6 +1630,29 @@ class ConfigManagerTest {
             advanceUntilIdle()
 
             coVerify(exactly = 1) { s.preload.preloadAllPaywalls(eq(cfg), any(), eq("NEW")) }
+        }
+
+    @Test
+    fun `recheckPreloadIfNeeded does not preload when shouldPreload is disabled`() =
+        runTest(timeout = 5.seconds) {
+            // shouldPreload = false → PreloadIfEnabled's gate must short-circuit.
+            val s = setup(backgroundScope, shouldPreload = false)
+            val holder = bindFingerprintHolder(s.preload)
+            holder.set("OLD")
+            coEvery { s.deviceHelper.preloadFingerprint() } returns "NEW"
+
+            val cfg = config(triggers = setOf(triggerWith(TriggerPreloadBehavior.IF_TRUE)))
+            s.manager.applyRetrievedConfigForTesting(cfg)
+            advanceUntilIdle()
+
+            io.mockk.clearMocks(s.preload, answers = false, recordedCalls = true)
+            every { s.preload.lastFingerprint } returns holder
+            coEvery { s.preload.preloadAllPaywalls(any(), any(), any()) } just Runs
+
+            s.manager.recheckPreloadIfNeeded()
+            advanceUntilIdle()
+
+            coVerify(exactly = 0) { s.preload.preloadAllPaywalls(any(), any(), any()) }
         }
 }
 
