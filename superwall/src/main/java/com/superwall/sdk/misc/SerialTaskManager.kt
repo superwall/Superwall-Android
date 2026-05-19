@@ -3,6 +3,7 @@ package com.superwall.sdk.misc
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
+import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
@@ -14,7 +15,9 @@ class SerialTaskManager(
     init {
         coroutineScope.launch {
             for (task in channel) {
-                task()
+                withErrorTracking {
+                    task()
+                }
             }
         }
     }

@@ -356,7 +356,11 @@ sealed class ConfigState {
         object PreloadIfEnabled : Actions(exec@{
             if (!options.computedShouldPreload(deviceHelper.deviceTier)) return@exec
             val config = state.value.getConfig() ?: return@exec
-            paywallPreload.preloadAllPaywalls(config, context)
+            paywallPreload.preloadAllPaywalls(
+                config,
+                context,
+                fingerprint = deviceHelper.preloadFingerprint(),
+            )
         })
 
         object PreloadAll : Actions(exec@{

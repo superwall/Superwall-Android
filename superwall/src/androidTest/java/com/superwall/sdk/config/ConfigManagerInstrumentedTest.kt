@@ -111,6 +111,7 @@ class ConfigManagerTests {
             every { setEnrichment(any()) } just Runs
             coEvery { getTemplateDevice() } returns emptyMap()
             coEvery { getEnrichment(any(), any()) } returns Either.Success(Enrichment.stub())
+            coEvery { preloadFingerprint() } returns "stub-fingerprint"
         }
 
     @Before
@@ -146,7 +147,7 @@ class ConfigManagerTests {
                 val assignments = Assignments(storage, network, backgroundScope)
                 val preload =
                     mockk<PaywallPreload> {
-                        coEvery { preloadAllPaywalls(any(), any()) } just Runs
+                        coEvery { preloadAllPaywalls(any(), any(), any()) } just Runs
                         coEvery { preloadPaywallsByNames(any(), any()) } just Runs
                         coEvery { removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
                     }
@@ -188,7 +189,7 @@ class ConfigManagerTests {
                 val assignmentStore = Assignments(storage, network, backgroundScope)
                 val preload =
                     mockk<PaywallPreload> {
-                        coEvery { preloadAllPaywalls(any(), any()) } just Runs
+                        coEvery { preloadAllPaywalls(any(), any(), any()) } just Runs
                         coEvery { preloadPaywallsByNames(any(), any()) } just Runs
                         coEvery { removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
                     }

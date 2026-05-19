@@ -21,6 +21,7 @@ import com.superwall.sdk.misc.MainScope
 import com.superwall.sdk.models.config.ComputedPropertyRequest
 import com.superwall.sdk.models.config.FeatureFlags
 import com.superwall.sdk.models.customer.CustomerInfo
+import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.Paywall
@@ -150,6 +151,10 @@ interface DelegateAdapterFactory {
 
 fun interface CustomerInfoFactory {
     fun customerInfoFlow(): StateFlow<CustomerInfo>
+}
+
+fun interface ActiveEntitlementsFactory {
+    fun activeEntitlements(): Set<Entitlement>
 }
 
 interface PresentationFactory {

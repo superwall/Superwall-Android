@@ -2,6 +2,16 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.7.15
+
+## Enhancements
+- Improves preloading logic to reduce number of preloaded paywalls for certain campaign types
+- Improve display of periodic price in some cases
+
+## Fixes
+- Fix dropping delegate events when an error occurs
+- Fix overenthusiastic delivery of `subscriptionStatus_didChange` events on minor changes
+
 ## 2.7.14
 
 ## Fixes
