@@ -43,6 +43,7 @@ import com.superwall.sdk.storage.EventsQueue
 import com.superwall.sdk.storage.PurchasingProductdIds
 import com.superwall.sdk.storage.Storage
 import com.superwall.sdk.store.PurchasingObserverState
+import com.superwall.sdk.store.ReplacementMode
 import com.superwall.sdk.store.StoreManager
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import com.superwall.sdk.store.abstractions.product.StoreProduct
@@ -87,6 +88,7 @@ class TransactionManager(
         data class Internal(
             val productId: String,
             val state: PaywallViewState,
+            val replacementMode: ReplacementMode? = null,
         ) : PurchaseSource() {
             val paywallInfo: PaywallInfo
                 get() = state.info
@@ -362,12 +364,29 @@ class TransactionManager(
 
         prepareToPurchase(product, purchaseSource)
         val result =
-            storeManager.purchaseController.purchase(
-                activity = activity,
-                productDetails = productDetails,
-                offerId = rawStoreProduct.offerId,
-                basePlanId = rawStoreProduct.basePlanId,
-            )
+            if (
+                purchaseSource is PurchaseSource.Internal &&
+                purchaseSource.replacementMode != null &&
+                storeManager.purchaseController.hasInternalPurchaseController
+            ) {
+                val automatic =
+                    storeManager.purchaseController.automaticPurchaseController
+                        ?: return PurchaseResult.Failed("Internal purchase controller unavailable")
+                automatic.replaceProduct(
+                    activity = activity,
+                    productDetails = productDetails,
+                    basePlanId = rawStoreProduct.basePlanId,
+                    offerId = rawStoreProduct.offerId,
+                    replacementMode = purchaseSource.replacementMode.playBillingMode,
+                )
+            } else {
+                storeManager.purchaseController.purchase(
+                    activity = activity,
+                    productDetails = productDetails,
+                    offerId = rawStoreProduct.offerId,
+                    basePlanId = rawStoreProduct.basePlanId,
+                )
+            }
 
         if (purchaseSource is PurchaseSource.ExternalPurchase &&
             factory.makeHasExternalPurchaseController() &&
