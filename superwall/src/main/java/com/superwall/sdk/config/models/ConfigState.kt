@@ -365,11 +365,7 @@ sealed class ConfigState {
 
         object PreloadAll : Actions(exec@{
             val config = state.value.getConfig() ?: return@exec
-            paywallPreload.preloadAllPaywalls(
-                config,
-                context,
-                fingerprint = deviceHelper.preloadFingerprint(),
-            )
+            paywallPreload.preloadAllPaywalls(config, context)
         })
 
         data class PreloadByNames(

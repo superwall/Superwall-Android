@@ -230,8 +230,12 @@ class PaywallPreload(
                         oldCacheKey != null && keyChanged
                     }.map { it.identifier } - presentedPaywallId
 
-        changedIds.toSet().filterNotNull().forEach {
+        val toRemove = changedIds.toSet().filterNotNull()
+        toRemove.forEach {
             paywallManager.removePaywallView(it)
+        }
+        if (toRemove.isNotEmpty()) {
+            lastFingerprint.set(null)
         }
     }
 }
