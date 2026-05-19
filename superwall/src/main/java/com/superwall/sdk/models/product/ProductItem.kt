@@ -44,6 +44,9 @@ enum class Store {
     @SerialName("SUPERWALL")
     SUPERWALL,
 
+    @SerialName("CUSTOM")
+    CUSTOM,
+
     @SerialName("OTHER")
     OTHER,
 
@@ -57,6 +60,7 @@ enum class Store {
                 "STRIPE" -> STRIPE
                 "PADDLE" -> PADDLE
                 "SUPERWALL" -> SUPERWALL
+                "CUSTOM" -> CUSTOM
                 else -> OTHER
             }
     }
@@ -142,6 +146,17 @@ data class PaddleProduct(
     val productIdentifier: String,
     @SerialName("trial_days")
     val trialDays: Int? = null,
+) {
+    val fullIdentifier: String
+        get() = productIdentifier
+}
+
+@Serializable
+data class CustomStoreProduct(
+    @SerialName("store")
+    val store: Store = Store.CUSTOM,
+    @SerialName("product_identifier")
+    val productIdentifier: String,
 ) {
     val fullIdentifier: String
         get() = productIdentifier
@@ -269,6 +284,9 @@ object StoreProductSerializer : KSerializer<ProductItem.StoreProductType> {
                 is ProductItem.StoreProductType.Paddle ->
                     jsonEncoder.json.encodeToJsonElement(PaddleProduct.serializer(), value.product)
 
+                is ProductItem.StoreProductType.Custom ->
+                    jsonEncoder.json.encodeToJsonElement(CustomStoreProduct.serializer(), value.product)
+
                 is ProductItem.StoreProductType.Other ->
                     jsonEncoder.json.encodeToJsonElement(
                         UnknownStoreProduct.serializer(),
@@ -319,6 +337,11 @@ object StoreProductSerializer : KSerializer<ProductItem.StoreProductType> {
                 ProductItem.StoreProductType.Paddle(product)
             }
 
+            Store.CUSTOM -> {
+                val product = json.decodeFromJsonElement(CustomStoreProduct.serializer(), jsonObject)
+                ProductItem.StoreProductType.Custom(product)
+            }
+
             Store.SUPERWALL,
             Store.OTHER,
             -> {
@@ -367,6 +390,11 @@ data class ProductItem(
         ) : StoreProductType()
 
         @Serializable
+        data class Custom(
+            val product: CustomStoreProduct,
+        ) : StoreProductType()
+
+        @Serializable
         data class Other(
             val product: UnknownStoreProduct,
         ) : StoreProductType()
@@ -379,6 +407,7 @@ data class ProductItem(
                 is StoreProductType.AppStore -> type.product.fullIdentifier
                 is StoreProductType.Stripe -> type.product.fullIdentifier
                 is StoreProductType.Paddle -> type.product.fullIdentifier
+                is StoreProductType.Custom -> type.product.fullIdentifier
                 is StoreProductType.Other -> type.product.productIdentifier
             }
 
@@ -447,6 +476,7 @@ object ProductItemSerializer : KSerializer<ProductItem> {
                     is ProductItem.StoreProductType.AppStore -> storeProductType.product.fullIdentifier
                     is ProductItem.StoreProductType.Stripe -> storeProductType.product.fullIdentifier
                     is ProductItem.StoreProductType.Paddle -> storeProductType.product.fullIdentifier
+                    is ProductItem.StoreProductType.Custom -> storeProductType.product.fullIdentifier
                     is ProductItem.StoreProductType.Other -> storeProductType.product.productIdentifier
                 }
 

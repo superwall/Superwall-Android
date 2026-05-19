@@ -59,6 +59,32 @@ class SuperwallProductSerializationTest {
     }
 
     @Test
+    fun `deserializes product with platform custom`() {
+        Given("a JSON product with platform custom") {
+            val jsonString =
+                """
+                {
+                  "identifier": "stripe_pro_monthly",
+                  "platform": "custom",
+                  "price": { "amount": 1499, "currency": "USD" },
+                  "subscription": { "period": "month", "period_count": 1, "trial_period_days": 14 }
+                }
+                """.trimIndent()
+
+            When("the product is deserialized") {
+                val product = json.decodeFromString<SuperwallProduct>(jsonString)
+
+                Then("platform is CUSTOM and fields are preserved") {
+                    assertEquals("stripe_pro_monthly", product.identifier)
+                    assertEquals(SuperwallProductPlatform.CUSTOM, product.platform)
+                    assertEquals(1499, product.price!!.amount)
+                    assertEquals(14, product.subscription!!.trialPeriodDays)
+                }
+            }
+        }
+    }
+
+    @Test
     fun `deserializes product without subscription`() {
         Given("a JSON product without subscription field") {
             val jsonString =

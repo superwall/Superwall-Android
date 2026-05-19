@@ -348,6 +348,12 @@ class TransactionManager(
             return result
         }
 
+        // Custom product flow: store == CUSTOM products are handled by the external
+        // PurchaseController, not Google Play Billing.
+        if (product.isCustomProduct) {
+            return handleCustomProductPurchase(product, purchaseSource, shouldDismiss)
+        }
+
         val rawStoreProduct =
             product.rawStoreProduct
                 ?: return PurchaseResult.Failed("Missing raw store product for ${product.fullIdentifier}")
@@ -424,6 +430,117 @@ class TransactionManager(
 
             is PurchaseResult.Cancelled -> {
                 trackCancelled(product, purchaseSource)
+            }
+        }
+        return result
+    }
+
+    /**
+     * Handles purchase of a custom (store == CUSTOM) product. Requires an external
+     * PurchaseController; fails fast with a clear error otherwise. Pre-generates a
+     * UUID transaction identifier on each attempt, routes the purchase through
+     * [PurchaseController.purchase(customProduct:)], and constructs a
+     * StoreTransaction without touching Google Play Billing / receipts.
+     */
+    private suspend fun handleCustomProductPurchase(
+        product: StoreProduct,
+        purchaseSource: PurchaseSource,
+        shouldDismiss: Boolean,
+    ): PurchaseResult {
+        if (!factory.makeHasExternalPurchaseController()) {
+            val message =
+                "Custom products require an external PurchaseController. " +
+                    "Configure Superwall with a PurchaseController that overrides " +
+                    "purchase(customProduct:) to handle ${product.fullIdentifier}."
+            log(message = message, error = Error(message))
+            trackFailure(message, product, purchaseSource)
+            if (purchaseSource is PurchaseSource.Internal) {
+                updateState(
+                    purchaseSource.paywallInfo.cacheKey,
+                    PaywallViewState.Updates.ToggleSpinner(hidden = true),
+                )
+            }
+            return PurchaseResult.Failed(message)
+        }
+
+        // Regenerate the transaction id on every attempt so cancel-and-retry
+        // doesn't reuse the same identifier in analytics.
+        product.customTransactionId = java.util.UUID.randomUUID().toString()
+
+        prepareToPurchase(product, purchaseSource)
+
+        val result = storeManager.purchaseController.purchase(customProduct = product)
+
+        // If we only have an external PurchaseController, the dev's flow handles the
+        // rest of the transaction lifecycle (mirrors the existing ExternalPurchase
+        // early return below for Play products).
+        if (purchaseSource is PurchaseSource.ExternalPurchase &&
+            factory.makeHasExternalPurchaseController() &&
+            !factory.makeHasInternalPurchaseController()
+        ) {
+            if (result is PurchaseResult.Purchased) {
+                // Still build + track a transaction so analytics include the custom txn id.
+                val transaction =
+                    factory.makeStoreTransaction(
+                        customTransactionId = product.customTransactionId ?: java.util.UUID.randomUUID().toString(),
+                        productIdentifier = product.fullIdentifier,
+                        purchaseDate = java.util.Date(),
+                    )
+                trackTransactionDidSucceed(transaction, product, purchaseSource, product.hasFreeTrial)
+            }
+            return result
+        }
+
+        when (result) {
+            is PurchaseResult.Purchased -> {
+                val transaction =
+                    factory.makeStoreTransaction(
+                        customTransactionId = product.customTransactionId ?: java.util.UUID.randomUUID().toString(),
+                        productIdentifier = product.fullIdentifier,
+                        purchaseDate = java.util.Date(),
+                    )
+                // Skip storeManager.loadPurchasedProducts — no Play receipt for custom products.
+                trackTransactionDidSucceed(transaction, product, purchaseSource, product.hasFreeTrial)
+                if (shouldDismiss &&
+                    purchaseSource is PurchaseSource.Internal &&
+                    factory.makeSuperwallOptions().paywalls.automaticallyDismiss
+                ) {
+                    dismiss(
+                        purchaseSource.paywallInfo.cacheKey,
+                        PaywallResult.Purchased(product.fullIdentifier),
+                    )
+                } else if (purchaseSource is PurchaseSource.Internal) {
+                    updateState(
+                        purchaseSource.paywallInfo.cacheKey,
+                        PaywallViewState.Updates.SetLoadingState(PaywallLoadingState.Ready),
+                    )
+                }
+            }
+
+            is PurchaseResult.Failed -> {
+                trackFailure(result.errorMessage, product, purchaseSource)
+                if (purchaseSource is PurchaseSource.Internal) {
+                    val options = factory.makeSuperwallOptions()
+                    val triggers = factory.makeTriggers()
+                    val transactionFailExists =
+                        triggers.contains(SuperwallEvents.TransactionFail.rawName)
+                    if (options.paywalls.shouldShowPurchaseFailureAlert && !transactionFailExists) {
+                        presentAlert(Error(result.errorMessage), product, purchaseSource.state)
+                    } else {
+                        updateState(
+                            purchaseSource.paywallInfo.cacheKey,
+                            PaywallViewState.Updates.ToggleSpinner(hidden = true),
+                        )
+                    }
+                }
+            }
+
+            is PurchaseResult.Cancelled -> {
+                trackCancelled(product, purchaseSource)
+            }
+
+            is PurchaseResult.Pending -> {
+                handlePendingTransaction(purchaseSource)
             }
         }
         return result

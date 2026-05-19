@@ -17,6 +17,43 @@ class StoreTransaction(
     @SerialName("app_session_id")
     val appSessionId: String,
 ) : StoreTransactionType {
+    /**
+     * Builds a StoreTransaction representing a custom (non-Play-Billing) purchase
+     * completed by an external PurchaseController. The pre-generated
+     * [customTransactionId] is used as both [originalTransactionIdentifier] and
+     * [storeTransactionId], mirroring the iOS CustomStoreTransaction.
+     */
+    constructor(
+        customTransactionId: String,
+        productIdentifier: String,
+        purchaseDate: Date,
+        configRequestId: String,
+        appSessionId: String,
+    ) : this(
+        transaction =
+            GoogleBillingPurchaseTransaction(
+                underlyingSK2Transaction = null,
+                transactionDate = purchaseDate,
+                originalTransactionIdentifier = customTransactionId,
+                state = StoreTransactionState.Purchased,
+                storeTransactionId = customTransactionId,
+                originalTransactionDate = purchaseDate,
+                webOrderLineItemID = null,
+                appBundleId = null,
+                subscriptionGroupId = null,
+                isUpgraded = null,
+                expirationDate = null,
+                offerId = null,
+                revocationDate = null,
+                appAccountToken = null,
+                purchaseToken = "",
+                payment = StorePayment(productIdentifier = productIdentifier, quantity = 1, discountIdentifier = null),
+                signature = null,
+            ),
+        configRequestId = configRequestId,
+        appSessionId = appSessionId,
+    )
+
     val id = UUID.randomUUID().toString()
 
     override val transactionDate: Date? get() = transaction.transactionDate

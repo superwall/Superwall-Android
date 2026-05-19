@@ -1,6 +1,6 @@
 @file:Suppress("ktlint:standard:function-naming")
 
-package com.superwall.sdk.store.testmode
+package com.superwall.sdk.store.abstractions.product
 
 import com.superwall.sdk.Given
 import com.superwall.sdk.Then
@@ -20,7 +20,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.math.BigDecimal
 
-class TestStoreProductTest {
+class ApiStoreProductTest {
     private fun makeProduct(
         identifier: String = "com.test.product",
         amountCents: Int = 999,
@@ -63,7 +63,7 @@ class TestStoreProductTest {
     @Test
     fun `price converts from cents correctly`() {
         Given("a product with price 999 cents") {
-            val testProduct = TestStoreProduct(makeProduct(amountCents = 999))
+            val testProduct = ApiStoreProduct(makeProduct(amountCents = 999))
 
             Then("price is 9.99") {
                 assertEquals(0, testProduct.price.compareTo(BigDecimal("9.99")))
@@ -74,7 +74,7 @@ class TestStoreProductTest {
     @Test
     fun `price converts zero cents`() {
         Given("a product with price 0 cents") {
-            val testProduct = TestStoreProduct(makeProduct(amountCents = 0))
+            val testProduct = ApiStoreProduct(makeProduct(amountCents = 0))
 
             Then("price is 0.00") {
                 assertEquals(0, testProduct.price.compareTo(BigDecimal.ZERO))
@@ -85,7 +85,7 @@ class TestStoreProductTest {
     @Test
     fun `price converts large amount`() {
         Given("a product with price 99999 cents") {
-            val testProduct = TestStoreProduct(makeProduct(amountCents = 99999))
+            val testProduct = ApiStoreProduct(makeProduct(amountCents = 99999))
 
             Then("price is 999.99") {
                 assertEquals(0, testProduct.price.compareTo(BigDecimal("999.99")))
@@ -96,7 +96,7 @@ class TestStoreProductTest {
     @Test
     fun `price converts single digit cents`() {
         Given("a product with price 5 cents") {
-            val testProduct = TestStoreProduct(makeProduct(amountCents = 5))
+            val testProduct = ApiStoreProduct(makeProduct(amountCents = 5))
 
             Then("price is 0.05") {
                 assertEquals(0, testProduct.price.compareTo(BigDecimal("0.05")))
@@ -111,7 +111,7 @@ class TestStoreProductTest {
     @Test
     fun `subscription period maps daily correctly`() {
         Given("a daily product") {
-            val testProduct = TestStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.DAY, periodCount = 1))
+            val testProduct = ApiStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.DAY, periodCount = 1))
 
             Then("subscription period is 1 day") {
                 val period = testProduct.subscriptionPeriod
@@ -125,7 +125,7 @@ class TestStoreProductTest {
     @Test
     fun `subscription period maps weekly correctly`() {
         Given("a weekly product") {
-            val testProduct = TestStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.WEEK, periodCount = 1))
+            val testProduct = ApiStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.WEEK, periodCount = 1))
 
             Then("subscription period is 1 week") {
                 val period = testProduct.subscriptionPeriod
@@ -139,7 +139,7 @@ class TestStoreProductTest {
     @Test
     fun `subscription period maps monthly correctly`() {
         Given("a monthly product") {
-            val testProduct = TestStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.MONTH, periodCount = 1))
+            val testProduct = ApiStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.MONTH, periodCount = 1))
 
             Then("subscription period is 1 month") {
                 val period = testProduct.subscriptionPeriod
@@ -153,7 +153,7 @@ class TestStoreProductTest {
     @Test
     fun `subscription period maps yearly correctly`() {
         Given("a yearly product") {
-            val testProduct = TestStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.YEAR, periodCount = 1))
+            val testProduct = ApiStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.YEAR, periodCount = 1))
 
             Then("subscription period is 1 year") {
                 val period = testProduct.subscriptionPeriod
@@ -167,7 +167,7 @@ class TestStoreProductTest {
     @Test
     fun `subscription period respects periodCount`() {
         Given("a product with 3 month period") {
-            val testProduct = TestStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.MONTH, periodCount = 3))
+            val testProduct = ApiStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.MONTH, periodCount = 3))
 
             Then("subscription period has value 3") {
                 val period = testProduct.subscriptionPeriod
@@ -181,7 +181,7 @@ class TestStoreProductTest {
     @Test
     fun `subscription period is null for non-subscription product`() {
         Given("a non-subscription product") {
-            val testProduct = TestStoreProduct(makeNonSubscriptionProduct())
+            val testProduct = ApiStoreProduct(makeNonSubscriptionProduct())
 
             Then("subscriptionPeriod is null") {
                 assertNull(testProduct.subscriptionPeriod)
@@ -196,7 +196,7 @@ class TestStoreProductTest {
     @Test
     fun `free trial is detected correctly`() {
         Given("a product with a 7-day trial") {
-            val testProduct = TestStoreProduct(makeProduct(trialPeriodDays = 7))
+            val testProduct = ApiStoreProduct(makeProduct(trialPeriodDays = 7))
 
             Then("hasFreeTrial is true") {
                 assertTrue(testProduct.hasFreeTrial)
@@ -207,7 +207,7 @@ class TestStoreProductTest {
     @Test
     fun `no free trial when trialPeriodDays is null`() {
         Given("a product with no trial") {
-            val testProduct = TestStoreProduct(makeProduct(trialPeriodDays = null))
+            val testProduct = ApiStoreProduct(makeProduct(trialPeriodDays = null))
 
             Then("hasFreeTrial is false") {
                 assertFalse(testProduct.hasFreeTrial)
@@ -218,7 +218,7 @@ class TestStoreProductTest {
     @Test
     fun `no free trial when trialPeriodDays is zero`() {
         Given("a product with 0-day trial") {
-            val testProduct = TestStoreProduct(makeProduct(trialPeriodDays = 0))
+            val testProduct = ApiStoreProduct(makeProduct(trialPeriodDays = 0))
 
             Then("hasFreeTrial is false") {
                 assertFalse(testProduct.hasFreeTrial)
@@ -229,7 +229,7 @@ class TestStoreProductTest {
     @Test
     fun `trialPeriodText formats correctly`() {
         Given("a product with a 7-day trial") {
-            val testProduct = TestStoreProduct(makeProduct(trialPeriodDays = 7))
+            val testProduct = ApiStoreProduct(makeProduct(trialPeriodDays = 7))
 
             Then("trialPeriodText is '7-day'") {
                 assertEquals("7-day", testProduct.trialPeriodText)
@@ -240,7 +240,7 @@ class TestStoreProductTest {
     @Test
     fun `trialPeriodText is empty when no trial`() {
         Given("a product with no trial") {
-            val testProduct = TestStoreProduct(makeProduct(trialPeriodDays = null))
+            val testProduct = ApiStoreProduct(makeProduct(trialPeriodDays = null))
 
             Then("trialPeriodText is empty") {
                 assertEquals("", testProduct.trialPeriodText)
@@ -251,7 +251,7 @@ class TestStoreProductTest {
     @Test
     fun `trialPeriodEndDate is set when trial exists`() {
         Given("a product with a 14-day trial") {
-            val testProduct = TestStoreProduct(makeProduct(trialPeriodDays = 14))
+            val testProduct = ApiStoreProduct(makeProduct(trialPeriodDays = 14))
 
             Then("trialPeriodEndDate is not null and in the future") {
                 assertNotNull(testProduct.trialPeriodEndDate)
@@ -263,7 +263,7 @@ class TestStoreProductTest {
     @Test
     fun `trialPeriodEndDate is null when no trial`() {
         Given("a product with no trial") {
-            val testProduct = TestStoreProduct(makeProduct(trialPeriodDays = null))
+            val testProduct = ApiStoreProduct(makeProduct(trialPeriodDays = null))
 
             Then("trialPeriodEndDate is null") {
                 assertNull(testProduct.trialPeriodEndDate)
@@ -274,7 +274,7 @@ class TestStoreProductTest {
     @Test
     fun `trialPeriodPrice is zero`() {
         Given("a product with a trial") {
-            val testProduct = TestStoreProduct(makeProduct(trialPeriodDays = 7))
+            val testProduct = ApiStoreProduct(makeProduct(trialPeriodDays = 7))
 
             Then("trialPeriodPrice is zero") {
                 assertEquals(0, testProduct.trialPeriodPrice.compareTo(BigDecimal.ZERO))
@@ -289,7 +289,7 @@ class TestStoreProductTest {
     @Test
     fun `trialPeriodDays returns correct value`() {
         Given("a product with a 30-day trial") {
-            val testProduct = TestStoreProduct(makeProduct(trialPeriodDays = 30))
+            val testProduct = ApiStoreProduct(makeProduct(trialPeriodDays = 30))
 
             Then("trialPeriodDays is 30") {
                 assertEquals(30, testProduct.trialPeriodDays)
@@ -301,7 +301,7 @@ class TestStoreProductTest {
     @Test
     fun `trialPeriodWeeks calculates from days`() {
         Given("a product with a 14-day trial") {
-            val testProduct = TestStoreProduct(makeProduct(trialPeriodDays = 14))
+            val testProduct = ApiStoreProduct(makeProduct(trialPeriodDays = 14))
 
             Then("trialPeriodWeeks is 2") {
                 assertEquals(2, testProduct.trialPeriodWeeks)
@@ -313,7 +313,7 @@ class TestStoreProductTest {
     @Test
     fun `trial period values are zero when no trial`() {
         Given("a product with no trial") {
-            val testProduct = TestStoreProduct(makeProduct(trialPeriodDays = null))
+            val testProduct = ApiStoreProduct(makeProduct(trialPeriodDays = null))
 
             Then("all trial period values are zero") {
                 assertEquals(0, testProduct.trialPeriodDays)
@@ -331,7 +331,7 @@ class TestStoreProductTest {
     @Test
     fun `product identifiers are correct`() {
         Given("a product with identifier 'com.test.premium'") {
-            val testProduct = TestStoreProduct(makeProduct(identifier = "com.test.premium"))
+            val testProduct = ApiStoreProduct(makeProduct(identifier = "com.test.premium"))
 
             Then("fullIdentifier and productIdentifier are set") {
                 assertEquals("com.test.premium", testProduct.fullIdentifier)
@@ -347,7 +347,7 @@ class TestStoreProductTest {
     @Test
     fun `productType is subs for subscription products`() {
         Given("a subscription product") {
-            val testProduct = TestStoreProduct(makeProduct())
+            val testProduct = ApiStoreProduct(makeProduct())
 
             Then("productType is 'subs'") {
                 assertEquals("subs", testProduct.productType)
@@ -358,7 +358,7 @@ class TestStoreProductTest {
     @Test
     fun `productType is inapp for non-subscription products`() {
         Given("a non-subscription product") {
-            val testProduct = TestStoreProduct(makeNonSubscriptionProduct())
+            val testProduct = ApiStoreProduct(makeNonSubscriptionProduct())
 
             Then("productType is 'inapp'") {
                 assertEquals("inapp", testProduct.productType)
@@ -373,7 +373,7 @@ class TestStoreProductTest {
     @Test
     fun `period string formats correctly for monthly`() {
         Given("a monthly subscription product") {
-            val testProduct = TestStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.MONTH, periodCount = 1))
+            val testProduct = ApiStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.MONTH, periodCount = 1))
 
             Then("period is 'month'") {
                 assertEquals("month", testProduct.period)
@@ -384,7 +384,7 @@ class TestStoreProductTest {
     @Test
     fun `period string formats correctly for yearly`() {
         Given("a yearly subscription product") {
-            val testProduct = TestStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.YEAR, periodCount = 1))
+            val testProduct = ApiStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.YEAR, periodCount = 1))
 
             Then("period is 'year'") {
                 assertEquals("year", testProduct.period)
@@ -395,7 +395,7 @@ class TestStoreProductTest {
     @Test
     fun `period string formats correctly for weekly`() {
         Given("a weekly subscription product") {
-            val testProduct = TestStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.WEEK, periodCount = 1))
+            val testProduct = ApiStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.WEEK, periodCount = 1))
 
             Then("period is 'week'") {
                 assertEquals("week", testProduct.period)
@@ -406,7 +406,7 @@ class TestStoreProductTest {
     @Test
     fun `period string for quarterly shows quarter`() {
         Given("a 3-month subscription product") {
-            val testProduct = TestStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.MONTH, periodCount = 3))
+            val testProduct = ApiStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.MONTH, periodCount = 3))
 
             Then("period is 'quarter'") {
                 assertEquals("quarter", testProduct.period)
@@ -417,7 +417,7 @@ class TestStoreProductTest {
     @Test
     fun `period string for semi-annual shows 6 months`() {
         Given("a 6-month subscription product") {
-            val testProduct = TestStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.MONTH, periodCount = 6))
+            val testProduct = ApiStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.MONTH, periodCount = 6))
 
             Then("period is '6 months'") {
                 assertEquals("6 months", testProduct.period)
@@ -428,7 +428,7 @@ class TestStoreProductTest {
     @Test
     fun `period string for bi-monthly shows 2 months`() {
         Given("a 2-month subscription product") {
-            val testProduct = TestStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.MONTH, periodCount = 2))
+            val testProduct = ApiStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.MONTH, periodCount = 2))
 
             Then("period is '2 months'") {
                 assertEquals("2 months", testProduct.period)
@@ -439,7 +439,7 @@ class TestStoreProductTest {
     @Test
     fun `period string for 7-day product shows week`() {
         Given("a 7-day subscription product") {
-            val testProduct = TestStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.DAY, periodCount = 7))
+            val testProduct = ApiStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.DAY, periodCount = 7))
 
             Then("period is 'week'") {
                 assertEquals("week", testProduct.period)
@@ -450,7 +450,7 @@ class TestStoreProductTest {
     @Test
     fun `period is empty for non-subscription product`() {
         Given("a non-subscription product") {
-            val testProduct = TestStoreProduct(makeNonSubscriptionProduct())
+            val testProduct = ApiStoreProduct(makeNonSubscriptionProduct())
 
             Then("period is empty") {
                 assertEquals("", testProduct.period)
@@ -465,7 +465,7 @@ class TestStoreProductTest {
     @Test
     fun `periodly formats monthly correctly`() {
         Given("a monthly product") {
-            val testProduct = TestStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.MONTH, periodCount = 1))
+            val testProduct = ApiStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.MONTH, periodCount = 1))
 
             Then("periodly is 'monthly'") {
                 assertEquals("monthly", testProduct.periodly)
@@ -476,7 +476,7 @@ class TestStoreProductTest {
     @Test
     fun `periodly formats yearly correctly`() {
         Given("a yearly product") {
-            val testProduct = TestStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.YEAR, periodCount = 1))
+            val testProduct = ApiStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.YEAR, periodCount = 1))
 
             Then("periodly is 'yearly'") {
                 assertEquals("yearly", testProduct.periodly)
@@ -487,7 +487,7 @@ class TestStoreProductTest {
     @Test
     fun `periodly formats quarterly as every quarter`() {
         Given("a quarterly product") {
-            val testProduct = TestStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.MONTH, periodCount = 3))
+            val testProduct = ApiStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.MONTH, periodCount = 3))
 
             Then("periodly is 'quarterly'") {
                 assertEquals("quarterly", testProduct.periodly)
@@ -498,7 +498,7 @@ class TestStoreProductTest {
     @Test
     fun `periodly formats semi-annual as every 6 months`() {
         Given("a 6-month product") {
-            val testProduct = TestStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.MONTH, periodCount = 6))
+            val testProduct = ApiStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.MONTH, periodCount = 6))
 
             Then("periodly is 'every 6 months'") {
                 assertEquals("every 6 months", testProduct.periodly)
@@ -509,7 +509,7 @@ class TestStoreProductTest {
     @Test
     fun `periodly formats bi-monthly as every 2 months`() {
         Given("a 2-month product") {
-            val testProduct = TestStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.MONTH, periodCount = 2))
+            val testProduct = ApiStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.MONTH, periodCount = 2))
 
             Then("periodly is 'every 2 months'") {
                 assertEquals("every 2 months", testProduct.periodly)
@@ -524,7 +524,7 @@ class TestStoreProductTest {
     @Test
     fun `periodDays calculates correctly for yearly`() {
         Given("a yearly subscription product") {
-            val testProduct = TestStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.YEAR, periodCount = 1))
+            val testProduct = ApiStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.YEAR, periodCount = 1))
 
             Then("periodDays is 365") {
                 assertEquals(365, testProduct.periodDays)
@@ -536,7 +536,7 @@ class TestStoreProductTest {
     @Test
     fun `periodDays calculates correctly for monthly`() {
         Given("a monthly subscription product") {
-            val testProduct = TestStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.MONTH, periodCount = 1))
+            val testProduct = ApiStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.MONTH, periodCount = 1))
 
             Then("periodDays is 30") {
                 assertEquals(30, testProduct.periodDays)
@@ -547,7 +547,7 @@ class TestStoreProductTest {
     @Test
     fun `periodDays calculates correctly for weekly`() {
         Given("a weekly subscription product") {
-            val testProduct = TestStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.WEEK, periodCount = 1))
+            val testProduct = ApiStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.WEEK, periodCount = 1))
 
             Then("periodDays is 7") {
                 assertEquals(7, testProduct.periodDays)
@@ -558,7 +558,7 @@ class TestStoreProductTest {
     @Test
     fun `periodWeeks calculates correctly for yearly`() {
         Given("a yearly subscription product") {
-            val testProduct = TestStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.YEAR, periodCount = 1))
+            val testProduct = ApiStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.YEAR, periodCount = 1))
 
             Then("periodWeeks is 52") {
                 assertEquals(52, testProduct.periodWeeks)
@@ -570,7 +570,7 @@ class TestStoreProductTest {
     @Test
     fun `periodMonths calculates correctly for yearly`() {
         Given("a yearly subscription product") {
-            val testProduct = TestStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.YEAR, periodCount = 1))
+            val testProduct = ApiStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.YEAR, periodCount = 1))
 
             Then("periodMonths is 12") {
                 assertEquals(12, testProduct.periodMonths)
@@ -582,7 +582,7 @@ class TestStoreProductTest {
     @Test
     fun `periodYears is 1 for yearly product`() {
         Given("a yearly subscription product") {
-            val testProduct = TestStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.YEAR, periodCount = 1))
+            val testProduct = ApiStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.YEAR, periodCount = 1))
 
             Then("periodYears is 1") {
                 assertEquals(1, testProduct.periodYears)
@@ -594,7 +594,7 @@ class TestStoreProductTest {
     @Test
     fun `period calculations are zero for non-subscription product`() {
         Given("a non-subscription product") {
-            val testProduct = TestStoreProduct(makeNonSubscriptionProduct())
+            val testProduct = ApiStoreProduct(makeNonSubscriptionProduct())
 
             Then("all period values are 0") {
                 assertEquals(0, testProduct.periodDays)
@@ -612,7 +612,7 @@ class TestStoreProductTest {
     @Test
     fun `localizedSubscriptionPeriod for monthly`() {
         Given("a monthly product") {
-            val testProduct = TestStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.MONTH, periodCount = 1))
+            val testProduct = ApiStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.MONTH, periodCount = 1))
 
             Then("localizedSubscriptionPeriod is '1 month'") {
                 assertEquals("1 month", testProduct.localizedSubscriptionPeriod)
@@ -623,7 +623,7 @@ class TestStoreProductTest {
     @Test
     fun `localizedSubscriptionPeriod for plural months`() {
         Given("a 3-month product") {
-            val testProduct = TestStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.MONTH, periodCount = 3))
+            val testProduct = ApiStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.MONTH, periodCount = 3))
 
             Then("localizedSubscriptionPeriod is '3 months'") {
                 assertEquals("3 months", testProduct.localizedSubscriptionPeriod)
@@ -634,7 +634,7 @@ class TestStoreProductTest {
     @Test
     fun `localizedSubscriptionPeriod for yearly`() {
         Given("a yearly product") {
-            val testProduct = TestStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.YEAR, periodCount = 1))
+            val testProduct = ApiStoreProduct(makeProduct(period = SuperwallSubscriptionPeriod.YEAR, periodCount = 1))
 
             Then("localizedSubscriptionPeriod is '1 year'") {
                 assertEquals("1 year", testProduct.localizedSubscriptionPeriod)
@@ -645,7 +645,7 @@ class TestStoreProductTest {
     @Test
     fun `localizedSubscriptionPeriod is empty for non-subscription`() {
         Given("a non-subscription product") {
-            val testProduct = TestStoreProduct(makeNonSubscriptionProduct())
+            val testProduct = ApiStoreProduct(makeNonSubscriptionProduct())
 
             Then("localizedSubscriptionPeriod is empty") {
                 assertEquals("", testProduct.localizedSubscriptionPeriod)
@@ -660,7 +660,7 @@ class TestStoreProductTest {
     @Test
     fun `currencyCode is set from product`() {
         Given("a product with EUR currency") {
-            val testProduct = TestStoreProduct(makeProduct(currency = "EUR"))
+            val testProduct = ApiStoreProduct(makeProduct(currency = "EUR"))
 
             Then("currencyCode is EUR") {
                 assertEquals("EUR", testProduct.currencyCode)
@@ -671,7 +671,7 @@ class TestStoreProductTest {
     @Test
     fun `currencySymbol resolves for USD`() {
         Given("a product with USD currency") {
-            val testProduct = TestStoreProduct(makeProduct(currency = "USD"))
+            val testProduct = ApiStoreProduct(makeProduct(currency = "USD"))
 
             Then("currencySymbol is not null and contains dollar sign") {
                 assertNotNull(testProduct.currencySymbol)
@@ -683,7 +683,7 @@ class TestStoreProductTest {
     @Test
     fun `currencySymbol resolves for EUR`() {
         Given("a product with EUR currency") {
-            val testProduct = TestStoreProduct(makeProduct(currency = "EUR"))
+            val testProduct = ApiStoreProduct(makeProduct(currency = "EUR"))
 
             Then("currencySymbol is euro sign") {
                 // The euro sign can vary by locale, just verify it's not null
@@ -699,7 +699,7 @@ class TestStoreProductTest {
     @Test
     fun `attributes map contains all expected keys`() {
         Given("a subscription product with trial") {
-            val testProduct = TestStoreProduct(makeProduct(trialPeriodDays = 7))
+            val testProduct = ApiStoreProduct(makeProduct(trialPeriodDays = 7))
 
             When("attributes is accessed") {
                 val attrs = testProduct.attributes
@@ -727,7 +727,7 @@ class TestStoreProductTest {
     @Test
     fun `attributes identifier matches product`() {
         Given("a product with identifier 'com.test.pro'") {
-            val testProduct = TestStoreProduct(makeProduct(identifier = "com.test.pro"))
+            val testProduct = ApiStoreProduct(makeProduct(identifier = "com.test.pro"))
 
             Then("attributes identifier is correct") {
                 assertEquals("com.test.pro", testProduct.attributes["identifier"])

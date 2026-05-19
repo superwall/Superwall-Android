@@ -230,6 +230,17 @@ interface ConfigManagerFactory {
 interface StoreTransactionFactory {
     suspend fun makeStoreTransaction(transaction: Purchase): StoreTransaction
 
+    /**
+     * Builds a StoreTransaction for a custom-product purchase (no Google Play receipt).
+     * [customTransactionId] is the pre-generated UUID used as both original and
+     * store transaction identifier.
+     */
+    suspend fun makeStoreTransaction(
+        customTransactionId: String,
+        productIdentifier: String,
+        purchaseDate: java.util.Date,
+    ): StoreTransaction
+
     suspend fun activeProductIds(): List<String>
 }
 
