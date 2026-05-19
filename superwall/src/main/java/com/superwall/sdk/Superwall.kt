@@ -708,8 +708,29 @@ class Superwall(
     // / Listens to config and the subscription status
     private fun addListeners() {
         ioScope.launchWithTracking {
-            entitlements.status // Removes duplicates by default
-                .drop(1) // Drops the first item
+            entitlements.status
+                // Default StateFlow equality re-fires when entitlement product fields get
+                // enriched (productIds, latestProductId) even though the user-facing
+                // status is unchanged. Dedupe ignoring product identifiers — see
+                // Entitlement.isDistinct.
+                .distinctUntilChanged { old, new ->
+                    when {
+                        old === new -> true
+                        old is SubscriptionStatus.Active && new is SubscriptionStatus.Active -> {
+                            if (old.entitlements.size != new.entitlements.size) {
+                                false
+                            } else {
+                                val newById = new.entitlements.associateBy { it.id }
+                                old.entitlements.all { o ->
+                                    val n = newById[o.id] ?: return@all false
+                                    !o.isDistinct(n)
+                                }
+                            }
+                        }
+                        else -> old::class == new::class
+                    }
+                }
+                .drop(1) // Drops the cached/initial emission
                 .collect { newValue ->
                     // Save and handle the new value
                     val oldValue =

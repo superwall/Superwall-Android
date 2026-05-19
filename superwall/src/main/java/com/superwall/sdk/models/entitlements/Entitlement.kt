@@ -167,6 +167,26 @@ data class Entitlement(
         get() = state?.let { it == LatestSubscriptionState.GRACE_PERIOD }
 
     /**
+     * Returns `true` if this entitlement differs from [other] on any field other than
+     * the product identifiers (`productIds`, `latestProductId`).
+     *
+     * Used to dedupe re-emissions where billing enrichment refills product fields but
+     * the user-facing entitlement state (id, active, dates, renewal, store, …) is unchanged.
+     */
+    fun isDistinct(other: Entitlement): Boolean =
+        id != other.id ||
+            type != other.type ||
+            isActive != other.isActive ||
+            startsAt != other.startsAt ||
+            renewedAt != other.renewedAt ||
+            expiresAt != other.expiresAt ||
+            isLifetime != other.isLifetime ||
+            willRenew != other.willRenew ||
+            state != other.state ||
+            offerType != other.offerType ||
+            store != other.store
+
+    /**
      * Convenience constructor for creating an entitlement with just an ID.
      */
     constructor(id: String) : this(id = id, type = Type.SERVICE_LEVEL, isActive = true)
