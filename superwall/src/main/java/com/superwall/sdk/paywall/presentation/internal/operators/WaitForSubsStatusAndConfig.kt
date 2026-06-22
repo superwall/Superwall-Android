@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Duration.Companion.seconds
 
 internal suspend fun waitForEntitlementsAndConfig(
@@ -144,5 +145,22 @@ internal suspend fun waitForEntitlementsAndConfig(
         }
     }
 
-    dependencyContainer.identityManager.awaitLatestIdentity()
+    // Defense in depth: if a Pending identity item (Seed / Assignments / etc.)
+    // never resolves — e.g. because an upstream coroutine got orphaned or
+    // the underlying flow never emits — don't let paywall presentation hang
+    // forever. Falls through after the timeout; the paywall presents with
+    // whatever identity state is current.
+    val identityResolved =
+        withTimeoutOrNull(5.seconds) {
+            dependencyContainer.identityManager.awaitLatestIdentity()
+        }
+    if (identityResolved == null) {
+        Logger.debug(
+            logLevel = LogLevel.warn,
+            scope = LogScope.paywallPresentation,
+            message =
+                "Timeout: identity did not become ready within 5s. " +
+                    "Proceeding with current identity state.",
+        )
+    }
 }

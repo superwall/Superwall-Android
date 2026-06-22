@@ -16,7 +16,7 @@ If there are failing tests, the screenshots will be saved under `app/build/outpu
 
 ### Recording the screenshots
 
-To record the screenshots, run `./gradlew :app:connectedCheck -Pdropshots.record` from the root of the project.
+To record the screenshots, run `./gradlew recordDebugAndroidTestScreenshots` from the root of the project.
 This will record new screenshots on your current device.
 
 ### Viewing the recorded screenshots

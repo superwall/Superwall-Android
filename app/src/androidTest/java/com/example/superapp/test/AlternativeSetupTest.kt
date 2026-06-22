@@ -29,12 +29,11 @@ class AlternativeSetupTest {
 
     @Before
     fun grantPhonePermission() {
+        // Shouldn't be needed on > API 29, but dropshots is occasionally unable to write to external storage without this.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            getInstrumentation().uiAutomation.executeShellCommand(
-                (
-                    "pm grant " + getTargetContext().packageName +
-                        " android.permission.WRITE_EXTERNAL_STORAGE"
-                ),
+            getInstrumentation().uiAutomation.grantRuntimePermission(
+                getTargetContext().packageName,
+                android.Manifest.permission.WRITE_EXTERNAL_STORAGE,
             )
         }
     }

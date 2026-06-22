@@ -45,7 +45,9 @@ class ScreenshotTestFlow(
 ) {
     var steps: LinkedList<Step> = LinkedList()
 
-    private val device = "${android.os.Build.MANUFACTURER}_${android.os.Build.MODEL}"
+    // Pinned to a stable identifier so snapshot filenames don't shift when the
+    // emulator system image renames Build.MODEL (e.g. sdk_gphone_arm64 vs sdk_gphone64_arm64).
+    private val device = "Google_sdk_gphone64_arm64"
 
     @ScreenshotTestDSL
     fun step(
