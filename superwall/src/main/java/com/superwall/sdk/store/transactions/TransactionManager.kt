@@ -79,6 +79,7 @@ class TransactionManager(
     private val refreshReceipt: () -> Unit,
     private val updateState: (cacheKey: String, update: PaywallViewState.Updates) -> Unit,
     private val notifyOfTransactionComplete: suspend (paywallCacheKey: String, trialEndDate: Long?, productId: String) -> Unit,
+    private val notifyOfTransactionAbandon: suspend (paywallCacheKey: String) -> Unit = {},
     private val testMode: TestMode? = null,
     private val testModeTransactionHandler: TestModeTransactionHandler? = null,
     private val setSubscriptionStatus: ((SubscriptionStatus) -> Unit)? = null,
@@ -729,6 +730,8 @@ class TransactionManager(
                         demandTier = factory.demandTier(),
                     )
                 track(trackedEvent)
+
+                notifyOfTransactionAbandon(paywallInfo.cacheKey)
 
                 updateState(
                     paywallInfo.cacheKey,
