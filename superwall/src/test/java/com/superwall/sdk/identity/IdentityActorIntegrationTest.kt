@@ -25,9 +25,12 @@ import io.mockk.verify
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.time.Duration.Companion.seconds
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -452,6 +455,149 @@ class IdentityActorIntegrationTest {
     // -----------------------------------------------------------------------
     // Persistence interceptor under serialization
     // -----------------------------------------------------------------------
+
+    // -----------------------------------------------------------------------
+    // Hang theories: prove that an unbounded suspension in a downstream call
+    // leaves a Pending item in the identity state forever, which blocks
+    // awaitLatestIdentity().
+    // -----------------------------------------------------------------------
+
+    /**
+     * Theory 3: if `sdkContext.fetchAssignments()` never returns (e.g. it's
+     * waiting on `awaitFirstValidConfig()` and config never reaches
+     * `Retrieved`), the `try/finally` in `FetchAssignments` never reaches
+     * the `finally` block, so `Updates.AssignmentsCompleted` is never
+     * dispatched and `Pending.Assignments` remains in the state — blocking
+     * `awaitLatestIdentity()` indefinitely.
+     */
+    @Test
+    fun `fetchAssignments hang leaves Pending Assignments and blocks awaitLatestIdentity`() = runTest {
+        Given("a configured ready manager where fetchAssignments suspends forever") {
+            coEvery { sdkContext.fetchAssignments() } coAnswers { awaitCancellation() }
+            coEvery { sdkContext.awaitConfig() } returns null
+
+            val manager = createSequentialManager(scope = backgroundScope)
+            every { storage.read(DidTrackFirstSeen) } returns true
+
+            manager.configure(neverCalledStaticConfig = false)
+            manager.hasIdentity.first()
+            assertTrue("ready before identify", manager.actor.state.value.isReady)
+
+            When("identify is called with restorePaywallAssignments = true") {
+                // restorePaywallAssignments=true adds Pending.Assignments to the
+                // state in Updates.Identify, and FetchAssignments is dispatched
+                // (here as `immediate`) — but its suspend never returns.
+                manager.identify(
+                    "user-1",
+                    IdentityOptions(restorePaywallAssignments = true),
+                )
+
+                val result =
+                    withTimeoutOrNull(10.seconds) {
+                        manager.awaitLatestIdentity()
+                    }
+
+                Then("awaitLatestIdentity does not return within the timeout") {
+                    assertNull("expected hang, got: $result", result)
+                }
+                And("Pending.Assignments is still in the state") {
+                    val pending = manager.actor.state.value.pending
+                    assertTrue(
+                        "expected Pending.Assignments, was: $pending",
+                        pending.contains(IdentityState.Pending.Assignments),
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Theory 4: `ResolveSeed` calls `sdkContext.awaitConfig()` which routes
+     * to `awaitFirstValidConfig()` — an unbounded `first()` over a
+     * `ConfigState` flow. If config never reaches `Retrieved` (and never
+     * throws), the call suspends forever, `Pending.Seed` is never resolved,
+     * and `awaitLatestIdentity()` hangs even though `FetchAssignments`
+     * itself completes fine.
+     */
+    @Test
+    fun `awaitConfig hang leaves Pending Seed and blocks awaitLatestIdentity`() = runTest {
+        Given("a configured ready manager where awaitConfig suspends forever") {
+            coEvery { sdkContext.fetchAssignments() } returns Unit
+            coEvery { sdkContext.awaitConfig() } coAnswers { awaitCancellation() }
+
+            val manager = createSequentialManager(scope = backgroundScope)
+            every { storage.read(DidTrackFirstSeen) } returns true
+
+            manager.configure(neverCalledStaticConfig = false)
+            manager.hasIdentity.first()
+            assertTrue("ready before identify", manager.actor.state.value.isReady)
+
+            When("identify is called (default options — no restore)") {
+                // Default Identify adds Pending.Seed and dispatches
+                // effect(ResolveSeed). ResolveSeed will suspend on awaitConfig().
+                manager.identify("user-1")
+
+                val result =
+                    withTimeoutOrNull(10.seconds) {
+                        manager.awaitLatestIdentity()
+                    }
+
+                Then("awaitLatestIdentity does not return within the timeout") {
+                    assertNull("expected hang, got: $result", result)
+                }
+                And("Pending.Seed is still in the state") {
+                    val pending = manager.actor.state.value.pending
+                    assertTrue(
+                        "expected Pending.Seed, was: $pending",
+                        pending.contains(IdentityState.Pending.Seed),
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Confirms the post-fix Failed path: when `awaitConfig()` throws (which
+     * is what `awaitFirstValidConfig()` now does on `ConfigState.Failed`),
+     * `ResolveSeed`'s `catch (_: Exception)` updates `SeedSkipped`,
+     * `Pending.Seed` resolves, and `awaitLatestIdentity()` returns.
+     */
+    @Test
+    fun `awaitConfig throwing clears Pending Seed and unblocks awaitLatestIdentity`() = runTest {
+        Given("a configured ready manager where awaitConfig throws (simulating Failed)") {
+            coEvery { sdkContext.fetchAssignments() } returns Unit
+            coEvery { sdkContext.awaitConfig() } throws RuntimeException("config failed")
+
+            val manager = createSequentialManager(scope = backgroundScope)
+            every { storage.read(DidTrackFirstSeen) } returns true
+
+            manager.configure(neverCalledStaticConfig = false)
+            manager.hasIdentity.first()
+
+            When("identify is called") {
+                manager.identify("user-1")
+
+                val result =
+                    withTimeoutOrNull(5.seconds) {
+                        manager.awaitLatestIdentity()
+                    }
+
+                Then("awaitLatestIdentity returns (no hang)") {
+                    assertNotNull("awaitLatestIdentity should return", result)
+                }
+                And("Pending.Seed is cleared") {
+                    val pending = manager.actor.state.value.pending
+                    assertFalse(
+                        "Pending.Seed should be resolved, pending = $pending",
+                        pending.contains(IdentityState.Pending.Seed),
+                    )
+                }
+                And("identity is Ready") {
+                    assertTrue(manager.actor.state.value.isReady)
+                }
+            }
+        }
+    }
 
     @Test
     fun `persistence interceptor writes only changed fields`() = runTest {
