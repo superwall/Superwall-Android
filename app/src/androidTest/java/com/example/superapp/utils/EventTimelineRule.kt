@@ -31,8 +31,12 @@ fun writeTimelineToFile(
     if (timeline.allEvents().isEmpty()) return
 
     val context = InstrumentationRegistry.getInstrumentation().targetContext
-    val baseDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
-        ?: context.filesDir
+    val externalDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+    if (externalDir == null) {
+        Log.w(TAG, "External storage unavailable; writing timelines to internal storage. " +
+            "Use 'adb shell run-as ${context.packageName}' to access files.")
+    }
+    val baseDir = externalDir ?: context.filesDir
     val dir = File(baseDir, TIMELINE_DIR)
     dir.mkdirs()
 

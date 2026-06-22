@@ -3,6 +3,8 @@ package com.superwall.sdk
 import com.superwall.sdk.config.ConfigManager
 import com.superwall.sdk.misc.awaitFirstValidConfig
 import com.superwall.sdk.models.config.Config
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Cross-slice bridge used by the identity actor to call into other managers.
@@ -25,9 +27,13 @@ class SdkContextImpl(
     }
 
     override suspend fun fetchAssignments() {
-        configManager().getAssignments()
+        withTimeoutOrNull(30.seconds) {
+            configManager().getAssignments()
+        }
     }
 
     override suspend fun awaitConfig(): Config? =
-        configManager().configState.awaitFirstValidConfig()
+        withTimeoutOrNull(30.seconds) {
+            configManager().configState.awaitFirstValidConfig()
+        }
 }
