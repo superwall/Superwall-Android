@@ -18,10 +18,13 @@ import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
+import android.graphics.Outline
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewOutlineProvider
 import android.view.Window
 import android.view.animation.OvershootInterpolator
+import androidx.constraintlayout.widget.ConstraintLayout
 import android.widget.FrameLayout
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.SystemBarStyle
@@ -123,8 +126,8 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                         ShimmerView(this@prepareViewForDisplay.context).apply {
                             layoutParams =
                                 FrameLayout.LayoutParams(
-                                    ((style.width * Resources.getSystem().displayMetrics.widthPixels) / 100).toInt(),
-                                    ((style.height * Resources.getSystem().displayMetrics.heightPixels) / 100).toInt(),
+                                    FrameLayout.LayoutParams.MATCH_PARENT,
+                                    FrameLayout.LayoutParams.MATCH_PARENT,
                                 )
                         }
                     } else {
@@ -509,15 +512,40 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         val container =
             activityView.findViewById<FrameLayout>(com.superwall.sdk.R.id.container)
 
+        // Size the container as a percentage of the actual window bounds via ConstraintLayout
+        // constraints rather than display metrics, so it is correct on API 30-32 where
+        // setTranslucent(true) can exclude the nav bar from the window height.
+        val containerParams = container.layoutParams as ConstraintLayout.LayoutParams
+        containerParams.width = 0 // MATCH_CONSTRAINT
+        containerParams.height = 0 // MATCH_CONSTRAINT
+        containerParams.matchConstraintDefaultWidth = ConstraintLayout.LayoutParams.MATCH_CONSTRAINT_PERCENT
+        containerParams.matchConstraintDefaultHeight = ConstraintLayout.LayoutParams.MATCH_CONSTRAINT_PERCENT
+        containerParams.matchConstraintPercentWidth = (width.toFloat() / 100f).coerceIn(0.01f, 1f)
+        containerParams.matchConstraintPercentHeight = (height.toFloat() / 100f).coerceIn(0.01f, 1f)
+        container.layoutParams = containerParams
+
         paywallView.layoutParams =
             FrameLayout.LayoutParams(
-                ((width * Resources.getSystem().displayMetrics.widthPixels) / 100).toInt(),
-                ((height * Resources.getSystem().displayMetrics.heightPixels) / 100).toInt(),
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT,
             )
+
         val radius =
             cornerRadius.toFloat() * Resources.getSystem().displayMetrics.density // Convert dp to px
 
-        container.background = roundedBackground(radius)
+        // Use a custom ViewOutlineProvider so clipToOutline works reliably on API 30-32.
+        // GradientDrawable.getOutline() with no fill color produces an empty outline on older
+        // Android, which causes clipToOutline to have no effect (square corners).
+        container.clipToOutline = true
+        container.outlineProvider =
+            object : ViewOutlineProvider() {
+                override fun getOutline(
+                    view: View,
+                    outline: Outline,
+                ) {
+                    outline.setRoundRect(0, 0, view.width, view.height, radius)
+                }
+            }
 
         container.setOnClickListener { /* consume click */ }
         container.addView(paywallView)
