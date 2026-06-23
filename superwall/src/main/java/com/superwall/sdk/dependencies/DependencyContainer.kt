@@ -617,6 +617,18 @@ class DependencyContainer(
                     }
                     paywallView.updateState(state)
                 },
+                notifyOfTransactionAbandon = { key ->
+                    val paywallView =
+                        resolvePaywallViewForKey(
+                            makeViewStore(),
+                            Superwall.instance.paywallView,
+                            key,
+                        )
+                    if (paywallView == null) {
+                        return@TransactionManager
+                    }
+                    paywallView.webView.messageHandler.handle(PaywallMessage.TransactionAbandon)
+                },
                 notifyOfTransactionComplete = { key, trialEndDate, id ->
                     val paywallView =
                         resolvePaywallViewForKey(

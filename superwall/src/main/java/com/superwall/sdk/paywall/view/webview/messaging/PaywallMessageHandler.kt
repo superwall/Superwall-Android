@@ -216,6 +216,12 @@ class PaywallMessageHandler(
                 }
             }
 
+            is PaywallMessage.TransactionAbandon -> {
+                ioScope.launch {
+                    pass(eventName = SuperwallEvents.TransactionAbandon.rawName, paywall = paywall)
+                }
+            }
+
             is PaywallMessage.UserAttributesUpdated -> {
                 setAttributes(message.data)
             }

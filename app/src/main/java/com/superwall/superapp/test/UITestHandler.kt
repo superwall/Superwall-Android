@@ -47,7 +47,9 @@ object UITestHandler {
                                     "${it.id}"
                                 }.joinToString(separator = ", "),
                         )
-                        Superwall.instance.register(placement = "show_if_web_failed")
+                        Superwall.instance.setUserAttributes(mapOf("is_user_eligible_for_dd_offer" to true))
+                        Superwall.instance.register(placement = "swtest")
+                        Superwall.instance.setUserAttributes(mapOf("is_user_eligible_for_dd_offer" to null))
                     },
                 ),
                 UITestInfo(

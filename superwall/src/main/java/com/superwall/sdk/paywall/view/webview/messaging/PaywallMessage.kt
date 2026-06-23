@@ -85,6 +85,8 @@ sealed class PaywallMessage {
 
     object TransactionStart : PaywallMessage()
 
+    object TransactionAbandon : PaywallMessage()
+
     data class TransactionComplete(
         val productIdentifier: String,
     ) : PaywallMessage()

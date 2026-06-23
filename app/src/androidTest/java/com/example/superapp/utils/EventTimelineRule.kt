@@ -2,6 +2,7 @@ package com.example.superapp.utils
 
 import android.os.Environment
 import android.util.Log
+import androidx.test.platform.app.InstrumentationRegistry
 import com.superwall.superapp.test.UITestInfo
 import org.json.JSONArray
 import org.json.JSONObject
@@ -15,10 +16,11 @@ private const val TAG = "EventTimeline"
 /**
  * Writes the event timeline for a [UITestInfo] to a JSON file on device storage.
  *
- * Output directory: /sdcard/Download/superwall-event-timelines/
+ * Output directory: /sdcard/Android/data/<pkg>/files/Download/superwall-event-timelines/
+ * (app-scoped external storage — no runtime permission required on API 30+).
  *
  * Pull results with:
- *   adb pull /sdcard/Download/superwall-event-timelines/ app/build/outputs/event-timelines/
+ *   adb pull /sdcard/Android/data/<pkg>/files/Download/superwall-event-timelines/ app/build/outputs/event-timelines/
  */
 fun writeTimelineToFile(
     testInfo: UITestInfo,
@@ -28,10 +30,14 @@ fun writeTimelineToFile(
     val timeline = testInfo.timeline
     if (timeline.allEvents().isEmpty()) return
 
-    val dir = File(
-        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-        TIMELINE_DIR,
-    )
+    val context = InstrumentationRegistry.getInstrumentation().targetContext
+    val externalDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+    if (externalDir == null) {
+        Log.w(TAG, "External storage unavailable; writing timelines to internal storage. " +
+            "Use 'adb shell run-as ${context.packageName}' to access files.")
+    }
+    val baseDir = externalDir ?: context.filesDir
+    val dir = File(baseDir, TIMELINE_DIR)
     dir.mkdirs()
 
     val fileName = "${testClassName}_${testMethodName}.json"

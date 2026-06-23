@@ -21,7 +21,28 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Duration.Companion.seconds
+
+/**
+ * Waits for [ConfigState.Retrieved], retrying once after an initial 1-second window.
+ * Throws immediately on [ConfigState.Failed] or when all retries are exhausted.
+ *
+ * @param retriesLeft remaining retry attempts; each attempt uses a progressively
+ *   longer timeout (1s per non-final attempt, 5s for the final one).
+ */
+internal suspend fun StateFlow<ConfigState>.configOrThrow(retriesLeft: Int = 1) {
+    try {
+        withTimeout(if (retriesLeft > 0) 1.seconds else 5.seconds) {
+            first { result ->
+                if (result is ConfigState.Failed) throw result.throwable
+                result is ConfigState.Retrieved
+            }
+        }
+    } catch (e: TimeoutCancellationException) {
+        if (retriesLeft > 0) configOrThrow(retriesLeft - 1) else throw e
+    }
+}
 
 internal suspend fun waitForEntitlementsAndConfig(
     request: PresentationRequest,
@@ -70,79 +91,76 @@ internal suspend fun waitForEntitlementsAndConfig(
 
     val configState = dependencyContainer.configManager.configState
 
-    suspend fun StateFlow<ConfigState>.configOrThrow() {
-        first { result ->
-            if (result is ConfigState.Failed) throw result.throwable
-            result is ConfigState.Retrieved
+    // In-flight states get one retry (1s initial window, then 5s fallback).
+    // Already-resolved states (Retrieved/Failed) complete on the first attempt.
+    val retries =
+        if (configState.value is ConfigState.Retrieving ||
+            configState.value is ConfigState.Retrying ||
+            configState.value is ConfigState.None
+        ) {
+            1
+        } else {
+            0
         }
-    }
 
-    when {
-        // Config is still retrieving, wait for <=1 second.
-        // At 1s we cancel the task and check config again.
-        configState.value is ConfigState.Retrieving -> {
-            try {
-                withTimeout(1.seconds) {
-                    configState
-                        .configOrThrow()
-                }
-            } catch (e: TimeoutCancellationException) {
-                try {
-                    // Check config again just in case
-                    configState.configOrThrow()
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                    dependencyContainer.ioScope().launch {
-                        val trackedEvent =
-                            InternalSuperwallEvent.PresentationRequest(
-                                eventData = request.presentationInfo.eventData,
-                                type = request.flags.type,
-                                status = PaywallPresentationRequestStatus.Timeout,
-                                statusReason = PaywallPresentationRequestStatusReason.NoConfig(),
-                                factory = dependencyContainer,
-                            )
-                        dependencyContainer.track(trackedEvent)
-                    }
-                    Logger.debug(
-                        logLevel = LogLevel.info,
-                        scope = LogScope.paywallPresentation,
-                        message = "Timeout: The config could not be retrieved in a reasonable time for a subscribed user.",
+    try {
+        configState.configOrThrow(retries)
+    } catch (e: Throwable) {
+        e.printStackTrace()
+        // Only track when config timed out — a Failed state is an immediate error, not a timeout.
+        if (e is TimeoutCancellationException) {
+            dependencyContainer.ioScope().launch {
+                val trackedEvent =
+                    InternalSuperwallEvent.PresentationRequest(
+                        eventData = request.presentationInfo.eventData,
+                        type = request.flags.type,
+                        status = PaywallPresentationRequestStatus.Timeout,
+                        statusReason = PaywallPresentationRequestStatusReason.NoConfig(),
+                        factory = dependencyContainer,
                     )
-                    val state =
-                        PaywallState.PresentationError(
-                            InternalPresentationLogic.presentationError(
-                                domain = "SWKPresentationError",
-                                code = 104,
-                                title = "No Config",
-                                value = "Trying to present paywall without the superwall config.",
-                            ),
-                        )
-                    paywallStatePublisher?.emit(state)
-                    throw PaywallPresentationRequestStatusReason.NoConfig()
-                }
+                dependencyContainer.track(trackedEvent)
             }
         }
-
-        else -> {
-            // Try to get the config and continue or throw an error
-            try {
-                configState.configOrThrow()
-            } catch (e: Throwable) {
-                e.printStackTrace()
-                // If config completely dies, then throw an error
-                val error =
-                    InternalPresentationLogic.presentationError(
-                        domain = "SWKPresentationError",
-                        code = 104,
-                        title = "No Config",
-                        value = "Trying to present paywall without the Superwall config. Error: ${e.message}}",
-                    )
-                val state = PaywallState.PresentationError(error)
-                paywallStatePublisher?.emit(state)
-                throw PaywallPresentationRequestStatusReason.NoConfig()
+        Logger.debug(
+            logLevel = LogLevel.info,
+            scope = LogScope.paywallPresentation,
+            message = "Timeout: The config could not be retrieved in a reasonable time.",
+        )
+        val errorValue =
+            if (e is TimeoutCancellationException) {
+                "Trying to present paywall without the Superwall config."
+            } else {
+                "Trying to present paywall without the Superwall config. Error: ${e.message}"
             }
-        }
+        paywallStatePublisher?.emit(
+            PaywallState.PresentationError(
+                InternalPresentationLogic.presentationError(
+                    domain = "SWKPresentationError",
+                    code = 104,
+                    title = "No Config",
+                    value = errorValue,
+                ),
+            ),
+        )
+        throw PaywallPresentationRequestStatusReason.NoConfig()
     }
 
-    dependencyContainer.identityManager.awaitLatestIdentity()
+    // Defense in depth: if a Pending identity item (Seed / Assignments / etc.)
+    // never resolves — e.g. because an upstream coroutine got orphaned or
+    // the underlying flow never emits — don't let paywall presentation hang
+    // forever. Falls through after the timeout; the paywall presents with
+    // whatever identity state is current.
+    val identityResolved =
+        withTimeoutOrNull(5.seconds) {
+            dependencyContainer.identityManager.awaitLatestIdentity()
+        }
+    if (identityResolved == null) {
+        Logger.debug(
+            logLevel = LogLevel.warn,
+            scope = LogScope.paywallPresentation,
+            message =
+                "Timeout: identity did not become ready within 5s. " +
+                    "Proceeding with current identity state.",
+        )
+    }
 }

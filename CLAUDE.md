@@ -20,7 +20,7 @@ This is the Superwall Android SDK - an open-source framework for remotely config
 ./gradlew :app:connectedCheck
 
 # Run integration tests with screenshot recording
-./gradlew :app:connectedCheck -Pdropshots.record
+./gradlew recordDebugAndroidTestScreenshots
 
 # Build and publish SDK locally
 ./gradlew publishToMavenLocal
