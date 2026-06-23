@@ -2,6 +2,15 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.7.16
+
+## Enhancements
+- Improves resilience in cases where configuration is not yet retrieved
+- Exposes Transaction abandon events to paywalls
+
+## Fixes
+- Fixes issue with popups displaying wrong on older API versions
+
 ## 2.7.15
 
 ## Enhancements
