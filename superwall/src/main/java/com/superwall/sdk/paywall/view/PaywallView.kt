@@ -1000,6 +1000,7 @@ class PaywallView(
             val parsedUrl = URI(url)
             val intent = Intent(Intent.ACTION_VIEW, parsedUrl.toString().toUri())
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            controller.updateState(SetBrowserPresented(true))
             context.startActivity(intent)
         } catch (e: MalformedURLException) {
             Logger.debug(

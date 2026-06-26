@@ -16,6 +16,7 @@ import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.paywall.presentation.register
+import com.superwall.sdk.store.testmode.TestModeBehavior
 import com.superwall.superapp.purchase.RevenueCatPurchaseController
 import com.superwall.superapp.test.EventTimeline
 import com.superwall.superapp.test.TimelineStore
@@ -34,7 +35,7 @@ object Keys {
     const val TRANSACTION_ABANDON_API_KEY = "pk_f406422339b71cf568ffe8cba02f849ab27e9791bb9b2ed4"
     const val TRANSACTION_FAIL_API_KEY = "pk_b6cd945401435766da627080a3fbe349adb2dcd69ab767f3"
     const val SURVEY_RESPONSE_API_KEY = "pk_3698d9fe123f1e4aa8014ceca111096ca06fd68d31d9e662"
-    const val WEB_2_APP_API_KEY = "pk_c6190cdd41b924c020e3b88deb2755d51f68dff0b9c8a3a6"
+    const val WEB_2_APP_API_KEY = "pk_4f60fa661af4c948e41dd2dbcef65475acbfcb1fb88adf0e"
 }
 
 class MainApplication :
