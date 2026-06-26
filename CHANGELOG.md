@@ -2,6 +2,12 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.7.18
+
+## Enhancements
+
+- Adds `singularDeviceId` as an `AttributionProvider`.
+
 ## 2.7.17
 
 ## Fixes
