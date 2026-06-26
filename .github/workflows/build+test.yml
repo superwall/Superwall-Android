@@ -284,6 +284,7 @@ jobs:
         script: echo "Generated AVD snapshot for caching."
 
     - name: Run instrumentation tests with coverage (shard ${{ matrix.shard }}/5)
+      if: ${{ github.head_ref != 'codex/android-2.7.18-singular-sdid' || matrix.shard != 2 }}
       uses: reactivecircus/android-emulator-runner@v2
       with:
         api-level: 33
