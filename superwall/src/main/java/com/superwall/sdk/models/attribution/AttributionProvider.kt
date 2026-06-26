@@ -15,6 +15,10 @@ enum class AttributionProvider(
     @SerialName("adjustId")
     ADJUST_ID("adjustId"),
 
+    /** The Singular Device ID (SDID). */
+    @SerialName("singularDeviceId")
+    SINGULAR_DEVICE_ID("singularDeviceId"),
+
     /** The Amplitude device identifier. */
     @SerialName("amplitudeDeviceId")
     AMPLITUDE_DEVICE_ID("amplitudeDeviceId"),
