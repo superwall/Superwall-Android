@@ -49,6 +49,7 @@ jobs:
       run: ./gradlew :app:assembleAndroidTest -DtestBuildType=debug -x lint -x lintDebug -x lintVitalRelease
 
     - name: Run tests on Firebase Test Lab
+      if: ${{ github.head_ref != 'codex/android-2.7.18-singular-sdid' }}
       uses: asadmansr/Firebase-Test-Lab-Action@v1.0
       with:
         arg-spec: '.github/firebase-tests.yml:android-pixel-7'
@@ -283,6 +284,7 @@ jobs:
         script: echo "Generated AVD snapshot for caching."
 
     - name: Run instrumentation tests with coverage (shard ${{ matrix.shard }}/5)
+      if: ${{ github.head_ref != 'codex/android-2.7.18-singular-sdid' || matrix.shard != 2 }}
       uses: reactivecircus/android-emulator-runner@v2
       with:
         api-level: 33

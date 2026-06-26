@@ -76,6 +76,7 @@ class AttributionProviderIntegrationTest {
                             AttributionProvider.MIXPANEL to "mp_distinct_789",
                             AttributionProvider.GOOGLE_ADS to "gclid_abc123",
                             AttributionProvider.ADJUST_ID to "adjust_123",
+                            AttributionProvider.SINGULAR_DEVICE_ID to "singular_device_123",
                             AttributionProvider.AMPLITUDE_DEVICE_ID to "amp_device_456",
                             AttributionProvider.FIREBASE_APP_INSTANCE_ID to "firebase_789",
                             AttributionProvider.CUSTOM to "custom_id_xyz",
@@ -93,10 +94,11 @@ class AttributionProviderIntegrationTest {
                     assertEquals("mp_distinct_789", attributionProps["mixpanel"])
                     assertEquals("gclid_abc123", attributionProps["googleAds"])
                     assertEquals("adjust_123", attributionProps["adjustId"])
+                    assertEquals("singular_device_123", attributionProps["singularDeviceId"])
                     assertEquals("amp_device_456", attributionProps["amplitudeDeviceId"])
                     assertEquals("firebase_789", attributionProps["firebaseAppInstanceId"])
                     assertEquals("custom_id_xyz", attributionProps["custom"])
-                    assertEquals(8, attributionProps.size)
+                    assertEquals(9, attributionProps.size)
                 }
             }
         }
@@ -156,6 +158,7 @@ class AttributionProviderIntegrationTest {
                     val attributionIdentifiers =
                         mapOf(
                             AttributionProvider.ADJUST_ID to "adjust_test_123",
+                            AttributionProvider.SINGULAR_DEVICE_ID to "singular_device_test_123",
                             AttributionProvider.AMPLITUDE_DEVICE_ID to "amp_device_test_456",
                             AttributionProvider.AMPLITUDE_USER_ID to "amp_user_test_789",
                             AttributionProvider.APPSFLYER_ID to "appsflyer_test_abc",
@@ -185,6 +188,7 @@ class AttributionProviderIntegrationTest {
                     val attributionProps = attributionManager.integrationAttributes
 
                     assertEquals("adjust_test_123", attributionProps["adjustId"])
+                    assertEquals("singular_device_test_123", attributionProps["singularDeviceId"])
                     assertEquals("amp_device_test_456", attributionProps["amplitudeDeviceId"])
                     assertEquals("amp_user_test_789", attributionProps["amplitudeUserId"])
                     assertEquals("appsflyer_test_abc", attributionProps["appsflyerId"])
@@ -204,7 +208,7 @@ class AttributionProviderIntegrationTest {
                     assertEquals("tenjin_test_def", attributionProps["tenjinId"])
                     assertEquals("posthog_test_ghi", attributionProps["posthogUserId"])
                     assertEquals("customerio_test_jkl", attributionProps["customerioId"])
-                    assertEquals(20, attributionProps.size)
+                    assertEquals(21, attributionProps.size)
                 }
             }
         }
