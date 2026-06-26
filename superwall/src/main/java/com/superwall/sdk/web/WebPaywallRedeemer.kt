@@ -255,8 +255,8 @@ class WebPaywallRedeemer(
                                 result.firstOrNull { it.code == redemption.code }
                             if (redemptionResultForCode != null) {
                                 if (factory.isPaywallVisible() && !factory.isPaymentSheetOpen()) {
-                                    if (it.customerInfo?.entitlements?.containsAll(
-                                            factory.currentPaywallEntitlements(),
+                                    if (it.customerInfo?.entitlements?.map { it.id }?.containsAll(
+                                            factory.currentPaywallEntitlements().map { it.id },
                                         ) ?: false
                                     ) {
                                         factory.triggerRestoreInPaywall()

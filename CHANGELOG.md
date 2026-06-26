@@ -2,6 +2,12 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.7.17
+
+## Fixes
+
+- Fix paywall not dismissing after web redemption
+
 ## 2.7.16
 
 ## Enhancements
