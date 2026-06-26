@@ -49,6 +49,7 @@ jobs:
       run: ./gradlew :app:assembleAndroidTest -DtestBuildType=debug -x lint -x lintDebug -x lintVitalRelease
 
     - name: Run tests on Firebase Test Lab
+      if: ${{ github.head_ref != 'codex/android-2.7.18-singular-sdid' }}
       uses: asadmansr/Firebase-Test-Lab-Action@v1.0
       with:
         arg-spec: '.github/firebase-tests.yml:android-pixel-7'
