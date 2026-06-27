@@ -299,6 +299,27 @@ fun Superwall.register(
     internallyRegister(placement, params, handler, feature)
 }
 
+/**
+ * Registers an analytics event with no paywall presentation handling and no feature gating.
+ *
+ * This is a fire-and-forget convenience alias for [register]. It registers the event with
+ * Superwall without a [PaywallPresentationHandler] or a feature closure, so no paywall is
+ * presented and no feature is gated as a direct result of the call. The event is sent to
+ * Superwall and is queryable via the Query API.
+ *
+ * @param event The name of the analytics event you wish to register.
+ * @param params Optional parameters you'd like to pass with your event. These can be referenced within the rules of your campaign.
+ *               Keys beginning with `$` are reserved for Superwall and will be dropped. Values can be any JSON encodable value, URLs or Dates.
+ *               Arrays and dictionaries as values are not supported at this time, and will be dropped. Defaults to `null`.
+ */
+@JvmOverloads
+fun Superwall.track(
+    event: String,
+    params: Map<String, Any>? = null,
+) {
+    register(placement = event, params = params)
+}
+
 private fun Superwall.internallyRegister(
     placement: String,
     params: Map<String, Any>? = null,
