@@ -7,6 +7,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 ## Enhancements
 
 - Adds `singularDeviceId` as an `AttributionProvider`.
+- Clarifies that `AttributionProvider.ONESIGNAL_ID` should be set to the OneSignal User ID used by the OneSignal integration.
 
 ## 2.7.17
 
