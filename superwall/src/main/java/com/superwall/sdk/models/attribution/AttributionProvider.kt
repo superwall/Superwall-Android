@@ -39,7 +39,7 @@ enum class AttributionProvider(
     @SerialName("brazeAliasLabel")
     BRAZE_ALIAS_LABEL("brazeAliasLabel"),
 
-    /** The OneSignal Player identifier for the user. */
+    /** The OneSignal User ID (`onesignal_id`) for the user. */
     @SerialName("onesignalId")
     ONESIGNAL_ID("onesignalId"),
 
