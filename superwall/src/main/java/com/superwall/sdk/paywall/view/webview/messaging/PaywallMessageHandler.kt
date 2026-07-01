@@ -8,6 +8,7 @@ import android.webkit.JavascriptInterface
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEvents
+import com.superwall.sdk.config.options.EventTrackingBehavior
 import com.superwall.sdk.dependencies.OptionsFactory
 import com.superwall.sdk.dependencies.VariablesFactory
 import com.superwall.sdk.logger.LogLevel
@@ -316,6 +317,31 @@ class PaywallMessageHandler(
         passMessageToWebView(base64String = encodeToB64(jsonString))
     }
 
+    // Informs the web paywall of the current event tracking behavior so it can
+    // honor opt-outs (e.g. suppressing first-party collector sends for GDPR).
+    suspend fun passEventTrackingBehaviorToWebView(behavior: EventTrackingBehavior) {
+        val eventList =
+            listOf(
+                mapOf(
+                    "event_name" to "event_tracking_behavior",
+                    "behavior" to behavior.description,
+                ),
+            )
+        val jsonString =
+            try {
+                json.encodeToString(eventList.convertToJsonElement())
+            } catch (e: Throwable) {
+                Logger.debug(
+                    LogLevel.error,
+                    LogScope.superwallCore,
+                    "Error encoding event_tracking_behavior: ${e.message}",
+                    error = e,
+                )
+                return
+            }
+        passMessageToWebView(base64String = encodeToB64(jsonString))
+    }
+
     // Passes the templated variables and params to the webview.
     // This is called every paywall open incase variables like user attributes have changed.
     private suspend fun passTemplatesToWebView(paywall: Paywall) {
@@ -380,6 +406,9 @@ class PaywallMessageHandler(
                         paywallInfo = paywallInfo,
                     )
                 track(trackedEvent)
+
+                val behavior = options.makeSuperwallOptions().eventTrackingBehavior
+                passEventTrackingBehaviorToWebView(behavior)
             }
         }
 

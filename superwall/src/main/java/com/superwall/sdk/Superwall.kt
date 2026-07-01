@@ -17,6 +17,7 @@ import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
 import com.superwall.sdk.billing.toInternalResult
 import com.superwall.sdk.config.models.ConfigState
 import com.superwall.sdk.config.models.ConfigurationStatus
+import com.superwall.sdk.config.options.EventTrackingBehavior
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.deeplinks.DeepLinkRouter
 import com.superwall.sdk.delegate.InternalPurchaseResult
@@ -142,6 +143,39 @@ class Superwall(
         get() = dependencyContainer.configManager.options.localeIdentifier
         set(value) {
             dependencyContainer.configManager.options.localeIdentifier = value
+            ioScope.launch {
+                track(dependencyContainer.makeConfigAttributes())
+            }
+        }
+
+    /**
+     * Controls which events are sent to the Superwall servers at runtime.
+     *
+     * Defaults to [EventTrackingBehavior.ALL]. Update this at any point after
+     * [configure] to change event collection dynamically — for example, toggling to
+     * [EventTrackingBehavior.NONE] after the user declines data collection in a GDPR
+     * consent flow.
+     *
+     * You can also set the initial value via [SuperwallOptions.eventTrackingBehavior]
+     * before calling [configure].
+     */
+    var eventTrackingBehavior: EventTrackingBehavior
+        get() = options.eventTrackingBehavior
+        set(newValue) {
+            options.eventTrackingBehavior = newValue
+
+            dependencyContainer.eventsQueue.setTrackingBehavior(newValue)
+
+            mainScope.launch {
+                paywallView?.webView?.messageHandler?.passEventTrackingBehaviorToWebView(newValue)
+            }
+
+            // When opting out entirely, don't emit the config-attributes event —
+            // it would otherwise transmit attributes right after the opt-out.
+            if (newValue == EventTrackingBehavior.NONE) {
+                return
+            }
+
             ioScope.launch {
                 track(dependencyContainer.makeConfigAttributes())
             }
