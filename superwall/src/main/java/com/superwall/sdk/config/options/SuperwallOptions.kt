@@ -74,12 +74,36 @@ class SuperwallOptions() {
     // received the go-ahead from the Superwall team.
     var networkEnvironment: NetworkEnvironment = NetworkEnvironment.Release()
 
+    // Controls which events are sent to the Superwall servers.
+    //
+    // Defaults to [EventTrackingBehavior.ALL]. Set this to [EventTrackingBehavior.SUPERWALL_ONLY]
+    // to suppress user-initiated tracking, trigger fires, and user-attribute updates, or to
+    // [EventTrackingBehavior.NONE] to stop all event collection (e.g. for GDPR compliance).
+    //
+    // You can also change this at runtime via [com.superwall.sdk.Superwall.eventTrackingBehavior].
+    var eventTrackingBehavior: EventTrackingBehavior = EventTrackingBehavior.ALL
+
     // Enables the sending of non-Superwall tracked events and properties back to the Superwall servers.
     // Defaults to `true`.
     //
-    // Set this to `false` to stop external data collection. This will not affect
-    // your ability to create triggers based on properties.
-    var isExternalDataCollectionEnabled: Boolean = true
+    // **WARNING**: Deprecated. Use [eventTrackingBehavior] instead.
+    // Setting this to `false` maps to [EventTrackingBehavior.SUPERWALL_ONLY] unless the current
+    // value is already [EventTrackingBehavior.NONE], in which case `NONE` is preserved.
+    // Setting it back to `true` maps to [EventTrackingBehavior.ALL].
+    @Deprecated(
+        "Use eventTrackingBehavior instead.",
+        ReplaceWith("eventTrackingBehavior"),
+    )
+    var isExternalDataCollectionEnabled: Boolean
+        get() = eventTrackingBehavior == EventTrackingBehavior.ALL
+        set(value) {
+            eventTrackingBehavior =
+                when {
+                    value -> EventTrackingBehavior.ALL
+                    eventTrackingBehavior != EventTrackingBehavior.NONE -> EventTrackingBehavior.SUPERWALL_ONLY
+                    else -> eventTrackingBehavior
+                }
+        }
 
     // Sets the device locale identifier to use when evaluating rules.
     //
@@ -143,7 +167,11 @@ internal fun SuperwallOptions.toMap(): Map<String, Any> =
     listOfNotNull(
         "paywalls" to paywalls.toMap(),
         "network_environment" to networkEnvironment.toMap(),
-        "is_external_data_collection_enabled" to isExternalDataCollectionEnabled,
+        "event_tracking_behavior" to eventTrackingBehavior.description,
+        // Keep emitting the deprecated `is_external_data_collection_enabled` boolean so
+        // backends/dashboards still reading it don't treat opted-out clients as the
+        // default. Mirrors the deprecated property (true only for `ALL`).
+        "is_external_data_collection_enabled" to (eventTrackingBehavior == EventTrackingBehavior.ALL),
         localeIdentifier?.let { "locale_identifier" to it },
         "is_game_controller_enabled" to isGameControllerEnabled,
         "logging" to logging.toMap(),

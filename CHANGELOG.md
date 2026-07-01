@@ -2,6 +2,13 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.7.19
+
+## Enhancements
+
+- Added `EventTrackingBehavior` enum and `SuperwallOptions.eventTrackingBehavior` property for GDPR-compliant event collection control. Use `ALL` (default) to track everything, `SUPERWALL_ONLY` to suppress user-initiated tracking, trigger fires, and user-attribute updates while keeping internal SDK events, or `NONE` to stop all event collection entirely. The behavior can also be changed at runtime via `Superwall.instance.eventTrackingBehavior`.
+- Deprecated `SuperwallOptions.isExternalDataCollectionEnabled`. Setting it to `false` now maps to `SUPERWALL_ONLY`; setting it back to `true` maps to `ALL`.
+
 ## 2.7.18
 
 ## Enhancements
