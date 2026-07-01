@@ -4,11 +4,11 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.analytics.internal.trackable.UserInitiatedEvent
 import com.superwall.sdk.config.ConfigManager
+import com.superwall.sdk.config.options.EventTrackingBehavior
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.MainScope
@@ -31,6 +31,10 @@ class EventsQueue(
     private var elements = mutableListOf<EventData>()
     private val timer = MutableSharedFlow<Long>()
     private var job: Job? = null
+
+    // Capture the configured behavior up front; updated at runtime via [setTrackingBehavior].
+    private var trackingBehavior: EventTrackingBehavior =
+        configManager.options?.eventTrackingBehavior ?: EventTrackingBehavior.ALL
     override val coroutineContext: CoroutineContext = Dispatchers.IO.limitedParallelism(1)
 
     init {
@@ -67,28 +71,42 @@ class EventsQueue(
         data: EventData,
         event: Trackable,
     ) {
-        if (!externalDataCollectionAllowed(event)) return
+        if (!trackingAllowed(event)) return
 
         launch {
             elements.add(data)
         }
     }
 
-    private fun externalDataCollectionAllowed(event: Trackable): Boolean {
-        if (Superwall.instance.options.isExternalDataCollectionEnabled) {
-            return true
-        }
-        return when (event) {
-            is InternalSuperwallEvent.TriggerFire,
-            is InternalSuperwallEvent.Attributes,
-            is UserInitiatedEvent.Track,
-            -> false
-            else -> true
+    fun setTrackingBehavior(behavior: EventTrackingBehavior) {
+        launch {
+            trackingBehavior = behavior
+            if (behavior != EventTrackingBehavior.ALL) {
+                elements.clear()
+            }
         }
     }
 
+    private fun trackingAllowed(event: Trackable): Boolean =
+        when (trackingBehavior) {
+            EventTrackingBehavior.ALL -> true
+            EventTrackingBehavior.SUPERWALL_ONLY ->
+                when (event) {
+                    is InternalSuperwallEvent.TriggerFire,
+                    is InternalSuperwallEvent.Attributes,
+                    is UserInitiatedEvent.Track,
+                    -> false
+                    else -> true
+                }
+            EventTrackingBehavior.NONE -> false
+        }
+
     suspend fun flushInternal(depth: Int = 10) {
         launch {
+            if (trackingBehavior == EventTrackingBehavior.NONE) {
+                elements.clear()
+                return@launch
+            }
             val eventsToSend = mutableListOf<EventData>()
             var i = 0
             while (i < maxEventCount && elements.isNotEmpty()) {
