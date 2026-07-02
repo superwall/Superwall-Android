@@ -363,6 +363,9 @@ class DeviceHelper(
 
     var interfaceStyleOverride: InterfaceStyle? = null
 
+    val fontScale: Float
+        get() = context.resources.configuration.fontScale
+
     val interfaceStyle: String
         get() {
             return interfaceStyleOverride?.rawValue ?: run {
@@ -577,6 +580,7 @@ class DeviceHelper(
                 timezoneOffset = (TimeZone.getDefault().rawOffset) / 1000,
                 radioType = radioType,
                 interfaceStyle = interfaceStyle,
+                fontScale = fontScale,
                 isLowPowerModeEnabled = isLowPowerModeEnabled.toBoolean(),
                 bundleId = bundleId,
                 appInstallDate = appInstalledAtString,
