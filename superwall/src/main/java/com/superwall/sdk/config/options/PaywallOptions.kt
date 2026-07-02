@@ -1,5 +1,6 @@
 package com.superwall.sdk.config.options
 
+import androidx.annotation.ColorRes
 import com.superwall.sdk.analytics.Tier
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import kotlin.time.Duration
@@ -135,6 +136,17 @@ class PaywallOptions() {
      * **Note:** This feature is still in development and could change.
      */
     var transactionBackgroundView: TransactionBackgroundView? = TransactionBackgroundView.SPINNER
+
+    /**
+     * A color resource used to tint the spinner shown while a purchase or restoration
+     * is in progress. Defaults to `null`, which keeps the system's default spinner color.
+     *
+     * Note: this only applies to the SDK's built-in loading view. If you present paywalls
+     * yourself and pass a custom view via `PaywallBuilder.purchaseLoadingView`, style that
+     * view directly instead.
+     */
+    @ColorRes
+    var loadingColor: Int? = null
 
     /** Hide shimmer optimistically. */
     var optimisticLoading: Boolean = false

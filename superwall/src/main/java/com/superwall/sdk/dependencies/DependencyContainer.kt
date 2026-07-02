@@ -894,7 +894,13 @@ class DependencyContainer(
     }
 
     override fun makeCache(): PaywallViewCache =
-        PaywallViewCache(context, makeViewStore(), activityProvider!!, deviceHelper)
+        PaywallViewCache(
+            context,
+            makeViewStore(),
+            activityProvider!!,
+            deviceHelper,
+            configManager.options.paywalls.loadingColor,
+        )
 
     override fun activePaywallId(): String? =
         paywallManager.currentView
