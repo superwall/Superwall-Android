@@ -11,6 +11,7 @@ import com.superwall.sdk.When
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.delegate.InternalPurchaseResult
+import com.superwall.sdk.delegate.RestorationResult
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.misc.ActivityProvider
 import com.superwall.sdk.misc.AlertControllerFactory
@@ -18,6 +19,7 @@ import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
+import com.superwall.sdk.paywall.view.PaywallView
 import com.superwall.sdk.paywall.view.PaywallViewState
 import com.superwall.sdk.products.mockProductDetails
 import com.superwall.sdk.storage.EventsQueue
@@ -29,6 +31,7 @@ import com.superwall.sdk.store.abstractions.product.RawStoreProduct
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import io.mockk.MockKAnnotations
 import io.mockk.clearMocks
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.impl.annotations.MockK
 import io.mockk.mockk
@@ -73,7 +76,8 @@ class TransactionManagerTest {
     private val alertCalls = mutableListOf<AlertControllerFactory.AlertProps>()
     private val stateUpdates = mutableListOf<Pair<String, PaywallViewState.Updates>>()
     private val transactionCompleteCalls = mutableListOf<Pair<String, Long?>>()
-    private var subscriptionStatusValue = SubscriptionStatus.Active(setOf(Entitlement("test")))
+    private var subscriptionStatusValue: SubscriptionStatus = SubscriptionStatus.Active(setOf(Entitlement("test")))
+    private var webEntitlementsValue: Set<Entitlement> = emptySet()
     private val entitlementsMap = mutableMapOf<String, Set<Entitlement>>()
     private var refreshReceiptCalled = false
     private var showRestoreDialogCalled = false
@@ -89,6 +93,9 @@ class TransactionManagerTest {
         transactionCompleteCalls.clear()
         refreshReceiptCalled = false
         showRestoreDialogCalled = false
+        webEntitlementsValue = emptySet()
+        subscriptionStatusValue = SubscriptionStatus.Active(setOf(Entitlement("test")))
+        entitlementsMap.clear()
 
         ioScope = IOScope(Dispatchers.Unconfined)
         productsByFullId = mutableMapOf()
@@ -120,6 +127,7 @@ class TransactionManagerTest {
                 subscriptionStatus = { subscriptionStatusValue },
                 entitlementsById = { entitlementsMap[it] ?: emptySet() },
                 allEntitlementsByProductId = { entitlementsMap },
+                webEntitlements = { webEntitlementsValue },
                 showRestoreDialogForWeb = { showRestoreDialogCalled = true },
                 refreshReceipt = { refreshReceiptCalled = true },
                 updateState = { key, update -> stateUpdates.add(key to update) },
@@ -393,6 +401,77 @@ class TransactionManagerTest {
                 }
             }
         }
+
+    // region app2web restore regression (external purchase controller)
+
+    @Test
+    fun tryToRestore_restoredWithWebEntitlementsButInactiveStatus_tracksRestoreComplete() =
+        runTest {
+            Given("a restore that succeeds while the SDK subscription status is inactive but the user holds web-granted entitlements covering the paywall") {
+                // Reproduces the app2web + external purchase controller bug: a successful web
+                // redemption triggers a native restore. The redeemed Stripe entitlement lives in
+                // the web entitlements (merged CustomerInfo) but was never written into
+                // SubscriptionStatus, so the restore used to be reported as a failure and show the
+                // "No Subscription Found" dialog.
+                coEvery { purchaseController.restorePurchases() } returns RestorationResult.Restored()
+                subscriptionStatusValue = SubscriptionStatus.Inactive
+                webEntitlementsValue = setOf(Entitlement("standard"))
+                entitlementsMap["price_stripe_standard"] = setOf(Entitlement("standard"))
+                every { factory.isWebToAppEnabled() } returns true
+
+                val paywallView =
+                    mockk<PaywallView>(relaxed = true) {
+                        every { state.paywall.productIds } returns listOf("price_stripe_standard")
+                    }
+
+                When("a restore is attempted") {
+                    transactionManager.tryToRestorePurchases(paywallView)
+
+                    Then("the restore is reported as complete and not as a failure") {
+                        val restoreStates =
+                            trackedEvents
+                                .filterIsInstance<InternalSuperwallEvent.Restore>()
+                                .map { it.state }
+                        assertTrue(restoreStates.any { it is InternalSuperwallEvent.Restore.State.Complete })
+                        assertFalse(restoreStates.any { it is InternalSuperwallEvent.Restore.State.Failure })
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun tryToRestore_restoredWithNoEntitlementsAnywhere_tracksRestoreFailure() =
+        runTest {
+            Given("a restore that succeeds but the user has neither active status nor web entitlements") {
+                // Control: guards against over-fixing. A genuine "nothing to restore" must still fail.
+                // webToApp disabled so the failure path shows the alert instead of askToRestoreFromWeb
+                // (which would touch Superwall.instance).
+                coEvery { purchaseController.restorePurchases() } returns RestorationResult.Restored()
+                subscriptionStatusValue = SubscriptionStatus.Inactive
+                webEntitlementsValue = emptySet()
+                every { factory.isWebToAppEnabled() } returns false
+
+                val paywallView =
+                    mockk<PaywallView>(relaxed = true) {
+                        every { state.paywall.productIds } returns emptyList()
+                    }
+
+                When("a restore is attempted") {
+                    transactionManager.tryToRestorePurchases(paywallView)
+
+                    Then("the restore is reported as a failure") {
+                        val restoreStates =
+                            trackedEvents
+                                .filterIsInstance<InternalSuperwallEvent.Restore>()
+                                .map { it.state }
+                        assertTrue(restoreStates.any { it is InternalSuperwallEvent.Restore.State.Failure })
+                        assertFalse(restoreStates.any { it is InternalSuperwallEvent.Restore.State.Complete })
+                    }
+                }
+            }
+        }
+
+    // endregion
 
     private fun mockStoreProduct(
         productId: String,

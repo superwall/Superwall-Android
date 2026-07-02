@@ -592,6 +592,9 @@ class DependencyContainer(
                 allEntitlementsByProductId = {
                     entitlements.entitlementsByProductId
                 },
+                webEntitlements = {
+                    entitlements.web
+                },
                 refreshReceipt = {
                     storeManager.refreshReceipt()
                 },

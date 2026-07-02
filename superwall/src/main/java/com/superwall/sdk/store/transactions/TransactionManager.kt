@@ -75,6 +75,9 @@ class TransactionManager(
     },
     private val entitlementsById: (String) -> Set<Entitlement>,
     private val allEntitlementsByProductId: () -> Map<String, Set<Entitlement>>,
+    private val webEntitlements: () -> Set<Entitlement> = {
+        Superwall.instance.entitlements.web
+    },
     private val showRestoreDialogForWeb: suspend () -> Unit,
     private val refreshReceipt: () -> Unit,
     private val updateState: (cacheKey: String, update: PaywallViewState.Updates) -> Unit,
@@ -856,8 +859,15 @@ class TransactionManager(
 
         val hasRestored = restorationResult is RestorationResult.Restored
         val status = subscriptionStatus()
+        // Web-granted entitlements (e.g. from an app2web redemption) are the source of truth
+        // for the restore result alongside SubscriptionStatus. When an external purchase
+        // controller is present, redeemed web entitlements are never written into
+        // SubscriptionStatus (internallySetSubscriptionStatus is a no-op), so a restore
+        // triggered by a successful redemption would otherwise be reported as failed and
+        // surface the "No Subscription Found" dialog even though the user is entitled.
+        val webEntitlements = webEntitlements()
         val hasEntitlements =
-            status is SubscriptionStatus.Active
+            status is SubscriptionStatus.Active || webEntitlements.isNotEmpty()
         storeManager.loadPurchasedProducts(allEntitlementsByProductId())
 
         val webToAppEnabled = factory.isWebToAppEnabled()
@@ -870,7 +880,7 @@ class TransactionManager(
                     entitlementsById(it)
                 }?.flatten() ?: emptyList()
         val existingEntitlements =
-            (status as? SubscriptionStatus.Active)?.entitlements ?: emptySet()
+            ((status as? SubscriptionStatus.Active)?.entitlements ?: emptySet()) + webEntitlements
         if (hasRestored && hasEntitlements) {
             if (existingEntitlements.containsAll(allPaywallEntitlements) || !webToAppEnabled) {
                 log(message = "Transactions Restored")
