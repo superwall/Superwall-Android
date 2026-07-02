@@ -71,6 +71,8 @@ class TrackingLogicTest {
                                     )
 
                                 override fun activeEntitlements() = emptySet<com.superwall.sdk.models.entitlements.Entitlement>()
+
+                                override fun storefrontCountryCode(): String? = null
                             },
                     ),
                 ) {

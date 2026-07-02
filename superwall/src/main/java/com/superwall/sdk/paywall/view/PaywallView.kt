@@ -730,6 +730,7 @@ class PaywallView(
                 it.hideShimmer()
             }
         }
+
         // Guard against duplicate tracking
         if (state.paywall.shimmerLoadingInfo.endAt != null) return
 

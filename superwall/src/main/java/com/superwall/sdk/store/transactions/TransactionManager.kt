@@ -75,6 +75,9 @@ class TransactionManager(
     },
     private val entitlementsById: (String) -> Set<Entitlement>,
     private val allEntitlementsByProductId: () -> Map<String, Set<Entitlement>>,
+    private val webEntitlements: () -> Set<Entitlement> = {
+        Superwall.instance.entitlements.web
+    },
     private val showRestoreDialogForWeb: suspend () -> Unit,
     private val refreshReceipt: () -> Unit,
     private val updateState: (cacheKey: String, update: PaywallViewState.Updates) -> Unit,
@@ -856,8 +859,9 @@ class TransactionManager(
 
         val hasRestored = restorationResult is RestorationResult.Restored
         val status = subscriptionStatus()
+        val webEntitlements = webEntitlements()
         val hasEntitlements =
-            status is SubscriptionStatus.Active
+            status is SubscriptionStatus.Active || webEntitlements.isNotEmpty()
         storeManager.loadPurchasedProducts(allEntitlementsByProductId())
 
         val webToAppEnabled = factory.isWebToAppEnabled()
@@ -870,7 +874,7 @@ class TransactionManager(
                     entitlementsById(it)
                 }?.flatten() ?: emptyList()
         val existingEntitlements =
-            (status as? SubscriptionStatus.Active)?.entitlements ?: emptySet()
+            ((status as? SubscriptionStatus.Active)?.entitlements ?: emptySet()) + webEntitlements
         if (hasRestored && hasEntitlements) {
             if (existingEntitlements.containsAll(allPaywallEntitlements) || !webToAppEnabled) {
                 log(message = "Transactions Restored")
@@ -1009,6 +1013,7 @@ class TransactionManager(
                         demandScore = factory.demandScore(),
                         demandTier = factory.demandTier(),
                         userAttributes = factory.getCurrentUserAttributes(),
+                        storefrontCountryCode = storeManager.storefrontCountryCode,
                     )
                 track(trackedEvent)
                 eventsQueue.flushInternal()
@@ -1045,6 +1050,7 @@ class TransactionManager(
                         userAttributes = factory.getCurrentUserAttributes(),
                         demandScore = factory.demandScore(),
                         demandTier = factory.demandTier(),
+                        storefrontCountryCode = storeManager.storefrontCountryCode,
                     )
                 track(trackedEvent)
                 eventsQueue.flushInternal()

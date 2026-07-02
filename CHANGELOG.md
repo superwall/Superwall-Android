@@ -2,6 +2,16 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.7.20
+
+## Enhancements
+
+- Adds `storeFrontCountryCode` property
+- Adds `PaywallOptions.loadingColor` to options enabling you to theme the circular progress bar 
+
+## Fixes
+- Fix a bug causing web redemption entitlements to be ignored in restoration tracking logic for users of purchase controller
+
 ## 2.7.19
 
 ## Enhancements

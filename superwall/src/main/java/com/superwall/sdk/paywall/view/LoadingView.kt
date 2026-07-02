@@ -1,6 +1,7 @@
 package com.superwall.sdk.paywall.view
 
 import android.content.Context
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.util.AttributeSet
 import android.view.Gravity
@@ -10,6 +11,8 @@ import android.widget.FrameLayout
 import android.widget.FrameLayout.GONE
 import android.widget.FrameLayout.VISIBLE
 import android.widget.ProgressBar
+import androidx.annotation.ColorRes
+import androidx.core.content.ContextCompat
 import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 
 class LoadingView
@@ -19,6 +22,7 @@ class LoadingView
         attrs: AttributeSet? = null,
         defStyleAttr: Int = 0,
         defStyleRes: Int = 0,
+        @ColorRes loadingColor: Int? = null,
     ) : FrameLayout(context.applicationContext),
         PaywallPurchaseLoadingView {
         companion object {
@@ -40,6 +44,10 @@ class LoadingView
                             Gravity.CENTER,
                         )
                     layoutParams = params
+                    loadingColor?.let {
+                        indeterminateTintList =
+                            ColorStateList.valueOf(ContextCompat.getColor(context, it))
+                    }
                 }
 
             // Add the ProgressBar to this view

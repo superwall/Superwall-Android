@@ -36,6 +36,23 @@ class StoreManager(
     StoreKit {
     val receiptManager by lazy(receiptManagerFactory)
 
+    /**
+     * The country code of the user's Play Store account, loaded once per app start
+     * via [loadStorefrontCountryCode]. `null` until loaded or if billing is unavailable.
+     */
+    var storefrontCountryCode: String? = null
+        private set
+
+    /**
+     * Loads the storefront country code from the Play billing config. The value can't
+     * change without the user switching Play accounts, so it's fetched once per app start.
+     */
+    suspend fun loadStorefrontCountryCode() {
+        if (storefrontCountryCode == null) {
+            storefrontCountryCode = billing.getStorefrontCountryCode()
+        }
+    }
+
     private var productsByFullId: ConcurrentHashMap<String, ProductState> = ConcurrentHashMap()
 
     private data class ProductProcessingResult(
@@ -59,7 +76,12 @@ class StoreManager(
                 output.productsByFullId[productItem.fullProductId]?.let { storeProduct ->
                     ProductVariable(
                         name = productItem.name,
-                        attributes = storeProduct.attributes,
+                        attributes =
+                            if (storeProduct.storeFrontCountryCode == null && storefrontCountryCode != null) {
+                                storeProduct.attributes + ("storeFrontCountryCode" to storefrontCountryCode!!)
+                            } else {
+                                storeProduct.attributes
+                            },
                     )
                 }
             }

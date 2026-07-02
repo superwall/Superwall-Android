@@ -45,6 +45,15 @@ interface StoreProductType {
     val subscriptionPeriod: SubscriptionPeriod?
     val productType: String
 
+    /**
+     * The country code of the store the product is sold through, for products that
+     * carry their own storefront (e.g. test mode products from the API). For Play Store
+     * products this is `null` — the Play storefront country is injected by
+     * `StoreManager` when building product variables.
+     */
+    val storeFrontCountryCode: String?
+        get() = null
+
     fun trialPeriodPricePerUnit(unit: SubscriptionPeriod.Unit): String
 
     val attributes: Map<String, String>
@@ -81,6 +90,7 @@ interface StoreProductType {
             attributes["languageCode"] = languageCode ?: "n/a"
             attributes["currencyCode"] = currencyCode ?: "n/a"
             attributes["currencySymbol"] = currencySymbol ?: "n/a"
+            attributes["storeFrontCountryCode"] = storeFrontCountryCode ?: "n/a"
             attributes["identifier"] = fullIdentifier
             attributes["productIdentifier"] = productIdentifier
 

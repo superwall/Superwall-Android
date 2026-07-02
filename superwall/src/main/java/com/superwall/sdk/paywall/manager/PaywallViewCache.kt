@@ -1,6 +1,7 @@
 package com.superwall.sdk.paywall.manager
 
 import android.content.Context
+import androidx.annotation.ColorRes
 import com.superwall.sdk.misc.ActivityProvider
 import com.superwall.sdk.models.paywall.PaywallIdentifier
 import com.superwall.sdk.network.device.DeviceHelper
@@ -20,11 +21,12 @@ class PaywallViewCache(
     private val store: ViewStorage,
     private val activityProvider: ActivityProvider,
     private val deviceHelper: DeviceHelper,
+    @ColorRes private val loadingColor: Int? = null,
 ) {
     private val ctx: Context
         get() = activityProvider.getCurrentActivity() ?: appCtx
     private var _activePaywallVcKey: String? = null
-    private val loadingView: LoadingView = LoadingView(context = ctx)
+    private val loadingView: LoadingView = LoadingView(context = ctx, loadingColor = loadingColor)
     private val shimmerView: ShimmerView = ShimmerView(context = ctx)
 
     init {
@@ -70,7 +72,7 @@ class PaywallViewCache(
         return store.retrieveView(LoadingView.TAG)?.let {
             it as PaywallPurchaseLoadingView
         } ?: run {
-            val view = LoadingView(ctx)
+            val view = LoadingView(ctx, loadingColor = loadingColor)
             store.storeView(LoadingView.TAG, view)
             return view
         }

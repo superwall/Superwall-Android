@@ -66,6 +66,7 @@ data class DeviceTemplate(
     val deviceTier: String,
     val reviewRequestCount: Int,
     val kotlinVersion: String,
+    val storeFrontCountryCode: String? = null,
 ) {
     fun toDictionary(json: Json): Map<String, Any> {
         val jsonString = json.encodeToString(serializer(), this)
