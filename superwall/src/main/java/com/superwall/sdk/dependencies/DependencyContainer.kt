@@ -333,6 +333,12 @@ class DependencyContainer(
                 testMode = testMode,
             )
 
+        // Load the Play storefront country once per app start - it can't change
+        // without the user switching Play accounts.
+        ioScope.launch {
+            storeManager.loadStorefrontCountryCode()
+        }
+
         delegateAdapter = SuperwallDelegateAdapter()
         val httpConnection =
             CustomHttpUrlConnection(
@@ -1170,6 +1176,8 @@ class DependencyContainer(
 
     override fun activeEntitlements(): Set<com.superwall.sdk.models.entitlements.Entitlement> =
         entitlements.active
+
+    override fun storefrontCountryCode(): String? = storeManager.storefrontCountryCode
 
     override fun updatePaywallInfo(paywallInfo: PaywallInfo) {
         Superwall.instance.presentationItems.paywallInfo = paywallInfo

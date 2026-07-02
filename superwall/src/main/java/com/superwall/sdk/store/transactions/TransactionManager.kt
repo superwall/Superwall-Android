@@ -859,12 +859,6 @@ class TransactionManager(
 
         val hasRestored = restorationResult is RestorationResult.Restored
         val status = subscriptionStatus()
-        // Web-granted entitlements (e.g. from an app2web redemption) are the source of truth
-        // for the restore result alongside SubscriptionStatus. When an external purchase
-        // controller is present, redeemed web entitlements are never written into
-        // SubscriptionStatus (internallySetSubscriptionStatus is a no-op), so a restore
-        // triggered by a successful redemption would otherwise be reported as failed and
-        // surface the "No Subscription Found" dialog even though the user is entitled.
         val webEntitlements = webEntitlements()
         val hasEntitlements =
             status is SubscriptionStatus.Active || webEntitlements.isNotEmpty()
@@ -1019,6 +1013,7 @@ class TransactionManager(
                         demandScore = factory.demandScore(),
                         demandTier = factory.demandTier(),
                         userAttributes = factory.getCurrentUserAttributes(),
+                        storefrontCountryCode = storeManager.storefrontCountryCode,
                     )
                 track(trackedEvent)
                 eventsQueue.flushInternal()
@@ -1055,6 +1050,7 @@ class TransactionManager(
                         userAttributes = factory.getCurrentUserAttributes(),
                         demandScore = factory.demandScore(),
                         demandTier = factory.demandTier(),
+                        storefrontCountryCode = storeManager.storefrontCountryCode,
                     )
                 track(trackedEvent)
                 eventsQueue.flushInternal()

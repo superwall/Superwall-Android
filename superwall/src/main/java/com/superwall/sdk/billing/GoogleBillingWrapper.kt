@@ -5,6 +5,7 @@ import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClient.ProductType
 import com.android.billingclient.api.BillingClientStateListener
 import com.android.billingclient.api.BillingResult
+import com.android.billingclient.api.GetBillingConfigParams
 import com.android.billingclient.api.PendingPurchasesParams
 import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.PurchasesUpdatedListener
@@ -440,6 +441,42 @@ class GoogleBillingWrapper(
             "Billing client disconnected",
         )
     }
+
+    /**
+     * Fetches the Play Store's [com.android.billingclient.api.BillingConfig] to learn the
+     * country of the user's Play Store account. Waits for the billing client to connect
+     * if it hasn't yet; resolves to `null` if billing is unavailable or the fetch fails.
+     */
+    override suspend fun getStorefrontCountryCode(): String? =
+        suspendCoroutine { continuation ->
+            executeRequestOnUIThread { connectionError ->
+                if (connectionError != null) {
+                    continuation.resume(null)
+                    return@executeRequestOnUIThread
+                }
+                val dispatched =
+                    withConnectedClient {
+                        getBillingConfigAsync(
+                            GetBillingConfigParams.newBuilder().build(),
+                        ) { billingResult, billingConfig ->
+                            if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && billingConfig != null) {
+                                continuation.resume(billingConfig.countryCode)
+                            } else {
+                                Logger.debug(
+                                    LogLevel.debug,
+                                    LogScope.productsManager,
+                                    "Failed to fetch billing config: ${billingResult.debugMessage} " +
+                                        "ErrorCode: ${billingResult.responseCode}",
+                                )
+                                continuation.resume(null)
+                            }
+                        }
+                    }
+                if (dispatched == null) {
+                    continuation.resume(null)
+                }
+            }
+        }
 
     override fun onBillingSetupFinished(billingResult: BillingResult) {
         threadHandler.post {

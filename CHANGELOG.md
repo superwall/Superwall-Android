@@ -6,7 +6,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## Fixes
 
-- Fix handling
+- Fix a bug causing web redemption entitlements to be ignored in restoration tracking logic for users of purchase controller
 
 ## 2.7.19
 

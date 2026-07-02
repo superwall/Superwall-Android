@@ -24,6 +24,7 @@ import com.superwall.sdk.dependencies.IdentityManagerFactory
 import com.superwall.sdk.dependencies.LocaleIdentifierFactory
 import com.superwall.sdk.dependencies.OptionsFactory
 import com.superwall.sdk.dependencies.StoreTransactionFactory
+import com.superwall.sdk.dependencies.StorefrontCountryFactory
 import com.superwall.sdk.identity.setUserAttributes
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
@@ -86,7 +87,8 @@ class DeviceHelper(
         ExperimentalPropertiesFactory,
         OptionsFactory,
         CustomerInfoFactory,
-        ActiveEntitlementsFactory
+        ActiveEntitlementsFactory,
+        StorefrontCountryFactory
 
     private val json =
         Json {
@@ -478,7 +480,7 @@ class DeviceHelper(
      * Stable fingerprint of the device/store/subscription/storage fields that can
      * affect which paywalls IF_TRUE rules preload. Compared by value to decide
      * whether to re-run preload after a state change. Excludes iOS-only fields
-     * (storeFrontCountryCode/Id/Currency, appTransactionId) and configure-time
+     * (storeFrontId/Currency, appTransactionId) and configure-time
      * localResourceIds.
      */
     suspend fun preloadFingerprint(): String {
@@ -505,6 +507,7 @@ class DeviceHelper(
             customerInfoSnapshot,
             activeProducts,
             isSandbox.toString(),
+            factory.storefrontCountryCode() ?: "",
         ).joinToString("|")
     }
 
@@ -619,6 +622,7 @@ class DeviceHelper(
                 deviceTier = classifier.deviceTier().raw,
                 reviewRequestCount = reviewRequestCount,
                 kotlinVersion = kotlinVersion,
+                storeFrontCountryCode = factory.storefrontCountryCode(),
             )
         }.toResult()
             .map {
