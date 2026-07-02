@@ -91,7 +91,11 @@ class PaywallBuilder(
             .onSuccess { newView ->
                 newView.encapsulatingActivity = WeakReference(activity)
                 val shimmer = shimmmerView ?: ShimmerView(activity!!)
-                val loading = purchaseLoadingView ?: LoadingView(activity!!)
+                val loading =
+                    purchaseLoadingView ?: LoadingView(
+                        activity!!,
+                        loadingColor = Superwall.instance.options.paywalls.loadingColor,
+                    )
                 newView.setupWith(shimmer, loading)
                 newView.setupShimmer(shimmer)
                 newView.setupLoading(loading)
@@ -112,7 +116,11 @@ class PaywallBuilder(
                     .onSuccess { newView ->
                         newView.encapsulatingActivity = WeakReference(activity)
                         val shimmer = shimmmerView ?: ShimmerView(activity!!)
-                        val loading = purchaseLoadingView ?: LoadingView(activity!!)
+                        val loading =
+                    purchaseLoadingView ?: LoadingView(
+                        activity!!,
+                        loadingColor = Superwall.instance.options.paywalls.loadingColor,
+                    )
                         newView.setupWith(shimmer, loading)
                         newView.setupShimmer(shimmer)
                         newView.setupLoading(loading)
@@ -133,7 +141,11 @@ class PaywallBuilder(
                 .onSuccess { newView ->
                     newView.encapsulatingActivity = WeakReference(activity)
                     val shimmer = shimmmerView ?: ShimmerView(activity!!)
-                    val loading = purchaseLoadingView ?: LoadingView(activity!!)
+                    val loading =
+                    purchaseLoadingView ?: LoadingView(
+                        activity!!,
+                        loadingColor = Superwall.instance.options.paywalls.loadingColor,
+                    )
                     newView.setupWith(shimmer, loading)
                     newView.setupShimmer(shimmer)
                     newView.setupLoading(loading)

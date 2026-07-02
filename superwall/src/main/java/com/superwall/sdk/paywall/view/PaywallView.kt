@@ -691,7 +691,6 @@ class PaywallView(
     private fun hideLoadingView() {
         loadingView?.let {
             mainScope.launch {
-                it.hideLoading()
             }
         }
     }
@@ -728,8 +727,10 @@ class PaywallView(
         shimmerView?.let {
             mainScope.launch {
                 it.hideShimmer()
+                showLoadingView()
             }
         }
+
         // Guard against duplicate tracking
         if (state.paywall.shimmerLoadingInfo.endAt != null) return
 
