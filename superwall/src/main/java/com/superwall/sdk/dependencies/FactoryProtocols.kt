@@ -157,6 +157,14 @@ fun interface ActiveEntitlementsFactory {
     fun activeEntitlements(): Set<Entitlement>
 }
 
+fun interface StorefrontCountryFactory {
+    /**
+     * The Play Store account country code held by `StoreManager`,
+     * or `null` if not yet loaded / billing unavailable.
+     */
+    fun storefrontCountryCode(): String?
+}
+
 interface PresentationFactory {
     fun updatePaywallInfo(paywallInfo: PaywallInfo)
 

@@ -87,10 +87,12 @@ class StoreManagerTest {
                         mockk<StoreProduct> {
                             every { fullIdentifier } returns "product1:basePlan1:sw-auto"
                             every { attributes } returns mapOf("attr1" to "value1")
+                            every { storeFrontCountryCode } returns null
                         },
                         mockk<StoreProduct> {
                             every { fullIdentifier } returns "product2:basePlan1:sw-auto"
                             every { attributes } returns mapOf("attr2" to "value2")
+                            every { storeFrontCountryCode } returns null
                         },
                     )
 

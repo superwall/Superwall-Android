@@ -28,6 +28,9 @@ class TestStoreProduct(
     override val productIdentifier: String
         get() = superwallProduct.identifier
 
+    override val storeFrontCountryCode: String?
+        get() = superwallProduct.storefront
+
     override val price: BigDecimal by lazy {
         val amount = superwallProduct.price?.amount ?: 0
         BigDecimal(amount).divide(BigDecimal(100), 2, RoundingMode.DOWN)
