@@ -62,6 +62,7 @@ import java.util.Currency
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
+import kotlin.math.roundToInt
 import kotlin.time.Duration
 
 enum class InterfaceStyle(
@@ -363,8 +364,8 @@ class DeviceHelper(
 
     var interfaceStyleOverride: InterfaceStyle? = null
 
-    val fontScale: Float
-        get() = context.resources.configuration.fontScale
+    val fontSize: Int
+        get() = (context.resources.configuration.fontScale * 16).roundToInt()
 
     val interfaceStyle: String
         get() {
@@ -580,7 +581,7 @@ class DeviceHelper(
                 timezoneOffset = (TimeZone.getDefault().rawOffset) / 1000,
                 radioType = radioType,
                 interfaceStyle = interfaceStyle,
-                fontScale = fontScale,
+                fontSize = fontSize,
                 isLowPowerModeEnabled = isLowPowerModeEnabled.toBoolean(),
                 bundleId = bundleId,
                 appInstallDate = appInstalledAtString,

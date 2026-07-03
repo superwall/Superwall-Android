@@ -29,7 +29,7 @@ data class DeviceTemplate(
     val timezoneOffset: Int,
     val radioType: String,
     val interfaceStyle: String,
-    val fontScale: Float,
+    val fontSize: Int,
     val isLowPowerModeEnabled: Boolean,
     val bundleId: String,
     val appInstallDate: String,

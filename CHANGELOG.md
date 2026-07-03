@@ -8,7 +8,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 - Adds `storeFrontCountryCode` property
 - Adds `PaywallOptions.loadingColor` to options enabling you to theme the circular progress bar 
-- Adds `fontScale` device attribute reporting the system-wide text scale (`Configuration.fontScale`, where `1.0` is default)
+- Adds `fontSize` device attribute reporting the system font size as a normalized integer in px (16 is the system default)
 
 ## Fixes
 - Fix a bug causing web redemption entitlements to be ignored in restoration tracking logic for users of purchase controller
