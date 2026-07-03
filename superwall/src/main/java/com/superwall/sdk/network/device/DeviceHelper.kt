@@ -367,6 +367,9 @@ class DeviceHelper(
     val fontSize: Int
         get() = (context.resources.configuration.fontScale * 16).roundToInt()
 
+    val fontScale: Float
+        get() = context.resources.configuration.fontScale
+
     val interfaceStyle: String
         get() {
             return interfaceStyleOverride?.rawValue ?: run {
@@ -582,6 +585,7 @@ class DeviceHelper(
                 radioType = radioType,
                 interfaceStyle = interfaceStyle,
                 fontSize = fontSize,
+                fontScale = fontScale,
                 isLowPowerModeEnabled = isLowPowerModeEnabled.toBoolean(),
                 bundleId = bundleId,
                 appInstallDate = appInstalledAtString,

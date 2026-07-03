@@ -30,6 +30,7 @@ data class DeviceTemplate(
     val radioType: String,
     val interfaceStyle: String,
     val fontSize: Int,
+    val fontScale: Float,
     val isLowPowerModeEnabled: Boolean,
     val bundleId: String,
     val appInstallDate: String,
