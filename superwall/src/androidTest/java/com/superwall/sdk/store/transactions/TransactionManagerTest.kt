@@ -52,6 +52,7 @@ import io.mockk.mockk
 import io.mockk.spyk
 import io.mockk.verify
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -209,7 +210,7 @@ class TransactionManagerTest {
             notifyOfTransactionComplete = { cacheKey, trialEndDate, id -> notifyOfTransactionComplete(cacheKey, trialEndDate) },
             eventsQueue = eventsQueue,
             factory = trManagerFactory,
-            ioScope = IOScope(this.coroutineContext),
+            ioScope = IOScope(backgroundScope.coroutineContext),
             storage = storage,
             entitlementsById = entitlementsById,
             allEntitlementsByProductId = { emptyMap() },
@@ -356,7 +357,7 @@ class TransactionManagerTest {
         val billingWrapper =
             GoogleBillingWrapper(
                 InstrumentationRegistry.getInstrumentation().context,
-                IOScope(this@createBillingWrapper.coroutineContext),
+                IOScope(backgroundScope.coroutineContext),
                 mockLifecycle,
                 bilingFactory,
             )
@@ -544,11 +545,18 @@ class TransactionManagerTest {
                                 any(),
                             )
                         }
-                        advanceUntilIdle()
                         And("Verify failure event") {
+                            // The Fail event is tracked from a fire-and-forget
+                            // ioScope coroutine (unlike Start/Abandon which track
+                            // inline), so deterministically await it instead of
+                            // sampling events.value after advanceUntilIdle.
                             val failureEvent =
-                                events.value
-                                    .filterIsInstance<InternalSuperwallEvent.Transaction>()
+                                events
+                                    .first { tracked ->
+                                        tracked
+                                            .filterIsInstance<InternalSuperwallEvent.Transaction>()
+                                            .any { it.state is InternalSuperwallEvent.Transaction.State.Fail }
+                                    }.filterIsInstance<InternalSuperwallEvent.Transaction>()
                                     .find { it.state is InternalSuperwallEvent.Transaction.State.Fail }
                             assert(failureEvent != null)
                         }
@@ -598,10 +606,17 @@ class TransactionManagerTest {
                             )
                         }
                         And("Verify failure event") {
-                            advanceUntilIdle()
+                            // The Fail event is tracked from a fire-and-forget
+                            // ioScope coroutine (unlike Start/Abandon which track
+                            // inline), so deterministically await it instead of
+                            // sampling events.value after advanceUntilIdle.
                             val failureEvent =
-                                events.value
-                                    .filterIsInstance<InternalSuperwallEvent.Transaction>()
+                                events
+                                    .first { tracked ->
+                                        tracked
+                                            .filterIsInstance<InternalSuperwallEvent.Transaction>()
+                                            .any { it.state is InternalSuperwallEvent.Transaction.State.Fail }
+                                    }.filterIsInstance<InternalSuperwallEvent.Transaction>()
                                     .find { it.state is InternalSuperwallEvent.Transaction.State.Fail }
                             assert(failureEvent != null)
                         }
