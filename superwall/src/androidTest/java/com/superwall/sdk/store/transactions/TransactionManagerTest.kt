@@ -209,7 +209,7 @@ class TransactionManagerTest {
             notifyOfTransactionComplete = { cacheKey, trialEndDate, id -> notifyOfTransactionComplete(cacheKey, trialEndDate) },
             eventsQueue = eventsQueue,
             factory = trManagerFactory,
-            ioScope = IOScope(this.coroutineContext),
+            ioScope = IOScope(backgroundScope.coroutineContext),
             storage = storage,
             entitlementsById = entitlementsById,
             allEntitlementsByProductId = { emptyMap() },
@@ -356,7 +356,7 @@ class TransactionManagerTest {
         val billingWrapper =
             GoogleBillingWrapper(
                 InstrumentationRegistry.getInstrumentation().context,
-                IOScope(this@createBillingWrapper.coroutineContext),
+                IOScope(backgroundScope.coroutineContext),
                 mockLifecycle,
                 bilingFactory,
             )
