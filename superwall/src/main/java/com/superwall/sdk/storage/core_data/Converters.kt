@@ -67,12 +67,11 @@ fun Json.toTypedMap(jsonStr: String): Map<String, Any> {
         .toMap() as Map<String, Any>
 }
 
-fun Json.toNullableTypedMap(jsonStr: String): Map<String, Any> {
-    val jsonObject = decodeFromString<JsonObject>(jsonStr)
-    return jsonObject
-        .map { (k, v) -> k to v.convertFromJsonElement() }
+fun Json.toNullableTypedMap(jsonStr: String): Map<String, Any> = decodeFromString<JsonObject>(jsonStr).toNullableTypedMap()
+
+fun JsonObject.toNullableTypedMap(): Map<String, Any> =
+    map { (k, v) -> k to v.convertFromJsonElement() }
         .toMap() as Map<String, Any>
-}
 
 fun Any?.convertToJsonElement(): JsonElement =
     when (this) {
