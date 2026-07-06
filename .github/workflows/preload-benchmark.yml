@@ -152,7 +152,8 @@ jobs:
         path: |
           ~/.android/avd/*
           ~/.android/adb*
-        key: avd-benchmark-api34-playstore-x86_64-pixel6-${{ matrix.tier }}-v1
+        # v2: AVDs cached before the -dns-server flag change fail snapshot load.
+        key: avd-benchmark-api34-playstore-x86_64-pixel6-${{ matrix.tier }}-v2
 
     # Cold-cache only: create the AVD and let the emulator save a snapshot on shutdown.
     - name: Create AVD and generate snapshot for caching

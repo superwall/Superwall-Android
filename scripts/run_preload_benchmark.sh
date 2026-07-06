@@ -59,6 +59,7 @@ echo "::endgroup::"
 for run in $(seq 1 "$RUNS"); do
   echo "::group::Benchmark run $run/$RUNS ($TIER tier)"
   adb shell pm clear "$APP_PKG"
+  adb logcat -c || true
   start_s=$(date +%s)
   # No tee here: /dev/stderr is not a usable device in the CI runner's shell,
   # and a dead tee (with pipefail) both kills the script and swallows the
@@ -75,10 +76,11 @@ for run in $(seq 1 "$RUNS"); do
   echo "::endgroup::"
   # `am instrument` exits 0 through adb even on failure — parse the output.
   if ! echo "$out" | grep -q "OK (" || echo "$out" | grep -qE "FAILURES!!!|INSTRUMENTATION_ABORTED|INSTRUMENTATION_FAILED|Process crashed"; then
-    echo "Benchmark run $run failed — recent device log (filtered):"
-    adb logcat -d -t 4000 | grep -E "SWPreloadBenchmark|Superwall|superapp|AndroidRuntime|FATAL|System.err" | tail -250 || true
-    echo "Benchmark run $run failed — recent device log (unfiltered tail):"
-    adb logcat -d -t 150 || true
+    # Tag-filtered over the whole (per-run) buffer: the emulator logs verbosely,
+    # so a line-count tail misses everything older than ~30s. SDK logs print via
+    # println -> System.out; stacktraces via printStackTrace -> System.err.
+    echo "Benchmark run $run failed — SDK/app device log:"
+    adb logcat -d -s SWPreloadBenchmark:V System.out:V System.err:V TestRunner:V AndroidRuntime:E | tail -400 || true
     exit 1
   fi
 done
