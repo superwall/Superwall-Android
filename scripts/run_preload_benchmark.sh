@@ -32,12 +32,35 @@ adb install -r "$APP_APK"
 adb install -r "$TEST_APK"
 adb shell rm -rf /sdcard/Download/superwall-benchmark || true
 
-# Note on Play services churn: GMS restarts itself shortly after boot on Play
-# images (self-update / accountless checkin) and the OS kills any app holding
-# a dying provider connection. The app's debug manifest disables emoji2's
-# GMS FontsProvider dependency so the benchmark process has no such
-# connection; disabling com.android.vending is deliberately NOT done — it
-# destabilizes GMS further and this should stay a Play Store device.
+# Play services churn: GMS restarts itself during the first ~3 minutes after
+# boot on accountless Play images, and the OS kills any app holding a provider
+# connection to the dying process (Chromium WebView queries GMS downloadable
+# fonts from inside the embedding app). Wait until com.google.android.gms
+# .persistent has kept the same pid for GMS_STABLE_SEC before measuring.
+GMS_STABLE_SEC=45
+GMS_MAX_WAIT_SEC=240
+echo "::group::Wait for GMS to stabilize"
+stable_since=$(date +%s)
+wait_start=$stable_since
+last_pid=""
+while :; do
+  now=$(date +%s)
+  pid=$(adb shell pidof com.google.android.gms.persistent 2>/dev/null | tr -d '[:space:]' || true)
+  if [ -z "$pid" ] || [ "$pid" != "$last_pid" ]; then
+    last_pid="$pid"
+    stable_since=$now
+  fi
+  if [ -n "$pid" ] && [ $((now - stable_since)) -ge "$GMS_STABLE_SEC" ]; then
+    echo "GMS persistent pid $pid stable for ${GMS_STABLE_SEC}s after $((now - wait_start))s"
+    break
+  fi
+  if [ $((now - wait_start)) -ge "$GMS_MAX_WAIT_SEC" ]; then
+    echo "GMS still churning after ${GMS_MAX_WAIT_SEC}s — proceeding anyway"
+    break
+  fi
+  sleep 5
+done
+echo "::endgroup::"
 
 # Network bring-up: netsim WiFi does not reliably come back after a snapshot
 # restore, leaving ConnectivityManager with no WIFI/CELLULAR network even
@@ -64,39 +87,51 @@ curl -sS -m 10 -o /dev/null -w "host -> api.superwall.me: HTTP %{http_code}\n" h
 echo "::endgroup::"
 
 # Each run clears the app's data first, so every run's first iteration is a
-# true cold start. The compare script averages across all runs.
+# true cold start. The compare script averages across all runs. A run whose
+# process is killed EXTERNALLY (GMS churn — 'Process crashed' with no test
+# failure) is retried once; genuine test failures never are.
 for run in $(seq 1 "$RUNS"); do
   echo "::group::Benchmark run $run/$RUNS ($TIER tier)"
-  adb shell pm clear "$APP_PKG"
-  adb logcat -c || true
-  start_s=$(date +%s)
-  # No tee here: /dev/stderr is not a usable device in the CI runner's shell,
-  # and a dead tee (with pipefail) both kills the script and swallows the
-  # instrumentation output. Capture, then print.
-  extra_args=()
-  if [ -n "$PLACEMENTS" ]; then
-    extra_args+=(-e benchmarkPlacements "$PLACEMENTS")
-  fi
-  out=$(adb shell am instrument -w \
-    -e class com.example.superapp.benchmark.PaywallPreloadBenchmark \
-    -e benchmarkDeviceTier "$TIER" \
-    -e benchmarkRunIndex "$run" \
-    -e benchmarkIterations "$ITERATIONS" \
-    -e benchmarkTimeoutSec "$TIMEOUT_SEC" \
-    "${extra_args[@]}" \
-    "$RUNNER" 2>&1) || true
-  printf '%s\n' "$out"
-  echo "Run $run took $(( $(date +%s) - start_s ))s"
-  echo "::endgroup::"
-  # `am instrument` exits 0 through adb even on failure — parse the output.
-  if ! echo "$out" | grep -q "OK (" || echo "$out" | grep -qE "FAILURES!!!|INSTRUMENTATION_ABORTED|INSTRUMENTATION_FAILED|Process crashed"; then
+  attempt=1
+  while :; do
+    adb shell pm clear "$APP_PKG"
+    adb logcat -c || true
+    start_s=$(date +%s)
+    # No tee here: /dev/stderr is not a usable device in the CI runner's shell,
+    # and a dead tee (with pipefail) both kills the script and swallows the
+    # instrumentation output. Capture, then print.
+    extra_args=()
+    if [ -n "$PLACEMENTS" ]; then
+      extra_args+=(-e benchmarkPlacements "$PLACEMENTS")
+    fi
+    out=$(adb shell am instrument -w \
+      -e class com.example.superapp.benchmark.PaywallPreloadBenchmark \
+      -e benchmarkDeviceTier "$TIER" \
+      -e benchmarkRunIndex "$run" \
+      -e benchmarkIterations "$ITERATIONS" \
+      -e benchmarkTimeoutSec "$TIMEOUT_SEC" \
+      "${extra_args[@]}" \
+      "$RUNNER" 2>&1) || true
+    printf '%s\n' "$out"
+    echo "Run $run attempt $attempt took $(( $(date +%s) - start_s ))s"
+    # `am instrument` exits 0 through adb even on failure — parse the output.
+    if echo "$out" | grep -q "OK (" && ! echo "$out" | grep -qE "FAILURES!!!|INSTRUMENTATION_ABORTED|INSTRUMENTATION_FAILED"; then
+      break
+    fi
+    if echo "$out" | grep -q "Process crashed" && ! echo "$out" | grep -q "FAILURES!!!" && [ "$attempt" -lt 2 ]; then
+      echo "Process was killed externally (Play services churn) — retrying run $run once"
+      attempt=$((attempt + 1))
+      continue
+    fi
     # Tag-filtered over the whole (per-run) buffer: the emulator logs verbosely,
     # so a line-count tail misses everything older than ~30s. SDK logs print via
     # println -> System.out; stacktraces via printStackTrace -> System.err.
+    echo "::endgroup::"
     echo "Benchmark run $run failed — SDK/app device log:"
     adb logcat -d -s SWPreloadBenchmark:V System.out:V System.err:V TestRunner:V AndroidRuntime:E StrictMode:V DEBUG:V CRASH:V libc:V ActivityManager:V Zygote:V | tail -450 || true
     exit 1
-  fi
+  done
+  echo "::endgroup::"
 done
 
 mkdir -p app/build/outputs/benchmark
