@@ -1,0 +1,79 @@
+{
+  "benchmark": "paywall-preload",
+  "device": {
+    "cpuCores": 4,
+    "fingerprint": "google/sdk_gphone64_x86_64/emu64xa:14/UE1A.230829.036.A4/12096271:user/release-keys",
+    "model": "sdk_gphone64_x86_64",
+    "sdkClassifiedTier": "low",
+    "sdkInt": 34
+  },
+  "iterationsPerRun": 1,
+  "runCount": 4,
+  "samples": [
+    {
+      "allReadyMs": 3254,
+      "cold": true,
+      "configureMs": 2562,
+      "index": 0,
+      "paywallCount": 2,
+      "perPaywallReadyMs": {
+        "based-on-teleprompter-bigvu-template-2b72-2024-04-04": 3254,
+        "url-paywall-v3-3810-2024-04-04": 2538
+      },
+      "preloadCompleteEventMs": 618,
+      "run": 1
+    },
+    {
+      "allReadyMs": 2047,
+      "cold": true,
+      "configureMs": 1659,
+      "index": 0,
+      "paywallCount": 2,
+      "perPaywallReadyMs": {
+        "based-on-teleprompter-bigvu-template-2b72-2024-04-04": 1933,
+        "url-paywall-v3-3810-2024-04-04": 2047
+      },
+      "preloadCompleteEventMs": 178,
+      "run": 2
+    },
+    {
+      "allReadyMs": 2130,
+      "cold": true,
+      "configureMs": 1545,
+      "index": 0,
+      "paywallCount": 2,
+      "perPaywallReadyMs": {
+        "based-on-teleprompter-bigvu-template-2b72-2024-04-04": 1978,
+        "url-paywall-v3-3810-2024-04-04": 2130
+      },
+      "preloadCompleteEventMs": 242,
+      "run": 3
+    },
+    {
+      "allReadyMs": 1926,
+      "cold": true,
+      "configureMs": 1809,
+      "index": 0,
+      "paywallCount": 2,
+      "perPaywallReadyMs": {
+        "based-on-teleprompter-bigvu-template-2b72-2024-04-04": 1926,
+        "url-paywall-v3-3810-2024-04-04": 1673
+      },
+      "preloadCompleteEventMs": 247,
+      "run": 4
+    }
+  ],
+  "schemaVersion": 1,
+  "stats": {
+    "coefficientOfVariationPct": 26.314375452302443,
+    "coldMeanMs": 2339.25,
+    "maxMs": 3254,
+    "meanMs": 2339.25,
+    "medianMs": 2088.5,
+    "minMs": 1926,
+    "sampleCount": 4,
+    "stdDevMs": 615.5590277679848,
+    "warmMeanMs": null
+  },
+  "tier": "HIGH"
+}

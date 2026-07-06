@@ -1,0 +1,79 @@
+{
+  "benchmark": "paywall-preload",
+  "device": {
+    "cpuCores": 3,
+    "fingerprint": "google/sdk_gphone64_x86_64/emu64xa:14/UE1A.230829.036.A4/12096271:user/release-keys",
+    "model": "sdk_gphone64_x86_64",
+    "sdkClassifiedTier": "low",
+    "sdkInt": 34
+  },
+  "iterationsPerRun": 1,
+  "runCount": 4,
+  "samples": [
+    {
+      "allReadyMs": 3300,
+      "cold": true,
+      "configureMs": 2419,
+      "index": 0,
+      "paywallCount": 2,
+      "perPaywallReadyMs": {
+        "based-on-teleprompter-bigvu-template-2b72-2024-04-04": 3300,
+        "url-paywall-v3-3810-2024-04-04": 2842
+      },
+      "preloadCompleteEventMs": 359,
+      "run": 1
+    },
+    {
+      "allReadyMs": 4618,
+      "cold": true,
+      "configureMs": 3742,
+      "index": 0,
+      "paywallCount": 2,
+      "perPaywallReadyMs": {
+        "based-on-teleprompter-bigvu-template-2b72-2024-04-04": 4618,
+        "url-paywall-v3-3810-2024-04-04": 3644
+      },
+      "preloadCompleteEventMs": 751,
+      "run": 2
+    },
+    {
+      "allReadyMs": 2742,
+      "cold": true,
+      "configureMs": 1696,
+      "index": 0,
+      "paywallCount": 2,
+      "perPaywallReadyMs": {
+        "based-on-teleprompter-bigvu-template-2b72-2024-04-04": 2590,
+        "url-paywall-v3-3810-2024-04-04": 2742
+      },
+      "preloadCompleteEventMs": 608,
+      "run": 3
+    },
+    {
+      "allReadyMs": 3155,
+      "cold": true,
+      "configureMs": 2043,
+      "index": 0,
+      "paywallCount": 2,
+      "perPaywallReadyMs": {
+        "based-on-teleprompter-bigvu-template-2b72-2024-04-04": 3155,
+        "url-paywall-v3-3810-2024-04-04": 2495
+      },
+      "preloadCompleteEventMs": 567,
+      "run": 4
+    }
+  ],
+  "schemaVersion": 1,
+  "stats": {
+    "coefficientOfVariationPct": 23.4923936453008,
+    "coldMeanMs": 3453.75,
+    "maxMs": 4618,
+    "meanMs": 3453.75,
+    "medianMs": 3227.5,
+    "minMs": 2742,
+    "sampleCount": 4,
+    "stdDevMs": 811.3685455245765,
+    "warmMeanMs": null
+  },
+  "tier": "MID"
+}
