@@ -153,7 +153,10 @@ class PaywallPreloadBenchmark {
             Keys.CONSTANT_API_KEY,
             options =
                 SuperwallOptions().apply {
-                    logging.level = LogLevel.error
+                    // Debug so CI logcat shows exactly where configuration/preload
+                    // stalls; logs print outside the measured Ready window's hot
+                    // path and identically across runs, so comparisons stay fair.
+                    logging.level = LogLevel.debug
                     paywalls =
                         PaywallOptions().apply {
                             // Preloading is triggered manually below so the measurement

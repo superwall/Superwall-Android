@@ -76,7 +76,7 @@ for run in $(seq 1 "$RUNS"); do
   # `am instrument` exits 0 through adb even on failure — parse the output.
   if ! echo "$out" | grep -q "OK (" || echo "$out" | grep -qE "FAILURES!!!|INSTRUMENTATION_ABORTED|INSTRUMENTATION_FAILED|Process crashed"; then
     echo "Benchmark run $run failed — recent device log (filtered):"
-    adb logcat -d -t 600 | grep -E "SWPreloadBenchmark|Superwall|superapp|AndroidRuntime|FATAL" | tail -120 || true
+    adb logcat -d -t 4000 | grep -E "SWPreloadBenchmark|Superwall|superapp|AndroidRuntime|FATAL|System.err" | tail -250 || true
     echo "Benchmark run $run failed — recent device log (unfiltered tail):"
     adb logcat -d -t 150 || true
     exit 1
