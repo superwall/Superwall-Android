@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.SystemClock
 import android.provider.MediaStore
 import android.util.Log
+import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.superwall.sdk.Superwall
@@ -29,6 +30,7 @@ import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.paywall.view.PaywallView
 import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 import com.superwall.superapp.Keys
+import com.superwall.superapp.MainActivity
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -147,6 +149,11 @@ class PaywallPreloadBenchmark {
 
         Log.i(TAG, "Starting preload benchmark: tier=$deviceTier iterations=$iterations timeout=${timeoutSec}s")
 
+        // The SDK's config fetch gates on awaitUntilAppInForeground(), so the app
+        // must have a resumed activity or configuration suspends indefinitely.
+        // Keep one alive for the whole benchmark.
+        val scenario = ActivityScenario.launch(MainActivity::class.java)
+
         val results = mutableListOf<IterationResult>()
         try {
             repeat(iterations) { index ->
@@ -157,6 +164,7 @@ class PaywallPreloadBenchmark {
                 runBlocking { delay(1.seconds) }
             }
         } finally {
+            scenario.close()
             // Always persist whatever finished so CI can surface partial data on failure.
             if (results.isNotEmpty()) {
                 writeResults(app, results)
