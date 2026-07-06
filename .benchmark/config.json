@@ -8,7 +8,7 @@
   },
   "runsPerEmulator": 3,
   "iterations": 2,
-  "timeoutSec": 300,
+  "timeoutSec": 180,
   "metric": "meanMs",
-  "placements": ["present_data", "present_products", "present_urls"]
+  "placements": ["present_urls", "no_products"]
 }
