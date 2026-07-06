@@ -411,7 +411,12 @@ class PaywallView(
     }
 
     fun beforeOnDestroy(forceCleanup: Boolean = false) {
-        if (state.isBrowserViewPresented && !forceCleanup) {
+        // Only run dismissal work when the paywall is actually being torn down (Activity finishing).
+        // Android calls onStop()/onPause() both when finishing AND when merely backgrounding
+        // (home button, app switcher, deep link / external browser). On a non-finishing stop the
+        // Activity and webview stay alive and resume on foreground, so firing dismissal callbacks
+        // here would tear down presentation state out from under the still-live paywall.
+        if (!forceCleanup) {
             return
         }
         factory.updatePaywallInfo(info)
@@ -421,7 +426,10 @@ class PaywallView(
     }
 
     suspend fun destroyed(forceCleanup: Boolean = false) {
-        if (state.isBrowserViewPresented && !forceCleanup) {
+        // See beforeOnDestroy: a non-finishing stop must not run the full dismiss teardown.
+        // This also covers the deep-link / external-browser case previously guarded by
+        // isBrowserViewPresented, since those are likewise non-finishing stops.
+        if (!forceCleanup) {
             return
         }
 
