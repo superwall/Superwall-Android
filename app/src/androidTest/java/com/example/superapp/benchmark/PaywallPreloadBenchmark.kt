@@ -27,7 +27,6 @@ import com.superwall.sdk.delegate.SuperwallDelegate
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.dependencies.DependencyContainer
 import com.superwall.sdk.logger.LogLevel
-import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.paywall.view.PaywallView
 import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 import com.superwall.superapp.Keys
@@ -222,7 +221,13 @@ class PaywallPreloadBenchmark {
                 },
         )
         Superwall.instance.delegate = delegate
-        Superwall.instance.setSubscriptionStatus(SubscriptionStatus.Inactive)
+        // Active with entitlements (not Inactive): implicit placements
+        // (app_install/app_launch/session_start/on_start) would otherwise
+        // PRESENT paywalls over the foreground activity mid-benchmark — heavy
+        // main-thread WebView work on a slow emulator that can ANR-kill the
+        // process. CHECK_USER_SUBSCRIPTION presentations skip for subscribed
+        // users, while the preload paths don't gate on subscription status.
+        Superwall.instance.setSubscriptionStatus("default", "test")
         val status =
             withTimeoutOrNull(configureTimeoutSec.seconds) {
                 Superwall.instance.configurationStateListener.first { it !is ConfigurationStatus.Pending }

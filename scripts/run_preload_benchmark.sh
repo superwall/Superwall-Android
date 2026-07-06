@@ -87,7 +87,7 @@ for run in $(seq 1 "$RUNS"); do
     # so a line-count tail misses everything older than ~30s. SDK logs print via
     # println -> System.out; stacktraces via printStackTrace -> System.err.
     echo "Benchmark run $run failed — SDK/app device log:"
-    adb logcat -d -s SWPreloadBenchmark:V System.out:V System.err:V TestRunner:V AndroidRuntime:E StrictMode:V DEBUG:V CRASH:V libc:F | tail -400 || true
+    adb logcat -d -s SWPreloadBenchmark:V System.out:V System.err:V TestRunner:V AndroidRuntime:E StrictMode:V DEBUG:V CRASH:V libc:V ActivityManager:V Zygote:V | tail -450 || true
     exit 1
   fi
 done

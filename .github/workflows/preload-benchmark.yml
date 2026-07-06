@@ -94,10 +94,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Device tiers: identical image, different horsepower.
+          # Device tiers: identical image, different horsepower. RAM follows the
+          # SDK's own DeviceClassifier tier definitions (LOW = 3-4GB; 2GB would
+          # model ULTRA_LOW and OOM-kills webview-heavy benchmarks).
           - tier: low
             cores: 2
-            ram: 2048M
+            ram: 3072M
           - tier: mid
             cores: 3
             ram: 4096M
@@ -153,8 +155,8 @@ jobs:
         path: |
           ~/.android/avd/*
           ~/.android/adb*
-        # v2: AVDs cached before the -dns-server flag change fail snapshot load.
-        key: avd-benchmark-api34-playstore-x86_64-pixel6-${{ matrix.tier }}-v2
+        # v3: low tier RAM changed (snapshots don't survive RAM config changes).
+        key: avd-benchmark-api34-playstore-x86_64-pixel6-${{ matrix.tier }}-v3
 
     # Cold-cache only: create the AVD and let the emulator save a snapshot on shutdown.
     - name: Create AVD and generate snapshot for caching
