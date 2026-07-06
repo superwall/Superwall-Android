@@ -30,12 +30,27 @@ adb install -r "$APP_APK"
 adb install -r "$TEST_APK"
 adb shell rm -rf /sdcard/Download/superwall-benchmark || true
 
-# Connectivity pre-flight (informational): raw IP vs DNS from inside the guest,
-# and the Superwall API from the host. Separates emulator-DNS failures from
-# API-side blocks when the benchmark can't configure.
-echo "::group::Connectivity pre-flight"
-adb shell ping -c 2 -W 3 8.8.8.8 || echo "guest: raw IP connectivity FAILED"
-adb shell ping -c 2 -W 3 api.superwall.me || echo "guest: DNS resolution of api.superwall.me FAILED"
+# Network bring-up: netsim WiFi does not reliably come back after a snapshot
+# restore, leaving ConnectivityManager with no WIFI/CELLULAR network even
+# though the NAT path works — and the SDK's awaitUntilNetworkExists() then
+# waits forever before fetching config. Cycle WiFi and wait (bounded) for an
+# active default network.
+echo "::group::Network bring-up + pre-flight"
+adb shell svc data enable || true
+adb shell svc wifi disable || true
+sleep 2
+adb shell svc wifi enable || true
+for i in $(seq 1 30); do
+  if adb shell dumpsys connectivity | grep "Active default network" | grep -qv none; then
+    echo "guest: active default network up after ~$((i * 2))s"
+    break
+  fi
+  sleep 2
+done
+adb shell dumpsys connectivity | grep -iE "active default|validated" | head -10 || true
+# DNS check from the guest (ping replies don't traverse the emulator NAT — only
+# the resolution line matters).
+adb shell ping -c 1 -W 2 api.superwall.me || true
 curl -sS -m 10 -o /dev/null -w "host -> api.superwall.me: HTTP %{http_code}\n" https://api.superwall.me/ || echo "host: api.superwall.me unreachable"
 echo "::endgroup::"
 
