@@ -1,9 +1,17 @@
 # Paywall Preload Benchmark
 
-Benchmarks how long it takes the SDK to preload **all** paywalls for the dev
-app's embedded API key (`Keys.CONSTANT_API_KEY` in `:app`). A paywall counts as
-loaded only once its `PaywallView` reaches `PaywallLoadingState.Ready` (webview
-loaded + `onReady` received + templates accepted).
+Benchmarks how long the SDK takes to preload the paywalls for a **pinned set of
+placements** (`placements` in `config.json`, default `campaign_trigger`) on the
+dev app's embedded API key (`Keys.CONSTANT_API_KEY` in `:app`). A paywall
+counts as loaded only once its `PaywallView` reaches
+`PaywallLoadingState.Ready` (webview loaded + `onReady` received + templates
+accepted).
+
+The placement set is pinned rather than preloading everything because the dev
+key has ~47 paywalls: preloading all of them swamps low-tier emulators with
+concurrent WebViews, and the metric would shift whenever someone edits
+unrelated campaigns on the dashboard. Set `placements` to `[]` to measure
+`preloadAllPaywalls()` instead.
 
 Runs automatically on **release PRs** (pull requests targeting `main`), on
 **merges to `main` or `develop`**, and on demand via `workflow_dispatch` — see

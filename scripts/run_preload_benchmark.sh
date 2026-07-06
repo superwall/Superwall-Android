@@ -7,15 +7,17 @@
 # android-emulator-runner executes each line of its `script` input in a
 # separate `sh -c` — multi-line shell constructs there fail to parse.
 #
-# Usage: scripts/run_preload_benchmark.sh <tier> <runs> <iterations> <timeout_sec> <app_apk> <test_apk>
+# Usage: scripts/run_preload_benchmark.sh <tier> <runs> <iterations> <timeout_sec> <app_apk> <test_apk> [placements]
 set -euo pipefail
 
-TIER="${1:?usage: run_preload_benchmark.sh <tier> <runs> <iterations> <timeout_sec> <app_apk> <test_apk>}"
+TIER="${1:?usage: run_preload_benchmark.sh <tier> <runs> <iterations> <timeout_sec> <app_apk> <test_apk> [placements]}"
 RUNS="${2:-3}"
 ITERATIONS="${3:-2}"
 TIMEOUT_SEC="${4:-300}"
 APP_APK="${5:?path to app-debug.apk}"
 TEST_APK="${6:?path to app-debug-androidTest.apk}"
+# Comma-separated placements to preload; empty = all paywalls of the API key.
+PLACEMENTS="${7:-}"
 
 APP_PKG="com.superwall.superapp"
 RUNNER="$APP_PKG.test/androidx.test.runner.AndroidJUnitRunner"
@@ -64,12 +66,17 @@ for run in $(seq 1 "$RUNS"); do
   # No tee here: /dev/stderr is not a usable device in the CI runner's shell,
   # and a dead tee (with pipefail) both kills the script and swallows the
   # instrumentation output. Capture, then print.
+  extra_args=()
+  if [ -n "$PLACEMENTS" ]; then
+    extra_args+=(-e benchmarkPlacements "$PLACEMENTS")
+  fi
   out=$(adb shell am instrument -w \
     -e class com.example.superapp.benchmark.PaywallPreloadBenchmark \
     -e benchmarkDeviceTier "$TIER" \
     -e benchmarkRunIndex "$run" \
     -e benchmarkIterations "$ITERATIONS" \
     -e benchmarkTimeoutSec "$TIMEOUT_SEC" \
+    "${extra_args[@]}" \
     "$RUNNER" 2>&1) || true
   printf '%s\n' "$out"
   echo "Run $run took $(( $(date +%s) - start_s ))s"

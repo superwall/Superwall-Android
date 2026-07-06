@@ -136,6 +136,7 @@ jobs:
         echo "runs=$(jq -r '.runsPerEmulator' .benchmark/config.json)" >> "$GITHUB_OUTPUT"
         echo "iterations=$(jq -r '.iterations' .benchmark/config.json)" >> "$GITHUB_OUTPUT"
         echo "timeout=$(jq -r '.timeoutSec' .benchmark/config.json)" >> "$GITHUB_OUTPUT"
+        echo "placements=$(jq -r '(.placements // []) | join(",")' .benchmark/config.json)" >> "$GITHUB_OUTPUT"
 
     - name: Download prebuilt APKs
       uses: actions/download-artifact@v4
@@ -212,7 +213,7 @@ jobs:
         # prebuilt APKs once, then per run does `pm clear` + `am instrument` — so
         # every run starts cold with zero gradle overhead; the compare script
         # averages across all runs.
-        script: bash scripts/run_preload_benchmark.sh ${{ matrix.tier }} ${{ steps.config.outputs.runs }} ${{ steps.config.outputs.iterations }} ${{ steps.config.outputs.timeout }} apks/debug/app-debug.apk apks/androidTest/debug/app-debug-androidTest.apk
+        script: bash scripts/run_preload_benchmark.sh ${{ matrix.tier }} ${{ steps.config.outputs.runs }} ${{ steps.config.outputs.iterations }} ${{ steps.config.outputs.timeout }} apks/debug/app-debug.apk apks/androidTest/debug/app-debug-androidTest.apk "${{ steps.config.outputs.placements }}"
 
     - name: Upload benchmark results
       uses: actions/upload-artifact@v4

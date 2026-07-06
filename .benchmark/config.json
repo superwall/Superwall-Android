@@ -9,5 +9,6 @@
   "runsPerEmulator": 3,
   "iterations": 2,
   "timeoutSec": 300,
-  "metric": "meanMs"
+  "metric": "meanMs",
+  "placements": ["campaign_trigger"]
 }

@@ -98,6 +98,20 @@ class PaywallPreloadBenchmark {
     // status stays Pending/Failed and an unbounded wait hangs the whole CI job.
     private val configureTimeoutSec = args.getString("benchmarkConfigureTimeoutSec")?.toLongOrNull() ?: 120L
 
+    // Comma-separated placement names to preload. A pinned placement set keeps
+    // the measured workload stable (the dev key has ~47 paywalls in total —
+    // preloading all of them buries low-tier emulators in concurrent WebViews
+    // and couples the metric to unrelated dashboard campaign edits). Blank
+    // means preloadAllPaywalls().
+    private val placements =
+        args
+            .getString("benchmarkPlacements")
+            ?.split(',')
+            ?.map { it.trim() }
+            ?.filter { it.isNotEmpty() }
+            ?.toSet()
+            .orEmpty()
+
     // Events paired with SystemClock.elapsedRealtime() at emission so durations
     // are measured at fire time, not collection time. Replay so events emitted
     // between preloadAllPaywalls() and the collector attaching (they fire from
@@ -217,7 +231,11 @@ class PaywallPreloadBenchmark {
         return withTimeout(timeoutSec.seconds) {
             val preloadMark = TimeSource.Monotonic.markNow()
             val preloadStartRealtime = SystemClock.elapsedRealtime()
-            Superwall.instance.preloadAllPaywalls()
+            if (placements.isEmpty()) {
+                Superwall.instance.preloadAllPaywalls()
+            } else {
+                Superwall.instance.preloadPaywalls(placements)
+            }
 
             val paywallCount =
                 (
@@ -306,6 +324,7 @@ class PaywallPreloadBenchmark {
                 put("benchmark", "paywall-preload")
                 put("tier", deviceTier)
                 put("runIndex", runIndex)
+                put("placements", if (placements.isEmpty()) JSONObject.NULL else placements.sorted().joinToString(","))
                 put("apiKey", Keys.CONSTANT_API_KEY)
                 put("timestampMs", System.currentTimeMillis())
                 put(
