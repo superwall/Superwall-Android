@@ -30,6 +30,7 @@ import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.paywall.view.PaywallView
 import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 import com.superwall.superapp.Keys
+import com.superwall.superapp.benchmark.BenchmarkForegroundActivity
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow

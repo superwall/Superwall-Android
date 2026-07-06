@@ -19,5 +19,13 @@
                 android:name="androidx.emoji2.text.EmojiCompatInitializer"
                 tools:node="remove" />
         </provider>
+
+        <!-- Bare foreground holder for PaywallPreloadBenchmark; see its KDoc.
+             Must live in the app (not the test APK) so ActivityScenario can
+             launch it into the app's process. -->
+        <activity
+            android:name="com.superwall.superapp.benchmark.BenchmarkForegroundActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Material.Light" />
     </application>
 </manifest>

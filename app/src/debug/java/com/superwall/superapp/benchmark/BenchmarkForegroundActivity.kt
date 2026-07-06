@@ -1,9 +1,9 @@
-package com.example.superapp.benchmark
+package com.superwall.superapp.benchmark
 
 import android.app.Activity
 
 /**
- * Bare foreground holder for the preload benchmark.
+ * Bare foreground holder for the preload benchmark (debug builds only).
  *
  * The SDK's config fetch gates on the app being foregrounded, but launching the
  * real MainActivity pulls in appcompat, which lazily configures EmojiCompat and
@@ -12,5 +12,9 @@ import android.app.Activity
  * app holding a provider connection to a dying process — which killed every
  * benchmark run mid-measurement. A plain framework Activity with no content
  * keeps the process foregrounded without touching GMS at all.
+ *
+ * Lives in the app's debug source set (not the test APK): activities declared
+ * in the instrumentation APK resolve to the test process and
+ * ActivityScenario/startActivitySync refuses to launch them.
  */
 class BenchmarkForegroundActivity : Activity()
