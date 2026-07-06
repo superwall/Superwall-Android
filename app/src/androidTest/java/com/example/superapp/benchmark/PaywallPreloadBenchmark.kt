@@ -181,10 +181,18 @@ class PaywallPreloadBenchmark {
         try {
             repeat(iterations) { index ->
                 results += runBlocking { runIteration(app, index) }
-                Superwall.teardown()
-                // Give webview destruction and teardown a moment to settle so the
-                // next iteration doesn't race the previous instance.
-                runBlocking { delay(1.seconds) }
+                // Teardown only BETWEEN iterations (needed to reconfigure). It is
+                // deliberately skipped after the last one: stray SDK coroutines
+                // touching Superwall.instance post-teardown throw an uncaught
+                // IllegalStateException that kills the process before results are
+                // written. CI uses iterations=1, so teardown never runs there —
+                // each am-instrument run is already cold via pm clear.
+                if (index < iterations - 1) {
+                    Superwall.teardown()
+                    // Give webview destruction and teardown a moment to settle so
+                    // the next iteration doesn't race the previous instance.
+                    runBlocking { delay(1.seconds) }
+                }
             }
         } finally {
             scenario.close()

@@ -6,8 +6,8 @@
     "mid": null,
     "high": null
   },
-  "runsPerEmulator": 3,
-  "iterations": 2,
+  "runsPerEmulator": 4,
+  "iterations": 1,
   "timeoutSec": 180,
   "metric": "meanMs",
   "placements": ["present_urls", "no_products"]
