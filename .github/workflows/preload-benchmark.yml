@@ -211,7 +211,9 @@ jobs:
       with:
         name: preload-benchmark-${{ matrix.tier }}
         path: app/build/outputs/benchmark/
-        if-no-files-found: error
+        # On a failed run there are legitimately no results — don't stack a
+        # confusing artifact error on top; the report job fails on missing tiers.
+        if-no-files-found: warn
 
   report:
     runs-on: ubuntu-latest

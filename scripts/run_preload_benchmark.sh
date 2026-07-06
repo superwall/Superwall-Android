@@ -35,13 +35,19 @@ adb shell rm -rf /sdcard/Download/superwall-benchmark || true
 for run in $(seq 1 "$RUNS"); do
   echo "::group::Benchmark run $run/$RUNS ($TIER tier)"
   adb shell pm clear "$APP_PKG"
+  start_s=$(date +%s)
+  # No tee here: /dev/stderr is not a usable device in the CI runner's shell,
+  # and a dead tee (with pipefail) both kills the script and swallows the
+  # instrumentation output. Capture, then print.
   out=$(adb shell am instrument -w \
     -e class com.example.superapp.benchmark.PaywallPreloadBenchmark \
     -e benchmarkDeviceTier "$TIER" \
     -e benchmarkRunIndex "$run" \
     -e benchmarkIterations "$ITERATIONS" \
     -e benchmarkTimeoutSec "$TIMEOUT_SEC" \
-    "$RUNNER" 2>&1 | tee /dev/stderr)
+    "$RUNNER" 2>&1) || true
+  printf '%s\n' "$out"
+  echo "Run $run took $(( $(date +%s) - start_s ))s"
   echo "::endgroup::"
   # `am instrument` exits 0 through adb even on failure — parse the output.
   if ! echo "$out" | grep -q "OK (" || echo "$out" | grep -qE "FAILURES!!!|INSTRUMENTATION_ABORTED|INSTRUMENTATION_FAILED|Process crashed"; then
