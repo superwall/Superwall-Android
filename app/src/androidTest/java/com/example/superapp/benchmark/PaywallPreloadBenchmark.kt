@@ -1,5 +1,6 @@
 package com.example.superapp.benchmark
 
+import android.app.Activity
 import android.app.Application
 import android.content.ContentValues
 import android.content.Context
@@ -15,11 +16,16 @@ import com.superwall.sdk.analytics.DeviceClassifier
 import com.superwall.sdk.analytics.superwall.SuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
 import com.superwall.sdk.config.models.ConfigurationStatus
+import com.android.billingclient.api.ProductDetails
 import com.superwall.sdk.config.options.PaywallOptions
 import com.superwall.sdk.config.options.SuperwallOptions
+import com.superwall.sdk.delegate.PurchaseResult
+import com.superwall.sdk.delegate.RestorationResult
 import com.superwall.sdk.delegate.SuperwallDelegate
+import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.dependencies.DependencyContainer
 import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.paywall.view.PaywallView
 import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 import com.superwall.superapp.Keys
@@ -104,6 +110,24 @@ class PaywallPreloadBenchmark {
             }
         }
 
+    // CI emulators have no signed-in Google account, so Play Billing reports
+    // BILLING_UNAVAILABLE and never connects — which stalls configuration and
+    // leaves entitlement status "unknown". An external purchase controller +
+    // explicit subscription status takes the whole billing subsystem out of
+    // the path, like any app that doesn't rely on Play Billing.
+    private val purchaseController =
+        object : PurchaseController {
+            override suspend fun purchase(
+                activity: Activity,
+                productDetails: ProductDetails,
+                basePlanId: String?,
+                offerId: String?,
+            ): PurchaseResult = PurchaseResult.Cancelled()
+
+            override suspend fun restorePurchases(): RestorationResult =
+                RestorationResult.Failed(Exception("Not supported in benchmark"))
+        }
+
     private data class IterationResult(
         val index: Int,
         val cold: Boolean,
@@ -151,6 +175,7 @@ class PaywallPreloadBenchmark {
         Superwall.configure(
             app,
             Keys.CONSTANT_API_KEY,
+            purchaseController = purchaseController,
             options =
                 SuperwallOptions().apply {
                     // Debug so CI logcat shows exactly where configuration/preload
@@ -167,6 +192,7 @@ class PaywallPreloadBenchmark {
                 },
         )
         Superwall.instance.delegate = delegate
+        Superwall.instance.setSubscriptionStatus(SubscriptionStatus.Inactive)
         val status =
             withTimeoutOrNull(configureTimeoutSec.seconds) {
                 Superwall.instance.configurationStateListener.first { it !is ConfigurationStatus.Pending }
