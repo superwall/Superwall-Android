@@ -30,7 +30,6 @@ import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.paywall.view.PaywallView
 import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 import com.superwall.superapp.Keys
-import com.superwall.superapp.MainActivity
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -172,8 +171,10 @@ class PaywallPreloadBenchmark {
 
         // The SDK's config fetch gates on awaitUntilAppInForeground(), so the app
         // must have a resumed activity or configuration suspends indefinitely.
-        // Keep one alive for the whole benchmark.
-        val scenario = ActivityScenario.launch(MainActivity::class.java)
+        // A bare activity (not MainActivity) avoids appcompat's lazy EmojiCompat
+        // setup and its GMS FontsProvider connection — see
+        // BenchmarkForegroundActivity for the full story.
+        val scenario = ActivityScenario.launch(BenchmarkForegroundActivity::class.java)
 
         val results = mutableListOf<IterationResult>()
         try {
