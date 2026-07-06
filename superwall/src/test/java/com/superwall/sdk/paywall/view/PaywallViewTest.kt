@@ -769,11 +769,13 @@ class PaywallViewTest {
 
     /**
      * Records every tracked event into [into], counting down [closeLatch] when a PaywallClose is
-     * seen. trackClose() runs on the real IOScope, so a latch is more reliable than the scheduler.
+     * seen and [openLatch] when a PaywallOpen is seen. trackClose()/trackOpen() run on the real
+     * IOScope, so latches are more reliable than the scheduler.
      */
     private fun captureTrackedEvents(
         into: MutableList<com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent>,
         closeLatch: CountDownLatch,
+        openLatch: CountDownLatch? = null,
     ) {
         val trackingResult = mockk<TrackingResult>(relaxed = true)
         coEvery { factory.track(any()) } answers {
@@ -781,6 +783,9 @@ class PaywallViewTest {
             into.add(event)
             if (event is com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.PaywallClose) {
                 closeLatch.countDown()
+            }
+            if (event is com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.PaywallOpen) {
+                openLatch?.countDown()
             }
             Result.success(trackingResult)
         }
@@ -792,14 +797,15 @@ class PaywallViewTest {
      * so a background stop reaches `destroyed(forceCleanup = false)`.
      *
      * Corrected behavior (asserted here): a non-finishing, non-browser stop must NOT run any dismissal
-     * teardown — no PaywallClose, no didDismissPaywall, no PaywallState.Dismissed, presentation state
-     * left intact, and crucially the active-paywall key NOT cleared (so Superwall.paywallView stays
-     * non-null and a later purchase can still resolve and dismiss the live paywall). This is the same
-     * class of bug already fixed narrowly for the deep-link/browser path via SetBrowserPresented(true).
+     * teardown — no didDismissPaywall, no PaywallState.Dismissed, presentation state left intact, and
+     * crucially the active-paywall key NOT cleared (so Superwall.paywallView stays non-null and a later
+     * purchase can still resolve and dismiss the live paywall). It MUST however still track the
+     * `paywall_close` analytics event, since the paywall left the user's screen — the matching
+     * `paywall_open` fires when the Activity resumes (covered by the foreground test below).
      */
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun destroyed_onNonFinishingBackgroundStop_doesNotRunDismissTeardown() =
+    fun destroyed_onNonFinishingBackgroundStop_tracksCloseButDoesNotRunDismissTeardown() =
         runTest {
             val dispatcher = StandardTestDispatcher(testScheduler)
             Dispatchers.setMain(dispatcher)
@@ -847,15 +853,19 @@ class PaywallViewTest {
                         view.destroyed(forceCleanup = false)
                         advanceUntilIdle()
 
-                        Then("no dismissal teardown runs and the live paywall is left intact") {
-                            // No PaywallClose emitted on a mere backgrounding (wait briefly for any stray IO work).
-                            assertFalse(
-                                "Expected NO PaywallClose on a non-finishing background stop",
-                                closeLatch.await(500, TimeUnit.MILLISECONDS),
-                            )
+                        Then("paywall_close is tracked but no dismissal teardown runs") {
+                            // paywall_close IS dispatched on backgrounding — the paywall left the screen.
                             assertTrue(
-                                "Expected no PaywallClose tracked, got $trackedEvents",
-                                trackedEvents.none {
+                                "Expected a PaywallClose on a non-finishing background stop",
+                                closeLatch.await(2, TimeUnit.SECONDS),
+                            )
+                            // But only once, even if onStop-style calls repeat before a resume.
+                            view.destroyed(forceCleanup = false)
+                            advanceUntilIdle()
+                            assertEquals(
+                                "Expected exactly one PaywallClose tracked, got $trackedEvents",
+                                1,
+                                trackedEvents.count {
                                     it is com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.PaywallClose
                                 },
                             )
@@ -871,6 +881,80 @@ class PaywallViewTest {
                 }
             } finally {
                 scope.cancel()
+                Dispatchers.resetMain()
+            }
+        }
+
+    /**
+     * The foreground half of the background/foreground pair: after a non-finishing stop tracked
+     * `paywall_close`, resuming the Activity (onResume → onViewCreated) must dispatch the matching
+     * `paywall_open` — WITHOUT re-running the presentation flow (no second didPresentPaywall).
+     * A plain resume with no preceding background close must not re-track paywall_open.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun onViewCreated_afterBackgroundStop_tracksPaywallOpenAgain() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            Dispatchers.setMain(dispatcher)
+            try {
+                Given("a presented PaywallView that was backgrounded (non-finishing stop)") {
+                    clearMocks(delegateAdapter, answers = false)
+                    val view = makePaywallView(cache = null)
+
+                    val trackedEvents =
+                        java.util.Collections.synchronizedList(
+                            mutableListOf<com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent>(),
+                        )
+                    val closeLatch = CountDownLatch(1)
+                    val openLatch = CountDownLatch(1)
+                    captureTrackedEvents(trackedEvents, closeLatch, openLatch)
+
+                    view.controller.updateState(PaywallViewState.Updates.SetPresentedAndFinished)
+
+                    view.destroyed(forceCleanup = false)
+                    assertTrue(
+                        "Precondition: PaywallClose tracked on background",
+                        closeLatch.await(2, TimeUnit.SECONDS),
+                    )
+                    assertTrue("Precondition: flagged as closed for background", view.state.closedForBackground)
+
+                    When("the Activity resumes: onViewCreated()") {
+                        view.onViewCreated()
+                        advanceUntilIdle()
+
+                        Then("paywall_open is tracked again without re-running the presentation flow") {
+                            assertTrue(
+                                "Expected a PaywallOpen on foreground after a background close",
+                                openLatch.await(2, TimeUnit.SECONDS),
+                            )
+                            assertFalse("Background-close flag should be cleared", view.state.closedForBackground)
+                            // The presentation flow must not run again on a mere resume.
+                            verify(exactly = 0) { delegateAdapter.didPresentPaywall(any()) }
+                        }
+                    }
+
+                    When("the Activity resumes again with no background close in between") {
+                        val openCountAfterFirstResume =
+                            trackedEvents.count {
+                                it is com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.PaywallOpen
+                            }
+                        view.onViewCreated()
+                        advanceUntilIdle()
+
+                        Then("no additional paywall_open is tracked") {
+                            Thread.sleep(300)
+                            assertEquals(
+                                "Expected no extra PaywallOpen on a plain resume, got $trackedEvents",
+                                openCountAfterFirstResume,
+                                trackedEvents.count {
+                                    it is com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.PaywallOpen
+                                },
+                            )
+                        }
+                    }
+                }
+            } finally {
                 Dispatchers.resetMain()
             }
         }

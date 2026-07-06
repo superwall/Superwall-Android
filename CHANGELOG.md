@@ -21,6 +21,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## Fixes
 - Fix a bug causing web redemption entitlements to be ignored in restoration tracking logic for users of purchase controller
+- Fix paywall presentation being fully torn down when the app was backgrounded without the paywall being dismissed, while keeping `paywall_close`/`paywall_open` dispatched when the paywall leaves and returns to the screen
 
 ## 2.7.19
 
