@@ -30,6 +30,15 @@ adb install -r "$APP_APK"
 adb install -r "$TEST_APK"
 adb shell rm -rf /sdcard/Download/superwall-benchmark || true
 
+# Connectivity pre-flight (informational): raw IP vs DNS from inside the guest,
+# and the Superwall API from the host. Separates emulator-DNS failures from
+# API-side blocks when the benchmark can't configure.
+echo "::group::Connectivity pre-flight"
+adb shell ping -c 2 -W 3 8.8.8.8 || echo "guest: raw IP connectivity FAILED"
+adb shell ping -c 2 -W 3 api.superwall.me || echo "guest: DNS resolution of api.superwall.me FAILED"
+curl -sS -m 10 -o /dev/null -w "host -> api.superwall.me: HTTP %{http_code}\n" https://api.superwall.me/ || echo "host: api.superwall.me unreachable"
+echo "::endgroup::"
+
 # Each run clears the app's data first, so every run's first iteration is a
 # true cold start. The compare script averages across all runs.
 for run in $(seq 1 "$RUNS"); do
@@ -51,8 +60,10 @@ for run in $(seq 1 "$RUNS"); do
   echo "::endgroup::"
   # `am instrument` exits 0 through adb even on failure — parse the output.
   if ! echo "$out" | grep -q "OK (" || echo "$out" | grep -qE "FAILURES!!!|INSTRUMENTATION_ABORTED|INSTRUMENTATION_FAILED|Process crashed"; then
-    echo "Benchmark run $run failed — recent device log:"
-    adb logcat -d -t 400 | grep -E "SWPreloadBenchmark|Superwall|superapp|AndroidRuntime|FATAL" | tail -120 || true
+    echo "Benchmark run $run failed — recent device log (filtered):"
+    adb logcat -d -t 600 | grep -E "SWPreloadBenchmark|Superwall|superapp|AndroidRuntime|FATAL" | tail -120 || true
+    echo "Benchmark run $run failed — recent device log (unfiltered tail):"
+    adb logcat -d -t 150 || true
     exit 1
   fi
 done

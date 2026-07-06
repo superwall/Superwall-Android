@@ -168,7 +168,12 @@ jobs:
         force-avd-creation: false
         emulator-boot-timeout: 1800
         disable-animations: false
+        # -dns-server: GitHub runners resolve via systemd-resolved (127.0.0.53),
+        # which the emulator guest can't use — without an explicit DNS server the
+        # guest cannot resolve any hostname and the SDK's config fetch never
+        # completes.
         emulator-options: >
+          -dns-server 8.8.8.8
           -no-window
           -gpu swiftshader_indirect
           -no-boot-anim
@@ -189,7 +194,10 @@ jobs:
         force-avd-creation: false
         emulator-boot-timeout: 1800
         disable-animations: true
+        # -dns-server: see the snapshot step above — required for the guest to
+        # resolve api.superwall.me on GitHub runners.
         emulator-options: >
+          -dns-server 8.8.8.8
           -no-snapshot-save
           -no-window
           -gpu swiftshader_indirect
