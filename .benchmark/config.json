@@ -10,5 +10,5 @@
   "iterations": 2,
   "timeoutSec": 300,
   "metric": "meanMs",
-  "placements": ["campaign_trigger"]
+  "placements": ["present_data", "present_products", "present_urls"]
 }
