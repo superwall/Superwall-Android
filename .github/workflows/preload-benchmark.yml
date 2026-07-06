@@ -161,20 +161,12 @@ jobs:
           -noaudio
           -camera-back none
           -camera-front none
-        # Give the emulator 5s to settle after boot before running the tests.
-        # The benchmark is invoked RUNS times; each connectedDebugAndroidTest
+        # android-emulator-runner executes each script line in its own `sh -c`,
+        # so all logic (5s post-boot settle, RUNS benchmark invocations, result
+        # pull) lives in a single-line script call. Each connectedDebugAndroidTest
         # invocation reinstalls the app and clears its data, so every run starts
-        # cold. The compare script averages across all runs.
-        script: |
-          sleep 5
-          mkdir -p app/build/outputs/benchmark
-          adb shell rm -rf /sdcard/Download/superwall-benchmark || true
-          for run in $(seq 1 ${{ steps.config.outputs.runs }}); do
-            echo "::group::Benchmark run $run/${{ steps.config.outputs.runs }} (${{ matrix.tier }} tier)"
-            ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.superapp.benchmark.PaywallPreloadBenchmark -Pandroid.testInstrumentationRunnerArguments.benchmarkDeviceTier=${{ matrix.tier }} -Pandroid.testInstrumentationRunnerArguments.benchmarkRunIndex=$run -Pandroid.testInstrumentationRunnerArguments.benchmarkIterations=${{ steps.config.outputs.iterations }} -Pandroid.testInstrumentationRunnerArguments.benchmarkTimeoutSec=${{ steps.config.outputs.timeout }} -x lint -x lintDebug -x lintVitalRelease
-            echo "::endgroup::"
-          done
-          adb pull /sdcard/Download/superwall-benchmark/. app/build/outputs/benchmark/
+        # cold; the compare script averages across all runs.
+        script: bash scripts/run_preload_benchmark.sh ${{ matrix.tier }} ${{ steps.config.outputs.runs }} ${{ steps.config.outputs.iterations }} ${{ steps.config.outputs.timeout }}
 
     - name: Upload benchmark results
       uses: actions/upload-artifact@v4
