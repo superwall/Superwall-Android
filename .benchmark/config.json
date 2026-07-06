@@ -1,0 +1,12 @@
+{
+  "comment": "Configuration for the paywall preload benchmark (see .benchmark/README.md).",
+  "deltaPercent": 10.0,
+  "deltaPercentPerTier": {
+    "low": null,
+    "mid": null,
+    "high": null
+  },
+  "iterations": 5,
+  "timeoutSec": 300,
+  "metric": "meanMs"
+}

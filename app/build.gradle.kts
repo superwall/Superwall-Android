@@ -132,3 +132,25 @@ tasks.register<Exec>("clearEventTimelines") {
     commandLine("adb", "shell", "rm", "-rf", "/sdcard/Download/superwall-event-timelines/")
     isIgnoreExitValue = true
 }
+
+tasks.register<Exec>("pullBenchmarkResults") {
+    description = "Pull paywall preload benchmark JSON files from the device after instrumentation tests"
+    group = "verification"
+    val outputDir = layout.buildDirectory.dir("outputs/benchmark").get().asFile
+    doFirst {
+        outputDir.mkdirs()
+    }
+    commandLine(
+        "adb", "pull",
+        "/sdcard/Download/superwall-benchmark/.",
+        outputDir.absolutePath,
+    )
+    isIgnoreExitValue = true
+}
+
+tasks.register<Exec>("clearBenchmarkResults") {
+    description = "Clear paywall preload benchmark files from the device"
+    group = "verification"
+    commandLine("adb", "shell", "rm", "-rf", "/sdcard/Download/superwall-benchmark/")
+    isIgnoreExitValue = true
+}
