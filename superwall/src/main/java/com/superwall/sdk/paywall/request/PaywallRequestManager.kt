@@ -177,10 +177,10 @@ class PaywallRequestManager(
         request: PaywallRequest,
     ): Paywall =
         withContext(ioScope.coroutineContext) {
-            val paywall = paywall
-            paywall.experiment = request.responseIdentifiers.experiment
-            paywall.presentationSourceType = request.presentationSourceType
-            return@withContext paywall
+            return@withContext paywall.copy(
+                experiment = request.responseIdentifiers.experiment,
+                presentationSourceType = request.presentationSourceType,
+            )
         }
 
     private suspend fun saveRequestHash(

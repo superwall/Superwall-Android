@@ -2,6 +2,12 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.7.21
+
+## Fixes
+
+- Ensures that paywall instances no longer overwrite each other's instance experiment ID
+
 ## 2.7.20
 
 ## Enhancements
