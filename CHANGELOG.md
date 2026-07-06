@@ -2,6 +2,15 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.7.21
+
+## Enhancements
+
+- Adds `fontScale` and `fontSize` device attributes for the system text size.
+
+## Fixes
+- Fix a bug causing paywall destroying on backgrounding
+
 ## 2.7.20
 
 ## Enhancements
