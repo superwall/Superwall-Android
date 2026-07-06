@@ -72,18 +72,7 @@ class PaywallRequestManagerTest {
     @Test
     fun test_getPaywall_returnsPaywall_whenNetworkSucceeds() =
         runTest {
-            val paywall =
-                mockk<Paywall>(relaxed = true) {
-                    every { identifier } returns "test_paywall"
-                    every { responseLoadingInfo } returns
-                        mockk(relaxed = true) {
-                            every { startAt } returns null
-                            every { endAt } returns null
-                        }
-                    every { productsLoadingInfo } returns mockk(relaxed = true)
-                    every { productItems } returns emptyList()
-                    every { getInfo(any()) } returns mockk<PaywallInfo>()
-                }
+            val paywall = Paywall.stub().copy(identifier = "test_paywall")
             val request =
                 mockk<PaywallRequest> {
                     every { responseIdentifiers } returns ResponseIdentifiers(paywallId = "test_paywall")
@@ -233,20 +222,18 @@ class PaywallRequestManagerTest {
     @Test
     fun test_getPaywall_setsExperiment() =
         runTest {
-            val experiment = mockk<Experiment>()
-            val paywall =
-                mockk<Paywall>(relaxed = true) {
-                    every { identifier } returns "test_paywall"
-                    every { this@mockk.experiment = any() } just Runs
-                    every { responseLoadingInfo } returns
-                        mockk(relaxed = true) {
-                            every { startAt } returns null
-                            every { endAt } returns null
-                        }
-                    every { productsLoadingInfo } returns mockk(relaxed = true)
-                    every { productItems } returns emptyList()
-                    every { getInfo(any()) } returns mockk<PaywallInfo>()
-                }
+            val experiment =
+                Experiment(
+                    id = "exp",
+                    groupId = "group",
+                    variant =
+                        Experiment.Variant(
+                            id = "variant",
+                            type = Experiment.Variant.VariantType.TREATMENT,
+                            paywallId = "test_paywall",
+                        ),
+                )
+            val paywall = Paywall.stub().copy(identifier = "test_paywall")
             val request =
                 mockk<PaywallRequest> {
                     every { responseIdentifiers } returns ResponseIdentifiers(paywallId = "test_paywall", experiment = experiment)
@@ -264,28 +251,52 @@ class PaywallRequestManagerTest {
                     every { this@mockk.paywall } returns null
                 }
 
-            requestManager.getPaywall(request)
+            val result = requestManager.getPaywall(request)
 
-            coVerify { paywall.experiment = experiment }
+            assertTrue(result is Either.Success)
+            assertEquals(experiment, (result as Either.Success).value.experiment)
+        }
+
+    @Test
+    fun test_cachedPaywall_preloadDoesNotClearExperimentFromAssignedPresentation() =
+        runTest {
+            val experiment =
+                Experiment(
+                    id = "51732",
+                    groupId = "campaign",
+                    variant =
+                        Experiment.Variant(
+                            id = "210107",
+                            type = Experiment.Variant.VariantType.TREATMENT,
+                            paywallId = "test_paywall",
+                        ),
+                )
+            val paywall = Paywall.stub().copy(identifier = "test_paywall")
+            val presentRequest = makeRequest(experiment = experiment)
+            val preloadRequest = makeRequest(experiment = null)
+
+            coEvery { network.getPaywall(any(), any()) } returns Either.Success(paywall)
+            coEvery { storeManager.getProducts(any(), any(), any()) } returns
+                mockk {
+                    every { productItems } returns emptyList()
+                    every { productsByFullId } returns emptyMap()
+                    every { this@mockk.paywall } returns null
+                }
+
+            val presentedPaywall = (requestManager.getPaywall(presentRequest) as Either.Success).value
+
+            requestManager.getPaywall(preloadRequest, isPreloading = true)
+
+            val openParams = presentedPaywall.getInfo(presentRequest.eventData).eventParams()
+            assertEquals("51732", openParams["experiment_id"])
+            assertEquals("210107", openParams["variant_id"])
         }
 
     @Test
     fun test_getPaywall_setsPresentationSourceType() =
         runTest {
             val sourceType = "implicit"
-            val paywall =
-                mockk<Paywall>(relaxed = true) {
-                    every { identifier } returns "test_paywall"
-                    every { presentationSourceType = any() } just Runs
-                    every { responseLoadingInfo } returns
-                        mockk(relaxed = true) {
-                            every { startAt } returns null
-                            every { endAt } returns null
-                        }
-                    every { productsLoadingInfo } returns mockk(relaxed = true)
-                    every { productItems } returns emptyList()
-                    every { getInfo(any()) } returns mockk<PaywallInfo>()
-                }
+            val paywall = Paywall.stub().copy(identifier = "test_paywall")
             val request =
                 mockk<PaywallRequest> {
                     every { responseIdentifiers } returns ResponseIdentifiers(paywallId = "test_paywall")
@@ -303,9 +314,10 @@ class PaywallRequestManagerTest {
                     every { this@mockk.paywall } returns null
                 }
 
-            requestManager.getPaywall(request)
+            val result = requestManager.getPaywall(request)
 
-            coVerify { paywall.presentationSourceType = sourceType }
+            assertTrue(result is Either.Success)
+            assertEquals(sourceType, (result as Either.Success).value.presentationSourceType)
         }
 
     @Test
@@ -355,18 +367,7 @@ class PaywallRequestManagerTest {
     @Test
     fun test_getPaywall_usesStaticPaywall_whenAvailable() =
         runTest {
-            val staticPaywall =
-                mockk<Paywall>(relaxed = true) {
-                    every { identifier } returns "static_paywall"
-                    every { responseLoadingInfo } returns
-                        mockk(relaxed = true) {
-                            every { startAt } returns null
-                            every { endAt } returns null
-                        }
-                    every { productsLoadingInfo } returns mockk(relaxed = true)
-                    every { productItems } returns emptyList()
-                    every { getInfo(any()) } returns mockk<PaywallInfo>()
-                }
+            val staticPaywall = Paywall.stub().copy(identifier = "static_paywall")
             val request =
                 mockk<PaywallRequest> {
                     every { responseIdentifiers } returns ResponseIdentifiers(paywallId = "static_paywall")
@@ -680,4 +681,14 @@ class PaywallRequestManagerTest {
 
             assertTrue(result is Either.Success)
         }
+
+    private fun makeRequest(experiment: Experiment?): PaywallRequest =
+        PaywallRequest(
+            eventData = null,
+            responseIdentifiers = ResponseIdentifiers(paywallId = "test_paywall", experiment = experiment),
+            overrides = PaywallRequest.Overrides(products = null, isFreeTrial = null),
+            isDebuggerLaunched = false,
+            presentationSourceType = null,
+            retryCount = 0,
+        )
 }
