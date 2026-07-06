@@ -32,6 +32,15 @@ adb install -r "$APP_APK"
 adb install -r "$TEST_APK"
 adb shell rm -rf /sdcard/Download/superwall-benchmark || true
 
+# Play images self-update the Play Store + GMS a few dozen seconds after boot;
+# the package install force-stops Google Play Services and the OS then kills
+# any app holding a GMS provider connection (ours holds FontsProvider via
+# appcompat) — which murdered every benchmark run ~40s in. The Play Store app
+# stays installed (this remains a Play device); only its background
+# self-update is disabled for the session.
+adb shell pm disable-user --user 0 com.android.vending || true
+adb shell settings put global package_verifier_user_consent -1 || true
+
 # Network bring-up: netsim WiFi does not reliably come back after a snapshot
 # restore, leaving ConnectivityManager with no WIFI/CELLULAR network even
 # though the NAT path works — and the SDK's awaitUntilNetworkExists() then
