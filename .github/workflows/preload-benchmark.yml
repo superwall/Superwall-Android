@@ -93,6 +93,7 @@ jobs:
     - name: Read benchmark config
       id: config
       run: |
+        echo "runs=$(jq -r '.runsPerEmulator' .benchmark/config.json)" >> "$GITHUB_OUTPUT"
         echo "iterations=$(jq -r '.iterations' .benchmark/config.json)" >> "$GITHUB_OUTPUT"
         echo "timeout=$(jq -r '.timeoutSec' .benchmark/config.json)" >> "$GITHUB_OUTPUT"
 
@@ -151,11 +152,18 @@ jobs:
           -camera-back none
           -camera-front none
         # Give the emulator 5s to settle after boot before running the tests.
+        # The benchmark is invoked RUNS times; each connectedDebugAndroidTest
+        # invocation reinstalls the app and clears its data, so every run starts
+        # cold. The compare script averages across all runs.
         script: |
           sleep 5
           mkdir -p app/build/outputs/benchmark
           adb shell rm -rf /sdcard/Download/superwall-benchmark || true
-          ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.superapp.benchmark.PaywallPreloadBenchmark -Pandroid.testInstrumentationRunnerArguments.benchmarkDeviceTier=${{ matrix.tier }} -Pandroid.testInstrumentationRunnerArguments.benchmarkIterations=${{ steps.config.outputs.iterations }} -Pandroid.testInstrumentationRunnerArguments.benchmarkTimeoutSec=${{ steps.config.outputs.timeout }} -x lint -x lintDebug -x lintVitalRelease
+          for run in $(seq 1 ${{ steps.config.outputs.runs }}); do
+            echo "::group::Benchmark run $run/${{ steps.config.outputs.runs }} (${{ matrix.tier }} tier)"
+            ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.superapp.benchmark.PaywallPreloadBenchmark -Pandroid.testInstrumentationRunnerArguments.benchmarkDeviceTier=${{ matrix.tier }} -Pandroid.testInstrumentationRunnerArguments.benchmarkRunIndex=$run -Pandroid.testInstrumentationRunnerArguments.benchmarkIterations=${{ steps.config.outputs.iterations }} -Pandroid.testInstrumentationRunnerArguments.benchmarkTimeoutSec=${{ steps.config.outputs.timeout }} -x lint -x lintDebug -x lintVitalRelease
+            echo "::endgroup::"
+          done
           adb pull /sdcard/Download/superwall-benchmark/. app/build/outputs/benchmark/
 
     - name: Upload benchmark results

@@ -15,9 +15,13 @@ Runs automatically on **release PRs** (pull requests targeting `main`), on
    (in `:app`) configures the SDK with preloading disabled, waits for config,
    then calls `Superwall.preloadAllPaywalls()` and measures the time until every
    paywall announced by `paywallPreload_start` is `Ready`.
-2. It repeats this for `iterations` iterations (iteration 1 is cold, the rest
-   run after `Superwall.teardown()` and are reported as warm) and writes a JSON
-   result to `/sdcard/Download/superwall-benchmark/` on the device.
+2. CI invokes the test `runsPerEmulator` times per emulator (each
+   `connectedAndroidTest` invocation reinstalls the app and clears its data, so
+   every run starts cold). Within a run the test performs `iterations`
+   iterations (iteration 1 cold, the rest after `Superwall.teardown()` — warm)
+   and writes one JSON result per run to
+   `/sdcard/Download/superwall-benchmark/`. The compare script averages across
+   all runs × iterations.
 3. CI runs this on **3 emulators in parallel**, one per device tier:
 
    | Tier | CPU cores | RAM    |
@@ -66,10 +70,12 @@ multiple runs.
 ```bash
 # Emulator (Play Store image recommended to match CI) must be running.
 ./gradlew :app:clearBenchmarkResults
+# Repeat with benchmarkRunIndex=2,3,... for multiple runs (CI does 3).
 ./gradlew :app:connectedDebugAndroidTest \
   -Pandroid.testInstrumentationRunnerArguments.class=com.example.superapp.benchmark.PaywallPreloadBenchmark \
   -Pandroid.testInstrumentationRunnerArguments.benchmarkDeviceTier=MID \
-  -Pandroid.testInstrumentationRunnerArguments.benchmarkIterations=5
+  -Pandroid.testInstrumentationRunnerArguments.benchmarkRunIndex=1 \
+  -Pandroid.testInstrumentationRunnerArguments.benchmarkIterations=3
 ./gradlew :app:pullBenchmarkResults   # -> app/build/outputs/benchmark/
 
 python3 scripts/benchmark_compare.py \

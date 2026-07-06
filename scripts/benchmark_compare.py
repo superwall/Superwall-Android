@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Aggregate, report and gate paywall preload benchmark results.
 
-Reads per-tier result files produced by the PaywallPreloadBenchmark
-instrumented test (preload-benchmark-<tier>.json), compares each tier's
-mean time-to-all-Ready against the committed baseline, writes a markdown
+Reads the result files produced by the PaywallPreloadBenchmark instrumented
+test (preload-benchmark-<tier>-run<N>.json, one file per
+connectedAndroidTest invocation), merges each tier's runs into stats
+computed across ALL iterations of all runs, compares the merged mean
+time-to-all-Ready against the committed baseline, writes a markdown
 report, and exits non-zero when any tier regressed beyond the configured
 delta.
 
@@ -32,14 +34,62 @@ def load_json(path):
 
 
 def find_results(results_dir):
-    """Map tier -> result dict for every preload-benchmark-*.json under results_dir."""
+    """Map tier -> list of run result dicts for every preload-benchmark-*.json found."""
     results = {}
     pattern = os.path.join(results_dir, "**", "preload-benchmark-*.json")
     for path in sorted(glob.glob(pattern, recursive=True)):
         data = load_json(path)
         tier = str(data.get("tier", "unknown")).lower()
-        results[tier] = data
+        results.setdefault(tier, []).append(data)
     return results
+
+
+def mean(values):
+    return sum(values) / len(values) if values else None
+
+
+def merge_runs(tier, runs):
+    """Merge N run files (one per connectedAndroidTest invocation) into a single
+    result whose stats are computed across ALL iterations of all runs."""
+    samples = []
+    for run in sorted(runs, key=lambda r: r.get("runIndex", 0)):
+        for it in run.get("iterations", []):
+            samples.append({**it, "run": run.get("runIndex", 1)})
+
+    all_ready = [s["allReadyMs"] for s in samples]
+    cold = [s["allReadyMs"] for s in samples if s.get("cold")]
+    warm = [s["allReadyMs"] for s in samples if not s.get("cold")]
+    m = mean(all_ready)
+    if len(all_ready) > 1:
+        std = (sum((v - m) ** 2 for v in all_ready) / (len(all_ready) - 1)) ** 0.5
+    else:
+        std = 0.0
+    ordered = sorted(all_ready)
+    mid = len(ordered) // 2
+    median = (
+        (ordered[mid - 1] + ordered[mid]) / 2.0 if len(ordered) % 2 == 0 else float(ordered[mid])
+    )
+
+    return {
+        "schemaVersion": runs[0].get("schemaVersion"),
+        "benchmark": runs[0].get("benchmark"),
+        "tier": tier.upper(),
+        "device": runs[0].get("device"),
+        "runCount": len(runs),
+        "iterationsPerRun": len(runs[0].get("iterations", [])),
+        "samples": samples,
+        "stats": {
+            "meanMs": m,
+            "medianMs": median,
+            "minMs": min(all_ready),
+            "maxMs": max(all_ready),
+            "stdDevMs": std,
+            "coefficientOfVariationPct": (std / m * 100.0) if m else 0.0,
+            "coldMeanMs": mean(cold),
+            "warmMeanMs": mean(warm),
+            "sampleCount": len(samples),
+        },
+    }
 
 
 def delta_for_tier(config, tier):
@@ -67,14 +117,16 @@ def compare_tier(tier, result, baseline, config):
         "tier": tier.upper(),
         "device": device,
         "sdkClassifiedTier": device.get("sdkClassifiedTier"),
-        "paywallCount": (result.get("iterations") or [{}])[0].get("paywallCount"),
+        "paywallCount": (result.get("samples") or [{}])[0].get("paywallCount"),
         "current": current,
-        "coldMs": stats.get("coldMs"),
+        "coldMeanMs": stats.get("coldMeanMs"),
         "warmMeanMs": stats.get("warmMeanMs"),
         "medianMs": stats.get("medianMs"),
         "stdDevMs": stats.get("stdDevMs"),
         "cvPct": stats.get("coefficientOfVariationPct"),
-        "iterations": stats.get("iterationCount"),
+        "runCount": result.get("runCount"),
+        "iterationsPerRun": result.get("iterationsPerRun"),
+        "sampleCount": stats.get("sampleCount"),
         "deltaLimitPct": delta_limit,
         "baseline": None,
         "deltaPct": None,
@@ -107,15 +159,17 @@ def write_report(path, rows, missing_tiers, config):
         "",
         "Time from `preloadAllPaywalls()` until every paywall reaches "
         "`PaywallLoadingState.Ready`, per device tier "
-        f"(metric: `{config.get('metric', 'meanMs')}` across "
-        f"{config.get('iterations')} iterations).",
+        f"(metric: `{config.get('metric', 'meanMs')}` averaged over "
+        f"{config.get('runsPerEmulator')} runs × {config.get('iterations')} iterations "
+        "per emulator; each run reinstalls the app so its first iteration is cold).",
         "",
-        "| Tier | Paywalls | Mean | Baseline | Δ | Limit | Cold | Warm mean | Median | StdDev | CV | Status |",
-        "|------|----------|------|----------|---|-------|------|-----------|--------|--------|----|--------|",
+        "| Tier | Paywalls | Mean | Baseline | Δ | Limit | Cold mean | Warm mean | Median | StdDev | CV | Samples | Status |",
+        "|------|----------|------|----------|---|-------|-----------|-----------|--------|--------|----|---------|--------|",
     ]
     for row in rows:
         delta = "—" if row["deltaPct"] is None else f"{row['deltaPct']:+.1f}%"
         cv = "—" if row["cvPct"] is None else f"{row['cvPct']:.1f}%"
+        samples = f"{row['sampleCount']} ({row['runCount']}×{row['iterationsPerRun']})"
         status_icon = {
             "OK": "✅ OK",
             "IMPROVED": "🟢 improved",
@@ -123,23 +177,24 @@ def write_report(path, rows, missing_tiers, config):
             "NO BASELINE": "⚪ no baseline",
         }[row["status"]]
         lines.append(
-            "| {tier} | {count} | {cur} | {base} | {delta} | +{limit:.0f}% | {cold} | {warm} | {median} | {std} | {cv} | {status} |".format(
+            "| {tier} | {count} | {cur} | {base} | {delta} | +{limit:.0f}% | {cold} | {warm} | {median} | {std} | {cv} | {samples} | {status} |".format(
                 tier=row["tier"],
                 count=row["paywallCount"] if row["paywallCount"] is not None else "—",
                 cur=fmt_ms(row["current"]),
                 base=fmt_ms(row["baseline"]),
                 delta=delta,
                 limit=row["deltaLimitPct"],
-                cold=fmt_ms(row["coldMs"]),
+                cold=fmt_ms(row["coldMeanMs"]),
                 warm=fmt_ms(row["warmMeanMs"]),
                 median=fmt_ms(row["medianMs"]),
                 std=fmt_ms(row["stdDevMs"]),
                 cv=cv,
+                samples=samples,
                 status=status_icon,
             )
         )
     for tier in missing_tiers:
-        lines.append(f"| {tier.upper()} | — | — | — | — | — | — | — | — | — | — | ⚠️ missing results |")
+        lines.append(f"| {tier.upper()} | — | — | — | — | — | — | — | — | — | — | — | ⚠️ missing results |")
 
     lines += [
         "",
@@ -190,9 +245,10 @@ def main():
 
     rows, failed = [], False
     for tier in TIERS:
-        result = results.get(tier)
-        if result is None:
+        runs = results.get(tier)
+        if not runs:
             continue
+        result = merge_runs(tier, runs)
         baseline_path = os.path.join(args.baseline, f"{tier}.json")
         baseline = load_json(baseline_path) if os.path.exists(baseline_path) else None
         row = compare_tier(tier, result, baseline, config)

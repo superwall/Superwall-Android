@@ -80,6 +80,11 @@ class PaywallPreloadBenchmark {
     private val deviceTier = args.getString("benchmarkDeviceTier")?.uppercase() ?: "UNKNOWN"
     private val timeoutSec = args.getString("benchmarkTimeoutSec")?.toLongOrNull() ?: 300L
 
+    // CI invokes connectedDebugAndroidTest several times per emulator (each run
+    // reinstalls the app and clears its data, so iteration 0 is always cold) and
+    // averages across runs; the index keeps the result files apart.
+    private val runIndex = args.getString("benchmarkRunIndex")?.toIntOrNull() ?: 1
+
     // Events paired with SystemClock.elapsedRealtime() at emission so durations
     // are measured at fire time, not collection time. Replay so events emitted
     // between preloadAllPaywalls() and the collector attaching (they fire from
@@ -249,6 +254,7 @@ class PaywallPreloadBenchmark {
                 put("schemaVersion", SCHEMA_VERSION)
                 put("benchmark", "paywall-preload")
                 put("tier", deviceTier)
+                put("runIndex", runIndex)
                 put("apiKey", Keys.CONSTANT_API_KEY)
                 put("timestampMs", System.currentTimeMillis())
                 put(
@@ -304,7 +310,7 @@ class PaywallPreloadBenchmark {
                 )
             }
 
-        val fileName = "preload-benchmark-${deviceTier.lowercase()}.json"
+        val fileName = "preload-benchmark-${deviceTier.lowercase()}-run$runIndex.json"
         val content = json.toString(2)
 
         // Shared Downloads collection: survives the post-test uninstall and is
