@@ -19,8 +19,12 @@
 name: Paywall Preload Benchmark
 
 on:
+  # Release PRs (into main) always run. PRs into develop only run when labeled
+  # "benchmark" — see the job-level guard below ("labeled" is in types so
+  # adding the label triggers a run immediately).
   pull_request:
-    branches: [ main ]
+    branches: [ main, develop ]
+    types: [ opened, synchronize, reopened, labeled ]
   # Also run on merges so main/develop accumulate fresh reports over time.
   push:
     branches: [ main, develop ]
@@ -38,6 +42,12 @@ concurrency:
 jobs:
   benchmark:
     runs-on: ubuntu-latest
+    # Release PRs (base main), merges and manual dispatch always run; PRs into
+    # develop need the "benchmark" label to opt in.
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.base_ref == 'main' ||
+      contains(github.event.pull_request.labels.*.name, 'benchmark')
     strategy:
       fail-fast: false
       matrix:
@@ -177,8 +187,9 @@ jobs:
   report:
     runs-on: ubuntu-latest
     needs: [benchmark]
-    # Produce a report from whatever tiers finished, even if one regressed/failed.
-    if: ${{ !cancelled() }}
+    # Produce a report from whatever tiers finished, even if one regressed/failed
+    # — but not when the benchmark job was skipped by the opt-in guard.
+    if: ${{ !cancelled() && needs.benchmark.result != 'skipped' }}
 
     steps:
     - name: Checkout code
