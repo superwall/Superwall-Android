@@ -32,14 +32,12 @@ adb install -r "$APP_APK"
 adb install -r "$TEST_APK"
 adb shell rm -rf /sdcard/Download/superwall-benchmark || true
 
-# Play images self-update the Play Store + GMS a few dozen seconds after boot;
-# the package install force-stops Google Play Services and the OS then kills
-# any app holding a GMS provider connection (ours holds FontsProvider via
-# appcompat) — which murdered every benchmark run ~40s in. The Play Store app
-# stays installed (this remains a Play device); only its background
-# self-update is disabled for the session.
-adb shell pm disable-user --user 0 com.android.vending || true
-adb shell settings put global package_verifier_user_consent -1 || true
+# Note on Play services churn: GMS restarts itself shortly after boot on Play
+# images (self-update / accountless checkin) and the OS kills any app holding
+# a dying provider connection. The app's debug manifest disables emoji2's
+# GMS FontsProvider dependency so the benchmark process has no such
+# connection; disabling com.android.vending is deliberately NOT done — it
+# destabilizes GMS further and this should stay a Play Store device.
 
 # Network bring-up: netsim WiFi does not reliably come back after a snapshot
 # restore, leaving ConnectivityManager with no WIFI/CELLULAR network even

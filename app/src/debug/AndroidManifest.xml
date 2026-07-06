@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <application>
+        <!-- Disable emoji2's auto-init in debug builds. It establishes a content
+             provider dependency on Play Services' FontsProvider, and on CI
+             emulators GMS restarts itself shortly after boot (self-update /
+             accountless checkin), which makes the OS kill any app holding that
+             provider connection: "Killing com.superwall.superapp (adj 0):
+             depends on provider com.google.android.gms/.fonts.provider
+             .FontsProvider in dying proc". This killed every preload benchmark
+             run mid-measurement. Emoji fall back to the system font. -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+                tools:node="remove" />
+        </provider>
+    </application>
+</manifest>
