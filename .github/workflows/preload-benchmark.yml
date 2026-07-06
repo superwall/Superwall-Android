@@ -107,6 +107,12 @@ jobs:
         echo "iterations=$(jq -r '.iterations' .benchmark/config.json)" >> "$GITHUB_OUTPUT"
         echo "timeout=$(jq -r '.timeoutSec' .benchmark/config.json)" >> "$GITHUB_OUTPUT"
 
+    # Build both APKs before the emulator boots so the gradle build doesn't
+    # compete with the emulator for the runner's cores, and the in-session
+    # connectedDebugAndroidTest invocations only install + run.
+    - name: Prebuild app + androidTest APKs
+      run: ./gradlew :app:assembleDebug :app:assembleDebugAndroidTest -x lint -x lintDebug -x lintVitalRelease
+
     # Cache the AVD per tier. The key pins the exact device the benchmark runs
     # on — bump the -v suffix to force a fresh image.
     - name: AVD cache

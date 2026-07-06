@@ -7,7 +7,7 @@
     "high": null
   },
   "runsPerEmulator": 3,
-  "iterations": 3,
+  "iterations": 2,
   "timeoutSec": 300,
   "metric": "meanMs"
 }
