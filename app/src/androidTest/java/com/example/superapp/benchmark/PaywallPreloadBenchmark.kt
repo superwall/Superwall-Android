@@ -5,6 +5,7 @@ import android.app.Application
 import android.content.ContentValues
 import android.content.Context
 import android.os.Build
+import android.os.StrictMode
 import android.os.SystemClock
 import android.provider.MediaStore
 import android.util.Log
@@ -162,6 +163,13 @@ class PaywallPreloadBenchmark {
                 .targetContext.applicationContext as Application
 
         Log.i(TAG, "Starting preload benchmark: tier=$deviceTier iterations=$iterations timeout=${timeoutSec}s")
+
+        // MainApplication installs a VmPolicy with detectActivityLeaks() +
+        // penaltyDeath(), which kills the process without an AndroidRuntime
+        // trace mid-benchmark (webview teardown/reconfigure cycles trip it).
+        // The dev app's watchdog isn't what we're measuring — disable it.
+        StrictMode.setVmPolicy(StrictMode.VmPolicy.Builder().build())
+        StrictMode.setThreadPolicy(StrictMode.ThreadPolicy.Builder().build())
 
         // The SDK's config fetch gates on awaitUntilAppInForeground(), so the app
         // must have a resumed activity or configuration suspends indefinitely.
