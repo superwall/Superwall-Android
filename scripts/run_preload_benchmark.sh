@@ -45,7 +45,8 @@ for run in $(seq 1 "$RUNS"); do
   echo "::endgroup::"
   # `am instrument` exits 0 through adb even on failure — parse the output.
   if ! echo "$out" | grep -q "OK (" || echo "$out" | grep -qE "FAILURES!!!|INSTRUMENTATION_ABORTED|INSTRUMENTATION_FAILED|Process crashed"; then
-    echo "Benchmark run $run failed — see instrumentation output above."
+    echo "Benchmark run $run failed — recent device log:"
+    adb logcat -d -t 400 | grep -E "SWPreloadBenchmark|Superwall|superapp|AndroidRuntime|FATAL" | tail -120 || true
     exit 1
   fi
 done

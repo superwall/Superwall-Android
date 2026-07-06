@@ -80,10 +80,15 @@ class PaywallPreloadBenchmark {
     private val deviceTier = args.getString("benchmarkDeviceTier")?.uppercase() ?: "UNKNOWN"
     private val timeoutSec = args.getString("benchmarkTimeoutSec")?.toLongOrNull() ?: 300L
 
-    // CI invokes connectedDebugAndroidTest several times per emulator (each run
-    // reinstalls the app and clears its data, so iteration 0 is always cold) and
-    // averages across runs; the index keeps the result files apart.
+    // CI invokes the benchmark several times per emulator (clearing app data
+    // before each run, so iteration 0 is always cold) and averages across runs;
+    // the index keeps the result files apart.
     private val runIndex = args.getString("benchmarkRunIndex")?.toIntOrNull() ?: 1
+
+    // Separate (shorter) bound for SDK configuration. This must NEVER be
+    // unbounded: if the config fetch fails or stalls on the emulator, the
+    // status stays Pending/Failed and an unbounded wait hangs the whole CI job.
+    private val configureTimeoutSec = args.getString("benchmarkConfigureTimeoutSec")?.toLongOrNull() ?: 120L
 
     // Events paired with SystemClock.elapsedRealtime() at emission so durations
     // are measured at fire time, not collection time. Replay so events emitted
@@ -159,7 +164,16 @@ class PaywallPreloadBenchmark {
                 },
         )
         Superwall.instance.delegate = delegate
-        Superwall.instance.configurationStateListener.first { it is ConfigurationStatus.Configured }
+        val status =
+            withTimeoutOrNull(configureTimeoutSec.seconds) {
+                Superwall.instance.configurationStateListener.first { it !is ConfigurationStatus.Pending }
+            } ?: error(
+                "Timed out after ${configureTimeoutSec}s waiting for SDK configuration " +
+                    "(status still Pending) — check emulator network / Superwall API reachability",
+            )
+        check(status is ConfigurationStatus.Configured) {
+            "SDK configuration failed (status=$status) — cannot benchmark preloading"
+        }
         val configureMs = configureMark.elapsedNow().inWholeMilliseconds
         Log.i(TAG, "Iteration $index: configured in ${configureMs}ms")
 
