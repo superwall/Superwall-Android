@@ -7,6 +7,11 @@
 # Play Store enabled); only CPU cores and RAM differ, so results are comparable
 # run-to-run. See .benchmark/README.md.
 #
+# Emulator setup (KVM, free-disk, AVD snapshot cache, -no-snapshot-save on the
+# measured run) mirrors pr-tests.yml / build+test.yml, which are proven on
+# these runners; the Play Store device choice (pixel_6) matches the Google
+# Play testing done via DeviceCloud in maestro-run.yml.
+#
 # The report is written to .benchmark/ (committed back to the PR branch) and
 # the workflow fails when a tier's mean regresses more than the delta limit in
 # .benchmark/config.json (default 10%).
@@ -16,6 +21,9 @@ name: Paywall Preload Benchmark
 on:
   pull_request:
     branches: [ main ]
+  # Also run on merges so main/develop accumulate fresh reports over time.
+  push:
+    branches: [ main, develop ]
   workflow_dispatch:
     inputs:
       update_baseline:
@@ -195,7 +203,8 @@ jobs:
       run: cat .benchmark/REPORT.md >> "$GITHUB_STEP_SUMMARY" || true
 
     - name: Commit report to branch
-      if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'workflow_dispatch'
+      # PRs from forks can't be pushed to; pushes/dispatch always target our own ref.
+      if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
       run: |
         git config --global user.name 'github-actions[bot]'
         git config --global user.email 'github-actions[bot]@users.noreply.github.com'

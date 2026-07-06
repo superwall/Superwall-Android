@@ -5,9 +5,9 @@ app's embedded API key (`Keys.CONSTANT_API_KEY` in `:app`). A paywall counts as
 loaded only once its `PaywallView` reaches `PaywallLoadingState.Ready` (webview
 loaded + `onReady` received + templates accepted).
 
-Runs automatically on **release PRs** (pull requests targeting `main`) via
-`.github/workflows/preload-benchmark.yml`, and on demand via
-`workflow_dispatch`.
+Runs automatically on **release PRs** (pull requests targeting `main`), on
+**merges to `main` or `develop`**, and on demand via `workflow_dispatch` — see
+`.github/workflows/preload-benchmark.yml`.
 
 ## How it works
 

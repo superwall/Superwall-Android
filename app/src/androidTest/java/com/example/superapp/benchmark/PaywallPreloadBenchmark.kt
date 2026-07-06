@@ -23,6 +23,7 @@ import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.paywall.view.PaywallView
 import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 import com.superwall.superapp.Keys
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
@@ -64,6 +65,7 @@ import kotlin.time.TimeSource
  *  - benchmarkDeviceTier: LOW | MID | HIGH — recorded in the report (default UNKNOWN)
  *  - benchmarkTimeoutSec: per-iteration timeout waiting for all paywalls Ready (default 300)
  */
+@OptIn(ExperimentalCoroutinesApi::class) // MutableSharedFlow.resetReplayCache
 @RunWith(AndroidJUnit4::class)
 class PaywallPreloadBenchmark {
     private companion object {
