@@ -10,5 +10,16 @@
   "iterations": 1,
   "timeoutSec": 180,
   "metric": "meanMs",
-  "placements": ["present_urls", "no_products", "present_data", "present_products"]
+  "placements": [
+    "present_urls",
+    "no_products",
+    "present_data",
+    "present_products",
+    "present_video",
+    "present_localized",
+    "present_free_trial",
+    "present_data_v4",
+    "scroll_test",
+    "price_readout"
+  ]
 }
