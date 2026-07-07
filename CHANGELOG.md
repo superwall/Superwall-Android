@@ -4,8 +4,12 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## 2.7.21
 
-## Fixes
+## Enhancements
 
+- Adds `fontScale` and `fontSize` device attributes for the system text size.
+
+## Fixes
+- Fix a bug causing paywall destroying on backgrounding
 - Ensures that paywall instances no longer overwrite each other's instance experiment ID
 
 ## 2.7.20
@@ -18,6 +22,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## Fixes
 - Fix a bug causing web redemption entitlements to be ignored in restoration tracking logic for users of purchase controller
+- Fix paywall presentation being fully torn down when the app was backgrounded without the paywall being dismissed, while keeping `paywall_close`/`paywall_open` dispatched when the paywall leaves and returns to the screen
 
 ## 2.7.19
 
