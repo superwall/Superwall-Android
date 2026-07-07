@@ -10,6 +10,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## Fixes
 - Fix a bug causing paywall destroying on backgrounding
+- Ensures that paywall instances no longer overwrite each other's instance experiment ID
 
 ## 2.7.20
 
