@@ -30,6 +30,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.util.Date
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
@@ -53,11 +54,11 @@ class PaywallRequestManager(
         Superwall.instance.overrideProductsByName
     },
 ) {
-    // Single thread context to make this class similar to an actor. All functions in this class
-    // must execute with this context.
+    // These maps are mutated from ioScope, which runs on the multi-threaded
+    // Dispatchers.IO pool, so they must be thread-safe.
 
-    private val activeTasks: MutableMap<String, Deferred<Paywall>> = mutableMapOf()
-    private val paywallsByHash: MutableMap<String, Paywall> = mutableMapOf()
+    private val activeTasks: MutableMap<String, Deferred<Paywall>> = ConcurrentHashMap()
+    private val paywallsByHash: MutableMap<String, Paywall> = ConcurrentHashMap()
 
     suspend fun getPaywall(
         request: PaywallRequest,
@@ -103,7 +104,9 @@ class PaywallRequestManager(
                                 paywallsByHash[requestHash] = paywall
                             }
                         }
-                        return@withContext updatePaywall(paywall, request)
+                        val updatedPaywall = updatePaywall(paywall, request)
+                        saveRequestAttribution(requestHash, updatedPaywall, request, isPreloading)
+                        return@withContext updatedPaywall
                     } else {
                         return@withContext paywall
                     }
@@ -115,6 +118,7 @@ class PaywallRequestManager(
                         paywall = existingTask.await()
                         if (!(isPreloading && paywall.identifier == factory.activePaywallId())) {
                             paywall = updatePaywall(paywall, request)
+                            saveRequestAttribution(requestHash, paywall, request, isPreloading)
                         }
                         return@withContext paywall
                     } catch (e: kotlinx.coroutines.CancellationException) {
@@ -165,7 +169,9 @@ class PaywallRequestManager(
                 val finalPaywall = paywall ?: throw IllegalStateException("Paywall should not be null")
 
                 return@withContext if (!(isPreloading && finalPaywall.identifier == factory.activePaywallId())) {
-                    updatePaywall(finalPaywall, request)
+                    val updatedPaywall = updatePaywall(finalPaywall, request)
+                    saveRequestAttribution(requestHash, updatedPaywall, request, isPreloading)
+                    updatedPaywall
                 } else {
                     finalPaywall
                 }
@@ -182,6 +188,17 @@ class PaywallRequestManager(
                 presentationSourceType = request.presentationSourceType,
             )
         }
+
+    private fun saveRequestAttribution(
+        requestHash: String,
+        paywall: Paywall,
+        request: PaywallRequest,
+        isPreloading: Boolean,
+    ) {
+        if (!isPreloading && !request.isDebuggerLaunched) {
+            paywallsByHash[requestHash] = paywall
+        }
+    }
 
     private suspend fun saveRequestHash(
         requestHash: String,

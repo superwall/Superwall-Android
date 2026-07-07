@@ -293,6 +293,44 @@ class PaywallRequestManagerTest {
         }
 
     @Test
+    fun test_activeCachedPaywall_preloadReturnsActiveAttribution() =
+        runTest {
+            val experiment =
+                Experiment(
+                    id = "active_experiment",
+                    groupId = "campaign",
+                    variant =
+                        Experiment.Variant(
+                            id = "active_variant",
+                            type = Experiment.Variant.VariantType.TREATMENT,
+                            paywallId = "test_paywall",
+                        ),
+                )
+            val paywall = Paywall.stub().copy(identifier = "test_paywall")
+            val presentRequest = makeRequest(experiment = experiment)
+            val preloadRequest = makeRequest(experiment = null)
+
+            coEvery { network.getPaywall(any(), any()) } returns Either.Success(paywall)
+            coEvery { storeManager.getProducts(any(), any(), any()) } returns
+                mockk {
+                    every { productItems } returns emptyList()
+                    every { productsByFullId } returns emptyMap()
+                    every { this@mockk.paywall } returns null
+                }
+
+            // Cache is first populated by a preload carrying no experiment,
+            // then a presentation of the same paywall stamps the active attribution.
+            requestManager.getPaywall(preloadRequest, isPreloading = true)
+            requestManager.getPaywall(presentRequest)
+            every { factory.activePaywallId() } returns "test_paywall"
+
+            val result = requestManager.getPaywall(preloadRequest, isPreloading = true)
+
+            assertTrue(result is Either.Success)
+            assertEquals(experiment, (result as Either.Success).value.experiment)
+        }
+
+    @Test
     fun test_getPaywall_setsPresentationSourceType() =
         runTest {
             val sourceType = "implicit"
@@ -433,23 +471,12 @@ class PaywallRequestManagerTest {
     @Test
     fun test_cachedPaywall_retriesProducts_whenProductsLoadFailed() =
         runTest {
-            val loadingInfo =
-                mockk<Paywall.LoadingInfo>(relaxed = true) {
-                    every { failAt } returns java.util.Date()
-                }
             val paywall =
-                mockk<Paywall>(relaxed = true) {
-                    every { identifier } returns "test_paywall"
-                    every { responseLoadingInfo } returns
-                        mockk(relaxed = true) {
-                            every { startAt } returns null
-                            every { endAt } returns null
-                        }
-                    every { productsLoadingInfo } returns loadingInfo
-                    every { productItems } returns emptyList()
-                    every { productIds } returns listOf("product1:basePlan1:sw-auto")
-                    every { getInfo(any()) } returns mockk<PaywallInfo>()
-                }
+                Paywall.stub().copy(
+                    identifier = "test_paywall",
+                    productsLoadingInfo = Paywall.LoadingInfo(failAt = java.util.Date()),
+                )
+            paywall.productIds = listOf("product1:basePlan1:sw-auto")
             val request =
                 mockk<PaywallRequest> {
                     every { responseIdentifiers } returns ResponseIdentifiers(paywallId = "test_paywall")
@@ -460,10 +487,16 @@ class PaywallRequestManagerTest {
                 }
 
             // First call: products fail (empty productsByFullId)
+            val productItem =
+                mockk<ProductItem> {
+                    every { name } returns "primary"
+                    every { fullProductId } returns "product1:basePlan1:sw-auto"
+                    every { type } returns mockk<ProductItem.StoreProductType.PlayStore>(relaxed = true)
+                }
             coEvery { network.getPaywall(any(), any()) } returns Either.Success(paywall)
             coEvery { storeManager.getProducts(any(), any(), any()) } returns
                 mockk {
-                    every { productItems } returns emptyList()
+                    every { productItems } returns listOf(productItem)
                     every { productsByFullId } returns emptyMap()
                     every { this@mockk.paywall } returns null
                 }
@@ -590,18 +623,11 @@ class PaywallRequestManagerTest {
             // Use a real LoadingInfo so we can observe failAt mutations
             val loadingInfo = Paywall.LoadingInfo(failAt = java.util.Date())
             val paywall =
-                mockk<Paywall>(relaxed = true) {
-                    every { identifier } returns "test_paywall"
-                    every { responseLoadingInfo } returns
-                        mockk(relaxed = true) {
-                            every { startAt } returns null
-                            every { endAt } returns null
-                        }
-                    every { productsLoadingInfo } returns loadingInfo
-                    every { productItems } returns emptyList()
-                    every { productIds } returns listOf("product1:basePlan1:sw-auto")
-                    every { getInfo(any()) } returns mockk<PaywallInfo>()
-                }
+                Paywall.stub().copy(
+                    identifier = "test_paywall",
+                    productsLoadingInfo = loadingInfo,
+                )
+            paywall.productIds = listOf("product1:basePlan1:sw-auto")
             val request =
                 mockk<PaywallRequest> {
                     every { responseIdentifiers } returns ResponseIdentifiers(paywallId = "test_paywall")
@@ -613,7 +639,14 @@ class PaywallRequestManagerTest {
 
             val emptyProductsResponse =
                 mockk<com.superwall.sdk.store.GetProductsResponse> {
-                    every { productItems } returns emptyList()
+                    every { productItems } returns
+                        listOf(
+                            mockk<ProductItem> {
+                                every { name } returns "primary"
+                                every { fullProductId } returns "product1:basePlan1:sw-auto"
+                                every { type } returns mockk<ProductItem.StoreProductType.PlayStore>(relaxed = true)
+                            },
+                        )
                     every { productsByFullId } returns emptyMap()
                     every { this@mockk.paywall } returns null
                 }
