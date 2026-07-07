@@ -173,6 +173,10 @@ fun parseWrappedPaywallMessages(jsonString: String): Result<WrappedPaywallMessag
 
         for (element in messagesJsonArray) {
             val messageJson = element.jsonObject
+            runCatching {
+                val parsed = parsePaywallMessage(messageJson)
+                messages.add(parsed)
+            }
             messages.add(parsePaywallMessage(messageJson))
         }
 
