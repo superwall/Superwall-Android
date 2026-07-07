@@ -4,9 +4,9 @@ Time from `preloadAllPaywalls()` until every paywall reaches `PaywallLoadingStat
 
 | Tier | Paywalls | Mean | Baseline | Δ | Limit | Cold mean | Warm mean | Median | StdDev | CV | Samples | Status |
 |------|----------|------|----------|---|-------|-----------|-----------|--------|--------|----|---------|--------|
-| LOW | 2 | 2.51s | — | — | +10% | 2.51s | — | 2.43s | 313ms | 12.5% | 4 (4×1) | ⚪ no baseline |
-| MID | 2 | 3.45s | — | — | +10% | 3.45s | — | 3.23s | 811ms | 23.5% | 4 (4×1) | ⚪ no baseline |
-| HIGH | 2 | 2.34s | — | — | +10% | 2.34s | — | 2.09s | 616ms | 26.3% | 4 (4×1) | ⚪ no baseline |
+| LOW | 2 | 4.52s | — | — | +10% | 4.52s | — | 4.53s | 630ms | 13.9% | 4 (4×1) | ⚪ no baseline |
+| MID | 2 | 2.29s | — | — | +10% | 2.29s | — | 2.12s | 492ms | 21.5% | 4 (4×1) | ⚪ no baseline |
+| HIGH | 2 | 3.77s | — | — | +10% | 3.77s | — | 3.78s | 240ms | 6.4% | 4 (4×1) | ⚪ no baseline |
 
 ### Devices
 

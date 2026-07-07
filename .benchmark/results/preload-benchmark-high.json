@@ -11,68 +11,68 @@
   "runCount": 4,
   "samples": [
     {
-      "allReadyMs": 3254,
+      "allReadyMs": 4042,
       "cold": true,
-      "configureMs": 2562,
+      "configureMs": 4212,
       "index": 0,
       "paywallCount": 2,
       "perPaywallReadyMs": {
-        "based-on-teleprompter-bigvu-template-2b72-2024-04-04": 3254,
-        "url-paywall-v3-3810-2024-04-04": 2538
+        "based-on-teleprompter-bigvu-template-2b72-2024-04-04": 3737,
+        "url-paywall-v3-3810-2024-04-04": 4042
       },
-      "preloadCompleteEventMs": 618,
+      "preloadCompleteEventMs": 983,
       "run": 1
     },
     {
-      "allReadyMs": 2047,
+      "allReadyMs": 3695,
       "cold": true,
-      "configureMs": 1659,
+      "configureMs": 1888,
       "index": 0,
       "paywallCount": 2,
       "perPaywallReadyMs": {
-        "based-on-teleprompter-bigvu-template-2b72-2024-04-04": 1933,
-        "url-paywall-v3-3810-2024-04-04": 2047
+        "based-on-teleprompter-bigvu-template-2b72-2024-04-04": 3438,
+        "url-paywall-v3-3810-2024-04-04": 3695
       },
-      "preloadCompleteEventMs": 178,
+      "preloadCompleteEventMs": 965,
       "run": 2
     },
     {
-      "allReadyMs": 2130,
+      "allReadyMs": 3483,
       "cold": true,
-      "configureMs": 1545,
+      "configureMs": 1917,
       "index": 0,
       "paywallCount": 2,
       "perPaywallReadyMs": {
-        "based-on-teleprompter-bigvu-template-2b72-2024-04-04": 1978,
-        "url-paywall-v3-3810-2024-04-04": 2130
+        "based-on-teleprompter-bigvu-template-2b72-2024-04-04": 3279,
+        "url-paywall-v3-3810-2024-04-04": 3483
       },
-      "preloadCompleteEventMs": 242,
+      "preloadCompleteEventMs": 1031,
       "run": 3
     },
     {
-      "allReadyMs": 1926,
+      "allReadyMs": 3872,
       "cold": true,
-      "configureMs": 1809,
+      "configureMs": 2893,
       "index": 0,
       "paywallCount": 2,
       "perPaywallReadyMs": {
-        "based-on-teleprompter-bigvu-template-2b72-2024-04-04": 1926,
-        "url-paywall-v3-3810-2024-04-04": 1673
+        "based-on-teleprompter-bigvu-template-2b72-2024-04-04": 3618,
+        "url-paywall-v3-3810-2024-04-04": 3872
       },
-      "preloadCompleteEventMs": 247,
+      "preloadCompleteEventMs": 1658,
       "run": 4
     }
   ],
   "schemaVersion": 1,
   "stats": {
-    "coefficientOfVariationPct": 26.314375452302443,
-    "coldMeanMs": 2339.25,
-    "maxMs": 3254,
-    "meanMs": 2339.25,
-    "medianMs": 2088.5,
-    "minMs": 1926,
+    "coefficientOfVariationPct": 6.3526243007220735,
+    "coldMeanMs": 3773.0,
+    "maxMs": 4042,
+    "meanMs": 3773.0,
+    "medianMs": 3783.5,
+    "minMs": 3483,
     "sampleCount": 4,
-    "stdDevMs": 615.5590277679848,
+    "stdDevMs": 239.68451486624383,
     "warmMeanMs": null
   },
   "tier": "HIGH"
