@@ -79,11 +79,15 @@ accordingly.
 Baselines live in `.benchmark/baseline/<tier>.json`. When a tier has no
 baseline yet, the run reports the numbers but does not fail.
 
-To record/refresh baselines: run the workflow manually
-(`Actions → Paywall Preload Benchmark → Run workflow`) with
-**update_baseline = true** — the run's results are committed as the new
-baselines. Do this from a healthy commit, ideally averaging your judgement over
-multiple runs.
+Baselines **roll forward automatically on every merge** to `main`/`develop`
+(the push-triggered run commits its results as the new baselines), so release
+PRs always gate against the latest mainline numbers. A manual refresh is also
+available: `Actions → Paywall Preload Benchmark → Run workflow` with
+**update_baseline = true**.
+
+Note the trade-off of rolling baselines: gradual regressions that stay under
+the per-merge delta can creep in unnoticed — watch the absolute numbers in the
+committed reports over time.
 
 ## Running locally
 

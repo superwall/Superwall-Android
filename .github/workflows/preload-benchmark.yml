@@ -25,7 +25,8 @@ on:
   pull_request:
     branches: [ main, develop ]
     types: [ opened, synchronize, reopened, labeled ]
-  # Also run on merges so main/develop accumulate fresh reports over time.
+  # Merges re-run the benchmark AND roll the baseline forward automatically,
+  # so release PRs always gate against the latest mainline numbers.
   push:
     branches: [ main, develop ]
   workflow_dispatch:
@@ -262,7 +263,7 @@ jobs:
           --config .benchmark/config.json \
           --report .benchmark/REPORT.md \
           --normalized-out .benchmark/results \
-          ${{ github.event_name == 'workflow_dispatch' && inputs.update_baseline && '--update-baseline' || '' }}
+          ${{ (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.update_baseline)) && '--update-baseline' || '' }}
         echo "exit_code=$?" >> "$GITHUB_OUTPUT"
 
     - name: Publish report to job summary
