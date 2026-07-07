@@ -11,68 +11,76 @@
   "runCount": 4,
   "samples": [
     {
-      "allReadyMs": 4369,
+      "allReadyMs": 6751,
       "cold": true,
-      "configureMs": 3536,
+      "configureMs": 3425,
       "index": 0,
-      "paywallCount": 2,
+      "paywallCount": 4,
       "perPaywallReadyMs": {
-        "based-on-teleprompter-bigvu-template-2b72-2024-04-04": 4049,
-        "url-paywall-v3-3810-2024-04-04": 4369
+        "based-on-teleprompter-bigvu-template-2b72-2024-04-04": 6129,
+        "data-v3-0ed9-2024-04-04": 5498,
+        "products-v3-60c5-2024-04-04": 6751,
+        "url-paywall-v3-3810-2024-04-04": 4890
       },
-      "preloadCompleteEventMs": 771,
+      "preloadCompleteEventMs": 1253,
       "run": 1
     },
     {
-      "allReadyMs": 5258,
+      "allReadyMs": 4765,
       "cold": true,
-      "configureMs": 6988,
+      "configureMs": 2638,
       "index": 0,
-      "paywallCount": 2,
+      "paywallCount": 4,
       "perPaywallReadyMs": {
-        "based-on-teleprompter-bigvu-template-2b72-2024-04-04": 5258,
-        "url-paywall-v3-3810-2024-04-04": 4037
+        "based-on-teleprompter-bigvu-template-2b72-2024-04-04": 4765,
+        "data-v3-0ed9-2024-04-04": 3995,
+        "products-v3-60c5-2024-04-04": 4305,
+        "url-paywall-v3-3810-2024-04-04": 3540
       },
-      "preloadCompleteEventMs": 1572,
+      "preloadCompleteEventMs": 1483,
       "run": 2
     },
     {
-      "allReadyMs": 4699,
+      "allReadyMs": 7281,
       "cold": true,
-      "configureMs": 2849,
+      "configureMs": 2296,
       "index": 0,
-      "paywallCount": 2,
+      "paywallCount": 4,
       "perPaywallReadyMs": {
-        "based-on-teleprompter-bigvu-template-2b72-2024-04-04": 4699,
-        "url-paywall-v3-3810-2024-04-04": 3926
+        "based-on-teleprompter-bigvu-template-2b72-2024-04-04": 7281,
+        "data-v3-0ed9-2024-04-04": 6705,
+        "products-v3-60c5-2024-04-04": 5980,
+        "url-paywall-v3-3810-2024-04-04": 5669
       },
-      "preloadCompleteEventMs": 907,
+      "preloadCompleteEventMs": 2497,
       "run": 3
     },
     {
-      "allReadyMs": 3751,
+      "allReadyMs": 6423,
       "cold": true,
-      "configureMs": 2630,
+      "configureMs": 3138,
       "index": 0,
-      "paywallCount": 2,
+      "paywallCount": 4,
       "perPaywallReadyMs": {
-        "based-on-teleprompter-bigvu-template-2b72-2024-04-04": 3596,
-        "url-paywall-v3-3810-2024-04-04": 3751
+        "based-on-teleprompter-bigvu-template-2b72-2024-04-04": 6423,
+        "data-v3-0ed9-2024-04-04": 5864,
+        "products-v3-60c5-2024-04-04": 5496,
+        "url-paywall-v3-3810-2024-04-04": 6017
       },
-      "preloadCompleteEventMs": 1511,
+      "preloadCompleteEventMs": 2636,
       "run": 4
     }
   ],
   "schemaVersion": 1,
   "stats": {
-    "coefficientOfVariationPct": 13.94121353071974,
-    "coldMeanMs": 4519.25,
-    "maxMs": 5258,
-    "meanMs": 4519.25,
-    "medianMs": 4534.0,
-    "minMs": 3751,
+    "coefficientOfVariationPct": 17.221572088104057,
+    "coldMeanMs": 6305.0,
+    "maxMs": 7281,
+    "meanMs": 6305.0,
+    "medianMs": 6587.0,
+    "minMs": 4765,
     "sampleCount": 4,
-    "stdDevMs": 630.0382924870519,
+    "stdDevMs": 1085.8201201549607,
     "warmMeanMs": null
   },
   "tier": "LOW"
