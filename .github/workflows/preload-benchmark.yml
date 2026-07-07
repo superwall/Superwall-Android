@@ -19,12 +19,10 @@
 name: Paywall Preload Benchmark
 
 on:
-  # Release PRs (into main) always run. PRs into develop only run when labeled
-  # "benchmark" — see the job-level guard below ("labeled" is in types so
-  # adding the label triggers a run immediately).
+  # Release PRs only (PRs into main). Feature PRs into develop don't run the
+  # benchmark; merges to develop still do (see push) to keep baselines fresh.
   pull_request:
-    branches: [ main, develop ]
-    types: [ opened, synchronize, reopened, labeled ]
+    branches: [ main ]
   # Merges re-run the benchmark AND roll the baseline forward automatically,
   # so release PRs always gate against the latest mainline numbers.
   push:
@@ -45,13 +43,6 @@ jobs:
   build-apks:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    # Release PRs (base main), merges and manual dispatch always run; PRs into
-    # develop need the "benchmark" label to opt in. Tier jobs inherit this via
-    # `needs` (skipped dependency -> skipped dependents).
-    if: >-
-      github.event_name != 'pull_request' ||
-      github.base_ref == 'main' ||
-      contains(github.event.pull_request.labels.*.name, 'benchmark')
 
     steps:
     - name: Checkout code

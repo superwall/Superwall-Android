@@ -25,9 +25,11 @@ concurrent WebViews, and the metric would shift whenever someone edits
 unrelated campaigns on the dashboard. Set `placements` to `[]` to measure
 `preloadAllPaywalls()` instead.
 
-Runs automatically on **release PRs** (pull requests targeting `main`), on
-**merges to `main` or `develop`**, and on demand via `workflow_dispatch` — see
-`.github/workflows/preload-benchmark.yml`.
+Runs automatically on **release PRs only** (pull requests targeting `main`),
+on **merges to `main` or `develop`** (which also roll the baselines forward),
+and on demand via `workflow_dispatch` — see
+`.github/workflows/preload-benchmark.yml`. Feature PRs into `develop` do not
+run the benchmark.
 
 ## How it works
 
