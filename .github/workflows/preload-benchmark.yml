@@ -92,8 +92,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-apks]
     # Hard cap — a hung emulator/test must fail the job, not ride the runner
-    # for GitHub's 6h default.
-    timeout-minutes: 30
+    # for GitHub's 6h default. Sized for 10 runs x 20 paywalls per tier.
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:

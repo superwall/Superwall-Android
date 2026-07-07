@@ -1,10 +1,10 @@
 # Paywall Preload Benchmark
 
 Benchmarks how long the SDK takes to preload the paywalls for a **pinned set of
-placements** (`placements` in `config.json` — ten stable UI-test placements
-covering product-less, product-bearing, video, localized and long-scroll
-paywalls) on the dev app's embedded API key (`Keys.CONSTANT_API_KEY` in
-`:app`). Note the SDK dedupes placements that resolve to the same paywall, so
+placements** (`placements` in `config.json` — twenty stable UI-test placements
+covering product-less, product-bearing, video, localized, long-scroll, survey,
+styling and subscription-variant paywalls) on the dev app's embedded API key
+(`Keys.CONSTANT_API_KEY` in `:app`). Note the SDK dedupes placements that resolve to the same paywall, so
 the measured paywall count (recorded in the report) can be lower than the
 placement count. Product-bearing paywalls
 work because the benchmark runs the SDK in test mode
