@@ -131,9 +131,11 @@ class PaywallViewDismissTest {
                         withTimeout(3000) { finished.await() }
                     }
 
+                    // Mirror SuperwallPaywallActivity: a dismissal finishes the
+                    // Activity, so onPause/onStop pass forceCleanup = isFinishing.
                     withContext(Dispatchers.Main) {
-                        view.beforeOnDestroy()
-                        view.destroyed()
+                        view.beforeOnDestroy(forceCleanup = true)
+                        view.destroyed(forceCleanup = true)
                     }
 
                     val dismissed = publisher.replayCache.lastOrNull() as? PaywallState.Dismissed
@@ -187,8 +189,9 @@ class PaywallViewDismissTest {
                             result = PaywallResult.Declined(),
                             closeReason = PaywallCloseReason.ForNextPaywall,
                         )
-                        view.beforeOnDestroy()
-                        view.destroyed()
+                        // Mirror SuperwallPaywallActivity: forceCleanup = isFinishing.
+                        view.beforeOnDestroy(forceCleanup = true)
+                        view.destroyed(forceCleanup = true)
                     }
 
                     val dismissed = publisher.replayCache.lastOrNull() as? PaywallState.Dismissed

@@ -173,16 +173,7 @@ fun parseWrappedPaywallMessages(jsonString: String): Result<WrappedPaywallMessag
 
         for (element in messagesJsonArray) {
             val messageJson = element.jsonObject
-            runCatching {
-                val parsed = parsePaywallMessage(messageJson)
-                messages.add(parsed)
-            }.onFailure {
-                Logger.debug(
-                    LogLevel.warn,
-                    LogScope.superwallCore,
-                    "Failed to parse paywall message: $messageJson",
-                )
-            }
+            parsePaywallMessage(messageJson)?.let { messages.add(it) }
         }
 
         Result.success(WrappedPaywallMessages(version, PayloadMessages(messages)))
@@ -190,7 +181,10 @@ fun parseWrappedPaywallMessages(jsonString: String): Result<WrappedPaywallMessag
         Result.failure(e)
     }
 
-private fun parsePaywallMessage(json: JsonObject): PaywallMessage {
+// Returns null for unknown event names so newer paywalls can send events this
+// SDK version doesn't know about without breaking the rest of the batch.
+// Malformed payloads for known events still throw, failing the whole parse.
+private fun parsePaywallMessage(json: JsonObject): PaywallMessage? {
     val eventName = json["event_name"]!!.jsonPrimitive.content
 
     return when (eventName) {
@@ -320,7 +314,12 @@ private fun parsePaywallMessage(json: JsonObject): PaywallMessage {
         }
 
         else -> {
-            throw IllegalArgumentException("Unknown event name: $eventName")
+            Logger.debug(
+                LogLevel.warn,
+                LogScope.superwallCore,
+                "Skipping paywall message with unknown event name: $eventName",
+            )
+            null
         }
     }
 }
