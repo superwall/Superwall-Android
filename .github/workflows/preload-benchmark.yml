@@ -1,4 +1,4 @@
-# Paywall preload benchmark — runs on release PRs (PRs into main).
+# Paywall preload benchmark — runs on PRs into main or develop.
 #
 # Measures the time from Superwall.preloadAllPaywalls() until every paywall for
 # the dev app's embedded API key reaches PaywallLoadingState.Ready, on 3
@@ -19,10 +19,10 @@
 name: Paywall Preload Benchmark
 
 on:
-  # Release PRs only (PRs into main). Feature PRs into develop don't run the
-  # benchmark; merges to develop still do (see push) to keep baselines fresh.
+  # PRs into main (release) and develop (feature) both run the benchmark, so
+  # preload regressions surface before they land anywhere.
   pull_request:
-    branches: [ main ]
+    branches: [ main, develop ]
   # Merges re-run the benchmark AND roll the baseline forward automatically,
   # so release PRs always gate against the latest mainline numbers.
   push:

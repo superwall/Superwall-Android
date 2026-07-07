@@ -863,8 +863,8 @@ class PaywallMessageParsingTest {
     // region Error cases
 
     @Test
-    fun parse_unknown_event_returns_failure() {
-        Given("a JSON with unknown event name") {
+    fun parse_unknown_event_is_skipped() {
+        Given("a JSON with an unknown event name alongside a known one") {
             val json =
                 """
                 {
@@ -873,6 +873,9 @@ class PaywallMessageParsingTest {
                         "events": [
                             {
                                 "event_name": "unknown_event"
+                            },
+                            {
+                                "event_name": "close"
                             }
                         ]
                     }
@@ -882,11 +885,11 @@ class PaywallMessageParsingTest {
             When("parsed") {
                 val result = parseWrappedPaywallMessages(json)
 
-                Then("it returns failure") {
-                    assertTrue(result.isFailure)
-                    val exception = result.exceptionOrNull()
-                    assertTrue(exception is IllegalArgumentException)
-                    assertTrue(exception?.message?.contains("unknown_event") == true)
+                Then("the unknown event is skipped and the known one is parsed") {
+                    assertTrue(result.isSuccess)
+                    val messages = result.getOrThrow().payload.messages
+                    assertEquals(1, messages.size)
+                    assertTrue(messages[0] is PaywallMessage.Close)
                 }
             }
         }
