@@ -1,12 +1,12 @@
 # Paywall Preload Benchmark Report
 
-Time from `preloadAllPaywalls()` until every paywall reaches `PaywallLoadingState.Ready`, per device tier (metric: `meanMs` averaged over 4 runs × 1 iterations per emulator; each run reinstalls the app so its first iteration is cold).
+Time from `preloadAllPaywalls()` until every paywall reaches `PaywallLoadingState.Ready`, per device tier (metric: `meanMs` averaged over 10 runs × 1 iterations per emulator; each run reinstalls the app so its first iteration is cold).
 
 | Tier | Paywalls | Mean | Baseline | Δ | Limit | Cold mean | Warm mean | Median | StdDev | CV | Samples | Status |
 |------|----------|------|----------|---|-------|-----------|-----------|--------|--------|----|---------|--------|
-| LOW | 10 | 12.42s | — | — | +10% | 12.42s | — | 10.08s | 5.06s | 40.7% | 4 (4×1) | ⚪ no baseline |
-| MID | 10 | 10.08s | — | — | +10% | 10.08s | — | 8.03s | 4.62s | 45.8% | 4 (4×1) | ⚪ no baseline |
-| HIGH | 10 | 9.16s | — | — | +10% | 9.16s | — | 8.87s | 3.55s | 38.8% | 4 (4×1) | ⚪ no baseline |
+| LOW | 25 | 29.07s | — | — | +10% | 29.07s | — | 25.35s | 11.34s | 39.0% | 10 (10×1) | ⚪ no baseline |
+| MID | 25 | 22.21s | — | — | +10% | 22.21s | — | 21.57s | 2.85s | 12.8% | 10 (10×1) | ⚪ no baseline |
+| HIGH | 25 | 30.23s | — | — | +10% | 30.23s | — | 24.64s | 14.71s | 48.7% | 10 (10×1) | ⚪ no baseline |
 
 ### Devices
 
