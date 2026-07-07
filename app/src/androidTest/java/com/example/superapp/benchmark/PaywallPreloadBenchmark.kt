@@ -29,6 +29,8 @@ import com.superwall.sdk.dependencies.DependencyContainer
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.paywall.view.PaywallView
 import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
+import com.superwall.sdk.store.testmode.TestModeBehavior
+import com.superwall.superapp.BuildConfig
 import com.superwall.superapp.Keys
 import com.superwall.superapp.benchmark.BenchmarkForegroundActivity
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -221,6 +223,12 @@ class PaywallPreloadBenchmark {
                     // stalls; logs print outside the measured Ready window's hot
                     // path and identically across runs, so comparisons stay fair.
                     logging.level = LogLevel.debug
+                    // Baked in at build time via -PbenchmarkTestMode=true: CI
+                    // emulators have no Play account, and test mode makes
+                    // BILLING_UNAVAILABLE non-fatal for paywalls with products.
+                    if (BuildConfig.BENCHMARK_TEST_MODE) {
+                        testModeBehavior = TestModeBehavior.ALWAYS
+                    }
                     paywalls =
                         PaywallOptions().apply {
                             // Preloading is triggered manually below so the measurement

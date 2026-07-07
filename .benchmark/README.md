@@ -81,6 +81,9 @@ multiple runs.
 
 ```bash
 # Emulator (Play Store image recommended to match CI) must be running.
+# Build with -PbenchmarkTestMode=true (as CI does) to run the SDK in test mode,
+# which keeps BILLING_UNAVAILABLE from failing product paywalls on emulators
+# without a Play account.
 ./gradlew :app:clearBenchmarkResults
 # Repeat with benchmarkRunIndex=2,3,... for multiple runs (CI does 3).
 ./gradlew :app:connectedDebugAndroidTest \

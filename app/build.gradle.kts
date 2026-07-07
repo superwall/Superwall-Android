@@ -21,6 +21,15 @@ android {
         vectorDrawables.useSupportLibrary = true
         testInstrumentationRunnerArguments["clearPackageData"] = "true"
         testInstrumentationRunnerArguments["no-isolated-storage"] = "1"
+
+        // Enables Superwall test mode in the preload benchmark (billing is
+        // unavailable on CI emulators). Pass -PbenchmarkTestMode=true when
+        // assembling the benchmark APKs; defaults to false everywhere else.
+        buildConfigField(
+            "boolean",
+            "BENCHMARK_TEST_MODE",
+            (project.findProperty("benchmarkTestMode") ?: "false").toString(),
+        )
     }
 
     testOptions {
@@ -52,6 +61,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     packaging {
