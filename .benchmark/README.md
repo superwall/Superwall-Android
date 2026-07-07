@@ -1,12 +1,14 @@
 # Paywall Preload Benchmark
 
 Benchmarks how long the SDK takes to preload the paywalls for a **pinned set of
-placements** (`placements` in `config.json` — `present_urls` and `no_products`,
-stable UI-test placements whose paywalls reference no products) on the dev
-app's embedded API key (`Keys.CONSTANT_API_KEY` in `:app`). Product-less
-paywalls are required: CI emulators have no Google account, Play Billing is
-permanently unavailable, and the SDK (by design) never finishes preloading a
-paywall whose product fetch fails. A paywall
+placements** (`placements` in `config.json` — stable UI-test placements
+covering both product-less and product-bearing paywalls) on the dev app's
+embedded API key (`Keys.CONSTANT_API_KEY` in `:app`). Product-bearing paywalls
+work because the benchmark runs the SDK in test mode
+(`-PbenchmarkTestMode=true` → `TestModeBehavior.ALWAYS`): CI emulators have no
+Google account, so outside test mode Play Billing is permanently unavailable
+and the SDK (by design) never finishes preloading a paywall whose product
+fetch fails. A paywall
 counts as loaded only once its `PaywallView` reaches
 `PaywallLoadingState.Ready` (webview loaded + `onReady` received + templates
 accepted).
