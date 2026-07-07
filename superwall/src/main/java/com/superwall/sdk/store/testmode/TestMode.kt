@@ -138,13 +138,21 @@ class TestMode(
     }
 
     // Re-evaluations must not replace an existing session — doing so would wipe
-    // the loaded product catalog and entitlement selections and leave the new
-    // session's productsLoaded deferred forever incomplete (activation only
-    // runs on the inactive -> active transition).
+    // the loaded product catalog and leave the new session's productsLoaded
+    // deferred forever incomplete (activation only runs on the inactive ->
+    // active transition). A changed reason is a different logical session
+    // though (e.g. another test user matched), so simulated entitlements are
+    // reset while the user-independent product catalog is kept.
     private fun activateWithReason(reason: TestModeReason) {
         val current = state
         state =
             if (current is TestModeState.Active) {
+                if (current.reason != reason) {
+                    current.session.entitlementIds.clear()
+                    current.session.entitlementSelections = emptyList()
+                    current.session.overriddenSubscriptionStatus = null
+                    storage.write(IsTestModeActiveSubscription, false)
+                }
                 current.copy(reason = reason)
             } else {
                 TestModeState.Active(reason = reason)
