@@ -176,8 +176,13 @@ fun parseWrappedPaywallMessages(jsonString: String): Result<WrappedPaywallMessag
             runCatching {
                 val parsed = parsePaywallMessage(messageJson)
                 messages.add(parsed)
+            }.onFailure {
+                Logger.debug(
+                    LogLevel.warn,
+                    LogScope.superwallCore,
+                    "Failed to parse paywall message: $messageJson",
+                )
             }
-            messages.add(parsePaywallMessage(messageJson))
         }
 
         Result.success(WrappedPaywallMessages(version, PayloadMessages(messages)))
