@@ -2,17 +2,12 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
-## Unreleased
-
-## Enhancements
-
-- Memoizes the device template used for audience-filter evaluation and paywall templating. The template is now rebuilt only when one of its mutable inputs (identity, entitlements, subscription status, interface style, platform wrapper, etc.) changes, while time-derived fields are recomputed on every read. This removes a full JSON round trip and repeated system lookups from every `register()` call.
-
 ## 2.7.21
 
 ## Enhancements
 
 - Adds `fontScale` and `fontSize` device attributes for the system text size.
+- Memoizes the device template used for audience-filter evaluation and paywall templating. The template is now rebuilt only when one of its mutable inputs (identity, entitlements, subscription status, interface style, platform wrapper, etc.) changes, while time-derived fields are recomputed on every read. This removes a full JSON round trip and repeated system lookups from every `register()` call.
 
 ## Fixes
 - Fix a bug causing paywall destroying on backgrounding
