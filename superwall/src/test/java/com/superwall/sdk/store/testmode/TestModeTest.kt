@@ -733,6 +733,26 @@ class TestModeTest {
         }
     }
 
+    @Test
+    fun `re-evaluating test mode preserves the existing session`() {
+        Given("an active test mode with products and entitlements") {
+            val manager = makeManager()
+            activateTestMode(manager)
+            manager.setTestProducts(mapOf("prod-1" to mockk<StoreProduct>(relaxed = true)))
+            manager.setEntitlements(setOf("premium"))
+
+            When("test mode is evaluated again while already active") {
+                activateTestMode(manager)
+            }
+
+            Then("the session data is not wiped") {
+                assertTrue(manager.isTestMode)
+                assertEquals(1, manager.testProductsByFullId.size)
+                assertEquals(setOf("premium"), manager.testEntitlementIds)
+            }
+        }
+    }
+
     // endregion
 
     // region allEntitlements / entitlementsForProduct
