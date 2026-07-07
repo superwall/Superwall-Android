@@ -733,6 +733,60 @@ class TestModeTest {
         }
     }
 
+    @Test
+    fun `re-evaluating test mode preserves the existing session`() {
+        Given("an active test mode with products and entitlements") {
+            val manager = makeManager()
+            activateTestMode(manager)
+            manager.setTestProducts(mapOf("prod-1" to mockk<StoreProduct>(relaxed = true)))
+            manager.setEntitlements(setOf("premium"))
+
+            When("test mode is evaluated again while already active") {
+                activateTestMode(manager)
+            }
+
+            Then("the session data is not wiped") {
+                assertTrue(manager.isTestMode)
+                assertEquals(1, manager.testProductsByFullId.size)
+                assertEquals(setOf("premium"), manager.testEntitlementIds)
+            }
+        }
+    }
+
+    @Test
+    fun `re-evaluating with a different reason resets entitlements but keeps products`() {
+        Given("an active test mode with products and entitlements") {
+            val storage = makeStorage()
+            val manager = makeManager(storage)
+            activateTestMode(manager)
+            manager.setTestProducts(mapOf("prod-1" to mockk<StoreProduct>(relaxed = true)))
+            manager.setEntitlements(setOf("premium"))
+            manager.setOverriddenSubscriptionStatus(SubscriptionStatus.Active(setOf(Entitlement("premium"))))
+
+            When("test mode re-activates for a different reason") {
+                manager.evaluateTestMode(
+                    makeConfig(
+                        testModeUserIds = listOf(TestStoreUser(TestStoreUserType.UserId, "test-user")),
+                    ),
+                    "com.app",
+                    "test-user",
+                    null,
+                    testModeBehavior = TestModeBehavior.AUTOMATIC,
+                )
+            }
+
+            Then("entitlements are reset while the product catalog is kept") {
+                assertTrue(manager.isTestMode)
+                assertTrue(manager.testModeReason is TestModeReason.ConfigMatch)
+                assertEquals(1, manager.testProductsByFullId.size)
+                assertTrue(manager.testEntitlementIds.isEmpty())
+                assertTrue(manager.testEntitlementSelections.isEmpty())
+                assertNull(manager.overriddenSubscriptionStatus)
+                verify { storage.write(IsTestModeActiveSubscription, false) }
+            }
+        }
+    }
+
     // endregion
 
     // region allEntitlements / entitlementsForProduct

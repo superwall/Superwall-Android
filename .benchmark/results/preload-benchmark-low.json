@@ -1,0 +1,237 @@
+{
+  "benchmark": "paywall-preload",
+  "device": {
+    "cpuCores": 2,
+    "fingerprint": "google/sdk_gphone64_x86_64/emu64xa:14/UE1A.230829.036.A4/12096271:user/release-keys",
+    "model": "sdk_gphone64_x86_64",
+    "sdkClassifiedTier": "mid",
+    "sdkInt": 34
+  },
+  "iterationsPerRun": 1,
+  "runCount": 10,
+  "samples": [
+    {
+      "allReadyMs": 11408,
+      "cold": true,
+      "configureMs": 2156,
+      "index": 0,
+      "paywallCount": 10,
+      "perPaywallReadyMs": {
+        "based-on-teleprompter-bigvu-template-2b72-2024-04-04": 8039,
+        "data-v3-0ed9-2024-04-04": 11156,
+        "free-trial-v3-d8d7-2024-04-04": 8627,
+        "inimai---open-app-copy-c50c-2024-11-28": 6635,
+        "localized-paywall-e901-2024-04-04": 9804,
+        "price-tester-1b8e-2024-04-04": 10594,
+        "products-v3-60c5-2024-04-04": 11257,
+        "superwall-template-9f9f-2024-05-21": 6322,
+        "url-paywall-v3-3810-2024-04-04": 6788,
+        "video-v3-72b4-2024-04-04": 11408
+      },
+      "preloadCompleteEventMs": 2432,
+      "run": 1
+    },
+    {
+      "allReadyMs": 12234,
+      "cold": true,
+      "configureMs": 2051,
+      "index": 0,
+      "paywallCount": 10,
+      "perPaywallReadyMs": {
+        "based-on-teleprompter-bigvu-template-2b72-2024-04-04": 10123,
+        "data-v3-0ed9-2024-04-04": 10735,
+        "free-trial-v3-d8d7-2024-04-04": 7782,
+        "inimai---open-app-copy-c50c-2024-11-28": 7363,
+        "localized-paywall-e901-2024-04-04": 9199,
+        "price-tester-1b8e-2024-04-04": 8463,
+        "products-v3-60c5-2024-04-04": 8882,
+        "superwall-template-9f9f-2024-05-21": 8303,
+        "url-paywall-v3-3810-2024-04-04": 12234,
+        "video-v3-72b4-2024-04-04": 10378
+      },
+      "preloadCompleteEventMs": 1780,
+      "run": 2
+    },
+    {
+      "allReadyMs": 8276,
+      "cold": true,
+      "configureMs": 1688,
+      "index": 0,
+      "paywallCount": 10,
+      "perPaywallReadyMs": {
+        "based-on-teleprompter-bigvu-template-2b72-2024-04-04": 5778,
+        "data-v3-0ed9-2024-04-04": 8276,
+        "free-trial-v3-d8d7-2024-04-04": 7651,
+        "inimai---open-app-copy-c50c-2024-11-28": 7297,
+        "localized-paywall-e901-2024-04-04": 7810,
+        "price-tester-1b8e-2024-04-04": 7973,
+        "products-v3-60c5-2024-04-04": 6688,
+        "superwall-template-9f9f-2024-05-21": 6283,
+        "url-paywall-v3-3810-2024-04-04": 5017,
+        "video-v3-72b4-2024-04-04": 6486
+      },
+      "preloadCompleteEventMs": 1750,
+      "run": 3
+    },
+    {
+      "allReadyMs": 7670,
+      "cold": true,
+      "configureMs": 1115,
+      "index": 0,
+      "paywallCount": 10,
+      "perPaywallReadyMs": {
+        "based-on-teleprompter-bigvu-template-2b72-2024-04-04": 5669,
+        "data-v3-0ed9-2024-04-04": 7670,
+        "free-trial-v3-d8d7-2024-04-04": 6175,
+        "inimai---open-app-copy-c50c-2024-11-28": 5156,
+        "localized-paywall-e901-2024-04-04": 7254,
+        "price-tester-1b8e-2024-04-04": 6276,
+        "products-v3-60c5-2024-04-04": 6587,
+        "superwall-template-9f9f-2024-05-21": 5004,
+        "url-paywall-v3-3810-2024-04-04": 6688,
+        "video-v3-72b4-2024-04-04": 6377
+      },
+      "preloadCompleteEventMs": 1646,
+      "run": 4
+    },
+    {
+      "allReadyMs": 9200,
+      "cold": true,
+      "configureMs": 1369,
+      "index": 0,
+      "paywallCount": 10,
+      "perPaywallReadyMs": {
+        "based-on-teleprompter-bigvu-template-2b72-2024-04-04": 6299,
+        "data-v3-0ed9-2024-04-04": 6912,
+        "free-trial-v3-d8d7-2024-04-04": 5024,
+        "inimai---open-app-copy-c50c-2024-11-28": 9200,
+        "localized-paywall-e901-2024-04-04": 5382,
+        "price-tester-1b8e-2024-04-04": 4821,
+        "products-v3-60c5-2024-04-04": 7321,
+        "superwall-template-9f9f-2024-05-21": 4567,
+        "url-paywall-v3-3810-2024-04-04": 5841,
+        "video-v3-72b4-2024-04-04": 5739
+      },
+      "preloadCompleteEventMs": 1079,
+      "run": 5
+    },
+    {
+      "allReadyMs": 5742,
+      "cold": true,
+      "configureMs": 1696,
+      "index": 0,
+      "paywallCount": 10,
+      "perPaywallReadyMs": {
+        "based-on-teleprompter-bigvu-template-2b72-2024-04-04": 5742,
+        "data-v3-0ed9-2024-04-04": 5287,
+        "free-trial-v3-d8d7-2024-04-04": 4927,
+        "inimai---open-app-copy-c50c-2024-11-28": 4371,
+        "localized-paywall-e901-2024-04-04": 5388,
+        "price-tester-1b8e-2024-04-04": 3866,
+        "products-v3-60c5-2024-04-04": 5079,
+        "superwall-template-9f9f-2024-05-21": 4270,
+        "url-paywall-v3-3810-2024-04-04": 4017,
+        "video-v3-72b4-2024-04-04": 3765
+      },
+      "preloadCompleteEventMs": 1208,
+      "run": 6
+    },
+    {
+      "allReadyMs": 5133,
+      "cold": true,
+      "configureMs": 1754,
+      "index": 0,
+      "paywallCount": 10,
+      "perPaywallReadyMs": {
+        "based-on-teleprompter-bigvu-template-2b72-2024-04-04": 5133,
+        "data-v3-0ed9-2024-04-04": 4880,
+        "free-trial-v3-d8d7-2024-04-04": 4273,
+        "inimai---open-app-copy-c50c-2024-11-28": 3919,
+        "localized-paywall-e901-2024-04-04": 4121,
+        "price-tester-1b8e-2024-04-04": 4526,
+        "products-v3-60c5-2024-04-04": 4475,
+        "superwall-template-9f9f-2024-05-21": 3818,
+        "url-paywall-v3-3810-2024-04-04": 4070,
+        "video-v3-72b4-2024-04-04": 4627
+      },
+      "preloadCompleteEventMs": 1143,
+      "run": 7
+    },
+    {
+      "allReadyMs": 5305,
+      "cold": true,
+      "configureMs": 1727,
+      "index": 0,
+      "paywallCount": 10,
+      "perPaywallReadyMs": {
+        "based-on-teleprompter-bigvu-template-2b72-2024-04-04": 5305,
+        "data-v3-0ed9-2024-04-04": 5103,
+        "free-trial-v3-d8d7-2024-04-04": 4798,
+        "inimai---open-app-copy-c50c-2024-11-28": 3938,
+        "localized-paywall-e901-2024-04-04": 4342,
+        "price-tester-1b8e-2024-04-04": 4850,
+        "products-v3-60c5-2024-04-04": 3837,
+        "superwall-template-9f9f-2024-05-21": 3482,
+        "url-paywall-v3-3810-2024-04-04": 3735,
+        "video-v3-72b4-2024-04-04": 4191
+      },
+      "preloadCompleteEventMs": 1124,
+      "run": 8
+    },
+    {
+      "allReadyMs": 5178,
+      "cold": true,
+      "configureMs": 1581,
+      "index": 0,
+      "paywallCount": 10,
+      "perPaywallReadyMs": {
+        "based-on-teleprompter-bigvu-template-2b72-2024-04-04": 5178,
+        "data-v3-0ed9-2024-04-04": 4875,
+        "free-trial-v3-d8d7-2024-04-04": 4167,
+        "inimai---open-app-copy-c50c-2024-11-28": 3608,
+        "localized-paywall-e901-2024-04-04": 4268,
+        "price-tester-1b8e-2024-04-04": 4015,
+        "products-v3-60c5-2024-04-04": 4471,
+        "superwall-template-9f9f-2024-05-21": 3810,
+        "url-paywall-v3-3810-2024-04-04": 4572,
+        "video-v3-72b4-2024-04-04": 4623
+      },
+      "preloadCompleteEventMs": 948,
+      "run": 9
+    },
+    {
+      "allReadyMs": 5225,
+      "cold": true,
+      "configureMs": 1737,
+      "index": 0,
+      "paywallCount": 10,
+      "perPaywallReadyMs": {
+        "based-on-teleprompter-bigvu-template-2b72-2024-04-04": 4871,
+        "data-v3-0ed9-2024-04-04": 3959,
+        "free-trial-v3-d8d7-2024-04-04": 4566,
+        "inimai---open-app-copy-c50c-2024-11-28": 4060,
+        "localized-paywall-e901-2024-04-04": 4465,
+        "price-tester-1b8e-2024-04-04": 4364,
+        "products-v3-60c5-2024-04-04": 4972,
+        "superwall-template-9f9f-2024-05-21": 4263,
+        "url-paywall-v3-3810-2024-04-04": 5225,
+        "video-v3-72b4-2024-04-04": 5073
+      },
+      "preloadCompleteEventMs": 1192,
+      "run": 10
+    }
+  ],
+  "schemaVersion": 1,
+  "stats": {
+    "coefficientOfVariationPct": 35.72961552067153,
+    "coldMeanMs": 7537.1,
+    "maxMs": 12234,
+    "meanMs": 7537.1,
+    "medianMs": 6706.0,
+    "minMs": 5133,
+    "sampleCount": 10,
+    "stdDevMs": 2692.976851408534,
+    "warmMeanMs": null
+  },
+  "tier": "LOW"
+}

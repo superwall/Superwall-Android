@@ -27,6 +27,8 @@ import com.superwall.sdk.store.testmode.models.TestStoreUserType
 import com.superwall.sdk.store.testmode.ui.EntitlementSelection
 import com.superwall.sdk.store.testmode.ui.EntitlementStateOption
 import com.superwall.sdk.store.testmode.ui.TestModeModal
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -106,12 +108,7 @@ class TestMode(
             }
 
             TestModeBehavior.ALWAYS -> {
-                state = TestModeState.Active(reason = TestModeReason.TestModeOption)
-                Logger.debug(
-                    LogLevel.info,
-                    LogScope.superwallCore,
-                    "Test mode activated: ${testModeReason?.description}",
-                )
+                activateWithReason(TestModeReason.TestModeOption)
                 return
             }
 
@@ -140,6 +137,42 @@ class TestMode(
         }
     }
 
+    // Re-evaluations must not replace an existing session — doing so would wipe
+    // the loaded product catalog and leave the new session's productsLoaded
+    // deferred forever incomplete (activation only runs on the inactive ->
+    // active transition). A changed reason is a different logical session
+    // though (e.g. another test user matched), so simulated entitlements are
+    // reset while the user-independent product catalog is kept.
+    private fun activateWithReason(reason: TestModeReason) {
+        val current = state
+        state =
+            if (current is TestModeState.Active) {
+                if (current.reason != reason) {
+                    current.session.entitlementIds.clear()
+                    current.session.entitlementSelections = emptyList()
+                    current.session.overriddenSubscriptionStatus = null
+                    storage.write(IsTestModeActiveSubscription, false)
+                }
+                current.copy(reason = reason)
+            } else {
+                TestModeState.Active(reason = reason)
+            }
+        Logger.debug(
+            LogLevel.info,
+            LogScope.superwallCore,
+            "Test mode activated: ${testModeReason?.description}",
+        )
+    }
+
+    /**
+     * Suspends until the test product catalog has been refreshed for the
+     * current session, or [timeout] elapses. No-op when test mode is inactive.
+     */
+    suspend fun awaitTestProducts(timeout: Duration = 5.seconds) {
+        val s = session ?: return
+        withTimeoutOrNull(timeout) { s.productsLoaded.await() }
+    }
+
     private fun checkConfigMatch(
         config: Config,
         appUserId: String?,
@@ -153,12 +186,7 @@ class TestMode(
                     TestStoreUserType.AliasId -> aliasId == testUser.value
                 }
             if (match) {
-                state = TestModeState.Active(reason = TestModeReason.ConfigMatch(matchedId = testUser.value))
-                Logger.debug(
-                    LogLevel.info,
-                    LogScope.superwallCore,
-                    "Test mode activated: ${testModeReason?.description}",
-                )
+                activateWithReason(TestModeReason.ConfigMatch(matchedId = testUser.value))
                 return true
             }
         }
@@ -175,18 +203,11 @@ class TestMode(
         // Treat as extension if actual starts with expected + "."
         if (actualPackageName.startsWith("$expectedPackageName.")) return false
 
-        state =
-            TestModeState.Active(
-                reason =
-                    TestModeReason.ApplicationIdMismatch(
-                        expected = expectedPackageName,
-                        actual = actualPackageName,
-                    ),
-            )
-        Logger.debug(
-            LogLevel.info,
-            LogScope.superwallCore,
-            "Test mode activated: ${testModeReason?.description}",
+        activateWithReason(
+            TestModeReason.ApplicationIdMismatch(
+                expected = expectedPackageName,
+                actual = actualPackageName,
+            ),
         )
         return true
     }
@@ -196,7 +217,10 @@ class TestMode(
     }
 
     fun setTestProducts(productsByFullId: Map<String, StoreProduct>) {
-        session?.testProductsByFullId = productsByFullId
+        session?.let {
+            it.testProductsByFullId = productsByFullId
+            it.productsLoaded.complete(Unit)
+        }
     }
 
     fun fakePurchase(entitlementRefs: List<SuperwallEntitlementRef>) {
@@ -301,35 +325,39 @@ class TestMode(
     }
 
     private suspend fun refreshProducts() {
-        getSuperwallProducts().fold(
-            onSuccess = { response ->
-                val androidProducts =
-                    response.data.filter {
-                        it.platform == SuperwallProductPlatform.ANDROID && it.price != null
-                    }
-                setProducts(androidProducts)
+        try {
+            getSuperwallProducts().fold(
+                onSuccess = { response ->
+                    val androidProducts =
+                        response.data.filter {
+                            it.platform == SuperwallProductPlatform.ANDROID && it.price != null
+                        }
+                    setProducts(androidProducts)
 
-                val productsByFullId =
-                    androidProducts.associate { superwallProduct ->
-                        val testProduct = TestStoreProduct(superwallProduct)
-                        superwallProduct.identifier to StoreProduct(testProduct)
-                    }
-                setTestProducts(productsByFullId)
+                    val productsByFullId =
+                        androidProducts.associate { superwallProduct ->
+                            val testProduct = TestStoreProduct(superwallProduct)
+                            superwallProduct.identifier to StoreProduct(testProduct)
+                        }
+                    setTestProducts(productsByFullId)
 
-                Logger.debug(
-                    LogLevel.info,
-                    LogScope.superwallCore,
-                    "Test mode: loaded ${androidProducts.size} products",
-                )
-            },
-            onFailure = { error ->
-                Logger.debug(
-                    LogLevel.error,
-                    LogScope.superwallCore,
-                    "Test mode: failed to fetch products - ${error.message}",
-                )
-            },
-        )
+                    Logger.debug(
+                        LogLevel.info,
+                        LogScope.superwallCore,
+                        "Test mode: loaded ${androidProducts.size} products",
+                    )
+                },
+                onFailure = { error ->
+                    Logger.debug(
+                        LogLevel.error,
+                        LogScope.superwallCore,
+                        "Test mode: failed to fetch products - ${error.message}",
+                    )
+                },
+            )
+        } finally {
+            session?.productsLoaded?.complete(Unit)
+        }
     }
 
     private suspend fun presentModal(config: Config) {

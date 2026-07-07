@@ -155,7 +155,12 @@ class StoreManager(
     }
 
     private suspend fun fetchOrAwaitProducts(fullProductIds: Set<String>): Map<String, StoreProduct> {
-        val testProducts = testMode?.takeIf { it.isTestMode }?.testProductsByFullId.orEmpty()
+        val activeTestMode = testMode?.takeIf { it.isTestMode }
+        // The test catalog is fetched over the network when test mode activates.
+        // Wait for it so paywalls requested right after config don't fall through
+        // to Play billing, which fails on devices without the Play Store.
+        activeTestMode?.awaitTestProducts()
+        val testProducts = activeTestMode?.testProductsByFullId.orEmpty()
         val testHits: Map<String, StoreProduct> =
             if (testProducts.isEmpty()) {
                 emptyMap()
@@ -208,10 +213,24 @@ class StoreManager(
                     productsByFullId[id] = ProductState.Error(e)
                     deferred.completeExceptionally(e)
                 }
+                if (activeTestMode != null && e is BillingError.BillingNotAvailable) {
+                    return testHits + cached
+                }
                 throw e
             }
 
-        val fetched = fetchNewProducts(newDeferreds)
+        val fetched =
+            try {
+                fetchNewProducts(newDeferreds)
+            } catch (e: Throwable) {
+                // In test mode, missing Play billing must not fail the paywall —
+                // serve whatever resolved from the test catalog and caches.
+                if (activeTestMode != null && e is BillingError.BillingNotAvailable) {
+                    emptyMap()
+                } else {
+                    throw e
+                }
+            }
 
         return testHits + cached + awaited + fetched
     }
