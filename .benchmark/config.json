@@ -20,16 +20,6 @@
     "present_free_trial",
     "present_data_v4",
     "scroll_test",
-    "price_readout",
-    "modal_paywall_with_survey",
-    "survey_with_purchase_button",
-    "survey_with_close_option",
-    "show_survey_with_other",
-    "state_test",
-    "style_test",
-    "theme_test",
-    "subs_baseplan_offer_with_free_trial",
-    "non_recurring_product",
-    "consumable"
+    "price_readout"
   ]
 }
