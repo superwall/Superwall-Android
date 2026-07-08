@@ -33,11 +33,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
-/**
- * Reproduces a device without the Play Store: the real [GoogleBillingWrapper]
- * is wired to a [BillingClient] whose setup finishes with BILLING_UNAVAILABLE,
- * and the full StoreManager + TestMode chain is exercised against it.
- */
 @OptIn(ExperimentalCoroutinesApi::class)
 class TestModeBillingUnavailableIntegrationTest {
     @Before

@@ -280,11 +280,6 @@ class PaywallRequestManagerTest {
                         assert(preloadedPaywall.identifier == paywallId)
                         println(preloadedPaywall.experiment)
                         assert(preloadedPaywall.experiment == originalExperiment)
-                        // Since updatePaywall returns a copy instead of mutating the
-                        // cached instance, request-specific values like
-                        // presentationSourceType live on the presented copy only — the
-                        // preload path returns the cached paywall untouched. Verify the
-                        // presented paywall kept its values instead.
                         assert(firstPaywall.experiment == originalExperiment)
                         assert(firstPaywall.presentationSourceType == "test_source")
                     }

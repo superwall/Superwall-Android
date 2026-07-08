@@ -546,10 +546,6 @@ class TransactionManagerTest {
                             )
                         }
                         And("Verify failure event") {
-                            // The Fail event is tracked from a fire-and-forget
-                            // ioScope coroutine (unlike Start/Abandon which track
-                            // inline), so deterministically await it instead of
-                            // sampling events.value after advanceUntilIdle.
                             val failureEvent =
                                 events
                                     .first { tracked ->
@@ -606,10 +602,6 @@ class TransactionManagerTest {
                             )
                         }
                         And("Verify failure event") {
-                            // The Fail event is tracked from a fire-and-forget
-                            // ioScope coroutine (unlike Start/Abandon which track
-                            // inline), so deterministically await it instead of
-                            // sampling events.value after advanceUntilIdle.
                             val failureEvent =
                                 events
                                     .first { tracked ->

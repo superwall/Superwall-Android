@@ -137,12 +137,6 @@ class TestMode(
         }
     }
 
-    // Re-evaluations must not replace an existing session — doing so would wipe
-    // the loaded product catalog and leave the new session's productsLoaded
-    // deferred forever incomplete (activation only runs on the inactive ->
-    // active transition). A changed reason is a different logical session
-    // though (e.g. another test user matched), so simulated entitlements are
-    // reset while the user-independent product catalog is kept.
     private fun activateWithReason(reason: TestModeReason) {
         val current = state
         state =
@@ -164,10 +158,6 @@ class TestMode(
         )
     }
 
-    /**
-     * Suspends until the test product catalog has been refreshed for the
-     * current session, or [timeout] elapses. No-op when test mode is inactive.
-     */
     suspend fun awaitTestProducts(timeout: Duration = 5.seconds) {
         val s = session ?: return
         withTimeoutOrNull(timeout) { s.productsLoaded.await() }

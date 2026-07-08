@@ -181,9 +181,6 @@ fun parseWrappedPaywallMessages(jsonString: String): Result<WrappedPaywallMessag
         Result.failure(e)
     }
 
-// Returns null for unknown event names so newer paywalls can send events this
-// SDK version doesn't know about without breaking the rest of the batch.
-// Malformed payloads for known events still throw, failing the whole parse.
 private fun parsePaywallMessage(json: JsonObject): PaywallMessage? {
     val eventName = json["event_name"]!!.jsonPrimitive.content
 

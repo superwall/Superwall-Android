@@ -19,9 +19,6 @@ class TestModeSessionData {
     var products: List<SuperwallProduct> = emptyList()
     var testProductsByFullId: Map<String, StoreProduct> = emptyMap()
 
-    // Completed once the test product catalog has been refreshed (successfully
-    // or not), so product lookups can wait for it instead of racing activation
-    // and falling through to Play billing.
     val productsLoaded: CompletableDeferred<Unit> = CompletableDeferred()
     var entitlementIds: MutableSet<String> = mutableSetOf()
     var entitlementSelections: List<EntitlementSelection> = emptyList()

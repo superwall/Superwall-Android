@@ -411,11 +411,6 @@ class PaywallView(
     }
 
     fun beforeOnDestroy(forceCleanup: Boolean = false) {
-        // Only run dismissal work when the paywall is actually being torn down (Activity finishing).
-        // Android calls onStop()/onPause() both when finishing AND when merely backgrounding
-        // (home button, app switcher, deep link / external browser). On a non-finishing stop the
-        // Activity and webview stay alive and resume on foreground, so firing dismissal callbacks
-        // here would tear down presentation state out from under the still-live paywall.
         if (!forceCleanup) {
             return
         }
@@ -426,14 +421,7 @@ class PaywallView(
     }
 
     suspend fun destroyed(forceCleanup: Boolean = false) {
-        // See beforeOnDestroy: a non-finishing stop must not run the full dismiss teardown.
-        // This also covers the deep-link / external-browser case previously guarded by
-        // isBrowserViewPresented, since those are likewise non-finishing stops.
         if (!forceCleanup) {
-            // The paywall stays alive, but the user can no longer see it — still report the
-            // visibility change: track `paywall_close` now and the matching `paywall_open`
-            // when the Activity resumes (see onViewCreated). Skipped while an in-app browser
-            // is on top, since the paywall was never visible to begin with there.
             if (state.isPresented && !state.isBrowserViewPresented && !state.closedForBackground) {
                 controller.updateState(SetClosedForBackground(true))
                 ioScope.launch {
@@ -625,9 +613,6 @@ class PaywallView(
         controller.updateState(ClearViewCreatedCompletion)
 
         if (state.presentationDidFinishPrepare) {
-            // Resuming an already-presented paywall. If a `paywall_close` was tracked when the
-            // app went to background, dispatch the matching `paywall_open` without re-running
-            // the presentation flow.
             if (state.closedForBackground) {
                 controller.updateState(SetClosedForBackground(false))
                 ioScope.launch {

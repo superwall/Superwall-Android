@@ -35,8 +35,6 @@ data class PaywallViewState(
     val loadingState: PaywallLoadingState = PaywallLoadingState.Unknown,
     // / Defines whether the view is being presented or not.
     val isPresented: Boolean = false,
-    // / `true` while the Activity is stopped without finishing (app backgrounded) and a
-    // / `paywall_close` was tracked, so the matching `paywall_open` fires on foreground.
     val closedForBackground: Boolean = false,
     val presentationWillPrepare: Boolean = true,
     val presentationDidFinishPrepare: Boolean = false,

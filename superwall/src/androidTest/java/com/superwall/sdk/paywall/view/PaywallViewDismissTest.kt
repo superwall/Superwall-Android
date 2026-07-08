@@ -131,8 +131,6 @@ class PaywallViewDismissTest {
                         withTimeout(3000) { finished.await() }
                     }
 
-                    // Mirror SuperwallPaywallActivity: a dismissal finishes the
-                    // Activity, so onPause/onStop pass forceCleanup = isFinishing.
                     withContext(Dispatchers.Main) {
                         view.beforeOnDestroy(forceCleanup = true)
                         view.destroyed(forceCleanup = true)
@@ -189,7 +187,6 @@ class PaywallViewDismissTest {
                             result = PaywallResult.Declined(),
                             closeReason = PaywallCloseReason.ForNextPaywall,
                         )
-                        // Mirror SuperwallPaywallActivity: forceCleanup = isFinishing.
                         view.beforeOnDestroy(forceCleanup = true)
                         view.destroyed(forceCleanup = true)
                     }

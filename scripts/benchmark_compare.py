@@ -253,8 +253,6 @@ def main():
         baseline = load_json(baseline_path) if os.path.exists(baseline_path) else None
         row = compare_tier(tier, result, baseline, config)
         rows.append(row)
-        # A re-baseline run is intentionally accepting the new numbers, so the
-        # comparison against the old baseline is informational only.
         failed = failed or (row["failed"] and not args.update_baseline)
 
         if args.normalized_out:
