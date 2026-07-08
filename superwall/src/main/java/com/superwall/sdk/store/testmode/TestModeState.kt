@@ -4,6 +4,7 @@ import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.testmode.models.SuperwallProduct
 import com.superwall.sdk.store.testmode.ui.EntitlementSelection
+import kotlinx.coroutines.CompletableDeferred
 
 sealed class TestModeState {
     data object Inactive : TestModeState()
@@ -17,6 +18,8 @@ sealed class TestModeState {
 class TestModeSessionData {
     var products: List<SuperwallProduct> = emptyList()
     var testProductsByFullId: Map<String, StoreProduct> = emptyMap()
+
+    val productsLoaded: CompletableDeferred<Unit> = CompletableDeferred()
     var entitlementIds: MutableSet<String> = mutableSetOf()
     var entitlementSelections: List<EntitlementSelection> = emptyList()
     var freeTrialOverride: FreeTrialOverride = FreeTrialOverride.UseDefault

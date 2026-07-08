@@ -155,7 +155,9 @@ class StoreManager(
     }
 
     private suspend fun fetchOrAwaitProducts(fullProductIds: Set<String>): Map<String, StoreProduct> {
-        val testProducts = testMode?.takeIf { it.isTestMode }?.testProductsByFullId.orEmpty()
+        val activeTestMode = testMode?.takeIf { it.isTestMode }
+        activeTestMode?.awaitTestProducts()
+        val testProducts = activeTestMode?.testProductsByFullId.orEmpty()
         val testHits: Map<String, StoreProduct> =
             if (testProducts.isEmpty()) {
                 emptyMap()
@@ -208,10 +210,22 @@ class StoreManager(
                     productsByFullId[id] = ProductState.Error(e)
                     deferred.completeExceptionally(e)
                 }
+                if (activeTestMode != null && e is BillingError.BillingNotAvailable) {
+                    return testHits + cached
+                }
                 throw e
             }
 
-        val fetched = fetchNewProducts(newDeferreds)
+        val fetched =
+            try {
+                fetchNewProducts(newDeferreds)
+            } catch (e: Throwable) {
+                if (activeTestMode != null && e is BillingError.BillingNotAvailable) {
+                    emptyMap()
+                } else {
+                    throw e
+                }
+            }
 
         return testHits + cached + awaited + fetched
     }

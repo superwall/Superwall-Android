@@ -25,6 +25,7 @@ import com.superwall.sdk.dependencies.LocaleIdentifierFactory
 import com.superwall.sdk.dependencies.OptionsFactory
 import com.superwall.sdk.dependencies.StoreTransactionFactory
 import com.superwall.sdk.dependencies.StorefrontCountryFactory
+import com.superwall.sdk.identity.IdentityInfo
 import com.superwall.sdk.identity.setUserAttributes
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
@@ -55,6 +56,7 @@ import com.superwall.sdk.utilities.dateFormat
 import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
 import org.threeten.bp.Instant
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -62,6 +64,8 @@ import java.util.Currency
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.math.roundToInt
 import kotlin.time.Duration
 
 enum class InterfaceStyle(
@@ -157,36 +161,6 @@ class DeviceHelper(
             return duration.toMinutes().toInt()
         }
 
-    private val daysSinceLastPaywallView: Int?
-        get() {
-            val fromDate =
-                storage.read(LastPaywallView)?.let {
-                    Instant
-                        .ofEpochMilli(it.time)
-                }
-                    ?: return null
-            val toDate = Instant.now()
-            val duration =
-                org.threeten.bp.Duration
-                    .between(fromDate, toDate)
-            return duration.toDays().toInt()
-        }
-
-    private val minutesSinceLastPaywallView: Int?
-        get() {
-            val fromDate =
-                storage.read(LastPaywallView)?.let {
-                    Instant
-                        .ofEpochMilli(it.time)
-                }
-                    ?: return null
-            val toDate = Instant.now()
-            val duration =
-                org.threeten.bp.Duration
-                    .between(fromDate, toDate)
-            return duration.toMinutes().toInt()
-        }
-
     private val totalPaywallViews: Int
         get() {
             return storage.read(TotalPaywallViews) ?: 0
@@ -240,22 +214,20 @@ class DeviceHelper(
             return localeIdentifier ?: Locale.getDefault().toString()
         }
 
-    val appVersion: String
-        get() =
-            try {
-                val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-                packageInfo.versionName ?: "Unknown"
-            } catch (e: Throwable) {
-                Logger.debug(
-                    LogLevel.error,
-                    LogScope.device,
-                    "DeviceHelper: Failed to load version info - $e",
-                )
-                ""
-            }
+    val appVersion: String by lazy {
+        try {
+            appInfo.versionName ?: "Unknown"
+        } catch (e: Throwable) {
+            Logger.debug(
+                LogLevel.error,
+                LogScope.device,
+                "DeviceHelper: Failed to load version info - $e",
+            )
+            ""
+        }
+    }
 
-    private val appVersionPadded: String
-        get() = appVersion.asPadded()
+    private val appVersionPadded: String by lazy { appVersion.asPadded() }
 
     private val enrichment: Enrichment? get() = lastEnrichment.value
     val osVersion: String
@@ -267,11 +239,11 @@ class DeviceHelper(
     val model: String
         get() = Build.MODEL
 
-    val vendorId: String
-        get() = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
+    val vendorId: String by lazy {
+        Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
+    }
 
-    val deviceId: String
-        get() = DeviceVendorId(VendorId(vendorId)).value
+    val deviceId: String by lazy { DeviceVendorId(VendorId(vendorId)).value }
 
     val deviceTier: Tier by lazy { classifier.deviceTier() }
     var platformWrapper: String = ""
@@ -350,18 +322,15 @@ class DeviceHelper(
         get() = context.packageName
 
     val appInstalledAtString: String
-        get() {
-            val date =
-                withErrorTracking<Date> {
-
-                    val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-                    return@withErrorTracking Date(packageInfo.firstInstallTime)
-                }
-            val formatter = dateFormat(DateUtils.SIMPLE)
-            return formatter.format(date.getSuccess() ?: Date())
-        }
+        get() = dateFormat(DateUtils.SIMPLE).format(appInstallDate)
 
     var interfaceStyleOverride: InterfaceStyle? = null
+
+    val fontSize: Int
+        get() = (context.resources.configuration.fontScale * 16).roundToInt()
+
+    val fontScale: Float
+        get() = context.resources.configuration.fontScale
 
     val interfaceStyle: String
         get() {
@@ -380,9 +349,12 @@ class DeviceHelper(
             }
         }
 
+    private val powerManager: PowerManager by lazy {
+        context.getSystemService(Context.POWER_SERVICE) as PowerManager
+    }
+
     val isLowPowerModeEnabled: String
         get() {
-            val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
             return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 if (powerManager.isPowerSaveMode) "true" else "false"
             } else {
@@ -390,74 +362,79 @@ class DeviceHelper(
             }
         }
 
-    private val localDateFormat: SimpleDateFormat
-        get() {
-            val formatter = dateFormat(DateUtils.yyyy_MM_dd)
-            formatter.timeZone = TimeZone.getDefault()
-            return formatter
+    /**
+     * The time-derived template fields. These change continuously, so they are
+     * recomputed on every [getTemplateDevice] call and overlaid onto the
+     * memoized template instead of being part of its cache key.
+     */
+    private data class VolatileTemplateFields(
+        val utcDate: String,
+        val localDate: String,
+        val utcTime: String,
+        val localTime: String,
+        val utcDateTime: String,
+        val localDateTime: String,
+        val daysSinceInstall: Int,
+        val minutesSinceInstall: Int,
+        val daysSinceLastPaywallView: Int?,
+        val minutesSinceLastPaywallView: Int?,
+    ) {
+        /**
+         * Keys must match the serial names in [DeviceTemplate]. Numeric values
+         * are converted to [Double] to match how integers come out of the JSON
+         * conversion in [DeviceTemplate.toDictionary].
+         */
+        fun asOverlay(): Map<String, Any?> =
+            mapOf(
+                "utcDate" to utcDate,
+                "localDate" to localDate,
+                "utcTime" to utcTime,
+                "localTime" to localTime,
+                "utcDateTime" to utcDateTime,
+                "localDateTime" to localDateTime,
+                "daysSinceInstall" to daysSinceInstall.toDouble(),
+                "minutesSinceInstall" to minutesSinceInstall.toDouble(),
+                "daysSinceLastPaywallView" to daysSinceLastPaywallView?.toDouble(),
+                "minutesSinceLastPaywallView" to minutesSinceLastPaywallView?.toDouble(),
+            )
+    }
+
+    /**
+     * All fields are derived from a single timestamp so that e.g. `utcDate` and
+     * `utcTime` can't straddle midnight.
+     */
+    private fun volatileTemplateFields(): VolatileTemplateFields {
+        val now = Date()
+        val utcTimeZone = TimeZone.getTimeZone("UTC")
+        val localTimeZone = TimeZone.getDefault()
+        val dateFormatter = dateFormat(DateUtils.yyyy_MM_dd)
+        val timeFormatter = dateFormat(DateUtils.HH_mm_ss)
+        val dateTimeFormatter = dateFormat(DateUtils.ISO_SECONDS)
+
+        fun SimpleDateFormat.formatIn(timeZone: TimeZone): String {
+            this.timeZone = timeZone
+            return format(now)
         }
 
-    private val utcDateFormat: SimpleDateFormat
-        get() {
-            val formatter = dateFormat(DateUtils.yyyy_MM_dd)
-            formatter.timeZone = TimeZone.getTimeZone("UTC")
-            return formatter
-        }
+        val lastPaywallViewAt = storage.read(LastPaywallView)
 
-    private val utcTimeFormat: SimpleDateFormat
-        get() {
-            val formatter = dateFormat(DateUtils.HH_mm_ss)
-            formatter.timeZone = TimeZone.getTimeZone("UTC")
-            return formatter
-        }
+        return VolatileTemplateFields(
+            utcDate = dateFormatter.formatIn(utcTimeZone),
+            localDate = dateFormatter.formatIn(localTimeZone),
+            utcTime = timeFormatter.formatIn(utcTimeZone),
+            localTime = timeFormatter.formatIn(localTimeZone),
+            utcDateTime = dateTimeFormatter.formatIn(utcTimeZone),
+            localDateTime = dateTimeFormatter.formatIn(localTimeZone),
+            daysSinceInstall = daysSinceInstall,
+            minutesSinceInstall = minutesSinceInstall,
+            daysSinceLastPaywallView = lastPaywallViewAt?.let { daysSince(it) },
+            minutesSinceLastPaywallView = lastPaywallViewAt?.let { minutesSince(it) },
+        )
+    }
 
-    private val localDateTimeFormat: SimpleDateFormat
-        get() {
-            val formatter = dateFormat(DateUtils.ISO_SECONDS)
-            formatter.timeZone = TimeZone.getDefault()
-            return formatter
-        }
+    private val sdkVersionPadded: String by lazy { sdkVersion.asPadded() }
 
-    private val localTimeFormat: SimpleDateFormat
-        get() {
-            val formatter = dateFormat(DateUtils.HH_mm_ss)
-            formatter.timeZone = TimeZone.getDefault()
-            return formatter
-        }
-
-    private val utcDateTimeFormat: SimpleDateFormat
-        get() {
-            val formatter = dateFormat(DateUtils.ISO_SECONDS)
-            formatter.timeZone = TimeZone.getTimeZone("UTC")
-            return formatter
-        }
-
-    private val localDateString: String
-        get() = localDateFormat.format(System.currentTimeMillis())
-
-    private val localTimeString: String
-        get() = localTimeFormat.format(System.currentTimeMillis())
-
-    private val localDateTimeString: String
-        get() = localDateTimeFormat.format(System.currentTimeMillis())
-
-    private val utcDateString: String
-        get() = utcDateFormat.format(System.currentTimeMillis())
-
-    private val utcTimeString: String
-        get() = utcTimeFormat.format(System.currentTimeMillis())
-
-    private val utcDateTimeString: String
-        get() = utcDateTimeFormat.format(System.currentTimeMillis())
-
-    private val sdkVersionPadded: String
-        get() = sdkVersion.asPadded()
-
-    val appBuildString: String
-        get() {
-            val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-            return packageInfo.versionCode.toString()
-        }
+    val appBuildString: String by lazy { appInfo.versionCode.toString() }
 
     val sdkVersion: String
         get() = BuildConfig.SDK_VERSION
@@ -468,13 +445,13 @@ class DeviceHelper(
     val gitSha: String
         get() = BuildConfig.GIT_SHA
 
-    val kotlinVersion: String
-        get() =
-            try {
-                KotlinVersion.CURRENT.toString()
-            } catch (e: Throwable) {
-                "UNKNOWN"
-            }
+    val kotlinVersion: String by lazy {
+        try {
+            KotlinVersion.CURRENT.toString()
+        } catch (e: Throwable) {
+            "UNKNOWN"
+        }
+    }
 
     /**
      * Stable fingerprint of the device/store/subscription/storage fields that can
@@ -545,89 +522,163 @@ class DeviceHelper(
         return output
     }
 
+    private val capabilities: List<Capability> =
+        listOf(
+            Capability.PaywallEventReceiver(),
+            Capability.MultiplePaywallUrls,
+            Capability.ConfigCaching,
+        )
+
+    private val capabilitiesConfig: JsonElement by lazy { capabilities.toJson() }
+
+    private class CachedTemplate(
+        val fingerprint: String,
+        val base: Map<String, Any>,
+    )
+
+    /**
+     * Memoized result of the last full template build, keyed by a fingerprint of
+     * every mutable input. Building the template assembles ~55 fields (several
+     * of which are system IPCs) and serializes them through JSON, so it's worth
+     * skipping when nothing has changed — which is the common case, since it
+     * runs per rule, per evaluation.
+     */
+    private val templateCache = AtomicReference<CachedTemplate?>(null)
+
+    internal val cachedTemplate: Map<String, Any>?
+        get() = templateCache.get()?.base
+
+    private val subscriptionStatusString: String?
+        get() =
+            Superwall.instance.subscriptionStatus.value?.let {
+                when (it) {
+                    is SubscriptionStatus.Active -> "ACTIVE"
+                    is SubscriptionStatus.Inactive -> "INACTIVE"
+                    is SubscriptionStatus.Unknown -> "UNKNOWN"
+                }
+            }
+
+    /**
+     * Fingerprint of every mutable, non-time-derived input to [getTemplateDevice].
+     * All reads are in-memory state or cheap system lookups, so comparing this
+     * against the cached value is far cheaper than rebuilding and re-serializing
+     * the full template. Time-derived fields are deliberately excluded — they are
+     * recomputed and overlaid on every read via [volatileTemplateFields].
+     */
+    private suspend fun templateFingerprint(identityInfo: IdentityInfo): String =
+        listOf(
+            storage.apiKey,
+            identityInfo.appUserId ?: "",
+            identityInfo.aliasId,
+            locale,
+            ((TimeZone.getDefault().rawOffset) / 1000).toString(),
+            radioType,
+            interfaceStyle,
+            if (interfaceStyleOverride == null) "automatic" else "manual",
+            fontSize.toString(),
+            fontScale.toString(),
+            isLowPowerModeEnabled,
+            Superwall.instance.entitlements.active
+                .sortedBy { it.id }
+                .joinToString(",") { "${it.id}:${it.type.raw}" },
+            subscriptionStatusString ?: "null",
+            factory.activeProductIds().sorted().joinToString(","),
+            isFirstAppOpen.toString(),
+            platformWrapper,
+            platformWrapperVersion,
+            totalPaywallViews.toString(),
+            reviewRequestCount.toString(),
+            factory.storefrontCountryCode() ?: "",
+        ).joinToString("|")
+
+    private suspend fun buildDeviceTemplate(
+        identityInfo: IdentityInfo,
+        volatileFields: VolatileTemplateFields,
+    ): DeviceTemplate =
+        DeviceTemplate(
+            publicApiKey = storage.apiKey,
+            platform = "Android",
+            appUserId = identityInfo.appUserId ?: "",
+            aliases = listOf(identityInfo.aliasId),
+            vendorId = vendorId,
+            deviceId = deviceId,
+            appVersion = appVersion,
+            osVersion = osVersion,
+            deviceModel = model,
+            deviceLocale = locale,
+            preferredLocale = locale,
+            deviceLanguageCode = languageCode,
+            preferredLanguageCode = languageCode,
+            regionCode = regionCode,
+            preferredRegionCode = regionCode,
+            deviceCurrencyCode = currencyCode,
+            deviceCurrencySymbol = currencySymbol,
+            timezoneOffset = (TimeZone.getDefault().rawOffset) / 1000,
+            radioType = radioType,
+            interfaceStyle = interfaceStyle,
+            fontSize = fontSize,
+            fontScale = fontScale,
+            isLowPowerModeEnabled = isLowPowerModeEnabled.toBoolean(),
+            bundleId = bundleId,
+            appInstallDate = appInstalledAtString,
+            isMac = false,
+            daysSinceInstall = volatileFields.daysSinceInstall,
+            minutesSinceInstall = volatileFields.minutesSinceInstall,
+            daysSinceLastPaywallView = volatileFields.daysSinceLastPaywallView,
+            minutesSinceLastPaywallView = volatileFields.minutesSinceLastPaywallView,
+            totalPaywallViews = totalPaywallViews,
+            utcDate = volatileFields.utcDate,
+            localDate = volatileFields.localDate,
+            utcTime = volatileFields.utcTime,
+            localTime = volatileFields.localTime,
+            utcDateTime = volatileFields.utcDateTime,
+            localDateTime = volatileFields.localDateTime,
+            isSandbox = isSandbox.toString(),
+            activeEntitlements =
+                Superwall.instance.entitlements.active
+                    .map { it.id },
+            activeEntitlementsObject =
+                Superwall.instance.entitlements.active
+                    .map { mapOf("identifier" to it.id, "type" to it.type.raw) },
+            subscriptionStatus = subscriptionStatusString,
+            activeProducts = factory.activeProductIds(),
+            isFirstAppOpen = isFirstAppOpen,
+            sdkVersion = sdkVersion,
+            sdkVersionPadded = sdkVersionPadded,
+            appBuildString = appBuildString,
+            appBuildStringNumber = appBuildString.toInt(),
+            interfaceStyleMode = if (interfaceStyleOverride == null) "automatic" else "manual",
+            capabilities = capabilities.map { it.name },
+            capabilitiesConfig = capabilitiesConfig,
+            platformWrapper = platformWrapper,
+            platformWrapperVersion = platformWrapperVersion,
+            appVersionPadded = appVersionPadded,
+            deviceTier = deviceTier.raw,
+            reviewRequestCount = reviewRequestCount,
+            kotlinVersion = kotlinVersion,
+            storeFrontCountryCode = factory.storefrontCountryCode(),
+        )
+
     suspend fun getTemplateDevice(): Map<String, Any> {
         return withErrorTracking {
             val identityInfo = factory.makeIdentityInfo()
-            val aliases = listOf(identityInfo.aliasId)
-            val capabilities: List<Capability> =
-                listOf(
-                    Capability.PaywallEventReceiver(),
-                    Capability.MultiplePaywallUrls,
-                    Capability.ConfigCaching,
-                )
+            val fingerprint = templateFingerprint(identityInfo)
+            val volatileFields = volatileTemplateFields()
 
-            DeviceTemplate(
-                publicApiKey = storage.apiKey,
-                platform = "Android",
-                appUserId = identityInfo.appUserId ?: "",
-                aliases = aliases,
-                vendorId = vendorId,
-                deviceId = deviceId,
-                appVersion = appVersion,
-                osVersion = osVersion,
-                deviceModel = model,
-                deviceLocale = locale,
-                preferredLocale = locale,
-                deviceLanguageCode = languageCode,
-                preferredLanguageCode = languageCode,
-                regionCode = regionCode,
-                preferredRegionCode = regionCode,
-                deviceCurrencyCode = currencyCode,
-                deviceCurrencySymbol = currencySymbol,
-                timezoneOffset = (TimeZone.getDefault().rawOffset) / 1000,
-                radioType = radioType,
-                interfaceStyle = interfaceStyle,
-                isLowPowerModeEnabled = isLowPowerModeEnabled.toBoolean(),
-                bundleId = bundleId,
-                appInstallDate = appInstalledAtString,
-                isMac = false,
-                daysSinceInstall = daysSinceInstall,
-                minutesSinceInstall = minutesSinceInstall,
-                daysSinceLastPaywallView = daysSinceLastPaywallView,
-                minutesSinceLastPaywallView = minutesSinceLastPaywallView,
-                totalPaywallViews = totalPaywallViews,
-                utcDate = utcDateString,
-                localDate = localDateString,
-                utcTime = utcTimeString,
-                localTime = localTimeString,
-                utcDateTime = utcDateTimeString,
-                localDateTime = localDateTimeString,
-                isSandbox = isSandbox.toString(),
-                activeEntitlements =
-                    Superwall.instance.entitlements.active
-                        .map { it.id },
-                activeEntitlementsObject =
-                    Superwall.instance.entitlements.active
-                        .map { mapOf("identifier" to it.id, "type" to it.type.raw) },
-                subscriptionStatus =
-                    Superwall.instance.subscriptionStatus.value?.let {
-                        when (it) {
-                            is SubscriptionStatus.Active -> "ACTIVE"
-                            is SubscriptionStatus.Inactive -> "INACTIVE"
-                            is SubscriptionStatus.Unknown -> "UNKNOWN"
-                        }
-                    },
-                activeProducts = factory.activeProductIds(),
-                isFirstAppOpen = isFirstAppOpen,
-                sdkVersion = sdkVersion,
-                sdkVersionPadded = sdkVersionPadded,
-                appBuildString = appBuildString,
-                appBuildStringNumber = appBuildString.toInt(),
-                interfaceStyleMode = if (interfaceStyleOverride == null) "automatic" else "manual",
-                capabilities = capabilities.map { it.name },
-                capabilitiesConfig = capabilities.toJson(),
-                platformWrapper = platformWrapper,
-                platformWrapperVersion = platformWrapperVersion,
-                appVersionPadded = appVersionPadded,
-                deviceTier = classifier.deviceTier().raw,
-                reviewRequestCount = reviewRequestCount,
-                kotlinVersion = kotlinVersion,
-                storeFrontCountryCode = factory.storefrontCountryCode(),
-            )
+            val cached = templateCache.get()
+            val base =
+                if (cached != null && cached.fingerprint == fingerprint) {
+                    cached.base
+                } else {
+                    buildDeviceTemplate(identityInfo, volatileFields)
+                        .toDictionary(json)
+                        .also { templateCache.set(CachedTemplate(fingerprint, it)) }
+                }
+
+            @Suppress("UNCHECKED_CAST")
+            (base + volatileFields.asOverlay()) as Map<String, Any>
         }.toResult()
             .map {
-                it.toDictionary(json)
-            }.map {
                 val enriched =
                     enrichment
                         ?.device

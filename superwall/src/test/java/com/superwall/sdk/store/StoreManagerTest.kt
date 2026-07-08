@@ -13,6 +13,8 @@ import com.superwall.sdk.models.product.CrossplatformProduct
 import com.superwall.sdk.models.product.Offer
 import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.store.abstractions.product.StoreProduct
+import com.superwall.sdk.store.testmode.TestMode
+import com.superwall.sdk.store.testmode.TestModeBehavior
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -576,6 +578,149 @@ class StoreManagerTest {
 
                     Then("it should return the correct set of StoreProducts") {
                         assertEquals(expectedProducts, result)
+                    }
+                }
+            }
+        }
+
+    private fun makeActiveTestMode(): TestMode {
+        val testMode = TestMode(mockk(relaxed = true), isTestEnvironment = false)
+        testMode.evaluateTestMode(
+            config = mockk(relaxed = true),
+            bundleId = "com.app",
+            appUserId = null,
+            aliasId = null,
+            testModeBehavior = TestModeBehavior.ALWAYS,
+        )
+        return testMode
+    }
+
+    private fun makePaywallWithTwoProducts(): Paywall =
+        Paywall.stub().copy(
+            productIds = listOf("product1:basePlan1:sw-auto", "product2:basePlan1:sw-auto"),
+            _productItemsV3 =
+                listOf(
+                    CrossplatformProduct(
+                        compositeId = "product1:basePlan1:sw-auto",
+                        storeProduct =
+                            CrossplatformProduct.StoreProduct.PlayStore(
+                                productIdentifier = "product1",
+                                basePlanIdentifier = "basePlan1",
+                                offer = Offer.Automatic(),
+                            ),
+                        entitlements = entitlementsBasic.toList(),
+                        name = "Item1",
+                    ),
+                    CrossplatformProduct(
+                        compositeId = "product2:basePlan1:sw-auto",
+                        storeProduct =
+                            CrossplatformProduct.StoreProduct.PlayStore(
+                                productIdentifier = "product2",
+                                basePlanIdentifier = "basePlan1",
+                                offer = Offer.Automatic(),
+                            ),
+                        entitlements = entitlementsBasic.toList(),
+                        name = "Item2",
+                    ),
+                ),
+        )
+
+    @Test
+    fun `test getProducts in test mode does not fail when billing is unavailable`() =
+        runTest {
+            Given("test mode is active with a full test catalog and billing is unavailable") {
+                val testMode = makeActiveTestMode()
+                testMode.setTestProducts(
+                    mapOf(
+                        "product1:basePlan1:sw-auto" to
+                            mockk<StoreProduct> {
+                                every { fullIdentifier } returns "product1:basePlan1:sw-auto"
+                            },
+                        "product2:basePlan1:sw-auto" to
+                            mockk<StoreProduct> {
+                                every { fullIdentifier } returns "product2:basePlan1:sw-auto"
+                            },
+                    ),
+                )
+                storeManager.testMode = testMode
+
+                coEvery { billing.awaitGetProducts(any()) } throws
+                    BillingError.BillingNotAvailable("Billing not available")
+
+                When("getProducts is called") {
+                    val result = storeManager.getProducts(null, makePaywallWithTwoProducts(), null)
+
+                    Then("it returns the test products without touching billing") {
+                        assertEquals(2, result.productsByFullId.size)
+                        coVerify(exactly = 0) { billing.awaitGetProducts(any()) }
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `test getProducts in test mode returns partial test catalog when billing is unavailable`() =
+        runTest {
+            Given("test mode is active with a partial test catalog and billing is unavailable") {
+                val testMode = makeActiveTestMode()
+                testMode.setTestProducts(
+                    mapOf(
+                        "product1:basePlan1:sw-auto" to
+                            mockk<StoreProduct> {
+                                every { fullIdentifier } returns "product1:basePlan1:sw-auto"
+                            },
+                    ),
+                )
+                storeManager.testMode = testMode
+
+                coEvery { billing.awaitGetProducts(any()) } throws
+                    BillingError.BillingNotAvailable("Billing not available")
+
+                When("getProducts is called") {
+                    val result = storeManager.getProducts(null, makePaywallWithTwoProducts(), null)
+
+                    Then("it returns the resolved test product instead of throwing") {
+                        assertEquals(setOf("product1:basePlan1:sw-auto"), result.productsByFullId.keys)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `test getProducts waits for the test catalog instead of racing activation`() =
+        runTest {
+            Given("test mode is active but the test catalog hasn't loaded yet") {
+                val testMode = makeActiveTestMode()
+                storeManager.testMode = testMode
+
+                coEvery { billing.awaitGetProducts(any()) } throws
+                    BillingError.BillingNotAvailable("Billing not available")
+
+                When("getProducts is called before the catalog arrives") {
+                    val result =
+                        async {
+                            storeManager.getProducts(null, makePaywallWithTwoProducts(), null)
+                        }
+                    kotlinx.coroutines.yield()
+
+                    And("the catalog then loads") {
+                        testMode.setTestProducts(
+                            mapOf(
+                                "product1:basePlan1:sw-auto" to
+                                    mockk<StoreProduct> {
+                                        every { fullIdentifier } returns "product1:basePlan1:sw-auto"
+                                    },
+                                "product2:basePlan1:sw-auto" to
+                                    mockk<StoreProduct> {
+                                        every { fullIdentifier } returns "product2:basePlan1:sw-auto"
+                                    },
+                            ),
+                        )
+                    }
+
+                    Then("the paywall gets the test products without touching billing") {
+                        assertEquals(2, result.await().productsByFullId.size)
+                        coVerify(exactly = 0) { billing.awaitGetProducts(any()) }
                     }
                 }
             }

@@ -5,6 +5,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.jsonObject
 
 @Serializable
 data class DeviceTemplate(
@@ -29,6 +30,8 @@ data class DeviceTemplate(
     val timezoneOffset: Int,
     val radioType: String,
     val interfaceStyle: String,
+    val fontSize: Int,
+    val fontScale: Float,
     val isLowPowerModeEnabled: Boolean,
     val bundleId: String,
     val appInstallDate: String,
@@ -68,8 +71,5 @@ data class DeviceTemplate(
     val kotlinVersion: String,
     val storeFrontCountryCode: String? = null,
 ) {
-    fun toDictionary(json: Json): Map<String, Any> {
-        val jsonString = json.encodeToString(serializer(), this)
-        return json.toNullableTypedMap(jsonString)
-    }
+    fun toDictionary(json: Json): Map<String, Any> = json.encodeToJsonElement(serializer(), this).jsonObject.toNullableTypedMap()
 }

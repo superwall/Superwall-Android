@@ -35,6 +35,7 @@ data class PaywallViewState(
     val loadingState: PaywallLoadingState = PaywallLoadingState.Unknown,
     // / Defines whether the view is being presented or not.
     val isPresented: Boolean = false,
+    val closedForBackground: Boolean = false,
     val presentationWillPrepare: Boolean = true,
     val presentationDidFinishPrepare: Boolean = false,
     // / `true` if there's a survey to complete and the paywall is displayed in a modal style.
@@ -60,6 +61,7 @@ data class PaywallViewState(
             |  presentationStyle: $presentationStyle
             |  loadingState: $loadingState
             |  isPresented: $isPresented
+            |  closedForBackground: $closedForBackground
             |  presentationWillPrepare: $presentationWillPrepare
             |  presentationDidFinishPrepare: $presentationDidFinishPrepare
             |  callbackInvoked: $callbackInvoked
@@ -185,8 +187,15 @@ data class PaywallViewState(
                 isPresented = false,
                 dismissCompletionBlock = null,
                 lastOpen = null,
+                closedForBackground = false,
             )
         })
+
+        class SetClosedForBackground(
+            val closed: Boolean,
+        ) : Updates({ state ->
+                state.copy(closedForBackground = closed)
+            })
 
         object ClearViewCreatedCompletion : Updates({ state ->
             state.copy(viewCreatedCompletion = null)

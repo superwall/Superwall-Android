@@ -132,8 +132,8 @@ class PaywallViewDismissTest {
                     }
 
                     withContext(Dispatchers.Main) {
-                        view.beforeOnDestroy()
-                        view.destroyed()
+                        view.beforeOnDestroy(forceCleanup = true)
+                        view.destroyed(forceCleanup = true)
                     }
 
                     val dismissed = publisher.replayCache.lastOrNull() as? PaywallState.Dismissed
@@ -187,8 +187,8 @@ class PaywallViewDismissTest {
                             result = PaywallResult.Declined(),
                             closeReason = PaywallCloseReason.ForNextPaywall,
                         )
-                        view.beforeOnDestroy()
-                        view.destroyed()
+                        view.beforeOnDestroy(forceCleanup = true)
+                        view.destroyed(forceCleanup = true)
                     }
 
                     val dismissed = publisher.replayCache.lastOrNull() as? PaywallState.Dismissed

@@ -1,5 +1,6 @@
 package com.superwall.sdk.paywall.view.webview.templating.models
 
+import com.superwall.sdk.storage.core_data.toNullableTypedMap
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -37,6 +38,8 @@ class DeviceTemplateTest {
             timezoneOffset = -480,
             radioType = "5G",
             interfaceStyle = "light",
+            fontSize = 16,
+            fontScale = 1.0f,
             isLowPowerModeEnabled = false,
             bundleId = "com.example.app",
             appInstallDate = "2024-03-20",
@@ -115,6 +118,8 @@ class DeviceTemplateTest {
                 timezoneOffset = -480,
                 radioType = "5G",
                 interfaceStyle = "light",
+                fontSize = 16,
+                fontScale = 1.0f,
                 isLowPowerModeEnabled = false,
                 bundleId = "com.example.app",
                 appInstallDate = "2024-03-20",
@@ -157,5 +162,18 @@ class DeviceTemplateTest {
         assertNull(dictionary1["minutesSinceLastPaywallView"])
         assertNull(dictionary1["appBuildStringNumber"])
         assertNull(dictionary1["ipRegion"])
+    }
+
+    @Test
+    fun `test toDictionary matches legacy string round trip`() {
+        val template = createSampleDeviceTemplate()
+
+        val direct = template.toDictionary(json)
+        val legacyRoundTrip =
+            json.toNullableTypedMap(
+                json.encodeToString(DeviceTemplate.serializer(), template),
+            )
+
+        assertEquals(legacyRoundTrip, direct)
     }
 }

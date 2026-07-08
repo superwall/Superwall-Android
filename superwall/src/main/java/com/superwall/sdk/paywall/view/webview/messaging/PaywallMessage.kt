@@ -173,7 +173,7 @@ fun parseWrappedPaywallMessages(jsonString: String): Result<WrappedPaywallMessag
 
         for (element in messagesJsonArray) {
             val messageJson = element.jsonObject
-            messages.add(parsePaywallMessage(messageJson))
+            parsePaywallMessage(messageJson)?.let { messages.add(it) }
         }
 
         Result.success(WrappedPaywallMessages(version, PayloadMessages(messages)))
@@ -181,7 +181,7 @@ fun parseWrappedPaywallMessages(jsonString: String): Result<WrappedPaywallMessag
         Result.failure(e)
     }
 
-private fun parsePaywallMessage(json: JsonObject): PaywallMessage {
+private fun parsePaywallMessage(json: JsonObject): PaywallMessage? {
     val eventName = json["event_name"]!!.jsonPrimitive.content
 
     return when (eventName) {
@@ -311,7 +311,12 @@ private fun parsePaywallMessage(json: JsonObject): PaywallMessage {
         }
 
         else -> {
-            throw IllegalArgumentException("Unknown event name: $eventName")
+            Logger.debug(
+                LogLevel.warn,
+                LogScope.superwallCore,
+                "Skipping paywall message with unknown event name: $eventName",
+            )
+            null
         }
     }
 }

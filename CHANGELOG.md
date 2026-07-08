@@ -2,15 +2,28 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.7.21
+
+## Enhancements
+
+- Adds `fontScale` and `fontSize` device attributes for the system text size.
+- Memoizes the device template used for audience-filter evaluation and paywall templating. The template is now rebuilt only when one of its mutable inputs (identity, entitlements, subscription status, interface style, platform wrapper, etc.) changes, while time-derived fields are recomputed on every read. This removes a full JSON round trip and repeated system lookups from every `register()` call.
+
+## Fixes
+- Fix a bug causing paywall destroying on backgrounding
+- Ensures that paywall instances no longer overwrite each other's instance experiment ID
+
 ## 2.7.20
 
 ## Enhancements
 
 - Adds `storeFrontCountryCode` property
 - Adds `PaywallOptions.loadingColor` to options enabling you to theme the circular progress bar 
-
+- Adds `fontScale` and `fontSize` device attributes for the system text size.
+L
 ## Fixes
 - Fix a bug causing web redemption entitlements to be ignored in restoration tracking logic for users of purchase controller
+- Fix paywall presentation being fully torn down when the app was backgrounded without the paywall being dismissed, while keeping `paywall_close`/`paywall_open` dispatched when the paywall leaves and returns to the screen
 
 ## 2.7.19
 

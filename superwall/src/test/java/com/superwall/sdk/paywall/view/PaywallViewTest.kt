@@ -63,6 +63,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNamingStrategy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -690,8 +691,8 @@ class PaywallViewTest {
                 Given("a PaywallView") {
                     clearMocks(delegateAdapter, answers = false)
 
-                    When("beforeOnDestroy is called") {
-                        paywallView.beforeOnDestroy()
+                    When("beforeOnDestroy is called for a finishing teardown") {
+                        paywallView.beforeOnDestroy(forceCleanup = true)
 
                         Then("willDismissPaywall is called") {
                             verify { delegateAdapter.willDismissPaywall(paywallView.info) }
@@ -729,8 +730,8 @@ class PaywallViewTest {
                         ),
                     )
 
-                    When("destroyed is called") {
-                        paywallView.destroyed()
+                    When("destroyed is called for a finishing teardown") {
+                        paywallView.destroyed(forceCleanup = true)
                         advanceUntilIdle()
 
                         Then("state is cleaned up and delegate notified") {
@@ -742,6 +743,302 @@ class PaywallViewTest {
                 }
             } finally {
                 scope.cancel()
+                Dispatchers.resetMain()
+            }
+        }
+
+    private fun makePaywallView(cache: com.superwall.sdk.paywall.manager.PaywallViewCache?): PaywallView {
+        val state = PaywallViewState(paywall = Paywall.stub(), locale = "en-US")
+        val controller = PaywallView.PaywallController(state)
+        return PaywallView(
+            context = context,
+            eventCallback = null,
+            callback = null,
+            deviceHelper = deviceHelper,
+            factory = factory,
+            storage = storage,
+            webView = fakeWebUI,
+            cache = cache,
+            controller = controller,
+            sendMessages = sendMessages,
+            redeemer = redeemer,
+        )
+    }
+
+    private fun captureTrackedEvents(
+        into: MutableList<com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent>,
+        closeLatch: CountDownLatch,
+        openLatch: CountDownLatch? = null,
+    ) {
+        val trackingResult = mockk<TrackingResult>(relaxed = true)
+        coEvery { factory.track(any()) } answers {
+            val event = firstArg<com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent>()
+            into.add(event)
+            if (event is com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.PaywallClose) {
+                closeLatch.countDown()
+            }
+            if (event is com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.PaywallOpen) {
+                openLatch?.countDown()
+            }
+            Result.success(trackingResult)
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun destroyed_onNonFinishingBackgroundStop_tracksCloseButDoesNotRunDismissTeardown() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            Dispatchers.setMain(dispatcher)
+            val scope = CoroutineScope(dispatcher + Job())
+            try {
+                Given("a presented PaywallView, not browser-presented, with no dismiss initiated") {
+                    clearMocks(delegateAdapter, answers = false)
+                    val cache = mockk<com.superwall.sdk.paywall.manager.PaywallViewCache>(relaxed = true)
+                    val view = makePaywallView(cache)
+
+                    val trackedEvents =
+                        java.util.Collections.synchronizedList(
+                            mutableListOf<com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent>(),
+                        )
+                    val closeLatch = CountDownLatch(1)
+                    captureTrackedEvents(trackedEvents, closeLatch)
+
+                    val statePublisher =
+                        MutableSharedFlow<com.superwall.sdk.paywall.presentation.internal.state.PaywallState>(
+                            replay = 1,
+                            extraBufferCapacity = 8,
+                        )
+                    val dismissedStates =
+                        mutableListOf<com.superwall.sdk.paywall.presentation.internal.state.PaywallState.Dismissed>()
+                    scope.launch {
+                        statePublisher.collect {
+                            if (it is com.superwall.sdk.paywall.presentation.internal.state.PaywallState.Dismissed) {
+                                dismissedStates.add(it)
+                            }
+                        }
+                    }
+
+                    view.controller.updateState(
+                        PaywallViewState.Updates.SetRequest(
+                            req = mockk(relaxed = true),
+                            publisher = statePublisher,
+                            occurrence = null,
+                        ),
+                    )
+                    view.controller.updateState(PaywallViewState.Updates.SetPresentedAndFinished)
+                    assertTrue("Precondition: paywall presented", view.state.isPresented)
+                    assertFalse("Precondition: no browser view open", view.state.isBrowserViewPresented)
+
+                    When("the Activity is stopped WITHOUT finishing: destroyed(forceCleanup = false)") {
+                        view.destroyed(forceCleanup = false)
+                        advanceUntilIdle()
+
+                        Then("paywall_close is tracked but no dismissal teardown runs") {
+                            assertTrue(
+                                "Expected a PaywallClose on a non-finishing background stop",
+                                closeLatch.await(2, TimeUnit.SECONDS),
+                            )
+                            view.destroyed(forceCleanup = false)
+                            advanceUntilIdle()
+                            assertEquals(
+                                "Expected exactly one PaywallClose tracked, got $trackedEvents",
+                                1,
+                                trackedEvents.count {
+                                    it is com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.PaywallClose
+                                },
+                            )
+                            verify(exactly = 0) { delegateAdapter.didDismissPaywall(any()) }
+                            assertTrue("Expected no Dismissed state emitted", dismissedStates.isEmpty())
+                            assertTrue("Paywall should remain presented", view.state.isPresented)
+                            verify(exactly = 0) { cache.activePaywallVcKey = null }
+                        }
+                    }
+                }
+            } finally {
+                scope.cancel()
+                Dispatchers.resetMain()
+            }
+        }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun onViewCreated_afterBackgroundStop_tracksPaywallOpenAgain() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            Dispatchers.setMain(dispatcher)
+            try {
+                Given("a presented PaywallView that was backgrounded (non-finishing stop)") {
+                    clearMocks(delegateAdapter, answers = false)
+                    val view = makePaywallView(cache = null)
+
+                    val trackedEvents =
+                        java.util.Collections.synchronizedList(
+                            mutableListOf<com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent>(),
+                        )
+                    val closeLatch = CountDownLatch(1)
+                    val openLatch = CountDownLatch(1)
+                    captureTrackedEvents(trackedEvents, closeLatch, openLatch)
+
+                    view.controller.updateState(PaywallViewState.Updates.SetPresentedAndFinished)
+
+                    view.destroyed(forceCleanup = false)
+                    assertTrue(
+                        "Precondition: PaywallClose tracked on background",
+                        closeLatch.await(2, TimeUnit.SECONDS),
+                    )
+                    assertTrue("Precondition: flagged as closed for background", view.state.closedForBackground)
+
+                    When("the Activity resumes: onViewCreated()") {
+                        view.onViewCreated()
+                        advanceUntilIdle()
+
+                        Then("paywall_open is tracked again without re-running the presentation flow") {
+                            assertTrue(
+                                "Expected a PaywallOpen on foreground after a background close",
+                                openLatch.await(2, TimeUnit.SECONDS),
+                            )
+                            assertFalse("Background-close flag should be cleared", view.state.closedForBackground)
+                            verify(exactly = 0) { delegateAdapter.didPresentPaywall(any()) }
+                        }
+                    }
+
+                    When("the Activity resumes again with no background close in between") {
+                        val openCountAfterFirstResume =
+                            trackedEvents.count {
+                                it is com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.PaywallOpen
+                            }
+                        view.onViewCreated()
+                        advanceUntilIdle()
+
+                        Then("no additional paywall_open is tracked") {
+                            Thread.sleep(300)
+                            assertEquals(
+                                "Expected no extra PaywallOpen on a plain resume, got $trackedEvents",
+                                openCountAfterFirstResume,
+                                trackedEvents.count {
+                                    it is com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.PaywallOpen
+                                },
+                            )
+                        }
+                    }
+                }
+            } finally {
+                Dispatchers.resetMain()
+            }
+        }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun destroyed_whenFinishingAfterDismiss_emitsTerminalPaywallCloseWithReason_andClearsActiveKey() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            Dispatchers.setMain(dispatcher)
+            val scope = CoroutineScope(dispatcher + Job())
+            try {
+                Given("a presented PaywallView with a dismiss initiated (SystemLogic / Purchased)") {
+                    clearMocks(delegateAdapter, answers = false)
+                    val cache = mockk<com.superwall.sdk.paywall.manager.PaywallViewCache>(relaxed = true)
+                    val view = makePaywallView(cache)
+
+                    val trackedEvents =
+                        java.util.Collections.synchronizedList(
+                            mutableListOf<com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent>(),
+                        )
+                    val closeLatch = CountDownLatch(1)
+                    captureTrackedEvents(trackedEvents, closeLatch)
+
+                    val statePublisher =
+                        MutableSharedFlow<com.superwall.sdk.paywall.presentation.internal.state.PaywallState>(
+                            replay = 1,
+                            extraBufferCapacity = 8,
+                        )
+                    val dismissedStates =
+                        mutableListOf<com.superwall.sdk.paywall.presentation.internal.state.PaywallState.Dismissed>()
+                    scope.launch {
+                        statePublisher.collect {
+                            if (it is com.superwall.sdk.paywall.presentation.internal.state.PaywallState.Dismissed) {
+                                dismissedStates.add(it)
+                            }
+                        }
+                    }
+
+                    view.controller.updateState(
+                        PaywallViewState.Updates.SetRequest(
+                            req = mockk(relaxed = true),
+                            publisher = statePublisher,
+                            occurrence = null,
+                        ),
+                    )
+                    view.controller.updateState(PaywallViewState.Updates.SetPresentedAndFinished)
+                    view.controller.updateState(
+                        PaywallViewState.Updates.InitiateDismiss(
+                            result =
+                                com.superwall.sdk.paywall.presentation.internal.state
+                                    .PaywallResult.Purchased("com.test.product"),
+                            closeReason = com.superwall.sdk.paywall.presentation.PaywallCloseReason.SystemLogic,
+                            completion = null,
+                        ),
+                    )
+
+                    When("the Activity finishes: destroyed(forceCleanup = true)") {
+                        view.destroyed(forceCleanup = true)
+                        advanceUntilIdle()
+                        assertTrue(
+                            "Expected a terminal PaywallClose on a finishing teardown",
+                            closeLatch.await(2, TimeUnit.SECONDS),
+                        )
+
+                        Then("the full teardown runs and the close carries the SystemLogic reason") {
+                            val closeEvent =
+                                trackedEvents.filterIsInstance<
+                                    com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.PaywallClose,
+                                >().firstOrNull()
+                            assertNotNull("Expected PaywallClose on finishing teardown", closeEvent)
+                            assertTrue(
+                                "Expected PaywallClose(closeReason = SystemLogic), got ${closeEvent!!.paywallInfo.closeReason}",
+                                closeEvent.paywallInfo.closeReason is
+                                    com.superwall.sdk.paywall.presentation.PaywallCloseReason.SystemLogic,
+                            )
+                            verify { delegateAdapter.didDismissPaywall(any()) }
+                            assertTrue("Expected Dismissed state emitted", dismissedStates.isNotEmpty())
+                            assertTrue(
+                                "Expected Dismissed to carry the Purchased result",
+                                dismissedStates.last().paywallResult is
+                                    com.superwall.sdk.paywall.presentation.internal.state.PaywallResult.Purchased,
+                            )
+                            assertFalse("Presentation state should be cleared on finish", view.state.isPresented)
+                            verify { cache.activePaywallVcKey = null }
+                        }
+                    }
+                }
+            } finally {
+                scope.cancel()
+                Dispatchers.resetMain()
+            }
+        }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun beforeOnDestroy_onNonFinishingBackgroundStop_doesNotCallWillDismiss() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            Dispatchers.setMain(dispatcher)
+            try {
+                Given("a presented PaywallView, not browser-presented") {
+                    clearMocks(delegateAdapter, answers = false)
+                    val view = makePaywallView(cache = null)
+                    view.controller.updateState(PaywallViewState.Updates.SetPresentedAndFinished)
+
+                    When("the Activity pauses WITHOUT finishing: beforeOnDestroy(forceCleanup = false)") {
+                        view.beforeOnDestroy(forceCleanup = false)
+
+                        Then("willDismissPaywall is NOT called") {
+                            verify(exactly = 0) { delegateAdapter.willDismissPaywall(any()) }
+                        }
+                    }
+                }
+            } finally {
                 Dispatchers.resetMain()
             }
         }

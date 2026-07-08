@@ -1,0 +1,25 @@
+{
+  "comment": "Configuration for the paywall preload benchmark (see .benchmark/README.md).",
+  "deltaPercent": 20.0,
+  "deltaPercentPerTier": {
+    "low": 30.0,
+    "mid": 15.0,
+    "high": 20.0
+  },
+  "runsPerEmulator": 10,
+  "iterations": 1,
+  "timeoutSec": 240,
+  "metric": "medianMs",
+  "placements": [
+    "present_urls",
+    "no_products",
+    "present_data",
+    "present_products",
+    "present_video",
+    "present_localized",
+    "present_free_trial",
+    "present_data_v4",
+    "scroll_test",
+    "price_readout"
+  ]
+}

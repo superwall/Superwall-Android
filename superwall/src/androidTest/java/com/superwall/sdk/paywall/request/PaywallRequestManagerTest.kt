@@ -280,7 +280,8 @@ class PaywallRequestManagerTest {
                         assert(preloadedPaywall.identifier == paywallId)
                         println(preloadedPaywall.experiment)
                         assert(preloadedPaywall.experiment == originalExperiment)
-                        assert(preloadedPaywall.presentationSourceType == "test_source")
+                        assert(firstPaywall.experiment == originalExperiment)
+                        assert(firstPaywall.presentationSourceType == "test_source")
                     }
                 }
             }

@@ -411,7 +411,7 @@ class PaywallView(
     }
 
     fun beforeOnDestroy(forceCleanup: Boolean = false) {
-        if (state.isBrowserViewPresented && !forceCleanup) {
+        if (!forceCleanup) {
             return
         }
         factory.updatePaywallInfo(info)
@@ -421,7 +421,13 @@ class PaywallView(
     }
 
     suspend fun destroyed(forceCleanup: Boolean = false) {
-        if (state.isBrowserViewPresented && !forceCleanup) {
+        if (!forceCleanup) {
+            if (state.isPresented && !state.isBrowserViewPresented && !state.closedForBackground) {
+                controller.updateState(SetClosedForBackground(true))
+                ioScope.launch {
+                    trackClose()
+                }
+            }
             return
         }
 
@@ -607,6 +613,12 @@ class PaywallView(
         controller.updateState(ClearViewCreatedCompletion)
 
         if (state.presentationDidFinishPrepare) {
+            if (state.closedForBackground) {
+                controller.updateState(SetClosedForBackground(false))
+                ioScope.launch {
+                    trackOpen()
+                }
+            }
             return
         }
         ioScope.launch {
