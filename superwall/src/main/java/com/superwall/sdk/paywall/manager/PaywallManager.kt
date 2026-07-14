@@ -80,6 +80,14 @@ class PaywallManager(
                         if (!isPreloading) {
                             view.callback = delegate
                             view.updateState(PaywallViewState.Updates.MergePaywall(it))
+                            // A cached view is being handed back for a new presentation. Clear any
+                            // per-presentation transient state (a stale LoadingPurchase/ManualLoading
+                            // spinner that swallows taps, and a stale presentationDidFinishPrepare)
+                            // leaked by a previous presentation that stopped without a finishing
+                            // teardown. This covers both the register()/full-screen path and the
+                            // embedded getPaywallView/getPaywall path, which both funnel through here.
+                            // Guarded by !isPreloading so preloading never resets a live view.
+                            view.resetTransientPresentationState()
                         }
                         return@mapAsync view
                     }

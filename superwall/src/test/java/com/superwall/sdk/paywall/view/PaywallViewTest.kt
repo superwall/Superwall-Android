@@ -951,7 +951,7 @@ class PaywallViewTest {
                         view.state.presentationDidFinishPrepare,
                     )
 
-                    When("the cached view is re-presented (present() resets transient state)") {
+                    When("the cached view is re-presented (PaywallManager resets transient state on cache-hit)") {
                         view.resetTransientPresentationState()
                         advanceUntilIdle()
 

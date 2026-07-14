@@ -160,6 +160,62 @@ class PaywallManagerTest {
         }
 
     @Test
+    fun test_getPaywallView_resetsTransientState_onCacheHitForNewPresentation() =
+        runTest {
+            // A cached view handed back for a new presentation (register() or embedded
+            // getPaywallView/getPaywall) must have its per-presentation transient state cleared
+            // so a stale LoadingPurchase spinner / presentationDidFinishPrepare flag from a
+            // previous non-finishing stop can't dead-button the buy button on re-present.
+            val paywall =
+                mockk<Paywall> {
+                    every { identifier } returns "test_paywall"
+                }
+            val request =
+                mockk<PaywallRequest> {
+                    every { isDebuggerLaunched } returns false
+                }
+            val mockView =
+                mockk<PaywallView>(relaxed = true) {
+                    every { loadingState } returns PaywallLoadingState.Unknown
+                }
+            val delegate = mockk<PaywallViewDelegateAdapter>()
+
+            coEvery { paywallRequestManager.getPaywall(any(), any()) } returns Either.Success(paywall)
+            every { cache.getPaywallView(any()) } returns mockView
+            every { mockView.callback = any() } just Runs
+            every { mockView.updateState(any()) } just Runs
+            every { mockView.resetTransientPresentationState() } just Runs
+
+            paywallManager.getPaywallView(request, isForPresentation = true, isPreloading = false, delegate)
+
+            verify { mockView.resetTransientPresentationState() }
+        }
+
+    @Test
+    fun test_getPaywallView_doesNotResetTransientState_whenPreloading() =
+        runTest {
+            // Preloading must never reset a (possibly live) cached view's transient state.
+            val paywall =
+                mockk<Paywall> {
+                    every { identifier } returns "test_paywall"
+                }
+            val request =
+                mockk<PaywallRequest> {
+                    every { isDebuggerLaunched } returns false
+                }
+            val mockView = mockk<PaywallView>(relaxed = true)
+
+            coEvery { paywallRequestManager.getPaywall(any(), any()) } returns Either.Success(paywall)
+            every { cache.getPaywallView(any()) } returns mockView
+
+            paywallManager.getPaywallView(request, isForPresentation = false, isPreloading = true, null)
+
+            verify(exactly = 0) { mockView.resetTransientPresentationState() }
+            verify(exactly = 0) { mockView.callback = any() }
+            verify(exactly = 0) { mockView.updateState(any()) }
+        }
+
+    @Test
     fun test_getPaywallView_skipsCache_whenDebuggerLaunched() =
         runTest {
             val paywall =

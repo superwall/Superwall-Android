@@ -9,7 +9,6 @@ import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiSelector
 import androidx.test.uiautomator.Until
 import com.example.superapp.utils.awaitUntilWebviewAppears
-import com.example.superapp.utils.awaitUntilWebviewDisappears
 import com.example.superapp.utils.clickButtonWith
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.superwall.SuperwallEvent
@@ -45,12 +44,15 @@ import kotlin.time.Duration.Companion.seconds
  * Repro: after a consumable purchase, re-presenting the SAME paywall in one app
  * session left the buy button dead — a stale `LoadingPurchase` loading overlay (and
  * stale `presentationDidFinishPrepare`) carried onto the re-presented CACHED paywall
- * and swallowed the tap. The fix has `PaywallView.present()` call
- * `resetTransientPresentationState()` first.
+ * and swallowed the tap. The fix resets that transient state upstream in
+ * `PaywallManager.getPaywallView`'s cache-hit branch, so BOTH the full-screen
+ * `register()` path and the embedded `getPaywall`/`getPaywallView` path are covered.
  *
- * These tests drive the full-screen `register()` flow (the fixed path) from a
- * fragment-hosted screen ([PaywallHostFragment]), purchase via Superwall test mode
- * (billing is unavailable on CI emulators), then re-present and re-tap buy.
+ * These tests drive the EMBEDDED path — the one the customer hit, and the one that was
+ * previously unfixed because the embed API never calls `present()`. A fragment
+ * ([PaywallHostFragment]) embeds the paywall via `PaywallBuilder`/`getPaywall`,
+ * purchases via Superwall test mode (billing is unavailable on CI emulators), then
+ * re-obtains/re-attaches the embedded paywall and re-taps buy.
  *
  * Assertions are event/state based (no golden screenshots) so they can be validated
  * on FTL without locally generated baseline images.
@@ -117,11 +119,12 @@ class RepresentTests {
     }
 
     /**
-     * Test 1 — repro + fix, end-to-end.
+     * Test 1 — repro + fix, end-to-end (embedded path).
      *
-     * Present → buy → drawer → Purchased → dismiss → re-present the SAME placement →
+     * Embed → buy → drawer → Confirm → complete → re-embed the SAME placement →
      * tap buy AGAIN. Pre-fix the second tap is dead (stale overlay swallows it) so the
-     * drawer never reappears; post-fix the purchase flow is re-invoked.
+     * drawer never reappears; post-fix the purchase flow is re-invoked because the
+     * cache-hit reset in `PaywallManager` cleared the stale `LoadingPurchase` overlay.
      */
     @Test
     fun test_represent_after_consumable_purchase_reinvokes_purchase() =
@@ -130,7 +133,7 @@ class RepresentTests {
 
             val scenario = launchFragmentInContainer<PaywallHostFragment>()
 
-            // First presentation.
+            // First embedded presentation.
             dismissTestModeActivationModalIfPresent()
             assertTrue("First paywall never appeared", awaitUntilWebviewAppears())
             delay(1.seconds)
@@ -144,10 +147,13 @@ class RepresentTests {
             val firstComplete = awaitEventAsync { it is SuperwallEvent.TransactionComplete }
             clickButtonWith(CONFIRM_PURCHASE_TEXT)
             assertNotNull("First purchase never completed", firstComplete.await())
-            awaitUntilWebviewDisappears()
+            // The embedded paywall isn't dismissed (no full-screen activity to finish);
+            // just wait for the test-mode drawer to close so the re-tap detects a FRESH drawer.
+            awaitTextDisappears(CONFIRM_PURCHASE_TEXT)
             delay(1.seconds)
 
-            // Re-present the SAME placement via the same fragment (reuses cached PaywallView).
+            // Re-obtain/re-attach the SAME placement via the embedded API (reuses the cached
+            // PaywallView through PaywallManager.getPaywallView's cache-hit reset).
             scenario.onFragment { it.present() }
             dismissTestModeActivationModalIfPresent()
             assertTrue("Re-presented paywall never appeared", awaitUntilWebviewAppears())
@@ -165,7 +171,7 @@ class RepresentTests {
     /**
      * Test 2 — public-API state assertion (analog of the internal-reset unit test).
      *
-     * After purchasing and re-presenting, the re-presented paywall must NOT be stuck in
+     * After purchasing and re-embedding, the re-presented paywall must NOT be stuck in
      * `LoadingPurchase` (which is what showed the tap-swallowing overlay). `:app:` can't
      * see the internal reset API, so we assert via the public `loadingState` getter.
      */
@@ -189,10 +195,10 @@ class RepresentTests {
             val complete = awaitEventAsync { it is SuperwallEvent.TransactionComplete }
             clickButtonWith(CONFIRM_PURCHASE_TEXT)
             assertNotNull("Purchase never completed", complete.await())
-            awaitUntilWebviewDisappears()
+            awaitTextDisappears(CONFIRM_PURCHASE_TEXT)
             delay(1.seconds)
 
-            // Re-present the cached paywall.
+            // Re-obtain/re-attach the cached embedded paywall (exercises the cache-hit reset).
             scenario.onFragment { it.present() }
             dismissTestModeActivationModalIfPresent()
             assertTrue("Re-presented paywall never appeared", awaitUntilWebviewAppears())
@@ -236,6 +242,18 @@ class RepresentTests {
         text: String,
         timeoutMs: Long = UI_TIMEOUT_MS,
     ): Boolean = device().wait(Until.findObject(By.textContains(text)), timeoutMs) != null
+
+    /**
+     * Waits until [text] is no longer on screen (best-effort, bounded by [timeoutMs]).
+     * Used after confirming a test-mode purchase so the subsequent buy re-tap detects a
+     * FRESH drawer rather than the lingering previous one. The embedded paywall itself is
+     * never dismissed (there's no full-screen activity to finish), so we can't wait on the
+     * webview disappearing.
+     */
+    private fun awaitTextDisappears(
+        text: String,
+        timeoutMs: Long = UI_TIMEOUT_MS,
+    ): Boolean = device().wait(Until.gone(By.textContains(text)), timeoutMs) ?: false
 
     /**
      * Subscribe to [events] BEFORE the triggering action (avoids the emit/collect race),

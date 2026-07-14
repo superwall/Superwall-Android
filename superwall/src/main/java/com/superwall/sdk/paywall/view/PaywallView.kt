@@ -299,7 +299,6 @@ class PaywallView(
         paywallStatePublisher: MutableSharedFlow<PaywallState>,
         completion: (Boolean) -> Unit,
     ) {
-        resetTransientPresentationState()
         webView.attach(this)
         cache?.acquireLoadingView()?.let {
             setupLoading(it)
@@ -483,10 +482,12 @@ class PaywallView(
     // onStop, which since #431 intentionally no longer tears the view down. That leaks
     // per-presentation transient state into the next present: a stale LoadingPurchase/ManualLoading
     // spinner swallows taps, and a stale presentationDidFinishPrepare makes onViewCreated()
-    // early-return without re-wiring the view. Resetting it at the start of present() gives every
-    // new presentation a clean slate. Safe because present() only runs for a genuinely new
-    // presentation - never on resume-same-instance (that goes through onResume -> onViewCreated)
-    // nor during an in-flight purchase.
+    // early-return without re-wiring the view. Called from PaywallManager.getPaywallView's cache-hit
+    // branch when a cached view is handed back for a new presentation, so every new presentation -
+    // full-screen register() and embedded getPaywallView/getPaywall alike - gets a clean slate.
+    // Safe because that branch only runs for a genuinely new presentation request - never on
+    // resume-same-instance (that goes through onResume -> onViewCreated) nor during an in-flight
+    // purchase.
     internal fun resetTransientPresentationState() {
         if (loadingState is PaywallLoadingState.LoadingPurchase ||
             loadingState is PaywallLoadingState.ManualLoading
