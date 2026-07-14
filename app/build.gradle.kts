@@ -113,12 +113,15 @@ dependencies {
     androidTestImplementation(libs.test.runner)
     androidTestImplementation(libs.mockk.android)
     androidTestImplementation(libs.mockk.core)
+    androidTestImplementation(libs.androidx.fragment.testing)
     androidTestUtil(libs.orchestrator)
 
     // Debug
     // debugImplementation(libs.leakcanary.android)
     debugImplementation(libs.ui.tooling)
     debugImplementation(libs.ui.test.manifest)
+    // Provides FragmentScenario's empty host activity in the debug manifest.
+    debugImplementation(libs.androidx.fragment.testing.manifest)
 }
 
 tasks.register<Exec>("pullEventTimelines") {

@@ -43,6 +43,7 @@ dokka = "2.1.0"
 detekt = "1.23.7"
 robolectric = "4.13"
 activity_ktx_version = "1.10.1"
+fragment_version = "1.8.5"
 [libraries]
 
 # SQL
@@ -110,6 +111,8 @@ test_core = { module = "androidx.test:core", version.ref = "test_runner_version"
 test_rules = { module = "androidx.test:rules", version.ref = "test_rules_version" }
 ui_test_junit4 = { module = "androidx.compose.ui:ui-test-junit4" }
 mockk_android = { module = "io.mockk:mockk-android", version.ref = "mockk_version" }
+androidx-fragment-testing = { module = "androidx.fragment:fragment-testing", version.ref = "fragment_version" }
+androidx-fragment-testing-manifest = { module = "androidx.fragment:fragment-testing-manifest", version.ref = "fragment_version" }
 
 # Debug
 ui_tooling = { module = "androidx.compose.ui:ui-tooling" }
