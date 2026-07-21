@@ -18,6 +18,7 @@ import com.superwall.sdk.config.options.PaywallOptions
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.delegate.SuperwallDelegate
 import com.superwall.sdk.logger.LogLevel
+import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 import com.superwall.sdk.store.testmode.TestModeBehavior
 import com.superwall.superapp.Keys
@@ -219,6 +220,12 @@ class RepresentTests {
 
     private suspend fun awaitConfigured() {
         Superwall.instance.configurationStateListener.first { it is ConfigurationStatus.Configured }
+        // Force a DEFINITE entitlement status. On CI emulators Google Play Billing is
+        // unavailable (developer error 5), so the status otherwise stays `Unknown` and
+        // paywall presentation is SKIPPED with `subscription_status_timeout` (the status
+        // stayed "unknown" for >5s). `Inactive` means "no entitlements" so the non-gated
+        // paywall still presents. Mirrors every paywall-presenting test in `UITestHandler`.
+        Superwall.instance.setSubscriptionStatus(SubscriptionStatus.Inactive)
     }
 
     private fun device() = UiDevice.getInstance(getInstrumentation())

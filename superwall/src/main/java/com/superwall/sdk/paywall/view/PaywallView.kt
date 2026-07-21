@@ -556,6 +556,15 @@ class PaywallView(
             }
 
             callback?.let {
+                // A callback-backed (embedded) paywall delegates teardown to its host, which
+                // may legitimately keep the view on screen (e.g. a tab-bar embed). The purchase
+                // spinner is otherwise only reset in the full destroy() teardown, so without
+                // this an embedded paywall that stays visible after a purchase spins forever.
+                if (loadingState is PaywallLoadingState.LoadingPurchase ||
+                    loadingState is PaywallLoadingState.ManualLoading
+                ) {
+                    controller.updateState(SetLoadingState(PaywallLoadingState.Ready))
+                }
                 controller.updateState(CallbackInvoked)
                 it.onFinished(
                     paywall = this,
