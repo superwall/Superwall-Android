@@ -2,7 +2,7 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
-## 2.7.21
+## 2.7.22
 
 ## Enhancements
 - Always notify backend of purchased entitlements 
