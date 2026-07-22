@@ -134,6 +134,7 @@ class TransactionManagerTest {
                     ),
                 )
             coEvery { queryAllPurchases() } returns emptyList()
+            every { purchaseResults } returns MutableStateFlow(null)
         }
     private var activityProvider =
         mockk<ActivityProvider> {
