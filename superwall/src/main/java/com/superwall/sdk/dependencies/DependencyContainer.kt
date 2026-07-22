@@ -592,6 +592,9 @@ class DependencyContainer(
                 showRestoreDialogForWeb = {
                     showWebRestoreSuccesful()
                 },
+                redeemExistingCodes = {
+                    reedemer.redeem(WebPaywallRedeemer.RedeemType.Existing)
+                },
                 entitlementsById = {
                     entitlements.byProductId(it)
                 },

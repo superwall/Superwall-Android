@@ -6,6 +6,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## Enhancements
 
+- Always redeem existing web codes after a successful purchase and on restore.
 - Adds `fontScale` and `fontSize` device attributes for the system text size.
 - Memoizes the device template used for audience-filter evaluation and paywall templating. The template is now rebuilt only when one of its mutable inputs (identity, entitlements, subscription status, interface style, platform wrapper, etc.) changes, while time-derived fields are recomputed on every read. This removes a full JSON round trip and repeated system lookups from every `register()` call.
 
