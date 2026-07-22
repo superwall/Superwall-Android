@@ -79,6 +79,7 @@ class TransactionManager(
         Superwall.instance.entitlements.web
     },
     private val showRestoreDialogForWeb: suspend () -> Unit,
+    private val notifyBackendOfReceipts: suspend () -> Unit = {},
     private val refreshReceipt: () -> Unit,
     private val updateState: (cacheKey: String, update: PaywallViewState.Updates) -> Unit,
     private val notifyOfTransactionComplete: suspend (paywallCacheKey: String, trialEndDate: Long?, productId: String) -> Unit,
@@ -478,6 +479,8 @@ class TransactionManager(
                 PaywallResult.Restored(),
             )
         }
+
+        ioScope.launchWithTracking { notifyBackendOfReceipts() }
     }
 
     private fun trackFailure(
@@ -657,6 +660,8 @@ class TransactionManager(
 
                 storeManager.loadPurchasedProducts(allEntitlementsByProductId())
 
+                ioScope.launchWithTracking { notifyBackendOfReceipts() }
+
                 trackTransactionDidSucceed(transaction, product, purchaseSource, didStartFreeTrial)
 
                 if (shouldDismiss && factory.makeSuperwallOptions().paywalls.automaticallyDismiss) {
@@ -694,6 +699,8 @@ class TransactionManager(
                         null
                     }
                 storeManager.loadPurchasedProducts(allEntitlementsByProductId())
+
+                ioScope.launchWithTracking { notifyBackendOfReceipts() }
 
                 trackTransactionDidSucceed(transaction, product, purchaseSource, didStartFreeTrial)
             }
