@@ -480,7 +480,7 @@ class TransactionManager(
             )
         }
 
-        notifyBackendOfReceipts()
+        ioScope.launchWithTracking { notifyBackendOfReceipts() }
     }
 
     private fun trackFailure(
@@ -660,7 +660,7 @@ class TransactionManager(
 
                 storeManager.loadPurchasedProducts(allEntitlementsByProductId())
 
-                notifyBackendOfReceipts()
+                ioScope.launchWithTracking { notifyBackendOfReceipts() }
 
                 trackTransactionDidSucceed(transaction, product, purchaseSource, didStartFreeTrial)
 
@@ -700,7 +700,7 @@ class TransactionManager(
                     }
                 storeManager.loadPurchasedProducts(allEntitlementsByProductId())
 
-                notifyBackendOfReceipts()
+                ioScope.launchWithTracking { notifyBackendOfReceipts() }
 
                 trackTransactionDidSucceed(transaction, product, purchaseSource, didStartFreeTrial)
             }
