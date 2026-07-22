@@ -53,6 +53,12 @@
             android:theme="@style/Theme.MyApplication" />
 
         <activity
+            android:name=".test.PaywallFragmentTestActivity"
+            android:exported="false"
+            android:label="Embedded Paywall Fragment"
+            android:theme="@style/Theme.MyApplication" />
+
+        <activity
             android:name=".MainActivity"
             android:exported="true">
             <intent-filter>

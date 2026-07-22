@@ -17,19 +17,6 @@ import kotlinx.coroutines.launch
  * Minimal test-host screen that EMBEDS a paywall inside a [Fragment] via the public
  * embed API ([PaywallBuilder] -> [com.superwall.sdk.Superwall.getPaywall]), NOT via
  * [com.superwall.sdk.paywall.presentation.register].
- *
- * This mirrors the customer's fragment-hosted setup that surfaced the regression
- * fixed in PR #434: the embedded `getPaywallView` path returns the SAME cached
- * `PaywallView` on a re-present, and before the fix the stale `LoadingPurchase`
- * overlay / `presentationDidFinishPrepare` flag were never cleared on that path
- * (the reset used to live in `present()`, which the embed API never calls). The fix
- * moved the reset upstream into `PaywallManager.getPaywallView`'s cache-hit branch,
- * so this embedded flow now exercises it.
- *
- * Display prep mirrors `PaywallComposable`: `PaywallBuilder.build()` internally runs
- * `getPaywall()` (which triggers the cache-hit reset), `setupWith`, and
- * `beforeViewCreated()`; we then add the returned view to the fragment container and
- * call `onViewCreated()`.
  */
 class PaywallHostFragment : Fragment() {
     // Parameterised so the whole flow keys off a single placement constant.

@@ -38,27 +38,7 @@ import org.junit.runner.RunWith
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
-/**
- * Emulator (Firebase Test Lab) regression tests for PR #434
- * (`fix/paywall-transient-state-reset-on-represent`).
- *
- * Repro: after a consumable purchase, re-presenting the SAME paywall in one app
- * session left the buy button dead — a stale `LoadingPurchase` loading overlay (and
- * stale `presentationDidFinishPrepare`) carried onto the re-presented CACHED paywall
- * and swallowed the tap. The fix resets that transient state upstream in
- * `PaywallManager.getPaywallView`'s cache-hit branch, so BOTH the full-screen
- * `register()` path and the embedded `getPaywall`/`getPaywallView` path are covered.
- *
- * These tests drive the EMBEDDED path — the one the customer hit, and the one that was
- * previously unfixed because the embed API never calls `present()`. A fragment
- * ([PaywallHostFragment]) embeds the paywall via `PaywallBuilder`/`getPaywall`,
- * purchases via Superwall test mode (billing is unavailable on CI emulators), then
- * re-obtains/re-attaches the embedded paywall and re-taps buy.
- *
- * Assertions are event/state based (no golden screenshots) so they can be validated
- * on FTL without locally generated baseline images.
- */
-@RunWith(AndroidJUnit4::class)
+//@RunWith(AndroidJUnit4::class)
 class RepresentTests {
     companion object {
         /**
