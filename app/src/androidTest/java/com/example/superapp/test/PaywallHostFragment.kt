@@ -44,14 +44,9 @@ class PaywallHostFragment : Fragment() {
         savedInstanceState: Bundle?,
     ): View = FrameLayout(requireContext()).also { this.container = it }
 
-    override fun onViewCreated(
-        view: View,
-        savedInstanceState: Bundle?,
-    ) {
-        super.onViewCreated(view, savedInstanceState)
-        // On view-create, embed the paywall exactly as the customer's fragment does.
-        present()
-    }
+    // NOTE: no auto-present on view-create. The SDK's config fetch is gated on the app
+    // being in the FOREGROUND (Network.getConfig -> awaitUntilAppInForeground), so the
+    // test must launch this host first, await Configured, and only then call [present].
 
     /**
      * Obtains the embedded paywall via the public [PaywallBuilder]/`getPaywall` API and

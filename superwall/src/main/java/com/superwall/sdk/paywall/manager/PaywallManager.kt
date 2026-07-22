@@ -86,8 +86,13 @@ class PaywallManager(
                             // leaked by a previous presentation that stopped without a finishing
                             // teardown. This covers both the register()/full-screen path and the
                             // embedded getPaywallView/getPaywall path, which both funnel through here.
-                            // Guarded by !isPreloading so preloading never resets a live view.
-                            view.resetTransientPresentationState()
+                            // Guarded by !isPreloading so preloading never resets a live view, and by
+                            // isForPresentation because getPresentationResult() (a pure query API)
+                            // also fetches through here — a result check while this paywall is
+                            // on screen mid-purchase must not wipe its live spinner or prepare flags.
+                            if (isForPresentation) {
+                                view.resetTransientPresentationState()
+                            }
                         }
                         return@mapAsync view
                     }

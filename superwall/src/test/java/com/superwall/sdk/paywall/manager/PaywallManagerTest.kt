@@ -192,6 +192,33 @@ class PaywallManagerTest {
         }
 
     @Test
+    fun test_getPaywallView_doesNotResetTransientState_forPresentationResultChecks() =
+        runTest {
+            // getPresentationResult() (a pure query API) fetches through getPaywallView with
+            // isPreloading = false but isForPresentation = false. A result check must never
+            // reset a live cached view's transient state (e.g. a spinner mid-purchase).
+            val paywall =
+                mockk<Paywall> {
+                    every { identifier } returns "test_paywall"
+                }
+            val request =
+                mockk<PaywallRequest> {
+                    every { isDebuggerLaunched } returns false
+                }
+            val mockView = mockk<PaywallView>(relaxed = true)
+            val delegate = mockk<PaywallViewDelegateAdapter>()
+
+            coEvery { paywallRequestManager.getPaywall(any(), any()) } returns Either.Success(paywall)
+            every { cache.getPaywallView(any()) } returns mockView
+            every { mockView.callback = any() } just Runs
+            every { mockView.updateState(any()) } just Runs
+
+            paywallManager.getPaywallView(request, isForPresentation = false, isPreloading = false, delegate)
+
+            verify(exactly = 0) { mockView.resetTransientPresentationState() }
+        }
+
+    @Test
     fun test_getPaywallView_doesNotResetTransientState_whenPreloading() =
         runTest {
             // Preloading must never reset a (possibly live) cached view's transient state.
