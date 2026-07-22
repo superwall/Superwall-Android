@@ -2,6 +2,11 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## Unreleased
+
+## Fixes
+- Fix a dead buy button when re-presenting a cached paywall in the same session after a purchase, for both `register()` and embedded paywalls (`getPaywall`/`getPaywallView`). Per-presentation transient state (loading spinner and presentation-prepared flag) is now reset on each new presentation, so it no longer leaks from a previous presentation that was stopped without a finishing teardown.
+
 ## 2.7.21
 
 ## Enhancements

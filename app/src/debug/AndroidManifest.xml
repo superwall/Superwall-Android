@@ -27,5 +27,12 @@
             android:name="com.superwall.superapp.benchmark.BenchmarkForegroundActivity"
             android:exported="false"
             android:theme="@android:style/Theme.Material.Light" />
+
+        <!-- Bare fragment host for RepresentTests; same must-live-in-the-app rule as
+             BenchmarkForegroundActivity above. The test commits its own fragment. -->
+        <activity
+            android:name="com.superwall.superapp.test.PaywallHostActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Material.Light" />
     </application>
 </manifest>
