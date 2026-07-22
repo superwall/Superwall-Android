@@ -2,7 +2,11 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
-## Unreleased
+## 2.7.21
+
+## Enhancements
+- Always notify backend of purchased entitlements 
+- Adds a 5 second timeout to resolving latest purchases, allowing non-play store purchases to resolve
 
 ## Fixes
 - Fix a dead buy button when re-presenting a cached paywall in the same session after a purchase, for both `register()` and embedded paywalls (`getPaywall`/`getPaywallView`). Per-presentation transient state (loading spinner and presentation-prepared flag) is now reset on each new presentation, so it no longer leaks from a previous presentation that was stopped without a finishing teardown.
@@ -11,7 +15,6 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## Enhancements
 
-- Always redeem existing web codes after a successful purchase and on restore.
 - Adds `fontScale` and `fontSize` device attributes for the system text size.
 - Memoizes the device template used for audience-filter evaluation and paywall templating. The template is now rebuilt only when one of its mutable inputs (identity, entitlements, subscription status, interface style, platform wrapper, etc.) changes, while time-derived fields are recomputed on every read. This removes a full JSON round trip and repeated system lookups from every `register()` call.
 
