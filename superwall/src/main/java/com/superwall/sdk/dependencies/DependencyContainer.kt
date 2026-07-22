@@ -592,7 +592,7 @@ class DependencyContainer(
                 showRestoreDialogForWeb = {
                     showWebRestoreSuccesful()
                 },
-                redeemExistingCodes = {
+                notifyBackendOfReceipts = {
                     reedemer.redeem(WebPaywallRedeemer.RedeemType.Existing)
                 },
                 entitlementsById = {

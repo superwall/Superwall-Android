@@ -79,9 +79,7 @@ class TransactionManager(
         Superwall.instance.entitlements.web
     },
     private val showRestoreDialogForWeb: suspend () -> Unit,
-    // Redeems any existing web codes after a successful purchase or restore (SW-5516).
-    // Injected as a closure so this manager never references the redeemer directly.
-    private val redeemExistingCodes: suspend () -> Unit = {},
+    private val notifyBackendOfReceipts: suspend () -> Unit = {},
     private val refreshReceipt: () -> Unit,
     private val updateState: (cacheKey: String, update: PaywallViewState.Updates) -> Unit,
     private val notifyOfTransactionComplete: suspend (paywallCacheKey: String, trialEndDate: Long?, productId: String) -> Unit,
@@ -482,8 +480,7 @@ class TransactionManager(
             )
         }
 
-        // SW-5516: redeem existing web codes after a successful restore.
-        redeemExistingCodes()
+        notifyBackendOfReceipts()
     }
 
     private fun trackFailure(
@@ -663,8 +660,7 @@ class TransactionManager(
 
                 storeManager.loadPurchasedProducts(allEntitlementsByProductId())
 
-                // SW-5516: redeem existing web codes after a successful purchase.
-                redeemExistingCodes()
+                notifyBackendOfReceipts()
 
                 trackTransactionDidSucceed(transaction, product, purchaseSource, didStartFreeTrial)
 
@@ -704,8 +700,7 @@ class TransactionManager(
                     }
                 storeManager.loadPurchasedProducts(allEntitlementsByProductId())
 
-                // SW-5516: redeem existing web codes after a successful purchase.
-                redeemExistingCodes()
+                notifyBackendOfReceipts()
 
                 trackTransactionDidSucceed(transaction, product, purchaseSource, didStartFreeTrial)
             }
