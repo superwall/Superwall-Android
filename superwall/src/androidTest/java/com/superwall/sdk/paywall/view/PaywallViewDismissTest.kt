@@ -16,6 +16,7 @@ import com.superwall.sdk.paywall.presentation.internal.PresentationRequestType
 import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
+import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 import com.superwall.sdk.paywall.view.delegate.PaywallViewCallback
 import com.superwall.sdk.paywall.view.delegate.PaywallViewDelegateAdapter
 import kotlinx.coroutines.Dispatchers
@@ -152,6 +153,60 @@ class PaywallViewDismissTest {
 
                     And("the delegate receives shouldDismiss true") {
                         assertEquals(true, callbackShouldDismiss)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun dismiss_purchased_resets_loading_spinner_for_embedded_paywall() =
+        runBlocking {
+            val finished = kotlinx.coroutines.CompletableDeferred<Unit>()
+            // Mirrors the tab-bar / embedded host: onFinished is a no-op, so the view stays
+            // on screen after the purchase and is NEVER torn down (destroy() is not called).
+            val callback =
+                object : PaywallViewCallback {
+                    override fun onFinished(
+                        paywall: PaywallView,
+                        result: PaywallResult,
+                        shouldDismiss: Boolean,
+                    ) {
+                        finished.complete(Unit)
+                    }
+                }
+            retainedCallback = callback
+            val delegate = PaywallViewDelegateAdapter(callback)
+            val view = makeView(delegate)
+
+            val publisher = MutableSharedFlow<PaywallState>(replay = 1, extraBufferCapacity = 1)
+            val request = makeRequest()
+            Given("an embedded paywall showing the purchase spinner") {
+                withContext(Dispatchers.Main) {
+                    view.set(request, publisher, null)
+                    view.onViewCreated()
+                    // Buy tap sets this in production (Superwall.kt InitiatePurchase).
+                    view.updateState(
+                        PaywallViewState.Updates.SetLoadingState(PaywallLoadingState.LoadingPurchase),
+                    )
+                }
+
+                When("the purchase completes and the SDK auto-dismisses") {
+                    withContext(Dispatchers.Main) {
+                        view.dismiss(
+                            result = PaywallResult.Purchased(productId = "product1"),
+                            closeReason = PaywallCloseReason.SystemLogic,
+                        )
+                    }
+
+                    // Wait for the dismissal hand-off (onFinished, shouldDismiss=true).
+                    withContext(Dispatchers.IO) {
+                        withTimeout(3000) { finished.await() }
+                    }
+
+                    Then("the loading spinner is reset to Ready even though the host kept the view") {
+                        // No destroy()/teardown here: the host (tab-bar embed) leaves the view
+                        // on screen. Pre-fix the LoadingPurchase spinner leaked and spun forever.
+                        assertEquals(PaywallLoadingState.Ready, view.loadingState)
                     }
                 }
             }

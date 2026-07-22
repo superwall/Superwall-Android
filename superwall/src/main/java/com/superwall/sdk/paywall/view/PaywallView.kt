@@ -477,6 +477,26 @@ class PaywallView(
         controller.updateState(ResetPresentationPreparations)
     }
 
+    // A cached view can be re-presented after a previous presentation was stopped without a
+    // finishing teardown - the purchase billing sheet (or backgrounding) triggers a non-finishing
+    // onStop, which since #431 intentionally no longer tears the view down. That leaks
+    // per-presentation transient state into the next present: a stale LoadingPurchase/ManualLoading
+    // spinner swallows taps, and a stale presentationDidFinishPrepare makes onViewCreated()
+    // early-return without re-wiring the view. Called from PaywallManager.getPaywallView's cache-hit
+    // branch when a cached view is handed back for a new presentation, so every new presentation -
+    // full-screen register() and embedded getPaywallView/getPaywall alike - gets a clean slate.
+    // Safe because that branch only runs for a genuinely new presentation request - never on
+    // resume-same-instance (that goes through onResume -> onViewCreated) nor during an in-flight
+    // purchase.
+    internal fun resetTransientPresentationState() {
+        if (loadingState is PaywallLoadingState.LoadingPurchase ||
+            loadingState is PaywallLoadingState.ManualLoading
+        ) {
+            controller.updateState(SetLoadingState(PaywallLoadingState.Ready))
+        }
+        resetPresentationPreparations()
+    }
+
     internal fun dismiss(
         result: PaywallResult,
         closeReason: PaywallCloseReason,
@@ -536,6 +556,15 @@ class PaywallView(
             }
 
             callback?.let {
+                // A callback-backed (embedded) paywall delegates teardown to its host, which
+                // may legitimately keep the view on screen (e.g. a tab-bar embed). The purchase
+                // spinner is otherwise only reset in the full destroy() teardown, so without
+                // this an embedded paywall that stays visible after a purchase spins forever.
+                if (loadingState is PaywallLoadingState.LoadingPurchase ||
+                    loadingState is PaywallLoadingState.ManualLoading
+                ) {
+                    controller.updateState(SetLoadingState(PaywallLoadingState.Ready))
+                }
                 controller.updateState(CallbackInvoked)
                 it.onFinished(
                     paywall = this,

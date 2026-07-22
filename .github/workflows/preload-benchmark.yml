@@ -1,4 +1,5 @@
-# Paywall preload benchmark — runs on PRs into main or develop.
+# Paywall preload benchmark — opt-in only. Runs on PRs into main or develop
+# that carry the `release` or `benchmark` label, or on manual dispatch.
 #
 # Measures the time from Superwall.preloadAllPaywalls() until every paywall for
 # the dev app's embedded API key reaches PaywallLoadingState.Ready, on 3
@@ -19,14 +20,16 @@
 name: Paywall Preload Benchmark
 
 on:
-  # PRs into main (release) and develop (feature) both run the benchmark, so
-  # preload regressions surface before they land anywhere.
+  # PRs into main (release) and develop (feature) run the benchmark only when
+  # opted in with the `release` or `benchmark` label — it burns 3 emulators for
+  # up to 40 minutes, so it's not worth paying on every PR push. `labeled` is in
+  # the trigger list so adding the label to an open PR starts the run.
   pull_request:
     branches: [ main, develop ]
-  # Merges re-run the benchmark AND roll the baseline forward automatically,
-  # so release PRs always gate against the latest mainline numbers.
-  push:
-    branches: [ main, develop ]
+    types: [ opened, synchronize, reopened, labeled ]
+  # No push trigger: a merge into main/develop carries no labels, so it could
+  # never satisfy the opt-in. Roll the baseline forward with a manual dispatch
+  # (update_baseline: true) off the branch you want to become the new mainline.
   workflow_dispatch:
     inputs:
       update_baseline:
@@ -43,6 +46,13 @@ jobs:
   build-apks:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Opt-in guard: PRs need the `release` or `benchmark` label; manual
+    # dispatches always run. The downstream jobs `needs` this one, so they skip
+    # with it.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.pull_request.labels.*.name, 'release') ||
+      contains(github.event.pull_request.labels.*.name, 'benchmark')
 
     steps:
     - name: Checkout code
@@ -254,7 +264,7 @@ jobs:
           --config .benchmark/config.json \
           --report .benchmark/REPORT.md \
           --normalized-out .benchmark/results \
-          ${{ (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.update_baseline)) && '--update-baseline' || '' }}
+          ${{ (github.event_name == 'workflow_dispatch' && inputs.update_baseline) && '--update-baseline' || '' }}
         echo "exit_code=$?" >> "$GITHUB_OUTPUT"
 
     - name: Publish report to job summary
