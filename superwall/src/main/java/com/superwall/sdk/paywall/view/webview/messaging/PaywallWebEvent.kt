@@ -4,6 +4,7 @@ import android.net.Uri
 import com.superwall.sdk.models.paywall.LocalNotification
 import com.superwall.sdk.paywall.presentation.CustomCallbackBehavior
 import com.superwall.sdk.permissions.PermissionType
+import com.superwall.sdk.store.ReplacementMode
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
@@ -16,6 +17,13 @@ sealed class PaywallWebEvent {
     @SerialName("initiate_purchase")
     data class InitiatePurchase(
         val productId: String,
+        val shouldDismiss: Boolean,
+    ) : PaywallWebEvent()
+
+    @SerialName("initiate_replacement")
+    data class InitiateReplacement(
+        val productId: String,
+        val replacementMode: ReplacementMode,
         val shouldDismiss: Boolean,
     ) : PaywallWebEvent()
 

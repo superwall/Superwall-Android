@@ -21,6 +21,9 @@ class InternalPurchaseController(
     val hasInternalPurchaseController: Boolean
         get() = kotlinPurchaseController is AutomaticPurchaseController
 
+    val automaticPurchaseController: AutomaticPurchaseController?
+        get() = kotlinPurchaseController as? AutomaticPurchaseController
+
     override suspend fun purchase(
         activity: Activity,
         productDetails: ProductDetails,
