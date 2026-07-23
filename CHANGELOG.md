@@ -2,6 +2,11 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## Unreleased
+
+## Fixes
+- Fix paywall inputs silently dropping all non-Latin keyboard text (Cyrillic, Korean, Thai, emoji, etc.). The webview no longer replaces Chromium's `InputConnection` with a dummy one unless `isGameControllerEnabled` is set, restoring the full IME pipeline (composition, autocorrect, swipe typing, autofill) for everyone else.
+
 ## 2.7.22
 
 ## Enhancements
