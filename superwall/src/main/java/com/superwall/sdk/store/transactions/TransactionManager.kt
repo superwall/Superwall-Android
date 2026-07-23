@@ -55,6 +55,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.dropWhile
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.ConcurrentHashMap
 
 class TransactionManager(
@@ -79,6 +80,7 @@ class TransactionManager(
         Superwall.instance.entitlements.web
     },
     private val showRestoreDialogForWeb: suspend () -> Unit,
+    private val notifyBackendOfReceipts: suspend () -> Unit = {},
     private val refreshReceipt: () -> Unit,
     private val updateState: (cacheKey: String, update: PaywallViewState.Updates) -> Unit,
     private val notifyOfTransactionComplete: suspend (paywallCacheKey: String, trialEndDate: Long?, productId: String) -> Unit,
@@ -437,21 +439,14 @@ class TransactionManager(
         product: StoreProduct? = null,
         purchaseSource: PurchaseSource,
     ) {
-        val purchasingCoordinator = factory.makeTransactionVerifier()
-        var transaction: StoreTransaction?
-        val restoreType: RestoreType
-
-        if (product != null) {
-            // Product exists so much have been via a purchase of a specific product.
-            transaction =
-                purchasingCoordinator.getLatestTransaction(
-                    factory = factory,
-                )
-            restoreType = RestoreType.ViaPurchase(transaction)
-        } else {
-            // Otherwise it was a generic restore.
-            restoreType = RestoreType.ViaRestore
-        }
+        val restoreType: RestoreType =
+            if (product != null) {
+                // Product exists so much have been via a purchase of a specific product.
+                RestoreType.ViaPurchase(awaitLatestTransaction())
+            } else {
+                // Otherwise it was a generic restore.
+                RestoreType.ViaRestore
+            }
 
         val trackedEvent =
             InternalSuperwallEvent.Transaction(
@@ -478,6 +473,8 @@ class TransactionManager(
                 PaywallResult.Restored(),
             )
         }
+
+        ioScope.launchWithTracking { notifyBackendOfReceipts() }
     }
 
     private fun trackFailure(
@@ -557,6 +554,10 @@ class TransactionManager(
     ) {
         val isObserved =
             source is PurchaseSource.ObserverMode
+
+        // The billing flow retains the last Play result indefinitely; clear it so this
+        // purchase can't be resolved against a stale transaction from an earlier one.
+        storeManager.billing.purchaseResults.value = null
 
         when (source) {
             is PurchaseSource.Internal -> {
@@ -649,13 +650,11 @@ class TransactionManager(
                     )
                 }
 
-                val transactionVerifier = factory.makeTransactionVerifier()
-                val transaction =
-                    transactionVerifier.getLatestTransaction(
-                        factory = factory,
-                    )
+                val transaction = awaitLatestTransaction()
 
                 storeManager.loadPurchasedProducts(allEntitlementsByProductId())
+
+                ioScope.launchWithTracking { notifyBackendOfReceipts() }
 
                 trackTransactionDidSucceed(transaction, product, purchaseSource, didStartFreeTrial)
 
@@ -677,23 +676,19 @@ class TransactionManager(
                     message = "Transaction Succeeded",
                     info = mapOf("product_id" to product.fullIdentifier),
                 )
-                val transactionVerifier = factory.makeTransactionVerifier()
                 val transaction =
                     if (purchaseSource is PurchaseSource.ExternalPurchase) {
-                        transactionVerifier.getLatestTransaction(
-                            factory = factory,
-                        )
                         if (purchase != null) {
                             factory.makeStoreTransaction(purchase)
                         } else {
-                            transactionVerifier.getLatestTransaction(
-                                factory = factory,
-                            )
+                            awaitLatestTransaction()
                         }
                     } else {
                         null
                     }
                 storeManager.loadPurchasedProducts(allEntitlementsByProductId())
+
+                ioScope.launchWithTracking { notifyBackendOfReceipts() }
 
                 trackTransactionDidSucceed(transaction, product, purchaseSource, didStartFreeTrial)
             }
@@ -988,6 +983,21 @@ class TransactionManager(
         )
     }
 
+    // With an external purchase controller the purchase may not go through Google Play
+    // at all (e.g. Galaxy Store), in which case the billing client never emits a result
+    // and an unbounded wait would hang the purchase flow forever. The transaction only
+    // enriches tracking events, so bound the wait and fall back to null.
+    private suspend fun awaitLatestTransaction(): StoreTransaction? {
+        val transactionVerifier = factory.makeTransactionVerifier()
+        return if (factory.makeHasExternalPurchaseController()) {
+            withTimeoutOrNull(TRANSACTION_LOOKUP_TIMEOUT_MS) {
+                transactionVerifier.getLatestTransaction(factory)
+            }
+        } else {
+            transactionVerifier.getLatestTransaction(factory)
+        }
+    }
+
     private suspend fun trackTransactionDidSucceed(
         transaction: StoreTransaction?,
         product: StoreProduct,
@@ -1092,4 +1102,8 @@ class TransactionManager(
         info = info,
         error = error,
     )
+
+    private companion object {
+        const val TRANSACTION_LOOKUP_TIMEOUT_MS = 5_000L
+    }
 }

@@ -11,6 +11,7 @@ import com.superwall.sdk.When
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.delegate.InternalPurchaseResult
+import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.misc.ActivityProvider
@@ -39,6 +40,7 @@ import io.mockk.mockkObject
 import io.mockk.unmockkObject
 import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -466,6 +468,58 @@ class TransactionManagerTest {
                                 .map { it.state }
                         assertTrue(restoreStates.any { it is InternalSuperwallEvent.Restore.State.Failure })
                         assertFalse(restoreStates.any { it is InternalSuperwallEvent.Restore.State.Complete })
+                    }
+                }
+            }
+        }
+
+    // endregion
+
+    // region non-Play purchase controller regression (Galaxy Store)
+
+    @Test
+    fun purchase_internalWithExternalControllerAndNoPlayResult_completesWithoutHanging() =
+        runTest {
+            Given("a paywall purchase resolved by an external purchase controller while Google Play never emits a result") {
+                // Reproduces the Galaxy Store hang: the customer's PurchaseController completes
+                // the purchase outside Google Play, so the SDK's billing client never fires
+                // onPurchasesUpdated and getLatestTransaction() used to suspend forever.
+                val productId = "product1"
+                val rawProduct =
+                    mockk<RawStoreProduct>(relaxed = true) {
+                        every { fullIdentifier } returns productId
+                        every { underlyingProductDetails } returns mockProductDetails(productId)
+                        every { hasFreeTrial } returns false
+                    }
+                val product = mockStoreProduct(productId, rawProduct)
+                every { storeManager.getProductFromCache(productId) } returns product
+                coEvery {
+                    storeManager.purchaseController.purchase(any(), any(), any(), any())
+                } returns PurchaseResult.Purchased()
+                every { factory.makeHasExternalPurchaseController() } returns true
+                every { factory.makeTransactionVerifier() } returns
+                    mockk {
+                        coEvery { getLatestTransaction(any()) } coAnswers { awaitCancellation() }
+                    }
+
+                When("the purchase is made from a paywall") {
+                    val result =
+                        transactionManager.purchase(
+                            TransactionManager.PurchaseSource.Internal(
+                                productId,
+                                mockk(relaxed = true),
+                            ),
+                        )
+
+                    Then("the purchase resolves and the transaction completes without a Play transaction attached") {
+                        assertTrue(result is PurchaseResult.Purchased)
+                        val completed =
+                            trackedEvents
+                                .filterIsInstance<InternalSuperwallEvent.Transaction>()
+                                .map { it.state }
+                                .filterIsInstance<InternalSuperwallEvent.Transaction.State.Complete>()
+                        assertTrue(completed.isNotEmpty())
+                        assertTrue(completed.all { it.transaction == null })
                     }
                 }
             }

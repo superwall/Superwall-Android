@@ -930,6 +930,54 @@ class PaywallViewTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
+    fun resetTransientPresentationState_clearsStalePurchaseSpinnerAndPrepareFlag_soRepresentReWires() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            Dispatchers.setMain(dispatcher)
+            try {
+                Given("a cached view left with stale transient state after a non-finishing stop mid-purchase") {
+                    val view = makePaywallView(cache = null)
+                    // A finished presentation whose purchase spinner never got torn down (#431):
+                    view.controller.updateState(PaywallViewState.Updates.SetPresentedAndFinished)
+                    view.controller.updateState(
+                        PaywallViewState.Updates.SetLoadingState(PaywallLoadingState.LoadingPurchase),
+                    )
+                    assertTrue(
+                        "Precondition: stale LoadingPurchase spinner",
+                        view.state.loadingState is PaywallLoadingState.LoadingPurchase,
+                    )
+                    assertTrue(
+                        "Precondition: stale presentationDidFinishPrepare",
+                        view.state.presentationDidFinishPrepare,
+                    )
+
+                    When("the cached view is re-presented (PaywallManager resets transient state on cache-hit)") {
+                        view.resetTransientPresentationState()
+                        advanceUntilIdle()
+
+                        Then("the spinner is cleared and onViewCreated() will re-wire instead of early-returning") {
+                            assertTrue(
+                                "Stale purchase spinner should be reset to Ready",
+                                view.state.loadingState is PaywallLoadingState.Ready,
+                            )
+                            assertFalse(
+                                "presentationDidFinishPrepare must be reset so onViewCreated() re-wires",
+                                view.state.presentationDidFinishPrepare,
+                            )
+                            assertTrue(
+                                "presentationWillPrepare must be re-armed for the new presentation",
+                                view.state.presentationWillPrepare,
+                            )
+                        }
+                    }
+                }
+            } finally {
+                Dispatchers.resetMain()
+            }
+        }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
     fun destroyed_whenFinishingAfterDismiss_emitsTerminalPaywallCloseWithReason_andClearsActiveKey() =
         runTest {
             val dispatcher = StandardTestDispatcher(testScheduler)
