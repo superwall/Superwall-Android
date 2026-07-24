@@ -82,9 +82,11 @@ jobs:
         ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.ORG_GRADLE_PROJECT_signingInMemoryKeyPassword }}
         ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.ORG_GRADLE_PROJECT_signingInMemoryKeyId }}
         ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.ORG_GRADLE_PROJECT_signingInMemoryKey }}
+      # mavenCentralAutomaticPublishing releases the deployment in the Central
+      # Portal automatically, so no manual "Publish" click is needed anymore.
       run: |
-        ./gradlew :superwall:publish --no-configuration-cache
-        ./gradlew :superwall-compose:publish --no-configuration-cache
+        ./gradlew :superwall:publish --no-configuration-cache -PmavenCentralAutomaticPublishing=true
+        ./gradlew :superwall-compose:publish --no-configuration-cache -PmavenCentralAutomaticPublishing=true
 
     - name: Determine prerelease status
       id: prerelease
@@ -112,6 +114,40 @@ jobs:
           sudo git push -u origin release/${{steps.version.outputs.prop}}
         fi
 
+    # Pull the "## <version>" section out of CHANGELOG.md to use as the
+    # release description. Version headings look like "## 2.7.22"; the
+    # section ends at the next version heading (or "## Unreleased").
+    - name: Extract release notes from changelog
+      if: steps.check-tag.outputs.tag-exists == 'false'
+      run: |
+        VERSION="${{ steps.version.outputs.prop }}"
+        awk -v ver="$VERSION" '
+          /^## / && $2 == ver { found = 1; next }
+          found && /^## / && ($2 ~ /^[0-9]+\./ || $2 == "Unreleased") { exit }
+          found { print }
+        ' CHANGELOG.md > release-notes.md
+        # Trim leading blank lines
+        sed -i -e '/./,$!d' release-notes.md
+        if [ ! -s release-notes.md ]; then
+          echo "No CHANGELOG.md entry found for $VERSION, falling back to a link."
+          echo "See the [CHANGELOG](https://github.com/superwall/Superwall-Android/blob/main/CHANGELOG.md) for details." > release-notes.md
+        fi
+        echo "Release notes for $VERSION:"
+        cat release-notes.md
+
+    - name: Create GitHub release
+      if: steps.check-tag.outputs.tag-exists == 'false'
+      id: release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ steps.version.outputs.prop }}
+        name: ${{ steps.version.outputs.prop }}
+        body_path: release-notes.md
+        prerelease: ${{ steps.prerelease.outputs.status }}
+        # Releases created with GITHUB_TOKEN don't trigger other workflows,
+        # so use a PAT to keep on-release.yml (paywall-next dispatch) working.
+        token: ${{ secrets.MAIN_REPO_PAT || secrets.GITHUB_TOKEN }}
+
     - name: slack-send
       # Only notify on a new tag
       if: steps.check-tag.outputs.tag-exists == 'false'
@@ -119,7 +155,7 @@ jobs:
       with:
         payload: |
           {
-            "text": "Please create a new Android Release! https://github.com/superwall/Superwall-Android/releases/new?tag=${{steps.version.outputs.prop}}&prerelease=${{steps.prerelease.outputs.status}}"
+            "text": "Android SDK ${{steps.version.outputs.prop}} was published to Maven Central and released: ${{ steps.release.outputs.url }}"
           }
       env:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
