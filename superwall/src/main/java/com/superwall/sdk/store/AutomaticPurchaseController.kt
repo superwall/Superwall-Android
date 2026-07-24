@@ -29,6 +29,7 @@ import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.store.abstractions.product.BasePlanType
 import com.superwall.sdk.store.abstractions.product.OfferType
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
+import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.transactions.PlayBillingErrors
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -50,7 +51,7 @@ private val BILLING_INSANTIATION_ERROR =
 class AutomaticPurchaseController(
     var context: Context,
     val scope: IOScope,
-    val entitlementsInfo: Entitlements,
+    val entitlementsInfo: () -> Entitlements = { Superwall.instance.dependencyContainer.entitlements },
     val getBilling: (Context, PurchasesUpdatedListener) -> BillingClient = { ctx, listener ->
         try {
             BillingClient
@@ -110,7 +111,7 @@ class AutomaticPurchaseController(
                             LogLevel.error,
                             LogScope.nativePurchaseController,
                             "ExternalNativePurchaseController billing client disconnected, " +
-                                "retrying in $reconnectMilliseconds milliseconds",
+                                    "retrying in $reconnectMilliseconds milliseconds",
                         )
 
                         CoroutineScope(Dispatchers.IO).launch {
@@ -270,6 +271,26 @@ class AutomaticPurchaseController(
         return value
     }
 
+    /**
+     * The automatic controller only handles Google Play products. Custom (store == CUSTOM)
+     * products require a [CustomProductPurchaseController] (or a PurchaseController that
+     * overrides purchase(customProduct:)). TransactionManager guards against reaching this in
+     * the normal flow; this override logs and fails clearly as a safety net.
+     */
+    override suspend fun purchase(customProduct: StoreProduct): PurchaseResult {
+        val message =
+            "AutomaticPurchaseController cannot purchase custom (store == CUSTOM) product " +
+                "'${customProduct.fullIdentifier}'. Configure Superwall with a " +
+                "CustomProductPurchaseController (or a PurchaseController that overrides " +
+                "purchase(customProduct:)) to handle custom products."
+        Logger.debug(
+            logLevel = LogLevel.error,
+            scope = LogScope.nativePurchaseController,
+            message = message,
+        )
+        return PurchaseResult.Failed(message)
+    }
+
     override suspend fun restorePurchases(): RestorationResult {
         syncSubscriptionStatusAndWait()
         return RestorationResult.Restored()
@@ -349,7 +370,7 @@ class AutomaticPurchaseController(
                         it.products
                     }.toSet()
                     .flatMap {
-                        val res = entitlementsInfo.byProductId(it)
+                        val res = entitlementsInfo().byProductId(it)
                         res
                     }.toSet()
                     .let { entitlements ->
@@ -359,7 +380,7 @@ class AutomaticPurchaseController(
                             message = "Found entitlements: ${entitlements.joinToString { it.id }}",
                         )
 
-                        entitlementsInfo.activeDeviceEntitlements = entitlements
+                        entitlementsInfo().activeDeviceEntitlements = entitlements
                         if (entitlements.isNotEmpty()) {
                             SubscriptionStatus.Active(
                                 entitlements.map { it.copy(isActive = true) }.toSet(),

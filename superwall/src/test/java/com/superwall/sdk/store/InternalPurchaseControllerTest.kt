@@ -105,6 +105,72 @@ class InternalPurchaseControllerTest {
         }
 
     @Test
+    fun `test CustomProductPurchaseController is treated as internal, not external`() =
+        runTest {
+            Given("an InternalPurchaseController wrapping a CustomProductPurchaseController") {
+                val customProductController = mockk<CustomProductPurchaseController>()
+                val controller =
+                    InternalPurchaseController(
+                        kotlinPurchaseController = customProductController,
+                        javaPurchaseController = null,
+                        context = mockContext,
+                    )
+
+                When("checking the controller flags") {
+                    Then("it is internal — Superwall manages the standard Play lifecycle") {
+                        assertTrue(controller.hasInternalPurchaseController)
+                        assertFalse(controller.hasExternalPurchaseController)
+                    }
+
+                    And("it can still fulfill custom product purchases") {
+                        assertTrue(controller.hasCustomProductPurchaseController)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `test a fully external controller can fulfill custom products`() =
+        runTest {
+            Given("an InternalPurchaseController with a generic external controller") {
+                val externalController = mockk<PurchaseController>()
+                val controller =
+                    InternalPurchaseController(
+                        kotlinPurchaseController = externalController,
+                        javaPurchaseController = null,
+                        context = mockContext,
+                    )
+
+                When("checking hasCustomProductPurchaseController") {
+                    Then("it is true — the controller may override purchase(customProduct:)") {
+                        assertTrue(controller.hasExternalPurchaseController)
+                        assertTrue(controller.hasCustomProductPurchaseController)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `test automatic controller cannot fulfill custom products`() =
+        runTest {
+            Given("an InternalPurchaseController with an AutomaticPurchaseController") {
+                val automaticController = mockk<AutomaticPurchaseController>()
+                val controller =
+                    InternalPurchaseController(
+                        kotlinPurchaseController = automaticController,
+                        javaPurchaseController = null,
+                        context = mockContext,
+                    )
+
+                When("checking hasCustomProductPurchaseController") {
+                    Then("it is false — custom purchases are rejected") {
+                        assertFalse(controller.hasCustomProductPurchaseController)
+                    }
+                }
+            }
+        }
+
+    @Test
     fun `test purchase delegates to Kotlin controller`() =
         runTest {
             Given("an InternalPurchaseController with Kotlin controller") {

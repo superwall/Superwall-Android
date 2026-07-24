@@ -20,7 +20,19 @@ class InternalPurchaseController(
         get() = !hasInternalPurchaseController
 
     val hasInternalPurchaseController: Boolean
-        get() = kotlinPurchaseController is AutomaticPurchaseController
+        get() =
+            kotlinPurchaseController is AutomaticPurchaseController ||
+                // Delegates standard purchases to the automatic controller, so Superwall still
+                // manages the Play lifecycle; only custom products route to the dev's lambda.
+                kotlinPurchaseController is CustomProductPurchaseController
+
+    /**
+     * Whether the configured controller can fulfill custom (store == CUSTOM) product purchases:
+     * a dedicated [CustomProductPurchaseController], or any fully external controller (which may
+     * override purchase(customProduct:)).
+     */
+    val hasCustomProductPurchaseController: Boolean
+        get() = kotlinPurchaseController is CustomProductPurchaseController || hasExternalPurchaseController
 
     override suspend fun purchase(
         activity: Activity,

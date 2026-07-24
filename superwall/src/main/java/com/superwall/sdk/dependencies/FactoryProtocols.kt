@@ -49,6 +49,7 @@ import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import com.superwall.sdk.store.testmode.TestMode
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import java.util.Date
 
 interface ApiFactory : JsonFactory {
     // TODO: Think of an alternative way such that we don't need to do this:
@@ -189,6 +190,15 @@ interface UserAttributesEventFactory {
 
 interface HasExternalPurchaseControllerFactory {
     fun makeHasExternalPurchaseController(): Boolean
+
+    /**
+     * Whether the configured controller can fulfill custom (store == CUSTOM) product purchases.
+     * Defaults to [makeHasExternalPurchaseController] since a fully external controller may
+     * override purchase(customProduct:); a CustomProductPurchaseController reports true here
+     * while reporting false for makeHasExternalPurchaseController (Superwall still manages the
+     * standard Play lifecycle for it).
+     */
+    fun makeHasCustomProductPurchaseController(): Boolean = makeHasExternalPurchaseController()
 }
 
 interface HasInternalPurchaseControllerFactory {
@@ -246,7 +256,7 @@ interface StoreTransactionFactory {
     suspend fun makeStoreTransaction(
         customTransactionId: String,
         productIdentifier: String,
-        purchaseDate: java.util.Date,
+        purchaseDate: Date,
     ): StoreTransaction
 
     suspend fun activeProductIds(): List<String>

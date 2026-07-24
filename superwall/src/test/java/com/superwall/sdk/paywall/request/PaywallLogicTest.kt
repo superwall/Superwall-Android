@@ -703,4 +703,83 @@ class PaywallLogicTest {
 
         assertTrue(outcome.isFreeTrialAvailable)
     }
+
+    // ---- isFreeTrialEligibleForCustomProduct (purchase-time eligibility) ----
+
+    private fun customStoreProduct(
+        trialDays: Int,
+        id: String = "custom_pro_1",
+    ): StoreProduct =
+        mockk {
+            every { fullIdentifier } returns id
+            every { trialPeriodDays } returns trialDays
+        }
+
+    @Test
+    fun test_customEligibility_true_whenTrialAndNoHistory() {
+        assertTrue(
+            PaywallLogic.isFreeTrialEligibleForCustomProduct(
+                product = customStoreProduct(trialDays = 7),
+                entitlements = setOf(proEntitlement),
+                customerInfo = customerInfoWithEntitlements(),
+            ),
+        )
+    }
+
+    @Test
+    fun test_customEligibility_false_whenTrialAlreadyConsumed() {
+        val consumed = proEntitlement.copy(latestProductId = "custom_pro_old", store = Store.CUSTOM)
+        assertFalse(
+            PaywallLogic.isFreeTrialEligibleForCustomProduct(
+                product = customStoreProduct(trialDays = 7),
+                entitlements = setOf(proEntitlement),
+                customerInfo = customerInfoWithEntitlements(consumed),
+            ),
+        )
+    }
+
+    @Test
+    fun test_customEligibility_false_whenNoTrialDays() {
+        assertFalse(
+            PaywallLogic.isFreeTrialEligibleForCustomProduct(
+                product = customStoreProduct(trialDays = 0),
+                entitlements = setOf(proEntitlement),
+                customerInfo = customerInfoWithEntitlements(),
+            ),
+        )
+    }
+
+    @Test
+    fun test_customEligibility_false_whenNoEntitlements() {
+        assertFalse(
+            PaywallLogic.isFreeTrialEligibleForCustomProduct(
+                product = customStoreProduct(trialDays = 7),
+                entitlements = emptySet(),
+                customerInfo = customerInfoWithEntitlements(),
+            ),
+        )
+    }
+
+    @Test
+    fun test_customEligibility_false_whenCustomerInfoIsPlaceholder() {
+        assertFalse(
+            PaywallLogic.isFreeTrialEligibleForCustomProduct(
+                product = customStoreProduct(trialDays = 7),
+                entitlements = setOf(proEntitlement),
+                customerInfo = CustomerInfo.empty(),
+            ),
+        )
+    }
+
+    @Test
+    fun test_customEligibility_false_whenIntroOfferIneligible() {
+        assertFalse(
+            PaywallLogic.isFreeTrialEligibleForCustomProduct(
+                product = customStoreProduct(trialDays = 7),
+                entitlements = setOf(proEntitlement),
+                customerInfo = customerInfoWithEntitlements(),
+                introOfferEligibility = IntroOfferEligibility.INELIGIBLE,
+            ),
+        )
+    }
 }

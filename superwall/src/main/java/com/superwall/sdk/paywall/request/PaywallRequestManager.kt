@@ -14,7 +14,6 @@ import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.map
 import com.superwall.sdk.misc.mapError
 import com.superwall.sdk.misc.onError
-import com.superwall.sdk.misc.fold
 import com.superwall.sdk.misc.then
 import com.superwall.sdk.models.customer.CustomerInfo
 import com.superwall.sdk.models.events.EventData
@@ -24,7 +23,6 @@ import com.superwall.sdk.network.Network
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.internal.request.ProductOverride
 import com.superwall.sdk.store.StoreManager
-import com.superwall.sdk.store.abstractions.product.ApiStoreProduct
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.CompletableDeferred
@@ -300,15 +298,22 @@ class PaywallRequestManager(
             var paywall = paywall
 
             paywall = trackProductsLoadStart(paywall, request)
-            // Fetch and cache custom products (store == CUSTOM) before Google Play product fetch.
-            // These are sourced from the Superwall /products endpoint, not from Play Billing.
-            fetchAndCacheCustomProducts(paywall)
-            paywall =
-                try {
-                    getProducts(paywall, request)
-                } catch (error: Throwable) {
-                    throw error
-                }
+            try {
+                // Custom products (store == CUSTOM) come from /products, not Play Billing.
+                // A /products failure is fatal — mirror BillingNotAvailable below.
+                fetchAndCacheCustomProducts(paywall)
+            } catch (error: Throwable) {
+                paywall.productsLoadingInfo.failAt = Date()
+                track(
+                    InternalSuperwallEvent.PaywallProductsLoad(
+                        state = InternalSuperwallEvent.PaywallProductsLoad.State.Fail(error.message),
+                        paywallInfo = paywall.getInfo(request.eventData),
+                        eventData = request.eventData,
+                    ),
+                )
+                throw error
+            }
+            paywall = getProducts(paywall, request)
             paywall = trackProductsLoadFinish(paywall, request.eventData)
 
             return@withContext paywall
@@ -319,46 +324,19 @@ class PaywallRequestManager(
      * /products endpoint and caches them in StoreManager so the downstream getProducts
      * flow finds them already loaded.
      *
-     * Idempotent: skips entirely when no custom products need refreshing.
+     * Idempotent: skips entirely when no custom products need refreshing. A /products
+     * failure is propagated (required = true) so [addProducts] surfaces it as a tracked
+     * product-load failure instead of presenting a paywall with missing prices.
      */
     private suspend fun fetchAndCacheCustomProducts(paywall: Paywall) {
         val customIds =
             paywall.productItems
                 .filter { it.type is ProductItem.StoreProductType.Custom }
                 .map { it.fullProductId }
-                .filterNot { it.isEmpty() }
                 .toSet()
         if (customIds.isEmpty()) return
 
-        val idsNeedingRefresh = customIds.filterNot { storeManager.hasCached(it) }
-        if (idsNeedingRefresh.isEmpty()) return
-
-        network.getSuperwallProducts().fold(
-            onSuccess = { response ->
-                val matches = response.data.filter { it.identifier in idsNeedingRefresh }
-                val seenIds = mutableSetOf<String>()
-                for (superwallProduct in matches) {
-                    if (!seenIds.add(superwallProduct.identifier)) {
-                        Logger.debug(
-                            LogLevel.warn,
-                            LogScope.productsManager,
-                            "Duplicate custom product id from /products: ${superwallProduct.identifier}",
-                        )
-                        continue
-                    }
-                    val apiProduct = ApiStoreProduct(superwallProduct)
-                    val storeProduct = StoreProduct.custom(apiProduct)
-                    storeManager.cacheProduct(superwallProduct.identifier, storeProduct)
-                }
-            },
-            onFailure = { error ->
-                Logger.debug(
-                    LogLevel.error,
-                    LogScope.productsManager,
-                    "Failed to fetch custom products: ${error.message}",
-                )
-            },
-        )
+        storeManager.fetchAndCacheCustomProducts(customIds, required = true)
     }
 
     private suspend fun getProducts(

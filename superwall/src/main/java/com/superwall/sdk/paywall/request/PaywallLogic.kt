@@ -178,6 +178,30 @@ object PaywallLogic {
             }
         }
 
+    /**
+     * Entitlement-history-based trial eligibility for a custom (store == CUSTOM) product,
+     * mirroring the check used for web products in [computeHasFreeTrial]. Used at purchase
+     * time so a repeat purchaser who already consumed their trial does not generate a
+     * spurious `freeTrialStart` event — the external payment system charges them immediately.
+     *
+     * Returns false when the product has no trial metadata, when eligibility can't be
+     * verified (e.g. no entitlements or customer info not yet loaded), or when the customer
+     * has ever held one of the product's entitlements.
+     */
+    fun isFreeTrialEligibleForCustomProduct(
+        product: StoreProduct,
+        entitlements: Set<Entitlement>,
+        customerInfo: CustomerInfo,
+        introOfferEligibility: IntroOfferEligibility = IntroOfferEligibility.AUTOMATIC,
+    ): Boolean =
+        isWebTrialAvailable(
+            name = product.fullIdentifier,
+            trialDays = product.trialPeriodDays,
+            entitlements = entitlements,
+            customerInfo = customerInfo,
+            introOfferEligibility = introOfferEligibility,
+        )
+
     private fun isWebTrialAvailable(
         name: String,
         trialDays: Int?,

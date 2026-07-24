@@ -314,7 +314,7 @@ class DependencyContainer(
             InternalPurchaseController(
                 kotlinPurchaseController =
                     purchaseController
-                        ?: AutomaticPurchaseController(context, ioScope, entitlements),
+                        ?: AutomaticPurchaseController(context, ioScope, { entitlements }),
                 javaPurchaseController = null,
                 context,
             )
@@ -330,6 +330,7 @@ class DependencyContainer(
                         customerInfoManager = { customerInfoManager },
                     )
                 },
+                getSuperwallProducts = { network.getSuperwallProducts() },
                 testMode = testMode,
             )
 
@@ -943,6 +944,9 @@ class DependencyContainer(
     override fun makeHasExternalPurchaseController(): Boolean =
         storeManager.purchaseController.hasExternalPurchaseController
 
+    override fun makeHasCustomProductPurchaseController(): Boolean =
+        storeManager.purchaseController.hasCustomProductPurchaseController
+
     override fun makeHasInternalPurchaseController(): Boolean =
         storeManager.purchaseController.hasInternalPurchaseController
 
@@ -1076,7 +1080,7 @@ class DependencyContainer(
     override suspend fun makeStoreTransaction(
         customTransactionId: String,
         productIdentifier: String,
-        purchaseDate: java.util.Date,
+        purchaseDate: Date,
     ): StoreTransaction =
         StoreTransaction(
             customTransactionId = customTransactionId,

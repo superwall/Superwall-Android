@@ -32,9 +32,11 @@ import com.superwall.sdk.misc.ActivityProvider
 import com.superwall.sdk.misc.AlertControllerFactory.AlertProps
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.launchWithTracking
+import com.superwall.sdk.models.customer.CustomerInfo
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.paywall.presentation.PaywallInfo
+import com.superwall.sdk.paywall.request.PaywallLogic
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.view.PaywallView
 import com.superwall.sdk.paywall.view.PaywallViewState
@@ -56,6 +58,8 @@ import kotlinx.coroutines.flow.dropWhile
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import java.util.Date
+import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 class TransactionManager(
@@ -78,6 +82,9 @@ class TransactionManager(
     private val allEntitlementsByProductId: () -> Map<String, Set<Entitlement>>,
     private val webEntitlements: () -> Set<Entitlement> = {
         Superwall.instance.entitlements.web
+    },
+    private val currentCustomerInfo: () -> CustomerInfo = {
+        Superwall.instance.getCustomerInfo()
     },
     private val showRestoreDialogForWeb: suspend () -> Unit,
     private val notifyBackendOfReceipts: suspend () -> Unit = {},
@@ -453,46 +460,82 @@ class TransactionManager(
         purchaseSource: PurchaseSource,
         shouldDismiss: Boolean,
     ): PurchaseResult {
-        if (!factory.makeHasExternalPurchaseController()) {
+        if (!factory.makeHasCustomProductPurchaseController()) {
             val message =
-                "Custom products require an external PurchaseController. " +
-                    "Configure Superwall with a PurchaseController that overrides " +
-                    "purchase(customProduct:) to handle ${product.fullIdentifier}."
+                "Custom products require a PurchaseController that handles them. Configure " +
+                    "Superwall with a CustomProductPurchaseController (or a PurchaseController " +
+                    "that overrides purchase(customProduct:)) to handle ${product.fullIdentifier}."
             log(message = message, error = Error(message))
             trackFailure(message, product, purchaseSource)
             if (purchaseSource is PurchaseSource.Internal) {
-                updateState(
-                    purchaseSource.paywallInfo.cacheKey,
-                    PaywallViewState.Updates.ToggleSpinner(hidden = true),
-                )
+                // Surface the misconfiguration on the paywall, mirroring other purchase
+                // failures, instead of silently hiding the spinner.
+                val options = factory.makeSuperwallOptions()
+                val transactionFailExists =
+                    factory.makeTriggers().contains(SuperwallEvents.TransactionFail.rawName)
+                if (options.paywalls.shouldShowPurchaseFailureAlert && !transactionFailExists) {
+                    presentAlert(Error(message), product, purchaseSource.state)
+                } else {
+                    updateState(
+                        purchaseSource.paywallInfo.cacheKey,
+                        PaywallViewState.Updates.ToggleSpinner(hidden = true),
+                    )
+                }
             }
             return PurchaseResult.Failed(message)
         }
 
-        // Regenerate the transaction id on every attempt so cancel-and-retry
-        // doesn't reuse the same identifier in analytics.
-        product.customTransactionId = java.util.UUID.randomUUID().toString()
+        // Local copy keeps this flow consistent even if a concurrent purchase overwrites the
+        // shared product's field; product.customTransactionId is set for the dev-facing contract.
+        val txnId = UUID.randomUUID().toString()
+        product.customTransactionId = txnId
+
+        // Entitlement-history-based eligibility, not raw trial metadata: a repeat purchaser who
+        // already used their trial is charged immediately and must not emit freeTrialStart.
+        val didStartFreeTrial =
+            PaywallLogic.isFreeTrialEligibleForCustomProduct(
+                product = product,
+                entitlements = entitlementsById(product.fullIdentifier),
+                customerInfo = currentCustomerInfo(),
+            )
 
         prepareToPurchase(product, purchaseSource)
 
+        // prepareToPurchase skips the Start event for an external-only controller, but a custom
+        // purchase is otherwise invisible to Superwall — emit Start so it pairs with the Complete
+        // tracked on success and transaction funnels stay balanced.
+        val isExternalOnly =
+            purchaseSource is PurchaseSource.ExternalPurchase &&
+                factory.makeHasExternalPurchaseController() &&
+                !factory.makeHasInternalPurchaseController()
+        if (isExternalOnly) {
+            track(
+                InternalSuperwallEvent.Transaction(
+                    InternalSuperwallEvent.Transaction.State.Start(product),
+                    PaywallInfo.empty(),
+                    product,
+                    null,
+                    isObserved = false,
+                    source = TransactionSource.EXTERNAL,
+                    demandScore = factory.demandScore(),
+                    demandTier = factory.demandTier(),
+                ),
+            )
+        }
+
         val result = storeManager.purchaseController.purchase(customProduct = product)
 
-        // If we only have an external PurchaseController, the dev's flow handles the
-        // rest of the transaction lifecycle (mirrors the existing ExternalPurchase
-        // early return below for Play products).
-        if (purchaseSource is PurchaseSource.ExternalPurchase &&
-            factory.makeHasExternalPurchaseController() &&
-            !factory.makeHasInternalPurchaseController()
-        ) {
+        // For an external-only controller the dev's flow owns the rest of the lifecycle; still
+        // build + track the transaction so analytics include the custom txn id.
+        if (isExternalOnly) {
             if (result is PurchaseResult.Purchased) {
-                // Still build + track a transaction so analytics include the custom txn id.
                 val transaction =
                     factory.makeStoreTransaction(
-                        customTransactionId = product.customTransactionId ?: java.util.UUID.randomUUID().toString(),
+                        customTransactionId = txnId,
                         productIdentifier = product.fullIdentifier,
-                        purchaseDate = java.util.Date(),
+                        purchaseDate = Date(),
                     )
-                trackTransactionDidSucceed(transaction, product, purchaseSource, product.hasFreeTrial)
+                trackTransactionDidSucceed(transaction, product, purchaseSource, didStartFreeTrial)
             }
             return result
         }
@@ -501,12 +544,12 @@ class TransactionManager(
             is PurchaseResult.Purchased -> {
                 val transaction =
                     factory.makeStoreTransaction(
-                        customTransactionId = product.customTransactionId ?: java.util.UUID.randomUUID().toString(),
+                        customTransactionId = txnId,
                         productIdentifier = product.fullIdentifier,
-                        purchaseDate = java.util.Date(),
+                        purchaseDate = Date(),
                     )
                 // Skip storeManager.loadPurchasedProducts — no Play receipt for custom products.
-                trackTransactionDidSucceed(transaction, product, purchaseSource, product.hasFreeTrial)
+                trackTransactionDidSucceed(transaction, product, purchaseSource, didStartFreeTrial)
                 if (shouldDismiss &&
                     purchaseSource is PurchaseSource.Internal &&
                     factory.makeSuperwallOptions().paywalls.automaticallyDismiss
