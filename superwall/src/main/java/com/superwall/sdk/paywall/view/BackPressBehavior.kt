@@ -2,18 +2,37 @@ package com.superwall.sdk.paywall.view
 
 import com.superwall.sdk.models.paywall.Paywall
 
+internal enum class BackPressBehavior {
+    /** The host app's `onBackPressed` callback consumed the press. */
+    CONSUMED_BY_APP,
+
+    /** Forward the press into the paywall as a `back_button_input` message. */
+    FORWARD_TO_PAYWALL,
+
+    /** Dismiss the paywall, matching a manual close. */
+    DISMISS,
+}
+
 /**
- * Decides whether the host app's `PaywallOptions.onBackPressed` callback
- * consumes a system back press. The callback is only consulted when
- * `reroute_back_button` is enabled in Paywall settings.
+ * Decides what a system back press does while a paywall is presented.
  *
- * A press the app doesn't consume is forwarded into the paywall as a
- * `back_button_input` message: the paywall navigates its flow back one page
- * when possible, and otherwise posts `close` to dismiss. Paywalls that can't
- * handle the message (older runtimes, loading/crashed webviews) fall back to
- * the SDK's native dismiss — see `PaywallView.backButtonPressed`.
+ * With `reroute_back_button` enabled in Paywall settings, the host app's
+ * `PaywallOptions.onBackPressed` callback gets first refusal; a press it
+ * doesn't consume is forwarded into the paywall as a `back_button_input`
+ * message, and the paywall either navigates its flow back one page or posts
+ * `close` to dismiss. Paywalls that can't handle the message (older
+ * runtimes, loading/crashed webviews) fall back to the SDK's native dismiss
+ * — see `PaywallView.backButtonPressed`.
+ *
+ * With the setting disabled (the default) the paywall dismisses
+ * immediately, unchanged from previous SDK versions.
  */
-internal fun isBackPressConsumedByApp(
+internal fun backPressBehavior(
     rerouteBackButton: Paywall.ToggleMode?,
     consumedByApp: () -> Boolean,
-): Boolean = rerouteBackButton == Paywall.ToggleMode.ENABLED && consumedByApp()
+): BackPressBehavior =
+    when {
+        rerouteBackButton != Paywall.ToggleMode.ENABLED -> BackPressBehavior.DISMISS
+        consumedByApp() -> BackPressBehavior.CONSUMED_BY_APP
+        else -> BackPressBehavior.FORWARD_TO_PAYWALL
+    }

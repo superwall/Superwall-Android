@@ -297,8 +297,8 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
                     val paywallView = paywallView()
-                    val consumedByApp =
-                        isBackPressConsumedByApp(
+                    val behavior =
+                        backPressBehavior(
                             rerouteBackButton = paywallView?.state?.paywall?.rerouteBackButton,
                             consumedByApp = {
                                 Superwall.instance.options.paywalls.onBackPressed
@@ -306,16 +306,18 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                                     ?: false
                             },
                         )
-                    if (consumedByApp) {
-                        return
-                    }
                     val dismiss = {
                         view.dismiss(
                             result = PaywallResult.Declined(),
                             closeReason = PaywallCloseReason.ManualClose,
                         )
                     }
-                    paywallView?.backButtonPressed(onUnhandled = dismiss) ?: dismiss()
+                    when (behavior) {
+                        BackPressBehavior.CONSUMED_BY_APP -> Unit
+                        BackPressBehavior.FORWARD_TO_PAYWALL ->
+                            paywallView?.backButtonPressed(onUnhandled = dismiss) ?: dismiss()
+                        BackPressBehavior.DISMISS -> dismiss()
+                    }
                 }
             },
         )

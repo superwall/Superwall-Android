@@ -164,6 +164,7 @@ class PaywallOptions() {
      * logic: the press is forwarded into the paywall as a `back_button_input` message,
      * and the paywall either navigates its flow back one page or closes itself. If the
      * paywall's runtime can't handle the message, the paywall dismisses natively.
+     * Paywalls with `reroute_back_button` disabled dismiss on back press directly.
      */
     var onBackPressed: ((PaywallInfo?) -> Boolean)? = null
 }
