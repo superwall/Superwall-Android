@@ -140,6 +140,8 @@ class PaywallView(
     private companion object {
         private val mainScope: MainScope = MainScope()
         private val ioScope: IOScope = IOScope()
+        private const val SUPPORTS_BACK_BUTTON_INPUT_PROBE =
+            "typeof window.paywall !== 'undefined' && window.paywall.supportsBackButtonInput === true"
         private val webEventJson by lazy {
             Json {
                 encodeDefaults = true
@@ -1109,24 +1111,37 @@ class PaywallView(
 //region Back button
 
     /**
-     * Forwards a system back press into the paywall (`back_button_input`).
-     * The paywall either navigates its flow back one page or posts `close`,
-     * which dismisses via the standard manual-close path. Called when
-     * `reroute_back_button` is enabled in Paywall settings.
+     * Handles a system back press. Probes the webview for the paywall-js
+     * `supportsBackButtonInput` capability: when present, the press is
+     * forwarded into the paywall as a `back_button_input` message and the
+     * paywall either navigates its flow back one page or posts `close`,
+     * which dismisses via the standard manual-close path. When the paywall
+     * can't handle it (older runtime, still loading, crashed webview),
+     * [onUnhandled] is invoked so the caller dismisses natively instead.
      */
-    fun backButtonPressed() {
-        val payload =
-            try {
-                webEventJson.encodeToString(BackButtonInputEvent(pressed = true))
-            } catch (e: Throwable) {
-                null
-            } ?: return
-        webView.evaluate("window.paywall.accept([$payload])", null)
-        Logger.debug(
-            logLevel = LogLevel.debug,
-            scope = LogScope.paywallView,
-            message = "Back button press forwarded to paywall: $payload",
-        )
+    fun backButtonPressed(onUnhandled: () -> Unit) {
+        webView.evaluate(SUPPORTS_BACK_BUTTON_INPUT_PROBE) { result ->
+            if (result?.trim() != "true") {
+                onUnhandled()
+                return@evaluate
+            }
+            val payload =
+                try {
+                    webEventJson.encodeToString(BackButtonInputEvent(pressed = true))
+                } catch (e: Throwable) {
+                    null
+                }
+            if (payload == null) {
+                onUnhandled()
+                return@evaluate
+            }
+            webView.evaluate("window.paywall.accept([$payload])", null)
+            Logger.debug(
+                logLevel = LogLevel.debug,
+                scope = LogScope.paywallView,
+                message = "Back button press forwarded to paywall: $payload",
+            )
+        }
     }
 
 //endregion
