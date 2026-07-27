@@ -294,7 +294,7 @@ class TransactionManagerTest {
                 coEvery {
                     purchaseController.purchase(
                         any(),
-                        any(),
+                        any<StoreProduct>(),
                         "basePlan",
                         any(),
                     )
@@ -400,7 +400,7 @@ class TransactionManagerTest {
                 coEvery {
                     purchaseController.purchase(
                         any(),
-                        any(),
+                        any<StoreProduct>(),
                         "basePlan",
                         any(),
                     )
@@ -525,7 +525,7 @@ class TransactionManagerTest {
                 coEvery {
                     purchaseController.purchase(
                         any(),
-                        any(),
+                        any<StoreProduct>(),
                         "basePlan",
                         any(),
                     )
@@ -581,7 +581,7 @@ class TransactionManagerTest {
                 coEvery {
                     purchaseController.purchase(
                         any(),
-                        any(),
+                        any<StoreProduct>(),
                         "basePlan",
                         any(),
                     )
@@ -631,7 +631,7 @@ class TransactionManagerTest {
                 coEvery {
                     purchaseController.purchase(
                         any(),
-                        any(),
+                        any<StoreProduct>(),
                         "basePlan",
                         any(),
                     )
@@ -676,7 +676,7 @@ class TransactionManagerTest {
                 coEvery {
                     purchaseController.purchase(
                         any(),
-                        any(),
+                        any<StoreProduct>(),
                         "basePlan",
                         any(),
                     )
@@ -722,7 +722,7 @@ class TransactionManagerTest {
                 coEvery {
                     purchaseController.purchase(
                         any(),
-                        any(),
+                        any<StoreProduct>(),
                         any(),
                         any(),
                     )
@@ -911,7 +911,7 @@ class TransactionManagerTest {
                 coEvery {
                     purchaseController.purchase(
                         any(),
-                        any(),
+                        any<StoreProduct>(),
                         "basePlan",
                         any(),
                     )
@@ -957,7 +957,7 @@ class TransactionManagerTest {
                 coEvery {
                     purchaseController.purchase(
                         any(),
-                        any(),
+                        any<StoreProduct>(),
                         any(),
                         any(),
                     )
@@ -1002,7 +1002,7 @@ class TransactionManagerTest {
                 coEvery {
                     purchaseController.purchase(
                         any(),
-                        any(),
+                        any<StoreProduct>(),
                         any(),
                         any(),
                     )
@@ -1050,7 +1050,7 @@ class TransactionManagerTest {
                 coEvery {
                     purchaseController.purchase(
                         any(),
-                        any(),
+                        any<StoreProduct>(),
                         "basePlan",
                         any(),
                     )
@@ -1098,7 +1098,7 @@ class TransactionManagerTest {
                 coEvery {
                     purchaseController.purchase(
                         any(),
-                        any(),
+                        any<StoreProduct>(),
                         "basePlan",
                         any(),
                     )
