@@ -1,5 +1,6 @@
 package com.superwall.sdk.misc.primitives
 
+import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -31,10 +32,15 @@ class SequentialActor<Context, S>(
     }
 
     init {
-        // Single consumer — FIFO ordering guaranteed.
+        // Single consumer — FIFO ordering guaranteed. Each unit of work is
+        // guarded: a throwing action must neither kill this loop (silently
+        // halting every subsequent action) nor escape to the scope, which may
+        // have no CoroutineExceptionHandler and would crash the app (e.g. a
+        // failing billing fetch inside CheckWebEntitlements). Failures are
+        // recorded via error tracking, matching the SuperwallScope handlers.
         scope.launch(OwnerElement(this@SequentialActor)) {
             for (work in queue) {
-                work()
+                withErrorTracking { work() }
             }
         }
     }
