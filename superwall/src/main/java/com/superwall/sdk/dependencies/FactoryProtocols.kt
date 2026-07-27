@@ -190,15 +190,6 @@ interface UserAttributesEventFactory {
 
 interface HasExternalPurchaseControllerFactory {
     fun makeHasExternalPurchaseController(): Boolean
-
-    /**
-     * Whether the configured controller can fulfill custom (store == CUSTOM) product purchases.
-     * Defaults to [makeHasExternalPurchaseController] since a fully external controller may
-     * override purchase(customProduct:); a CustomProductPurchaseController reports true here
-     * while reporting false for makeHasExternalPurchaseController (Superwall still manages the
-     * standard Play lifecycle for it).
-     */
-    fun makeHasCustomProductPurchaseController(): Boolean = makeHasExternalPurchaseController()
 }
 
 interface HasInternalPurchaseControllerFactory {

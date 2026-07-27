@@ -10,6 +10,8 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.Serializer
 import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.descriptors.buildClassSerialDescriptor
 import kotlinx.serialization.descriptors.listSerialDescriptor
@@ -27,7 +29,7 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
-@Serializable
+@Serializable(with = StoreSerializer::class)
 enum class Store {
     @SerialName("PLAY_STORE")
     PLAY_STORE,
@@ -64,6 +66,19 @@ enum class Store {
                 else -> OTHER
             }
     }
+}
+
+// Unknown store types from the backend decode as OTHER instead of throwing,
+// regardless of how the decoding Json instance is configured.
+object StoreSerializer : KSerializer<Store> {
+    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("Store", PrimitiveKind.STRING)
+
+    override fun serialize(
+        encoder: Encoder,
+        value: Store,
+    ) = encoder.encodeString(value.name)
+
+    override fun deserialize(decoder: Decoder): Store = Store.fromValue(decoder.decodeString())
 }
 
 sealed class Offer {
@@ -342,12 +357,25 @@ object StoreProductSerializer : KSerializer<ProductItem.StoreProductType> {
                 ProductItem.StoreProductType.Custom(product)
             }
 
-            Store.SUPERWALL,
-            Store.OTHER,
-            -> {
+            Store.SUPERWALL -> {
                 val product =
                     json.decodeFromJsonElement(UnknownStoreProduct.serializer(), jsonObject)
                 ProductItem.StoreProductType.Other(product)
+            }
+
+            Store.OTHER -> {
+                // API contract: custom store products are sent with store == OTHER so SDKs
+                // that predate CUSTOM ignore them. Try the custom product shape first and
+                // fall back to Other if the fields don't match.
+                try {
+                    val product =
+                        json.decodeFromJsonElement(CustomStoreProduct.serializer(), jsonObject)
+                    ProductItem.StoreProductType.Custom(product)
+                } catch (e: SerializationException) {
+                    val product =
+                        json.decodeFromJsonElement(UnknownStoreProduct.serializer(), jsonObject)
+                    ProductItem.StoreProductType.Other(product)
+                }
             }
         }
     }

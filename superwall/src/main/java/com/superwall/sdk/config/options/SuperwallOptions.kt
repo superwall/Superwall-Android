@@ -27,7 +27,7 @@ class SuperwallOptions() {
         open val hostDomain: String,
     ) {
         open val baseHost: String
-            get() = "api.$hostDomain"
+            get() = "ir-feat-custom-store-and.prd.us-east-1.review-lab.superwall-services.com"
 
         open val collectorHost: String
             get() = "collector.$hostDomain"

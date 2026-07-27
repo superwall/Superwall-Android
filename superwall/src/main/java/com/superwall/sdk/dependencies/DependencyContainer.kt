@@ -944,9 +944,6 @@ class DependencyContainer(
     override fun makeHasExternalPurchaseController(): Boolean =
         storeManager.purchaseController.hasExternalPurchaseController
 
-    override fun makeHasCustomProductPurchaseController(): Boolean =
-        storeManager.purchaseController.hasCustomProductPurchaseController
-
     override fun makeHasInternalPurchaseController(): Boolean =
         storeManager.purchaseController.hasInternalPurchaseController
 

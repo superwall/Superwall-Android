@@ -1,6 +1,7 @@
 package com.superwall.sdk.store.abstractions.product
 
 import com.superwall.sdk.store.testmode.models.SuperwallProduct
+import com.superwall.sdk.store.testmode.models.SuperwallProductPlatform
 import com.superwall.sdk.store.testmode.models.SuperwallSubscriptionPeriod
 import com.superwall.sdk.utilities.DateUtils
 import com.superwall.sdk.utilities.localizedDateFormat
@@ -18,6 +19,10 @@ import java.util.Locale
 class ApiStoreProduct(
     private val superwallProduct: SuperwallProduct,
 ) : StoreProductType {
+    /** The platform this product belongs to, as reported by the /products endpoint. */
+    val platform: SuperwallProductPlatform
+        get() = superwallProduct.platform
+
     private val priceFormatterProvider = PriceFormatterProvider()
 
     private val priceFormatter by lazy {

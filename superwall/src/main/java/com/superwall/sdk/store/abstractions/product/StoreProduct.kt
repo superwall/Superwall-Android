@@ -1,6 +1,7 @@
 package com.superwall.sdk.store.abstractions.product
 
 import com.superwall.sdk.models.product.Offer
+import com.superwall.sdk.store.testmode.models.SuperwallProductPlatform
 import kotlinx.serialization.Serializable
 import java.util.*
 
@@ -78,27 +79,33 @@ sealed class OfferType {
 class StoreProduct private constructor(
     val rawStoreProduct: RawStoreProduct?,
     private val backingProduct: StoreProductType,
-    val isCustomProduct: Boolean = false,
 ) : StoreProductType by backingProduct {
     constructor(rawStoreProduct: RawStoreProduct) : this(rawStoreProduct, rawStoreProduct)
+
+    /**
+     * Whether this is a custom (store == CUSTOM) product — an API-backed product whose
+     * platform is `custom`, purchased through the developer's PurchaseController rather
+     * than Google Play Billing.
+     */
+    val isCustomProduct: Boolean
+        get() = (backingProduct as? ApiStoreProduct)?.platform == SuperwallProductPlatform.CUSTOM
 
     constructor(storeProductType: StoreProductType) : this(null, storeProductType)
 
     /**
      * Pre-generated transaction id for the current custom-product (store == CUSTOM) purchase,
-     * exposed so the developer can read it inside `purchase(customProduct:)`. Regenerated on
+     * exposed so the developer can read it inside `purchase(activity, product, ...)`. Regenerated on
      * each attempt. Because custom instances are cached and shared, this field is only reliable
      * within a single non-overlapping flow; analytics use a local copy so they stay correct.
      */
     var customTransactionId: String? = null
 
     companion object {
-        /** Builds a StoreProduct flagged as a custom product, backed by an ApiStoreProduct. */
+        /** Builds a StoreProduct backed by an ApiStoreProduct (custom or test-mode product). */
         fun custom(apiStoreProduct: ApiStoreProduct): StoreProduct =
             StoreProduct(
                 rawStoreProduct = null,
                 backingProduct = apiStoreProduct,
-                isCustomProduct = true,
             )
     }
 }

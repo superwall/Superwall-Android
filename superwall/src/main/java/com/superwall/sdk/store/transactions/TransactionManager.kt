@@ -374,7 +374,6 @@ class TransactionManager(
             message =
                 "!!! Purchasing product ${rawStoreProduct.hasFreeTrial}",
         )
-        val productDetails = rawStoreProduct.underlyingProductDetails
         val activity =
             activityProvider.getCurrentActivity()
                 ?: return PurchaseResult.Failed("Activity not found - required for starting the billing flow")
@@ -383,7 +382,7 @@ class TransactionManager(
         val result =
             storeManager.purchaseController.purchase(
                 activity = activity,
-                productDetails = productDetails,
+                product = product,
                 offerId = rawStoreProduct.offerId,
                 basePlanId = rawStoreProduct.basePlanId,
             )
@@ -452,19 +451,20 @@ class TransactionManager(
      * Handles purchase of a custom (store == CUSTOM) product. Requires an external
      * PurchaseController; fails fast with a clear error otherwise. Pre-generates a
      * UUID transaction identifier on each attempt, routes the purchase through
-     * [PurchaseController.purchase(customProduct:)], and constructs a
-     * StoreTransaction without touching Google Play Billing / receipts.
+     * [PurchaseController.purchase(activity, product, basePlanId, offerId)], and
+     * constructs a StoreTransaction without touching Google Play Billing / receipts.
      */
     private suspend fun handleCustomProductPurchase(
         product: StoreProduct,
         purchaseSource: PurchaseSource,
         shouldDismiss: Boolean,
     ): PurchaseResult {
-        if (!factory.makeHasCustomProductPurchaseController()) {
+        if (!factory.makeHasExternalPurchaseController()) {
             val message =
-                "Custom products require a PurchaseController that handles them. Configure " +
-                    "Superwall with a CustomProductPurchaseController (or a PurchaseController " +
-                    "that overrides purchase(customProduct:)) to handle ${product.fullIdentifier}."
+                "Custom product \"${product.fullIdentifier}\" can only be purchased using a " +
+                    "PurchaseController. Set one via Superwall.configure(..., purchaseController:) " +
+                    "and handle products where isCustomProduct == true in " +
+                    "purchase(activity, product, basePlanId, offerId)."
             log(message = message, error = Error(message))
             trackFailure(message, product, purchaseSource)
             if (purchaseSource is PurchaseSource.Internal) {
@@ -523,7 +523,16 @@ class TransactionManager(
             )
         }
 
-        val result = storeManager.purchaseController.purchase(customProduct = product)
+        val activity =
+            activityProvider.getCurrentActivity()
+                ?: return PurchaseResult.Failed("Activity not found - required for starting the purchase flow")
+        val result =
+            storeManager.purchaseController.purchase(
+                activity = activity,
+                product = product,
+                basePlanId = null,
+                offerId = null,
+            )
 
         // For an external-only controller the dev's flow owns the rest of the lifecycle; still
         // build + track the transaction so analytics include the custom txn id.

@@ -2,6 +2,7 @@ package com.superwall.superapp.purchase
 
 import android.app.Activity
 import android.content.Context
+import android.util.Log
 import com.android.billingclient.api.ProductDetails
 import com.revenuecat.purchases.CustomerInfo
 import com.revenuecat.purchases.LogLevel
@@ -27,11 +28,14 @@ import com.superwall.sdk.delegate.RestorationResult
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
+import com.superwall.sdk.store.Entitlements
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlin.String
+import kotlin.collections.mutableListOf
 
 // Extension function to convert callback to suspend function
 suspend fun Purchases.awaitProducts(productIds: List<String>): List<StoreProduct> {
@@ -115,8 +119,10 @@ class RevenueCatPurchaseController(
     UpdatedCustomerInfoListener {
     private var superwallCustomerInfoJob: Job? = null
     private val scope = CoroutineScope(Dispatchers.Main)
+    val purchased: MutableList<String>
 
     init {
+        purchased = mutableListOf<String>()
         Purchases.logLevel = LogLevel.DEBUG
         Purchases.configure(
             PurchasesConfiguration
@@ -175,7 +181,7 @@ class RevenueCatPurchaseController(
                 emptySet()
             }
 
-        val allEntitlements = rcEntitlements + webEntitlements
+        val allEntitlements = rcEntitlements + webEntitlements + purchased.map { Entitlement(it) }
 
         if (allEntitlements.isNotEmpty()) {
             setSubscriptionStatus(SubscriptionStatus.Active(allEntitlements))
@@ -189,10 +195,27 @@ class RevenueCatPurchaseController(
      */
     override suspend fun purchase(
         activity: Activity,
-        productDetails: ProductDetails,
+        product: com.superwall.sdk.store.abstractions.product.StoreProduct,
         basePlanId: String?,
         offerId: String?,
     ): PurchaseResult {
+        // Custom store products aren't on Google Play — fulfill them through your own
+        // payment flow and grant the entitlements yourself.
+        if (product.isCustomProduct) {
+            // Example only, save the entitlements to storage here to persist
+            purchased.add("custom_entitlement")
+
+            // Sync your subscription status
+            Purchases.sharedInstance.getCustomerInfoWith {
+                updateSubscriptionStatus(it)
+            }
+            return PurchaseResult.Purchased()
+        }
+
+        val productDetails =
+            product.rawStoreProduct?.underlyingProductDetails
+                ?: return PurchaseResult.Failed("Missing product details for ${product.fullIdentifier}")
+
         // Find products matching productId from RevenueCat
         val products = Purchases.sharedInstance.awaitProducts(listOf(productDetails.productId))
         // Choose the product which matches the given base plan.

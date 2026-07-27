@@ -162,6 +162,13 @@ class AutomaticPurchaseController(
             offerId?.let { append(":$it") }
         }
 
+    // The billing flow lives on the deprecated ProductDetails signature; the
+    // PurchaseController default bridges purchase(activity, product, ...) to it.
+    @Deprecated(
+        "Implement purchase(activity, product, basePlanId, offerId) instead. " +
+            "It receives a StoreProduct, which also supports custom store products.",
+        ReplaceWith("purchase(activity, product, basePlanId, offerId)"),
+    )
     override suspend fun purchase(
         activity: Activity,
         productDetails: ProductDetails,
@@ -269,26 +276,6 @@ class AutomaticPurchaseController(
         val value = purchaseResults.first { it != null } ?: PurchaseResult.Failed("Purchase failed")
 
         return value
-    }
-
-    /**
-     * The automatic controller only handles Google Play products. Custom (store == CUSTOM)
-     * products require a [CustomProductPurchaseController] (or a PurchaseController that
-     * overrides purchase(customProduct:)). TransactionManager guards against reaching this in
-     * the normal flow; this override logs and fails clearly as a safety net.
-     */
-    override suspend fun purchase(customProduct: StoreProduct): PurchaseResult {
-        val message =
-            "AutomaticPurchaseController cannot purchase custom (store == CUSTOM) product " +
-                "'${customProduct.fullIdentifier}'. Configure Superwall with a " +
-                "CustomProductPurchaseController (or a PurchaseController that overrides " +
-                "purchase(customProduct:)) to handle custom products."
-        Logger.debug(
-            logLevel = LogLevel.error,
-            scope = LogScope.nativePurchaseController,
-            message = message,
-        )
-        return PurchaseResult.Failed(message)
     }
 
     override suspend fun restorePurchases(): RestorationResult {

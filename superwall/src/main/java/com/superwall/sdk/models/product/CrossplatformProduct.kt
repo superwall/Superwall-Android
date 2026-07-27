@@ -453,7 +453,16 @@ object CrossplatformProductSerializer : KSerializer<CrossplatformProduct> {
                     "STRIPE" -> decoder.json.decodeFromJsonElement<CrossplatformProduct.StoreProduct.Stripe>(storeProductJsonObject)
                     "PADDLE" -> decoder.json.decodeFromJsonElement<CrossplatformProduct.StoreProduct.Paddle>(storeProductJsonObject)
                     "CUSTOM" -> decoder.json.decodeFromJsonElement<CrossplatformProduct.StoreProduct.Custom>(storeProductJsonObject)
-                    "OTHER" -> decoder.json.decodeFromJsonElement<CrossplatformProduct.StoreProduct.Other>(storeProductJsonObject)
+                    "OTHER" -> {
+                        // API contract: custom store products are sent with store == OTHER so
+                        // SDKs that predate CUSTOM ignore them. Try the custom product shape
+                        // first and fall back to Other if the fields don't match.
+                        try {
+                            decoder.json.decodeFromJsonElement<CrossplatformProduct.StoreProduct.Custom>(storeProductJsonObject)
+                        } catch (e: SerializationException) {
+                            decoder.json.decodeFromJsonElement<CrossplatformProduct.StoreProduct.Other>(storeProductJsonObject)
+                        }
+                    }
                     else ->
                         CrossplatformProduct.StoreProduct.Other(
                             storeType ?: "OTHER",
