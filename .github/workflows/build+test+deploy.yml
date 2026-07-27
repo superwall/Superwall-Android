@@ -174,14 +174,3 @@ jobs:
       env:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
         SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
-
-    # Releases created with GITHUB_TOKEN don't trigger other workflows, so
-    # on-release.yml won't fire for automated releases. Dispatch to
-    # paywall-next directly instead (same event on-release.yml sends).
-    - name: Notify paywall-next
-      if: steps.check-release.outputs.release-exists == 'false'
-      uses: peter-evans/repository-dispatch@98b1133981c5060126325c279a8840c1711a9fe0
-      with:
-        token: ${{ secrets.MAIN_REPO_PAT }}
-        repository: superwall/paywall-next
-        event-type: android-release
