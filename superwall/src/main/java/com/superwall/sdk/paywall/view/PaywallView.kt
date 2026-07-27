@@ -67,6 +67,7 @@ import com.superwall.sdk.paywall.view.webview.PaywallWebUI
 import com.superwall.sdk.paywall.view.webview.SWWebView
 import com.superwall.sdk.paywall.view.webview.SendPaywallMessages
 import com.superwall.sdk.paywall.view.webview.WebviewError
+import com.superwall.sdk.paywall.view.webview.messaging.BackButtonInputEvent
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessage
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessageHandlerDelegate
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallStateDelegate
@@ -139,7 +140,7 @@ class PaywallView(
     private companion object {
         private val mainScope: MainScope = MainScope()
         private val ioScope: IOScope = IOScope()
-        private val gameControllerJson by lazy {
+        private val webEventJson by lazy {
             Json {
                 encodeDefaults = true
                 namingStrategy = JsonNamingStrategy.SnakeCase
@@ -1091,7 +1092,7 @@ class PaywallView(
     override fun gameControllerEventOccured(event: GameControllerEvent) {
         val payload =
             try {
-                gameControllerJson.encodeToString(event)
+                webEventJson.encodeToString(event)
             } catch (e: Throwable) {
                 null
             }
@@ -1100,6 +1101,31 @@ class PaywallView(
             logLevel = LogLevel.debug,
             scope = LogScope.paywallView,
             message = "Game controller event occurred: $payload",
+        )
+    }
+
+//endregion
+
+//region Back button
+
+    /**
+     * Forwards a system back press into the paywall (`back_button_input`).
+     * The paywall either navigates its flow back one page or posts `close`,
+     * which dismisses via the standard manual-close path. Called when
+     * `reroute_back_button` is enabled in Paywall settings.
+     */
+    fun backButtonPressed() {
+        val payload =
+            try {
+                webEventJson.encodeToString(BackButtonInputEvent(pressed = true))
+            } catch (e: Throwable) {
+                null
+            } ?: return
+        webView.evaluate("window.paywall.accept([$payload])", null)
+        Logger.debug(
+            logLevel = LogLevel.debug,
+            scope = LogScope.paywallView,
+            message = "Back button press forwarded to paywall: $payload",
         )
     }
 

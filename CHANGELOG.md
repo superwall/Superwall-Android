@@ -29,6 +29,9 @@ Google Play Billing Library 9 requires Android 6.0 (API 23), so the SDK's `minSd
 
 ## 2.7.23
 
+## Enhancements
+- When `reroute_back_button` is enabled in Paywall settings, system back presses are now forwarded into the paywall as a `back_button_input` message: the paywall navigates its flow back one page when possible, and otherwise closes itself through the standard manual-close path. The `PaywallOptions.onBackPressed` app callback keeps first refusal; forwarding happens only when it is unset or returns `false`.
+
 ## Fixes
 - Fix paywall inputs silently dropping all non-Latin keyboard text (Cyrillic, Korean, Thai, emoji, etc.). The webview no longer replaces Chromium's `InputConnection` with a dummy one unless `isGameControllerEnabled` is set, restoring the full IME pipeline (composition, autocorrect, swipe typing, autofill) for everyone else.
 - Ensure that errors thrown when user lacks billing do not propagate to the app

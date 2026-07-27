@@ -52,7 +52,6 @@ import com.superwall.sdk.misc.isLightColor
 import com.superwall.sdk.misc.onError
 import com.superwall.sdk.misc.readableOverlayColor
 import com.superwall.sdk.models.paywall.LocalNotification
-import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.PaywallPresentationStyle
 import com.superwall.sdk.network.JsonFactory
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
@@ -297,19 +296,24 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             this,
             object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
-                    val shouldConsumeDismiss =
-                        if (paywallView()?.state?.paywall?.rerouteBackButton == Paywall.ToggleMode.ENABLED) {
-                            Superwall.instance.options.paywalls.onBackPressed
-                                ?.let { it(paywallView()?.info) }
-                                ?: false
-                        } else {
-                            false
-                        }
-                    if (!shouldConsumeDismiss) {
-                        view.dismiss(
-                            result = PaywallResult.Declined(),
-                            closeReason = PaywallCloseReason.ManualClose,
+                    val paywallView = paywallView()
+                    val behavior =
+                        backPressBehavior(
+                            rerouteBackButton = paywallView?.state?.paywall?.rerouteBackButton,
+                            consumedByApp = {
+                                Superwall.instance.options.paywalls.onBackPressed
+                                    ?.let { it(paywallView?.info) }
+                                    ?: false
+                            },
                         )
+                    when (behavior) {
+                        BackPressBehavior.CONSUMED_BY_APP -> Unit
+                        BackPressBehavior.FORWARD_TO_PAYWALL -> paywallView?.backButtonPressed()
+                        BackPressBehavior.DISMISS ->
+                            view.dismiss(
+                                result = PaywallResult.Declined(),
+                                closeReason = PaywallCloseReason.ManualClose,
+                            )
                     }
                 }
             },
