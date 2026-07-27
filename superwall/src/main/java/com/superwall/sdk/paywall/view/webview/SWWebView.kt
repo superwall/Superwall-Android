@@ -251,10 +251,18 @@ class SWWebView(
         }
     }
 
-    // ???
-    // https://stackoverflow.com/questions/20968707/capturing-keypress-events-in-android-webview
-    override fun onCreateInputConnection(outAttrs: EditorInfo?): InputConnection =
-        BaseInputConnection(this, false)
+    // A dummy InputConnection suppresses the soft keyboard's IME pipeline so hardware key
+    // events aren't consumed as text while capturing game-controller input. It must not be
+    // used otherwise: text the keyboard commits through it is converted to key events via
+    // KeyCharacterMap, which only maps ASCII, silently dropping all non-Latin input.
+    // Chromium's own InputConnection is required for the keyboard to commit text
+    // (Cyrillic, Korean, emoji, etc.) into paywall inputs.
+    override fun onCreateInputConnection(outAttrs: EditorInfo?): InputConnection? =
+        if (Superwall.initialized && Superwall.instance.options.isGameControllerEnabled) {
+            BaseInputConnection(this, false)
+        } else {
+            super.onCreateInputConnection(outAttrs)
+        }
 
     override fun dispatchKeyEvent(event: KeyEvent?): Boolean {
         if (event == null || !Superwall.instance.options.isGameControllerEnabled) {
