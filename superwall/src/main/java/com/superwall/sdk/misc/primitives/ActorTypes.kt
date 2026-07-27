@@ -34,10 +34,7 @@ class SequentialActor<Context, S>(
     init {
         // Single consumer — FIFO ordering guaranteed. Each unit of work is
         // guarded: a throwing action must neither kill this loop (silently
-        // halting every subsequent action) nor escape to the scope, which may
-        // have no CoroutineExceptionHandler and would crash the app (e.g. a
-        // failing billing fetch inside CheckWebEntitlements). Failures are
-        // recorded via error tracking, matching the SuperwallScope handlers.
+        // halting every subsequent action) nor escape to the scope.
         scope.launch(OwnerElement(this@SequentialActor)) {
             for (work in queue) {
                 withErrorTracking { work() }
