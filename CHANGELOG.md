@@ -2,6 +2,17 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.8.0
+
+## Enhancements
+- Updates Google Play Billing Library from 8.0.0 to 9.1.0. See the [Play Billing Library 9 migration guide](https://developer.android.com/google/play/billing/migrate-gpblv9) for the full list of changes.
+
+## Breaking Changes
+- Removes the deprecated `SuperwallBillingFlowParams.Builder.setSkuDetails(SkuDetails)`. Billing Library 9 removes `SkuDetails` entirely, so this method can no longer exist. Use `setProductDetailsParamsList(...)` with `ProductDetails` instead.
+- Removes the unused internal `com.superwall.sdk.billing.SWProduct`, which wrapped the now-removed `SkuDetails`.
+- **Impact:** if your app still calls the removed Billing Library APIs (`SkuDetails`, `SkuDetailsParams`, `querySkuDetailsAsync`, `queryPurchaseHistoryAsync`, `BillingClient.SkuType`, or the no-arg `enablePendingPurchases()`), it will no longer compile once it picks up Billing 9 through this SDK. Migrate those call sites to the `ProductDetails` APIs before upgrading; the [migration guide](https://developer.android.com/google/play/billing/migrate-gpblv9) has a mapping of every removed API to its replacement.
+- **Please test your billing and purchasing flows before shipping this upgrade.** Because the Billing Library is resolved to a single version across your app, upgrading Superwall also upgrades Billing for everything else that depends on it. If you use Google Play Billing directly, or another subscription provider such as RevenueCat, Adapty or Qonversion, make sure that provider's SDK supports Billing 9 and run through purchase, restore and subscription-status flows end to end.
+
 ## 2.7.22
 
 ## Enhancements

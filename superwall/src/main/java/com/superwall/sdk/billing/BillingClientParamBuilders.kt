@@ -2,14 +2,13 @@ package com.superwall.sdk.billing
 
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.QueryProductDetailsParams
-import com.android.billingclient.api.QueryPurchaseHistoryParams
 import com.android.billingclient.api.QueryPurchasesParams
 
-internal fun @receiver:BillingClient.ProductType String.buildQueryPurchaseHistoryParams(): QueryPurchaseHistoryParams? =
+internal fun @receiver:BillingClient.ProductType String.buildQueryPurchaseHistoryParams(): QueryPurchasesParams? =
     when (this) {
         BillingClient.ProductType.INAPP,
         BillingClient.ProductType.SUBS,
-        -> QueryPurchaseHistoryParams.newBuilder().setProductType(this).build()
+        -> QueryPurchasesParams.newBuilder().setProductType(this).build()
         else -> null
     }
 

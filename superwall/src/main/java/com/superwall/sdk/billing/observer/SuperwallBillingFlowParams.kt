@@ -2,7 +2,6 @@ package com.superwall.sdk.billing.observer
 
 import com.android.billingclient.api.BillingFlowParams
 import com.android.billingclient.api.ProductDetails
-import com.android.billingclient.api.SkuDetails
 
 class SuperwallBillingFlowParams private constructor(
     internal val params: BillingFlowParams,
@@ -37,12 +36,6 @@ class SuperwallBillingFlowParams private constructor(
             apply {
                 productDetailsParams.addAll(productDetailsParamsList)
                 builder.setProductDetailsParamsList(productDetailsParamsList.map { it.toOriginal() })
-            }
-
-        @Deprecated("Use setProductDetailsParamsList instead")
-        fun setSkuDetails(skuDetails: SkuDetails): Builder =
-            apply {
-                builder.setSkuDetails(skuDetails)
             }
 
         fun setSubscriptionUpdateParams(params: SubscriptionUpdateParams): Builder =
