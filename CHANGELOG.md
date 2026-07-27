@@ -13,6 +13,12 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 - **Impact:** if your app still calls the removed Billing Library APIs (`SkuDetails`, `SkuDetailsParams`, `querySkuDetailsAsync`, `queryPurchaseHistoryAsync`, `BillingClient.SkuType`, or the no-arg `enablePendingPurchases()`), it will no longer compile once it picks up Billing 9 through this SDK. Migrate those call sites to the `ProductDetails` APIs before upgrading; the [migration guide](https://developer.android.com/google/play/billing/migrate-gpblv9) has a mapping of every removed API to its replacement.
 - **Please test your billing and purchasing flows before shipping this upgrade.** Because the Billing Library is resolved to a single version across your app, upgrading Superwall also upgrades Billing for everything else that depends on it. If you use Google Play Billing directly, or another subscription provider such as RevenueCat, Adapty or Qonversion, make sure that provider's SDK supports Billing 9 and run through purchase, restore and subscription-status flows end to end.
 
+## 2.7.23
+
+## Fixes
+- Fix paywall inputs silently dropping all non-Latin keyboard text (Cyrillic, Korean, Thai, emoji, etc.). The webview no longer replaces Chromium's `InputConnection` with a dummy one unless `isGameControllerEnabled` is set, restoring the full IME pipeline (composition, autocorrect, swipe typing, autofill) for everyone else.
+- Ensure that errors thrown when user lacks billing do not propagate to the app
+
 ## 2.7.22
 
 ## Enhancements
