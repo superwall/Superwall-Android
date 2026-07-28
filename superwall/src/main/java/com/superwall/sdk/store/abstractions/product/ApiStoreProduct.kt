@@ -1,9 +1,7 @@
-package com.superwall.sdk.store.testmode
+package com.superwall.sdk.store.abstractions.product
 
-import com.superwall.sdk.store.abstractions.product.PriceFormatterProvider
-import com.superwall.sdk.store.abstractions.product.StoreProductType
-import com.superwall.sdk.store.abstractions.product.SubscriptionPeriod
 import com.superwall.sdk.store.testmode.models.SuperwallProduct
+import com.superwall.sdk.store.testmode.models.SuperwallProductPlatform
 import com.superwall.sdk.store.testmode.models.SuperwallSubscriptionPeriod
 import com.superwall.sdk.utilities.DateUtils
 import com.superwall.sdk.utilities.localizedDateFormat
@@ -13,9 +11,18 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
-class TestStoreProduct(
+/**
+ * StoreProductType backed by a Superwall API product (from the /products endpoint).
+ * Shared between test mode products and custom (CUSTOM-store) products that are not
+ * fetched from Google Play.
+ */
+class ApiStoreProduct(
     private val superwallProduct: SuperwallProduct,
 ) : StoreProductType {
+    /** The platform this product belongs to, as reported by the /products endpoint. */
+    val platform: SuperwallProductPlatform
+        get() = superwallProduct.platform
+
     private val priceFormatterProvider = PriceFormatterProvider()
 
     private val priceFormatter by lazy {

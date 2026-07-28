@@ -494,7 +494,7 @@ class TransactionManagerTest {
                 val product = mockStoreProduct(productId, rawProduct)
                 every { storeManager.getProductFromCache(productId) } returns product
                 coEvery {
-                    storeManager.purchaseController.purchase(any(), any(), any(), any())
+                    storeManager.purchaseController.purchase(any(), any<StoreProduct>(), any(), any())
                 } returns PurchaseResult.Purchased()
                 every { factory.makeHasExternalPurchaseController() } returns true
                 every { factory.makeTransactionVerifier() } returns

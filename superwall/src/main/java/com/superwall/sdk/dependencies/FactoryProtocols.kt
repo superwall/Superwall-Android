@@ -49,6 +49,7 @@ import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import com.superwall.sdk.store.testmode.TestMode
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import java.util.Date
 
 interface ApiFactory : JsonFactory {
     // TODO: Think of an alternative way such that we don't need to do this:
@@ -237,6 +238,17 @@ interface ConfigManagerFactory {
 
 interface StoreTransactionFactory {
     suspend fun makeStoreTransaction(transaction: Purchase): StoreTransaction
+
+    /**
+     * Builds a StoreTransaction for a custom-product purchase (no Google Play receipt).
+     * [customTransactionId] is the pre-generated UUID used as both original and
+     * store transaction identifier.
+     */
+    suspend fun makeStoreTransaction(
+        customTransactionId: String,
+        productIdentifier: String,
+        purchaseDate: Date,
+    ): StoreTransaction
 
     suspend fun activeProductIds(): List<String>
 }

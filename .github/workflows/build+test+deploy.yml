@@ -63,7 +63,23 @@ jobs:
       id: check-tag
       run: |
         EXISTS=$(git tag -l | grep -Fxq "${{steps.version.outputs.prop}}" && echo 'true' || echo 'false')
-        echo "::set-output name=tag-exists::$EXISTS"
+        echo "tag-exists=$EXISTS" >> "$GITHUB_OUTPUT"
+
+    # Checked separately from the tag so a partially failed run self-heals:
+    # if the tag was pushed but the release creation failed, the next push
+    # to main still creates the missing release.
+    - name: Check if release exists
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      id: check-release
+      run: |
+        STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+          -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+          "https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ steps.version.outputs.prop }}")
+        if [ "$STATUS" = "200" ]; then
+          echo "release-exists=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "release-exists=false" >> "$GITHUB_OUTPUT"
+        fi
 
     - name: Import GPG key
       if: steps.check-tag.outputs.tag-exists == 'false'
@@ -93,9 +109,9 @@ jobs:
       run: |
         VERSION=${{steps.version.outputs.prop}}
         if [[ "$VERSION" == *"-alpha"* || "$VERSION" == *"-beta"* || "$VERSION" == *"-rc"* ]]; then
-          echo "::set-output name=status::true"
+          echo "status=true" >> "$GITHUB_OUTPUT"
         else
-          echo "::set-output name=status::false"
+          echo "status=false" >> "$GITHUB_OUTPUT"
         fi
 
     - name: Tag
@@ -118,7 +134,7 @@ jobs:
     # release description. Version headings look like "## 2.7.22"; the
     # section ends at the next version heading (or "## Unreleased").
     - name: Extract release notes from changelog
-      if: steps.check-tag.outputs.tag-exists == 'false'
+      if: steps.check-release.outputs.release-exists == 'false'
       run: |
         VERSION="${{ steps.version.outputs.prop }}"
         awk -v ver="$VERSION" '
@@ -136,7 +152,7 @@ jobs:
         cat release-notes.md
 
     - name: Create GitHub release
-      if: steps.check-tag.outputs.tag-exists == 'false'
+      if: steps.check-release.outputs.release-exists == 'false'
       id: release
       uses: softprops/action-gh-release@v2
       with:
@@ -144,13 +160,11 @@ jobs:
         name: ${{ steps.version.outputs.prop }}
         body_path: release-notes.md
         prerelease: ${{ steps.prerelease.outputs.status }}
-        # Releases created with GITHUB_TOKEN don't trigger other workflows,
-        # so use a PAT to keep on-release.yml (paywall-next dispatch) working.
-        token: ${{ secrets.MAIN_REPO_PAT || secrets.GITHUB_TOKEN }}
+        token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: slack-send
-      # Only notify on a new tag
-      if: steps.check-tag.outputs.tag-exists == 'false'
+      # Only notify on a new release
+      if: steps.check-release.outputs.release-exists == 'false'
       uses: slackapi/slack-github-action@v1.24.0
       with:
         payload: |

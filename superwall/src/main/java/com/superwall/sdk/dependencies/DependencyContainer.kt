@@ -314,7 +314,7 @@ class DependencyContainer(
             InternalPurchaseController(
                 kotlinPurchaseController =
                     purchaseController
-                        ?: AutomaticPurchaseController(context, ioScope, entitlements),
+                        ?: AutomaticPurchaseController(context, ioScope, { entitlements }),
                 javaPurchaseController = null,
                 context,
             )
@@ -330,6 +330,7 @@ class DependencyContainer(
                         customerInfoManager = { customerInfoManager },
                     )
                 },
+                getSuperwallProducts = { network.getSuperwallProducts() },
                 testMode = testMode,
             )
 
@@ -1069,6 +1070,19 @@ class DependencyContainer(
             GoogleBillingPurchaseTransaction(
                 transaction = transaction,
             ),
+            configRequestId = configManager.config?.requestId ?: "",
+            appSessionId = appSessionManager.appSession.id,
+        )
+
+    override suspend fun makeStoreTransaction(
+        customTransactionId: String,
+        productIdentifier: String,
+        purchaseDate: Date,
+    ): StoreTransaction =
+        StoreTransaction(
+            customTransactionId = customTransactionId,
+            productIdentifier = productIdentifier,
+            purchaseDate = purchaseDate,
             configRequestId = configManager.config?.requestId ?: "",
             appSessionId = appSessionManager.appSession.id,
         )

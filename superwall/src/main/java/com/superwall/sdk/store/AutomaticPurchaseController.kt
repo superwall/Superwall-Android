@@ -29,6 +29,7 @@ import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.store.abstractions.product.BasePlanType
 import com.superwall.sdk.store.abstractions.product.OfferType
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
+import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.transactions.PlayBillingErrors
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -50,7 +51,7 @@ private val BILLING_INSANTIATION_ERROR =
 class AutomaticPurchaseController(
     var context: Context,
     val scope: IOScope,
-    val entitlementsInfo: Entitlements,
+    val entitlementsInfo: () -> Entitlements = { Superwall.instance.dependencyContainer.entitlements },
     val getBilling: (Context, PurchasesUpdatedListener) -> BillingClient = { ctx, listener ->
         try {
             BillingClient
@@ -110,7 +111,7 @@ class AutomaticPurchaseController(
                             LogLevel.error,
                             LogScope.nativePurchaseController,
                             "ExternalNativePurchaseController billing client disconnected, " +
-                                "retrying in $reconnectMilliseconds milliseconds",
+                                    "retrying in $reconnectMilliseconds milliseconds",
                         )
 
                         CoroutineScope(Dispatchers.IO).launch {
@@ -161,6 +162,13 @@ class AutomaticPurchaseController(
             offerId?.let { append(":$it") }
         }
 
+    // The billing flow lives on the deprecated ProductDetails signature; the
+    // PurchaseController default bridges purchase(activity, product, ...) to it.
+    @Deprecated(
+        "Implement purchase(activity, product, basePlanId, offerId) instead. " +
+            "It receives a StoreProduct, which also supports custom store products.",
+        ReplaceWith("purchase(activity, product, basePlanId, offerId)"),
+    )
     override suspend fun purchase(
         activity: Activity,
         productDetails: ProductDetails,
@@ -349,7 +357,7 @@ class AutomaticPurchaseController(
                         it.products
                     }.toSet()
                     .flatMap {
-                        val res = entitlementsInfo.byProductId(it)
+                        val res = entitlementsInfo().byProductId(it)
                         res
                     }.toSet()
                     .let { entitlements ->
@@ -359,7 +367,7 @@ class AutomaticPurchaseController(
                             message = "Found entitlements: ${entitlements.joinToString { it.id }}",
                         )
 
-                        entitlementsInfo.activeDeviceEntitlements = entitlements
+                        entitlementsInfo().activeDeviceEntitlements = entitlements
                         if (entitlements.isNotEmpty()) {
                             SubscriptionStatus.Active(
                                 entitlements.map { it.copy(isActive = true) }.toSet(),

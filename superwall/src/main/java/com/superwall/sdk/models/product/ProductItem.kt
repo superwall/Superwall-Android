@@ -10,6 +10,8 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.Serializer
 import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.descriptors.buildClassSerialDescriptor
 import kotlinx.serialization.descriptors.listSerialDescriptor
@@ -27,7 +29,7 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
-@Serializable
+@Serializable(with = StoreSerializer::class)
 enum class Store {
     @SerialName("PLAY_STORE")
     PLAY_STORE,
@@ -44,6 +46,9 @@ enum class Store {
     @SerialName("SUPERWALL")
     SUPERWALL,
 
+    @SerialName("CUSTOM")
+    CUSTOM,
+
     @SerialName("OTHER")
     OTHER,
 
@@ -57,9 +62,23 @@ enum class Store {
                 "STRIPE" -> STRIPE
                 "PADDLE" -> PADDLE
                 "SUPERWALL" -> SUPERWALL
+                "CUSTOM" -> CUSTOM
                 else -> OTHER
             }
     }
+}
+
+// Unknown store types from the backend decode as OTHER instead of throwing,
+// regardless of how the decoding Json instance is configured.
+object StoreSerializer : KSerializer<Store> {
+    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("Store", PrimitiveKind.STRING)
+
+    override fun serialize(
+        encoder: Encoder,
+        value: Store,
+    ) = encoder.encodeString(value.name)
+
+    override fun deserialize(decoder: Decoder): Store = Store.fromValue(decoder.decodeString())
 }
 
 sealed class Offer {
@@ -142,6 +161,17 @@ data class PaddleProduct(
     val productIdentifier: String,
     @SerialName("trial_days")
     val trialDays: Int? = null,
+) {
+    val fullIdentifier: String
+        get() = productIdentifier
+}
+
+@Serializable
+data class CustomStoreProduct(
+    @SerialName("store")
+    val store: Store = Store.CUSTOM,
+    @SerialName("product_identifier")
+    val productIdentifier: String,
 ) {
     val fullIdentifier: String
         get() = productIdentifier
@@ -269,6 +299,9 @@ object StoreProductSerializer : KSerializer<ProductItem.StoreProductType> {
                 is ProductItem.StoreProductType.Paddle ->
                     jsonEncoder.json.encodeToJsonElement(PaddleProduct.serializer(), value.product)
 
+                is ProductItem.StoreProductType.Custom ->
+                    jsonEncoder.json.encodeToJsonElement(CustomStoreProduct.serializer(), value.product)
+
                 is ProductItem.StoreProductType.Other ->
                     jsonEncoder.json.encodeToJsonElement(
                         UnknownStoreProduct.serializer(),
@@ -319,12 +352,30 @@ object StoreProductSerializer : KSerializer<ProductItem.StoreProductType> {
                 ProductItem.StoreProductType.Paddle(product)
             }
 
-            Store.SUPERWALL,
-            Store.OTHER,
-            -> {
+            Store.CUSTOM -> {
+                val product = json.decodeFromJsonElement(CustomStoreProduct.serializer(), jsonObject)
+                ProductItem.StoreProductType.Custom(product)
+            }
+
+            Store.SUPERWALL -> {
                 val product =
                     json.decodeFromJsonElement(UnknownStoreProduct.serializer(), jsonObject)
                 ProductItem.StoreProductType.Other(product)
+            }
+
+            Store.OTHER -> {
+                // API contract: custom store products are sent with store == OTHER so SDKs
+                // that predate CUSTOM ignore them. Try the custom product shape first and
+                // fall back to Other if the fields don't match.
+                try {
+                    val product =
+                        json.decodeFromJsonElement(CustomStoreProduct.serializer(), jsonObject)
+                    ProductItem.StoreProductType.Custom(product)
+                } catch (e: SerializationException) {
+                    val product =
+                        json.decodeFromJsonElement(UnknownStoreProduct.serializer(), jsonObject)
+                    ProductItem.StoreProductType.Other(product)
+                }
             }
         }
     }
@@ -367,6 +418,11 @@ data class ProductItem(
         ) : StoreProductType()
 
         @Serializable
+        data class Custom(
+            val product: CustomStoreProduct,
+        ) : StoreProductType()
+
+        @Serializable
         data class Other(
             val product: UnknownStoreProduct,
         ) : StoreProductType()
@@ -379,6 +435,7 @@ data class ProductItem(
                 is StoreProductType.AppStore -> type.product.fullIdentifier
                 is StoreProductType.Stripe -> type.product.fullIdentifier
                 is StoreProductType.Paddle -> type.product.fullIdentifier
+                is StoreProductType.Custom -> type.product.fullIdentifier
                 is StoreProductType.Other -> type.product.productIdentifier
             }
 
@@ -447,6 +504,7 @@ object ProductItemSerializer : KSerializer<ProductItem> {
                     is ProductItem.StoreProductType.AppStore -> storeProductType.product.fullIdentifier
                     is ProductItem.StoreProductType.Stripe -> storeProductType.product.fullIdentifier
                     is ProductItem.StoreProductType.Paddle -> storeProductType.product.fullIdentifier
+                    is ProductItem.StoreProductType.Custom -> storeProductType.product.fullIdentifier
                     is ProductItem.StoreProductType.Other -> storeProductType.product.productIdentifier
                 }
 

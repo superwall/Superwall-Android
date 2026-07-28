@@ -14,7 +14,7 @@ import com.superwall.sdk.misc.AppLifecycleObserver
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.store.StoreManager
-import com.superwall.sdk.store.testmode.TestStoreProduct
+import com.superwall.sdk.store.abstractions.product.ApiStoreProduct
 import com.superwall.sdk.store.testmode.models.SuperwallProduct
 import com.superwall.sdk.store.testmode.models.SuperwallProductPlatform
 import io.mockk.Runs
@@ -135,7 +135,7 @@ class StorefrontTest {
         }
 
     private val someProduct =
-        TestStoreProduct(
+        ApiStoreProduct(
             SuperwallProduct(
                 identifier = "test_product",
                 platform = SuperwallProductPlatform.ANDROID,
@@ -193,7 +193,7 @@ class StorefrontTest {
     fun testStoreProduct_exposesBackendProvidedStorefront() {
         Given("a test mode product with a backend-provided storefront") {
             val product =
-                TestStoreProduct(
+                ApiStoreProduct(
                     SuperwallProduct(
                         identifier = "test_product",
                         platform = SuperwallProductPlatform.ANDROID,
@@ -212,7 +212,7 @@ class StorefrontTest {
     fun storeProduct_withoutStorefront_fallsBackToNa() {
         Given("a product without any storefront information") {
             val product =
-                TestStoreProduct(
+                ApiStoreProduct(
                     SuperwallProduct(
                         identifier = "test_product",
                         platform = SuperwallProductPlatform.ANDROID,
