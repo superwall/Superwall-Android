@@ -239,15 +239,12 @@ class PaywallViewTest {
     }
 
     @Test
-    fun backButtonPressed_forwardsToPaywallWhenSupported() {
-        Given("a paywall whose runtime supports back_button_input") {
-            fakeWebUI.evaluateResult = "true"
-            var unhandled = false
+    fun backButtonPressed_evaluatesJavascriptBridge() {
+        Given("a paywall presented with the system back button pressed") {
+            When("the press is forwarded to the paywall") {
+                paywallView.backButtonPressed()
 
-            When("a back press occurs") {
-                paywallView.backButtonPressed(onUnhandled = { unhandled = true })
-
-                Then("the WebUI is probed then receives a back_button_input press") {
+                Then("the WebUI receives a back_button_input press") {
                     val expectedPayload =
                         Json {
                             encodeDefaults = true
@@ -257,36 +254,9 @@ class PaywallViewTest {
                             BackButtonInputEvent(pressed = true),
                         )
                     assertEquals(
-                        listOf(
-                            "typeof window.paywall !== 'undefined' && " +
-                                "window.paywall.supportsBackButtonInput === true",
-                            "window.paywall.accept([$expectedPayload])",
-                        ),
+                        listOf("window.paywall.accept([$expectedPayload])"),
                         fakeWebUI.evaluateCalls,
                     )
-                    assertFalse(unhandled)
-                }
-            }
-        }
-    }
-
-    @Test
-    fun backButtonPressed_fallsBackWhenRuntimeLacksSupport() {
-        Given("a paywall whose runtime does not support back_button_input") {
-            var unhandled = false
-
-            When("a back press occurs") {
-                paywallView.backButtonPressed(onUnhandled = { unhandled = true })
-
-                Then("nothing is injected and the press is reported as unhandled") {
-                    assertEquals(
-                        listOf(
-                            "typeof window.paywall !== 'undefined' && " +
-                                "window.paywall.supportsBackButtonInput === true",
-                        ),
-                        fakeWebUI.evaluateCalls,
-                    )
-                    assertTrue(unhandled)
                 }
             }
         }
@@ -564,7 +534,6 @@ class PaywallViewTest {
         var destroyed: Boolean = false
         var setupLatch: CountDownLatch? = null
         val evaluateCalls = mutableListOf<String>()
-        var evaluateResult: String? = null
         private val view = View(context)
 
         override fun onView(perform: View.() -> Unit) {
@@ -601,7 +570,7 @@ class PaywallViewTest {
             resultCallback: ((String?) -> Unit)?,
         ) {
             evaluateCalls += code
-            resultCallback?.invoke(evaluateResult)
+            resultCallback?.invoke(null)
         }
 
         override fun destroyView() {

@@ -29,8 +29,8 @@ Google Play Billing Library 9 requires Android 6.0 (API 23), so the SDK's `minSd
 
 ## 2.7.23
 
-## Enhancements
-- When `reroute_back_button` is enabled in Paywall settings, system back presses are now forwarded into the paywall as a `back_button_input` message: multi-page flows navigate back one page instead of dismissing the whole paywall, and paywalls with nowhere to go back close themselves through the standard manual-close path (`Declined`/`ManualClose`). The SDK first probes the webview for `window.paywall.supportsBackButtonInput`; paywalls built on older runtimes (or still loading / crashed) keep the previous native dismiss. The `PaywallOptions.onBackPressed` app callback keeps first refusal before the press is forwarded. Paywalls with the setting disabled (the default) are unaffected and dismiss on back exactly as before.
+## Breaking Changes
+- System back presses are now forwarded into the paywall as a `back_button_input` message instead of dismissing it directly: multi-page flows navigate back one page, and paywalls with nowhere to go back (root page, single page) close themselves through the standard manual-close path (`Declined`/`ManualClose`) — so single-page paywalls dismiss the same as before, from the app's perspective. When `reroute_back_button` is enabled in Paywall settings, the `PaywallOptions.onBackPressed` app callback keeps first refusal before the press is forwarded. Paywalls built on runtimes that predate `back_button_input` will ignore the press; make sure paywalls are re-published on a current runtime.
 
 ## Fixes
 - Fix paywall inputs silently dropping all non-Latin keyboard text (Cyrillic, Korean, Thai, emoji, etc.). The webview no longer replaces Chromium's `InputConnection` with a dummy one unless `isGameControllerEnabled` is set, restoring the full IME pipeline (composition, autocorrect, swipe typing, autofill) for everyone else.
