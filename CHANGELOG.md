@@ -5,11 +5,23 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 ## 2.8.0
 
 ## Enhancements
-
+- Updates Google Play Billing Library from 8.0.0 to 9.1.0. See the [Play Billing Library 9 migration guide](https://developer.android.com/google/play/billing/migrate-gpblv9) for the full list of changes.
+- Updates the RevenueCat SDK used by the sample apps from 9.2.0 to 10.14.1 for Billing 9 compatibility.
 - Adds support for custom store products. Products configured on a custom store in the Superwall dashboard (e.g. Stripe or your own payment backend) can now be attached to paywalls: their metadata (price, subscription period, trial) is fetched from the Superwall API instead of Google Play and templated into the paywall like any other product. Purchases are routed through your `PurchaseController`, bypassing Google Play Billing entirely — check `product.isCustomProduct` to fulfill them via your own payment flow, and grant their entitlements with `Superwall.instance.setSubscriptionStatus(...)` on success. Requires configuring the SDK with a `PurchaseController`.
 - Adds a unified `PurchaseController.purchase(activity, product: StoreProduct, basePlanId, offerId)` method that handles both Google Play and custom store products. For Play products, the underlying `ProductDetails` are available via `product.rawStoreProduct`.
 - Custom purchases produce full transaction analytics (`transaction_start`/`transaction_complete`, `subscriptionStart`/`freeTrialStart`) with an SDK-generated transaction identifier exposed as `StoreProduct.customTransactionId`, and free-trial eligibility for custom products is derived from the customer's entitlement history.
 - Renames `TestStoreProduct` to `ApiStoreProduct`, now shared between test mode and custom store products.
+
+## Breaking Changes
+- Removes the deprecated `SuperwallBillingFlowParams.Builder.setSkuDetails(SkuDetails)`. Billing Library 9 removes `SkuDetails` entirely, so this method can no longer exist. Use `setProductDetailsParamsList(...)` with `ProductDetails` instead.
+- Removes the unused internal `com.superwall.sdk.billing.SWProduct`, which wrapped the now-removed `SkuDetails`.
+- Internal purchase-history queries now resolve current purchases via `QueryPurchasesParams` — Billing Library 9 removes the purchase-history APIs (`queryPurchaseHistoryAsync`, `QueryPurchaseHistoryParams`).
+- **Impact:** if your app still calls the removed Billing Library APIs (`SkuDetails`, `SkuDetailsParams`, `querySkuDetailsAsync`, `queryPurchaseHistoryAsync`, `BillingClient.SkuType`, or the no-arg `enablePendingPurchases()`), it will no longer compile once it picks up Billing 9 through this SDK. Migrate those call sites to the `ProductDetails` APIs before upgrading; the [migration guide](https://developer.android.com/google/play/billing/migrate-gpblv9) has a mapping of every removed API to its replacement.
+- **Please test your billing and purchasing flows before shipping this upgrade.** Because the Billing Library is resolved to a single version across your app, upgrading Superwall also upgrades Billing for everything else that depends on it. If you use Google Play Billing directly, or another subscription provider such as RevenueCat, Adapty or Qonversion, make sure that provider's SDK supports Billing 9 and run through purchase, restore and subscription-status flows end to end.
+
+## ⚠️ Minimum SDK version raised to 23
+
+Google Play Billing Library 9 requires Android 6.0 (API 23), so the SDK's `minSdk` is now **23** (previously 21). If your app's `minSdk` is below 23, you'll need to raise it to pick up this release — devices on Android 5.x will no longer receive app updates that include this SDK version.
 
 ## Deprecations
 
