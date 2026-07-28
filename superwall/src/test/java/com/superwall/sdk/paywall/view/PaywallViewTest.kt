@@ -244,14 +244,14 @@ class PaywallViewTest {
             When("the press is forwarded to the paywall") {
                 paywallView.backButtonPressed()
 
-                Then("the WebUI receives a back_button_input press") {
+                Then("the WebUI receives a back_button_input message") {
                     val expectedPayload =
                         Json {
                             encodeDefaults = true
                             namingStrategy = JsonNamingStrategy.SnakeCase
                         }.encodeToString(
                             BackButtonInputEvent.serializer(),
-                            BackButtonInputEvent(pressed = true),
+                            BackButtonInputEvent(),
                         )
                     assertEquals(
                         listOf("window.paywall.accept([$expectedPayload])"),

@@ -1116,7 +1116,7 @@ class PaywallView(
     fun backButtonPressed() {
         val payload =
             try {
-                webEventJson.encodeToString(BackButtonInputEvent(pressed = true))
+                webEventJson.encodeToString(BackButtonInputEvent())
             } catch (e: Throwable) {
                 null
             } ?: return
