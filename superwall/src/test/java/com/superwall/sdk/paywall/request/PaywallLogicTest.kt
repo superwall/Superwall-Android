@@ -4,6 +4,7 @@ import com.superwall.sdk.models.customer.CustomerInfo
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.paywall.IntroOfferEligibility
+import com.superwall.sdk.models.product.CustomStoreProduct
 import com.superwall.sdk.models.product.PaddleProduct
 import com.superwall.sdk.models.product.ProductItem
 import com.superwall.sdk.models.product.Store
@@ -598,6 +599,97 @@ class PaywallLogicTest {
         assertFalse(outcome.isFreeTrialAvailable)
     }
 
+    // ---- Custom (store == CUSTOM) product trial eligibility ----
+
+    private fun customItem(
+        entitlements: Set<Entitlement> = setOf(proEntitlement),
+        productId: String = "custom_pro_1",
+    ): ProductItem {
+        val customType =
+            ProductItem.StoreProductType.Custom(
+                CustomStoreProduct(productIdentifier = productId),
+            )
+        return mockk {
+            every { name } returns "primary"
+            every { fullProductId } returns productId
+            every { type } returns customType
+            every { this@mockk.entitlements } returns entitlements
+        }
+    }
+
+    private fun storeProductWithTrialDays(trialDays: Int): StoreProduct =
+        mockk {
+            every { attributes } returns emptyMap()
+            every { trialPeriodDays } returns trialDays
+        }
+
+    @Test
+    fun test_custom_trialAvailable_whenCustomerHasNoEntitlementHistory() {
+        val outcome =
+            PaywallLogic.getVariablesAndFreeTrial(
+                productItems = listOf(customItem()),
+                productsByFullId = mapOf("custom_pro_1" to storeProductWithTrialDays(7)),
+                isFreeTrialAvailableOverride = null,
+                customerInfo = customerInfoWithEntitlements(),
+            )
+
+        assertTrue(outcome.isFreeTrialAvailable)
+    }
+
+    @Test
+    fun test_custom_trialBlocked_whenEntitlementAlreadyHeld() {
+        val consumed = proEntitlement.copy(latestProductId = "custom_pro_old", store = Store.CUSTOM)
+
+        val outcome =
+            PaywallLogic.getVariablesAndFreeTrial(
+                productItems = listOf(customItem()),
+                productsByFullId = mapOf("custom_pro_1" to storeProductWithTrialDays(7)),
+                isFreeTrialAvailableOverride = null,
+                customerInfo = customerInfoWithEntitlements(consumed),
+            )
+
+        assertFalse(outcome.isFreeTrialAvailable)
+    }
+
+    @Test
+    fun test_custom_noTrial_whenTrialDaysZero() {
+        val outcome =
+            PaywallLogic.getVariablesAndFreeTrial(
+                productItems = listOf(customItem()),
+                productsByFullId = mapOf("custom_pro_1" to storeProductWithTrialDays(0)),
+                isFreeTrialAvailableOverride = null,
+                customerInfo = customerInfoWithEntitlements(),
+            )
+
+        assertFalse(outcome.isFreeTrialAvailable)
+    }
+
+    @Test
+    fun test_custom_noTrial_whenEntitlementsEmpty() {
+        val outcome =
+            PaywallLogic.getVariablesAndFreeTrial(
+                productItems = listOf(customItem(entitlements = emptySet())),
+                productsByFullId = mapOf("custom_pro_1" to storeProductWithTrialDays(7)),
+                isFreeTrialAvailableOverride = null,
+                customerInfo = customerInfoWithEntitlements(),
+            )
+
+        assertFalse(outcome.isFreeTrialAvailable)
+    }
+
+    @Test
+    fun test_custom_trialBlocked_whenCustomerInfoIsPlaceholder() {
+        val outcome =
+            PaywallLogic.getVariablesAndFreeTrial(
+                productItems = listOf(customItem()),
+                productsByFullId = mapOf("custom_pro_1" to storeProductWithTrialDays(7)),
+                isFreeTrialAvailableOverride = null,
+                customerInfo = CustomerInfo.empty(),
+            )
+
+        assertFalse(outcome.isFreeTrialAvailable)
+    }
+
     @Test
     fun test_override_winsOverIneligible() {
         val outcome =
@@ -610,5 +702,84 @@ class PaywallLogicTest {
             )
 
         assertTrue(outcome.isFreeTrialAvailable)
+    }
+
+    // ---- isFreeTrialEligibleForCustomProduct (purchase-time eligibility) ----
+
+    private fun customStoreProduct(
+        trialDays: Int,
+        id: String = "custom_pro_1",
+    ): StoreProduct =
+        mockk {
+            every { fullIdentifier } returns id
+            every { trialPeriodDays } returns trialDays
+        }
+
+    @Test
+    fun test_customEligibility_true_whenTrialAndNoHistory() {
+        assertTrue(
+            PaywallLogic.isFreeTrialEligibleForCustomProduct(
+                product = customStoreProduct(trialDays = 7),
+                entitlements = setOf(proEntitlement),
+                customerInfo = customerInfoWithEntitlements(),
+            ),
+        )
+    }
+
+    @Test
+    fun test_customEligibility_false_whenTrialAlreadyConsumed() {
+        val consumed = proEntitlement.copy(latestProductId = "custom_pro_old", store = Store.CUSTOM)
+        assertFalse(
+            PaywallLogic.isFreeTrialEligibleForCustomProduct(
+                product = customStoreProduct(trialDays = 7),
+                entitlements = setOf(proEntitlement),
+                customerInfo = customerInfoWithEntitlements(consumed),
+            ),
+        )
+    }
+
+    @Test
+    fun test_customEligibility_false_whenNoTrialDays() {
+        assertFalse(
+            PaywallLogic.isFreeTrialEligibleForCustomProduct(
+                product = customStoreProduct(trialDays = 0),
+                entitlements = setOf(proEntitlement),
+                customerInfo = customerInfoWithEntitlements(),
+            ),
+        )
+    }
+
+    @Test
+    fun test_customEligibility_false_whenNoEntitlements() {
+        assertFalse(
+            PaywallLogic.isFreeTrialEligibleForCustomProduct(
+                product = customStoreProduct(trialDays = 7),
+                entitlements = emptySet(),
+                customerInfo = customerInfoWithEntitlements(),
+            ),
+        )
+    }
+
+    @Test
+    fun test_customEligibility_false_whenCustomerInfoIsPlaceholder() {
+        assertFalse(
+            PaywallLogic.isFreeTrialEligibleForCustomProduct(
+                product = customStoreProduct(trialDays = 7),
+                entitlements = setOf(proEntitlement),
+                customerInfo = CustomerInfo.empty(),
+            ),
+        )
+    }
+
+    @Test
+    fun test_customEligibility_false_whenIntroOfferIneligible() {
+        assertFalse(
+            PaywallLogic.isFreeTrialEligibleForCustomProduct(
+                product = customStoreProduct(trialDays = 7),
+                entitlements = setOf(proEntitlement),
+                customerInfo = customerInfoWithEntitlements(),
+                introOfferEligibility = IntroOfferEligibility.INELIGIBLE,
+            ),
+        )
     }
 }

@@ -72,4 +72,7 @@ enum class SuperwallProductPlatform {
 
     @SerialName("superwall")
     SUPERWALL,
+
+    @SerialName("custom")
+    CUSTOM,
 }

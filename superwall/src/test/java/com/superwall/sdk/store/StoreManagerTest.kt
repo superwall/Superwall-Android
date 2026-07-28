@@ -7,14 +7,21 @@ import com.superwall.sdk.When
 import com.superwall.sdk.assertTrue
 import com.superwall.sdk.billing.Billing
 import com.superwall.sdk.billing.BillingError
+import com.superwall.sdk.misc.Either
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.product.CrossplatformProduct
 import com.superwall.sdk.models.product.Offer
+import com.superwall.sdk.network.NetworkError
 import com.superwall.sdk.paywall.request.PaywallRequest
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.testmode.TestMode
 import com.superwall.sdk.store.testmode.TestModeBehavior
+import com.superwall.sdk.store.testmode.models.SuperwallProduct
+import com.superwall.sdk.store.testmode.models.SuperwallProductPlatform
+import com.superwall.sdk.store.testmode.models.SuperwallProductSubscription
+import com.superwall.sdk.store.testmode.models.SuperwallProductsResponse
+import com.superwall.sdk.store.testmode.models.SuperwallSubscriptionPeriod
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -658,6 +665,60 @@ class StoreManagerTest {
             }
         }
 
+    // ---- Custom (store == CUSTOM) products ----
+
+    private fun customProductsResponse(vararg ids: String): SuperwallProductsResponse =
+        SuperwallProductsResponse(
+            data =
+                ids.map {
+                    SuperwallProduct(
+                        identifier = it,
+                        platform = SuperwallProductPlatform.CUSTOM,
+                        subscription =
+                            SuperwallProductSubscription(
+                                period = SuperwallSubscriptionPeriod.MONTH,
+                                trialPeriodDays = 7,
+                            ),
+                    )
+                },
+        )
+
+    private fun storeManagerWith(getSuperwallProducts: suspend () -> Either<SuperwallProductsResponse, NetworkError>): StoreManager =
+        StoreManager(
+            purchaseController = purchaseController,
+            billing = billing,
+            receiptManagerFactory = { mockk(relaxed = true) },
+            track = {},
+            getSuperwallProducts = getSuperwallProducts,
+        )
+
+    @Test
+    fun `getProductsWithoutPaywall resolves a custom product via products when billing misses`() =
+        runTest {
+            Given("billing that doesn't know the id and a /products response that does") {
+                var productsCalls = 0
+                val manager =
+                    storeManagerWith {
+                        productsCalls++
+                        Either.Success(customProductsResponse("custom_1"))
+                    }
+                coEvery { billing.awaitGetProducts(any()) } returns emptySet()
+
+                When("getProductsWithoutPaywall is called for the custom id") {
+                    val result = manager.getProductsWithoutPaywall(listOf("custom_1"))
+
+                    Then("it resolves from /products as a custom product") {
+                        assertEquals("custom_1", result["custom_1"]?.fullIdentifier)
+                        junitAssertTrue(result["custom_1"]?.isCustomProduct == true)
+                    }
+
+                    And("/products was consulted exactly once") {
+                        assertEquals(1, productsCalls)
+                    }
+                }
+            }
+        }
+
     @Test
     fun `test getProducts in test mode returns partial test catalog when billing is unavailable`() =
         runTest {
@@ -681,6 +742,30 @@ class StoreManagerTest {
 
                     Then("it returns the resolved test product instead of throwing") {
                         assertEquals(setOf("product1:basePlan1:sw-auto"), result.productsByFullId.keys)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `getProductsWithoutPaywall does not consult products when billing resolves everything`() =
+        runTest {
+            Given("billing that resolves the Play product") {
+                var productsCalls = 0
+                val manager =
+                    storeManagerWith {
+                        productsCalls++
+                        Either.Success(SuperwallProductsResponse(emptyList()))
+                    }
+                val play = mockk<StoreProduct> { every { fullIdentifier } returns "play_1" }
+                coEvery { billing.awaitGetProducts(any()) } returns setOf(play)
+
+                When("getProductsWithoutPaywall is called") {
+                    val result = manager.getProductsWithoutPaywall(listOf("play_1"))
+
+                    Then("the Play product is returned without a /products round-trip") {
+                        assertEquals(play, result["play_1"])
+                        assertEquals(0, productsCalls)
                     }
                 }
             }
@@ -721,6 +806,55 @@ class StoreManagerTest {
                     Then("the paywall gets the test products without touching billing") {
                         assertEquals(2, result.await().productsByFullId.size)
                         coVerify(exactly = 0) { billing.awaitGetProducts(any()) }
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `getProductsWithoutPaywall resolves a custom product even when billing is unavailable`() =
+        runTest {
+            Given("billing that throws and /products that has the custom product") {
+                val manager = storeManagerWith { Either.Success(customProductsResponse("custom_1")) }
+                coEvery { billing.awaitGetProducts(any()) } throws BillingError.BillingNotAvailable("nope")
+
+                When("getProductsWithoutPaywall is called for the custom id") {
+                    val result = manager.getProductsWithoutPaywall(listOf("custom_1"))
+
+                    Then("it still resolves the custom product without throwing") {
+                        junitAssertTrue(result["custom_1"]?.isCustomProduct == true)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `fetchAndCacheCustomProducts rethrows on products failure when required`() =
+        runTest {
+            Given("a /products endpoint that fails") {
+                val manager = storeManagerWith { Either.Failure(NetworkError.Unknown(Exception("boom"))) }
+
+                When("fetchAndCacheCustomProducts is called with required = true") {
+                    Then("it rethrows so the paywall can surface a product-load failure") {
+                        assertThrows(NetworkError.Unknown::class.java) {
+                            runBlocking { manager.fetchAndCacheCustomProducts(setOf("custom_1"), required = true) }
+                        }
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `fetchAndCacheCustomProducts swallows products failure when not required`() =
+        runTest {
+            Given("a /products endpoint that fails") {
+                val manager = storeManagerWith { Either.Failure(NetworkError.Unknown(Exception("boom"))) }
+
+                When("fetchAndCacheCustomProducts is called with required = false") {
+                    manager.fetchAndCacheCustomProducts(setOf("custom_1"), required = false)
+
+                    Then("it does not throw and caches nothing") {
+                        assertNull(manager.getProductFromCache("custom_1"))
                     }
                 }
             }

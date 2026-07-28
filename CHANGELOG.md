@@ -2,6 +2,19 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.8.0
+
+## Enhancements
+
+- Adds support for custom store products. Products configured on a custom store in the Superwall dashboard (e.g. Stripe or your own payment backend) can now be attached to paywalls: their metadata (price, subscription period, trial) is fetched from the Superwall API instead of Google Play and templated into the paywall like any other product. Purchases are routed through your `PurchaseController`, bypassing Google Play Billing entirely — check `product.isCustomProduct` to fulfill them via your own payment flow, and grant their entitlements with `Superwall.instance.setSubscriptionStatus(...)` on success. Requires configuring the SDK with a `PurchaseController`.
+- Adds a unified `PurchaseController.purchase(activity, product: StoreProduct, basePlanId, offerId)` method that handles both Google Play and custom store products. For Play products, the underlying `ProductDetails` are available via `product.rawStoreProduct`.
+- Custom purchases produce full transaction analytics (`transaction_start`/`transaction_complete`, `subscriptionStart`/`freeTrialStart`) with an SDK-generated transaction identifier exposed as `StoreProduct.customTransactionId`, and free-trial eligibility for custom products is derived from the customer's entitlement history.
+- Renames `TestStoreProduct` to `ApiStoreProduct`, now shared between test mode and custom store products.
+
+## Deprecations
+
+- Deprecates `PurchaseController.purchase(activity, productDetails, basePlanId, offerId)` in favor of the `StoreProduct`-based method above. Existing implementations keep working unchanged — the new method's default implementation routes Google Play purchases to the deprecated one — but purchasing custom store products requires implementing the new method.
+
 ## 2.7.23
 
 ## Fixes

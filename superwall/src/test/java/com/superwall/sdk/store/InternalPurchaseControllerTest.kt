@@ -105,6 +105,61 @@ class InternalPurchaseControllerTest {
         }
 
     @Test
+    fun `test unified purchase delegates to Kotlin controller`() =
+        runTest {
+            Given("an InternalPurchaseController with an external Kotlin controller") {
+                val externalController = mockk<PurchaseController>()
+                val product = mockk<com.superwall.sdk.store.abstractions.product.StoreProduct>()
+                val expectedResult = PurchaseResult.Purchased()
+
+                coEvery {
+                    externalController.purchase(mockActivity, product, "base_plan", "offer")
+                } returns expectedResult
+
+                val controller =
+                    InternalPurchaseController(
+                        kotlinPurchaseController = externalController,
+                        javaPurchaseController = null,
+                        context = mockContext,
+                    )
+
+                When("calling purchase with a StoreProduct") {
+                    val result = controller.purchase(mockActivity, product, "base_plan", "offer")
+
+                    Then("it should delegate to the external controller") {
+                        assertEquals(expectedResult, result)
+                        coVerify(exactly = 1) {
+                            externalController.purchase(mockActivity, product, "base_plan", "offer")
+                        }
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `test unified purchase of a custom product fails without a Kotlin controller`() =
+        runTest {
+            Given("an InternalPurchaseController with no Kotlin controller") {
+                val product = mockk<com.superwall.sdk.store.abstractions.product.StoreProduct>()
+                every { product.rawStoreProduct } returns null
+                val controller =
+                    InternalPurchaseController(
+                        kotlinPurchaseController = null,
+                        javaPurchaseController = null,
+                        context = mockContext,
+                    )
+
+                When("calling purchase with a custom product") {
+                    val result = controller.purchase(mockActivity, product, null, null)
+
+                    Then("it should return Failed") {
+                        assertTrue(result is PurchaseResult.Failed)
+                    }
+                }
+            }
+        }
+
+    @Test
     fun `test purchase delegates to Kotlin controller`() =
         runTest {
             Given("an InternalPurchaseController with Kotlin controller") {

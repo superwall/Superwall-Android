@@ -57,6 +57,12 @@ class TrackingLogicTest {
 
                                 override suspend fun makeStoreTransaction(transaction: Purchase): StoreTransaction = mockk()
 
+                                override suspend fun makeStoreTransaction(
+                                    customTransactionId: String,
+                                    productIdentifier: String,
+                                    purchaseDate: java.util.Date,
+                                ): StoreTransaction = mockk()
+
                                 override suspend fun activeProductIds(): List<String> = emptyList()
 
                                 override suspend fun makeIdentityManager(): IdentityManager = mockk()

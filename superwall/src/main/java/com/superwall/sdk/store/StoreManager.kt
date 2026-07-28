@@ -9,16 +9,21 @@ import com.superwall.sdk.billing.DecomposedProductIds
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
+import com.superwall.sdk.misc.Either
+import com.superwall.sdk.misc.fold
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.product.PlayStoreProduct
 import com.superwall.sdk.models.product.ProductItem
 import com.superwall.sdk.models.product.ProductVariable
+import com.superwall.sdk.network.NetworkError
 import com.superwall.sdk.paywall.request.PaywallRequest
+import com.superwall.sdk.store.abstractions.product.ApiStoreProduct
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.abstractions.product.receipt.ReceiptManager
 import com.superwall.sdk.store.coordinator.ProductsFetcher
 import com.superwall.sdk.store.testmode.TestMode
+import com.superwall.sdk.store.testmode.models.SuperwallProductsResponse
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.awaitAll
 import java.util.Date
@@ -30,6 +35,9 @@ class StoreManager(
     receiptManagerFactory: () -> ReceiptManager,
     private val track: suspend (InternalSuperwallEvent) -> Unit = {
         Superwall.instance.track(it)
+    },
+    private val getSuperwallProducts: suspend () -> Either<SuperwallProductsResponse, NetworkError> = {
+        Either.Success(SuperwallProductsResponse(emptyList()))
     },
     var testMode: TestMode? = null,
 ) : ProductsFetcher,
@@ -71,8 +79,10 @@ class StoreManager(
                 request = request,
             )
 
+        // Iterate all product items (not just Play Store) so custom products surface variables
+        // too; only DebugView consumes this, but a custom product should still show there.
         val productAttributes =
-            paywall.playStoreProducts.mapNotNull { productItem ->
+            paywall.productItems.mapNotNull { productItem ->
                 output.productsByFullId[productItem.fullProductId]?.let { storeProduct ->
                     ProductVariable(
                         name = productItem.name,
@@ -101,13 +111,86 @@ class StoreManager(
             )
 
         val productsById = processingResult.substituteProductsById.toMutableMap()
-        val fetchResult = fetchOrAwaitProducts(processingResult.fullProductIdsToLoad)
 
-        for ((id, product) in fetchResult) {
-            productsById[id] = product
+        // Try Play Billing first so Play-only lookups never pay for a /products round-trip.
+        val billingError =
+            try {
+                for ((id, product) in fetchOrAwaitProducts(processingResult.fullProductIdsToLoad)) {
+                    productsById[id] = product
+                }
+                null
+            } catch (e: Throwable) {
+                e
+            }
+
+        // Anything Play couldn't resolve may be a custom (store == CUSTOM) product, which
+        // doesn't need Play Billing — probe /products only for those.
+        val unresolved = processingResult.fullProductIdsToLoad - productsById.keys
+        if (unresolved.isNotEmpty()) {
+            fetchAndCacheCustomProducts(unresolved, required = false)
+            for (id in unresolved) {
+                getProductFromCache(id)?.let { productsById[id] = it }
+            }
+        }
+
+        // Surface the billing error only if /products didn't cover the gap.
+        if (billingError != null && (processingResult.fullProductIdsToLoad - productsById.keys).isNotEmpty()) {
+            throw billingError
         }
 
         return productsById
+    }
+
+    /**
+     * Fetches custom (store == CUSTOM) products from the Superwall /products endpoint and
+     * caches them so downstream lookups resolve them from cache instead of Google Play
+     * Billing. Ids that are already cached, empty, or absent from /products are left
+     * untouched (the latter fall through to billing).
+     *
+     * @param candidateIds The product identifiers that may be custom products.
+     * @param required When true — a paywall declared these ids as custom products — a
+     *   /products failure is rethrown so the caller can surface a product-load failure.
+     *   When false — a best-effort probe where the ids may well be Play products — the
+     *   failure is logged and swallowed so the ids fall through to billing.
+     */
+    suspend fun fetchAndCacheCustomProducts(
+        candidateIds: Set<String>,
+        required: Boolean,
+    ) {
+        val idsNeedingRefresh =
+            candidateIds
+                .filterNot { it.isEmpty() }
+                .filterNot { hasCached(it) }
+                .toSet()
+        if (idsNeedingRefresh.isEmpty()) return
+
+        getSuperwallProducts().fold(
+            onSuccess = { response ->
+                val seenIds = mutableSetOf<String>()
+                response.data
+                    .filter { it.identifier in idsNeedingRefresh }
+                    .forEach { superwallProduct ->
+                        if (!seenIds.add(superwallProduct.identifier)) {
+                            Logger.debug(
+                                LogLevel.warn,
+                                LogScope.productsManager,
+                                "Duplicate custom product id from /products: ${superwallProduct.identifier}",
+                            )
+                            return@forEach
+                        }
+                        val apiProduct = ApiStoreProduct(superwallProduct)
+                        cacheProduct(superwallProduct.identifier, StoreProduct.custom(apiProduct))
+                    }
+            },
+            onFailure = { error ->
+                Logger.debug(
+                    LogLevel.error,
+                    LogScope.productsManager,
+                    "Failed to fetch custom products: ${error.message}",
+                )
+                if (required) throw error
+            },
+        )
     }
 
     override suspend fun getProducts(

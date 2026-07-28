@@ -32,9 +32,11 @@ import com.superwall.sdk.misc.ActivityProvider
 import com.superwall.sdk.misc.AlertControllerFactory.AlertProps
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.launchWithTracking
+import com.superwall.sdk.models.customer.CustomerInfo
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.paywall.presentation.PaywallInfo
+import com.superwall.sdk.paywall.request.PaywallLogic
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.view.PaywallView
 import com.superwall.sdk.paywall.view.PaywallViewState
@@ -56,6 +58,8 @@ import kotlinx.coroutines.flow.dropWhile
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import java.util.Date
+import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 class TransactionManager(
@@ -78,6 +82,9 @@ class TransactionManager(
     private val allEntitlementsByProductId: () -> Map<String, Set<Entitlement>>,
     private val webEntitlements: () -> Set<Entitlement> = {
         Superwall.instance.entitlements.web
+    },
+    private val currentCustomerInfo: () -> CustomerInfo = {
+        Superwall.instance.getCustomerInfo()
     },
     private val showRestoreDialogForWeb: suspend () -> Unit,
     private val notifyBackendOfReceipts: suspend () -> Unit = {},
@@ -354,6 +361,12 @@ class TransactionManager(
             return result
         }
 
+        // Custom product flow: store == CUSTOM products are handled by the external
+        // PurchaseController, not Google Play Billing.
+        if (product.isCustomProduct) {
+            return handleCustomProductPurchase(product, purchaseSource, shouldDismiss)
+        }
+
         val rawStoreProduct =
             product.rawStoreProduct
                 ?: return PurchaseResult.Failed("Missing raw store product for ${product.fullIdentifier}")
@@ -361,7 +374,6 @@ class TransactionManager(
             message =
                 "!!! Purchasing product ${rawStoreProduct.hasFreeTrial}",
         )
-        val productDetails = rawStoreProduct.underlyingProductDetails
         val activity =
             activityProvider.getCurrentActivity()
                 ?: return PurchaseResult.Failed("Activity not found - required for starting the billing flow")
@@ -370,7 +382,7 @@ class TransactionManager(
         val result =
             storeManager.purchaseController.purchase(
                 activity = activity,
-                productDetails = productDetails,
+                product = product,
                 offerId = rawStoreProduct.offerId,
                 basePlanId = rawStoreProduct.basePlanId,
             )
@@ -430,6 +442,163 @@ class TransactionManager(
 
             is PurchaseResult.Cancelled -> {
                 trackCancelled(product, purchaseSource)
+            }
+        }
+        return result
+    }
+
+    /**
+     * Handles purchase of a custom (store == CUSTOM) product. Requires an external
+     * PurchaseController; fails fast with a clear error otherwise. Pre-generates a
+     * UUID transaction identifier on each attempt, routes the purchase through
+     * [PurchaseController.purchase(activity, product, basePlanId, offerId)], and
+     * constructs a StoreTransaction without touching Google Play Billing / receipts.
+     */
+    private suspend fun handleCustomProductPurchase(
+        product: StoreProduct,
+        purchaseSource: PurchaseSource,
+        shouldDismiss: Boolean,
+    ): PurchaseResult {
+        if (!factory.makeHasExternalPurchaseController()) {
+            val message =
+                "Custom product \"${product.fullIdentifier}\" can only be purchased using a " +
+                    "PurchaseController. Set one via Superwall.configure(..., purchaseController:) " +
+                    "and handle products where isCustomProduct == true in " +
+                    "purchase(activity, product, basePlanId, offerId)."
+            log(message = message, error = Error(message))
+            trackFailure(message, product, purchaseSource)
+            if (purchaseSource is PurchaseSource.Internal) {
+                // Surface the misconfiguration on the paywall, mirroring other purchase
+                // failures, instead of silently hiding the spinner.
+                val options = factory.makeSuperwallOptions()
+                val transactionFailExists =
+                    factory.makeTriggers().contains(SuperwallEvents.TransactionFail.rawName)
+                if (options.paywalls.shouldShowPurchaseFailureAlert && !transactionFailExists) {
+                    presentAlert(Error(message), product, purchaseSource.state)
+                } else {
+                    updateState(
+                        purchaseSource.paywallInfo.cacheKey,
+                        PaywallViewState.Updates.ToggleSpinner(hidden = true),
+                    )
+                }
+            }
+            return PurchaseResult.Failed(message)
+        }
+
+        // Local copy keeps this flow consistent even if a concurrent purchase overwrites the
+        // shared product's field; product.customTransactionId is set for the dev-facing contract.
+        val txnId = UUID.randomUUID().toString()
+        product.customTransactionId = txnId
+
+        // Entitlement-history-based eligibility, not raw trial metadata: a repeat purchaser who
+        // already used their trial is charged immediately and must not emit freeTrialStart.
+        val didStartFreeTrial =
+            PaywallLogic.isFreeTrialEligibleForCustomProduct(
+                product = product,
+                entitlements = entitlementsById(product.fullIdentifier),
+                customerInfo = currentCustomerInfo(),
+            )
+
+        prepareToPurchase(product, purchaseSource)
+
+        // prepareToPurchase skips the Start event for an external-only controller, but a custom
+        // purchase is otherwise invisible to Superwall — emit Start so it pairs with the Complete
+        // tracked on success and transaction funnels stay balanced.
+        val isExternalOnly =
+            purchaseSource is PurchaseSource.ExternalPurchase &&
+                factory.makeHasExternalPurchaseController() &&
+                !factory.makeHasInternalPurchaseController()
+        if (isExternalOnly) {
+            track(
+                InternalSuperwallEvent.Transaction(
+                    InternalSuperwallEvent.Transaction.State.Start(product),
+                    PaywallInfo.empty(),
+                    product,
+                    null,
+                    isObserved = false,
+                    source = TransactionSource.EXTERNAL,
+                    demandScore = factory.demandScore(),
+                    demandTier = factory.demandTier(),
+                ),
+            )
+        }
+
+        val activity =
+            activityProvider.getCurrentActivity()
+                ?: return PurchaseResult.Failed("Activity not found - required for starting the purchase flow")
+        val result =
+            storeManager.purchaseController.purchase(
+                activity = activity,
+                product = product,
+                basePlanId = null,
+                offerId = null,
+            )
+
+        // For an external-only controller the dev's flow owns the rest of the lifecycle; still
+        // build + track the transaction so analytics include the custom txn id.
+        if (isExternalOnly) {
+            if (result is PurchaseResult.Purchased) {
+                val transaction =
+                    factory.makeStoreTransaction(
+                        customTransactionId = txnId,
+                        productIdentifier = product.fullIdentifier,
+                        purchaseDate = Date(),
+                    )
+                trackTransactionDidSucceed(transaction, product, purchaseSource, didStartFreeTrial)
+            }
+            return result
+        }
+
+        when (result) {
+            is PurchaseResult.Purchased -> {
+                val transaction =
+                    factory.makeStoreTransaction(
+                        customTransactionId = txnId,
+                        productIdentifier = product.fullIdentifier,
+                        purchaseDate = Date(),
+                    )
+                // Skip storeManager.loadPurchasedProducts — no Play receipt for custom products.
+                trackTransactionDidSucceed(transaction, product, purchaseSource, didStartFreeTrial)
+                if (shouldDismiss &&
+                    purchaseSource is PurchaseSource.Internal &&
+                    factory.makeSuperwallOptions().paywalls.automaticallyDismiss
+                ) {
+                    dismiss(
+                        purchaseSource.paywallInfo.cacheKey,
+                        PaywallResult.Purchased(product.fullIdentifier),
+                    )
+                } else if (purchaseSource is PurchaseSource.Internal) {
+                    updateState(
+                        purchaseSource.paywallInfo.cacheKey,
+                        PaywallViewState.Updates.SetLoadingState(PaywallLoadingState.Ready),
+                    )
+                }
+            }
+
+            is PurchaseResult.Failed -> {
+                trackFailure(result.errorMessage, product, purchaseSource)
+                if (purchaseSource is PurchaseSource.Internal) {
+                    val options = factory.makeSuperwallOptions()
+                    val triggers = factory.makeTriggers()
+                    val transactionFailExists =
+                        triggers.contains(SuperwallEvents.TransactionFail.rawName)
+                    if (options.paywalls.shouldShowPurchaseFailureAlert && !transactionFailExists) {
+                        presentAlert(Error(result.errorMessage), product, purchaseSource.state)
+                    } else {
+                        updateState(
+                            purchaseSource.paywallInfo.cacheKey,
+                            PaywallViewState.Updates.ToggleSpinner(hidden = true),
+                        )
+                    }
+                }
+            }
+
+            is PurchaseResult.Cancelled -> {
+                trackCancelled(product, purchaseSource)
+            }
+
+            is PurchaseResult.Pending -> {
+                handlePendingTransaction(purchaseSource)
             }
         }
         return result
