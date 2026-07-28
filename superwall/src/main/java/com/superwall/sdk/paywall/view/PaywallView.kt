@@ -67,7 +67,6 @@ import com.superwall.sdk.paywall.view.webview.PaywallWebUI
 import com.superwall.sdk.paywall.view.webview.SWWebView
 import com.superwall.sdk.paywall.view.webview.SendPaywallMessages
 import com.superwall.sdk.paywall.view.webview.WebviewError
-import com.superwall.sdk.paywall.view.webview.messaging.BackButtonInputEvent
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessage
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessageHandlerDelegate
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallStateDelegate
@@ -140,7 +139,7 @@ class PaywallView(
     private companion object {
         private val mainScope: MainScope = MainScope()
         private val ioScope: IOScope = IOScope()
-        private val webEventJson by lazy {
+        private val gameControllerJson by lazy {
             Json {
                 encodeDefaults = true
                 namingStrategy = JsonNamingStrategy.SnakeCase
@@ -1092,7 +1091,7 @@ class PaywallView(
     override fun gameControllerEventOccured(event: GameControllerEvent) {
         val payload =
             try {
-                webEventJson.encodeToString(event)
+                gameControllerJson.encodeToString(event)
             } catch (e: Throwable) {
                 null
             }
@@ -1114,18 +1113,7 @@ class PaywallView(
      * which dismisses via the standard manual-close path.
      */
     fun backButtonPressed() {
-        val payload =
-            try {
-                webEventJson.encodeToString(BackButtonInputEvent())
-            } catch (e: Throwable) {
-                null
-            } ?: return
-        webView.evaluate("window.paywall.accept([$payload])", null)
-        Logger.debug(
-            logLevel = LogLevel.debug,
-            scope = LogScope.paywallView,
-            message = "Back button press forwarded to paywall: $payload",
-        )
+        webView.messageHandler.handle(PaywallMessage.BackButtonPressed)
     }
 
 //endregion

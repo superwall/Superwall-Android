@@ -21,7 +21,6 @@ import com.superwall.sdk.paywall.view.delegate.PaywallViewEventCallback
 import com.superwall.sdk.paywall.view.webview.PaywallUIDelegate
 import com.superwall.sdk.paywall.view.webview.PaywallWebUI
 import com.superwall.sdk.paywall.view.webview.SendPaywallMessages
-import com.superwall.sdk.paywall.view.webview.messaging.BackButtonInputEvent
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessage
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallMessageHandler
 import com.superwall.sdk.paywall.view.webview.messaging.PaywallWebEvent
@@ -239,24 +238,15 @@ class PaywallViewTest {
     }
 
     @Test
-    fun backButtonPressed_evaluatesJavascriptBridge() {
+    fun backButtonPressed_forwardsToMessageHandler() {
         Given("a paywall presented with the system back button pressed") {
+            every { messageHandler.handle(any()) } just Runs
+
             When("the press is forwarded to the paywall") {
                 paywallView.backButtonPressed()
 
-                Then("the WebUI receives a back_button_input message") {
-                    val expectedPayload =
-                        Json {
-                            encodeDefaults = true
-                            namingStrategy = JsonNamingStrategy.SnakeCase
-                        }.encodeToString(
-                            BackButtonInputEvent.serializer(),
-                            BackButtonInputEvent(),
-                        )
-                    assertEquals(
-                        listOf("window.paywall.accept([$expectedPayload])"),
-                        fakeWebUI.evaluateCalls,
-                    )
+                Then("the message handler receives BackButtonPressed") {
+                    verify(exactly = 1) { messageHandler.handle(PaywallMessage.BackButtonPressed) }
                 }
             }
         }
