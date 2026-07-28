@@ -13,6 +13,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 - Renames `TestStoreProduct` to `ApiStoreProduct`, now shared between test mode and custom store products.
 
 ## Breaking Changes
+- System back presses are now forwarded into the paywall as a `back_button_input` message instead of dismissing it directly: multi-page flows navigate back one page, and paywalls with nowhere to go back (root page, single page) close themselves through the standard manual-close path (`Declined`/`ManualClose`) — so single-page paywalls dismiss the same as before, from the app's perspective. When `reroute_back_button` is enabled in Paywall settings, the `PaywallOptions.onBackPressed` app callback keeps first refusal before the press is forwarded. Paywalls built on runtimes that predate `back_button_input` will ignore the press; make sure paywalls are re-published on a current runtime.
 - Removes the deprecated `SuperwallBillingFlowParams.Builder.setSkuDetails(SkuDetails)`. Billing Library 9 removes `SkuDetails` entirely, so this method can no longer exist. Use `setProductDetailsParamsList(...)` with `ProductDetails` instead.
 - Removes the unused internal `com.superwall.sdk.billing.SWProduct`, which wrapped the now-removed `SkuDetails`.
 - Internal purchase-history queries now resolve current purchases via `QueryPurchasesParams` — Billing Library 9 removes the purchase-history APIs (`queryPurchaseHistoryAsync`, `QueryPurchaseHistoryParams`).
@@ -28,9 +29,6 @@ Google Play Billing Library 9 requires Android 6.0 (API 23), so the SDK's `minSd
 - Deprecates `PurchaseController.purchase(activity, productDetails, basePlanId, offerId)` in favor of the `StoreProduct`-based method above. Existing implementations keep working unchanged — the new method's default implementation routes Google Play purchases to the deprecated one — but purchasing custom store products requires implementing the new method.
 
 ## 2.7.23
-
-## Breaking Changes
-- System back presses are now forwarded into the paywall as a `back_button_input` message instead of dismissing it directly: multi-page flows navigate back one page, and paywalls with nowhere to go back (root page, single page) close themselves through the standard manual-close path (`Declined`/`ManualClose`) — so single-page paywalls dismiss the same as before, from the app's perspective. When `reroute_back_button` is enabled in Paywall settings, the `PaywallOptions.onBackPressed` app callback keeps first refusal before the press is forwarded. Paywalls built on runtimes that predate `back_button_input` will ignore the press; make sure paywalls are re-published on a current runtime.
 
 ## Fixes
 - Fix paywall inputs silently dropping all non-Latin keyboard text (Cyrillic, Korean, Thai, emoji, etc.). The webview no longer replaces Chromium's `InputConnection` with a dummy one unless `isGameControllerEnabled` is set, restoring the full IME pipeline (composition, autocorrect, swipe typing, autofill) for everyone else.
