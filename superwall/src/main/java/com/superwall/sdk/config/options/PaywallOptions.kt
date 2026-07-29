@@ -160,7 +160,9 @@ class PaywallOptions() {
     /**
      * This will be invoked when `reroute_back_button` is enabled in Paywall settings.
      * You can use this to react to back button presses with custom logic.
-     * Return `true` if the dismiss has been consumed, `false` if you prefer to fall back to SDK logic.
+     * Return `true` if the press has been consumed. Return `false` to fall back to SDK
+     * logic: the press is forwarded into the paywall as a `back_button_input` message,
+     * and the paywall either navigates its flow back one page or closes itself.
      */
     var onBackPressed: ((PaywallInfo?) -> Boolean)? = null
 }

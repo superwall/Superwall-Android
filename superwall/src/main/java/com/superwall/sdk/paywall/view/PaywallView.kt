@@ -1105,6 +1105,19 @@ class PaywallView(
 
 //endregion
 
+//region Back button
+
+    /**
+     * Forwards a system back press into the paywall (`back_button_input`).
+     * The paywall either navigates its flow back one page or posts `close`,
+     * which dismisses via the standard manual-close path.
+     */
+    fun backButtonPressed() {
+        webView.messageHandler.handle(PaywallMessage.BackButtonPressed)
+    }
+
+//endregion
+
 //region Misc
 
     // Android-specific

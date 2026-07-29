@@ -202,6 +202,11 @@ class PaywallMessageHandler(
                 }
             }
 
+            is PaywallMessage.BackButtonPressed ->
+                ioScope.launch {
+                    pass(eventName = "back_button_input", paywall = paywall)
+                }
+
             is PaywallMessage.Custom -> handleCustomEvent(message.data)
             is PaywallMessage.CustomPlacement -> handleCustomPlacement(message.name, message.params)
             is PaywallMessage.RestoreFailed ->

@@ -83,6 +83,13 @@ sealed class PaywallMessage {
 
     object PaywallClose : PaywallMessage()
 
+    /**
+     * SDK-originated: forwards a system back press into the paywall as
+     * `back_button_input`. The paywall navigates its flow back one page or
+     * posts `close` to dismiss.
+     */
+    object BackButtonPressed : PaywallMessage()
+
     object TransactionStart : PaywallMessage()
 
     object TransactionAbandon : PaywallMessage()

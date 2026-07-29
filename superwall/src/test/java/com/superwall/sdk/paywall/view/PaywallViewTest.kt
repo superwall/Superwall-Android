@@ -238,6 +238,21 @@ class PaywallViewTest {
     }
 
     @Test
+    fun backButtonPressed_forwardsToMessageHandler() {
+        Given("a paywall presented with the system back button pressed") {
+            every { messageHandler.handle(any()) } just Runs
+
+            When("the press is forwarded to the paywall") {
+                paywallView.backButtonPressed()
+
+                Then("the message handler receives BackButtonPressed") {
+                    verify(exactly = 1) { messageHandler.handle(PaywallMessage.BackButtonPressed) }
+                }
+            }
+        }
+    }
+
+    @Test
     fun destroyWebview_forwardsCall() {
         Given("a PaywallView") {
             When("destroyWebview is called") {
