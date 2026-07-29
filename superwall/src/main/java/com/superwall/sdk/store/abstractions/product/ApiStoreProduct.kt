@@ -16,7 +16,7 @@ import java.util.Locale
  * Shared between test mode products and custom (CUSTOM-store) products that are not
  * fetched from Google Play.
  */
-class ApiStoreProduct(
+open class ApiStoreProduct(
     private val superwallProduct: SuperwallProduct,
 ) : StoreProductType {
     /** The platform this product belongs to, as reported by the /products endpoint. */
