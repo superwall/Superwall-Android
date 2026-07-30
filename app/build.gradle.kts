@@ -40,7 +40,7 @@ android {
 
     buildTypes {
         debug {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
         }
         release {
             isMinifyEnabled = true
@@ -69,6 +69,11 @@ android {
         resources.excludes += "META-INF/LICENSE.md"
         resources.excludes += "META-INF/LICENSE-notice.md"
     }
+}
+
+// RevenueCat isn't Billing 9 compatible yet, so pin Billing for this app.
+configurations.all {
+    resolutionStrategy.force("com.android.billingclient:billing:8.3.0")
 }
 
 dependencies {
