@@ -266,6 +266,37 @@ class PaywallMessageHandlerTest {
             }
         }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun handler_backButtonPressed_passesBackButtonInputToWebView() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            Dispatchers.setMain(dispatcher)
+            val scope = CoroutineScope(dispatcher + Job())
+
+            try {
+                Given("a handler harness") {
+                    val harness = buildHandlerHarness(scope)
+
+                    When("BackButtonPressed is handled") {
+                        harness.handler.handle(PaywallMessage.BackButtonPressed)
+                        advanceUntilIdle()
+
+                        Then("a back_button_input message is passed into the webview") {
+                            assertTrue(
+                                "Expected back_button_input in evaluate calls: ${harness.webUI.evaluateCalls}",
+                                harness.webUI.evaluateCalls.any {
+                                    it.contains("window.paywall.accept64") && it.contains("back_button_input")
+                                },
+                            )
+                        }
+                    }
+                }
+            } finally {
+                Dispatchers.resetMain()
+            }
+        }
+
     private data class HandlerHarness(
         val paywallView: PaywallView,
         val handler: PaywallMessageHandler,

@@ -44,6 +44,11 @@ android {
     }
 }
 
+// RevenueCat isn't Billing 9 compatible yet, so pin Billing for this app.
+configurations.all {
+    resolutionStrategy.force("com.android.billingclient:billing:8.3.0")
+}
+
 dependencies {
     // Local Superwall SDK
     implementation(project(":superwall"))
@@ -63,7 +68,7 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.8.5")
 
     // For handling purchases in tests
-    implementation("com.revenuecat.purchases:purchases:9.2.0")
+    implementation("com.revenuecat.purchases:purchases:10.15.1")
 
     // Testing dependencies
     testImplementation(libs.junit)
@@ -195,10 +200,10 @@ tasks.register("buildForMaestro") {
 
             // Determine RevenueCat version based on Superwall version
             val revenueCatVersion =
-                if (isVersionLessThan(sdkVersion, 2, 5, 0)) {
-                    "8.22.0"
-                } else {
-                    "9.2.0"
+                when {
+                    isVersionLessThan(sdkVersion, 2, 5, 0) -> "8.22.0"
+                    isVersionLessThan(sdkVersion, 2, 8, 0) -> "9.2.0"
+                    else -> "10.15.1"
                 }
 
             println("Using RevenueCat version $revenueCatVersion for Superwall $sdkVersion")

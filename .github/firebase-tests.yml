@@ -4,6 +4,14 @@ android-pixel-7:
   app: app/build/outputs/apk/debug/app-debug.apk
   test: app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
   directories-to-pull: /sdcard/Download/
+  # Without an explicit timeout gcloud defaults to 15m. The orchestrator runs
+  # each test in its own instrumentation invocation, so the whole suite doesn't
+  # always fit — Test Lab then kills the device processes mid-run, which
+  # surfaces as a DeadObjectException crash in AndroidTestOrchestrator.
+  # 45m is the max for physical devices.
+  timeout: 45m
+  # Re-run the matrix once if it still fails on infra flakes.
+  num-flaky-test-attempts: 1
   device:
     - model: panther
       version: 33

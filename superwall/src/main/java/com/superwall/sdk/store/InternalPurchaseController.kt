@@ -7,6 +7,7 @@ import com.superwall.sdk.delegate.PurchaseResult
 import com.superwall.sdk.delegate.RestorationResult
 import com.superwall.sdk.delegate.subscription_controller.PurchaseController
 import com.superwall.sdk.delegate.subscription_controller.PurchaseControllerJava
+import com.superwall.sdk.store.abstractions.product.StoreProduct
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
@@ -21,44 +22,59 @@ class InternalPurchaseController(
     val hasInternalPurchaseController: Boolean
         get() = kotlinPurchaseController is AutomaticPurchaseController
 
+    @Deprecated(
+        "Implement purchase(activity, product, basePlanId, offerId) instead. " +
+            "It receives a StoreProduct, which also supports custom store products.",
+        ReplaceWith("purchase(activity, product, basePlanId, offerId)"),
+    )
     override suspend fun purchase(
         activity: Activity,
         productDetails: ProductDetails,
         basePlanId: String?,
         offerId: String?,
     ): PurchaseResult {
-        // TODO: Await beginPurchase with purchasing coordinator: https://linear.app/superwall/issue/SW-2415/[android]-implement-purchasingcoordinator
-
         if (kotlinPurchaseController != null) {
+            @Suppress("DEPRECATION")
             return kotlinPurchaseController.purchase(activity, productDetails, basePlanId, offerId)
-        } else if (javaPurchaseController != null) {
+        }
+        return purchaseWithJavaController(productDetails, basePlanId, offerId)
+    }
+
+    override suspend fun purchase(
+        activity: Activity,
+        product: StoreProduct,
+        basePlanId: String?,
+        offerId: String?,
+    ): PurchaseResult {
+        if (kotlinPurchaseController != null) {
+            return kotlinPurchaseController.purchase(activity, product, basePlanId, offerId)
+        }
+
+        // PurchaseControllerJava predates StoreProduct — bridge Play products to its
+        // ProductDetails signature; custom products can't be represented there.
+        val productDetails = product.rawStoreProduct?.underlyingProductDetails
+        if (productDetails != null) {
+            return purchaseWithJavaController(productDetails, basePlanId, offerId)
+        }
+        return PurchaseResult.Failed(
+            "No PurchaseController configured to handle custom product purchase.",
+        )
+    }
+
+    private suspend fun purchaseWithJavaController(
+        productDetails: ProductDetails,
+        basePlanId: String?,
+        offerId: String?,
+    ): PurchaseResult {
+        if (javaPurchaseController != null) {
             return suspendCoroutine { continuation ->
                 javaPurchaseController.purchase(productDetails, basePlanId, offerId) { result ->
                     continuation.resume(result)
                 }
             }
-        } else {
-            // Here is where we would implement our own product purchaser.
-            return PurchaseResult.Cancelled()
         }
-
-//
-//        kotlinPurchaseController?.let {
-//            return it.purchase(currentActivity as Activity, sk1Product.skuDetails)
-//            }
-//
-//            // There used to be a failure if raw store product wasn't present but there isn't anymore...
-//            // not sure why
-//        }
-//
-//        // SW-2217
-//        // https://linear.app/superwall/issue/SW-2217/%5Bandroid%5D-%5Bv1%5D-add-back-support-for-javanon-kotlinxcoroutines-purchase
-// //        javaPurchaseController?.let {
-// //            product.sk1Product?.let { sk1Product ->
-// //                return it.purchase(sk1Product)
-// //            } ?: return PurchaseResult.failed(PurchaseError.productUnavailable)
-// //        }
-//        return PurchaseResult.Cancelled()
+        // Here is where we would implement our own product purchaser.
+        return PurchaseResult.Cancelled()
     }
 
     override suspend fun restorePurchases(): RestorationResult {
