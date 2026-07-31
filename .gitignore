@@ -17,3 +17,6 @@ upload-keystore.jks
 JACOCO_SETUP.md
 CODE_QUALITY.md
 Superwall-iOS/
+firebase-debug.log
+firebase-debug.*.log
+.firebaserc
