@@ -180,6 +180,7 @@ class PaywallRequestManager(
             return@withContext paywall.copy(
                 experiment = request.responseIdentifiers.experiment,
                 presentationSourceType = request.presentationSourceType,
+                presentationId = java.util.UUID.randomUUID().toString(),
             )
         }
 
