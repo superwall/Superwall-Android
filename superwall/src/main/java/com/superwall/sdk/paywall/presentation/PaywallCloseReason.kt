@@ -31,3 +31,13 @@ sealed class PaywallCloseReason {
                 else -> true
             }
 }
+
+val PaywallCloseReason.description: String
+    get() =
+        when (this) {
+            is PaywallCloseReason.SystemLogic -> "systemLogic"
+            is PaywallCloseReason.ForNextPaywall -> "forNextPaywall"
+            is PaywallCloseReason.WebViewFailedToLoad -> "webViewFailedToLoad"
+            is PaywallCloseReason.ManualClose -> "manualClose"
+            is PaywallCloseReason.None -> "none"
+        }

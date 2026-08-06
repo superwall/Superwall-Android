@@ -2,6 +2,11 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## Unreleased
+
+## Fixes
+- Paywall analytics events (`paywall_open`, `paywall_page_view`, `paywall_close`, etc.) now include a `presentation_id`, a unique identifier minted for each paywall presentation. Previously this field was always empty on Android, which broke dashboard funnels that correlate a paywall's page views into a single session. Also adds the previously-missing `close_reason`, `cache_key`, and `build_id` fields to these events, matching the data already sent by the iOS SDK.
+
 ## 2.8.0
 
 ## Enhancements
