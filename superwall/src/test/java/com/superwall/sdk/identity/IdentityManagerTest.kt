@@ -352,7 +352,7 @@ class IdentityManagerTest {
                     }
 
                 Then("it returns the sha of the userId") {
-                    assertTrue(externalId.startsWith("sha256-of-"))
+                    assertEquals("sha256-of-user-123", externalId)
                 }
             }
         }
