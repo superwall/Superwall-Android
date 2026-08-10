@@ -958,6 +958,7 @@ class InternalSuperwallEventTest {
             presentation = PaywallPresentationInfo(PaywallPresentationStyle.Modal, 0),
             buildId = "build_1",
             cacheKey = "cache_1",
+            presentationId = "presentation_1",
         )
 
     private fun stubStoreProduct(
@@ -1033,6 +1034,7 @@ class InternalSuperwallEventTest {
 
                     And("paywall info params are also included") {
                         assertEquals(paywallInfo.identifier, params["paywall_identifier"])
+                        assertEquals(paywallInfo.presentationId, params["presentation_id"])
                     }
 
                     And("the superwall placement is paywall_page_view") {
