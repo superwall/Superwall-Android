@@ -5,7 +5,7 @@ import kotlinx.serialization.json.put
 
 /**
  * Builds the JavaScript snippet that seeds the paywall web runtime with device
- * data before any page JavaScript runs.
+ * data as soon as the page starts loading.
  *
  * The web runtime reads `window.__SW_DEVICE_PRELOAD__` at boot and uses
  * `deviceLocale` to render translations on first paint, instead of waiting for

@@ -1,7 +1,6 @@
 [versions]
 billing_version = "8.0.0"
 browser_version = "1.8.0"
-webkit_version = "1.12.1"
 gradle_plugin_version = "8.6.1"
 jna_version = "5.14.0@aar"
 kotlinxCoroutinesGuavaVersion = "1.9.0"
@@ -62,7 +61,6 @@ revenue_cat = { module = "com.revenuecat.purchases:purchases", version.ref = "re
 
 # Browser
 browser = { module = "androidx.browser:browser", version.ref = "browser_version" }
-webkit = { module = "androidx.webkit:webkit", version.ref = "webkit_version" }
 
 # Compose
 compose_bom = { module = "androidx.compose:compose-bom", version.ref = "compose_version" }
