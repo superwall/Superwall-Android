@@ -25,8 +25,6 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.EditText
 import androidx.core.graphics.createBitmap
-import androidx.webkit.WebViewCompat
-import androidx.webkit.WebViewFeature
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.track
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
@@ -181,12 +179,12 @@ class SWWebView(
     private var lastWebViewClient: WebViewClient? = null
     private var lastLoadedUrl: String? = null
 
-    // The device preload script seeds `window.__SW_DEVICE_PRELOAD__` before any
-    // page JavaScript runs, so translated paywalls render in the device locale on
-    // first paint instead of waiting for the `template_variables` message.
-    private var devicePreloadScript: String? = null
-    private var documentStartScriptInstalled = false
-
+    // The device preload script seeds `window.__SW_DEVICE_PRELOAD__` as soon as
+    // the page starts loading, so translated paywalls render in the device locale
+    // on first paint instead of waiting for the `template_variables` message. The
+    // paywall runtime reads the global when its (network-fetched) bundle boots,
+    // so an onPageStarted injection lands well before it; if it ever misses, the
+    // runtime just falls back to waiting for `template_variables` as before.
     private fun currentDeviceLocale(): String? =
         delegate?.state?.locale
             ?: if (Superwall.initialized) {
@@ -195,39 +193,14 @@ class SWWebView(
                 null
             }
 
-    private fun installDevicePreloadScript() {
-        val locale = currentDeviceLocale() ?: return
-        val script = DevicePreloadScript.build(locale)
-        devicePreloadScript = script
-        if (documentStartScriptInstalled) {
-            return
-        }
-        try {
-            if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
-                WebViewCompat.addDocumentStartJavaScript(this, script, setOf("*"))
-                documentStartScriptInstalled = true
-            }
-        } catch (e: Throwable) {
-            // Fall back to injecting in onPageStarted via the webview client.
-            Logger.debug(
-                LogLevel.warn,
-                LogScope.paywallView,
-                "Failed to install document-start device preload script: ${e.message}",
-            )
-        }
-    }
-
-    // Fallback for WebView versions without document-start script support:
-    // inject as early as possible once the page starts loading.
     private val onPageStartedPreloadHook: (WebView) -> Unit = { view ->
-        if (!documentStartScriptInstalled) {
-            devicePreloadScript?.let { view.evaluateJavascript(it, null) }
+        currentDeviceLocale()?.let { locale ->
+            view.evaluateJavascript(DevicePreloadScript.build(locale), null)
         }
     }
 
     internal fun prepareWebview() {
         addJavascriptInterface(messageHandler, "SWAndroid")
-        installDevicePreloadScript()
 
         val webSettings = this.settings
         setWebContentsDebuggingEnabled(false)

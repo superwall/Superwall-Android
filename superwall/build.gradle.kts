@@ -169,9 +169,6 @@ dependencies {
     // Browser
     implementation(libs.browser)
 
-    // WebView (document-start script injection)
-    implementation(libs.webkit)
-
     // Core
     implementation(libs.core)
     implementation(libs.appcompat)
