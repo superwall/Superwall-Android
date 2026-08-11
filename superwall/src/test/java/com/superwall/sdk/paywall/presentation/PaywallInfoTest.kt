@@ -123,6 +123,33 @@ class PaywallInfoTest {
         assertNotNull(params["paywall_response_load_start_time"])
     }
 
+    @Test
+    fun eventParams_includesPresentationIdCloseReasonCacheKeyAndBuildId() {
+        val info =
+            PaywallInfo.empty().copy(
+                presentationId = "presentation-123",
+                closeReason = PaywallCloseReason.ManualClose,
+                cacheKey = "cache-456",
+                buildId = "build-789",
+            )
+
+        val params = info.eventParams()
+
+        assertEquals("presentation-123", params["presentation_id"])
+        assertEquals("manualClose", params["close_reason"])
+        assertEquals("cache-456", params["cache_key"])
+        assertEquals("build-789", params["build_id"])
+    }
+
+    @Test
+    fun eventParams_omitsPresentationId_whenNull() {
+        val info = PaywallInfo.empty().copy(presentationId = null)
+
+        val params = info.eventParams()
+
+        assertFalse(params.containsKey("presentation_id"))
+    }
+
     private fun createProductItem(
         name: String,
         productIdentifier: String,

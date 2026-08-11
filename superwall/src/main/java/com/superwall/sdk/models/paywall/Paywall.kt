@@ -122,6 +122,12 @@ data class Paywall(
      */
     @kotlinx.serialization.Transient()
     var state: Map<String, Any> = emptyMap(),
+    /**
+     * A unique identifier minted for each distinct presentation of this paywall, used to
+     * correlate the events tracked during that presentation (e.g. page views).
+     */
+    @kotlinx.serialization.Transient()
+    var presentationId: String? = null,
     @SerialName("url_config")
     val urlConfig: PaywallWebviewUrl.Config? = null,
     @Serializable
@@ -275,6 +281,7 @@ data class Paywall(
             buildId = buildId,
             isScrollEnabled = isScrollEnabled ?: true,
             state = state,
+            presentationId = presentationId,
         )
 
     companion object {

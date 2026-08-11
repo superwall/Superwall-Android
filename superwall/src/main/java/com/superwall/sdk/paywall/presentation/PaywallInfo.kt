@@ -64,6 +64,7 @@ data class PaywallInfo(
     @Serializable(with = AnyMapSerializer::class)
     val state: Map<String, Any> = emptyMap(),
     val customerInfo: CustomerInfo = CustomerInfo.empty(),
+    val presentationId: String? = null,
 ) {
     constructor(
         databaseId: String,
@@ -99,6 +100,7 @@ data class PaywallInfo(
         isScrollEnabled: Boolean,
         state: Map<String, Any> = emptyMap(),
         customerInfo: CustomerInfo = CustomerInfo.empty(),
+        presentationId: String? = null,
     ) : this(
         databaseId = databaseId,
         identifier = identifier,
@@ -187,6 +189,7 @@ data class PaywallInfo(
         isScrollEnabled = isScrollEnabled,
         state = state,
         customerInfo = customerInfo,
+        presentationId = presentationId,
     )
 
     fun eventParams(
@@ -220,6 +223,10 @@ data class PaywallInfo(
                 "variant_id" to experiment?.variant?.id,
                 "is_scroll_enabled" to isScrollEnabled,
                 "state" to state,
+                "presentation_id" to presentationId,
+                "close_reason" to closeReason.description,
+                "cache_key" to cacheKey,
+                "build_id" to buildId,
             )
         val customerParams = customerInfo.toParams()
         if (customerParams.isNotEmpty()) {

@@ -321,6 +321,72 @@ class PaywallRequestManagerTest {
         }
 
     @Test
+    fun test_getPaywall_setsPresentationId() =
+        runTest {
+            val paywall = Paywall.stub().copy(identifier = "test_paywall")
+            val request =
+                mockk<PaywallRequest> {
+                    every { responseIdentifiers } returns ResponseIdentifiers(paywallId = "test_paywall")
+                    every { eventData } returns null
+                    every { overrides } returns PaywallRequest.Overrides(products = null, isFreeTrial = null)
+                    every { isDebuggerLaunched } returns false
+                    every { presentationSourceType } returns null
+                }
+
+            coEvery { network.getPaywall(any(), any()) } returns Either.Success(paywall)
+            coEvery { storeManager.getProducts(any(), any(), any()) } returns
+                mockk {
+                    every { productItems } returns emptyList()
+                    every { productsByFullId } returns emptyMap()
+                    every { this@mockk.paywall } returns null
+                }
+
+            val result = requestManager.getPaywall(request)
+
+            assertTrue(result is Either.Success)
+            val presentationId = (result as Either.Success).value.presentationId
+            assertNotNull(presentationId)
+            assertTrue(presentationId!!.isNotBlank())
+        }
+
+    @Test
+    fun test_getPaywall_generatesNewPresentationId_onEachCall() =
+        runTest {
+            val paywall = Paywall.stub().copy(identifier = "test_paywall")
+            val request =
+                mockk<PaywallRequest> {
+                    every { responseIdentifiers } returns ResponseIdentifiers(paywallId = "test_paywall")
+                    every { eventData } returns null
+                    every { overrides } returns PaywallRequest.Overrides(products = null, isFreeTrial = null)
+                    every { isDebuggerLaunched } returns false
+                    every { presentationSourceType } returns null
+                }
+
+            coEvery { network.getPaywall(any(), any()) } returns Either.Success(paywall)
+            coEvery { storeManager.getProducts(any(), any(), any()) } returns
+                mockk {
+                    every { productItems } returns emptyList()
+                    every { productsByFullId } returns emptyMap()
+                    every { this@mockk.paywall } returns null
+                }
+
+            // First call
+            val result1 = requestManager.getPaywall(request)
+            // Second call hits the request-hash cache, but should still mint a fresh presentation ID
+            val result2 = requestManager.getPaywall(request)
+
+            assertTrue(result1 is Either.Success)
+            assertTrue(result2 is Either.Success)
+            val presentationId1 = (result1 as Either.Success).value.presentationId
+            val presentationId2 = (result2 as Either.Success).value.presentationId
+            assertNotNull(presentationId1)
+            assertNotNull(presentationId2)
+            assertTrue(presentationId1 != presentationId2)
+            // Network should only be called once due to caching
+            coVerify(exactly = 1) { network.getPaywall(any(), any()) }
+        }
+
+    @Test
     fun test_resetCache_clearsPaywallCache() =
         runTest {
             val paywall =
