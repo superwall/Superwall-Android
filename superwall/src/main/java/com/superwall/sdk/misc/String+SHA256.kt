@@ -12,6 +12,11 @@ fun String.sha256(): ByteArray? =
         null
     }
 
+fun String.sha256Hex(): String? =
+    sha256()?.joinToString(separator = "") { byte ->
+        "%02x".format(byte.toInt() and 0xff)
+    }
+
 fun String.sha256MappedToRange(): Int? {
     val hashBytes = this.sha256() ?: return null
 

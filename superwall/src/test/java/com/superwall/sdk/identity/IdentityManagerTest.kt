@@ -331,6 +331,7 @@ class IdentityManagerTest {
         runTest {
             Given("passIdentifiersToPlayStore is disabled") {
                 val testOptions = SuperwallOptions().apply { passIdentifiersToPlayStore = false }
+                every { storage.read(AppUserId) } returns "user-123"
 
                 val manager =
                     IdentityManager(
@@ -352,7 +353,7 @@ class IdentityManagerTest {
                     }
 
                 Then("it returns the sha of the userId") {
-                    assertTrue(externalId.startsWith("sha256-of-"))
+                    assertEquals("sha256-of-user-123", externalId)
                 }
             }
         }
