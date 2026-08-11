@@ -270,4 +270,58 @@ class RuleLogicTest {
                 }
             }
         }
+
+    @Test
+    fun skipsSharedAttributesWhenNonCelRuleMatchesBeforeAnyCelRule() =
+        runTest {
+            Given("a trigger whose first, non-CEL rule matches ahead of a CEL rule") {
+                val plainRule = rule("plain")
+                val celRule = rule("cel", expressionCEL = "user.age > 18")
+                val triggers = mapOf("event" to Trigger(eventName = "event", rules = listOf(plainRule, celRule)))
+                val event = EventData.stub().copy(name = "event")
+                coEvery { evaluator.evaluateExpression(plainRule, event, null) } returns TriggerRuleOutcome.Match(MatchedItem(plainRule))
+                every { storage.getConfirmedAssignments() } returns emptyMap()
+                val treatmentVariant = Experiment.Variant(id = "t1", type = Experiment.Variant.VariantType.TREATMENT, paywallId = "paywall")
+                every { assignments.unconfirmedAssignments } returns mapOf("plain" to treatmentVariant)
+
+                val result =
+                    When("evaluateRules executes") {
+                        RuleLogic(assignments, storage, factory, evaluator).evaluateRules(event, triggers)
+                    }
+
+                Then("no attributes are built and the paywall outcome is returned") {
+                    coVerify(exactly = 0) { factory.makeRuleAttributes(any(), any()) }
+                    assertTrue(result is Either.Success<RuleEvaluationOutcome, Throwable>)
+                    val outcome = (result as Either.Success<RuleEvaluationOutcome, Throwable>).value
+                    assertTrue(outcome.triggerResult is InternalTriggerResult.Paywall)
+                }
+            }
+        }
+
+    @Test
+    fun degradesToNullSharedAttributesWhenBuildingThemFails() =
+        runTest {
+            Given("a trigger with CEL rules whose shared attribute build throws") {
+                val ruleOne = rule("expOne", expressionCEL = "user.age > 18")
+                val ruleTwo = rule("expTwo", expressionCEL = "user.age > 21")
+                val triggers = mapOf("event" to Trigger(eventName = "event", rules = listOf(ruleOne, ruleTwo)))
+                val event = EventData.stub().copy(name = "event")
+                coEvery { factory.makeRuleAttributes(event, emptyList()) } throws IllegalStateException("attributes unavailable")
+                val recordingEvaluator = RecordingEvaluator()
+                val logic = RuleLogic(assignments, storage, factory, recordingEvaluator)
+
+                val result =
+                    When("evaluateRules executes") {
+                        logic.evaluateRules(event, triggers)
+                    }
+
+                Then("the build is attempted once and both rules degrade to per-rule attributes") {
+                    coVerify(exactly = 1) { factory.makeRuleAttributes(event, emptyList()) }
+                    assertEquals(listOf<PassableValue.MapValue?>(null, null), recordingEvaluator.receivedSharedAttributes)
+                    assertTrue(result is Either.Success<RuleEvaluationOutcome, Throwable>)
+                    val outcome = (result as Either.Success<RuleEvaluationOutcome, Throwable>).value
+                    assertTrue(outcome.triggerResult is InternalTriggerResult.NoAudienceMatch)
+                }
+            }
+        }
 }

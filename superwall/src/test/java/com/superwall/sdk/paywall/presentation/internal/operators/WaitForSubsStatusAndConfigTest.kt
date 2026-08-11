@@ -369,8 +369,59 @@ class WaitForSubsStatusAndConfigTest {
                     }
 
                     Then("the config timeout window overlapped the entitlements wait") {
-                        // Sequential waits would take 4s + 6s = 10s; overlapped they take 6s.
-                        assert(currentTime - start <= 7_000)
+                        // Fully sequential waits would take 4s + 6s + 6s retry = 16s;
+                        // overlapped, the first config window ends at 6s and the
+                        // post-entitlements retry exhausts at 12s.
+                        assert(currentTime - start <= 13_000)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `waitForEntitlementsAndConfig succeeds when config lands during the post-entitlements retry`() =
+        runTest {
+            Given("entitlements resolve at 4500ms and config resolves at 8s") {
+                val dependencyContainer = mockk<DependencyContainer>(relaxed = true)
+                every { dependencyContainer.ioScope() } returns com.superwall.sdk.misc.IOScope(coroutineContext)
+
+                val configState = MutableStateFlow<ConfigState>(ConfigState.Retrieving)
+                every { dependencyContainer.configManager.configState } returns configState
+
+                val identityManager = mockk<com.superwall.sdk.identity.IdentityManager>(relaxed = true)
+                coEvery { identityManager.awaitLatestIdentity() } returns mockk(relaxed = true)
+                every { dependencyContainer.identityManager } returns identityManager
+
+                val entitlements = MutableStateFlow<SubscriptionStatus?>(SubscriptionStatus.Unknown)
+                backgroundScope.launch {
+                    delay(4500.milliseconds)
+                    entitlements.value = SubscriptionStatus.Inactive
+                }
+                backgroundScope.launch {
+                    delay(8.seconds)
+                    configState.value = ConfigState.Retrieved(Config.stub())
+                }
+
+                val publisher = MutableSharedFlow<PaywallState>(replay = 1)
+                val request =
+                    PresentationRequest(
+                        presentationInfo = PresentationInfo.ExplicitTrigger(EventData.stub()),
+                        flags =
+                            PresentationRequest.Flags(
+                                isDebuggerLaunched = false,
+                                entitlements = entitlements,
+                                isPaywallPresented = false,
+                                type = PresentationRequestType.Presentation,
+                            ),
+                    )
+
+                When("waitForEntitlementsAndConfig executes") {
+                    // The concurrent config windows expire at 6s (starved by the slow
+                    // entitlements), but the fresh sequential retry picks up the 8s config.
+                    waitForEntitlementsAndConfig(request, paywallStatePublisher = publisher, dependencyContainer = dependencyContainer)
+
+                    Then("it completes without throwing and emits no error") {
+                        assert(publisher.replayCache.isEmpty())
                     }
                 }
             }

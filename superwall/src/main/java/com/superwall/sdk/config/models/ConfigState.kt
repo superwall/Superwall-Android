@@ -26,6 +26,7 @@ import com.superwall.sdk.web.WebPaywallRedeemer
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -169,6 +170,10 @@ sealed class ConfigState {
                         )
                 }.then { config -> immediate(ApplyConfig(config)) }
                 .then { config ->
+                    // Fresh installs have no stored enrichment fallback, so give the
+                    // in-flight enrichment a bounded window to land before publishing
+                    // Retrieved; await() is idempotent, the retry launch below reuses it.
+                    withTimeoutOrNull(1.seconds) { enrichmentDeferred.await() }
                     update(Updates.SetRetrieved(config))
                 }.thenIf(testMode?.isTestMode != true) {
                         sideEffect {

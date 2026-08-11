@@ -118,7 +118,22 @@ internal suspend fun waitForEntitlementsAndConfig(
             throw PaywallPresentationRequestStatusReason.SubscriptionStatusTimeout()
         }
 
-        configResult.await().onFailure { e ->
+        // The concurrent config wait shares its clock with the entitlements wait, so
+        // slow-resolving entitlements can starve the config windows that the old
+        // sequential code would have started afterwards. Now that entitlements have
+        // resolved, give a timed-out config one fresh sequential attempt before
+        // failing; non-timeout failures (e.g. ConfigState.Failed) stay immediate.
+        val configFailure =
+            configResult.await().exceptionOrNull()?.let { e ->
+                if (e is TimeoutCancellationException) {
+                    runCatching { configState.configOrThrow(retries) }.exceptionOrNull()
+                } else {
+                    e
+                }
+            }
+
+        if (configFailure != null) {
+            val e = configFailure
             e.printStackTrace()
             // Only track when config timed out — a Failed state is an immediate error, not a timeout.
             if (e is TimeoutCancellationException) {

@@ -26,12 +26,15 @@ import com.superwall.sdk.store.StoreManager
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.util.Date
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
@@ -54,12 +57,20 @@ class PaywallRequestManager(
     private val getGlobalOverrides: () -> Map<String, String> = {
         Superwall.instance.overrideProductsByName
     },
+    // Single lane so paired lifecycle start/complete tracks reach the delegate
+    // (and get Date()-stamped) in launch order; the multi-threaded IO dispatcher
+    // could deliver them inverted when nothing separates the two launches.
+    private val trackScope: CoroutineScope = IOScope(Dispatchers.IO.limitedParallelism(1)),
 ) {
     // getPaywall runs on the multi-threaded IO dispatcher, so request dedup relies on
     // ConcurrentHashMap's atomic putIfAbsent/remove(key, value) — not on a single thread.
 
     private val activeTasks = ConcurrentHashMap<String, Deferred<Paywall>>()
     private val paywallsByHash = ConcurrentHashMap<String, Paywall>()
+
+    // Bumped on every cache invalidation; a fetch only writes its result into
+    // paywallsByHash when the generation it started under is still current.
+    private val cacheGeneration = AtomicLong(0)
 
     suspend fun getPaywall(
         request: PaywallRequest,
@@ -100,8 +111,11 @@ class PaywallRequestManager(
                                 }
                             }
                         if (shouldRetry) {
+                            val retryGeneration = cacheGeneration.get()
                             paywall = addProducts(paywall, request)
-                            if (paywall.productsLoadingInfo.failAt == null) {
+                            if (paywall.productsLoadingInfo.failAt == null &&
+                                cacheGeneration.get() == retryGeneration
+                            ) {
                                 paywallsByHash[requestHash] = paywall
                             }
                         }
@@ -142,6 +156,11 @@ class PaywallRequestManager(
                         // Launch coroutine to handle async operations
                         ioScope.launch {
                             try {
+                                // If the caller was cancelled before this launch ran,
+                                // invokeOnCancellation has already fired (its remove was
+                                // a no-op) — bail instead of running a zombie fetch.
+                                if (!continuation.isActive || deferredTask.isCancelled) return@launch
+
                                 // Claim the in-flight slot atomically; if another
                                 // coroutine won the race, await its result instead
                                 // of fetching the same paywall again.
@@ -153,15 +172,25 @@ class PaywallRequestManager(
                                     } catch (e: kotlinx.coroutines.CancellationException) {
                                         // Clean up cancelled task and race for the slot again
                                         activeTasks.remove(requestHash, winner)
+                                        if (!continuation.isActive) return@launch
                                         winner = activeTasks.putIfAbsent(requestHash, deferredTask)
                                     }
                                 }
 
+                                // Snapshot the cache generation so an invalidation racing
+                                // this fetch keeps the (stale) result out of the cache.
+                                val fetchGeneration = cacheGeneration.get()
                                 val rawPaywallResult = getRawPaywall(request, isPreloading)
                                 rawPaywallResult
                                     .then {
                                         val finalPaywall = addProducts(it, request)
-                                        saveRequestHash(requestHash, deferredTask, finalPaywall, request.isDebuggerLaunched)
+                                        saveRequestHash(
+                                            requestHash,
+                                            deferredTask,
+                                            finalPaywall,
+                                            request.isDebuggerLaunched,
+                                            fetchGeneration,
+                                        )
 
                                         // Complete both the deferred task and the continuation
                                         deferredTask.complete(finalPaywall)
@@ -207,11 +236,15 @@ class PaywallRequestManager(
         task: Deferred<Paywall>,
         paywall: Paywall,
         isDebuggerLaunched: Boolean,
+        fetchGeneration: Long,
     ) = withContext(ioScope.coroutineContext) {
-        activeTasks.remove(requestHash, task)
-        if (!isDebuggerLaunched) {
+        // Write the cache before releasing the in-flight slot so a concurrent
+        // request can't miss both and refetch. Skip the write if the cache was
+        // invalidated while this fetch was in flight — the result is stale.
+        if (!isDebuggerLaunched && cacheGeneration.get() == fetchGeneration) {
             paywallsByHash[requestHash] = paywall
         }
+        activeTasks.remove(requestHash, task)
     }
 
     suspend fun getRawPaywall(
@@ -288,15 +321,17 @@ class PaywallRequestManager(
 
     // MARK: - Analytics
     // Lifecycle events are tracked without awaiting so dispatcher hops and the app's
-    // delegate callback never sit on the load path. Payloads are built eagerly at the
-    // call site so launched tracks can't observe later paywall mutation.
+    // delegate callback never sit on the load path. They all launch on the single-lane
+    // trackScope so paired start/complete events reach the delegate in launch order.
+    // Payloads are built eagerly at the call site so launched tracks can't observe
+    // later paywall mutation.
     private fun trackResponseStarted(event: EventData?) {
         val trackedEvent =
             InternalSuperwallEvent.PaywallLoad(
                 state = InternalSuperwallEvent.PaywallLoad.State.Start(),
                 eventData = event,
             )
-        ioScope.launch { track(trackedEvent) }
+        trackScope.launch { track(trackedEvent) }
     }
 
     private fun trackResponseLoaded(
@@ -308,7 +343,7 @@ class PaywallRequestManager(
                 InternalSuperwallEvent.PaywallLoad.State.Complete(paywallInfo = paywallInfo),
                 eventData = event,
             )
-        ioScope.launch { track(responseLoadEvent) }
+        trackScope.launch { track(responseLoadEvent) }
     }
 
     suspend fun addProducts(
@@ -331,7 +366,7 @@ class PaywallRequestManager(
                         paywallInfo = paywall.getInfo(request.eventData),
                         eventData = request.eventData,
                     )
-                ioScope.launch { track(productLoadFailEvent) }
+                trackScope.launch { track(productLoadFailEvent) }
                 throw error
             }
             paywall = getProducts(paywall, request)
@@ -419,7 +454,7 @@ class PaywallRequestManager(
                 paywallInfo,
                 request.eventData,
             )
-        ioScope.launch { track(productLoadEvent) }
+        trackScope.launch { track(productLoadEvent) }
         return paywall
     }
 
@@ -435,16 +470,18 @@ class PaywallRequestManager(
                 paywallInfo,
                 event,
             )
-        ioScope.launch { track(productLoadEvent) }
+        trackScope.launch { track(productLoadEvent) }
 
         return paywall
     }
 
     internal fun resetCache() {
+        cacheGeneration.incrementAndGet()
         paywallsByHash.clear()
     }
 
     fun removeCachedPaywalls(identifiers: Set<String>) {
+        cacheGeneration.incrementAndGet()
         paywallsByHash.entries.removeAll { it.value.identifier in identifiers }
     }
 

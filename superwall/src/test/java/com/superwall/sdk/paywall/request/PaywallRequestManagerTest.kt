@@ -66,6 +66,9 @@ class PaywallRequestManagerTest {
                 ioScope = ioScope,
                 track = { trackedEvents.add(it) },
                 getGlobalOverrides = { globalOverrides },
+                // Unconfined so lifecycle tracks run inline and assertions on
+                // trackedEvents don't race the real single-lane IO dispatcher.
+                trackScope = IOScope(Dispatchers.Unconfined),
             )
     }
 
@@ -474,6 +477,45 @@ class PaywallRequestManagerTest {
             requestManager.getPaywall(requestTwo)
             coVerify(exactly = 2) { network.getPaywall("paywall_one", any()) }
             coVerify(exactly = 1) { network.getPaywall("paywall_two", any()) }
+        }
+
+    @Test
+    fun test_getPaywall_skipsCacheWrite_whenCacheInvalidatedMidFetch() =
+        runTest {
+            val paywall = Paywall.stub().copy(identifier = "test_paywall")
+            val request =
+                mockk<PaywallRequest> {
+                    every { responseIdentifiers } returns ResponseIdentifiers(paywallId = "test_paywall")
+                    every { eventData } returns null
+                    every { overrides } returns PaywallRequest.Overrides(products = null, isFreeTrial = null)
+                    every { isDebuggerLaunched } returns false
+                    every { presentationSourceType } returns null
+                }
+
+            var networkCalls = 0
+            coEvery { network.getPaywall(any(), any()) } coAnswers {
+                networkCalls++
+                if (networkCalls == 1) {
+                    // Config refresh invalidates the cache while the fetch is in flight
+                    requestManager.removeCachedPaywalls(setOf("test_paywall"))
+                }
+                Either.Success(paywall)
+            }
+            coEvery { storeManager.getProducts(any(), any(), any()) } returns
+                mockk {
+                    every { productItems } returns emptyList()
+                    every { productsByFullId } returns emptyMap()
+                    every { this@mockk.paywall } returns null
+                }
+
+            // First call: fetch started before the invalidation, so its (stale)
+            // result is still returned but must NOT be written to the cache
+            val result1 = requestManager.getPaywall(request)
+            assertTrue(result1 is Either.Success)
+
+            // Second call must refetch instead of hitting a stale cache entry
+            requestManager.getPaywall(request)
+            coVerify(exactly = 2) { network.getPaywall(any(), any()) }
         }
 
     @Test

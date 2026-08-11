@@ -181,10 +181,6 @@ class SWWebView(
     private var lastLoadedUrl: String? = null
     private var loadRetryCount = 0
 
-    // True once a main-frame error was reported for the page currently loading;
-    // cleared when a new page starts, so a clean finish can reset the retry budget.
-    private var mainFrameErrored = false
-
     // The device preload script seeds `window.__SW_DEVICE_PRELOAD__` as soon as
     // the page starts loading, so translated paywalls render in the device locale
     // on first paint instead of waiting for the `template_variables` message. The
@@ -200,7 +196,6 @@ class SWWebView(
             }
 
     private val onPageStartedPreloadHook: (WebView) -> Unit = { view ->
-        mainFrameErrored = false
         currentDeviceLocale()?.let { locale ->
             view.evaluateJavascript(DevicePreloadScript.build(locale), null)
         }
@@ -384,7 +379,6 @@ class SWWebView(
                     mainScope.launch {
                         when (it) {
                             is WebviewClientEvent.OnError -> {
-                                mainFrameErrored = true
                                 trackPaywallError(
                                     it.webviewError,
                                     when (val e = it.webviewError) {
@@ -465,7 +459,10 @@ class SWWebView(
                             }
 
                             is WebviewClientEvent.OnPageFinished -> {
-                                if (!mainFrameErrored) {
+                                // The client records page-level failures synchronously on the
+                                // WebViewClient callback thread, so this can't miss an error
+                                // whose async OnError event hasn't been processed yet.
+                                if (!client.hadMainFrameError) {
                                     loadRetryCount = 0
                                 }
                                 asEither {

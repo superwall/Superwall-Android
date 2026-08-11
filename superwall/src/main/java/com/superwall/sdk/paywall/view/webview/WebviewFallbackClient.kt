@@ -158,7 +158,7 @@ internal class WebviewFallbackClient(
         request: WebResourceRequest?,
         errorResponse: WebResourceResponse?,
     ) {
-        if (request?.isForMainFrame == true) {
+        if (isPageLevelFailure(request)) {
             timeoutFlow.update { UrlState.PageError }
         }
         super.onReceivedHttpError(view, request, errorResponse)
@@ -228,7 +228,7 @@ internal class WebviewFallbackClient(
         request: WebResourceRequest?,
         error: WebResourceError,
     ) {
-        if (request?.isForMainFrame != true) {
+        if (!isPageLevelFailure(request)) {
             super.onReceivedError(view, request, error)
             return
         }

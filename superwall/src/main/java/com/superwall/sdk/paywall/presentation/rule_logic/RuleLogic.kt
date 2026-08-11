@@ -121,14 +121,22 @@ class RuleLogic(
 
         // Shared across the rules of this pass only - it excludes each rule's
         // computed properties, which the evaluator resolves fresh per rule.
-        val sharedAttributes: PassableValue.MapValue? =
-            if (trigger.rules.any { it.expressionCEL != null }) {
-                factory.makeRuleAttributes(event, emptyList()).toPassableValue()
-            } else {
-                null
-            }
+        // Built lazily on the first CEL rule so a pass that matches earlier
+        // never pays for it; a failed build is not retried within the pass and
+        // leaves it null, letting the evaluator fall back to building
+        // attributes per rule (where failures are already contained).
+        var sharedAttributes: PassableValue.MapValue? = null
+        var sharedAttributesBuildAttempted = false
 
         for (rule in trigger.rules) {
+            if (rule.expressionCEL != null && !sharedAttributesBuildAttempted) {
+                sharedAttributesBuildAttempted = true
+                sharedAttributes =
+                    runCatching {
+                        factory.makeRuleAttributes(event, emptyList()).toPassableValue()
+                    }.getOrNull()
+            }
+
             val outcome = expressionEvaluator.evaluateExpression(rule, event, sharedAttributes)
 
             when (outcome) {
