@@ -179,6 +179,26 @@ class SWWebView(
     private var lastWebViewClient: WebViewClient? = null
     private var lastLoadedUrl: String? = null
 
+    // The device preload script seeds `window.__SW_DEVICE_PRELOAD__` as soon as
+    // the page starts loading, so translated paywalls render in the device locale
+    // on first paint instead of waiting for the `template_variables` message. The
+    // paywall runtime reads the global when its (network-fetched) bundle boots,
+    // so an onPageStarted injection lands well before it; if it ever misses, the
+    // runtime just falls back to waiting for `template_variables` as before.
+    private fun currentDeviceLocale(): String? =
+        delegate?.state?.locale
+            ?: if (Superwall.initialized) {
+                Superwall.instance.dependencyContainer.deviceHelper.locale
+            } else {
+                null
+            }
+
+    private val onPageStartedPreloadHook: (WebView) -> Unit = { view ->
+        currentDeviceLocale()?.let { locale ->
+            view.evaluateJavascript(DevicePreloadScript.build(locale), null)
+        }
+    }
+
     internal fun prepareWebview() {
         addJavascriptInterface(messageHandler, "SWAndroid")
 
@@ -235,6 +255,7 @@ class SWWebView(
                     }
                 },
                 localResourceHandler = localResourceHandler,
+                onPageStartedHook = onPageStartedPreloadHook,
             )
         this.webViewClient = client
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
@@ -300,6 +321,7 @@ class SWWebView(
                     }
                 },
                 localResourceHandler = localResourceHandler,
+                onPageStartedHook = onPageStartedPreloadHook,
             )
         this.webViewClient = client
 

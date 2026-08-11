@@ -20,6 +20,7 @@ internal open class DefaultWebviewClient(
     private val ioScope: CoroutineScope,
     private val onWebViewCrash: (view: WebView, RenderProcessGoneDetail) -> Unit = { v, d -> },
     private val localResourceHandler: LocalResourceHandler? = null,
+    private val onPageStartedHook: (WebView) -> Unit = {},
 ) : WebViewClient() {
     val webviewClientEvents: MutableSharedFlow<WebviewClientEvent> =
         MutableSharedFlow(extraBufferCapacity = 10, replay = 2)
@@ -45,6 +46,7 @@ internal open class DefaultWebviewClient(
         favicon: Bitmap?,
     ) {
         super.onPageStarted(view, url, favicon)
+        view?.let(onPageStartedHook)
     }
 
     override fun onPageFinished(
