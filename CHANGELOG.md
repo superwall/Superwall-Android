@@ -2,10 +2,13 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
-## Unreleased
+## 2.7.24
+
+This is a special patch release: it is 2.7.23 plus the fixes below, and does not include the changes shipped in 2.8.0 (Google Play Billing Library 9, custom store products, minSdk 23). Use it if you want these fixes but are not ready to take the 2.8.0 upgrade.
 
 ## Fixes
 - Paywalls with translations now render in the user's language on first paint instead of briefly showing the default language. 
+- Fix the hashed user ID (`externalAccountId`) attached to Play Store purchases: the SDK was hashing an internal object reference instead of the user ID, producing a hash that didn't match the user and changed between app launches.
 - Paywall analytics events (`paywall_open`, `paywall_page_view`, `paywall_close`, etc.) now include a `presentation_id`, a unique identifier minted for each paywall presentation. Previously this field was always empty on Android, which broke dashboard funnels that correlate a paywall's page views into a single session. Also adds the previously-missing `close_reason`, `cache_key`, and `build_id` fields to these events, matching the data already sent by the iOS SDK.
 
 ## 2.7.23

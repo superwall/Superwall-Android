@@ -11,6 +11,11 @@ on:
   push:
     branches: [ "main" ]
   workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish to Maven Central, tag, and create a GitHub release from this ref. Use for special releases cut from non-main branches (e.g. backport releases)."
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -57,9 +62,10 @@ jobs:
         path: "superwall/build/version.json"
         prop_path: "version"
 
-    # Only try to publish if we're on main
+    # Only try to publish on a push to main, or on a manual dispatch that
+    # explicitly opted into publishing (special releases off non-main branches).
     - name: Check if tag exists
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.publish == true)
       id: check-tag
       run: |
         EXISTS=$(git tag -l | grep -Fxq "${{steps.version.outputs.prop}}" && echo 'true' || echo 'false')
@@ -99,7 +105,7 @@ jobs:
         fi
 
     - name: Tag
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.publish == true)
       run: |
         if [ "${{ steps.check-tag.outputs.tag-exists }}" == "false" ]; then
           sudo git config --global user.name 'Jake'
