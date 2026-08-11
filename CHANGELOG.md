@@ -2,6 +2,11 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## Unreleased
+
+## Fixes
+- Paywalls with translations now render in the user's language on first paint instead of briefly showing the default language. The device locale is injected into the paywall webview as soon as the page starts loading, so the paywall no longer waits for product loading to learn the locale.
+
 ## 2.8.0
 
 ## Enhancements
@@ -10,9 +15,6 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 - Adds a unified `PurchaseController.purchase(activity, product: StoreProduct, basePlanId, offerId)` method that handles both Google Play and custom store products. For Play products, the underlying `ProductDetails` are available via `product.rawStoreProduct`.
 - Custom purchases produce full transaction analytics (`transaction_start`/`transaction_complete`, `subscriptionStart`/`freeTrialStart`) with an SDK-generated transaction identifier exposed as `StoreProduct.customTransactionId`, and free-trial eligibility for custom products is derived from the customer's entitlement history.
 - Adds `ApiStoreProduct`, a product backed by Superwall API data, used for custom store products. 
-
-## Fixes
-- Paywalls with translations now render in the user's language on first paint instead of briefly showing the default language. The device locale is injected into the paywall webview as soon as the page starts loading, so the paywall no longer waits for product loading to learn the locale.
 
 ## Breaking Changes
 - System back presses are now forwarded into the paywall as a `back_button_input` message instead of dismissing it directly: multi-page flows navigate back one page, and paywalls with nowhere to go back (root page, single page) close themselves through the standard manual-close path (`Declined`/`ManualClose`) — so single-page paywalls dismiss the same as before, from the app's perspective. When `reroute_back_button` is enabled in Paywall settings, the `PaywallOptions.onBackPressed` app callback keeps first refusal before the press is forwarded. Paywalls built on runtimes that predate `back_button_input` will ignore the press; this means that previously existing Multi-page paywalls, if republished, will now navigate back inside the paywall once republished.
