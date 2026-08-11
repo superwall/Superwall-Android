@@ -34,6 +34,8 @@ import com.superwall.sdk.store.transactions.PlayBillingErrors
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
@@ -75,6 +77,7 @@ class AutomaticPurchaseController(
     PurchasesUpdatedListener {
     companion object {
         private const val QUERY_TIMEOUT_MS = 10_000L
+        private const val CONNECTION_TIMEOUT_MS = 10_000L
         private const val MAX_RETRIES = 3
     }
 
@@ -328,12 +331,21 @@ class AutomaticPurchaseController(
 //region Private
 
     private suspend fun syncSubscriptionStatusAndWait(count: Int = 0) {
-        // We await for configuration to be set so our entitlements are available
-        Superwall.instance.configurationStateListener.first { it is ConfigurationStatus.Configured }
-        val subscriptionPurchases =
-            retryOrNull(MAX_RETRIES) { queryPurchasesOfType(BillingClient.ProductType.SUBS).getOrThrow() }
-        val inAppPurchases =
-            retryOrNull(MAX_RETRIES) { queryPurchasesOfType(BillingClient.ProductType.INAPP).getOrThrow() }
+        // Queries fail instantly while the billing client is still connecting,
+        // so wait (bounded) for the connection before querying
+        withTimeoutOrNull(CONNECTION_TIMEOUT_MS) { isConnected.first { it } }
+        val (subscriptionPurchases, inAppPurchases) =
+            coroutineScope {
+                val subs =
+                    async {
+                        retryOrNull(MAX_RETRIES) { queryPurchasesOfType(BillingClient.ProductType.SUBS).getOrThrow() }
+                    }
+                val inApps =
+                    async {
+                        retryOrNull(MAX_RETRIES) { queryPurchasesOfType(BillingClient.ProductType.INAPP).getOrThrow() }
+                    }
+                subs.await() to inApps.await()
+            }
         val failed = subscriptionPurchases == null || inAppPurchases == null
         val allPurchases = (subscriptionPurchases ?: emptyList()) + (inAppPurchases ?: emptyList())
         val hasActivePurchaseOrSubscription =
@@ -352,6 +364,8 @@ class AutomaticPurchaseController(
 
         val status: SubscriptionStatus =
             if (hasActivePurchaseOrSubscription) {
+                // We await for configuration to be set so our entitlements are available
+                Superwall.instance.configurationStateListener.first { it is ConfigurationStatus.Configured }
                 allPurchases
                     .flatMap {
                         it.products

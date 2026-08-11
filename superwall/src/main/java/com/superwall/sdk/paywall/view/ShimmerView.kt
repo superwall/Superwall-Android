@@ -1,5 +1,6 @@
 package com.superwall.sdk.paywall.view
 
+import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.content.Context
@@ -22,7 +23,7 @@ class ShimmerView(
     attrs: AttributeSet? = null,
 ) : ImageView(context.applicationContext, attrs),
     PaywallShimmerView {
-    private var animator: ValueAnimator? = null
+    private var animator: ObjectAnimator? = null
     private var vectorDrawable: VectorDrawable? = null
 
     companion object {
@@ -40,7 +41,6 @@ class ShimmerView(
     var tintColorFilter: android.graphics.ColorFilter? = null
 
     init {
-        setLayerType(LAYER_TYPE_SOFTWARE, null)
         setTag(TAG)
         checkForOrientationChanges()
     }
@@ -118,19 +118,22 @@ class ShimmerView(
 
     fun startShimmer() {
         stopShimmer()
+        // Hardware layer caches the drawable as a texture so each animation
+        // frame is a GPU composite instead of a full CPU re-rasterization.
+        setLayerType(LAYER_TYPE_HARDWARE, null)
         animator =
-            ValueAnimator.ofFloat(1f, 0.5f, 1f).apply {
+            ObjectAnimator.ofFloat(this, ALPHA, 1f, 0.5f, 1f).apply {
                 duration = 3000
                 repeatCount = ValueAnimator.INFINITE
                 interpolator = PathInterpolator(0.4f, 0f, 0.6f, 1f)
-                addUpdateListener { animation ->
-                    drawable.alpha = (animation.animatedValue as Float * 255).toInt()
-                }
                 start()
             }
     }
 
     fun stopShimmer() {
         animator?.cancel()
+        animator = null
+        alpha = 1f
+        setLayerType(LAYER_TYPE_NONE, null)
     }
 }

@@ -114,6 +114,7 @@ class SWWebView(
         { i, e -> }
 
     private companion object ChromeClient : WebChromeClient() {
+        const val MAX_LOAD_RETRIES = 3
         val posterBmp by lazy { createBitmap(10, 10) }
 
         private class ChromeClient(
@@ -178,6 +179,11 @@ class SWWebView(
 
     private var lastWebViewClient: WebViewClient? = null
     private var lastLoadedUrl: String? = null
+    private var loadRetryCount = 0
+
+    // True once a main-frame error was reported for the page currently loading;
+    // cleared when a new page starts, so a clean finish can reset the retry budget.
+    private var mainFrameErrored = false
 
     // The device preload script seeds `window.__SW_DEVICE_PRELOAD__` as soon as
     // the page starts loading, so translated paywalls render in the device locale
@@ -194,6 +200,7 @@ class SWWebView(
             }
 
     private val onPageStartedPreloadHook: (WebView) -> Unit = { view ->
+        mainFrameErrored = false
         currentDeviceLocale()?.let { locale ->
             view.evaluateJavascript(DevicePreloadScript.build(locale), null)
         }
@@ -258,9 +265,7 @@ class SWWebView(
                 onPageStartedHook = onPageStartedPreloadHook,
             )
         this.webViewClient = client
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            lastWebViewClient = client
-        }
+        lastWebViewClient = client
         listenToWebviewClientEvents(client)
         client.loadWithFallback()
     }
@@ -324,10 +329,7 @@ class SWWebView(
                 onPageStartedHook = onPageStartedPreloadHook,
             )
         this.webViewClient = client
-
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            lastWebViewClient = client
-        }
+        lastWebViewClient = client
 
         listenToWebviewClientEvents(client)
         super.loadUrl(transformUri(url))
@@ -382,6 +384,7 @@ class SWWebView(
                     mainScope.launch {
                         when (it) {
                             is WebviewClientEvent.OnError -> {
+                                mainFrameErrored = true
                                 trackPaywallError(
                                     it.webviewError,
                                     when (val e = it.webviewError) {
@@ -423,17 +426,21 @@ class SWWebView(
                                 )
                                 if (lastLoadedUrl != null) {
                                     when (lastWebViewClient) {
-                                        is WebviewFallbackClient -> {}
-                                        is DefaultWebviewClient -> {
-                                            log(
-                                                "Paywall loading failed - retrying $lastLoadedUrl",
-                                            )
-                                            loadUrl(lastLoadedUrl!!)
-                                        }
-
-                                        else -> {
+                                        is WebviewFallbackClient -> {
                                             // NO-OP as it has internal fallback
                                         }
+
+                                        is DefaultWebviewClient -> {
+                                            if (loadRetryCount < MAX_LOAD_RETRIES) {
+                                                loadRetryCount += 1
+                                                log(
+                                                    "Paywall loading failed - retrying $lastLoadedUrl",
+                                                )
+                                                loadUrl(lastLoadedUrl!!)
+                                            }
+                                        }
+
+                                        else -> {}
                                     }
                                 }
                             }
@@ -458,6 +465,9 @@ class SWWebView(
                             }
 
                             is WebviewClientEvent.OnPageFinished -> {
+                                if (!mainFrameErrored) {
+                                    loadRetryCount = 0
+                                }
                                 asEither {
                                     mainScope.launch {
                                         this@SWWebView.scrollTo(0, 0)
@@ -586,6 +596,7 @@ class SWWebView(
     ) {
         this.onRenderCrashed = onRenderCrashed
         scrollEnabled = delegate?.state?.paywall?.isScrollEnabled ?: true
+        loadRetryCount = 0
         mainScope.launch {
             val state = delegate?.state ?: return@launch
             if (state.paywall.onDeviceCache is OnDeviceCaching.Enabled) {

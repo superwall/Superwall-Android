@@ -12,6 +12,8 @@ import com.superwall.sdk.models.triggers.Trigger
 import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
 import com.superwall.sdk.models.triggers.TriggerRuleOutcome
 import com.superwall.sdk.models.triggers.UnmatchedRule
+import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.PassableValue
+import com.superwall.sdk.paywall.presentation.rule_logic.cel.toPassableValue
 import com.superwall.sdk.paywall.presentation.rule_logic.expression_evaluator.ExpressionEvaluating
 import com.superwall.sdk.storage.LocalStorage
 import com.superwall.sdk.utilities.withErrorTracking
@@ -117,8 +119,17 @@ class RuleLogic(
 
         val unmatchedRules = mutableListOf<UnmatchedRule>()
 
+        // Shared across the rules of this pass only - it excludes each rule's
+        // computed properties, which the evaluator resolves fresh per rule.
+        val sharedAttributes: PassableValue.MapValue? =
+            if (trigger.rules.any { it.expressionCEL != null }) {
+                factory.makeRuleAttributes(event, emptyList()).toPassableValue()
+            } else {
+                null
+            }
+
         for (rule in trigger.rules) {
-            val outcome = expressionEvaluator.evaluateExpression(rule, event)
+            val outcome = expressionEvaluator.evaluateExpression(rule, event, sharedAttributes)
 
             when (outcome) {
                 is TriggerRuleOutcome.Match -> return RuleMatchOutcome.Matched(outcome.matchedItem)

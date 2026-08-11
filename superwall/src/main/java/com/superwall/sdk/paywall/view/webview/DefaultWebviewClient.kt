@@ -68,6 +68,7 @@ internal open class DefaultWebviewClient(
         if (requestUrl.contains("favicon.ico")) {
             return
         }
+        val isForMainFrame = request?.isForMainFrame == true
         ioScope.launch {
             Logger.debug(
                 LogLevel.error,
@@ -75,17 +76,21 @@ internal open class DefaultWebviewClient(
                 "Paywall loading failed due to network error. Url: $requestUrl - Code: ${errorResponse?.statusCode} for ${errorResponse?.reasonPhrase}",
             )
 
+            val error =
+                WebviewError.NetworkError(
+                    errorResponse?.statusCode ?: -1,
+                    errorResponse?.let {
+                        val body = it.data?.bufferedReader()?.use { it.readText() } ?: "Unknown"
+                        "Error: ${errorResponse.reasonPhrase} -\n $body"
+                    } ?: "Unknown error",
+                    forUrl,
+                )
             webviewClientEvents.emit(
-                WebviewClientEvent.OnError(
-                    WebviewError.NetworkError(
-                        errorResponse?.statusCode ?: -1,
-                        errorResponse?.let {
-                            val body = it.data?.bufferedReader()?.use { it.readText() } ?: "Unknown"
-                            "Error: ${errorResponse.reasonPhrase} -\n $body"
-                        } ?: "Unknown error",
-                        forUrl,
-                    ),
-                ),
+                if (isForMainFrame) {
+                    WebviewClientEvent.OnError(error)
+                } else {
+                    WebviewClientEvent.OnResourceError(error)
+                },
             )
         }
     }
@@ -104,7 +109,7 @@ internal open class DefaultWebviewClient(
         error: WebResourceError,
     ) {
         ioScope.launch {
-            if (request?.url?.toString()?.contains("runtime") == true) {
+            if (request?.isForMainFrame == true) {
                 val (code, desc) =
                     error?.let {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {

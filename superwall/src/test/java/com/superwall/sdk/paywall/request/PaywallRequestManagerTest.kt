@@ -431,6 +431,52 @@ class PaywallRequestManagerTest {
         }
 
     @Test
+    fun test_removeCachedPaywalls_removesOnlyMatchingIdentifiers() =
+        runTest {
+            val paywallOne = Paywall.stub().copy(identifier = "paywall_one")
+            val paywallTwo = Paywall.stub().copy(identifier = "paywall_two")
+            val requestOne =
+                mockk<PaywallRequest> {
+                    every { responseIdentifiers } returns ResponseIdentifiers(paywallId = "paywall_one")
+                    every { eventData } returns null
+                    every { overrides } returns PaywallRequest.Overrides(products = null, isFreeTrial = null)
+                    every { isDebuggerLaunched } returns false
+                    every { presentationSourceType } returns null
+                }
+            val requestTwo =
+                mockk<PaywallRequest> {
+                    every { responseIdentifiers } returns ResponseIdentifiers(paywallId = "paywall_two")
+                    every { eventData } returns null
+                    every { overrides } returns PaywallRequest.Overrides(products = null, isFreeTrial = null)
+                    every { isDebuggerLaunched } returns false
+                    every { presentationSourceType } returns null
+                }
+
+            coEvery { network.getPaywall("paywall_one", any()) } returns Either.Success(paywallOne)
+            coEvery { network.getPaywall("paywall_two", any()) } returns Either.Success(paywallTwo)
+            coEvery { storeManager.getProducts(any(), any(), any()) } returns
+                mockk {
+                    every { productItems } returns emptyList()
+                    every { productsByFullId } returns emptyMap()
+                    every { this@mockk.paywall } returns null
+                }
+
+            // Populate the cache with both paywalls
+            requestManager.getPaywall(requestOne)
+            requestManager.getPaywall(requestTwo)
+            coVerify(exactly = 1) { network.getPaywall("paywall_one", any()) }
+            coVerify(exactly = 1) { network.getPaywall("paywall_two", any()) }
+
+            requestManager.removeCachedPaywalls(setOf("paywall_one"))
+
+            // Removed paywall hits the network again, the other stays cached
+            requestManager.getPaywall(requestOne)
+            requestManager.getPaywall(requestTwo)
+            coVerify(exactly = 2) { network.getPaywall("paywall_one", any()) }
+            coVerify(exactly = 1) { network.getPaywall("paywall_two", any()) }
+        }
+
+    @Test
     fun test_getPaywall_usesStaticPaywall_whenAvailable() =
         runTest {
             val staticPaywall = Paywall.stub().copy(identifier = "static_paywall")

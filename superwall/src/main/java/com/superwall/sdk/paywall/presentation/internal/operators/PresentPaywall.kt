@@ -49,7 +49,9 @@ suspend fun Superwall.presentPaywallView(
             statusReason = null,
             factory = this@presentPaywallView.dependencyContainer,
         )
-    track(trackedEvent)
+    ioScope.launch {
+        track(trackedEvent)
+    }
 
     try {
         paywallView.present(

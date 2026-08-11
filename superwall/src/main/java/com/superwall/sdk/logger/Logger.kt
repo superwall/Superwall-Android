@@ -23,29 +23,30 @@ interface Loggable {
             return exceedsCurrentLogLevel && (isInScope || allLogsActive)
         }
 
-        fun debug(
+        // True when a delegate will consume the log or it will be printed,
+        // i.e. when it is worth building the log's message and info.
+        @PublishedApi
+        internal fun willLog(
             logLevel: LogLevel,
             scope: LogScope,
-            message: String = "",
-            info: Map<String, Any>? = mapOf(),
-            error: Throwable? = null,
+        ): Boolean {
+            if (Superwall.initialized) {
+                val delegateAdapter = Superwall.instance.dependencyContainer.delegateAdapter
+                if (delegateAdapter.kotlinDelegate != null || delegateAdapter.javaDelegate != null) {
+                    return true
+                }
+            }
+            return shouldPrint(logLevel, scope)
+        }
+
+        @PublishedApi
+        internal fun emit(
+            logLevel: LogLevel,
+            scope: LogScope,
+            message: String,
+            info: Map<String, Any>?,
+            error: Throwable?,
         ) {
-//            Task.detached(priority = Task.Priority.utility) {
-            val output: MutableList<String> = mutableListOf()
-            val dumping: MutableMap<String, Any> = mutableMapOf()
-
-            message.let { output.add(it) }
-
-            info?.let {
-                output.add(it.toString())
-                dumping["info"] = it
-            }
-
-            error?.let {
-                output.add(it.localizedMessage ?: "")
-                dumping["error"] = it
-            }
-
             if (Superwall.initialized) {
                 Superwall.instance.dependencyContainer.delegateAdapter.handleLog(
                     level = logLevel.toString(),
@@ -60,8 +61,18 @@ interface Loggable {
                 return
             }
 
+            val dumping: MutableMap<String, Any> = mutableMapOf()
+
+            info?.let {
+                dumping["info"] = it
+            }
+
+            error?.let {
+                dumping["error"] = it
+            }
+
             val name =
-                "\n${logLevel.getDescriptionEmoji()} [!!Superwall] [$scope] $logLevel${if (message != null) ": $message" else ""}\n"
+                "\n${logLevel.getDescriptionEmoji()} [!!Superwall] [$scope] $logLevel: $message\n"
 
             if (dumping.isEmpty()) {
                 println(name)
@@ -71,7 +82,29 @@ interface Loggable {
                 }
             }
         }
-//        }
+
+        fun debug(
+            logLevel: LogLevel,
+            scope: LogScope,
+            message: String = "",
+            info: Map<String, Any>? = mapOf(),
+            error: Throwable? = null,
+        ) {
+            emit(logLevel, scope, message, info, error)
+        }
+
+        inline fun debug(
+            logLevel: LogLevel,
+            scope: LogScope,
+            error: Throwable? = null,
+            info: () -> Map<String, Any>? = { mapOf() },
+            message: () -> String,
+        ) {
+            if (!willLog(logLevel, scope)) {
+                return
+            }
+            emit(logLevel, scope, message(), info(), error)
+        }
     }
 }
 
@@ -89,5 +122,15 @@ object Logger : Loggable {
         error: Throwable? = null,
     ) {
         Loggable.debug(logLevel, scope, message, info, error)
+    }
+
+    inline fun debug(
+        logLevel: LogLevel,
+        scope: LogScope,
+        error: Throwable? = null,
+        info: () -> Map<String, Any>? = { null },
+        message: () -> String,
+    ) {
+        Loggable.debug(logLevel, scope, error, info, message)
     }
 }

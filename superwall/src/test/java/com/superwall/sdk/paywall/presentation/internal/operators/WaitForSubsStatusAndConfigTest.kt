@@ -24,6 +24,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Test
@@ -285,6 +286,91 @@ class WaitForSubsStatusAndConfigTest {
                     Then("a presentation error is emitted") {
                         val emitted = publisher.replayCache.lastOrNull()
                         assert(emitted is PaywallState.PresentationError)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `waitForEntitlementsAndConfig surfaces the entitlements timeout when both waits time out`() =
+        runTest {
+            Given("entitlements stay Unknown and config stays Retrieving") {
+                val dependencyContainer = mockk<DependencyContainer>(relaxed = true)
+                every { dependencyContainer.ioScope() } returns com.superwall.sdk.misc.IOScope(coroutineContext)
+
+                val configState = MutableStateFlow<ConfigState>(ConfigState.Retrieving)
+                every { dependencyContainer.configManager.configState } returns configState
+
+                mockkStatic("com.superwall.sdk.analytics.internal.TrackingKt")
+
+                val publisher = MutableSharedFlow<PaywallState>(replay = 1)
+                val request =
+                    PresentationRequest(
+                        presentationInfo = PresentationInfo.ExplicitTrigger(EventData.stub()),
+                        flags =
+                            PresentationRequest.Flags(
+                                isDebuggerLaunched = false,
+                                entitlements = MutableStateFlow<SubscriptionStatus?>(SubscriptionStatus.Unknown),
+                                isPaywallPresented = false,
+                                type = PresentationRequestType.Presentation,
+                            ),
+                    )
+
+                When("waitForEntitlementsAndConfig executes") {
+                    assertFailsWith<PaywallPresentationRequestStatusReason.SubscriptionStatusTimeout> {
+                        waitForEntitlementsAndConfig(request, paywallStatePublisher = publisher, dependencyContainer = dependencyContainer)
+                    }
+
+                    Then("the entitlements timeout error is emitted, not the config one") {
+                        val emitted = publisher.replayCache.lastOrNull()
+                        assert(emitted is PaywallState.PresentationError)
+                        val message = (emitted as PaywallState.PresentationError).error.message ?: ""
+                        assert(message.contains("105"))
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `waitForEntitlementsAndConfig awaits entitlements and config concurrently`() =
+        runTest {
+            Given("entitlements resolve at 4s while config stays Retrieving forever") {
+                val dependencyContainer = mockk<DependencyContainer>(relaxed = true)
+                every { dependencyContainer.ioScope() } returns com.superwall.sdk.misc.IOScope(coroutineContext)
+
+                val configState = MutableStateFlow<ConfigState>(ConfigState.Retrieving)
+                every { dependencyContainer.configManager.configState } returns configState
+
+                mockkStatic("com.superwall.sdk.analytics.internal.TrackingKt")
+
+                val entitlements = MutableStateFlow<SubscriptionStatus?>(SubscriptionStatus.Unknown)
+                backgroundScope.launch {
+                    delay(4.seconds)
+                    entitlements.value = SubscriptionStatus.Inactive
+                }
+
+                val publisher = MutableSharedFlow<PaywallState>(replay = 1)
+                val request =
+                    PresentationRequest(
+                        presentationInfo = PresentationInfo.ExplicitTrigger(EventData.stub()),
+                        flags =
+                            PresentationRequest.Flags(
+                                isDebuggerLaunched = false,
+                                entitlements = entitlements,
+                                isPaywallPresented = false,
+                                type = PresentationRequestType.Presentation,
+                            ),
+                    )
+
+                When("waitForEntitlementsAndConfig executes") {
+                    val start = currentTime
+                    assertFailsWith<PaywallPresentationRequestStatusReason.NoConfig> {
+                        waitForEntitlementsAndConfig(request, paywallStatePublisher = publisher, dependencyContainer = dependencyContainer)
+                    }
+
+                    Then("the config timeout window overlapped the entitlements wait") {
+                        // Sequential waits would take 4s + 6s = 10s; overlapped they take 6s.
+                        assert(currentTime - start <= 7_000)
                     }
                 }
             }

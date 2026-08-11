@@ -150,6 +150,7 @@ class ConfigManagerTests {
                         coEvery { preloadAllPaywalls(any(), any(), any()) } just Runs
                         coEvery { preloadPaywallsByNames(any(), any()) } just Runs
                         coEvery { removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
+                        every { invalidatePreloadFingerprint() } just Runs
                     }
 
                 val configManager =
@@ -192,6 +193,7 @@ class ConfigManagerTests {
                         coEvery { preloadAllPaywalls(any(), any(), any()) } just Runs
                         coEvery { preloadPaywallsByNames(any(), any()) } just Runs
                         coEvery { removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
+                        every { invalidatePreloadFingerprint() } just Runs
                     }
                 val configManager =
                     ConfigManagerUnderTest(
