@@ -2,6 +2,12 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.8.1
+
+## Fixes
+- Paywalls with translations now render in the user's language on first paint instead of briefly showing the default language. 
+- Paywall analytics events (`paywall_open`, `paywall_page_view`, `paywall_close`, etc.) now include a `presentation_id`, a unique identifier minted for each paywall presentation. Adds the previously-missing `close_reason`, `cache_key`, and `build_id` fields to these events, matching the data already sent by the iOS SDK.
+
 ## 2.8.0
 
 ## Enhancements

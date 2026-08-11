@@ -54,6 +54,7 @@ import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.MainScope
 import com.superwall.sdk.misc.primitives.DebugInterceptor
 import com.superwall.sdk.misc.primitives.SequentialActor
+import com.superwall.sdk.misc.sha256Hex
 import com.superwall.sdk.models.config.ComputedPropertyRequest
 import com.superwall.sdk.models.config.FeatureFlags
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
@@ -142,7 +143,6 @@ import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.contextual
 import java.lang.ref.WeakReference
 import java.nio.charset.StandardCharsets
-import java.security.MessageDigest
 import java.util.Date
 import com.superwall.sdk.paywall.presentation.internal.dismiss as internalDismiss
 
@@ -500,11 +500,8 @@ class DependencyContainer(
                 storage = storage,
                 options = { options },
                 ioScope = ioScope,
-                stringToSha = {
-                    val bytes = this.toString().toByteArray()
-                    val md = MessageDigest.getInstance("SHA-256")
-                    val digest = md.digest(bytes)
-                    digest.fold("", { str, it -> str + "%02x".format(it) })
+                stringToSha = { userId ->
+                    checkNotNull(userId.sha256Hex()) { "SHA-256 is unavailable" }
                 },
                 notifyUserChange = {
                     delegate().userAttributesDidChange(it)
