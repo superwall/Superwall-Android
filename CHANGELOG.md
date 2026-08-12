@@ -13,7 +13,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
   - Subscription status sync no longer waits for remote configuration before querying Google Play, awaits the billing connection instead of sleeping between retries, and runs its SUBS/INAPP queries (and product-details queries) in parallel.
   - Config refreshes now diff paywalls by cache key and only evict changed ones from the request cache, so unchanged preloaded paywalls stay warm across refreshes; preloading also re-runs when fresh server-side assignments arrive.
   - Paywall request deduplication is now thread-safe, so a preload and a presentation for the same paywall can no longer trigger duplicate network fetches.
-  - The loading shimmer now animates on a hardware layer instead of re-rasterizing a software layer every frame while the paywall loads.
+  - The loading shimmer no longer forces a software layer, and now shows an actual shimmer — a highlight band sweeping across the skeleton — instead of a fading skeleton.
   - Rule evaluation builds its attribute context once per evaluation pass, occurrence counts use SQL `COUNT`, and large log strings are constructed lazily.
 
 ## Fixes
