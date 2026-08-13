@@ -2,6 +2,48 @@ package com.superwall.sdk.logger
 
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.config.options.SuperwallOptions
+import com.superwall.sdk.delegate.SuperwallDelegateAdapter
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+
+/**
+ * Delivers logs on a single background thread so that neither the console write nor the
+ * customer's `SuperwallDelegate.handleLog` runs on the thread that produced the log.
+ *
+ * A single-threaded dispatcher drains its queue in FIFO order, so log ordering is preserved
+ * and the multi-line console output of one log can no longer interleave with another's.
+ */
+internal object LogQueue {
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO.limitedParallelism(1))
+
+    /**
+     * Set by tests so that assertions don't have to await the log thread.
+     */
+    @Volatile
+    internal var synchronous: Boolean = false
+
+    fun post(block: () -> Unit) {
+        if (synchronous) {
+            runSafely(block)
+        } else {
+            scope.launch { runSafely(block) }
+        }
+    }
+
+    /**
+     * A throwing delegate must not take down the log thread, and must not be reported through
+     * [Logger] itself as that would re-enter this queue.
+     */
+    private fun runSafely(block: () -> Unit) {
+        try {
+            block()
+        } catch (e: Throwable) {
+            println("[!!Superwall] Failed to deliver log: ${e.localizedMessage}")
+        }
+    }
+}
 
 interface Loggable {
     companion object {
@@ -29,18 +71,22 @@ interface Loggable {
         internal fun willLog(
             logLevel: LogLevel,
             scope: LogScope,
-        ): Boolean {
-            if (Superwall.initialized) {
-                val delegateAdapter = Superwall.instance.dependencyContainer.delegateAdapter
-                if (delegateAdapter.kotlinDelegate != null || delegateAdapter.javaDelegate != null) {
-                    return true
-                }
-            }
-            return shouldPrint(logLevel, scope)
-        }
+        ): Boolean = SuperwallDelegateAdapter.hasAnyDelegate || shouldPrint(logLevel, scope)
 
         @PublishedApi
         internal fun emit(
+            logLevel: LogLevel,
+            scope: LogScope,
+            message: String,
+            info: Map<String, Any>?,
+            error: Throwable?,
+        ) {
+            LogQueue.post {
+                deliver(logLevel, scope, message, info, error)
+            }
+        }
+
+        private fun deliver(
             logLevel: LogLevel,
             scope: LogScope,
             message: String,
@@ -61,28 +107,18 @@ interface Loggable {
                 return
             }
 
-            val dumping: MutableMap<String, Any> = mutableMapOf()
+            println(
+                "\n${logLevel.getDescriptionEmoji()} [!!Superwall] [$scope] $logLevel: $message\n",
+            )
 
-            info?.let {
-                dumping["info"] = it
-            }
-
-            error?.let {
-                dumping["error"] = it
-            }
-
-            val name =
-                "\n${logLevel.getDescriptionEmoji()} [!!Superwall] [$scope] $logLevel: $message\n"
-
-            if (dumping.isEmpty()) {
-                println(name)
-            } else {
-                dumping.forEach { (key, value) ->
-                    println("$key: $value")
-                }
-            }
+            info?.takeIf { it.isNotEmpty() }?.let { println("info: $it") }
+            error?.let { println("error: $it") }
         }
 
+        /**
+         * Note that [info] is read on the log thread, so it must not be mutated after being
+         * passed in.
+         */
         fun debug(
             logLevel: LogLevel,
             scope: LogScope,
@@ -93,6 +129,10 @@ interface Loggable {
             emit(logLevel, scope, message, info, error)
         }
 
+        /**
+         * Builds [message] and [info] only when something will consume the log. Note that
+         * [info] is read on the log thread, so it must not be mutated after being passed in.
+         */
         inline fun debug(
             logLevel: LogLevel,
             scope: LogScope,

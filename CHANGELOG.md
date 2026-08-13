@@ -5,24 +5,23 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 ## Unreleased
 
 ## Enhancements
-- Significantly improves paywall loading performance, especially for the first paywall after app launch:
-  - Remote configuration is now available to presentations as soon as it is fetched, instead of being gated on Play Billing product prefetching and enrichment.
-  - `configure()` runs the configuration fetch and identity setup concurrently.
-  - Implicit placements that map to no campaign (e.g. `app_launch`, `session_start`) no longer occupy the presentation queue ahead of `register()` calls while waiting for entitlements.
-  - The presentation pipeline awaits subscription status and configuration concurrently instead of sequentially.
-  - Subscription status sync no longer waits for remote configuration before querying Google Play, awaits the billing connection instead of sleeping between retries, and runs its SUBS/INAPP queries (and product-details queries) in parallel.
-  - Config refreshes now diff paywalls by cache key and only evict changed ones from the request cache, so unchanged preloaded paywalls stay warm across refreshes; preloading also re-runs when fresh server-side assignments arrive.
-  - Paywall request deduplication is now thread-safe, so a preload and a presentation for the same paywall can no longer trigger duplicate network fetches.
-  - The loading shimmer no longer forces a software layer, and now shows an actual shimmer — a highlight band sweeping across the skeleton — instead of a fading skeleton.
-  - Rule evaluation builds its attribute context once per evaluation pass, occurrence counts use SQL `COUNT`, and large log strings are constructed lazily.
+- Significantly improves paywall loading 
+- Implicit placements that map to no campaign (e.g. `app_launch`, `session_start`) no longer occupy the presentation queue ahead of `register()` calls while waiting for entitlements.
+- Config refreshes now diff paywalls by cache key and only evict changed ones from the request cache, so unchanged preloaded paywalls stay warm across refreshes.
+- The loading shimmer no longer forces a software layer.
+- Logs are now delivered on a dedicated background thread, so neither the console write nor a delegate's `handleLog` implementation costs frames on the thread that produced the log. Ordering is preserved, and one log's output can no longer interleave with another's.
+- Deciding whether a log is worth building no longer resolves the dependency container, making suppressed logs close to free.
 
 ## Fixes
 - A failed subresource (image, font, analytics beacon) no longer restarts the whole paywall page load or counts toward fallback-URL attempts; only main-frame failures (and failures of the paywall runtime bundle) do. Transient main-frame failures are now retried (bounded) on Android 8+, where previously they were not retried at all.
 - The popup presentation style's entrance animation no longer stretches to the paywall's configured loading delay, and the delay no longer postpones hiding the spinner after a purchase completes.
 - `paywall_resourceLoad_fail` events now report the failing resource's URL.
+- Console logs carrying an `info` map no longer drop the log's message, and an empty `info` map no longer prints an empty `info: {}` line in its place.
+- A `SuperwallDelegate.handleLog` implementation that throws no longer propagates the exception into whatever SDK code produced the log.
 
 ## Breaking Changes
 - Removes `PaywallViewCache.entries`, a non-functional property that only ever contained a stale construction-time snapshot.
+- `SuperwallDelegate.handleLog` is now always called on a background thread. It could previously be called on any thread, including main, so implementations that touch UI directly must now dispatch to the main thread themselves.
 
 ## 2.8.1
 
