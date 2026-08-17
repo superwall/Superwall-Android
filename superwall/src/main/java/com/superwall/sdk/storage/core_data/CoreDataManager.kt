@@ -21,13 +21,17 @@ class CoreDataManager(
     context: Context,
 ) : CoroutineScope {
     override val coroutineContext: CoroutineContext = Dispatchers.IO.limitedParallelism(1)
+
+    // Event data inserts happen on every tracked event, so they get their own lane
+    // to keep occurrence writes from queueing behind them.
+    private val eventDataScope = CoroutineScope(Dispatchers.IO.limitedParallelism(1))
     private val superwallDatabase by lazy { SuperwallDatabase.getDatabase(context = context) }
 
     fun saveEventData(
         eventData: EventData,
         completion: ((ManagedEventData) -> Unit)? = null,
     ) {
-        launch {
+        eventDataScope.launch {
             try {
                 // Create a new EventData object
                 val managedEventData =
@@ -81,9 +85,22 @@ class CoreDataManager(
     }
 
     fun deleteAllEntities() {
+        // Each delete stays on the lane that inserts into its table, so it runs
+        // after any pending inserts for that table.
         launch {
             try {
                 superwallDatabase.managedTriggerRuleOccurrenceDao().deleteAll()
+            } catch (error: Throwable) {
+                Logger.debug(
+                    logLevel = LogLevel.error,
+                    scope = LogScope.coreData,
+                    message = "Could not delete entities in Room database.",
+                    error = error,
+                )
+            }
+        }
+        eventDataScope.launch {
+            try {
                 superwallDatabase.managedEventDataDao().deleteAll()
             } catch (error: Throwable) {
                 Logger.debug(
@@ -157,7 +174,7 @@ class CoreDataManager(
     }
 
     suspend fun countTriggerRuleOccurrences(ruleOccurrence: TriggerRuleOccurrence): Int {
-        val dao = superwallDatabase.managedTriggerRuleOccurrenceDao() // Replace with your actual database instance retrieval method
+        val dao = superwallDatabase.managedTriggerRuleOccurrenceDao()
 
         return when (ruleOccurrence.interval) {
             is TriggerRuleOccurrence.Interval.Minutes -> {
@@ -165,20 +182,13 @@ class CoreDataManager(
                 calendar.add(Calendar.MINUTE, -(ruleOccurrence.interval).minutes)
                 val date = calendar.time
 
-                // Fetch occurrences based on date and key
-                val occurrences =
-                    dao.getManagedTriggerRuleOccurrencesSinceDate(
-                        key = ruleOccurrence.key,
-                        date = date,
-                    )
-
-                occurrences.size // This gives you the count of occurrences that match the conditions
+                dao.countTriggerRuleOccurrencesSinceDate(
+                    key = ruleOccurrence.key,
+                    date = date,
+                )
             }
-            TriggerRuleOccurrence.Interval.Infinity -> {
-                // Fetch all occurrences with the given key
-                val occurrences = dao.getManagedTriggerRuleOccurrencesByKey(ruleOccurrence.key)
-                occurrences.size ?: 0 // If null, return 0
-            }
+            TriggerRuleOccurrence.Interval.Infinity ->
+                dao.countTriggerRuleOccurrencesByKey(ruleOccurrence.key)
         }
     }
 

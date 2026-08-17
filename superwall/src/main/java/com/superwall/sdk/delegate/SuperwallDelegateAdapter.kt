@@ -8,8 +8,33 @@ import com.superwall.sdk.paywall.presentation.PaywallInfo
 import java.net.URI
 
 class SuperwallDelegateAdapter {
+    companion object {
+        /**
+         * Mirrors "either delegate is set" so that the logger can decide whether a log is worth
+         * building without resolving the dependency container on every one of its call sites.
+         */
+        @Volatile
+        internal var hasAnyDelegate: Boolean = false
+            private set
+    }
+
+    init {
+        // A freshly constructed adapter holds no delegates yet, which keeps the flag correct
+        // across teardown/configure cycles.
+        hasAnyDelegate = false
+    }
+
     var kotlinDelegate: SuperwallDelegate? = null
+        set(value) {
+            field = value
+            hasAnyDelegate = value != null || javaDelegate != null
+        }
+
     var javaDelegate: SuperwallDelegateJava? = null
+        set(value) {
+            field = value
+            hasAnyDelegate = value != null || kotlinDelegate != null
+        }
 
     fun handleCustomPaywallAction(name: String) {
         kotlinDelegate?.handleCustomPaywallAction(name)

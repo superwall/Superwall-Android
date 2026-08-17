@@ -195,6 +195,12 @@ class PaywallView(
             controller.updateState(SetLoadingState(value))
         }
 
+    // The last loading state handled by `loadingStateDidChange` while presented.
+    private var lastHandledLoadingState: PaywallLoadingState = PaywallLoadingState.Unknown
+
+    // Pending delayed hide of the loading/shimmer views, cancelled on the next state change.
+    private var delayedHideJob: Job? = null
+
     val backgroundColor: Int
         get() {
 
@@ -847,8 +853,13 @@ class PaywallView(
 
     internal fun loadingStateDidChange() {
         if (state.isPresented) {
+            val previousLoadingState = lastHandledLoadingState
+            val currentLoadingState = loadingState
+            lastHandledLoadingState = currentLoadingState
+            delayedHideJob?.cancel()
+            delayedHideJob = null
             mainScope.launch {
-                when (loadingState) {
+                when (currentLoadingState) {
                     is PaywallLoadingState.Unknown -> {
                     }
 
@@ -863,13 +874,26 @@ class PaywallView(
                     }
 
                     is PaywallLoadingState.Ready -> {
-                        ioScope.launch {
-                            delay(state.paywall.presentation.delay)
-                            mainScope.launch {
-                                showRefreshButtonAfterTimeout(false)
-                                hideLoadingView()
-                                hideShimmerView()
-                            }
+                        val isInitialReveal =
+                            previousLoadingState is PaywallLoadingState.LoadingURL ||
+                                previousLoadingState is PaywallLoadingState.Unknown
+                        if (isInitialReveal) {
+                            // The presentation delay only applies to the first shimmer
+                            // -> content reveal, not to hiding the purchase spinner.
+                            delayedHideJob =
+                                ioScope.launch {
+                                    delay(state.paywall.presentation.delay)
+                                    mainScope.launch {
+                                        showRefreshButtonAfterTimeout(false)
+                                        hideLoadingView()
+                                        hideShimmerView()
+                                    }
+                                    controller.updateState(ResetCrashRetry)
+                                }
+                        } else {
+                            showRefreshButtonAfterTimeout(false)
+                            hideLoadingView()
+                            hideShimmerView()
                             controller.updateState(ResetCrashRetry)
                         }
                     }

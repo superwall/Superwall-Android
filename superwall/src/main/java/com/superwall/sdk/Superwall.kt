@@ -87,7 +87,10 @@ import com.superwall.sdk.web.WebPaywallRedeemer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -715,11 +718,20 @@ class Superwall(
                         dependencyContainer.storage.recordAppInstall {
                             track(event = it)
                         }
-                        // Implicitly wait
-                        dependencyContainer.configManager.fetchConfiguration()
-                        dependencyContainer.identityManager.configure(
-                            neverCalledStaticConfig = dependencyContainer.storage.neverCalledStaticConfig,
-                        )
+                        // Identity awaits config internally where it needs it, so both
+                        // can run concurrently. Implicitly wait for both.
+                        coroutineScope {
+                            listOf(
+                                async {
+                                    dependencyContainer.configManager.fetchConfiguration()
+                                },
+                                async {
+                                    dependencyContainer.identityManager.configure(
+                                        neverCalledStaticConfig = dependencyContainer.storage.neverCalledStaticConfig,
+                                    )
+                                },
+                            ).awaitAll()
+                        }
                     }.toResult().fold({
                         CoroutineScope(Dispatchers.Main).launch {
                             completion?.invoke(Result.success(Unit))

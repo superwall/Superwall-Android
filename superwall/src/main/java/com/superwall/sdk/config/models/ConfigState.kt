@@ -3,6 +3,7 @@ package com.superwall.sdk.config.models
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.config.ConfigContext
 import com.superwall.sdk.config.ConfigLogic
+import com.superwall.sdk.config.PaywallPreload
 import com.superwall.sdk.config.options.computedShouldPreload
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
@@ -17,16 +18,15 @@ import com.superwall.sdk.misc.primitives.TypedAction
 import com.superwall.sdk.misc.then
 import com.superwall.sdk.misc.thenIf
 import com.superwall.sdk.models.config.Config
-import com.superwall.sdk.models.enrichment.Enrichment
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.storage.DisableVerboseEvents
 import com.superwall.sdk.storage.LatestConfig
 import com.superwall.sdk.storage.LatestEnrichment
 import com.superwall.sdk.web.WebPaywallRedeemer
 import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -150,19 +150,13 @@ sealed class ConfigState {
 
             val attributesDeferred = scope.async { factory.makeSessionDeviceAttributes() }
 
-            val (configResultAny, enrichmentResultAny) =
-                listOf(configDeferred, enrichmentDeferred).awaitAll()
+            @Suppress("UNCHECKED_CAST")
+            val configResult = configDeferred.await() as Either<Config, Throwable>
             val attributes = attributesDeferred.await()
             scope.launch {
                 @Suppress("UNCHECKED_CAST")
                 track(InternalSuperwallEvent.DeviceAttributes(attributes as HashMap<String, Any>))
             }
-
-            @Suppress("UNCHECKED_CAST")
-            val configResult = configResultAny as Either<Config, Throwable>
-
-            @Suppress("UNCHECKED_CAST")
-            val enrichmentResult = enrichmentResultAny as Either<Enrichment, Throwable>
 
             configResult
                 .then { config ->
@@ -175,7 +169,13 @@ sealed class ConfigState {
                             ),
                         )
                 }.then { config -> immediate(ApplyConfig(config)) }
-                .thenIf(testMode?.isTestMode != true) {
+                .then { config ->
+                    // Fresh installs have no stored enrichment fallback, so give the
+                    // in-flight enrichment a bounded window to land before publishing
+                    // Retrieved; await() is idempotent, the retry launch below reuses it.
+                    withTimeoutOrNull(1.seconds) { enrichmentDeferred.await() }
+                    update(Updates.SetRetrieved(config))
+                }.thenIf(testMode?.isTestMode != true) {
                         sideEffect {
                             webPaywallRedeemer().redeem(WebPaywallRedeemer.RedeemType.Existing)
                         }
@@ -183,24 +183,28 @@ sealed class ConfigState {
                     if (testMode?.isTestMode != true &&
                         options.computedShouldPreload(deviceHelper.deviceTier)
                     ) {
+                        // Pure cache warm — StoreManager caches products and fetches
+                        // per-paywall on demand, so this must not gate Retrieved.
                         val productIds = config.paywalls.flatMap { it.productIds }.toSet()
-                        try {
-                            storeManager.products(productIds)
-                        } catch (e: Throwable) {
-                            Logger.debug(
-                                logLevel = LogLevel.error,
-                                scope = LogScope.productsManager,
-                                message = "Failed to preload products",
-                                error = e,
-                            )
+                        scope.launch {
+                            try {
+                                storeManager.products(productIds)
+                            } catch (e: Throwable) {
+                                Logger.debug(
+                                    logLevel = LogLevel.error,
+                                    scope = LogScope.productsManager,
+                                    message = "Failed to preload products",
+                                    error = e,
+                                )
+                            }
                         }
                     }
-                    config
-                }.then { config ->
-                    update(Updates.SetRetrieved(config))
                 }.then {
-                    if (isEnrichmentFromCache || enrichmentResult.getThrowable() != null) {
-                        scope.launch { deviceHelper.getEnrichment(6, 1.seconds) }
+                    scope.launch {
+                        val enrichmentResult = enrichmentDeferred.await()
+                        if (isEnrichmentFromCache || enrichmentResult.getThrowable() != null) {
+                            deviceHelper.getEnrichment(6, 1.seconds)
+                        }
                     }
                 }.fold(
                     onSuccess = {
@@ -252,9 +256,13 @@ sealed class ConfigState {
 
             result
                 .then { newConfig ->
-                    paywallManager.resetPaywallRequestCache()
                     val previous = state.value.getConfig()
                     if (previous != null) {
+                        val changedPaywalls = PaywallPreload.changedPaywallIds(previous, newConfig)
+                        if (changedPaywalls.isNotEmpty()) {
+                            paywallManager.resetPaywallRequestCache(changedPaywalls)
+                            paywallPreload.invalidatePreloadFingerprint()
+                        }
                         paywallPreload.removeUnusedPaywallVCsFromCache(previous, newConfig)
                     }
                     newConfig
@@ -381,7 +389,13 @@ sealed class ConfigState {
                 try {
                     assignments
                         .getAssignments(triggers)
-                        .then { effect(PreloadIfEnabled) }
+                        .then {
+                            // The preload fingerprint carries no assignment state, so a
+                            // fresh server assignment must invalidate it for the preload
+                            // pass to run; already-cached paywalls are skipped there.
+                            paywallPreload.invalidatePreloadFingerprint()
+                            effect(PreloadIfEnabled)
+                        }
                         .onError { err ->
                             Logger.debug(
                                 logLevel = LogLevel.error,

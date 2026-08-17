@@ -81,8 +81,7 @@ object TemplateLogic {
         Logger.debug(
             LogLevel.debug,
             LogScope.superwallCore,
-            "!!! Template Logic: $templatesString",
-        )
+        ) { "!!! Template Logic: $templatesString" }
 
         return encodeToBase64(templatesString)
     }

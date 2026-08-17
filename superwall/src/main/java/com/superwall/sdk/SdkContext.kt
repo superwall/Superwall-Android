@@ -27,6 +27,9 @@ class SdkContextImpl(
     }
 
     override suspend fun fetchAssignments() {
+        // Await config without a deadline first (identity now runs concurrently with the
+        // config fetch); the 30s budget applies only to the assignments call itself.
+        configManager().configState.awaitFirstValidConfig()
         withTimeoutOrNull(30.seconds) {
             configManager().getAssignments()
         }

@@ -77,6 +77,7 @@ class ConfigManagerTest {
         val network: SuperwallAPI,
         val storage: Storage,
         val preload: PaywallPreload,
+        val paywallManager: PaywallManager,
         val storeManager: StoreManager,
         val webRedeemer: WebPaywallRedeemer,
         val deviceHelper: DeviceHelper,
@@ -144,6 +145,7 @@ class ConfigManagerTest {
                 coEvery { preloadAllPaywalls(any(), any(), any()) } just Runs
                 coEvery { preloadPaywallsByNames(any(), any()) } just Runs
                 coEvery { removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
+                every { invalidatePreloadFingerprint() } just Runs
                 every { lastFingerprint } returns java.util.concurrent.atomic.AtomicReference(null)
             }
         val paywallManager = mockk<PaywallManager>(relaxed = true)
@@ -199,6 +201,7 @@ class ConfigManagerTest {
             network,
             storage,
             preload,
+            paywallManager,
             storeManager,
             webRedeemer,
             deviceHelper,
@@ -749,10 +752,12 @@ class ConfigManagerTest {
             coEvery { s.preload.preloadAllPaywalls(any(), any(), any()) } just Runs
             coEvery { s.preload.preloadPaywallsByNames(any(), any()) } just Runs
             coEvery { s.preload.removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
+            every { s.preload.invalidatePreloadFingerprint() } just Runs
 
             s.manager.getAssignments()
             advanceUntilIdle()
 
+            verify(atLeast = 1) { s.preload.invalidatePreloadFingerprint() }
             coVerify(atLeast = 1) { s.preload.preloadAllPaywalls(any(), any(), any()) }
         }
 
@@ -868,49 +873,51 @@ class ConfigManagerTest {
     @Test
     fun `refreshConfiguration success resets paywall request cache and removes unused`() =
         runTest(timeout = 30.seconds) {
-            val oldConfig = config(buildId = "old", enableRefresh = true)
-            val newConfig = config(buildId = "new", enableRefresh = true)
-            val paywallManager = mockk<PaywallManager>(relaxed = true)
-            val preload = mockk<PaywallPreload>(relaxed = true) {
-                coEvery { preloadAllPaywalls(any(), any(), any()) } just Runs
-                coEvery { preloadPaywallsByNames(any(), any()) } just Runs
-                coEvery { removeUnusedPaywallVCsFromCache(any(), any()) } just Runs
-            }
-            val s = setup(backgroundScope)
-            val mgr = ConfigManagerForTest(
-                context = mockk(relaxed = true),
-                storage = s.storage,
-                network = mockk<SuperwallAPI> {
-                    coEvery { getConfig(any()) } returns Either.Success(newConfig)
-                    coEvery { getEnrichment(any(), any(), any()) } returns Either.Success(Enrichment.stub())
-                },
-                deviceHelper = s.deviceHelper,
-                paywallManager = paywallManager,
-                storeManager = s.storeManager,
-                preload = preload,
-                webRedeemer = s.webRedeemer,
-                factory = mockk(relaxed = true) {
-                    coEvery { makeSessionDeviceAttributes() } returns HashMap()
-                },
-                entitlements = mockk(relaxed = true) {
-                    every { status } returns kotlinx.coroutines.flow.MutableStateFlow(SubscriptionStatus.Unknown)
-                    every { entitlementsByProductId } returns emptyMap()
-                },
-                assignments = mockk(relaxed = true),
-                options = SuperwallOptions().apply { paywalls.shouldPreload = false },
-                ioScope = backgroundScope,
-                testMode = null,
-                tracker = {},
-                setSubscriptionStatus = null,
-                activateTestMode = { _, _ -> },
+            val oldConfig = config(buildId = "old", enableRefresh = true).copy(
+                paywalls = listOf(
+                    com.superwall.sdk.models.paywall.Paywall.stub().copy(identifier = "keep", cacheKey = "keep-ck"),
+                    com.superwall.sdk.models.paywall.Paywall.stub().copy(identifier = "changed", cacheKey = "old-ck"),
+                    com.superwall.sdk.models.paywall.Paywall.stub().copy(identifier = "removed", cacheKey = "removed-ck"),
+                ),
             )
-            mgr.applyRetrievedConfigForTesting(oldConfig)
+            val newConfig = config(buildId = "new", enableRefresh = true).copy(
+                paywalls = listOf(
+                    com.superwall.sdk.models.paywall.Paywall.stub().copy(identifier = "keep", cacheKey = "keep-ck"),
+                    com.superwall.sdk.models.paywall.Paywall.stub().copy(identifier = "changed", cacheKey = "new-ck"),
+                ),
+            )
+            val s = setup(backgroundScope, networkConfig = Either.Success(newConfig))
+            s.manager.applyRetrievedConfigForTesting(oldConfig)
 
-            mgr.refreshConfiguration()
+            s.manager.refreshConfiguration()
             advanceUntilIdle()
 
-            verify(atLeast = 1) { paywallManager.resetPaywallRequestCache() }
-            coVerify(atLeast = 1) { preload.removeUnusedPaywallVCsFromCache(oldConfig, newConfig) }
+            verify(atLeast = 1) {
+                s.paywallManager.resetPaywallRequestCache(setOf("changed", "removed"))
+            }
+            verify(exactly = 0) { s.paywallManager.resetPaywallRequestCache() }
+            verify(atLeast = 1) { s.preload.invalidatePreloadFingerprint() }
+            coVerify(atLeast = 1) { s.preload.removeUnusedPaywallVCsFromCache(oldConfig, newConfig) }
+        }
+
+    @Test
+    fun `refreshConfiguration with unchanged paywalls leaves request cache untouched`() =
+        runTest(timeout = 30.seconds) {
+            val paywalls = listOf(
+                com.superwall.sdk.models.paywall.Paywall.stub().copy(identifier = "keep", cacheKey = "keep-ck"),
+            )
+            val oldConfig = config(buildId = "old", enableRefresh = true).copy(paywalls = paywalls)
+            val newConfig = config(buildId = "new", enableRefresh = true).copy(paywalls = paywalls)
+            val s = setup(backgroundScope, networkConfig = Either.Success(newConfig))
+            s.manager.applyRetrievedConfigForTesting(oldConfig)
+
+            s.manager.refreshConfiguration()
+            advanceUntilIdle()
+
+            verify(exactly = 0) { s.paywallManager.resetPaywallRequestCache() }
+            verify(exactly = 0) { s.paywallManager.resetPaywallRequestCache(any()) }
+            verify(exactly = 0) { s.preload.invalidatePreloadFingerprint() }
+            coVerify(atLeast = 1) { s.preload.removeUnusedPaywallVCsFromCache(oldConfig, newConfig) }
         }
 
     @Test

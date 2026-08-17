@@ -105,8 +105,7 @@ class PaywallMessageHandler(
         Logger.debug(
             LogLevel.debug,
             LogScope.superwallCore,
-            "SWWebViewInterface: $message",
-        )
+        ) { "SWWebViewInterface: $message" }
 
         // Attempt to parse the message to json
         parseWrappedPaywallMessages(message)
@@ -115,8 +114,7 @@ class PaywallMessageHandler(
                     Logger.debug(
                         LogLevel.debug,
                         LogScope.superwallCore,
-                        "SWWebViewInterface: ${paywallMessage.javaClass.simpleName}",
-                    )
+                    ) { "SWWebViewInterface: ${paywallMessage.javaClass.simpleName}" }
                     handle(paywallMessage)
                 }
             }, {
@@ -134,14 +132,12 @@ class PaywallMessageHandler(
         Logger.debug(
             LogLevel.debug,
             LogScope.superwallCore,
-            "!! PaywallMessageHandler: Handling message: $message ${messageHandler?.state?.paywall}, delegeate: $messageHandler",
-        )
+        ) { "!! PaywallMessageHandler: Handling message: $message ${messageHandler?.state?.paywall}, delegeate: $messageHandler" }
         val paywall = messageHandler?.state?.paywall ?: return
         Logger.debug(
             LogLevel.debug,
             LogScope.superwallCore,
-            "!! PaywallMessageHandler: Paywall: $paywall, delegeate: $messageHandler",
-        )
+        ) { "!! PaywallMessageHandler: Paywall: $paywall, delegeate: $messageHandler" }
         when (message) {
             is PaywallMessage.TemplateParamsAndUserAttributes ->
                 ioScope.launch { passTemplatesToWebView(paywall) }
@@ -375,8 +371,8 @@ class PaywallMessageHandler(
         Logger.debug(
             logLevel = LogLevel.debug,
             scope = LogScope.paywallView,
-            message = "Posting Message",
-            info = mapOf("message" to templateScript),
+            info = { mapOf("message" to templateScript) },
+            message = { "Posting Message" },
         )
 
         withContext(Dispatchers.Main) {
@@ -385,9 +381,9 @@ class PaywallMessageHandler(
                     Logger.debug(
                         logLevel = LogLevel.error,
                         scope = LogScope.paywallView,
-                        message = "Error Evaluating JS",
-                        info = mapOf("message" to templateScript),
                         error = java.lang.Exception(error),
+                        info = { mapOf("message" to templateScript) },
+                        message = { "Error Evaluating JS" },
                     )
                 }
             }
@@ -446,14 +442,13 @@ class PaywallMessageHandler(
         Logger.debug(
             LogLevel.debug,
             LogScope.superwallCore,
-            "!! PaywallMessageHandler: $scriptSrc",
-        )
+        ) { "!! PaywallMessageHandler: $scriptSrc" }
 
         Logger.debug(
             logLevel = LogLevel.debug,
             scope = LogScope.paywallView,
-            message = "Posting Message",
-            info = mapOf("message" to scriptSrc),
+            info = { mapOf("message" to scriptSrc) },
+            message = { "Posting Message" },
         )
 
         mainScope.launch {
@@ -462,9 +457,9 @@ class PaywallMessageHandler(
                     Logger.debug(
                         logLevel = LogLevel.error,
                         scope = LogScope.paywallView,
-                        message = "Error Evaluating JS",
-                        info = mapOf("message" to scriptSrc),
                         error = java.lang.Exception(error),
+                        info = { mapOf("message" to scriptSrc) },
+                        message = { "Error Evaluating JS" },
                     )
                 }
             }

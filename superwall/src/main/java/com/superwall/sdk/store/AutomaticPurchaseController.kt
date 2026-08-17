@@ -34,6 +34,8 @@ import com.superwall.sdk.store.transactions.PlayBillingErrors
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
@@ -75,12 +77,17 @@ class AutomaticPurchaseController(
     PurchasesUpdatedListener {
     companion object {
         private const val QUERY_TIMEOUT_MS = 10_000L
+        private const val CONNECTION_TIMEOUT_MS = 10_000L
         private const val MAX_RETRIES = 3
     }
 
     private var billingClient: BillingClient = getBilling(context, this)
 
-    private val isConnected = MutableStateFlow(false)
+    // Tri-state so waiters can short-circuit when the connection is known to
+    // have failed instead of blocking until the timeout
+    private enum class ConnectionState { Connecting, Connected, Failed }
+
+    private val connectionState = MutableStateFlow(ConnectionState.Connecting)
     private val purchaseResults = MutableStateFlow<PurchaseResult?>(null)
 
     // how long before the data source tries to reconnect to Google play
@@ -99,13 +106,17 @@ class AutomaticPurchaseController(
             billingClient.startConnection(
                 object : BillingClientStateListener {
                     override fun onBillingSetupFinished(billingResult: BillingResult) {
-                        isConnected.value =
-                            billingResult.responseCode == BillingClient.BillingResponseCode.OK
+                        connectionState.value =
+                            if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                                ConnectionState.Connected
+                            } else {
+                                ConnectionState.Failed
+                            }
                         syncSubscriptionStatus()
                     }
 
                     override fun onBillingServiceDisconnected() {
-                        isConnected.value = false
+                        connectionState.value = ConnectionState.Connecting
 
                         Logger.debug(
                             LogLevel.error,
@@ -128,6 +139,9 @@ class AutomaticPurchaseController(
                 },
             )
         } catch (e: IllegalStateException) {
+            // The connection will never be established, so fail fast instead of
+            // leaving waiters blocked until their timeout
+            connectionState.value = ConnectionState.Failed
             Logger.debug(
                 LogLevel.error,
                 LogScope.nativePurchaseController,
@@ -262,7 +276,7 @@ class AutomaticPurchaseController(
         )
 
         // Wait until the billing client becomes connected
-        isConnected.first { it }
+        connectionState.first { it == ConnectionState.Connected }
 
         Logger.debug(
             logLevel = LogLevel.info,
@@ -328,12 +342,23 @@ class AutomaticPurchaseController(
 //region Private
 
     private suspend fun syncSubscriptionStatusAndWait(count: Int = 0) {
-        // We await for configuration to be set so our entitlements are available
-        Superwall.instance.configurationStateListener.first { it is ConfigurationStatus.Configured }
-        val subscriptionPurchases =
-            retryOrNull(MAX_RETRIES) { queryPurchasesOfType(BillingClient.ProductType.SUBS).getOrThrow() }
-        val inAppPurchases =
-            retryOrNull(MAX_RETRIES) { queryPurchasesOfType(BillingClient.ProductType.INAPP).getOrThrow() }
+        // Queries fail instantly while the billing client is still connecting,
+        // so wait (bounded) for the connection attempt to resolve before querying.
+        // A Failed connection falls through immediately - the queries below fail
+        // fast and retryOrNull remains the safety net.
+        withTimeoutOrNull(CONNECTION_TIMEOUT_MS) { connectionState.first { it != ConnectionState.Connecting } }
+        val (subscriptionPurchases, inAppPurchases) =
+            coroutineScope {
+                val subs =
+                    async {
+                        retryOrNull(MAX_RETRIES) { queryPurchasesOfType(BillingClient.ProductType.SUBS).getOrThrow() }
+                    }
+                val inApps =
+                    async {
+                        retryOrNull(MAX_RETRIES) { queryPurchasesOfType(BillingClient.ProductType.INAPP).getOrThrow() }
+                    }
+                subs.await() to inApps.await()
+            }
         val failed = subscriptionPurchases == null || inAppPurchases == null
         val allPurchases = (subscriptionPurchases ?: emptyList()) + (inAppPurchases ?: emptyList())
         val hasActivePurchaseOrSubscription =
@@ -352,6 +377,8 @@ class AutomaticPurchaseController(
 
         val status: SubscriptionStatus =
             if (hasActivePurchaseOrSubscription) {
+                // We await for configuration to be set so our entitlements are available
+                Superwall.instance.configurationStateListener.first { it is ConfigurationStatus.Configured }
                 allPurchases
                     .flatMap {
                         it.products
@@ -377,6 +404,10 @@ class AutomaticPurchaseController(
                         }
                     }
             } else {
+                // Wait until config has finished applying (or failed) so flags like
+                // test mode are known before publishing Inactive - otherwise we'd
+                // fire a spurious status change in test-mode apps
+                Superwall.instance.configurationStateListener.first { it !is ConfigurationStatus.Pending }
                 SubscriptionStatus.Inactive
             }
         if (!Superwall.initialized) {

@@ -15,6 +15,8 @@ import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationReques
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.filter
@@ -52,43 +54,6 @@ internal suspend fun waitForEntitlementsAndConfig(
     @Suppress("NAME_SHADOWING")
     val dependencyContainer = dependencyContainer ?: Superwall.instance.dependencyContainer
 
-    try {
-        withTimeout(5.seconds) {
-            request.flags.entitlements
-                .filter { it !is SubscriptionStatus.Unknown }
-                .first()
-        }
-    } catch (e: TimeoutCancellationException) {
-        // Handle exception, cancel the task, and log timeout and fail the request
-        dependencyContainer.ioScope().launch {
-            val trackedEvent =
-                InternalSuperwallEvent.PresentationRequest(
-                    eventData = request.presentationInfo.eventData,
-                    type = request.flags.type,
-                    status = PaywallPresentationRequestStatus.Timeout,
-                    statusReason = PaywallPresentationRequestStatusReason.SubscriptionStatusTimeout(),
-                    factory = dependencyContainer,
-                )
-            dependencyContainer.track(trackedEvent)
-        }
-        Logger.debug(
-            logLevel = LogLevel.info,
-            scope = LogScope.paywallPresentation,
-            message =
-                "Timeout: Superwall.instance.entitlement.status has been \"unknown\" for " +
-                    "over 5 seconds resulting in a failure.",
-        )
-        val error =
-            InternalPresentationLogic.presentationError(
-                domain = "SWKPresentationError",
-                code = 105,
-                title = "Timeout",
-                value = "The entitlement status failed to change from \"unknown\".",
-            )
-        paywallStatePublisher?.emit(PaywallState.PresentationError(error))
-        throw PaywallPresentationRequestStatusReason.SubscriptionStatusTimeout()
-    }
-
     val configState = dependencyContainer.configManager.configState
 
     // In-flight states get one retry (1s initial window, then 5s fallback).
@@ -103,46 +68,110 @@ internal suspend fun waitForEntitlementsAndConfig(
             0
         }
 
-    try {
-        configState.configOrThrow(retries)
-    } catch (e: Throwable) {
-        e.printStackTrace()
-        // Only track when config timed out — a Failed state is an immediate error, not a timeout.
-        if (e is TimeoutCancellationException) {
+    coroutineScope {
+        val entitlementsResult =
+            async {
+                runCatching {
+                    withTimeout(5.seconds) {
+                        request.flags.entitlements
+                            .filter { it !is SubscriptionStatus.Unknown }
+                            .first()
+                    }
+                }
+            }
+        val configResult =
+            async {
+                runCatching { configState.configOrThrow(retries) }
+            }
+
+        // When both waits fail, the entitlements failure must win — check it first.
+        entitlementsResult.await().onFailure { e ->
+            configResult.cancel()
+            if (e !is TimeoutCancellationException) throw e
+            // Handle exception, cancel the task, and log timeout and fail the request
             dependencyContainer.ioScope().launch {
                 val trackedEvent =
                     InternalSuperwallEvent.PresentationRequest(
                         eventData = request.presentationInfo.eventData,
                         type = request.flags.type,
                         status = PaywallPresentationRequestStatus.Timeout,
-                        statusReason = PaywallPresentationRequestStatusReason.NoConfig(),
+                        statusReason = PaywallPresentationRequestStatusReason.SubscriptionStatusTimeout(),
                         factory = dependencyContainer,
                     )
                 dependencyContainer.track(trackedEvent)
             }
-        }
-        Logger.debug(
-            logLevel = LogLevel.info,
-            scope = LogScope.paywallPresentation,
-            message = "Timeout: The config could not be retrieved in a reasonable time.",
-        )
-        val errorValue =
-            if (e is TimeoutCancellationException) {
-                "Trying to present paywall without the Superwall config."
-            } else {
-                "Trying to present paywall without the Superwall config. Error: ${e.message}"
-            }
-        paywallStatePublisher?.emit(
-            PaywallState.PresentationError(
+            Logger.debug(
+                logLevel = LogLevel.info,
+                scope = LogScope.paywallPresentation,
+                message =
+                    "Timeout: Superwall.instance.entitlement.status has been \"unknown\" for " +
+                        "over 5 seconds resulting in a failure.",
+            )
+            val error =
                 InternalPresentationLogic.presentationError(
                     domain = "SWKPresentationError",
-                    code = 104,
-                    title = "No Config",
-                    value = errorValue,
+                    code = 105,
+                    title = "Timeout",
+                    value = "The entitlement status failed to change from \"unknown\".",
+                )
+            paywallStatePublisher?.emit(PaywallState.PresentationError(error))
+            throw PaywallPresentationRequestStatusReason.SubscriptionStatusTimeout()
+        }
+
+        // The concurrent config wait shares its clock with the entitlements wait, so
+        // slow-resolving entitlements can starve the config windows that the old
+        // sequential code would have started afterwards. Now that entitlements have
+        // resolved, give a timed-out config one fresh sequential attempt before
+        // failing; non-timeout failures (e.g. ConfigState.Failed) stay immediate.
+        val configFailure =
+            configResult.await().exceptionOrNull()?.let { e ->
+                if (e is TimeoutCancellationException) {
+                    runCatching { configState.configOrThrow(retries) }.exceptionOrNull()
+                } else {
+                    e
+                }
+            }
+
+        if (configFailure != null) {
+            val e = configFailure
+            e.printStackTrace()
+            // Only track when config timed out — a Failed state is an immediate error, not a timeout.
+            if (e is TimeoutCancellationException) {
+                dependencyContainer.ioScope().launch {
+                    val trackedEvent =
+                        InternalSuperwallEvent.PresentationRequest(
+                            eventData = request.presentationInfo.eventData,
+                            type = request.flags.type,
+                            status = PaywallPresentationRequestStatus.Timeout,
+                            statusReason = PaywallPresentationRequestStatusReason.NoConfig(),
+                            factory = dependencyContainer,
+                        )
+                    dependencyContainer.track(trackedEvent)
+                }
+            }
+            Logger.debug(
+                logLevel = LogLevel.info,
+                scope = LogScope.paywallPresentation,
+                message = "Timeout: The config could not be retrieved in a reasonable time.",
+            )
+            val errorValue =
+                if (e is TimeoutCancellationException) {
+                    "Trying to present paywall without the Superwall config."
+                } else {
+                    "Trying to present paywall without the Superwall config. Error: ${e.message}"
+                }
+            paywallStatePublisher?.emit(
+                PaywallState.PresentationError(
+                    InternalPresentationLogic.presentationError(
+                        domain = "SWKPresentationError",
+                        code = 104,
+                        title = "No Config",
+                        value = errorValue,
+                    ),
                 ),
-            ),
-        )
-        throw PaywallPresentationRequestStatusReason.NoConfig()
+            )
+            throw PaywallPresentationRequestStatusReason.NoConfig()
+        }
     }
 
     // Defense in depth: if a Pending identity item (Seed / Assignments / etc.)
