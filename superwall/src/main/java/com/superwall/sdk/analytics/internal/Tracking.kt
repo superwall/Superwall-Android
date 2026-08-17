@@ -4,6 +4,7 @@ import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.trackable.Trackable
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.analytics.superwall.SuperwallEventInfo
+import com.superwall.sdk.config.models.ConfigState
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
@@ -151,6 +152,22 @@ private suspend fun Superwall.internallyHandleImplicitTrigger(
                 isPaywallPresented = isPaywallPresented,
                 type = PresentationRequestType.Presentation,
             )
+
+        // Only DontTriggerPaywall may short-circuit here: any other outcome must
+        // still be re-evaluated after the waits, since fresh config can change
+        // the trigger set.
+        if (dependencyContainer.configManager.configState.value is ConfigState.Retrieved) {
+            val fastPathOutcome =
+                TrackingLogic.canTriggerPaywall(
+                    event,
+                    dependencyContainer.configManager.triggersByEventName.keys
+                        .toSet(),
+                    paywallView,
+                )
+            if (fastPathOutcome == TrackingLogic.ImplicitTriggerOutcome.DontTriggerPaywall) {
+                return@withErrorTracking
+            }
+        }
 
         try {
             waitForEntitlementsAndConfig(request, null, dependencyContainer)

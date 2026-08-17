@@ -5,6 +5,7 @@ import com.superwall.sdk.models.triggers.TriggerRule
 import com.superwall.sdk.models.triggers.TriggerRuleOutcome
 import com.superwall.sdk.models.triggers.UnmatchedRule
 import com.superwall.sdk.paywall.presentation.rule_logic.cel.SuperscriptEvaluator
+import com.superwall.sdk.paywall.presentation.rule_logic.cel.models.PassableValue
 import com.superwall.sdk.paywall.presentation.rule_logic.tryToMatchOccurrence
 import com.superwall.sdk.storage.LocalStorage
 
@@ -13,6 +14,15 @@ interface ExpressionEvaluating {
         rule: TriggerRule,
         eventData: EventData?,
     ): TriggerRuleOutcome
+
+    // sharedAttributes must hold the user/device/params attributes WITHOUT any
+    // rule's computed properties, and must never outlive a single evaluation
+    // pass - user, device and occurrence state can change between passes.
+    suspend fun evaluateExpression(
+        rule: TriggerRule,
+        eventData: EventData?,
+        sharedAttributes: PassableValue.MapValue?,
+    ): TriggerRuleOutcome = evaluateExpression(rule, eventData)
 }
 
 internal class CombinedExpressionEvaluator(
@@ -22,6 +32,12 @@ internal class CombinedExpressionEvaluator(
     override suspend fun evaluateExpression(
         rule: TriggerRule,
         eventData: EventData?,
+    ): TriggerRuleOutcome = evaluateExpression(rule, eventData, sharedAttributes = null)
+
+    override suspend fun evaluateExpression(
+        rule: TriggerRule,
+        eventData: EventData?,
+        sharedAttributes: PassableValue.MapValue?,
     ): TriggerRuleOutcome {
         // Expression matches all
         if (rule.expressionJs == null && rule.expression == null && rule.expressionCEL == null) {
@@ -32,7 +48,7 @@ internal class CombinedExpressionEvaluator(
         // and evaluate superscript only
         val celEvaluation =
             try {
-                superscriptEvaluator.evaluateExpression(rule, eventData)
+                superscriptEvaluator.evaluateExpression(rule, eventData, sharedAttributes)
             } catch (e: Exception) {
                 TriggerRuleOutcome.noMatch(UnmatchedRule.Source.EXPRESSION, rule.experiment.id)
             }

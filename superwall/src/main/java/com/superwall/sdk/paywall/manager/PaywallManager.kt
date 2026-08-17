@@ -120,4 +120,8 @@ class PaywallManager(
     internal fun resetPaywallRequestCache() {
         paywallRequestManager.resetCache()
     }
+
+    internal fun resetPaywallRequestCache(identifiers: Set<PaywallIdentifier>) {
+        paywallRequestManager.removeCachedPaywalls(identifiers)
+    }
 }

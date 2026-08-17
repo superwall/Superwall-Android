@@ -199,43 +199,56 @@ class PaywallPreload(
         )
     }
 
+    internal fun invalidatePreloadFingerprint() {
+        lastFingerprint.set(null)
+    }
+
     internal suspend fun removeUnusedPaywallVCsFromCache(
         oldConfig: Config,
         newConfig: Config,
     ) {
-        val oldPaywalls = oldConfig.paywalls
-        val newPaywalls = newConfig.paywalls
-
         val presentedPaywallId =
             paywallManager.currentView
                 ?.state
                 ?.paywall
                 ?.identifier
-        val oldPaywallCacheIds: Map<PaywallIdentifier, CacheKey> =
-            oldPaywalls
-                .map { it.identifier to it.cacheKey }
-                .toMap()
-        val newPaywallCacheIds: Map<PaywallIdentifier, CacheKey> =
-            newPaywalls.map { it.identifier to it.cacheKey }.toMap()
 
-        val removedIds: Set<PaywallIdentifier> =
-            (oldPaywallCacheIds.keys - newPaywallCacheIds.keys).toSet()
-
-        val changedIds =
-            removedIds +
-                newPaywalls
-                    .filter {
-                        val oldCacheKey = oldPaywallCacheIds[it.identifier]
-                        val keyChanged = oldCacheKey != newPaywallCacheIds[it.identifier]
-                        oldCacheKey != null && keyChanged
-                    }.map { it.identifier } - presentedPaywallId
-
-        val toRemove = changedIds.toSet().filterNotNull()
+        val toRemove =
+            (changedPaywallIds(oldConfig, newConfig) - presentedPaywallId).filterNotNull()
         toRemove.forEach {
             paywallManager.removePaywallView(it)
         }
         if (toRemove.isNotEmpty()) {
-            lastFingerprint.set(null)
+            invalidatePreloadFingerprint()
+        }
+    }
+
+    companion object {
+        /**
+         * Identifiers of paywalls that were removed in [newConfig] or whose
+         * [CacheKey] differs from [oldConfig] — i.e. whose cached content is stale.
+         */
+        internal fun changedPaywallIds(
+            oldConfig: Config,
+            newConfig: Config,
+        ): Set<PaywallIdentifier> {
+            val oldPaywallCacheIds: Map<PaywallIdentifier, CacheKey> =
+                oldConfig.paywalls
+                    .map { it.identifier to it.cacheKey }
+                    .toMap()
+            val newPaywallCacheIds: Map<PaywallIdentifier, CacheKey> =
+                newConfig.paywalls.map { it.identifier to it.cacheKey }.toMap()
+
+            val removedIds: Set<PaywallIdentifier> =
+                (oldPaywallCacheIds.keys - newPaywallCacheIds.keys).toSet()
+
+            return removedIds +
+                newConfig.paywalls
+                    .filter {
+                        val oldCacheKey = oldPaywallCacheIds[it.identifier]
+                        val keyChanged = oldCacheKey != newPaywallCacheIds[it.identifier]
+                        oldCacheKey != null && keyChanged
+                    }.map { it.identifier }
         }
     }
 }

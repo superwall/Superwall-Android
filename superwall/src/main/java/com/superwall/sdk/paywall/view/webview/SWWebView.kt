@@ -114,6 +114,7 @@ class SWWebView(
         { i, e -> }
 
     private companion object ChromeClient : WebChromeClient() {
+        const val MAX_LOAD_RETRIES = 3
         val posterBmp by lazy { createBitmap(10, 10) }
 
         private class ChromeClient(
@@ -178,6 +179,7 @@ class SWWebView(
 
     private var lastWebViewClient: WebViewClient? = null
     private var lastLoadedUrl: String? = null
+    private var loadRetryCount = 0
 
     // The device preload script seeds `window.__SW_DEVICE_PRELOAD__` as soon as
     // the page starts loading, so translated paywalls render in the device locale
@@ -258,9 +260,7 @@ class SWWebView(
                 onPageStartedHook = onPageStartedPreloadHook,
             )
         this.webViewClient = client
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            lastWebViewClient = client
-        }
+        lastWebViewClient = client
         listenToWebviewClientEvents(client)
         client.loadWithFallback()
     }
@@ -324,10 +324,7 @@ class SWWebView(
                 onPageStartedHook = onPageStartedPreloadHook,
             )
         this.webViewClient = client
-
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            lastWebViewClient = client
-        }
+        lastWebViewClient = client
 
         listenToWebviewClientEvents(client)
         super.loadUrl(transformUri(url))
@@ -423,17 +420,21 @@ class SWWebView(
                                 )
                                 if (lastLoadedUrl != null) {
                                     when (lastWebViewClient) {
-                                        is WebviewFallbackClient -> {}
-                                        is DefaultWebviewClient -> {
-                                            log(
-                                                "Paywall loading failed - retrying $lastLoadedUrl",
-                                            )
-                                            loadUrl(lastLoadedUrl!!)
-                                        }
-
-                                        else -> {
+                                        is WebviewFallbackClient -> {
                                             // NO-OP as it has internal fallback
                                         }
+
+                                        is DefaultWebviewClient -> {
+                                            if (loadRetryCount < MAX_LOAD_RETRIES) {
+                                                loadRetryCount += 1
+                                                log(
+                                                    "Paywall loading failed - retrying $lastLoadedUrl",
+                                                )
+                                                loadUrl(lastLoadedUrl!!)
+                                            }
+                                        }
+
+                                        else -> {}
                                     }
                                 }
                             }
@@ -458,6 +459,12 @@ class SWWebView(
                             }
 
                             is WebviewClientEvent.OnPageFinished -> {
+                                // The client records page-level failures synchronously on the
+                                // WebViewClient callback thread, so this can't miss an error
+                                // whose async OnError event hasn't been processed yet.
+                                if (!client.hadMainFrameError) {
+                                    loadRetryCount = 0
+                                }
                                 asEither {
                                     mainScope.launch {
                                         this@SWWebView.scrollTo(0, 0)
@@ -586,6 +593,7 @@ class SWWebView(
     ) {
         this.onRenderCrashed = onRenderCrashed
         scrollEnabled = delegate?.state?.paywall?.isScrollEnabled ?: true
+        loadRetryCount = 0
         mainScope.launch {
             val state = delegate?.state ?: return@launch
             if (state.paywall.onDeviceCache is OnDeviceCaching.Enabled) {

@@ -78,7 +78,7 @@ class EvaluateRulesOperatorTest {
                 val matchedVariant = Experiment.Variant(id = "v1", type = Experiment.Variant.VariantType.TREATMENT, paywallId = "paywall")
                 every { storage.getConfirmedAssignments() } returns mapOf("exp" to matchedVariant)
                 every { assignments.unconfirmedAssignments } returns emptyMap()
-                coEvery { evaluator.evaluateExpression(triggerRule, event) } returns TriggerRuleOutcome.Match(MatchedItem(triggerRule))
+                coEvery { evaluator.evaluateExpression(triggerRule, event, null) } returns TriggerRuleOutcome.Match(MatchedItem(triggerRule))
 
                 val result =
                     When("evaluateRules is invoked") {

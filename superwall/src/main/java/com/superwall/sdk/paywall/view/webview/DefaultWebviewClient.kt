@@ -25,6 +25,20 @@ internal open class DefaultWebviewClient(
     val webviewClientEvents: MutableSharedFlow<WebviewClientEvent> =
         MutableSharedFlow(extraBufferCapacity = 10, replay = 2)
 
+    // True once the currently loading page suffered a page-level failure (main frame
+    // or its essential runtime bundle). Set synchronously on the WebViewClient callback
+    // thread — before the corresponding OnError coroutine is launched — so consumers of
+    // OnPageFinished can consult it without racing the async event; cleared when a new
+    // page starts.
+    @Volatile
+    internal var hadMainFrameError = false
+        private set
+
+    // The paywall runtime JS bundle is essential — without it the page is broken —
+    // so its failure is treated as page-level rather than as a mere resource error.
+    protected fun isPageLevelFailure(request: WebResourceRequest?): Boolean =
+        request?.isForMainFrame == true || request?.url?.toString()?.contains("runtime") == true
+
     override fun shouldOverrideUrlLoading(
         view: WebView?,
         request: WebResourceRequest?,
@@ -46,6 +60,7 @@ internal open class DefaultWebviewClient(
         favicon: Bitmap?,
     ) {
         super.onPageStarted(view, url, favicon)
+        hadMainFrameError = false
         view?.let(onPageStartedHook)
     }
 
@@ -64,9 +79,13 @@ internal open class DefaultWebviewClient(
         request: WebResourceRequest?,
         errorResponse: WebResourceResponse?,
     ) {
-        val requestUrl = request?.url.toString()
-        if (requestUrl.contains("favicon.ico")) {
+        val requestUrl = request?.url?.toString()
+        if (requestUrl?.contains("favicon.ico") == true) {
             return
+        }
+        val isPageLevel = isPageLevelFailure(request)
+        if (isPageLevel) {
+            hadMainFrameError = true
         }
         ioScope.launch {
             Logger.debug(
@@ -75,17 +94,21 @@ internal open class DefaultWebviewClient(
                 "Paywall loading failed due to network error. Url: $requestUrl - Code: ${errorResponse?.statusCode} for ${errorResponse?.reasonPhrase}",
             )
 
+            val error =
+                WebviewError.NetworkError(
+                    errorResponse?.statusCode ?: -1,
+                    errorResponse?.let {
+                        val body = it.data?.bufferedReader()?.use { it.readText() } ?: "Unknown"
+                        "Error: ${errorResponse.reasonPhrase} -\n $body"
+                    } ?: "Unknown error",
+                    if (isPageLevel) forUrl else requestUrl ?: forUrl,
+                )
             webviewClientEvents.emit(
-                WebviewClientEvent.OnError(
-                    WebviewError.NetworkError(
-                        errorResponse?.statusCode ?: -1,
-                        errorResponse?.let {
-                            val body = it.data?.bufferedReader()?.use { it.readText() } ?: "Unknown"
-                            "Error: ${errorResponse.reasonPhrase} -\n $body"
-                        } ?: "Unknown error",
-                        forUrl,
-                    ),
-                ),
+                if (isPageLevel) {
+                    WebviewClientEvent.OnError(error)
+                } else {
+                    WebviewClientEvent.OnResourceError(error)
+                },
             )
         }
     }
@@ -103,22 +126,23 @@ internal open class DefaultWebviewClient(
         request: WebResourceRequest?,
         error: WebResourceError,
     ) {
+        val requestUrl = request?.url?.toString()
+        val isPageLevel = isPageLevelFailure(request)
+        if (isPageLevel) {
+            hadMainFrameError = true
+        }
         ioScope.launch {
-            if (request?.url?.toString()?.contains("runtime") == true) {
-                val (code, desc) =
-                    error?.let {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                            val code = it.errorCode
-                            val description = it.description.toString()
-                            code to description
-                        } else {
-                            -1 to "Error description unavailable, Android API version < 23"
-                        }
-                    } ?: (-1 to "Unknown error")
+            val (code, desc) =
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    error.errorCode to error.description.toString()
+                } else {
+                    -1 to "Error description unavailable, Android API version < 23"
+                }
+            if (isPageLevel) {
                 Logger.debug(
                     LogLevel.debug,
                     LogScope.paywallView,
-                    "Paywall loading failed due to network error. Url: ${request?.url?.toString()} - Code: $code for $desc",
+                    "Paywall loading failed due to network error. Url: $requestUrl - Code: $code for $desc",
                 )
                 webviewClientEvents.emit(
                     WebviewClientEvent.OnError(
@@ -132,19 +156,11 @@ internal open class DefaultWebviewClient(
             } else {
                 webviewClientEvents.emit(
                     WebviewClientEvent.OnResourceError(
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                            WebviewError.NetworkError(
-                                error.errorCode,
-                                error.description.toString(),
-                                forUrl,
-                            )
-                        } else {
-                            WebviewError.NetworkError(
-                                -1,
-                                "Error description unavailable, Android API version < 23",
-                                forUrl,
-                            )
-                        },
+                        WebviewError.NetworkError(
+                            code,
+                            desc,
+                            requestUrl ?: forUrl,
+                        ),
                     ),
                 )
             }

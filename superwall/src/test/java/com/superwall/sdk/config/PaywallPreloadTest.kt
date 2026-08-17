@@ -23,6 +23,8 @@ import io.mockk.verify
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class PaywallPreloadTest {
@@ -137,4 +139,60 @@ class PaywallPreloadTest {
                 }
             }
         }
+
+    @Test
+    fun `changedPaywallIds returns removed and cacheKey-changed identifiers`() {
+        Given("old and new configs with removed, changed, unchanged and added paywalls") {
+            val oldConfig =
+                Config.stub().copy(
+                    paywalls =
+                        listOf(
+                            Paywall.stub().copy(identifier = "keep", cacheKey = "keep-ck"),
+                            Paywall.stub().copy(identifier = "remove", cacheKey = "remove-ck"),
+                            Paywall.stub().copy(identifier = "changed", cacheKey = "old-ck"),
+                        ),
+                )
+            val newConfig =
+                Config.stub().copy(
+                    paywalls =
+                        listOf(
+                            Paywall.stub().copy(identifier = "keep", cacheKey = "keep-ck"),
+                            Paywall.stub().copy(identifier = "changed", cacheKey = "new-ck"),
+                            Paywall.stub().copy(identifier = "added", cacheKey = "added-ck"),
+                        ),
+                )
+
+            When("changedPaywallIds is computed") {
+                val changed = PaywallPreload.changedPaywallIds(oldConfig, newConfig)
+
+                Then("only removed and cacheKey-changed identifiers are returned") {
+                    assertEquals(setOf("remove", "changed"), changed)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `invalidatePreloadFingerprint clears lastFingerprint`() {
+        Given("a preload with a recorded fingerprint") {
+            val preload =
+                PaywallPreload(
+                    factory = mockk(relaxed = true),
+                    scope = IOScope(testDispatcher),
+                    storage = mockk(relaxed = true),
+                    assignments = mockk(relaxed = true),
+                    paywallManager = mockk(relaxed = true),
+                    track = {},
+                )
+            preload.lastFingerprint.set("fingerprint")
+
+            When("invalidatePreloadFingerprint is called") {
+                preload.invalidatePreloadFingerprint()
+
+                Then("the fingerprint is cleared") {
+                    assertNull(preload.lastFingerprint.get())
+                }
+            }
+        }
+    }
 }
