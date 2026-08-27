@@ -40,7 +40,10 @@ interface SuperwallAPI {
 
     suspend fun getAssignments(): Either<List<Assignment>, NetworkError>
 
-    suspend fun matchMMPInstall(installReferrerClickId: Long? = null): Boolean
+    suspend fun matchMMPInstall(
+        installReferrerClickId: Long? = null,
+        integrationAttributes: Map<String, String> = emptyMap(),
+    ): Either<MmpMatchResponse, NetworkError>
 
     suspend fun webEntitlementsByUserId(
         userId: UserId,

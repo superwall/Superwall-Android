@@ -1,10 +1,7 @@
 package com.superwall.sdk.network
 
-import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
-import com.superwall.sdk.analytics.superwall.AttributionMatchInfo
 import com.superwall.sdk.dependencies.ApiFactory
-import com.superwall.sdk.identity.setUserAttributes
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
@@ -33,11 +30,6 @@ import com.superwall.sdk.utilities.dateFormat
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.booleanOrNull
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.doubleOrNull
-import kotlinx.serialization.json.longOrNull
 import java.util.Date
 import java.util.TimeZone
 import java.util.UUID
@@ -56,59 +48,6 @@ open class Network(
             .apply {
                 timeZone = TimeZone.getTimeZone("UTC")
             }.format(Date()) + "Z"
-
-    private fun jsonElementToValue(value: JsonElement): Any? =
-        when (value) {
-            is JsonPrimitive -> {
-                val booleanValue = value.booleanOrNull
-                val longValue = value.longOrNull
-                val doubleValue = value.doubleOrNull
-
-                when {
-                    value.isString -> value.contentOrNull
-                    booleanValue != null -> booleanValue
-                    longValue != null -> longValue
-                    doubleValue != null -> doubleValue
-                    else -> value.contentOrNull
-                }
-            }
-
-            else -> value.toString()
-        }
-
-    private fun mergeMMPAcquisitionAttributesIfNeeded(acquisitionAttributes: Map<String, JsonElement>) {
-        val attributes =
-            acquisitionAttributes
-                .mapNotNull { (key, value) ->
-                    val converted = jsonElementToValue(value)
-                    if (converted != null) {
-                        key to converted
-                    } else {
-                        null
-                    }
-                }.toMap()
-
-        if (attributes.isEmpty()) {
-            return
-        }
-
-        val currentAttributes = factory.identityManager.userAttributes
-        val hasChanges =
-            attributes.any { (key, value) ->
-                currentAttributes[key]?.toString() != value.toString()
-            }
-
-        if (!hasChanges) {
-            return
-        }
-
-        Superwall.instance.setUserAttributes(attributes)
-    }
-
-    private fun readJsonString(
-        value: Map<String, JsonElement>?,
-        key: String,
-    ): String? = (value?.get(key) as? JsonPrimitive)?.contentOrNull
 
     override suspend fun sendEvents(events: EventsRequest): Either<Unit, NetworkError> =
         collectorService
@@ -200,7 +139,10 @@ open class Network(
                 it.assignments
             }.logError("/assignments")
 
-    override suspend fun matchMMPInstall(installReferrerClickId: Long?): Boolean {
+    override suspend fun matchMMPInstall(
+        installReferrerClickId: Long?,
+        integrationAttributes: Map<String, String>,
+    ): Either<MmpMatchResponse, NetworkError> {
         val deviceHelper = factory.deviceHelper
         val metadata =
             listOfNotNull(
@@ -223,12 +165,16 @@ open class Network(
                 },
             ).toMap()
 
+        val advertisingIds = integrationAttributes.promoteAdvertisingIds()
+
         val request =
             MmpMatchRequest(
                 platform = "android",
                 appUserId = factory.identityManager.appUserId,
                 deviceId = deviceHelper.deviceId,
                 vendorId = deviceHelper.vendorId,
+                aaid = advertisingIds.aaid,
+                appSetId = advertisingIds.appSetId,
                 installReferrerClickId = installReferrerClickId,
                 appVersion = deviceHelper.appVersion,
                 sdkVersion = deviceHelper.sdkVersion,
@@ -243,50 +189,12 @@ open class Network(
                 bundleId = deviceHelper.bundleId,
                 clientTimestamp = currentIsoTimestamp(),
                 metadata = metadata,
+                integrationAttributes = advertisingIds.remaining.takeIf { it.isNotEmpty() },
             )
 
-        return when (
-            val result =
-                mmpService
-                    .matchInstall(request)
-                    .logError("/api/match", mapOf("payload" to request))
-        ) {
-            is Either.Success -> {
-                val response = result.value
-
-                response.acquisitionAttributes?.let(::mergeMMPAcquisitionAttributesIfNeeded)
-
-                factory.track(
-                    InternalSuperwallEvent.AttributionMatch(
-                        AttributionMatchInfo(
-                            provider = AttributionMatchInfo.Provider.MMP,
-                            matched = response.matched,
-                            source =
-                                readJsonString(response.acquisitionAttributes, "acquisition_source")
-                                    ?: response.network,
-                            confidence = response.confidence,
-                            matchScore = response.matchScore,
-                            reason = readJsonString(response.breakdown, "reason"),
-                        ),
-                    ),
-                )
-
-                true
-            }
-
-            is Either.Failure -> {
-                factory.track(
-                    InternalSuperwallEvent.AttributionMatch(
-                        AttributionMatchInfo(
-                            provider = AttributionMatchInfo.Provider.MMP,
-                            matched = false,
-                            reason = "request_failed",
-                        ),
-                    ),
-                )
-                false
-            }
-        }
+        return mmpService
+            .matchInstall(request)
+            .logError("/api/match", mapOf("payload" to request))
     }
 
     override suspend fun redeemToken(

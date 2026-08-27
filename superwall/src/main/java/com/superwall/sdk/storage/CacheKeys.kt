@@ -29,6 +29,7 @@ import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.JsonElement
 import java.io.File
 import java.security.MessageDigest
 import java.util.Date
@@ -141,6 +142,26 @@ object DidCompleteMMPInstallAttributionRequest : Storable<Boolean> {
 
     override val serializer: KSerializer<Boolean>
         get() = Boolean.serializer()
+}
+
+/**
+ * The decoded MMP `acquisition_*` payload from the last successful install match,
+ * cached so it can be re-applied to a new user's attributes after [com.superwall.sdk.Superwall.reset].
+ *
+ * Install-scoped: the install source doesn't change when one user logs out and another logs in
+ * on the same device. The backend match only runs within the 7-day install window, so re-matching
+ * after a reset can't be relied on — caching the resolved payload lets us repopulate the new user
+ * deterministically, without re-hitting the backend.
+ */
+object MMPAcquisitionData : Storable<Map<String, JsonElement>> {
+    override val key: String
+        get() = "store.mmpAcquisitionData"
+
+    override val directory: SearchPathDirectory
+        get() = SearchPathDirectory.APP_SPECIFIC_DOCUMENTS
+
+    override val serializer: KSerializer<Map<String, JsonElement>>
+        get() = MapSerializer(String.serializer(), JsonElement.serializer())
 }
 
 object IsEligibleForMMPInstallAttributionMatch : Storable<Boolean> {

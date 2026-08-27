@@ -184,8 +184,16 @@ open class LocalStorage(
     }
 
     private fun isMMPInstallAttributionWindowOpen(appInstalledAtMillis: Long): Boolean {
+        // Fail open when the install date is unusable — unset/epoch-zero, or in the future
+        // because the device clock is skewed. Mirrors iOS, which treats an empty or
+        // unparseable `appInstalledAtString` as in-window: silently dropping attribution
+        // over a bad clock is worse than occasionally attempting a match that won't land.
+        if (appInstalledAtMillis <= 0L) {
+            return true
+        }
+
         val ageMs = System.currentTimeMillis() - appInstalledAtMillis
-        return ageMs in 0..MMP_INSTALL_ATTRIBUTION_WINDOW_MS
+        return ageMs <= MMP_INSTALL_ATTRIBUTION_WINDOW_MS
     }
 
     fun shouldAttemptInitialMMPInstallAttributionMatch(
@@ -216,8 +224,8 @@ open class LocalStorage(
             return
         }
 
-        // Intentionally fire-and-forget so the initial config fetch stays on the startup critical path,
-        // matching the iOS SDK behavior.
+        // Intentionally fire-and-forget so the match never blocks the caller. Matches the iOS SDK,
+        // where `recordMMPInstallAttributionMatch` returns a detached Task.
         ioScope.launch {
             if (matchRequest()) {
                 write(DidCompleteMMPInstallAttributionRequest, true)
