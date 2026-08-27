@@ -14,11 +14,12 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Resources
 import android.graphics.Color
+import android.graphics.Outline
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
-import android.graphics.Outline
+import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewOutlineProvider
@@ -87,26 +88,77 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             key: String = UUID.randomUUID().toString(),
             presentationStyleOverride: PaywallPresentationStyle? = null,
         ) {
-            // We force this in main scope in case the user started it from a non-main thread
-            CoroutineScope(Dispatchers.Main).launch {
-                view.prepareViewForDisplay(key)
-                val intent =
-                    Intent(context, SuperwallPaywallActivity::class.java).apply {
-                        putExtra(VIEW_KEY, key)
-                        putExtra(
-                            PRESENTATION_STYLE_KEY,
-                            presentationStyleOverride?.toIntentString(
-                                JsonFactory.JSON_POLYMORPHIC,
-                            ),
-                        )
-                        putExtra(
-                            IS_LIGHT_BACKGROUND_KEY,
-                            view.state.paywall.backgroundColor
-                                .isLightColor(),
-                        )
-                        flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
-                    }
-                context.startActivity(intent)
+            val start = {
+                startWithViewOnMain(
+                    context = context,
+                    view = view,
+                    key = key,
+                    presentationStyleOverride = presentationStyleOverride,
+                ).onFailure { error ->
+                    view.handleActivityLaunchFailure(error, emitPresentationError = true)
+                }
+            }
+
+            if (Looper.myLooper() == Looper.getMainLooper()) {
+                start()
+            } else {
+                // The public convenience API historically accepts calls from any thread. The SDK's
+                // presentation pipeline uses startWithViewForPresentation below and remains
+                // structured; only direct off-main callers require this compatibility hop.
+                CoroutineScope(Dispatchers.Main).launch {
+                    start()
+                }
+            }
+        }
+
+        internal fun startWithViewForPresentation(
+            context: Activity,
+            view: PaywallView,
+            key: String,
+            presentationStyleOverride: PaywallPresentationStyle?,
+        ): Result<Unit> =
+            startWithViewOnMain(
+                context = context,
+                view = view,
+                key = key,
+                presentationStyleOverride = presentationStyleOverride,
+            )
+
+        private fun startWithViewOnMain(
+            context: Context,
+            view: PaywallView,
+            key: String,
+            presentationStyleOverride: PaywallPresentationStyle?,
+        ): Result<Unit> {
+            check(Looper.myLooper() == Looper.getMainLooper()) {
+                "SuperwallPaywallActivity must be prepared and launched on the main thread."
+            }
+
+            // Keep preparation outside the activity launch Result. Programming/state errors here
+            // must continue to surface instead of being mislabeled as Android launch failures.
+            view.prepareViewForDisplay(key)
+            val intent =
+                Intent(context, SuperwallPaywallActivity::class.java).apply {
+                    putExtra(VIEW_KEY, key)
+                    putExtra(
+                        PRESENTATION_STYLE_KEY,
+                        presentationStyleOverride?.toIntentString(
+                            JsonFactory.JSON_POLYMORPHIC,
+                        ),
+                    )
+                    putExtra(
+                        IS_LIGHT_BACKGROUND_KEY,
+                        view.state.paywall.backgroundColor
+                            .isLightColor(),
+                    )
+                    flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
+                }
+
+            return launchPaywallActivity(context, intent).onFailure {
+                Superwall.instance.dependencyContainer
+                    .makeViewStore()
+                    .removeView(key)
+                view.clearActivityLaunchState()
             }
         }
 

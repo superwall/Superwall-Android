@@ -27,8 +27,10 @@ import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -459,11 +461,13 @@ class GoogleBillingWrapper(
      * country of the user's Play Store account. Waits for the billing client to connect
      * if it hasn't yet; resolves to `null` if billing is unavailable or the fetch fails.
      */
-    override suspend fun getStorefrontCountryCode(): String? =
-        suspendCoroutine { continuation ->
+    override suspend fun getStorefrontCountryCode(): String? {
+        val result = CompletableDeferred<String?>(parent = currentCoroutineContext()[Job])
+
+        try {
             executeRequestOnUIThread { connectionError ->
                 if (connectionError != null) {
-                    continuation.resume(null)
+                    result.complete(null)
                     return@executeRequestOnUIThread
                 }
                 val dispatched =
@@ -472,7 +476,7 @@ class GoogleBillingWrapper(
                             GetBillingConfigParams.newBuilder().build(),
                         ) { billingResult, billingConfig ->
                             if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && billingConfig != null) {
-                                continuation.resume(billingConfig.countryCode)
+                                result.complete(billingConfig.countryCode)
                             } else {
                                 Logger.debug(
                                     LogLevel.debug,
@@ -480,15 +484,20 @@ class GoogleBillingWrapper(
                                     "Failed to fetch billing config: ${billingResult.debugMessage} " +
                                         "ErrorCode: ${billingResult.responseCode}",
                                 )
-                                continuation.resume(null)
+                                result.complete(null)
                             }
                         }
                     }
                 if (dispatched == null) {
-                    continuation.resume(null)
+                    result.complete(null)
                 }
             }
+
+            return result.await()
+        } finally {
+            result.cancel()
         }
+    }
 
     override fun onBillingSetupFinished(billingResult: BillingResult) {
         threadHandler.post {

@@ -53,6 +53,7 @@ class CurrentActivityTracker :
 
     override fun onActivityStopped(activity: Activity) {
         if (currentActivity?.get() === activity) {
+            currentActivity = null
             activityState.value = null
         }
     }

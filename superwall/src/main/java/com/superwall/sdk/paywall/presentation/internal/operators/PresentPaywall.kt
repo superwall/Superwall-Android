@@ -13,6 +13,7 @@ import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationReques
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatusReason
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
+import com.superwall.sdk.paywall.view.PaywallActivityLaunchException
 import com.superwall.sdk.paywall.view.PaywallView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -89,6 +90,10 @@ suspend fun Superwall.presentPaywallView(
                     throw PaywallPresentationRequestStatusReason.PaywallAlreadyPresented()
                 }
             }
+        } catch (error: PaywallActivityLaunchException) {
+            paywallStatePublisher.emit(PaywallState.PresentationError(error))
+            logErrors(request, error = error)
+            throw error
         } catch (error: Throwable) {
             logErrors(request, error = error)
             throw error
