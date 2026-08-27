@@ -51,6 +51,16 @@ class SuperwallOptions() {
                     "enrichment-api.superwall.dev"
                 }
 
+        // Install-attribution matching runs on its own host, separate from the
+        // subscriptions API. Mirrors `mmpHost` on iOS.
+        open val mmpHost: String
+            get() =
+                if (this is Release) {
+                    "mmp.superwall.com"
+                } else {
+                    "mmp.superwall.dev"
+                }
+
         open val port: Int?
             get() = null
 
@@ -68,6 +78,7 @@ class SuperwallOptions() {
             override val port: Int?,
             override val subscriptionHost: String = baseHost,
             override val enrichmentHost: String = baseHost,
+            override val mmpHost: String = baseHost,
         ) : NetworkEnvironment(baseHost)
     }
 
@@ -157,6 +168,7 @@ internal fun SuperwallOptions.NetworkEnvironment.toMap(): Map<String, Any> =
         "collector_host" to collectorHost,
         "subscription_host" to subscriptionHost,
         "enrichment_host" to enrichmentHost,
+        "mmp_host" to mmpHost,
         "scheme" to scheme,
         port?.let { "port" to it },
     ).toMap()

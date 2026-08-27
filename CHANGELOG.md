@@ -4,6 +4,9 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## 2.8.1
 
+## Enhancements
+- Adds install attribution matching support. If you set up performance marketing integrations on the Superwall dashboard, the SDK will attempt to match the install and track an `attribution_match` event. The attribution properties will be added to user attributes so that they can be used as breakdowns and filters in the charts. The match runs once per install, within a 7-day window, off the startup critical path, and is skipped entirely when `eventTrackingBehavior` is set to `NONE`. Identifiers you've set via `Superwall.setIntegrationAttributes` are included in the match: `AttributionProvider.GOOGLE_ADS` (the Google Advertising ID) and `AttributionProvider.GOOGLE_APP_SET` are sent as the request's `aaid` and `appSetId` — the Android counterparts to `idfa` on iOS — and the remaining identifiers (`adjustId`, `appsflyerId`, `singularDeviceId` and the rest) are sent alongside them. The Play install referrer's click id is included when present.
+
 ## Fixes
 - Paywalls with translations now render in the user's language on first paint instead of briefly showing the default language. 
 - Paywall analytics events (`paywall_open`, `paywall_page_view`, `paywall_close`, etc.) now include a `presentation_id`, a unique identifier minted for each paywall presentation. Adds the previously-missing `close_reason`, `cache_key`, and `build_id` fields to these events, matching the data already sent by the iOS SDK.

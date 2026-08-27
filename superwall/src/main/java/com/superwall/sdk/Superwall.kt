@@ -84,11 +84,11 @@ import com.superwall.sdk.store.transactions.TransactionManager
 import com.superwall.sdk.store.transactions.TransactionManager.PurchaseSource.*
 import com.superwall.sdk.utilities.flatten
 import com.superwall.sdk.utilities.withErrorTracking
-import com.superwall.sdk.web.DeepLinkReferrer
 import com.superwall.sdk.web.WebPaywallRedeemer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -721,28 +721,41 @@ class Superwall(
                             track(event = it)
                         }
 
+                        // Kick the config fetch off first so nothing below it — in particular
+                        // the install-referrer lookup, which can block for its full timeout when
+                        // the Play Store is unavailable — sits on the startup critical path.
+                        val fetchConfig = async { dependencyContainer.configManager.fetchConfiguration() }
+
                         // Implicitly wait
                         dependencyContainer.identityManager.configure(
                             neverCalledStaticConfig = dependencyContainer.storage.neverCalledStaticConfig,
                         )
 
+                        // Skip install-attribution matching entirely when the developer has opted
+                        // out of all event collection. The `/api/match` call and the
+                        // `acquisition_*` attribute writes happen outside the event queue, so
+                        // queue-level suppression wouldn't catch them.
                         if (
+                            eventTrackingBehavior != EventTrackingBehavior.NONE &&
                             dependencyContainer.storage.shouldAttemptInitialMMPInstallAttributionMatch(
                                 hadTrackedAppInstallBeforeConfigure = hadTrackedAppInstallBeforeConfigure,
                                 appInstalledAtMillis = dependencyContainer.deviceHelper.appInstalledAtMillis,
                             )
                         ) {
-                            val installReferrerClickId =
-                                DeepLinkReferrer({ context }, ioScope)
-                                    .checkForMmpClickId()
-                                    .getOrNull()
+                            ioScope.launch {
+                                val installReferrerClickId =
+                                    dependencyContainer.deepLinkReferrer
+                                        .checkForMmpClickId()
+                                        .getOrNull()
 
-                            dependencyContainer.storage.recordMMPInstallAttributionRequest {
-                                dependencyContainer.network.matchMMPInstall(installReferrerClickId)
+                                dependencyContainer.storage.recordMMPInstallAttributionRequest {
+                                    dependencyContainer.mmpAttributionManager
+                                        .matchInstall(installReferrerClickId)
+                                }
                             }
                         }
 
-                        dependencyContainer.configManager.fetchConfiguration()
+                        fetchConfig.await()
                     }.toResult().fold({
                         CoroutineScope(Dispatchers.Main).launch {
                             completion?.invoke(Result.success(Unit))
@@ -948,6 +961,13 @@ class Superwall(
                 // Called from identity actor's completeReset during identify
                 // or full reset — just do cleanup without touching identity.
                 dependencyContainer.storage.reset()
+
+                // MMP install attribution is install-scoped. Re-apply the cached
+                // `acquisition_*` payload to the new user rather than re-running the match —
+                // the backend match only succeeds within the 7-day install window, so a
+                // logout after that would otherwise leave the new user without attributes.
+                dependencyContainer.mmpAttributionManager.reapplyCachedAcquisitionAttributes()
+
                 dependencyContainer.paywallManager.resetCache()
                 presentationItems.reset()
                 dependencyContainer.configManager.reset()

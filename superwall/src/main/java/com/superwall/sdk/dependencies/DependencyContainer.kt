@@ -12,6 +12,7 @@ import com.superwall.sdk.SdkContextImpl
 import com.superwall.sdk.SdkContext
 import com.superwall.sdk.Superwall
 import com.superwall.sdk.analytics.AttributionManager
+import com.superwall.sdk.analytics.attribution.MMPAttributionManager
 import com.superwall.sdk.analytics.ClassifierDataFactory
 import com.superwall.sdk.analytics.DefaultClassifierDataFactory
 import com.superwall.sdk.analytics.DeviceClassifier
@@ -44,6 +45,7 @@ import com.superwall.sdk.identity.IdentityPendingInterceptor
 import com.superwall.sdk.identity.IdentityPersistenceInterceptor
 import com.superwall.sdk.identity.IdentityState
 import com.superwall.sdk.identity.createInitialIdentityState
+import com.superwall.sdk.identity.setUserAttributes
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
@@ -244,6 +246,8 @@ class DependencyContainer(
     internal val errorTracker: ErrorTracker
     internal val deepLinkRouter: DeepLinkRouter
     internal val attributionManager: AttributionManager
+    internal val mmpAttributionManager: MMPAttributionManager
+    internal val deepLinkReferrer: DeepLinkReferrer
 
     init {
         // For tracking when the app enters the background.
@@ -402,7 +406,7 @@ class DependencyContainer(
                     ),
                 mmpService =
                     MmpService(
-                        host = api.subscription.host,
+                        host = api.mmp.host,
                         version = "/",
                         factory = this,
                         json =
@@ -416,6 +420,11 @@ class DependencyContainer(
                                     Json(from = json()) {
                                         ignoreUnknownKeys = true
                                         namingStrategy = null
+                                        // The backend types `confidence` as a free-form string.
+                                        // Coerce an unrecognised value (e.g. a future tier) to the
+                                        // property default of `null` rather than failing the whole
+                                        // response decode.
+                                        coerceInputValues = true
                                     },
                                 requestExecutor =
                                     RequestExecutor { debugging, requestId ->
@@ -535,11 +544,15 @@ class DependencyContainer(
                 sdkContext = sdkContext,
             )
 
+        // A single install-referrer client, shared by web-checkout redemption and MMP
+        // install attribution — each instance opens its own Play connection.
+        deepLinkReferrer = DeepLinkReferrer({ context }, ioScope)
+
         reedemer =
             WebPaywallRedeemer(
                 context = context,
                 ioScope = ioScope,
-                deepLinkReferrer = DeepLinkReferrer({ context }, ioScope),
+                deepLinkReferrer = deepLinkReferrer,
                 network = network,
                 storage = storage,
                 customerInfoManager = customerInfoManager,
@@ -756,6 +769,17 @@ class DependencyContainer(
                     reedemer.redeem(WebPaywallRedeemer.RedeemType.IntegrationAttributes)
                 }
             }, vendorId = { VendorId(deviceHelper.vendorId) })
+
+        mmpAttributionManager =
+            MMPAttributionManager(
+                storage = storage,
+                identityManager = identityManager,
+                track = { track(it) },
+                setUserAttributes = { Superwall.instance.setUserAttributes(it) },
+                sendMatchRequest = { clickId ->
+                    network.matchMMPInstall(clickId, attributionManager.integrationAttributes)
+                },
+            )
 
         /**
          * This loads the webview libraries in the background thread, giving us 100-200ms less lag

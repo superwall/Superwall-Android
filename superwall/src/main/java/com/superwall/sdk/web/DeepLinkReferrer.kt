@@ -12,6 +12,8 @@ import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.IOScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Duration.Companion.milliseconds
@@ -28,6 +30,8 @@ class DeepLinkReferrer(
     private val scope: IOScope,
 ) : CheckForReferral {
     private var referrerClient: InstallReferrerClient? = null
+    private val referrerMutex = Mutex()
+    private var cachedReferrerParams: Map<String, List<String>>? = null
     private val readyReferrerClient: InstallReferrerClient?
         get() {
             if (referrerClient?.isReady == true) {
@@ -142,20 +146,32 @@ class DeepLinkReferrer(
                 )
             }
 
-    private suspend fun getInstallReferrerParams(timeout: kotlin.time.Duration): Map<String, List<String>> {
-        val rawReferrer =
-            withTimeoutOrNull(timeout) {
-                while (readyReferrerClient == null) {
-                    delay(50)
-                }
-                readyReferrerClient?.installReferrer?.installReferrer?.toString()
-            }
+    /**
+     * Resolves the Play install referrer's query params.
+     *
+     * This instance is shared between web-checkout redemption and MMP install attribution, so
+     * the result is memoized: the referrer is immutable for the lifetime of an install, and
+     * the first reader would otherwise tear the connection down before the second one runs.
+     * A timeout is *not* memoized — Play can simply be slow at cold start — and leaves the
+     * client connected so a later call can still succeed.
+     */
+    private suspend fun getInstallReferrerParams(timeout: kotlin.time.Duration): Map<String, List<String>> =
+        referrerMutex.withLock {
+            cachedReferrerParams?.let { return@withLock it }
 
-        referrerClient?.endConnection()
-        referrerClient = null
+            val rawReferrer =
+                withTimeoutOrNull(timeout) {
+                    while (readyReferrerClient == null) {
+                        delay(50)
+                    }
+                    readyReferrerClient?.installReferrer?.installReferrer?.toString()
+                } ?: return@withLock emptyMap()
 
-        return rawReferrer?.getUrlParams() ?: emptyMap()
-    }
+            referrerClient?.endConnection()
+            referrerClient = null
+
+            rawReferrer.getUrlParams().also { cachedReferrerParams = it }
+        }
 
     private fun String.getUrlParams(): Map<String, List<String>> {
         val query = trim().removePrefix("?")
