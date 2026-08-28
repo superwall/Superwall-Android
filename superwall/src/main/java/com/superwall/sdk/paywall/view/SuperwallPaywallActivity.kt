@@ -59,17 +59,17 @@ import com.superwall.sdk.paywall.presentation.internal.state.PaywallResult
 import com.superwall.sdk.paywall.view.webview.PaywallWebUI
 import com.superwall.sdk.store.transactions.notifications.NotificationScheduler
 import com.superwall.sdk.utilities.withErrorTracking
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.lang.ref.WeakReference
 import java.util.UUID
-import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
 
 class SuperwallPaywallActivity : AppCompatActivity() {
     companion object {
-        private const val REQUEST_CODE_NOTIFICATION_PERMISSION = 1001
+        internal const val REQUEST_CODE_NOTIFICATION_PERMISSION = 1001
         const val NOTIFICATION_CHANNEL_ID = "com.superwall.android.notifications"
         private const val NOTIFICATION_CHANNEL_NAME = "Trial Reminder Notifications"
         private const val NOTIFICATION_CHANNEL_DESCRIPTION =
@@ -140,7 +140,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
     }
 
     private var contentView: View? = null
-    private var notificationPermissionCallback: NotificationPermissionCallback? = null
+    private var pendingNotificationPermission: CompletableDeferred<Boolean>? = null
     private val isBottomSheetView
         get() = contentView is CoordinatorLayout && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
 
@@ -773,6 +773,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        onNotificationPermissionResult(granted = false)
         super.onDestroy()
 
         val content = contentView as? ViewGroup?
@@ -827,10 +828,6 @@ class SuperwallPaywallActivity : AppCompatActivity() {
     }
 
     //region Notifications
-    interface NotificationPermissionCallback {
-        fun onPermissionResult(granted: Boolean)
-    }
-
     override fun finish() {
         if (isBottomSheetView) {
             mainScope.launch {
@@ -849,30 +846,33 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         notifications: List<LocalNotification>,
         factory: DeviceHelperFactory,
         cancelExisting: Boolean = false,
-    ) = suspendCoroutine { continuation ->
+    ) = withContext(Dispatchers.Main.immediate) {
         if (notifications.isEmpty()) {
-            continuation.resume(Unit) // Resume immediately as there's nothing to schedule
-            return@suspendCoroutine
+            return@withContext
         }
 
         createNotificationChannel()
 
-        notificationPermissionCallback =
-            object : NotificationPermissionCallback {
-                override fun onPermissionResult(granted: Boolean) {
-                    if (granted) {
-                        NotificationScheduler.scheduleNotifications(
-                            notifications = notifications,
-                            factory = factory,
-                            context = this@SuperwallPaywallActivity,
-                            cancelExisting = cancelExisting,
-                        )
-                    }
-                    continuation.resume(Unit) // Resume coroutine after processing
-                }
+        // Android auto-denies a second requestPermissions() while a dialog is up, so concurrent callers share one.
+        val result =
+            pendingNotificationPermission ?: CompletableDeferred<Boolean>().also {
+                pendingNotificationPermission = it
+                checkAndRequestNotificationPermissions(this@SuperwallPaywallActivity)
             }
 
-        checkAndRequestNotificationPermissions(this, notificationPermissionCallback!!)
+        if (result.await() && !isDestroyed) {
+            NotificationScheduler.scheduleNotifications(
+                notifications = notifications,
+                factory = factory,
+                context = this@SuperwallPaywallActivity,
+                cancelExisting = cancelExisting,
+            )
+        }
+    }
+
+    private fun onNotificationPermissionResult(granted: Boolean) {
+        pendingNotificationPermission?.complete(granted)
+        pendingNotificationPermission = null
     }
 
     private fun createNotificationChannel() {
@@ -894,10 +894,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         }
     }
 
-    private fun checkAndRequestNotificationPermissions(
-        context: Context,
-        callback: NotificationPermissionCallback,
-    ) {
+    private fun checkAndRequestNotificationPermissions(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(
                     context,
@@ -917,13 +914,13 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                     )
                 } else {
                     // Permission previously denied with 'Don't ask again'
-                    callback.onPermissionResult(false)
+                    onNotificationPermissionResult(false)
                 }
             } else {
-                callback.onPermissionResult(true)
+                onNotificationPermissionResult(true)
             }
         } else {
-            callback.onPermissionResult(areNotificationsEnabled(context))
+            onNotificationPermissionResult(areNotificationsEnabled(context))
         }
     }
 
@@ -948,8 +945,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         if (requestCode == REQUEST_CODE_NOTIFICATION_PERMISSION && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val isGranted =
                 grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
-            // Invoke the callback here
-            notificationPermissionCallback?.onPermissionResult(isGranted)
+            onNotificationPermissionResult(isGranted)
         }
     }
     //endregion
