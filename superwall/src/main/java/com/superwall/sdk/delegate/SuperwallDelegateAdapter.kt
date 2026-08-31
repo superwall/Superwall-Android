@@ -8,66 +8,165 @@ import com.superwall.sdk.paywall.presentation.PaywallInfo
 import java.net.URI
 
 class SuperwallDelegateAdapter {
+    companion object {
+        /**
+         * Mirrors "either delegate is set" so that the logger can decide whether a log is worth
+         * building without resolving the dependency container on every one of its call sites.
+         */
+        @Volatile
+        internal var hasAnyDelegate: Boolean = false
+            private set
+    }
+
+    init {
+        // A freshly constructed adapter holds no delegates yet, which keeps the flag correct
+        // across teardown/configure cycles.
+        hasAnyDelegate = false
+    }
+
     var kotlinDelegate: SuperwallDelegate? = null
+        set(value) {
+            field = value
+            hasAnyDelegate = value != null || javaDelegate != null
+        }
+
     var javaDelegate: SuperwallDelegateJava? = null
+        set(value) {
+            field = value
+            hasAnyDelegate = value != null || kotlinDelegate != null
+        }
+
+    private inline fun dispatch(
+        callbackName: String,
+        kotlinCallback: (SuperwallDelegate) -> Unit,
+        javaCallback: (SuperwallDelegateJava) -> Unit,
+    ) {
+        kotlinDelegate?.let { delegate ->
+            invokeSafely(callbackName) { kotlinCallback(delegate) }
+            return
+        }
+
+        javaDelegate?.let { delegate ->
+            invokeSafely(callbackName) { javaCallback(delegate) }
+        }
+    }
+
+    private inline fun invokeSafely(
+        callbackName: String,
+        callback: () -> Unit,
+    ) {
+        try {
+            callback()
+        } catch (error: LinkageError) {
+            reportDelegateFailure(callbackName, error)
+        } catch (exception: Exception) {
+            reportDelegateFailure(callbackName, exception)
+        }
+    }
+
+    /**
+     * Delegate failures cannot be reported through [com.superwall.sdk.logger.Logger], because a
+     * failing `handleLog` implementation would recursively call the same delegate.
+     */
+    private fun reportDelegateFailure(
+        callbackName: String,
+        throwable: Throwable,
+    ) {
+        System.err.println(
+            "[!!Superwall] Delegate callback $callbackName failed: " +
+                "${throwable.javaClass.name}: ${throwable.localizedMessage}",
+        )
+    }
 
     fun handleCustomPaywallAction(name: String) {
-        kotlinDelegate?.handleCustomPaywallAction(name)
-            ?: javaDelegate?.handleCustomPaywallAction(name)
+        dispatch(
+            callbackName = "handleCustomPaywallAction",
+            kotlinCallback = { it.handleCustomPaywallAction(name) },
+            javaCallback = { it.handleCustomPaywallAction(name) },
+        )
     }
 
     fun didRedeemLink(result: RedemptionResult) {
-        kotlinDelegate?.didRedeemLink(result)
-            ?: javaDelegate?.didRedeemLink(result)
+        dispatch(
+            callbackName = "didRedeemLink",
+            kotlinCallback = { it.didRedeemLink(result) },
+            javaCallback = { it.didRedeemLink(result) },
+        )
     }
 
     fun willRedeemLink() {
-        kotlinDelegate?.willRedeemLink()
-            ?: javaDelegate?.willRedeemLink()
+        dispatch(
+            callbackName = "willRedeemLink",
+            kotlinCallback = { it.willRedeemLink() },
+            javaCallback = { it.willRedeemLink() },
+        )
     }
 
     fun willDismissPaywall(paywallInfo: PaywallInfo) {
-        kotlinDelegate?.willDismissPaywall(paywallInfo)
-            ?: javaDelegate?.willDismissPaywall(paywallInfo)
+        dispatch(
+            callbackName = "willDismissPaywall",
+            kotlinCallback = { it.willDismissPaywall(paywallInfo) },
+            javaCallback = { it.willDismissPaywall(paywallInfo) },
+        )
     }
 
     fun didDismissPaywall(paywallInfo: PaywallInfo) {
-        kotlinDelegate?.didDismissPaywall(paywallInfo)
-            ?: javaDelegate?.didDismissPaywall(paywallInfo)
+        dispatch(
+            callbackName = "didDismissPaywall",
+            kotlinCallback = { it.didDismissPaywall(paywallInfo) },
+            javaCallback = { it.didDismissPaywall(paywallInfo) },
+        )
     }
 
     fun willPresentPaywall(paywallInfo: PaywallInfo) {
-        kotlinDelegate?.willPresentPaywall(paywallInfo)
-            ?: javaDelegate?.willPresentPaywall(paywallInfo)
+        dispatch(
+            callbackName = "willPresentPaywall",
+            kotlinCallback = { it.willPresentPaywall(paywallInfo) },
+            javaCallback = { it.willPresentPaywall(paywallInfo) },
+        )
     }
 
     fun didPresentPaywall(paywallInfo: PaywallInfo) {
-        kotlinDelegate?.didPresentPaywall(paywallInfo)
-            ?: javaDelegate?.didPresentPaywall(paywallInfo)
+        dispatch(
+            callbackName = "didPresentPaywall",
+            kotlinCallback = { it.didPresentPaywall(paywallInfo) },
+            javaCallback = { it.didPresentPaywall(paywallInfo) },
+        )
     }
 
     fun paywallWillOpenURL(url: URI) {
-        kotlinDelegate?.paywallWillOpenURL(url)
-            ?: javaDelegate?.paywallWillOpenURL(url)
+        dispatch(
+            callbackName = "paywallWillOpenURL",
+            kotlinCallback = { it.paywallWillOpenURL(url) },
+            javaCallback = { it.paywallWillOpenURL(url) },
+        )
     }
 
     fun paywallWillOpenDeepLink(url: Uri) {
-        kotlinDelegate?.paywallWillOpenDeepLink(url)
-            ?: javaDelegate?.paywallWillOpenDeepLink(url)
+        dispatch(
+            callbackName = "paywallWillOpenDeepLink",
+            kotlinCallback = { it.paywallWillOpenDeepLink(url) },
+            javaCallback = { it.paywallWillOpenDeepLink(url) },
+        )
     }
 
     fun handleSuperwallEvent(eventInfo: SuperwallEventInfo) {
-        // Calling this until we deprecate it
-        kotlinDelegate?.handleSuperwallEvent(eventInfo)
-            ?: javaDelegate?.handleSuperwallEvent(eventInfo)
+        dispatch(
+            callbackName = "handleSuperwallEvent",
+            kotlinCallback = { it.handleSuperwallEvent(eventInfo) },
+            javaCallback = { it.handleSuperwallEvent(eventInfo) },
+        )
     }
 
     fun subscriptionStatusDidChange(
         from: com.superwall.sdk.models.entitlements.SubscriptionStatus,
         to: com.superwall.sdk.models.entitlements.SubscriptionStatus,
     ) {
-        kotlinDelegate?.subscriptionStatusDidChange(from, to)
-            ?: javaDelegate?.subscriptionStatusDidChange(from, to)
+        dispatch(
+            callbackName = "subscriptionStatusDidChange",
+            kotlinCallback = { it.subscriptionStatusDidChange(from, to) },
+            javaCallback = { it.subscriptionStatusDidChange(from, to) },
+        )
     }
 
     fun handleLog(
@@ -77,33 +176,45 @@ class SuperwallDelegateAdapter {
         info: Map<String, Any>?,
         error: Throwable?,
     ) {
-        kotlinDelegate?.handleLog(
-            level = level,
-            scope = scope,
-            message = message,
-            info = info,
-            error = error,
-        ) ?: javaDelegate?.handleLog(
-            level = level,
-            scope = scope,
-            message = message,
-            info = info,
-            error = error,
+        dispatch(
+            callbackName = "handleLog",
+            kotlinCallback = {
+                it.handleLog(
+                    level = level,
+                    scope = scope,
+                    message = message,
+                    info = info,
+                    error = error,
+                )
+            },
+            javaCallback = {
+                it.handleLog(
+                    level = level,
+                    scope = scope,
+                    message = message,
+                    info = info,
+                    error = error,
+                )
+            },
         )
     }
 
     fun userAttributesDidChange(newAttributes: Map<String, Any>) {
-        kotlinDelegate?.userAttributesDidChange(newAttributes)
-            ?: javaDelegate?.userAttributesDidChange(newAttributes)
+        dispatch(
+            callbackName = "userAttributesDidChange",
+            kotlinCallback = { it.userAttributesDidChange(newAttributes) },
+            javaCallback = { it.userAttributesDidChange(newAttributes) },
+        )
     }
 
     fun customerInfoDidChange(
         from: CustomerInfo,
         to: CustomerInfo,
     ) {
-        kotlinDelegate?.customerInfoDidChange(from, to) ?: javaDelegate?.customerInfoDidChange(
-            from,
-            to,
+        dispatch(
+            callbackName = "customerInfoDidChange",
+            kotlinCallback = { it.customerInfoDidChange(from, to) },
+            javaCallback = { it.customerInfoDidChange(from, to) },
         )
     }
 }

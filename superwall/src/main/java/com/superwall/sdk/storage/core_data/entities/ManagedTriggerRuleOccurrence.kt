@@ -32,6 +32,15 @@ interface ManagedTriggerRuleOccurrenceDao {
         key: String,
     ): List<ManagedTriggerRuleOccurrence>
 
+    @Query("SELECT COUNT(*) FROM ManagedTriggerRuleOccurrence WHERE occurrenceKey = :key")
+    suspend fun countTriggerRuleOccurrencesByKey(key: String): Int
+
+    @Query("SELECT COUNT(*) FROM ManagedTriggerRuleOccurrence WHERE createdAt >= :date AND occurrenceKey = :key")
+    suspend fun countTriggerRuleOccurrencesSinceDate(
+        date: Date,
+        key: String,
+    ): Int
+
     @Transaction
     @Query("DELETE FROM ManagedTriggerRuleOccurrence")
     suspend fun deleteAll()

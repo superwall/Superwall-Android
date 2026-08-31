@@ -195,6 +195,12 @@ class PaywallView(
             controller.updateState(SetLoadingState(value))
         }
 
+    // The last loading state handled by `loadingStateDidChange` while presented.
+    private var lastHandledLoadingState: PaywallLoadingState = PaywallLoadingState.Unknown
+
+    // Pending delayed hide of the loading/shimmer views, cancelled on the next state change.
+    private var delayedHideJob: Job? = null
+
     val backgroundColor: Int
         get() {
 
@@ -353,13 +359,38 @@ class PaywallView(
             ),
         )
 
-        SuperwallPaywallActivity.startWithView(
-            presenter,
-            this,
-            state.cacheKey,
-            state.presentationStyle,
-        )
+        SuperwallPaywallActivity
+            .startWithViewForPresentation(
+                presenter,
+                this,
+                state.cacheKey,
+                state.presentationStyle,
+            ).getOrThrow()
         startStateListener()
+    }
+
+    internal fun clearActivityLaunchState() {
+        controller.updateState(ClearViewCreatedCompletion)
+        cache?.activePaywallVcKey = null
+    }
+
+    internal fun handleActivityLaunchFailure(
+        error: Throwable,
+        emitPresentationError: Boolean,
+    ) {
+        Logger.debug(
+            logLevel = LogLevel.error,
+            scope = LogScope.paywallPresentation,
+            message = error.message ?: "Unable to launch SuperwallPaywallActivity",
+            error = error,
+        )
+        if (emitPresentationError) {
+            state.paywallStatePublisher?.let { publisher ->
+                ioScope.launch {
+                    publisher.emit(PaywallState.PresentationError(error))
+                }
+            }
+        }
     }
 
     override fun updateState(update: PaywallViewState.Updates) {
@@ -847,8 +878,13 @@ class PaywallView(
 
     internal fun loadingStateDidChange() {
         if (state.isPresented) {
+            val previousLoadingState = lastHandledLoadingState
+            val currentLoadingState = loadingState
+            lastHandledLoadingState = currentLoadingState
+            delayedHideJob?.cancel()
+            delayedHideJob = null
             mainScope.launch {
-                when (loadingState) {
+                when (currentLoadingState) {
                     is PaywallLoadingState.Unknown -> {
                     }
 
@@ -863,13 +899,26 @@ class PaywallView(
                     }
 
                     is PaywallLoadingState.Ready -> {
-                        ioScope.launch {
-                            delay(state.paywall.presentation.delay)
-                            mainScope.launch {
-                                showRefreshButtonAfterTimeout(false)
-                                hideLoadingView()
-                                hideShimmerView()
-                            }
+                        val isInitialReveal =
+                            previousLoadingState is PaywallLoadingState.LoadingURL ||
+                                previousLoadingState is PaywallLoadingState.Unknown
+                        if (isInitialReveal) {
+                            // The presentation delay only applies to the first shimmer
+                            // -> content reveal, not to hiding the purchase spinner.
+                            delayedHideJob =
+                                ioScope.launch {
+                                    delay(state.paywall.presentation.delay)
+                                    mainScope.launch {
+                                        showRefreshButtonAfterTimeout(false)
+                                        hideLoadingView()
+                                        hideShimmerView()
+                                    }
+                                    controller.updateState(ResetCrashRetry)
+                                }
+                        } else {
+                            showRefreshButtonAfterTimeout(false)
+                            hideLoadingView()
+                            hideShimmerView()
                             controller.updateState(ResetCrashRetry)
                         }
                     }

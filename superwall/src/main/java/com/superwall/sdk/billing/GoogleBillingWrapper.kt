@@ -27,6 +27,10 @@ import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -36,6 +40,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
@@ -142,11 +148,14 @@ class GoogleBillingWrapper(
         }
     }
 
-    override suspend fun queryAllPurchases(): List<Purchase> {
-        val apps = retryOrNull(QUERY_PURCHASES_MAX_RETRIES) { queryType(ProductType.INAPP).getOrThrow() }
-        val subs = retryOrNull(QUERY_PURCHASES_MAX_RETRIES) { queryType(ProductType.SUBS).getOrThrow() }
-        return (apps ?: emptyList()) + (subs ?: emptyList())
-    }
+    override suspend fun queryAllPurchases(): List<Purchase> =
+        coroutineScope {
+            val apps =
+                async { retryOrNull(QUERY_PURCHASES_MAX_RETRIES) { queryType(ProductType.INAPP).getOrThrow() } }
+            val subs =
+                async { retryOrNull(QUERY_PURCHASES_MAX_RETRIES) { queryType(ProductType.SUBS).getOrThrow() } }
+            (apps.await() ?: emptyList()) + (subs.await() ?: emptyList())
+        }
 
     override suspend fun consume(purchaseToken: String): Result<String> =
         suspendCoroutine { cont ->
@@ -329,33 +338,38 @@ class GoogleBillingWrapper(
         decomposedProductIdsBySubscriptionId: MutableMap<String, MutableList<DecomposedProductIds>>,
         callback: GetStoreProductsCallback,
     ) {
-        val typesRemaining = types.toMutableSet()
-        val type = typesRemaining.firstOrNull()?.also { typesRemaining.remove(it) }
+        if (types.isEmpty()) {
+            callback.onReceived(collectedStoreProducts)
+            return
+        }
 
-        type?.let {
+        // Each type resolves exactly once, so onReceived can only fire once every type
+        // has succeeded; the flag keeps onError to a single delivery when several types fail.
+        val collected = ConcurrentLinkedQueue<StoreProduct>()
+        val typesRemaining = AtomicInteger(types.size)
+        val errored = AtomicBoolean(false)
+
+        types.forEach { type ->
             queryProductDetailsAsync(
-                productType = it,
+                productType = type,
                 subscriptionIds = subscriptionIds,
                 decomposedProductIdsBySubscriptionId = decomposedProductIdsBySubscriptionId,
                 onReceive = { storeProducts ->
                     dispatch {
-                        getProductsOfTypes(
-                            subscriptionIds,
-                            typesRemaining,
-                            collectedStoreProducts = collectedStoreProducts + storeProducts,
-                            decomposedProductIdsBySubscriptionId = decomposedProductIdsBySubscriptionId,
-                            callback,
-                        )
+                        collected.addAll(storeProducts)
+                        if (typesRemaining.decrementAndGet() == 0) {
+                            callback.onReceived(collectedStoreProducts + collected)
+                        }
                     }
                 },
-                onError = {
+                onError = { error ->
                     dispatch {
-                        callback.onError(it)
+                        if (errored.compareAndSet(false, true)) {
+                            callback.onError(error)
+                        }
                     }
                 },
             )
-        } ?: run {
-            callback.onReceived(collectedStoreProducts)
         }
     }
 
@@ -447,11 +461,13 @@ class GoogleBillingWrapper(
      * country of the user's Play Store account. Waits for the billing client to connect
      * if it hasn't yet; resolves to `null` if billing is unavailable or the fetch fails.
      */
-    override suspend fun getStorefrontCountryCode(): String? =
-        suspendCoroutine { continuation ->
+    override suspend fun getStorefrontCountryCode(): String? {
+        val result = CompletableDeferred<String?>(parent = currentCoroutineContext()[Job])
+
+        try {
             executeRequestOnUIThread { connectionError ->
                 if (connectionError != null) {
-                    continuation.resume(null)
+                    result.complete(null)
                     return@executeRequestOnUIThread
                 }
                 val dispatched =
@@ -460,7 +476,7 @@ class GoogleBillingWrapper(
                             GetBillingConfigParams.newBuilder().build(),
                         ) { billingResult, billingConfig ->
                             if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && billingConfig != null) {
-                                continuation.resume(billingConfig.countryCode)
+                                result.complete(billingConfig.countryCode)
                             } else {
                                 Logger.debug(
                                     LogLevel.debug,
@@ -468,15 +484,20 @@ class GoogleBillingWrapper(
                                     "Failed to fetch billing config: ${billingResult.debugMessage} " +
                                         "ErrorCode: ${billingResult.responseCode}",
                                 )
-                                continuation.resume(null)
+                                result.complete(null)
                             }
                         }
                     }
                 if (dispatched == null) {
-                    continuation.resume(null)
+                    result.complete(null)
                 }
             }
+
+            return result.await()
+        } finally {
+            result.cancel()
         }
+    }
 
     override fun onBillingSetupFinished(billingResult: BillingResult) {
         threadHandler.post {

@@ -88,7 +88,6 @@ class PaywallManagerTest {
             every { mockView1.destroyWebview() } just Runs
             every { mockView2.destroyWebview() } just Runs
             every { cache.getAllPaywallViews() } returns listOf(mockView1, mockView2)
-            every { cache.entries } returns emptyMap()
             every { cache.activePaywallVcKey } returns null
             every { cache.removeAll() } just Runs
 
@@ -343,6 +342,16 @@ class PaywallManagerTest {
         paywallManager.resetPaywallRequestCache()
 
         verify { paywallRequestManager.resetCache() }
+    }
+
+    @Test
+    fun test_resetPaywallRequestCache_withIdentifiers_removesOnlyThose() {
+        every { paywallRequestManager.removeCachedPaywalls(any()) } just Runs
+
+        paywallManager.resetPaywallRequestCache(setOf("paywall_one", "paywall_two"))
+
+        verify { paywallRequestManager.removeCachedPaywalls(setOf("paywall_one", "paywall_two")) }
+        verify(exactly = 0) { paywallRequestManager.resetCache() }
     }
 
     @Test

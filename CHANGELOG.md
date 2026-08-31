@@ -2,6 +2,23 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.8.2
+
+## Enhancements
+- Significantly improves paywall loading times, reducing memory and CPU footprint when preloading
+- Implicit placements that map to no campaign (e.g. `app_launch`, `session_start`) no longer occupy the presentation queue ahead of `register()` calls while waiting for entitlements.
+- Config refreshes now diff paywalls by cache key and only evict changed ones from the request cache, so unchanged preloaded paywalls stay warm across refreshes.
+- The loading shimmer no longer forces a software layer
+- Logs are now delivered on a dedicated background thread
+
+## Fixes
+- The popup presentation style's entrance animation no longer stretches to the paywall's configured loading delay, and the delay no longer postpones hiding the spinner after a purchase completes.
+- `paywall_resourceLoad_fail` events now report the failing resource's URL.
+- A `SuperwallDelegate.handleLog` implementation that throws no longer propagates the exception into whatever SDK code produced the log.
+
+## Potentially Breaking Changes
+- `SuperwallDelegate.handleLog` is now always called on a background thread. It could previously be called on any thread, including main, so implementations that touch UI directly must now dispatch to the main thread themselves.
+
 ## 2.8.1
 
 ## Fixes

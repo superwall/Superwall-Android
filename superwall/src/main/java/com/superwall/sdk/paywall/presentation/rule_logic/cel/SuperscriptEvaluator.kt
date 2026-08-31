@@ -7,6 +7,7 @@ import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.asyncWithTracking
+import com.superwall.sdk.models.config.ComputedPropertyRequest
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.triggers.TriggerRule
 import com.superwall.sdk.models.triggers.TriggerRuleOutcome
@@ -56,6 +57,12 @@ internal class SuperscriptEvaluator(
     override suspend fun evaluateExpression(
         rule: TriggerRule,
         eventData: EventData?,
+    ): TriggerRuleOutcome = evaluateExpression(rule, eventData, sharedAttributes = null)
+
+    override suspend fun evaluateExpression(
+        rule: TriggerRule,
+        eventData: EventData?,
+        sharedAttributes: PassableValue.MapValue?,
     ): TriggerRuleOutcome {
         if (rule.expressionCEL == null) {
             return rule.tryToMatchOccurrence(storage, true)
@@ -63,13 +70,15 @@ internal class SuperscriptEvaluator(
 
         return ioScope
             .asyncWithTracking {
-                val factory = factory.makeRuleAttributes(eventData, rule.computedPropertyRequests)
-                val userAttributes = factory.toPassableValue()
+                val ruleAttributes =
+                    sharedAttributes?.let {
+                        overlayComputedProperties(it, eventData, rule.computedPropertyRequests)
+                    } ?: factory.makeRuleAttributes(eventData, rule.computedPropertyRequests).toPassableValue()
                 val expression = rule.expressionCEL
 
                 val executionContext =
                     ExecutionContext(
-                        variables = PassableMap(map = userAttributes.value.toMap()),
+                        variables = PassableMap(map = ruleAttributes.value.toMap()),
                         expression = expression,
                         device =
                             availableDeviceProperties.associate {
@@ -128,6 +137,33 @@ internal class SuperscriptEvaluator(
                     )
                 }
             }
+    }
+
+    // Computed properties depend on occurrence counts and timestamps that can
+    // differ per rule and change between evaluations, so they are always
+    // resolved fresh and overlaid onto the shared attributes.
+    internal suspend fun overlayComputedProperties(
+        sharedAttributes: PassableValue.MapValue,
+        eventData: EventData?,
+        computedPropertyRequests: List<ComputedPropertyRequest>,
+    ): PassableValue.MapValue {
+        if (computedPropertyRequests.isEmpty()) {
+            return sharedAttributes
+        }
+        val computedProperties = mutableMapOf<String, PassableValue>()
+        for (request in computedPropertyRequests) {
+            storage.getComputedPropertySinceEvent(eventData, request)?.let {
+                computedProperties[request.type.prefix + request.eventName] = it.toPassableValue()
+            }
+        }
+        if (computedProperties.isEmpty()) {
+            return sharedAttributes
+        }
+        val device =
+            (sharedAttributes.value["device"] as? PassableValue.MapValue)?.value ?: emptyMap()
+        return PassableValue.MapValue(
+            sharedAttributes.value + ("device" to PassableValue.MapValue(device + computedProperties)),
+        )
     }
 }
 

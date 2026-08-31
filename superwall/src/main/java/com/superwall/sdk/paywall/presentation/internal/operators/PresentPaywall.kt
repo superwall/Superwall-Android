@@ -13,6 +13,7 @@ import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationReques
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatusReason
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
+import com.superwall.sdk.paywall.view.PaywallActivityLaunchException
 import com.superwall.sdk.paywall.view.PaywallView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -40,53 +41,63 @@ suspend fun Superwall.presentPaywallView(
     debugInfo: Map<String, Any>,
     request: PresentationRequest,
     paywallStatePublisher: MutableSharedFlow<PaywallState>,
-) = withContext(Dispatchers.Main) {
+) {
     val trackedEvent =
         InternalSuperwallEvent.PresentationRequest(
             eventData = request.presentationInfo.eventData,
             type = request.flags.type,
             status = PaywallPresentationRequestStatus.Presentation,
             statusReason = null,
-            factory = this@presentPaywallView.dependencyContainer,
+            factory = dependencyContainer,
         )
-    track(trackedEvent)
+    // Launched before hopping to Main so the track gets a scheduling head start
+    // and lands ahead of the paywall-open events emitted during presentation.
+    ioScope.launch {
+        track(trackedEvent)
+    }
 
-    try {
-        paywallView.present(
-            presenter = presenter,
-            request = request,
-            unsavedOccurrence = unsavedOccurrence,
-            presentationStyleOverride = request.paywallOverrides?.presentationStyle,
-            paywallStatePublisher = paywallStatePublisher,
-        ) { isPresented ->
-            if (isPresented) {
-                val state = PaywallState.Presented(paywallView.info)
-                ioScope.launch {
-                    paywallStatePublisher.emit(state)
-                }
-            } else {
-                Logger.debug(
-                    logLevel = LogLevel.info,
-                    scope = LogScope.paywallPresentation,
-                    message = "Paywall Already Presented",
-                    info = debugInfo,
-                )
-                val error =
-                    InternalPresentationLogic.presentationError(
-                        domain = "SWKPresentationError",
-                        code = 102,
-                        title = "Paywall Already Presented",
-                        value = "Trying to present paywall while another paywall is presented.",
+    withContext(Dispatchers.Main) {
+        try {
+            paywallView.present(
+                presenter = presenter,
+                request = request,
+                unsavedOccurrence = unsavedOccurrence,
+                presentationStyleOverride = request.paywallOverrides?.presentationStyle,
+                paywallStatePublisher = paywallStatePublisher,
+            ) { isPresented ->
+                if (isPresented) {
+                    val state = PaywallState.Presented(paywallView.info)
+                    ioScope.launch {
+                        paywallStatePublisher.emit(state)
+                    }
+                } else {
+                    Logger.debug(
+                        logLevel = LogLevel.info,
+                        scope = LogScope.paywallPresentation,
+                        message = "Paywall Already Presented",
+                        info = debugInfo,
                     )
-                ioScope.launch {
-                    paywallStatePublisher.emit(PaywallState.PresentationError(error))
+                    val error =
+                        InternalPresentationLogic.presentationError(
+                            domain = "SWKPresentationError",
+                            code = 102,
+                            title = "Paywall Already Presented",
+                            value = "Trying to present paywall while another paywall is presented.",
+                        )
+                    ioScope.launch {
+                        paywallStatePublisher.emit(PaywallState.PresentationError(error))
+                    }
+                    throw PaywallPresentationRequestStatusReason.PaywallAlreadyPresented()
                 }
-                throw PaywallPresentationRequestStatusReason.PaywallAlreadyPresented()
             }
+        } catch (error: PaywallActivityLaunchException) {
+            paywallStatePublisher.emit(PaywallState.PresentationError(error))
+            logErrors(request, error = error)
+            throw error
+        } catch (error: Throwable) {
+            logErrors(request, error = error)
+            throw error
         }
-    } catch (error: Throwable) {
-        logErrors(request, error = error)
-        throw error
     }
 }
 

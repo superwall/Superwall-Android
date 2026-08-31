@@ -1,6 +1,8 @@
 package com.superwall.sdk
 
 import com.superwall.sdk.config.ConfigManager
+import com.superwall.sdk.config.models.ConfigState
+import com.superwall.sdk.models.config.Config
 import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -8,6 +10,9 @@ import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 
@@ -43,11 +48,36 @@ class SdkContextImplTest {
         runTest {
             val manager =
                 mockk<ConfigManager> {
+                    every { configState } returns
+                        MutableStateFlow(ConfigState.Retrieved(mockk<Config>()))
                     coEvery { getAssignments() } just Runs
                 }
             val ctx = SdkContextImpl(configManager = { manager })
 
             ctx.fetchAssignments()
+
+            coVerify(exactly = 1) { manager.getAssignments() }
+        }
+
+    @Test
+    fun `fetchAssignments waits for a valid config without a deadline before delegating`() =
+        runTest {
+            val state = MutableStateFlow<ConfigState>(ConfigState.Retrieving)
+            val manager =
+                mockk<ConfigManager> {
+                    every { configState } returns state
+                    coEvery { getAssignments() } just Runs
+                }
+            val ctx = SdkContextImpl(configManager = { manager })
+
+            val job = launch { ctx.fetchAssignments() }
+            runCurrent()
+            coVerify(exactly = 0) { manager.getAssignments() }
+
+            // Config lands well past the old 30s budget — the wait must not time out.
+            testScheduler.advanceTimeBy(60_000L)
+            state.value = ConfigState.Retrieved(mockk<Config>())
+            job.join()
 
             coVerify(exactly = 1) { manager.getAssignments() }
         }
