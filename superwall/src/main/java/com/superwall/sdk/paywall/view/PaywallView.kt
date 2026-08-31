@@ -359,13 +359,38 @@ class PaywallView(
             ),
         )
 
-        SuperwallPaywallActivity.startWithView(
-            presenter,
-            this,
-            state.cacheKey,
-            state.presentationStyle,
-        )
+        SuperwallPaywallActivity
+            .startWithViewForPresentation(
+                presenter,
+                this,
+                state.cacheKey,
+                state.presentationStyle,
+            ).getOrThrow()
         startStateListener()
+    }
+
+    internal fun clearActivityLaunchState() {
+        controller.updateState(ClearViewCreatedCompletion)
+        cache?.activePaywallVcKey = null
+    }
+
+    internal fun handleActivityLaunchFailure(
+        error: Throwable,
+        emitPresentationError: Boolean,
+    ) {
+        Logger.debug(
+            logLevel = LogLevel.error,
+            scope = LogScope.paywallPresentation,
+            message = error.message ?: "Unable to launch SuperwallPaywallActivity",
+            error = error,
+        )
+        if (emitPresentationError) {
+            state.paywallStatePublisher?.let { publisher ->
+                ioScope.launch {
+                    publisher.emit(PaywallState.PresentationError(error))
+                }
+            }
+        }
     }
 
     override fun updateState(update: PaywallViewState.Updates) {

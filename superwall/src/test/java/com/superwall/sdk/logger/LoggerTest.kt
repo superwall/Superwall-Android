@@ -2,12 +2,19 @@ package com.superwall.sdk.logger
 
 import com.superwall.sdk.And
 import com.superwall.sdk.Given
+import com.superwall.sdk.Superwall
 import com.superwall.sdk.Then
 import com.superwall.sdk.When
 import com.superwall.sdk.assertFalse
 import com.superwall.sdk.assertTrue
+import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.delegate.SuperwallDelegate
 import com.superwall.sdk.delegate.SuperwallDelegateAdapter
+import com.superwall.sdk.dependencies.DependencyContainer
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.mockkObject
+import io.mockk.unmockkObject
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
@@ -240,6 +247,57 @@ class LoggerTest {
             Then("the later log is still delivered") {
                 assertTrue(out.lines.any { it.contains("survives") })
             }
+        }
+    }
+
+    @Test
+    fun `keeps delivering when the configured delegate handleLog throws`() {
+        val adapter = SuperwallDelegateAdapter()
+        var deliveryCount = 0
+        adapter.kotlinDelegate =
+            object : SuperwallDelegate {
+                override fun handleLog(
+                    level: String,
+                    scope: String,
+                    message: String?,
+                    info: Map<String, Any>?,
+                    error: Throwable?,
+                ) {
+                    deliveryCount += 1
+                    if (deliveryCount == 1) {
+                        throw IllegalArgumentException("bad lazy value")
+                    }
+                }
+            }
+
+        val dependencyContainer = mockk<DependencyContainer>()
+        every { dependencyContainer.delegateAdapter } returns adapter
+        val superwall = mockk<Superwall>()
+        every { superwall.dependencyContainer } returns dependencyContainer
+        every { superwall.options } returns SuperwallOptions()
+
+        mockkObject(Superwall.Companion)
+        every { Superwall.instance } returns superwall
+        Superwall.initialized = true
+
+        try {
+            Logger.debug(
+                logLevel = LogLevel.error,
+                scope = LogScope.paywallView,
+                message = "delegate fails",
+            )
+            Logger.debug(
+                logLevel = LogLevel.error,
+                scope = LogScope.paywallView,
+                message = "delegate survives",
+            )
+            awaitLogQueue()
+
+            assertEquals(2, deliveryCount)
+            assertTrue(out.lines.any { it.contains("delegate survives") })
+        } finally {
+            Superwall.initialized = false
+            unmockkObject(Superwall.Companion)
         }
     }
 }

@@ -5,6 +5,8 @@ import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingConfig
 import com.android.billingclient.api.BillingConfigResponseListener
 import com.android.billingclient.api.BillingResult
+import com.android.billingclient.api.ProductDetailsResponseListener
+import com.android.billingclient.api.QueryProductDetailsResult
 import com.superwall.sdk.Given
 import com.superwall.sdk.Then
 import com.superwall.sdk.When
@@ -23,10 +25,14 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
+import io.mockk.verify
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
@@ -104,6 +110,63 @@ class StorefrontTest {
                     }
                 }
             }
+        }
+
+    @Test
+    fun getStorefrontCountryCode_ignoresDuplicateBillingCallbacks() =
+        runTest {
+            val config =
+                mockk<BillingConfig> {
+                    every { countryCode } returns "US"
+                }
+            every { billingClient.getBillingConfigAsync(any(), any()) } answers {
+                secondArg<BillingConfigResponseListener>().apply {
+                    onBillingConfigResponse(okResult, config)
+                    onBillingConfigResponse(errorResult, null)
+                }
+            }
+            val wrapper = makeWrapper()
+
+            assertEquals("US", wrapper.getStorefrontCountryCode())
+        }
+
+    @Test
+    fun getStorefrontCountryCode_ignoresCallbackAfterCancellation() =
+        runTest {
+            lateinit var responseListener: BillingConfigResponseListener
+            every { billingClient.getBillingConfigAsync(any(), any()) } answers {
+                responseListener = secondArg()
+            }
+            val wrapper = makeWrapper()
+            val request =
+                launch(start = CoroutineStart.UNDISPATCHED) {
+                    wrapper.getStorefrontCountryCode()
+                }
+
+            request.cancel()
+            responseListener.onBillingConfigResponse(errorResult, null)
+            request.join()
+
+            assertTrue(request.isCancelled)
+        }
+
+    @Test
+    fun transientProductQueryErrorsAreNotCached() =
+        runTest {
+            val queryResult = mockk<QueryProductDetailsResult>(relaxed = true)
+            every { billingClient.queryProductDetailsAsync(any(), any()) } answers {
+                secondArg<ProductDetailsResponseListener>().onProductDetailsResponse(errorResult, queryResult)
+            }
+            val wrapper = makeWrapper()
+            val productIds = setOf("product:base:sw-auto")
+
+            val firstResult = runCatching { wrapper.awaitGetProducts(productIds) }
+            assertTrue(firstResult.exceptionOrNull() is BillingError.WithCode)
+            verify(exactly = 8) { billingClient.queryProductDetailsAsync(any(), any()) }
+
+            val secondResult = runCatching { wrapper.awaitGetProducts(productIds) }
+            assertTrue(secondResult.exceptionOrNull() is BillingError.WithCode)
+            verify(exactly = 16) { billingClient.queryProductDetailsAsync(any(), any()) }
         }
 
     @Test

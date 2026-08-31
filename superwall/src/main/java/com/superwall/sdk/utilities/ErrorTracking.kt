@@ -153,12 +153,12 @@ internal inline fun <R> Result<Result<R>>.flatten() =
         else -> Result.failure(exceptionOrNull() ?: IllegalStateException("Unknown error"))
     }
 
-private fun Throwable.shouldLog() =
+internal fun Throwable.shouldLog() =
     this !is CancellationException &&
         this !is InterruptedException &&
         this !is PresentationPipelineError &&
         this !is TransactionError &&
         this !is PaywallSkippedReason &&
         (this is NetworkError.Decoding || this !is NetworkError) &&
-        this !is BillingError ||
+        this !is BillingError &&
         this !is PaywallPresentationRequestStatusReason

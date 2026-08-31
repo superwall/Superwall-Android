@@ -109,7 +109,18 @@ internal abstract class BillingClientUseCase<T>(
         val underlyingErrorMessage =
             "Error loading products - DebugMessage: ${billingResult.debugMessage} " +
                 "ErrorCode: ${billingResult.responseCode}."
-        val error = BillingError.BillingNotAvailable(underlyingErrorMessage)
+        val error =
+            when (billingResult.responseCode) {
+                BillingClient.BillingResponseCode.BILLING_UNAVAILABLE,
+                BillingClient.BillingResponseCode.FEATURE_NOT_SUPPORTED,
+                -> BillingError.BillingNotAvailable(underlyingErrorMessage)
+
+                else ->
+                    BillingError.WithCode(
+                        code = billingResult.responseCode,
+                        description = billingResult.debugMessage,
+                    )
+            }
         Logger.debug(
             logLevel = LogLevel.error,
             scope = LogScope.productsManager,

@@ -16,6 +16,7 @@ import com.superwall.sdk.paywall.presentation.internal.request.PresentationInfo
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.paywall.presentation.rule_logic.RuleEvaluationOutcome
 import com.superwall.sdk.paywall.view.PaywallView
+import com.superwall.sdk.paywall.view.canPresentPaywall
 import kotlinx.coroutines.flow.MutableSharedFlow
 
 /**
@@ -64,11 +65,11 @@ internal suspend fun getPresenterIfNecessary(
 
     val currentActivity = activity()
 
-    if (currentActivity == null) {
+    if (currentActivity == null || !currentActivity.canPresentPaywall()) {
         Logger.debug(
             logLevel = LogLevel.error,
             scope = LogScope.paywallPresentation,
-            message = "Current Activity is null, can't present paywall",
+            message = "Current Activity is unavailable or no longer started, can't present paywall",
         )
         val error =
             InternalPresentationLogic.presentationError(
