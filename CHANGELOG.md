@@ -5,6 +5,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 ## Unreleased
 
 - Fix prices not showing when product/offers are fetched from cache
+- Fix a JSON null in placement parameters or user attributes reaching audience filters as the text `"null"`, so a filter checking whether a field is null never matched.
 
 ## 2.8.2
 
