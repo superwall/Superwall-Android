@@ -2,6 +2,10 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## Unreleased
+
+- Fix prices not showing when product/offers are fetched from cache
+
 ## 2.8.2
 
 ## Enhancements
