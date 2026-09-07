@@ -61,6 +61,7 @@ import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.entitlements.TransactionReceipt
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.internal.VendorId
+import com.superwall.sdk.models.paywall.LocalNotification
 import com.superwall.sdk.models.paywall.LocalNotificationType
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.product.ProductVariable
@@ -132,10 +133,12 @@ import com.superwall.sdk.utilities.ErrorTracker
 import com.superwall.sdk.utilities.dateFormat
 import com.superwall.sdk.web.DeepLinkReferrer
 import com.superwall.sdk.web.WebPaywallRedeemer
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.superwall.sdk.models.serialization.DateSerializer
 import kotlinx.serialization.json.ClassDiscriminatorMode
 import kotlinx.serialization.json.Json
@@ -1305,6 +1308,18 @@ class DependencyContainer(
     override fun closePaywallIfExists() {
         ioScope.launch {
             Superwall.instance.dismiss()
+        }
+    }
+
+    override suspend fun scheduleTrialNotifications(notifications: List<LocalNotification>) {
+        withContext(Dispatchers.Main.immediate) {
+            val paywallView = Superwall.instance.paywallView ?: return@withContext
+            val activity =
+                (paywallView.encapsulatingActivity?.get() ?: activityProvider?.getCurrentActivity())
+                    as? SuperwallPaywallActivity ?: return@withContext
+            if (!activity.isFinishing && !activity.isDestroyed) {
+                activity.attemptToScheduleNotifications(notifications, this@DependencyContainer)
+            }
         }
     }
 

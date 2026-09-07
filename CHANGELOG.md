@@ -4,6 +4,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## Unreleased
 
+- Web purchase redemption now exposes the full checkout product in `didRedeemLink`, tracks `freeTrial_start` for eligible trials, and schedules the active paywall's trial reminders when notification permission is granted.
 - Fix prices not showing when product/offers are fetched from cache
 
 ## 2.8.2
