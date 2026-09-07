@@ -39,20 +39,28 @@ class CachedProductPricesWebViewTest {
     }
 
     private fun renderOfferPrice(cached: Boolean): String {
-        val item = json.decodeFromString<ProductItem>(
-            """{"reference_name":"offer","store_product":{"store":"PLAY_STORE",
+        val item =
+            json.decodeFromString<ProductItem>(
+                """{"reference_name":"offer","store_product":{"store":"PLAY_STORE",
             "product_identifier":"yearly19_3_dc","base_plan_identifier":"p1y",
             "offer":{"type":"SPECIFIED","offer_identifier":"introprice"}}}""",
-        )
+            )
         val paywall = Paywall.stub().copy(productVariables = null, swProductVariablesTemplate = null)
         paywall.productItems = listOf(item)
         val fresh = Config.stub().copy(paywalls = listOf(paywall))
         val config = if (cached) json.decodeFromString(Config.serializer(), json.encodeToString(Config.serializer(), fresh)) else fresh
-        val product = config.paywalls.single().productItems.single()
-        val variables = Variables(
-            listOf(ProductVariable(product.name, mapOf("price" to "€23.99"))),
-            emptyMap(), emptyMap(), emptyMap(),
-        )
+        val product =
+            config.paywalls
+                .single()
+                .productItems
+                .single()
+        val variables =
+            Variables(
+                listOf(ProductVariable(product.name, mapOf("price" to "€23.99"))),
+                emptyMap(),
+                emptyMap(),
+                emptyMap(),
+            )
         val payload = json.encodeToString(Variables.serializer(), variables)
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val finished = CountDownLatch(1)
@@ -61,22 +69,30 @@ class CachedProductPricesWebViewTest {
         instrumentation.runOnMainSync {
             webView = WebView(instrumentation.targetContext)
             webView.settings.javaScriptEnabled = true
-            webView.webViewClient = object : WebViewClient() {
-                override fun onPageFinished(view: WebView, url: String?) {
-                    view.evaluateJavascript("document.getElementById('price').textContent") {
-                        output.set(it)
-                        finished.countDown()
+            webView.webViewClient =
+                object : WebViewClient() {
+                    override fun onPageFinished(
+                        view: WebView,
+                        url: String?,
+                    ) {
+                        view.evaluateJavascript("document.getElementById('price').textContent") {
+                            output.set(it)
+                            finished.countDown()
+                        }
                     }
                 }
-            }
             webView.loadDataWithBaseURL(
-                "https://localhost/", """
+                "https://localhost/",
+                """
                 <html><body><span id="price"></span><script>
                 const variables = $payload;
                 const products = Object.assign({}, ...variables.products);
                 document.getElementById('price').textContent = products.offer?.price ?? '';
                 </script></body></html>
-                """.trimIndent(), "text/html", "UTF-8", null,
+                """.trimIndent(),
+                "text/html",
+                "UTF-8",
+                null,
             )
         }
         try {
