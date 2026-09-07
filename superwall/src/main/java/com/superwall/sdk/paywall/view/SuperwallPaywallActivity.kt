@@ -66,6 +66,7 @@ import kotlinx.coroutines.launch
 import java.lang.ref.WeakReference
 import java.util.UUID
 import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
 class SuperwallPaywallActivity : AppCompatActivity() {
@@ -912,13 +913,19 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         notificationPermissionCallback =
             object : NotificationPermissionCallback {
                 override fun onPermissionResult(granted: Boolean) {
-                    if (granted) {
-                        NotificationScheduler.scheduleNotifications(
-                            notifications = notifications,
-                            factory = factory,
-                            context = this@SuperwallPaywallActivity,
-                            cancelExisting = cancelExisting,
-                        )
+                    try {
+                        if (granted) {
+                            NotificationScheduler.scheduleNotifications(
+                                notifications = notifications,
+                                factory = factory,
+                                context = this@SuperwallPaywallActivity,
+                                cancelExisting = cancelExisting,
+                            )
+                        }
+                    } catch (e: Exception) {
+                        // Deliver asynchronous permission-callback failures to the awaiting redemption.
+                        continuation.resumeWithException(e)
+                        return
                     }
                     continuation.resume(Unit) // Resume coroutine after processing
                 }
