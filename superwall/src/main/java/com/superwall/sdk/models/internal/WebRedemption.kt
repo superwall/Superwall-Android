@@ -125,57 +125,143 @@ sealed class RedemptionResult {
     ) : RedemptionResult()
 
     @Serializable
-    data class PaywallInfo
+    class PaywallInfo
         @JvmOverloads
         constructor(
-            @SerialName("identifier")
-            val identifier: PaywallIdentifier,
-            @SerialName("placementName")
-            val placementName: String,
-            @SerialName("placementParams")
-            val placementParams: Map<String, JsonElement>,
-            @SerialName("variantId")
-            val variantId: VariantId,
-            @SerialName("experimentId")
-            val experimentId: ExperimentId,
-            @SerialName("productIdentifier")
-            val productIdentifier: String? = null,
-            /** Product variables captured at web checkout, including the original trial details. */
-            @SerialName("product")
-            val product: PaywallProduct? = null,
+            @SerialName("identifier") val identifier: PaywallIdentifier,
+            @SerialName("placementName") val placementName: String,
+            @SerialName("placementParams") val placementParams: Map<String, JsonElement>,
+            @SerialName("variantId") val variantId: VariantId,
+            @SerialName("experimentId") val experimentId: ExperimentId,
+            @SerialName("productIdentifier") val productIdentifier: String? = null,
         ) {
+            /** Original checkout variables. Kept outside the constructor to preserve the Kotlin JVM ABI. */
+            @SerialName("product")
+            var product: PaywallProduct? = null
+                private set
+
+            constructor(
+                identifier: PaywallIdentifier,
+                placementName: String,
+                placementParams: Map<String, JsonElement>,
+                variantId: VariantId,
+                experimentId: ExperimentId,
+                productIdentifier: String? = null,
+                product: PaywallProduct?,
+            ) : this(identifier, placementName, placementParams, variantId, experimentId, productIdentifier) {
+                this.product = product
+            }
+
+            // Retain the original copy/copy$default and component signatures for precompiled Kotlin callers.
+            fun copy(
+                identifier: PaywallIdentifier = this.identifier,
+                placementName: String = this.placementName,
+                placementParams: Map<String, JsonElement> = this.placementParams,
+                variantId: VariantId = this.variantId,
+                experimentId: ExperimentId = this.experimentId,
+                productIdentifier: String? = this.productIdentifier,
+            ): PaywallInfo = PaywallInfo(identifier, placementName, placementParams, variantId, experimentId, productIdentifier, product)
+
+            fun copy(
+                identifier: PaywallIdentifier = this.identifier,
+                placementName: String = this.placementName,
+                placementParams: Map<String, JsonElement> = this.placementParams,
+                variantId: VariantId = this.variantId,
+                experimentId: ExperimentId = this.experimentId,
+                productIdentifier: String? = this.productIdentifier,
+                product: PaywallProduct?,
+            ): PaywallInfo = PaywallInfo(identifier, placementName, placementParams, variantId, experimentId, productIdentifier, product)
+
+            operator fun component1(): PaywallIdentifier = identifier
+
+            operator fun component2(): String = placementName
+
+            operator fun component3(): Map<String, JsonElement> = placementParams
+
+            operator fun component4(): VariantId = variantId
+
+            operator fun component5(): ExperimentId = experimentId
+
+            operator fun component6(): String? = productIdentifier
+
+            operator fun component7(): PaywallProduct? = product
+
+            override fun equals(other: Any?): Boolean =
+                other is PaywallInfo &&
+                    identifier == other.identifier && placementName == other.placementName &&
+                    placementParams == other.placementParams && variantId == other.variantId &&
+                    experimentId == other.experimentId && productIdentifier == other.productIdentifier && product == other.product
+
+            override fun hashCode(): Int =
+                listOf(identifier, placementName, placementParams, variantId, experimentId, productIdentifier, product).hashCode()
+
+            override fun toString(): String =
+                "PaywallInfo(identifier=$identifier, placementName=$placementName, placementParams=$placementParams, " +
+                    "variantId=$variantId, experimentId=$experimentId, productIdentifier=$productIdentifier, product=$product)"
+
             @Serializable
             data class PaywallProduct(
+                @SerialName("identifier")
                 val identifier: String,
+                @SerialName("languageCode")
                 val languageCode: String = "",
+                @SerialName("locale")
                 val locale: String = "",
+                @SerialName("currencyCode")
                 val currencyCode: String = "",
+                @SerialName("currencySymbol")
                 val currencySymbol: String = "",
+                @SerialName("period")
                 val period: String = "",
+                @SerialName("periodly")
                 val periodly: String = "",
+                @SerialName("localizedPeriod")
                 val localizedPeriod: String = "",
+                @SerialName("periodAlt")
                 val periodAlt: String = "",
+                @SerialName("periodDays")
                 val periodDays: Int = 0,
+                @SerialName("periodWeeks")
                 val periodWeeks: Int = 0,
+                @SerialName("periodMonths")
                 val periodMonths: Int = 0,
+                @SerialName("periodYears")
                 val periodYears: Int = 0,
+                @SerialName("rawPrice")
                 val rawPrice: Double = 0.0,
+                @SerialName("price")
                 val price: String = "",
+                @SerialName("dailyPrice")
                 val dailyPrice: String = "",
+                @SerialName("weeklyPrice")
                 val weeklyPrice: String = "",
+                @SerialName("monthlyPrice")
                 val monthlyPrice: String = "",
+                @SerialName("yearlyPrice")
                 val yearlyPrice: String = "",
+                @SerialName("rawTrialPeriodPrice")
                 val rawTrialPeriodPrice: Double = 0.0,
+                @SerialName("trialPeriodPrice")
                 val trialPeriodPrice: String = "",
+                @SerialName("trialPeriodDailyPrice")
                 val trialPeriodDailyPrice: String = "",
+                @SerialName("trialPeriodWeeklyPrice")
                 val trialPeriodWeeklyPrice: String = "",
+                @SerialName("trialPeriodMonthlyPrice")
                 val trialPeriodMonthlyPrice: String = "",
+                @SerialName("trialPeriodYearlyPrice")
                 val trialPeriodYearlyPrice: String = "",
+                @SerialName("trialPeriodDays")
                 val trialPeriodDays: Int = 0,
+                @SerialName("trialPeriodWeeks")
                 val trialPeriodWeeks: Int = 0,
+                @SerialName("trialPeriodMonths")
                 val trialPeriodMonths: Int = 0,
+                @SerialName("trialPeriodYears")
                 val trialPeriodYears: Int = 0,
+                @SerialName("trialPeriodText")
                 val trialPeriodText: String = "",
+                @SerialName("trialPeriodEndDate")
                 val trialPeriodEndDate: String = "",
             )
         }

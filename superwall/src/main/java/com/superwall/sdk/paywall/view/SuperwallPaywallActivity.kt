@@ -19,6 +19,7 @@ import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
 import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
@@ -63,11 +64,11 @@ import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import java.lang.ref.WeakReference
 import java.util.UUID
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
-import kotlin.coroutines.suspendCoroutine
 
 class SuperwallPaywallActivity : AppCompatActivity() {
     companion object {
@@ -826,6 +827,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        notificationPermissionCallback?.onPermissionResult(false)
         super.onDestroy()
 
         val content = contentView as? ViewGroup?
@@ -902,25 +904,49 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         notifications: List<LocalNotification>,
         factory: DeviceHelperFactory,
         cancelExisting: Boolean = false,
-    ) = suspendCoroutine { continuation ->
+    ) = attemptToScheduleNotifications(notifications, factory, cancelExisting, applySandboxScaling = true)
+
+    internal suspend fun attemptToScheduleNotifications(
+        notifications: List<LocalNotification>,
+        factory: DeviceHelperFactory,
+        cancelExisting: Boolean,
+        applySandboxScaling: Boolean,
+    ) = suspendCancellableCoroutine<Unit> { continuation ->
         if (notifications.isEmpty()) {
             continuation.resume(Unit) // Resume immediately as there's nothing to schedule
-            return@suspendCoroutine
+            return@suspendCancellableCoroutine
         }
 
         createNotificationChannel()
-
-        notificationPermissionCallback =
+        val permissionRequestedAt = SystemClock.elapsedRealtime()
+        // A replacement request must release the previous waiter, too.
+        notificationPermissionCallback?.onPermissionResult(false)
+        val callback =
             object : NotificationPermissionCallback {
                 override fun onPermissionResult(granted: Boolean) {
+                    if (notificationPermissionCallback === this) notificationPermissionCallback = null
+                    if (!continuation.isActive) return
                     try {
                         if (granted) {
-                            NotificationScheduler.scheduleNotifications(
-                                notifications = notifications,
-                                factory = factory,
-                                context = this@SuperwallPaywallActivity,
-                                cancelExisting = cancelExisting,
-                            )
+                            // Web delays have already been anchored to checkout; permission time must not shift them.
+                            val readyNotifications =
+                                if (applySandboxScaling) {
+                                    notifications
+                                } else {
+                                    val elapsed = SystemClock.elapsedRealtime() - permissionRequestedAt
+                                    notifications.mapNotNull {
+                                        it.copy(delay = it.delay - elapsed).takeIf { reminder -> reminder.delay > 0 }
+                                    }
+                                }
+                            if (readyNotifications.isNotEmpty()) {
+                                NotificationScheduler.scheduleNotifications(
+                                    notifications = readyNotifications,
+                                    factory = factory,
+                                    context = this@SuperwallPaywallActivity,
+                                    cancelExisting = cancelExisting,
+                                    applySandboxScaling = applySandboxScaling,
+                                )
+                            }
                         }
                     } catch (e: Exception) {
                         // Deliver asynchronous permission-callback failures to the awaiting redemption.
@@ -930,8 +956,18 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                     continuation.resume(Unit) // Resume coroutine after processing
                 }
             }
-
-        checkAndRequestNotificationPermissions(this, notificationPermissionCallback!!)
+        notificationPermissionCallback = callback
+        continuation.invokeOnCancellation {
+            runOnUiThread {
+                if (notificationPermissionCallback === callback) notificationPermissionCallback = null
+            }
+        }
+        try {
+            checkAndRequestNotificationPermissions(this, callback)
+        } catch (e: Exception) {
+            if (notificationPermissionCallback === callback) notificationPermissionCallback = null
+            if (continuation.isActive) continuation.resumeWithException(e)
+        }
     }
 
     private fun createNotificationChannel() {

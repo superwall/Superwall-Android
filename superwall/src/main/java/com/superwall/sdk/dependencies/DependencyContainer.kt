@@ -1318,7 +1318,13 @@ class DependencyContainer(
                 (paywallView.encapsulatingActivity?.get() ?: activityProvider?.getCurrentActivity())
                     as? SuperwallPaywallActivity ?: return@withContext
             if (!activity.isFinishing && !activity.isDestroyed) {
-                activity.attemptToScheduleNotifications(notifications, this@DependencyContainer)
+                // Web reminders already use an absolute checkout timestamp, including in sandbox.
+                activity.attemptToScheduleNotifications(
+                    notifications,
+                    this@DependencyContainer,
+                    cancelExisting = false,
+                    applySandboxScaling = false,
+                )
             }
         }
     }

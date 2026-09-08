@@ -14,10 +14,12 @@ import com.superwall.sdk.models.internal.VendorId
 import com.superwall.sdk.models.internal.WebRedemptionResponse
 import com.superwall.sdk.models.paywall.LocalNotification
 import com.superwall.sdk.models.paywall.LocalNotificationType
+import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.storage.LatestRedemptionResponse
 import com.superwall.sdk.storage.Storage
+import com.superwall.sdk.storage.TrackedWebTrialCodes
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -29,6 +31,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
@@ -53,9 +56,16 @@ class WebRedemptionTrialTest {
     private var paywallInfo =
         PaywallInfo.empty().copy(
             identifier = "active_paywall",
+            experiment =
+                Experiment(
+                    "active_experiment",
+                    "group",
+                    Experiment.Variant("active_variant", Experiment.Variant.VariantType.TREATMENT, "active_paywall"),
+                ),
             isFreeTrialAvailable = true,
             localNotifications = listOf(reminder),
         )
+    private var trackedCodes = emptySet<String>()
     private var visible = true
     private val result get() = response.codes.single() as RedemptionResult.Success
 
@@ -67,6 +77,9 @@ class WebRedemptionTrialTest {
         every { factory.getActiveDeviceEntitlements() } returns emptySet()
         every { factory.currentPaywallEntitlements() } answers { response.customerInfo!!.entitlements.toSet() }
         every { factory.maxAge() } returns 60_000L
+        every { factory.currentTimeMillis() } returns 1788784200000L // Checkout: September 7, 12:30 UTC
+        every { storage.read(TrackedWebTrialCodes) } answers { trackedCodes }
+        every { storage.write(TrackedWebTrialCodes, any()) } answers { trackedCodes = secondArg() }
         every { factory.getIntegrationProps() } returns emptyMap()
         every { factory.getExternalAccountId() } returns ""
         coEvery { factory.receipts() } returns emptyList()
@@ -99,7 +112,8 @@ class WebRedemptionTrialTest {
     private fun changeProduct(transform: (PaywallProduct) -> PaywallProduct?) {
         val info = result.redemptionInfo
         response =
-            response.copy(
+            WebRedemptionResponse(
+                customerInfo = response.customerInfo,
                 codes =
                     listOf(
                         result.copy(
@@ -118,6 +132,78 @@ class WebRedemptionTrialTest {
     }
 
     @Test
+    fun `missing permission result cannot strand successful redemption`() =
+        runTest {
+            coEvery { factory.scheduleTrialNotifications(any()) } coAnswers { awaitCancellation() }
+            val job = launch { redeem() }
+            runCurrent()
+            advanceTimeBy(WEB_TRIAL_NOTIFICATION_TIMEOUT_MILLIS)
+            runCurrent()
+            assertTrue(job.isCompleted)
+            verify(exactly = 1) { factory.didRedeemLink(result) }
+            verify(exactly = 1) { factory.closePaywallIfExists() }
+        }
+
+    @Test
+    fun `repeated success after recreating redeemer only tracks one trial`() =
+        runTest {
+            redeem()
+            // The new redeemer reads the persisted marker, as it would after an app restart.
+            redeem()
+            assertEquals(setOf("TESTCODE"), trackedCodes)
+            assertEquals(1, events.filterIsInstance<InternalSuperwallEvent.FreeTrialStart>().size)
+            verify(exactly = 2) { factory.didRedeemLink(result) }
+        }
+
+    @Test
+    fun `failed redemption can subsequently start a trial`() =
+        runTest {
+            val success = response
+            response =
+                WebRedemptionResponse(
+                    codes = listOf(RedemptionResult.Error("TESTCODE", ErrorInfo("retry"))),
+                    customerInfo = success.customerInfo,
+                )
+            every { storage.read(LatestRedemptionResponse) } returns response
+            redeem()
+            assertTrue(trackedCodes.isEmpty())
+            response = success
+            redeem()
+            assertEquals(1, events.filterIsInstance<InternalSuperwallEvent.FreeTrialStart>().size)
+        }
+
+    @Test
+    fun `tracking failure does not mark the trial as emitted`() =
+        runTest {
+            coEvery { factory.track(match { it is InternalSuperwallEvent.FreeTrialStart }) } throws IllegalStateException("retry")
+            redeem()
+            assertTrue(trackedCodes.isEmpty())
+            coEvery { factory.track(match { it is InternalSuperwallEvent.FreeTrialStart }) } coAnswers { events += firstArg<Trackable>() }
+            redeem()
+            assertEquals(1, events.filterIsInstance<InternalSuperwallEvent.FreeTrialStart>().size)
+        }
+
+    @Test
+    fun `late redemption does not schedule an already missed reminder`() =
+        runTest {
+            every { factory.currentTimeMillis() } returns 1788957000000L // Two days after checkout; reminder was due after one.
+            redeem()
+            assertEquals(1, events.filterIsInstance<InternalSuperwallEvent.FreeTrialStart>().size)
+            coVerify(exactly = 0) { factory.scheduleTrialNotifications(any()) }
+            verify { factory.didRedeemLink(result) }
+        }
+
+    @Test
+    fun `display only trial date still delivers callback and analytics`() =
+        runTest {
+            changeProduct { it.copy(trialPeriodEndDate = "September 14, 2026") }
+            redeem()
+            assertEquals(1, events.filterIsInstance<InternalSuperwallEvent.FreeTrialStart>().size)
+            coVerify(exactly = 0) { factory.scheduleTrialNotifications(any()) }
+            verify { factory.didRedeemLink(result) }
+        }
+
+    @Test
     fun `eligible redemption exposes product and tracks original trial data before either dismissal`() =
         runTest {
             redeem()
@@ -134,6 +220,9 @@ class WebRedemptionTrialTest {
             assertEquals("2026-09-14T12:30:00.000Z", event.product.trialPeriodEndDateString)
             val params = event.getSuperwallParameters()
             assertEquals("test_product", params["product_id"])
+            assertEquals("active_paywall", params["paywall_identifier"])
+            assertEquals("active_experiment", params["experiment_id"])
+            assertEquals("active_variant", params["variant_id"])
             assertEquals("7", params["product_trial_period_days"])
             assertEquals("$0.00", params["product_trial_period_price"])
         }
@@ -200,7 +289,11 @@ class WebRedemptionTrialTest {
     @Test
     fun `failed code skips side effects even if another code has a trial`() =
         runTest {
-            response = response.copy(codes = listOf(result.copy(code = "OTHER"), RedemptionResult.Error("TESTCODE", ErrorInfo("failed"))))
+            response =
+                WebRedemptionResponse(
+                    customerInfo = response.customerInfo,
+                    codes = listOf(result.copy(code = "OTHER"), RedemptionResult.Error("TESTCODE", ErrorInfo("failed"))),
+                )
             redeem()
             assertNoTrialSideEffects()
             verify { factory.didRedeemLink(response.codes.last()) }
@@ -209,7 +302,7 @@ class WebRedemptionTrialTest {
     @Test
     fun `missing requested code returns error without using another products trial`() =
         runTest {
-            response = response.copy(codes = listOf(result.copy(code = "OTHER")))
+            response = WebRedemptionResponse(customerInfo = response.customerInfo, codes = listOf(result.copy(code = "OTHER")))
             redeem()
             assertNoTrialSideEffects()
             verify { factory.didRedeemLink(match { it is RedemptionResult.Error && it.code == "TESTCODE" }) }

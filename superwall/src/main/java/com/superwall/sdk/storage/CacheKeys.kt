@@ -322,6 +322,12 @@ internal object PurchasingProductdIds : Storable<Set<String>> {
         get() = SetSerializer(String.serializer())
 }
 
+internal object TrackedWebTrialCodes : Storable<Set<String>> {
+    override val key = "store.trackedWebTrialCodes"
+    override val directory = SearchPathDirectory.APP_SPECIFIC_DOCUMENTS
+    override val serializer = SetSerializer(String.serializer())
+}
+
 internal object LatestRedemptionResponse : Storable<WebRedemptionResponse> {
     override val key: String
         get() = "store.latestRedemptionResponse"

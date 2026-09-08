@@ -26,6 +26,65 @@ class RedemptionStoreProductTest {
     private val product = info.paywallInfo!!.product!!
 
     @Test
+    fun `original Kotlin default constructor and copy bytecode signatures remain callable`() {
+        val type = RedemptionResult.PaywallInfo::class.java
+        val marker = Class.forName("kotlin.jvm.internal.DefaultConstructorMarker")
+        val constructor =
+            type.getConstructor(
+                String::class.java,
+                String::class.java,
+                Map::class.java,
+                String::class.java,
+                String::class.java,
+                String::class.java,
+                Int::class.javaPrimitiveType,
+                marker,
+            )
+        val created = constructor.newInstance("paywall", "placement", emptyMap<String, String>(), "variant", "experiment", null, 32, null)
+        assertNull(created.productIdentifier)
+        val oldCopy =
+            type.getMethod(
+                "copy",
+                String::class.java,
+                String::class.java,
+                Map::class.java,
+                String::class.java,
+                String::class.java,
+                String::class.java,
+            )
+        val source = info.paywallInfo!!
+        val fullCopy =
+            oldCopy.invoke(
+                source,
+                source.identifier,
+                "changed",
+                source.placementParams,
+                source.variantId,
+                source.experimentId,
+                source.productIdentifier,
+            )
+        assertEquals(source.copy(placementName = "changed"), fullCopy)
+        val defaultCopy =
+            type.getMethod(
+                "copy\$default",
+                type,
+                String::class.java,
+                String::class.java,
+                Map::class.java,
+                String::class.java,
+                String::class.java,
+                String::class.java,
+                Int::class.javaPrimitiveType,
+                Any::class.java,
+            )
+        val copied = defaultCopy.invoke(null, source, null, "changed", null, null, null, null, 61, null) as RedemptionResult.PaywallInfo
+        assertEquals("changed", copied.placementName)
+        assertEquals(product, copied.product)
+        assertEquals(source.identifier, copied.component1())
+        assertEquals(source.productIdentifier, copied.component6())
+    }
+
+    @Test
     fun `existing six argument Java constructor remains available`() {
         val constructor =
             RedemptionResult.PaywallInfo::class.java.getConstructor(
@@ -72,7 +131,7 @@ class RedemptionStoreProductTest {
     }
 
     @Test
-    fun `product is retained without the deprecated identifier`() {
+    fun `product is retained without the legacy identifier`() {
         val encoded = json.encodeToJsonElement(RedemptionResult.PaywallInfo.serializer(), info.paywallInfo!!).jsonObject
         val decoded = json.decodeFromJsonElement(RedemptionResult.PaywallInfo.serializer(), JsonObject(encoded - "productIdentifier"))
         assertNull(decoded.productIdentifier)
