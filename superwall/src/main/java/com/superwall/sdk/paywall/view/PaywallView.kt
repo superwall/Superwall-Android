@@ -1007,6 +1007,7 @@ class PaywallView(
 
     private fun recreateWebview() {
         val oldWebView = webView
+        oldWebView.messageHandler.resetForWebViewReload()
         oldWebView.detach(this)
         oldWebView.destroyView()
         webView =
@@ -1015,9 +1016,6 @@ class PaywallView(
             })
         webView.attach(this)
         webView.delegate = this
-        // The replacement webview has no content yet, so the open is deferred until the
-        // reload finishes and the templates have been injected.
-        webView.messageHandler.sendWhenLoaded(PaywallMessage.PaywallOpen)
         loadWebView()
     }
 

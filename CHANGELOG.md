@@ -4,8 +4,8 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## Unreleased
 
-- Fix multi-page paywalls only reporting the entry page view. The template variables and the paywall open message were sent to the webview from independent coroutines, so the slower template build often landed after the open. The paywall runtime treats that as a fresh load and stops tracking page views, which made campaign results show users dropping off on the first page. Messages destined for the webview are now delivered in the order they are produced.
-- Fix a paywall not being reopened after its webview process crashes and is recreated. The open message was sent before the replacement webview had loaded, so it never reached the paywall.
+- Fix multi-page paywalls only reporting the entry page view. 
+- Fix an active paywall not being reopened after its webview process crashes and is recreated. Recovery cancels messages for the old webview and sends the open after the replacement loads, only if the same presentation is still active.
 - Fix prices not showing when product/offers are fetched from cache
 - Fix a JSON null in placement parameters or user attributes reaching audience filters as the text `"null"`, so a filter checking whether a field is null never matched.
 

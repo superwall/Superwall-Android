@@ -33,6 +33,8 @@ import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -42,8 +44,6 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import java.net.URI
 import java.util.Date
-import java.util.Queue
-import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.coroutines.resume
 
 interface PaywallStateDelegate {
@@ -95,42 +95,85 @@ class PaywallMessageHandler(
                         meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
                         var head = document.getElementsByTagName('head')[0];
                         head.appendChild(meta);"""
-
-        // How long a message waits for the one directly ahead of it. Ordering matters,
-        // but never at the cost of never delivering: a send that wedges (a stalled Room
-        // read while templating, say) hands the queue on rather than silencing the
-        // paywall. Losing a page view beats losing `paywall_open`.
-        const val OUTBOUND_TIMEOUT_MS = 10_000L
     }
 
     var messageHandler: PaywallMessageHandlerDelegate? = null
-    private val queue: Queue<PaywallMessage> = ConcurrentLinkedQueue()
 
-    // The webview must receive messages in the order they were produced: the runtime
-    // treats a `template_variables` that lands after `paywall_open` as a fresh load and
-    // then discards every `page_view` that follows. Templating is far slower than
-    // encoding an event, so a coroutine per message let the open win that race.
-    //
-    // The order has to be fixed when `handle` is called, not when a coroutine happens to
-    // get scheduled, which rules out a mutex - whoever reaches it first wins, and that is
-    // the race itself. Chaining onto the previous job pins the order at enqueue time, and
-    // unlike a channel with a consumer it leaves nothing running on the shared IO scope
-    // once the queue drains. Sends that wait on the user (permission and callback
-    // replies) deliberately stay off the queue: their order does not matter and they
-    // would hold everything behind them.
+    private data class PendingMessage(
+        val message: PaywallMessage,
+        val shouldSend: () -> Boolean = { true },
+    )
+
+    // Reserve the order synchronously; template construction can suspend before the
+    // main-thread evaluation. Never bypass an unfinished send: late templates reset
+    // the runtime even if an open has already arrived. Reload cancels obsolete work.
+    // Permission and callback replies remain independent.
     private val outboundLock = Any()
+    private val queue = ArrayDeque<PendingMessage>()
+    private val outboundJobs = mutableSetOf<Job>()
     private var lastOutbound: Job? = null
 
     private fun enqueueOutbound(block: suspend () -> Unit) {
         synchronized(outboundLock) {
             val previous = lastOutbound
-            lastOutbound =
+            val job =
                 ioScope.launch {
-                    if (previous != null) {
-                        withTimeoutOrNull(OUTBOUND_TIMEOUT_MS) { previous.join() }
-                    }
+                    previous?.join()
                     block()
                 }
+            lastOutbound = job
+            outboundJobs.add(job)
+            job.invokeOnCompletion {
+                synchronized(outboundLock) {
+                    outboundJobs.remove(job)
+                    if (lastOutbound === job) lastOutbound = null
+                }
+            }
+        }
+    }
+
+    // Called on main before replacing the WebView. Cancel work for the old document
+    // and only restore an open if that same presentation is still active at delivery.
+    internal fun resetForWebViewReload() {
+        synchronized(outboundLock) {
+            outboundJobs.toList().forEach { it.cancel() }
+            lastOutbound = null
+            queue.clear()
+            val state = messageHandler?.state
+            messageHandler?.updateState(PaywallViewState.Updates.SetPaywallJsVersion(null))
+            if (state?.isPresented == true && !state.closedForBackground) {
+                // SetLastOpen replaces this object for each new presentation.
+                val lastOpen = state.lastOpen
+                queue.addLast(
+                    PendingMessage(PaywallMessage.PaywallOpen) {
+                        val current = messageHandler?.state
+                        current?.isPresented == true && !current.closedForBackground && current.lastOpen === lastOpen
+                    },
+                )
+            }
+        }
+    }
+
+    private fun sendLifecycleMessage(pending: PendingMessage) {
+        synchronized(outboundLock) {
+            if (!isWebViewLoaded) {
+                queue.addLast(pending)
+            } else {
+                val paywall = messageHandler?.state?.paywall ?: return
+                enqueueOutbound {
+                    withContext(Dispatchers.Main) {
+                        if (pending.shouldSend()) {
+                            val eventName =
+                                if (pending.message is PaywallMessage.PaywallOpen) {
+                                    SuperwallEvents.PaywallOpen.rawName
+                                } else {
+                                    SuperwallEvents.PaywallClose.rawName
+                                }
+                            pass(eventName = eventName, paywall = paywall)
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -178,16 +221,15 @@ class PaywallMessageHandler(
                 enqueueOutbound { passTemplatesToWebView(paywall) }
 
             is PaywallMessage.OnReady -> {
-                messageHandler?.updateState(
-                    PaywallViewState.Updates.SetPaywallJsVersion(message.paywallJsVersion),
-                )
-                val loadedAt = Date()
-                Logger.debug(
-                    LogLevel.debug,
-                    LogScope.superwallCore,
-                    "!! PaywallMessageHandler: Ready !!",
-                )
-                enqueueOutbound { didLoadWebView(paywall, loadedAt) }
+                // Publishing readiness and reserving initialization must be atomic
+                // with lifecycle sends from other threads.
+                synchronized(outboundLock) {
+                    messageHandler?.updateState(
+                        PaywallViewState.Updates.SetPaywallJsVersion(message.paywallJsVersion),
+                    )
+                    val loadedAt = Date()
+                    enqueueOutbound { didLoadWebView(paywall, loadedAt) }
+                }
             }
 
             is PaywallMessage.Close -> {
@@ -212,23 +254,11 @@ class PaywallMessageHandler(
                     shouldDismiss = message.shouldDismiss,
                 )
 
-            is PaywallMessage.PaywallOpen ->
-                if (!isWebViewLoaded) {
-                    sendWhenLoaded(message)
-                } else {
-                    enqueueOutbound {
-                        pass(eventName = SuperwallEvents.PaywallOpen.rawName, paywall = paywall)
-                    }
-                }
-
-            is PaywallMessage.PaywallClose ->
-                if (!isWebViewLoaded) {
-                    sendWhenLoaded(message)
-                } else {
-                    enqueueOutbound {
-                        pass(eventName = SuperwallEvents.PaywallClose.rawName, paywall = paywall)
-                    }
-                }
+            is PaywallMessage.PaywallOpen,
+            is PaywallMessage.PaywallClose,
+            -> {
+                sendLifecycleMessage(PendingMessage(message))
+            }
 
             is PaywallMessage.BackButtonPressed ->
                 enqueueOutbound {
@@ -408,6 +438,7 @@ class PaywallMessageHandler(
         )
 
         withContext(Dispatchers.Main) {
+            currentCoroutineContext().ensureActive()
             messageHandler?.evaluate(templateScript) { error ->
                 if (error != null) {
                     Logger.debug(
@@ -489,6 +520,7 @@ class PaywallMessageHandler(
         // behind it - a `paywall_open` that arrives while the templates are still
         // building must not reach the webview first.
         withContext(Dispatchers.Main) {
+            currentCoroutineContext().ensureActive()
             messageHandler?.evaluate(scriptSrc) { error ->
                 if (error != null) {
                     Logger.debug(
@@ -513,16 +545,6 @@ class PaywallMessageHandler(
         }
     }
 
-    // Holds a message back until the webview reports it has (re)loaded, at which point
-    // it is delivered after the templates. Used when the webview is about to be replaced
-    // or reloaded, where sending straight away would evaluate against a page that has no
-    // `window.paywall` yet and silently drop the message.
-    fun sendWhenLoaded(message: PaywallMessage) {
-        queue.offer(message)
-    }
-
-    // The webview reports its paywall.js version once it has loaded, so an absent
-    // version means there is nothing on the other side to receive a message yet.
     private val isWebViewLoaded: Boolean
         get() = messageHandler?.state?.paywall?.paywalljsVersion != null
 
@@ -533,11 +555,12 @@ class PaywallMessageHandler(
     }
 
     private fun flushPendingMessagesInternal() {
-        if (queue.isEmpty()) return
-
-        val pending = queue.toList()
-        queue.clear()
-        pending.forEach { handle(it) }
+        synchronized(outboundLock) {
+            if (!isWebViewLoaded) return
+            while (queue.isNotEmpty()) {
+                sendLifecycleMessage(queue.removeFirst())
+            }
+        }
     }
 
     private fun openUrl(

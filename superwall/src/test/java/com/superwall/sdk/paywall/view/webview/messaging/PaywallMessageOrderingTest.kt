@@ -16,22 +16,28 @@ import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.paywall.presentation.CustomCallbackRegistry
 import com.superwall.sdk.paywall.view.PaywallViewState
+import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 import com.superwall.sdk.paywall.view.webview.templating.models.JsonVariables
 import com.superwall.sdk.paywall.view.webview.templating.models.Variables
 import com.superwall.sdk.permissions.PermissionStatus
 import com.superwall.sdk.permissions.PermissionType
 import com.superwall.sdk.permissions.UserPermissions
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.util.Date
 
 /**
  * The paywall runtime treats a `template_variables` message that lands after
@@ -40,6 +46,7 @@ import org.junit.Test
  * off on the first page. These tests pin the delivery order, with a template build
  * that is deliberately slower than the open message it must precede.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class PaywallMessageOrderingTest {
     private val testDispatcher = StandardTestDispatcher()
 
@@ -89,13 +96,14 @@ class PaywallMessageOrderingTest {
     // attributes and so takes far longer than encoding a plain event.
     private class SlowVariablesFactory(
         private val fail: Boolean = false,
+        private val buildDelayMs: Long = TEMPLATE_BUILD_MS,
     ) : VariablesFactory {
         override suspend fun makeJsonVariables(
             products: List<ProductVariable>?,
             computedPropertyRequests: List<ComputedPropertyRequest>,
             event: EventData?,
         ): JsonVariables {
-            delay(TEMPLATE_BUILD_MS)
+            delay(buildDelayMs)
             if (fail) throw IllegalStateException("could not build the templates")
             return JsonVariables("template_variables", Variables(emptyMap(), emptyMap(), emptyMap()))
         }
@@ -110,9 +118,12 @@ class PaywallMessageOrderingTest {
         ): PermissionStatus = PermissionStatus.GRANTED
     }
 
-    private fun createHandler(failTemplateBuild: Boolean = false): PaywallMessageHandler =
+    private fun createHandler(
+        failTemplateBuild: Boolean = false,
+        buildDelayMs: Long = TEMPLATE_BUILD_MS,
+    ): PaywallMessageHandler =
         PaywallMessageHandler(
-            factory = SlowVariablesFactory(fail = failTemplateBuild),
+            factory = SlowVariablesFactory(fail = failTemplateBuild, buildDelayMs = buildDelayMs),
             options =
                 object : OptionsFactory {
                     override fun makeSuperwallOptions(): SuperwallOptions = SuperwallOptions()
@@ -145,7 +156,7 @@ class PaywallMessageOrderingTest {
     fun templateVariablesReachWebviewBeforePaywallOpenOnAPreloadedPaywall() =
         runTest {
             Given("a paywall whose webview has already loaded") {
-                val state = PaywallViewState(paywall = Paywall.stub(), locale = "en-US")
+                val state = PaywallViewState(paywall = Paywall.stub().copy(paywalljsVersion = null), locale = "en-US")
                 val delegate = RecordingDelegate(state)
                 delegate.updateState(PaywallViewState.Updates.SetPaywallJsVersion(PAYWALL_JS_VERSION))
                 val handler = createHandler()
@@ -167,7 +178,7 @@ class PaywallMessageOrderingTest {
     fun templateVariablesReachWebviewBeforePaywallOpenWhenPaywallIsNotPreloaded() =
         runTest {
             Given("a paywall whose webview has just reported it is ready") {
-                val state = PaywallViewState(paywall = Paywall.stub(), locale = "en-US")
+                val state = PaywallViewState(paywall = Paywall.stub().copy(paywalljsVersion = null), locale = "en-US")
                 val delegate = RecordingDelegate(state)
                 val handler = createHandler()
                 handler.messageHandler = delegate
@@ -188,13 +199,21 @@ class PaywallMessageOrderingTest {
     fun deferredPaywallOpenIsSentAfterTheTemplatesOnceTheWebviewLoads() =
         runTest {
             Given("an open deferred while the webview is being recreated") {
-                val state = PaywallViewState(paywall = Paywall.stub(), locale = "en-US")
+                val state =
+                    PaywallViewState(
+                        paywall = Paywall.stub().copy(paywalljsVersion = null),
+                        locale = "en-US",
+                        isPresented = true,
+                        lastOpen = Date(1),
+                    )
                 val delegate = RecordingDelegate(state)
+                delegate.updateState(PaywallViewState.Updates.SetPaywallJsVersion(PAYWALL_JS_VERSION))
                 val handler = createHandler()
                 handler.messageHandler = delegate
 
                 When("the replacement webview finishes loading") {
-                    handler.sendWhenLoaded(PaywallMessage.PaywallOpen)
+                    handler.resetForWebViewReload()
+                    handler.flushPendingMessages()
                     advanceUntilIdle()
                     assertTrue(
                         "the deferred open was sent before the webview loaded",
@@ -215,7 +234,7 @@ class PaywallMessageOrderingTest {
     fun aFailedSendDoesNotHoldBackTheMessagesQueuedBehindIt() =
         runTest {
             Given("a paywall whose template build throws") {
-                val state = PaywallViewState(paywall = Paywall.stub(), locale = "en-US")
+                val state = PaywallViewState(paywall = Paywall.stub().copy(paywalljsVersion = null), locale = "en-US")
                 val delegate = RecordingDelegate(state)
                 delegate.updateState(PaywallViewState.Updates.SetPaywallJsVersion(PAYWALL_JS_VERSION))
                 val handler = createHandler(failTemplateBuild = true)
@@ -234,6 +253,148 @@ class PaywallMessageOrderingTest {
                     }
                 }
             }
+        }
+
+    @Test
+    fun slowTemplatesCannotBeOvertakenOnAPreloadedPaywall() =
+        runTest {
+            val delegate = RecordingDelegate(PaywallViewState(paywall = Paywall.stub().copy(paywalljsVersion = null), locale = "en-US"))
+            delegate.updateState(PaywallViewState.Updates.SetPaywallJsVersion(PAYWALL_JS_VERSION))
+            val handler = createHandler(buildDelayMs = 11_000L)
+            handler.messageHandler = delegate
+
+            handler.handle(PaywallMessage.TemplateParamsAndUserAttributes)
+            handler.handle(PaywallMessage.PaywallOpen)
+            handler.handle(PaywallMessage.TransactionStart)
+            advanceUntilIdle()
+
+            assertTemplatesPrecedeOpen(delegate.evaluations)
+            assertTrue(delegate.evaluations.indexOfMessage(PAYWALL_OPEN) < delegate.evaluations.indexOfMessage("transaction_start"))
+        }
+
+    @Test
+    fun slowInitializationFinishesBeforeOpeningANewPaywall() =
+        runTest {
+            for (openBeforeReady in listOf(false, true)) {
+                val delegate = RecordingDelegate(PaywallViewState(paywall = Paywall.stub().copy(paywalljsVersion = null), locale = "en-US"))
+                val handler = createHandler(buildDelayMs = 11_000L)
+                handler.messageHandler = delegate
+
+                if (openBeforeReady) handler.handle(PaywallMessage.PaywallOpen)
+                handler.handle(PaywallMessage.OnReady(paywallJsVersion = PAYWALL_JS_VERSION))
+                if (!openBeforeReady) handler.handle(PaywallMessage.PaywallOpen)
+                advanceUntilIdle()
+
+                assertTemplatesPrecedeOpen(delegate.evaluations)
+                assertEquals(PaywallLoadingState.Ready, delegate.state.loadingState)
+            }
+        }
+
+    @Test
+    fun recoveryDoesNotOpenCachedOrBackgroundedPaywalls() =
+        runTest {
+            for (presented in listOf(false, true)) {
+                val delegate =
+                    RecordingDelegate(
+                        PaywallViewState(
+                            paywall = Paywall.stub().copy(paywalljsVersion = null),
+                            locale = "en-US",
+                            isPresented = presented,
+                            closedForBackground = presented,
+                        ),
+                    )
+                val handler = createHandler()
+                handler.messageHandler = delegate
+
+                handler.resetForWebViewReload()
+                handler.handle(PaywallMessage.OnReady(paywallJsVersion = PAYWALL_JS_VERSION))
+                advanceUntilIdle()
+
+                assertTrue(delegate.evaluations.indexOfMessage(TEMPLATE_VARIABLES) >= 0)
+                assertEquals(-1, delegate.evaluations.indexOfMessage(PAYWALL_OPEN))
+            }
+        }
+
+    @Test
+    fun recoveryDoesNotReopenAPaywallDismissedOrBackgroundedWhileLoading() =
+        runTest {
+            for (update in listOf(PaywallViewState.Updates.CleanupAfterDestroy, PaywallViewState.Updates.SetClosedForBackground(true))) {
+                val delegate =
+                    RecordingDelegate(
+                        PaywallViewState(
+                            paywall = Paywall.stub().copy(paywalljsVersion = null),
+                            locale = "en-US",
+                            isPresented = true,
+                            lastOpen = Date(1),
+                        ),
+                    )
+                val handler = createHandler()
+                handler.messageHandler = delegate
+
+                handler.resetForWebViewReload()
+                handler.handle(PaywallMessage.OnReady(paywallJsVersion = PAYWALL_JS_VERSION))
+                // Put the recovery open on the outbound queue while initialization is
+                // still suspended, then dismiss before that open can be evaluated.
+                handler.flushPendingMessages()
+                runCurrent()
+                delegate.updateState(update)
+                advanceUntilIdle()
+
+                assertEquals(-1, delegate.evaluations.indexOfMessage(PAYWALL_OPEN))
+            }
+        }
+
+    @Test
+    fun recoveryOpenDoesNotCarryOverToANewPresentation() =
+        runTest {
+            val delegate =
+                RecordingDelegate(
+                    PaywallViewState(
+                        paywall = Paywall.stub().copy(paywalljsVersion = null),
+                        locale = "en-US",
+                        isPresented = true,
+                        lastOpen = Date(1),
+                    ),
+                )
+            val handler = createHandler()
+            handler.messageHandler = delegate
+            handler.resetForWebViewReload()
+            delegate.updateState(PaywallViewState.Updates.CleanupAfterDestroy)
+            delegate.updateState(PaywallViewState.Updates.SetPresentedAndFinished)
+            delegate.updateState(PaywallViewState.Updates.SetLastOpen)
+
+            handler.handle(PaywallMessage.OnReady(paywallJsVersion = PAYWALL_JS_VERSION))
+            handler.handle(PaywallMessage.PaywallOpen)
+            advanceUntilIdle()
+
+            assertTemplatesPrecedeOpen(delegate.evaluations)
+            assertEquals(1, delegate.evaluations.count { it.contains(PAYWALL_OPEN) })
+        }
+
+    @Test
+    fun replacingWebViewCancelsOldTemplatesAndQueuedEvents() =
+        runTest {
+            val delegate = RecordingDelegate(PaywallViewState(paywall = Paywall.stub().copy(paywalljsVersion = null), locale = "en-US"))
+            delegate.updateState(PaywallViewState.Updates.SetPaywallJsVersion(PAYWALL_JS_VERSION))
+            val handler = createHandler()
+            handler.messageHandler = delegate
+            handler.handle(PaywallMessage.TemplateParamsAndUserAttributes)
+            handler.handle(PaywallMessage.TransactionStart)
+            runCurrent()
+
+            handler.resetForWebViewReload()
+            assertNull(delegate.state.paywall.paywalljsVersion)
+            handler.handle(PaywallMessage.PaywallOpen)
+            handler.flushPendingMessages()
+            advanceUntilIdle()
+            assertTrue(delegate.evaluations.isEmpty())
+
+            handler.handle(PaywallMessage.OnReady(paywallJsVersion = PAYWALL_JS_VERSION))
+            advanceUntilIdle()
+
+            assertTemplatesPrecedeOpen(delegate.evaluations)
+            assertEquals(1, delegate.evaluations.count { it.contains(TEMPLATE_VARIABLES) })
+            assertEquals(-1, delegate.evaluations.indexOfMessage("transaction_start"))
         }
 
     private companion object {
