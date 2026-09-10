@@ -183,7 +183,9 @@ class SWWebView(
 
     private var hostPaused = false
     private var viewDestroyed = false
-    // View callbacks can run from the superclass constructor.
+    // View callbacks can run from the superclass constructor, before Kotlin initializers.
+    // The JVM default (false) keeps them from evaluating JS until this is set to true, so it
+    // must stay a field with an initializer rather than being inlined.
     private var mediaLifecycleReady = true
 
     private fun updateMediaPlayback() {

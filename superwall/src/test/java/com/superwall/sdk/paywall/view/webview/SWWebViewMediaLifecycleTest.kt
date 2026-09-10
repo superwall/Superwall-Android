@@ -43,6 +43,13 @@ class SWWebViewMediaLifecycleTest {
             setWindowVisibility(webView, View.VISIBLE)
             assertMediaAllowed(webView, true)
 
+            // Detaching dispatches window visibility before the window state changes, so a
+            // resumed view must still end paused.
+            activity.setContentView(View(activity))
+            assertMediaAllowed(webView, false)
+            activity.setContentView(webView)
+            assertMediaAllowed(webView, true)
+
             webView.onPause()
             activity.setContentView(View(activity))
             assertMediaAllowed(webView, false)
