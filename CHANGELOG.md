@@ -5,6 +5,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 ## Unreleased
 
 - Fix prices not showing when product/offers are fetched from cache
+- Fix video loading and playing in the background on preloaded paywalls
 
 ## 2.8.2
 
