@@ -87,13 +87,16 @@ class PaywallMessageOrderingTest {
 
     // Mirrors production, where building the variables hits the store and user
     // attributes and so takes far longer than encoding a plain event.
-    private class SlowVariablesFactory : VariablesFactory {
+    private class SlowVariablesFactory(
+        private val fail: Boolean = false,
+    ) : VariablesFactory {
         override suspend fun makeJsonVariables(
             products: List<ProductVariable>?,
             computedPropertyRequests: List<ComputedPropertyRequest>,
             event: EventData?,
         ): JsonVariables {
             delay(TEMPLATE_BUILD_MS)
+            if (fail) throw IllegalStateException("could not build the templates")
             return JsonVariables("template_variables", Variables(emptyMap(), emptyMap(), emptyMap()))
         }
     }
@@ -107,9 +110,9 @@ class PaywallMessageOrderingTest {
         ): PermissionStatus = PermissionStatus.GRANTED
     }
 
-    private fun createHandler(): PaywallMessageHandler =
+    private fun createHandler(failTemplateBuild: Boolean = false): PaywallMessageHandler =
         PaywallMessageHandler(
-            factory = SlowVariablesFactory(),
+            factory = SlowVariablesFactory(fail = failTemplateBuild),
             options =
                 object : OptionsFactory {
                     override fun makeSuperwallOptions(): SuperwallOptions = SuperwallOptions()
@@ -203,6 +206,31 @@ class PaywallMessageOrderingTest {
 
                     Then("the open is delivered after the templates") {
                         assertTemplatesPrecedeOpen(delegate.evaluations)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun aFailedSendDoesNotHoldBackTheMessagesQueuedBehindIt() =
+        runTest {
+            Given("a paywall whose template build throws") {
+                val state = PaywallViewState(paywall = Paywall.stub(), locale = "en-US")
+                val delegate = RecordingDelegate(state)
+                delegate.updateState(PaywallViewState.Updates.SetPaywallJsVersion(PAYWALL_JS_VERSION))
+                val handler = createHandler(failTemplateBuild = true)
+                handler.messageHandler = delegate
+
+                When("an open is queued behind the failing send") {
+                    handler.handle(PaywallMessage.TemplateParamsAndUserAttributes)
+                    handler.handle(PaywallMessage.PaywallOpen)
+                    advanceUntilIdle()
+
+                    Then("the open is still delivered") {
+                        assertTrue(
+                            "paywall_open was lost behind a failed send",
+                            delegate.evaluations.indexOfMessage(PAYWALL_OPEN) >= 0,
+                        )
                     }
                 }
             }

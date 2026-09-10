@@ -42,8 +42,8 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import java.net.URI
 import java.util.Date
-import java.util.LinkedList
 import java.util.Queue
+import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.coroutines.resume
 
 interface PaywallStateDelegate {
@@ -96,23 +96,28 @@ class PaywallMessageHandler(
                         var head = document.getElementsByTagName('head')[0];
                         head.appendChild(meta);"""
 
-        // Upper bound on how long an outbound message waits for the ones queued
-        // before it. Ordering matters, but never at the cost of dropping a message
-        // entirely, so a stalled send eventually lets the rest of the queue through.
+        // How long a message waits for the one directly ahead of it. Ordering matters,
+        // but never at the cost of never delivering: a send that wedges (a stalled Room
+        // read while templating, say) hands the queue on rather than silencing the
+        // paywall. Losing a page view beats losing `paywall_open`.
         const val OUTBOUND_TIMEOUT_MS = 10_000L
     }
 
     var messageHandler: PaywallMessageHandlerDelegate? = null
-    private val queue: Queue<PaywallMessage> = LinkedList()
+    private val queue: Queue<PaywallMessage> = ConcurrentLinkedQueue()
 
-    // The webview must receive messages in the order they were produced. Building the
-    // template variables is far slower than encoding a simple event, so sending each
-    // message from its own coroutine let `paywall_open` overtake `template_variables`.
-    // The runtime treats a `template_variables` that lands after `paywall_open` as a
-    // fresh load, marks the paywall as closed and then discards every subsequent
-    // `page_view`, which made multi-page flows look like users dropped off on page 1.
-    // Chaining each send onto the previous one keeps delivery FIFO in `handle` order
-    // without keeping a consumer coroutine alive for the life of the handler.
+    // The webview must receive messages in the order they were produced: the runtime
+    // treats a `template_variables` that lands after `paywall_open` as a fresh load and
+    // then discards every `page_view` that follows. Templating is far slower than
+    // encoding an event, so a coroutine per message let the open win that race.
+    //
+    // The order has to be fixed when `handle` is called, not when a coroutine happens to
+    // get scheduled, which rules out a mutex - whoever reaches it first wins, and that is
+    // the race itself. Chaining onto the previous job pins the order at enqueue time, and
+    // unlike a channel with a consumer it leaves nothing running on the shared IO scope
+    // once the queue drains. Sends that wait on the user (permission and callback
+    // replies) deliberately stay off the queue: their order does not matter and they
+    // would hold everything behind them.
     private val outboundLock = Any()
     private var lastOutbound: Job? = null
 
@@ -207,26 +212,23 @@ class PaywallMessageHandler(
                     shouldDismiss = message.shouldDismiss,
                 )
 
-            is PaywallMessage.PaywallOpen -> {
-                if (messageHandler?.state?.paywall?.paywalljsVersion == null) {
-                    queue.offer(message)
+            is PaywallMessage.PaywallOpen ->
+                if (!isWebViewLoaded) {
+                    sendWhenLoaded(message)
                 } else {
                     enqueueOutbound {
                         pass(eventName = SuperwallEvents.PaywallOpen.rawName, paywall = paywall)
                     }
                 }
-            }
 
-            is PaywallMessage.PaywallClose -> {
-                if (messageHandler?.state?.paywall?.paywalljsVersion == null) {
-                    queue.offer(message)
+            is PaywallMessage.PaywallClose ->
+                if (!isWebViewLoaded) {
+                    sendWhenLoaded(message)
                 } else {
                     enqueueOutbound {
-                        val eventName = SuperwallEvents.PaywallClose.rawName
-                        pass(eventName = eventName, paywall = paywall)
+                        pass(eventName = SuperwallEvents.PaywallClose.rawName, paywall = paywall)
                     }
                 }
-            }
 
             is PaywallMessage.BackButtonPressed ->
                 enqueueOutbound {
@@ -519,11 +521,14 @@ class PaywallMessageHandler(
         queue.offer(message)
     }
 
+    // The webview reports its paywall.js version once it has loaded, so an absent
+    // version means there is nothing on the other side to receive a message yet.
+    private val isWebViewLoaded: Boolean
+        get() = messageHandler?.state?.paywall?.paywalljsVersion != null
+
     fun flushPendingMessages() {
-        ioScope.launch {
-            mainScope.launch {
-                flushPendingMessagesInternal()
-            }
+        mainScope.launch {
+            flushPendingMessagesInternal()
         }
     }
 
