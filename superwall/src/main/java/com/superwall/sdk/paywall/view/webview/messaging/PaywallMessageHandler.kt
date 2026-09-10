@@ -32,6 +32,7 @@ import com.superwall.sdk.storage.core_data.convertToJsonElement
 import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -94,10 +95,39 @@ class PaywallMessageHandler(
                         meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
                         var head = document.getElementsByTagName('head')[0];
                         head.appendChild(meta);"""
+
+        // Upper bound on how long an outbound message waits for the ones queued
+        // before it. Ordering matters, but never at the cost of dropping a message
+        // entirely, so a stalled send eventually lets the rest of the queue through.
+        const val OUTBOUND_TIMEOUT_MS = 10_000L
     }
 
     var messageHandler: PaywallMessageHandlerDelegate? = null
     private val queue: Queue<PaywallMessage> = LinkedList()
+
+    // The webview must receive messages in the order they were produced. Building the
+    // template variables is far slower than encoding a simple event, so sending each
+    // message from its own coroutine let `paywall_open` overtake `template_variables`.
+    // The runtime treats a `template_variables` that lands after `paywall_open` as a
+    // fresh load, marks the paywall as closed and then discards every subsequent
+    // `page_view`, which made multi-page flows look like users dropped off on page 1.
+    // Chaining each send onto the previous one keeps delivery FIFO in `handle` order
+    // without keeping a consumer coroutine alive for the life of the handler.
+    private val outboundLock = Any()
+    private var lastOutbound: Job? = null
+
+    private fun enqueueOutbound(block: suspend () -> Unit) {
+        synchronized(outboundLock) {
+            val previous = lastOutbound
+            lastOutbound =
+                ioScope.launch {
+                    if (previous != null) {
+                        withTimeoutOrNull(OUTBOUND_TIMEOUT_MS) { previous.join() }
+                    }
+                    block()
+                }
+        }
+    }
 
     @JavascriptInterface
     fun postMessage(message: String) {
@@ -140,7 +170,7 @@ class PaywallMessageHandler(
         ) { "!! PaywallMessageHandler: Paywall: $paywall, delegeate: $messageHandler" }
         when (message) {
             is PaywallMessage.TemplateParamsAndUserAttributes ->
-                ioScope.launch { passTemplatesToWebView(paywall) }
+                enqueueOutbound { passTemplatesToWebView(paywall) }
 
             is PaywallMessage.OnReady -> {
                 messageHandler?.updateState(
@@ -152,7 +182,7 @@ class PaywallMessageHandler(
                     LogScope.superwallCore,
                     "!! PaywallMessageHandler: Ready !!",
                 )
-                ioScope.launch { didLoadWebView(paywall, loadedAt) }
+                enqueueOutbound { didLoadWebView(paywall, loadedAt) }
             }
 
             is PaywallMessage.Close -> {
@@ -181,7 +211,7 @@ class PaywallMessageHandler(
                 if (messageHandler?.state?.paywall?.paywalljsVersion == null) {
                     queue.offer(message)
                 } else {
-                    ioScope.launch {
+                    enqueueOutbound {
                         pass(eventName = SuperwallEvents.PaywallOpen.rawName, paywall = paywall)
                     }
                 }
@@ -191,7 +221,7 @@ class PaywallMessageHandler(
                 if (messageHandler?.state?.paywall?.paywalljsVersion == null) {
                     queue.offer(message)
                 } else {
-                    ioScope.launch {
+                    enqueueOutbound {
                         val eventName = SuperwallEvents.PaywallClose.rawName
                         pass(eventName = eventName, paywall = paywall)
                     }
@@ -199,27 +229,27 @@ class PaywallMessageHandler(
             }
 
             is PaywallMessage.BackButtonPressed ->
-                ioScope.launch {
+                enqueueOutbound {
                     pass(eventName = "back_button_input", paywall = paywall)
                 }
 
             is PaywallMessage.Custom -> handleCustomEvent(message.data)
             is PaywallMessage.CustomPlacement -> handleCustomPlacement(message.name, message.params)
             is PaywallMessage.RestoreFailed ->
-                ioScope.launch {
+                enqueueOutbound {
                     pass(SuperwallEvents.RestoreFail.rawName, paywall)
                 }
 
             is PaywallMessage.RequestReview -> handleRequestReview(message)
 
             is PaywallMessage.TransactionStart -> {
-                ioScope.launch {
+                enqueueOutbound {
                     pass(eventName = SuperwallEvents.TransactionStart.rawName, paywall = paywall)
                 }
             }
 
             is PaywallMessage.TransactionAbandon -> {
-                ioScope.launch {
+                enqueueOutbound {
                     pass(eventName = SuperwallEvents.TransactionAbandon.rawName, paywall = paywall)
                 }
             }
@@ -229,7 +259,7 @@ class PaywallMessageHandler(
             }
 
             is PaywallMessage.TransactionComplete -> {
-                ioScope.launch {
+                enqueueOutbound {
                     pass(
                         SuperwallEvents.TransactionComplete.rawName,
                         paywall,
@@ -239,7 +269,7 @@ class PaywallMessageHandler(
             }
 
             is PaywallMessage.TrialStarted -> {
-                ioScope.launch {
+                enqueueOutbound {
                     pass(
                         eventName = SuperwallEvents.FreeTrialStart.rawName,
                         paywall = paywall,
@@ -395,22 +425,24 @@ class PaywallMessageHandler(
         paywall: Paywall,
         loadedAt: Date,
     ) {
-        ioScope.launch {
-            val delegate = this@PaywallMessageHandler.messageHandler
-            if (delegate != null) {
-                delegate.updateState(PaywallViewState.Updates.WebLoadingEnded(loadedAt))
+        val delegate = this@PaywallMessageHandler.messageHandler
+        if (delegate != null) {
+            delegate.updateState(PaywallViewState.Updates.WebLoadingEnded(loadedAt))
 
-                val paywallInfo = delegate.state.info
+            val paywallInfo = delegate.state.info
+            // Tracking talks to the network, so it stays off the outbound queue - only
+            // the messages the webview receives need to keep their order.
+            ioScope.launch {
                 val trackedEvent =
                     InternalSuperwallEvent.PaywallWebviewLoad(
                         state = InternalSuperwallEvent.PaywallWebviewLoad.State.Complete(),
                         paywallInfo = paywallInfo,
                     )
                 track(trackedEvent)
-
-                val behavior = options.makeSuperwallOptions().eventTrackingBehavior
-                passEventTrackingBehaviorToWebView(behavior)
             }
+
+            val behavior = options.makeSuperwallOptions().eventTrackingBehavior
+            passEventTrackingBehaviorToWebView(behavior)
         }
 
         Logger.debug(
@@ -451,7 +483,10 @@ class PaywallMessageHandler(
             message = { "Posting Message" },
         )
 
-        mainScope.launch {
+        // Awaited rather than launched, so this send completes before anything queued
+        // behind it - a `paywall_open` that arrives while the templates are still
+        // building must not reach the webview first.
+        withContext(Dispatchers.Main) {
             messageHandler?.evaluate(scriptSrc) { error ->
                 if (error != null) {
                     Logger.debug(
@@ -474,6 +509,14 @@ class PaywallMessageHandler(
                 ),
             )
         }
+    }
+
+    // Holds a message back until the webview reports it has (re)loaded, at which point
+    // it is delivered after the templates. Used when the webview is about to be replaced
+    // or reloaded, where sending straight away would evaluate against a page that has no
+    // `window.paywall` yet and silently drop the message.
+    fun sendWhenLoaded(message: PaywallMessage) {
+        queue.offer(message)
     }
 
     fun flushPendingMessages() {

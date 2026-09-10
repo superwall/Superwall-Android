@@ -1015,7 +1015,9 @@ class PaywallView(
             })
         webView.attach(this)
         webView.delegate = this
-        webView.messageHandler.handle(PaywallMessage.PaywallOpen)
+        // The replacement webview has no content yet, so the open is deferred until the
+        // reload finishes and the templates have been injected.
+        webView.messageHandler.sendWhenLoaded(PaywallMessage.PaywallOpen)
         loadWebView()
     }
 
