@@ -27,6 +27,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.boolean
@@ -246,6 +247,11 @@ internal fun Any.toPassableValue(): PassableValue =
 
 private fun JsonElement.toPassableValue(): PassableValue =
     when (this) {
+        // Checked before JsonPrimitive, which JsonNull is a kind of. Without this a
+        // JSON null falls past every primitive branch and comes out as the string
+        // "null", so an audience filter comparing the field to null never matches.
+        is JsonNull -> PassableValue.NullValue
+
         is JsonObject ->
             PassableValue.MapValue(
                 this.mapValues { (_, value) -> value.toPassableValue() }.toMap(),
