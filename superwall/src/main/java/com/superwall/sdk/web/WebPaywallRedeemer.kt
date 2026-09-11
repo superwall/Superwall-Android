@@ -22,23 +22,34 @@ import com.superwall.sdk.models.internal.ErrorInfo
 import com.superwall.sdk.models.internal.RedemptionOwnership
 import com.superwall.sdk.models.internal.RedemptionOwnershipType
 import com.superwall.sdk.models.internal.RedemptionResult
+import com.superwall.sdk.models.internal.RedemptionResult.PaywallInfo.PaywallProduct
 import com.superwall.sdk.models.internal.UserId
+import com.superwall.sdk.models.paywall.LocalNotification
+import com.superwall.sdk.models.paywall.LocalNotificationType
 import com.superwall.sdk.network.Network
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.storage.LastWebEntitlementsFetchDate
 import com.superwall.sdk.storage.LatestRedemptionResponse
 import com.superwall.sdk.storage.LatestWebCustomerInfo
 import com.superwall.sdk.storage.Storage
+import com.superwall.sdk.storage.TrackedWebTrialCodes
+import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.utilities.withErrorTracking
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.plus
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
+
+internal const val WEB_TRIAL_NOTIFICATION_TIMEOUT_MILLIS = 30_000L
 
 @Suppress("EXPOSED_PARAMETER_TYPE")
 class WebPaywallRedeemer(
@@ -90,10 +101,17 @@ class WebPaywallRedeemer(
         fun closePaywallIfExists()
 
         fun isPaymentSheetOpen(): Boolean
+
+        suspend fun scheduleTrialNotifications(notifications: List<LocalNotification>) {}
+
+        fun currentTimeMillis(): Long = System.currentTimeMillis()
     }
 
     private var pollingJob: Job? = null
     private var redemptionJob: Job? = null
+    // Code redemptions launch independently on IOScope; hold this across track() so two
+    // overlapping same-code calls cannot both observe an empty set and emit twice.
+    private val trialTrackingMutex = Mutex()
 
     private suspend fun track(event: Trackable) = factory.track(event)
 
@@ -223,6 +241,24 @@ class WebPaywallRedeemer(
                             redemption,
                         ),
                     )
+                    // Apply access before trial handling can wait for notification permission.
+                    factory.internallySetSubscriptionStatus(
+                        SubscriptionStatus.Active(
+                            it.customerInfo
+                                ?.entitlements
+                                ?.filter { it.isActive }
+                                ?.toSet()
+                                .orEmpty() +
+                                factory.getActiveDeviceEntitlements(),
+                        ),
+                    )
+                    val codeResult =
+                        if (redemption is RedeemType.Code) {
+                            it.codes.firstOrNull { result -> result.code == redemption.code }
+                                ?: RedemptionResult.Error(redemption.code, ErrorInfo("Redemption failed, code not returned"))
+                        } else {
+                            null
+                        }
                     when (redemption) {
                         is RedeemType.Code -> {
                             Logger.debug(
@@ -238,22 +274,9 @@ class WebPaywallRedeemer(
                                     ),
                             )
 
-                            val result =
-                                if (it.codes.any { it.code == redemption.code }) {
-                                    it.codes
-                                } else {
-                                    listOf(
-                                        RedemptionResult.Error(
-                                            code =
-                                                (redemption as? RedeemType.Code?)?.code
-                                                    ?: "",
-                                            error = ErrorInfo("Redemption failed, code not returned"),
-                                        ),
-                                    )
-                                }
-                            val redemptionResultForCode =
-                                result.firstOrNull { it.code == redemption.code }
-                            if (redemptionResultForCode != null) {
+                            if (codeResult != null) {
+                                // Restoration can dismiss the paywall too, so finish trial work first.
+                                handleTrialRedemption(codeResult)
                                 if (factory.isPaywallVisible() && !factory.isPaymentSheetOpen()) {
                                     if (it.customerInfo?.entitlements?.map { it.id }?.containsAll(
                                             factory.currentPaywallEntitlements().map { it.id },
@@ -271,23 +294,9 @@ class WebPaywallRedeemer(
                             // NO-OP
                         }
                     }
-                    factory.internallySetSubscriptionStatus(
-                        SubscriptionStatus.Active(
-                            (
-                                it.customerInfo
-                                    ?.entitlements
-                                    ?.filter { it.isActive }
-                                    ?.toSet() ?: emptySet()
-                            ) +
-                                factory.getActiveDeviceEntitlements(),
-                        ),
-                    )
-                    if (redemption is RedeemType.Code) {
+                    if (codeResult != null) {
                         factory.closePaywallIfExists()
-                        val res = it.codes.first { it.code == redemption.code }
-                        factory.didRedeemLink(
-                            res,
-                        )
+                        factory.didRedeemLink(codeResult)
                     }
 
                     // Notify the delegate that the redemption succeeded, unless the code has not been redeemed
@@ -327,6 +336,61 @@ class WebPaywallRedeemer(
                 },
             )
         startPolling()
+    }
+
+    private suspend fun handleTrialRedemption(result: RedemptionResult) {
+        val product = (result as? RedemptionResult.Success)?.redemptionInfo?.paywallInfo?.product ?: return
+        if (product.trialPeriodDays <= 0 || !factory.isPaywallVisible()) return
+        // Match iOS: eligibility and attribution use the active paywall's presentation snapshot;
+        // purchased product details come from the web checkout response.
+        val paywallInfo = factory.getPaywallInfo()
+        if (!paywallInfo.isFreeTrialAvailable) return
+
+        attemptTrialSideEffect("track web free trial start") {
+            trialTrackingMutex.withLock {
+                val trackedCodes = storage.read(TrackedWebTrialCodes).orEmpty()
+                if (result.code !in trackedCodes) {
+                    track(InternalSuperwallEvent.FreeTrialStart(paywallInfo, StoreProduct(RedemptionStoreProduct(product))))
+                    storage.write(TrackedWebTrialCodes, trackedCodes + result.code)
+                }
+            }
+        }
+        val reminders = trialReminders(paywallInfo, product)
+        if (reminders.isEmpty()) return
+        attemptTrialSideEffect("schedule web trial notifications") {
+            withTimeoutOrNull(WEB_TRIAL_NOTIFICATION_TIMEOUT_MILLIS) {
+                factory.scheduleTrialNotifications(reminders)
+            }
+        }
+    }
+
+    private fun trialReminders(
+        paywallInfo: PaywallInfo,
+        product: PaywallProduct,
+    ): List<LocalNotification> =
+        paywallInfo.localNotifications.mapNotNull { notification ->
+            if (notification.type != LocalNotificationType.TrialStarted) return@mapNotNull null
+            webTrialReminderDelay(product, notification.delay, factory.currentTimeMillis())?.let { delay ->
+                notification.copy(id = "${paywallInfo.identifier}_${notification.type.raw}", delay = delay)
+            }
+        }
+
+    private suspend fun attemptTrialSideEffect(
+        description: String,
+        block: suspend () -> Unit,
+    ) {
+        try {
+            block()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Logger.debug(
+                logLevel = LogLevel.error,
+                scope = LogScope.webEntitlements,
+                message = "Failed to $description",
+                error = e,
+            )
+        }
     }
 
     suspend fun checkForWebEntitlements(
