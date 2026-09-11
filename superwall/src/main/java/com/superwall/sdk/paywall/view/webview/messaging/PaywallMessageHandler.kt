@@ -32,6 +32,9 @@ import com.superwall.sdk.storage.core_data.convertToJsonElement
 import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -41,8 +44,8 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import java.net.URI
 import java.util.Date
-import java.util.LinkedList
 import java.util.Queue
+import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.coroutines.resume
 
 interface PaywallStateDelegate {
@@ -97,7 +100,88 @@ class PaywallMessageHandler(
     }
 
     var messageHandler: PaywallMessageHandlerDelegate? = null
-    private val queue: Queue<PaywallMessage> = LinkedList()
+
+    private data class PendingLifecycle(
+        val message: PaywallMessage,
+        val shouldSend: () -> Boolean = { true },
+    )
+
+    // template_variables after paywall_open is treated as a fresh load by the
+    // runtime, which then drops later page_views. Template construction is slow,
+    // so open/close wait for the in-flight template send. Other events do not.
+    private val lifecycleLock = Any()
+    private var templatesJob: Job? = null
+    private val queue: Queue<PendingLifecycle> = ConcurrentLinkedQueue()
+
+    private fun launchTemplateSend(block: suspend () -> Unit) {
+        synchronized(lifecycleLock) {
+            templatesJob =
+                ioScope.launch {
+                    block()
+                }
+        }
+    }
+
+    private suspend fun awaitInFlightTemplates(snapshot: Job?) {
+        var job = snapshot
+        while (true) {
+            if (job != null && !job.isCompleted) {
+                job.join()
+            }
+            val latest = synchronized(lifecycleLock) { templatesJob }
+            if (latest == null || latest.isCompleted || latest === job) return
+            job = latest
+        }
+    }
+
+    private fun sendLifecycleWhenReady(pending: PendingLifecycle) {
+        val toJoin: Job?
+        synchronized(lifecycleLock) {
+            if (messageHandler?.state?.paywall?.paywalljsVersion == null) {
+                queue.offer(pending)
+                return
+            }
+            toJoin = templatesJob
+        }
+        ioScope.launch {
+            awaitInFlightTemplates(toJoin)
+            if (!pending.shouldSend()) return@launch
+            // Reload nulls the version; an open that was already in flight must not
+            // land on the replacement document before it is ready.
+            val paywall = messageHandler?.state?.paywall ?: return@launch
+            if (paywall.paywalljsVersion == null) return@launch
+            val eventName =
+                if (pending.message is PaywallMessage.PaywallOpen) {
+                    SuperwallEvents.PaywallOpen.rawName
+                } else {
+                    SuperwallEvents.PaywallClose.rawName
+                }
+            pass(eventName = eventName, paywall = paywall)
+        }
+    }
+
+    // Called on the old handler before the WebView is replaced. Cancel work for
+    // the old document and restore an open only if that presentation is still up.
+    internal fun resetForWebViewReload() {
+        synchronized(lifecycleLock) {
+            templatesJob?.cancel()
+            templatesJob = null
+            queue.clear()
+            val state = messageHandler?.state
+            messageHandler?.updateState(PaywallViewState.Updates.SetPaywallJsVersion(null))
+            if (state?.isPresented == true && !state.closedForBackground) {
+                val lastOpen = state.lastOpen
+                queue.offer(
+                    PendingLifecycle(PaywallMessage.PaywallOpen) {
+                        val current = messageHandler?.state
+                        current?.isPresented == true &&
+                            !current.closedForBackground &&
+                            current.lastOpen === lastOpen
+                    },
+                )
+            }
+        }
+    }
 
     @JavascriptInterface
     fun postMessage(message: String) {
@@ -140,19 +224,24 @@ class PaywallMessageHandler(
         ) { "!! PaywallMessageHandler: Paywall: $paywall, delegeate: $messageHandler" }
         when (message) {
             is PaywallMessage.TemplateParamsAndUserAttributes ->
-                ioScope.launch { passTemplatesToWebView(paywall) }
+                launchTemplateSend { passTemplatesToWebView(paywall) }
 
             is PaywallMessage.OnReady -> {
-                messageHandler?.updateState(
-                    PaywallViewState.Updates.SetPaywallJsVersion(message.paywallJsVersion),
-                )
                 val loadedAt = Date()
                 Logger.debug(
                     LogLevel.debug,
                     LogScope.superwallCore,
                     "!! PaywallMessageHandler: Ready !!",
                 )
-                ioScope.launch { didLoadWebView(paywall, loadedAt) }
+                synchronized(lifecycleLock) {
+                    messageHandler?.updateState(
+                        PaywallViewState.Updates.SetPaywallJsVersion(message.paywallJsVersion),
+                    )
+                    templatesJob =
+                        ioScope.launch {
+                            didLoadWebView(paywall, loadedAt)
+                        }
+                }
             }
 
             is PaywallMessage.Close -> {
@@ -177,26 +266,9 @@ class PaywallMessageHandler(
                     shouldDismiss = message.shouldDismiss,
                 )
 
-            is PaywallMessage.PaywallOpen -> {
-                if (messageHandler?.state?.paywall?.paywalljsVersion == null) {
-                    queue.offer(message)
-                } else {
-                    ioScope.launch {
-                        pass(eventName = SuperwallEvents.PaywallOpen.rawName, paywall = paywall)
-                    }
-                }
-            }
-
-            is PaywallMessage.PaywallClose -> {
-                if (messageHandler?.state?.paywall?.paywalljsVersion == null) {
-                    queue.offer(message)
-                } else {
-                    ioScope.launch {
-                        val eventName = SuperwallEvents.PaywallClose.rawName
-                        pass(eventName = eventName, paywall = paywall)
-                    }
-                }
-            }
+            is PaywallMessage.PaywallOpen,
+            is PaywallMessage.PaywallClose,
+            -> sendLifecycleWhenReady(PendingLifecycle(message))
 
             is PaywallMessage.BackButtonPressed ->
                 ioScope.launch {
@@ -376,6 +448,7 @@ class PaywallMessageHandler(
         )
 
         withContext(Dispatchers.Main) {
+            currentCoroutineContext().ensureActive()
             messageHandler?.evaluate(templateScript) { error ->
                 if (error != null) {
                     Logger.debug(
@@ -451,7 +524,10 @@ class PaywallMessageHandler(
             message = { "Posting Message" },
         )
 
-        mainScope.launch {
+        // Await the post so an in-flight paywall_open that joins this job
+        // cannot overtake the templates.
+        withContext(Dispatchers.Main) {
+            currentCoroutineContext().ensureActive()
             messageHandler?.evaluate(scriptSrc) { error ->
                 if (error != null) {
                     Logger.debug(
@@ -485,11 +561,10 @@ class PaywallMessageHandler(
     }
 
     private fun flushPendingMessagesInternal() {
-        if (queue.isEmpty()) return
-
-        val pending = queue.toList()
-        queue.clear()
-        pending.forEach { handle(it) }
+        while (true) {
+            val pending = queue.poll() ?: break
+            sendLifecycleWhenReady(pending)
+        }
     }
 
     private fun openUrl(
