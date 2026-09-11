@@ -155,7 +155,9 @@ class RedemptionStoreProductTest {
     fun `date only and invalid trial dates do not affect original callback text`() {
         val dateOnly = RedemptionStoreProduct(product.copy(trialPeriodEndDate = "2026-09-14"))
         assertEquals(Date(1789344000000L), dateOnly.trialPeriodEndDate)
-        for (value in listOf("", "not a date")) {
+        val offset = RedemptionStoreProduct(product.copy(trialPeriodEndDate = "2026-09-14T14:30:00+02:00"))
+        assertEquals(Date(1789389000000L), offset.trialPeriodEndDate)
+        for (value in listOf("", "not a date", "+999999999-09-14T12:30:00Z", "+999999999-09-14")) {
             val adapted = RedemptionStoreProduct(product.copy(trialPeriodEndDate = value))
             assertNull(adapted.trialPeriodEndDate)
             assertEquals(value, adapted.trialPeriodEndDateString)

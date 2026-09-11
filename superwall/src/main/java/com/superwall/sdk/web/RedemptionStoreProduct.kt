@@ -3,8 +3,9 @@ package com.superwall.sdk.web
 import com.superwall.sdk.models.internal.RedemptionResult.PaywallInfo.PaywallProduct
 import com.superwall.sdk.store.abstractions.product.StoreProductType
 import com.superwall.sdk.store.abstractions.product.SubscriptionPeriod
-import org.threeten.bp.Instant
+import org.threeten.bp.DateTimeException
 import org.threeten.bp.LocalDate
+import org.threeten.bp.OffsetDateTime
 import org.threeten.bp.ZoneOffset
 import org.threeten.bp.format.DateTimeParseException
 import java.math.BigDecimal
@@ -39,20 +40,19 @@ internal class RedemptionStoreProduct(
     override val trialPeriodEndDateString = product.trialPeriodEndDate
     override val trialPeriodEndDate: Date? by lazy {
         // Checkout snapshots may contain either an ISO timestamp or a calendar date.
+        val end = product.trialPeriodEndDate
         try {
-            Date(Instant.parse(product.trialPeriodEndDate).toEpochMilli())
-        } catch (_: DateTimeParseException) {
-            try {
-                Date(
-                    LocalDate
-                        .parse(product.trialPeriodEndDate)
-                        .atStartOfDay()
-                        .toInstant(ZoneOffset.UTC)
-                        .toEpochMilli(),
-                )
-            } catch (_: DateTimeParseException) {
-                null
-            }
+            val instant =
+                try {
+                    OffsetDateTime.parse(end).toInstant()
+                } catch (_: DateTimeParseException) {
+                    LocalDate.parse(end).atStartOfDay().toInstant(ZoneOffset.UTC)
+                }
+            Date(instant.toEpochMilli())
+        } catch (_: DateTimeException) {
+            null
+        } catch (_: ArithmeticException) {
+            null
         }
     }
     override val trialPeriodDays = product.trialPeriodDays
