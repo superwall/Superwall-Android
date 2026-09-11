@@ -197,11 +197,11 @@ class SWWebView(
     override fun onPause() {
         hostPaused = true
         updateMediaPlayback()
-        super.onPause()
+        super<WebView>.onPause()
     }
 
     override fun onResume() {
-        super.onResume()
+        super<WebView>.onResume()
         hostPaused = false
         updateMediaPlayback()
     }
