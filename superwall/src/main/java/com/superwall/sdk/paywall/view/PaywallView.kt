@@ -1007,6 +1007,7 @@ class PaywallView(
 
     private fun recreateWebview() {
         val oldWebView = webView
+        oldWebView.messageHandler.resetForWebViewReload()
         oldWebView.detach(this)
         oldWebView.destroyView()
         webView =
@@ -1015,7 +1016,6 @@ class PaywallView(
             })
         webView.attach(this)
         webView.delegate = this
-        webView.messageHandler.handle(PaywallMessage.PaywallOpen)
         loadWebView()
     }
 
