@@ -14,9 +14,9 @@ interface PaywallWebUI {
 
     fun enableBackgroundRendering()
 
-    fun onPause()
+    fun onPause() {}
 
-    fun onResume()
+    fun onResume() {}
 
     fun scrollBy(
         x: Int,
