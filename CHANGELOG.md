@@ -4,6 +4,8 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## Unreleased
 
+- Fix multi-page paywalls only reporting the entry page view. `paywall_open` now waits for an in-flight `template_variables` send, so the runtime does not treat a late template payload as a fresh load and drop later `page_view`s.
+- Fix an active paywall not being reopened after its webview process crashes and is recreated. Recovery cancels template work for the old document and sends the open after the replacement loads, only if the same presentation is still active.
 - Fix prices not showing when product/offers are fetched from cache
 - Fix video loading and playing in the background on preloaded paywalls
 - Fix a JSON null in placement parameters or user attributes reaching audience filters as the text `"null"`, so a filter checking whether a field is null never matched.
