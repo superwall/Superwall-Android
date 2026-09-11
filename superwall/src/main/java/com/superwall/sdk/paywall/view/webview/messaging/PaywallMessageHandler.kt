@@ -49,6 +49,10 @@ import java.util.Queue
 import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.coroutines.resume
 
+// Bound the wait so a hung product/attribute fetch cannot silence paywall_open.
+// The in-flight template send is not cancelled; it still posts and marks Ready.
+internal const val TEMPLATE_OPEN_WAIT_MS = 10_000L
+
 interface PaywallStateDelegate {
     val state: PaywallViewState
 
@@ -98,9 +102,6 @@ class PaywallMessageHandler(
                         meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
                         var head = document.getElementsByTagName('head')[0];
                         head.appendChild(meta);"""
-
-        // Bound the wait so a hung product/attribute fetch cannot silence paywall_open.
-        const val TEMPLATE_OPEN_WAIT_MS = 10_000L
     }
 
     var messageHandler: PaywallMessageHandlerDelegate? = null
@@ -155,10 +156,6 @@ class PaywallMessageHandler(
                 LogScope.paywallView,
                 "Timed out waiting for template_variables; sending lifecycle anyway",
             )
-            synchronized(lifecycleLock) {
-                inFlightTemplateSends.toList().forEach { it.cancel() }
-                inFlightTemplateSends.clear()
-            }
         }
     }
 

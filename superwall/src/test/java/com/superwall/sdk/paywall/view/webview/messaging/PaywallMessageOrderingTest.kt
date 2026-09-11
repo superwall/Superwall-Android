@@ -24,8 +24,10 @@ import com.superwall.sdk.permissions.PermissionType
 import com.superwall.sdk.permissions.UserPermissions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
@@ -93,6 +95,7 @@ class PaywallMessageOrderingTest {
 
     private class SlowVariablesFactory(
         private val fail: Boolean = false,
+        private val hang: Boolean = false,
         private val delaysMs: List<Long> = listOf(TEMPLATE_BUILD_MS),
     ) : VariablesFactory {
         private val remaining = delaysMs.toMutableList()
@@ -102,6 +105,7 @@ class PaywallMessageOrderingTest {
             computedPropertyRequests: List<ComputedPropertyRequest>,
             event: EventData?,
         ): JsonVariables {
+            if (hang) awaitCancellation()
             val wait = if (remaining.isEmpty()) delaysMs.last() else remaining.removeAt(0)
             delay(wait)
             if (fail) throw IllegalStateException("could not build the templates")
@@ -120,6 +124,7 @@ class PaywallMessageOrderingTest {
 
     private fun createHandler(
         failTemplateBuild: Boolean = false,
+        hangTemplateBuild: Boolean = false,
         buildDelayMs: Long = TEMPLATE_BUILD_MS,
         delaysMs: List<Long>? = null,
     ): PaywallMessageHandler =
@@ -127,6 +132,7 @@ class PaywallMessageOrderingTest {
             factory =
                 SlowVariablesFactory(
                     fail = failTemplateBuild,
+                    hang = hangTemplateBuild,
                     delaysMs = delaysMs ?: listOf(buildDelayMs),
                 ),
             options =
@@ -329,23 +335,56 @@ class PaywallMessageOrderingTest {
     @Test
     fun aHungTemplateBuildDoesNotSilencePaywallOpen() =
         runTest {
-            Given("a template build that never finishes") {
+            Given("a template build that never completes") {
                 val state = PaywallViewState(paywall = Paywall.stub().copy(paywalljsVersion = null), locale = "en-US")
                 val delegate = RecordingDelegate(state)
                 delegate.updateState(PaywallViewState.Updates.SetPaywallJsVersion(PAYWALL_JS_VERSION))
-                val handler = createHandler(buildDelayMs = 30_000L)
+                val handler = createHandler(hangTemplateBuild = true)
                 handler.messageHandler = delegate
 
-                When("open waits on that build") {
+                When("open waits on that build past the bound") {
                     handler.handle(PaywallMessage.TemplateParamsAndUserAttributes)
                     handler.handle(PaywallMessage.PaywallOpen)
-                    advanceUntilIdle()
+                    advanceTimeBy(TEMPLATE_OPEN_WAIT_MS + 1)
+                    runCurrent()
 
-                    Then("open is still sent after the wait times out") {
+                    Then("the timeout is the only path that delivers open, and templates stay in flight") {
                         assertTrue(
                             "paywall_open was lost behind a hung template send",
                             delegate.evaluations.indexOfMessage(PAYWALL_OPEN) >= 0,
                         )
+                        assertEquals(-1, delegate.evaluations.indexOfMessage(TEMPLATE_VARIABLES))
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun aSlowTemplateBuildStillReachesReadyAfterTheWaitBound() =
+        runTest {
+            Given("initialization that finishes after the open wait bound") {
+                val state = PaywallViewState(paywall = Paywall.stub().copy(paywalljsVersion = null), locale = "en-US")
+                val delegate = RecordingDelegate(state)
+                val handler = createHandler(buildDelayMs = TEMPLATE_OPEN_WAIT_MS + 2_000L)
+                handler.messageHandler = delegate
+
+                When("open is sent while templates are still building") {
+                    handler.handle(PaywallMessage.OnReady(paywallJsVersion = PAYWALL_JS_VERSION))
+                    handler.handle(PaywallMessage.PaywallOpen)
+                    advanceTimeBy(TEMPLATE_OPEN_WAIT_MS + 1)
+                    runCurrent()
+
+                    Then("open is delivered at the bound without cancelling the template send") {
+                        assertTrue(delegate.evaluations.indexOfMessage(PAYWALL_OPEN) >= 0)
+                        assertEquals(-1, delegate.evaluations.indexOfMessage(TEMPLATE_VARIABLES))
+                        assertEquals(PaywallLoadingState.Unknown, delegate.state.loadingState)
+                    }
+
+                    advanceUntilIdle()
+
+                    Then("templates still post and the paywall reaches Ready") {
+                        assertTrue(delegate.evaluations.indexOfMessage(TEMPLATE_VARIABLES) >= 0)
+                        assertEquals(PaywallLoadingState.Ready, delegate.state.loadingState)
                     }
                 }
             }
