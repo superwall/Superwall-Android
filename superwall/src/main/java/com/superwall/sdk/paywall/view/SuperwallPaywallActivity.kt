@@ -925,7 +925,6 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             object : NotificationPermissionCallback {
                 override fun onPermissionResult(granted: Boolean) {
                     if (notificationPermissionCallback === this) notificationPermissionCallback = null
-                    if (!continuation.isActive) return
                     try {
                         if (granted) {
                             // Web delays have already been anchored to checkout; permission time must not shift them.
@@ -950,18 +949,16 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                         }
                     } catch (e: Exception) {
                         // Deliver asynchronous permission-callback failures to the awaiting redemption.
-                        continuation.resumeWithException(e)
+                        if (continuation.isActive) continuation.resumeWithException(e)
                         return
                     }
+                    if (!continuation.isActive) return
                     continuation.resume(Unit) // Resume coroutine after processing
                 }
             }
         notificationPermissionCallback = callback
-        continuation.invokeOnCancellation {
-            runOnUiThread {
-                if (notificationPermissionCallback === callback) notificationPermissionCallback = null
-            }
-        }
+        // Keep the callback if the wait is cancelled (redemption timeout). onDestroy and a
+        // replacement request still clean it up; a late grant can still schedule best-effort.
         try {
             checkAndRequestNotificationPermissions(this, callback)
         } catch (e: Exception) {

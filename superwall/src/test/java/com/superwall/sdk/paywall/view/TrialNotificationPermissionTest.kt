@@ -108,7 +108,7 @@ class TrialNotificationPermissionTest {
         }
 
     @Test
-    fun `cancelled permission wait ignores late and duplicate results`() =
+    fun `cancelled permission wait still schedules a late grant once`() =
         runTest {
             val app = ApplicationProvider.getApplicationContext<Application>()
             shadowOf(app).denyPermissions(Manifest.permission.POST_NOTIFICATIONS)
@@ -124,7 +124,7 @@ class TrialNotificationPermissionTest {
                     intArrayOf(PackageManager.PERMISSION_GRANTED),
                 )
             }
-            verify(exactly = 0) { NotificationScheduler.scheduleNotifications(any(), any(), any(), any()) }
+            verify(exactly = 1) { NotificationScheduler.scheduleNotifications(any(), any(), any(), any()) }
         }
 
     @Test
@@ -138,9 +138,15 @@ class TrialNotificationPermissionTest {
             controller.create()
             val job = launch { activity.attemptToScheduleNotifications(notifications, factory) }
             runCurrent()
+            val request = shadowOf(activity).lastRequestedPermission
             controller.destroy()
             runCurrent()
             assertTrue(job.isCompleted)
+            activity.onRequestPermissionsResult(
+                request.requestCode,
+                request.requestedPermissions,
+                intArrayOf(PackageManager.PERMISSION_GRANTED),
+            )
             verify(exactly = 0) { NotificationScheduler.scheduleNotifications(any(), any(), any(), any()) }
         }
 
