@@ -4,8 +4,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## Unreleased
 
-- Web purchase redemption now exposes the full checkout product in `didRedeemLink`, tracks `freeTrial_start` for eligible trials, and schedules the active paywall's trial reminders when notification permission is granted.
-- Web trial redemption now bounds notification permission waits, deduplicates emitted trial events across launches, and adjusts reminder timing from precise checkout end timestamps. Reminders with ambiguous dates or times already elapsed are skipped. Existing Kotlin constructor and copy signatures are preserved.
+- Web purchase redemption now exposes the full checkout product in `didRedeemLink`, tracks `freeTrial_start` once per code, and schedules the active paywall's trial reminders from the checkout timestamp. Notification permission waits no longer block access or drop a late grant; ambiguous or already-elapsed reminders are skipped.
 - Fix multi-page paywalls only reporting the entry page view. `paywall_open` now waits for an in-flight `template_variables` send, so the runtime does not treat a late template payload as a fresh load and drop later `page_view`s.
 - Fix an active paywall not being reopened after its webview process crashes and is recreated. Recovery cancels template work for the old document and sends the open after the replacement loads, only if the same presentation is still active.
 - Fix prices not showing when product/offers are fetched from cache

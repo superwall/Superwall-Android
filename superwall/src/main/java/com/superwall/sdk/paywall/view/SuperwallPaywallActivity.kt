@@ -929,44 +929,53 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                     if (notificationPermissionCallback === this) notificationPermissionCallback = null
                     try {
                         if (granted) {
-                            // Web delays have already been anchored to checkout; permission time must not shift them.
-                            val readyNotifications =
-                                if (applySandboxScaling) {
-                                    notifications
-                                } else {
-                                    val elapsed = SystemClock.elapsedRealtime() - permissionRequestedAt
-                                    notifications.mapNotNull {
-                                        it.copy(delay = it.delay - elapsed).takeIf { reminder -> reminder.delay > 0 }
-                                    }
-                                }
-                            if (readyNotifications.isNotEmpty()) {
-                                NotificationScheduler.scheduleNotifications(
-                                    notifications = readyNotifications,
-                                    factory = factory,
-                                    context = this@SuperwallPaywallActivity,
-                                    cancelExisting = cancelExisting,
-                                    applySandboxScaling = applySandboxScaling,
-                                )
-                            }
+                            scheduleGrantedNotifications(
+                                notifications,
+                                factory,
+                                cancelExisting,
+                                applySandboxScaling,
+                                permissionRequestedAt,
+                            )
                         }
                     } catch (e: Exception) {
-                        // Deliver asynchronous permission-callback failures to the awaiting redemption.
                         if (continuation.isActive) continuation.resumeWithException(e)
                         return
                     }
-                    if (!continuation.isActive) return
-                    continuation.resume(Unit) // Resume coroutine after processing
+                    if (continuation.isActive) continuation.resume(Unit)
                 }
             }
         notificationPermissionCallback = callback
-        // Keep the callback if the wait is cancelled (redemption timeout). onDestroy and a
-        // replacement request still clean it up; a late grant can still schedule best-effort.
         try {
             checkAndRequestNotificationPermissions(this, callback)
         } catch (e: Exception) {
             if (notificationPermissionCallback === callback) notificationPermissionCallback = null
             if (continuation.isActive) continuation.resumeWithException(e)
         }
+    }
+
+    private fun scheduleGrantedNotifications(
+        notifications: List<LocalNotification>,
+        factory: DeviceHelperFactory,
+        cancelExisting: Boolean,
+        applySandboxScaling: Boolean,
+        permissionRequestedAt: Long,
+    ) {
+        // Web delays are anchored to checkout, so permission wait must not shift them.
+        val readyNotifications =
+            if (applySandboxScaling) {
+                notifications
+            } else {
+                val elapsed = SystemClock.elapsedRealtime() - permissionRequestedAt
+                notifications.mapNotNull { it.copy(delay = it.delay - elapsed).takeIf { reminder -> reminder.delay > 0 } }
+            }
+        if (readyNotifications.isEmpty()) return
+        NotificationScheduler.scheduleNotifications(
+            notifications = readyNotifications,
+            factory = factory,
+            context = this,
+            cancelExisting = cancelExisting,
+            applySandboxScaling = applySandboxScaling,
+        )
     }
 
     private fun createNotificationChannel() {

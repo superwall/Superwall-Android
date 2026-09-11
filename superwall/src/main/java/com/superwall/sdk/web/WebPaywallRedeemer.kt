@@ -22,6 +22,7 @@ import com.superwall.sdk.models.internal.ErrorInfo
 import com.superwall.sdk.models.internal.RedemptionOwnership
 import com.superwall.sdk.models.internal.RedemptionOwnershipType
 import com.superwall.sdk.models.internal.RedemptionResult
+import com.superwall.sdk.models.internal.RedemptionResult.PaywallInfo.PaywallProduct
 import com.superwall.sdk.models.internal.UserId
 import com.superwall.sdk.models.paywall.LocalNotification
 import com.superwall.sdk.models.paywall.LocalNotificationType
@@ -40,8 +41,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.plus
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -108,7 +107,6 @@ class WebPaywallRedeemer(
 
     private var pollingJob: Job? = null
     private var redemptionJob: Job? = null
-    private val trialTrackingMutex = Mutex()
 
     private suspend fun track(event: Trackable) = factory.track(event)
 
@@ -344,30 +342,31 @@ class WebPaywallRedeemer(
         if (!paywallInfo.isFreeTrialAvailable) return
 
         attemptTrialSideEffect("track web free trial start") {
-            trialTrackingMutex.withLock {
-                val trackedCodes = storage.read(TrackedWebTrialCodes).orEmpty()
-                if (result.code !in trackedCodes) {
-                    track(InternalSuperwallEvent.FreeTrialStart(paywallInfo, StoreProduct(RedemptionStoreProduct(product))))
-                    storage.write(TrackedWebTrialCodes, trackedCodes + result.code)
-                }
+            val trackedCodes = storage.read(TrackedWebTrialCodes).orEmpty()
+            if (result.code !in trackedCodes) {
+                track(InternalSuperwallEvent.FreeTrialStart(paywallInfo, StoreProduct(RedemptionStoreProduct(product))))
+                storage.write(TrackedWebTrialCodes, trackedCodes + result.code)
             }
         }
-        val notifications =
-            paywallInfo.localNotifications
-                .filter { it.type == LocalNotificationType.TrialStarted }
-                .mapNotNull { notification ->
-                    webTrialReminderDelay(product, notification.delay, factory.currentTimeMillis())?.let { delay ->
-                        notification.copy(id = "${paywallInfo.identifier}_${notification.type.raw}", delay = delay)
-                    }
-                }
-        if (notifications.isNotEmpty()) {
-            attemptTrialSideEffect("schedule web trial notifications") {
-                withTimeoutOrNull(WEB_TRIAL_NOTIFICATION_TIMEOUT_MILLIS) {
-                    factory.scheduleTrialNotifications(notifications)
-                }
+        val reminders = trialReminders(paywallInfo, product)
+        if (reminders.isEmpty()) return
+        attemptTrialSideEffect("schedule web trial notifications") {
+            withTimeoutOrNull(WEB_TRIAL_NOTIFICATION_TIMEOUT_MILLIS) {
+                factory.scheduleTrialNotifications(reminders)
             }
         }
     }
+
+    private fun trialReminders(
+        paywallInfo: PaywallInfo,
+        product: PaywallProduct,
+    ): List<LocalNotification> =
+        paywallInfo.localNotifications.mapNotNull { notification ->
+            if (notification.type != LocalNotificationType.TrialStarted) return@mapNotNull null
+            webTrialReminderDelay(product, notification.delay, factory.currentTimeMillis())?.let { delay ->
+                notification.copy(id = "${paywallInfo.identifier}_${notification.type.raw}", delay = delay)
+            }
+        }
 
     private suspend fun attemptTrialSideEffect(
         description: String,
