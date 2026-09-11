@@ -156,6 +156,33 @@ class WebRedemptionTrialTest {
         }
 
     @Test
+    fun `overlapping same-code redemptions emit freeTrial_start once`() =
+        runTest {
+            val trackingStarted = CompletableDeferred<Unit>()
+            val releaseTracking = CompletableDeferred<Unit>()
+            coEvery { factory.track(match { it is InternalSuperwallEvent.FreeTrialStart }) } coAnswers {
+                if (!trackingStarted.isCompleted) trackingStarted.complete(Unit)
+                releaseTracking.await()
+                events += firstArg<Trackable>()
+            }
+            val scope = IOScope(StandardTestDispatcher(testScheduler))
+            val redeemer = WebPaywallRedeemer(mockk(), scope, mockk(), network, storage, mockk(relaxed = true), factory)
+            try {
+                val first = launch { redeemer.redeem(WebPaywallRedeemer.RedeemType.Code("TESTCODE")) }
+                val second = launch { redeemer.redeem(WebPaywallRedeemer.RedeemType.Code("TESTCODE")) }
+                trackingStarted.await()
+                runCurrent()
+                releaseTracking.complete(Unit)
+                first.join()
+                second.join()
+            } finally {
+                scope.cancel()
+            }
+            assertEquals(1, events.filterIsInstance<InternalSuperwallEvent.FreeTrialStart>().size)
+            assertEquals(setOf("TESTCODE"), trackedCodes)
+        }
+
+    @Test
     fun `failed redemption can subsequently start a trial`() =
         runTest {
             val success = response

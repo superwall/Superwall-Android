@@ -41,6 +41,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.plus
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -107,6 +109,9 @@ class WebPaywallRedeemer(
 
     private var pollingJob: Job? = null
     private var redemptionJob: Job? = null
+    // Code redemptions launch independently on IOScope; hold this across track() so two
+    // overlapping same-code calls cannot both observe an empty set and emit twice.
+    private val trialTrackingMutex = Mutex()
 
     private suspend fun track(event: Trackable) = factory.track(event)
 
@@ -342,10 +347,12 @@ class WebPaywallRedeemer(
         if (!paywallInfo.isFreeTrialAvailable) return
 
         attemptTrialSideEffect("track web free trial start") {
-            val trackedCodes = storage.read(TrackedWebTrialCodes).orEmpty()
-            if (result.code !in trackedCodes) {
-                track(InternalSuperwallEvent.FreeTrialStart(paywallInfo, StoreProduct(RedemptionStoreProduct(product))))
-                storage.write(TrackedWebTrialCodes, trackedCodes + result.code)
+            trialTrackingMutex.withLock {
+                val trackedCodes = storage.read(TrackedWebTrialCodes).orEmpty()
+                if (result.code !in trackedCodes) {
+                    track(InternalSuperwallEvent.FreeTrialStart(paywallInfo, StoreProduct(RedemptionStoreProduct(product))))
+                    storage.write(TrackedWebTrialCodes, trackedCodes + result.code)
+                }
             }
         }
         val reminders = trialReminders(paywallInfo, product)
