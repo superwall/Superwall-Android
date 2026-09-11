@@ -788,6 +788,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         val paywallVc = paywallView() ?: return
+        paywallVc.webView.onResume()
         if (isBottomSheetView || isPopupView) {
             setTransparentBackground()
         }
@@ -801,6 +802,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         super.onPause()
 
         val paywallVc = paywallView() ?: return
+        paywallVc.webView.onPause()
         mainScope.launch {
             paywallVc.beforeOnDestroy(forceCleanup = isFinishing)
         }
