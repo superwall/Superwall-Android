@@ -93,14 +93,17 @@ class PaywallMessageOrderingTest {
 
     private class SlowVariablesFactory(
         private val fail: Boolean = false,
-        private val buildDelayMs: Long = TEMPLATE_BUILD_MS,
+        private val delaysMs: List<Long> = listOf(TEMPLATE_BUILD_MS),
     ) : VariablesFactory {
+        private val remaining = delaysMs.toMutableList()
+
         override suspend fun makeJsonVariables(
             products: List<ProductVariable>?,
             computedPropertyRequests: List<ComputedPropertyRequest>,
             event: EventData?,
         ): JsonVariables {
-            delay(buildDelayMs)
+            val wait = if (remaining.isEmpty()) delaysMs.last() else remaining.removeAt(0)
+            delay(wait)
             if (fail) throw IllegalStateException("could not build the templates")
             return JsonVariables("template_variables", Variables(emptyMap(), emptyMap(), emptyMap()))
         }
@@ -118,9 +121,14 @@ class PaywallMessageOrderingTest {
     private fun createHandler(
         failTemplateBuild: Boolean = false,
         buildDelayMs: Long = TEMPLATE_BUILD_MS,
+        delaysMs: List<Long>? = null,
     ): PaywallMessageHandler =
         PaywallMessageHandler(
-            factory = SlowVariablesFactory(fail = failTemplateBuild, buildDelayMs = buildDelayMs),
+            factory =
+                SlowVariablesFactory(
+                    fail = failTemplateBuild,
+                    delaysMs = delaysMs ?: listOf(buildDelayMs),
+                ),
             options =
                 object : OptionsFactory {
                     override fun makeSuperwallOptions(): SuperwallOptions = SuperwallOptions()
@@ -228,6 +236,72 @@ class PaywallMessageOrderingTest {
         }
 
     @Test
+    fun flushWhileTheWebviewIsUnloadedLeavesTheOpenQueued() =
+        runTest {
+            Given("a crash-recovery open queued against an unloaded webview") {
+                val state =
+                    PaywallViewState(
+                        paywall = Paywall.stub().copy(paywalljsVersion = null),
+                        locale = "en-US",
+                        isPresented = true,
+                        lastOpen = Date(1),
+                    )
+                val delegate = RecordingDelegate(state)
+                val handler = createHandler()
+                handler.messageHandler = delegate
+                handler.resetForWebViewReload()
+
+                When("flush runs before OnReady") {
+                    handler.flushPendingMessages()
+                    advanceUntilIdle()
+
+                    Then("the open stays queued and the flush returns") {
+                        assertEquals(-1, delegate.evaluations.indexOfMessage(PAYWALL_OPEN))
+                        assertTrue(delegate.evaluations.isEmpty())
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun overlappingTemplateSendsBothFinishBeforePaywallOpen() =
+        runTest {
+            Given("initialization is still building templates") {
+                val state = PaywallViewState(paywall = Paywall.stub().copy(paywalljsVersion = null), locale = "en-US")
+                val delegate = RecordingDelegate(state)
+                val handler =
+                    createHandler(
+                        // First build (OnReady) is slower than the second so they
+                        // finish out of arrival order if open only waits on the latest.
+                        delaysMs = listOf(1_000L, 50L),
+                    )
+                handler.messageHandler = delegate
+
+                When("a second template send starts before the first finishes, then open arrives") {
+                    handler.handle(PaywallMessage.OnReady(paywallJsVersion = PAYWALL_JS_VERSION))
+                    runCurrent()
+                    handler.handle(PaywallMessage.TemplateParamsAndUserAttributes)
+                    handler.handle(PaywallMessage.PaywallOpen)
+                    advanceUntilIdle()
+
+                    Then("both template payloads reach the webview before paywall_open") {
+                        val templateCount = delegate.evaluations.count { it.contains(TEMPLATE_VARIABLES) }
+                        assertEquals(2, templateCount)
+                        val lastTemplate =
+                            delegate.evaluations.indexOfLast { it.contains(TEMPLATE_VARIABLES) }
+                        val open = delegate.evaluations.indexOfMessage(PAYWALL_OPEN)
+                        assertTrue(lastTemplate >= 0)
+                        assertTrue(open >= 0)
+                        assertTrue(
+                            "paywall_open (index $open) overtook a template send (last index $lastTemplate)",
+                            lastTemplate < open,
+                        )
+                    }
+                }
+            }
+        }
+
+    @Test
     fun aFailedTemplateBuildDoesNotDropPaywallOpen() =
         runTest {
             Given("a paywall whose template build throws") {
@@ -245,6 +319,31 @@ class PaywallMessageOrderingTest {
                     Then("the open is still delivered") {
                         assertTrue(
                             "paywall_open was lost behind a failed template send",
+                            delegate.evaluations.indexOfMessage(PAYWALL_OPEN) >= 0,
+                        )
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun aHungTemplateBuildDoesNotSilencePaywallOpen() =
+        runTest {
+            Given("a template build that never finishes") {
+                val state = PaywallViewState(paywall = Paywall.stub().copy(paywalljsVersion = null), locale = "en-US")
+                val delegate = RecordingDelegate(state)
+                delegate.updateState(PaywallViewState.Updates.SetPaywallJsVersion(PAYWALL_JS_VERSION))
+                val handler = createHandler(buildDelayMs = 30_000L)
+                handler.messageHandler = delegate
+
+                When("open waits on that build") {
+                    handler.handle(PaywallMessage.TemplateParamsAndUserAttributes)
+                    handler.handle(PaywallMessage.PaywallOpen)
+                    advanceUntilIdle()
+
+                    Then("open is still sent after the wait times out") {
+                        assertTrue(
+                            "paywall_open was lost behind a hung template send",
                             delegate.evaluations.indexOfMessage(PAYWALL_OPEN) >= 0,
                         )
                     }
@@ -284,7 +383,7 @@ class PaywallMessageOrderingTest {
         runTest {
             for (openBeforeReady in listOf(false, true)) {
                 val delegate = RecordingDelegate(PaywallViewState(paywall = Paywall.stub().copy(paywalljsVersion = null), locale = "en-US"))
-                val handler = createHandler(buildDelayMs = 11_000L)
+                val handler = createHandler(buildDelayMs = 3_000L)
                 handler.messageHandler = delegate
 
                 if (openBeforeReady) handler.handle(PaywallMessage.PaywallOpen)

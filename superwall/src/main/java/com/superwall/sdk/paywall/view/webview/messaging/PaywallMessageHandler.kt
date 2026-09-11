@@ -31,6 +31,7 @@ import com.superwall.sdk.storage.core_data.convertFromJsonElement
 import com.superwall.sdk.storage.core_data.convertToJsonElement
 import com.superwall.sdk.utilities.withErrorTracking
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
@@ -97,6 +98,9 @@ class PaywallMessageHandler(
                         meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
                         var head = document.getElementsByTagName('head')[0];
                         head.appendChild(meta);"""
+
+        // Bound the wait so a hung product/attribute fetch cannot silence paywall_open.
+        const val TEMPLATE_OPEN_WAIT_MS = 10_000L
     }
 
     var messageHandler: PaywallMessageHandlerDelegate? = null
@@ -108,43 +112,65 @@ class PaywallMessageHandler(
 
     // template_variables after paywall_open is treated as a fresh load by the
     // runtime, which then drops later page_views. Template construction is slow,
-    // so open/close wait for the in-flight template send. Other events do not.
+    // so open/close wait until every in-flight template send has posted.
+    // Other events do not wait.
     private val lifecycleLock = Any()
-    private var templatesJob: Job? = null
+    private val inFlightTemplateSends = mutableSetOf<Job>()
     private val queue: Queue<PendingLifecycle> = ConcurrentLinkedQueue()
 
     private fun launchTemplateSend(block: suspend () -> Unit) {
         synchronized(lifecycleLock) {
-            templatesJob =
-                ioScope.launch {
-                    block()
-                }
+            launchTemplateSendLocked(block)
         }
     }
 
-    private suspend fun awaitInFlightTemplates(snapshot: Job?) {
-        var job = snapshot
-        while (true) {
-            if (job != null && !job.isCompleted) {
-                job.join()
+    // Caller holds lifecycleLock. Register the job before it starts so a
+    // concurrent open cannot observe "loaded, nothing in flight."
+    private fun launchTemplateSendLocked(block: suspend () -> Unit) {
+        val job =
+            ioScope.launch(start = CoroutineStart.LAZY) {
+                block()
             }
-            val latest = synchronized(lifecycleLock) { templatesJob }
-            if (latest == null || latest.isCompleted || latest === job) return
-            job = latest
+        inFlightTemplateSends.add(job)
+        job.invokeOnCompletion {
+            synchronized(lifecycleLock) {
+                inFlightTemplateSends.remove(job)
+            }
+        }
+        job.start()
+    }
+
+    private suspend fun awaitInFlightTemplates() {
+        val completed =
+            withTimeoutOrNull(TEMPLATE_OPEN_WAIT_MS) {
+                while (true) {
+                    val jobs = synchronized(lifecycleLock) { inFlightTemplateSends.toList() }
+                    if (jobs.isEmpty()) return@withTimeoutOrNull Unit
+                    jobs.forEach { it.join() }
+                }
+            }
+        if (completed == null) {
+            Logger.debug(
+                LogLevel.warn,
+                LogScope.paywallView,
+                "Timed out waiting for template_variables; sending lifecycle anyway",
+            )
+            synchronized(lifecycleLock) {
+                inFlightTemplateSends.toList().forEach { it.cancel() }
+                inFlightTemplateSends.clear()
+            }
         }
     }
 
     private fun sendLifecycleWhenReady(pending: PendingLifecycle) {
-        val toJoin: Job?
         synchronized(lifecycleLock) {
             if (messageHandler?.state?.paywall?.paywalljsVersion == null) {
                 queue.offer(pending)
                 return
             }
-            toJoin = templatesJob
         }
         ioScope.launch {
-            awaitInFlightTemplates(toJoin)
+            awaitInFlightTemplates()
             if (!pending.shouldSend()) return@launch
             // Reload nulls the version; an open that was already in flight must not
             // land on the replacement document before it is ready.
@@ -164,8 +190,8 @@ class PaywallMessageHandler(
     // the old document and restore an open only if that presentation is still up.
     internal fun resetForWebViewReload() {
         synchronized(lifecycleLock) {
-            templatesJob?.cancel()
-            templatesJob = null
+            inFlightTemplateSends.toList().forEach { it.cancel() }
+            inFlightTemplateSends.clear()
             queue.clear()
             val state = messageHandler?.state
             messageHandler?.updateState(PaywallViewState.Updates.SetPaywallJsVersion(null))
@@ -237,10 +263,9 @@ class PaywallMessageHandler(
                     messageHandler?.updateState(
                         PaywallViewState.Updates.SetPaywallJsVersion(message.paywallJsVersion),
                     )
-                    templatesJob =
-                        ioScope.launch {
-                            didLoadWebView(paywall, loadedAt)
-                        }
+                    launchTemplateSendLocked {
+                        didLoadWebView(paywall, loadedAt)
+                    }
                 }
             }
 
@@ -561,10 +586,14 @@ class PaywallMessageHandler(
     }
 
     private fun flushPendingMessagesInternal() {
+        // Snapshot first. sendLifecycleWhenReady re-queues when the webview
+        // is not ready; draining until empty would spin on the main thread.
+        val pending = ArrayList<PendingLifecycle>()
         while (true) {
-            val pending = queue.poll() ?: break
-            sendLifecycleWhenReady(pending)
+            val next = queue.poll() ?: break
+            pending.add(next)
         }
+        pending.forEach { sendLifecycleWhenReady(it) }
     }
 
     private fun openUrl(
