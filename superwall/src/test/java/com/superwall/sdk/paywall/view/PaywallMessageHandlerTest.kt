@@ -380,6 +380,10 @@ class PaywallMessageHandlerTest {
     private inner class FakePaywallWebUI(
         override val messageHandler: PaywallMessageHandler,
     ) : PaywallWebUI {
+        override fun onPause() = Unit
+
+        override fun onResume() = Unit
+
         override var delegate: PaywallUIDelegate? = null
         val evaluateCalls = mutableListOf<String>()
         private val view = View(context)
