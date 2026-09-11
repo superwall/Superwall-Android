@@ -181,6 +181,52 @@ class SWWebView(
     private var lastLoadedUrl: String? = null
     private var loadRetryCount = 0
 
+    private var hostPaused = false
+    private var viewDestroyed = false
+    // View callbacks can run from the superclass constructor, before Kotlin initializers.
+    // The JVM default (false) keeps them from evaluating JS until this is set to true, so it
+    // must stay a field with an initializer rather than being inlined.
+    private var mediaLifecycleReady = true
+
+    private fun updateMediaPlayback() {
+        if (!mediaLifecycleReady || viewDestroyed) return
+        val allowed = !hostPaused && isAttachedToWindow && isShown && windowVisibility == View.VISIBLE
+        evaluateJavascript(MediaPlaybackScript.build(allowed), null)
+    }
+
+    override fun onPause() {
+        hostPaused = true
+        updateMediaPlayback()
+        super<WebView>.onPause()
+    }
+
+    override fun onResume() {
+        super<WebView>.onResume()
+        hostPaused = false
+        updateMediaPlayback()
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        // A cached view can be attached to a different host, including an embedded one.
+        onResume()
+    }
+
+    override fun onDetachedFromWindow() {
+        if (!viewDestroyed) evaluateJavascript(MediaPlaybackScript.build(false), null)
+        super.onDetachedFromWindow()
+    }
+
+    override fun onWindowVisibilityChanged(visibility: Int) {
+        super.onWindowVisibilityChanged(visibility)
+        updateMediaPlayback()
+    }
+
+    override fun onVisibilityChanged(changedView: View, visibility: Int) {
+        super.onVisibilityChanged(changedView, visibility)
+        updateMediaPlayback()
+    }
+
     // The device preload script seeds `window.__SW_DEVICE_PRELOAD__` as soon as
     // the page starts loading, so translated paywalls render in the device locale
     // on first paint instead of waiting for the `template_variables` message. The
@@ -196,6 +242,7 @@ class SWWebView(
             }
 
     private val onPageStartedPreloadHook: (WebView) -> Unit = { view ->
+        updateMediaPlayback()
         currentDeviceLocale()?.let { locale ->
             view.evaluateJavascript(DevicePreloadScript.build(locale), null)
         }
@@ -459,6 +506,8 @@ class SWWebView(
                             }
 
                             is WebviewClientEvent.OnPageFinished -> {
+                                // Reinstall after navigation in case the early injection was lost.
+                                updateMediaPlayback()
                                 // The client records page-level failures synchronously on the
                                 // WebViewClient callback thread, so this can't miss an error
                                 // whose async OnError event hasn't been processed yet.
@@ -574,6 +623,7 @@ class SWWebView(
     }
 
     override fun destroy() {
+        viewDestroyed = true
         onScrollChangeListener = null
         super.destroy()
     }

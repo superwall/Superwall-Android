@@ -481,8 +481,11 @@ object ProductItemSerializer : KSerializer<ProductItem> {
                 ?: throw SerializationException("This class can be loaded only by Json")
         val jsonObject = jsonInput.decodeJsonElement().jsonObject
 
-        // Extract fields using the expected names during deserialization
-        val name = jsonObject["reference_name"]?.jsonPrimitive?.content ?: ""
+        // API responses use reference_name; serialized cache entries use product.
+        val name =
+            jsonObject["reference_name"]?.jsonPrimitive?.content
+                ?: jsonObject["product"]?.jsonPrimitive?.content
+                ?: ""
         val storeProductJsonObject =
             jsonObject["store_product"]?.jsonObject
                 ?: throw SerializationException("Missing store_product")

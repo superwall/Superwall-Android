@@ -45,6 +45,7 @@ internal class NotificationScheduler {
             factory: DeviceHelperFactory,
             context: Context,
             cancelExisting: Boolean = false,
+            applySandboxScaling: Boolean = true,
         ) {
             val workManager = WorkManager.getInstance(context)
             IOScope().launch {
@@ -67,7 +68,7 @@ internal class NotificationScheduler {
                     var delay = notification.delay // delay in milliseconds
 
                     val isSandbox = factory.makeIsSandbox()
-                    if (isSandbox) {
+                    if (isSandbox && applySandboxScaling) {
                         delay = delay / 24 / 60
                     }
 

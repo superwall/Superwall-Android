@@ -517,6 +517,10 @@ class PaywallViewTest {
     private inner class FakePaywallWebUI(
         override val messageHandler: PaywallMessageHandler,
     ) : PaywallWebUI {
+        override fun onPause() = Unit
+
+        override fun onResume() = Unit
+
         override var delegate: PaywallUIDelegate? = null
         var lastScrollBy: Pair<Int, Int>? = null
         var lastScrollTo: Pair<Int, Int>? = null
