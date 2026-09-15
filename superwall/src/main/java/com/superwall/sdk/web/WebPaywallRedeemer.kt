@@ -80,6 +80,8 @@ class WebPaywallRedeemer(
 
         fun internallySetSubscriptionStatus(status: SubscriptionStatus)
 
+        fun setWebEntitlements(entitlements: Set<Entitlement>)
+
         suspend fun isPaywallVisible(): Boolean
 
         suspend fun triggerRestoreInPaywall()
@@ -235,6 +237,12 @@ class WebPaywallRedeemer(
             ).fold(
                 onSuccess = {
                     storage.write(LatestRedemptionResponse, it)
+                    factory.setWebEntitlements(
+                        it.customerInfo
+                            ?.entitlements
+                            ?.filter { it.isActive }
+                            ?.toSet() ?: emptySet(),
+                    )
                     track(
                         Redemptions(
                             RedemptionState.Complete,
@@ -465,6 +473,14 @@ class WebPaywallRedeemer(
         // Get active entitlements that remain after removing web sources or ones from the web
         if (withUserCodesRemoved != null) {
             storage.write(LatestRedemptionResponse, withUserCodesRemoved)
+            factory.setWebEntitlements(
+                withUserCodesRemoved.customerInfo
+                    ?.entitlements
+                    ?.filter { it.isActive }
+                    ?.toSet() ?: emptySet(),
+            )
+        } else {
+            factory.setWebEntitlements(emptySet())
         }
         factory.internallySetSubscriptionStatus(
             SubscriptionStatus.Active(
@@ -523,6 +539,9 @@ class WebPaywallRedeemer(
                                         updatedResponse,
                                     )
                                 }
+                                factory.setWebEntitlements(
+                                    newEntitlements.filter { it.isActive }.toSet(),
+                                )
 
                                 // Trigger CustomerInfo merge
                                 customerInfoManager.updateMergedCustomerInfo()

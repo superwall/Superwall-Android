@@ -57,6 +57,7 @@ import com.superwall.sdk.misc.primitives.SequentialActor
 import com.superwall.sdk.misc.sha256Hex
 import com.superwall.sdk.models.config.ComputedPropertyRequest
 import com.superwall.sdk.models.config.FeatureFlags
+import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.models.entitlements.TransactionReceipt
 import com.superwall.sdk.models.events.EventData
@@ -278,7 +279,7 @@ class DependencyContainer(
                 json = json(),
                 _apiKey = apiKey
             )
-        entitlements = Entitlements(storage)
+        entitlements = Entitlements(storage, actorScope = ioScope)
         val options = options ?: SuperwallOptions()
         testMode =
             TestMode(
@@ -1253,6 +1254,10 @@ class DependencyContainer(
 
     override suspend fun track(event: Trackable) {
         Superwall.instance.track(event)
+    }
+
+    override fun setWebEntitlements(entitlements: Set<Entitlement>) {
+        this.entitlements.setWebEntitlements(entitlements)
     }
 
     override fun internallySetSubscriptionStatus(status: SubscriptionStatus) {
