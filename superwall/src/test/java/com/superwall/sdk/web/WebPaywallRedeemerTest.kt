@@ -150,6 +150,8 @@ class WebPaywallRedeemerTest {
 
         override fun internallySetSubscriptionStatus(status: SubscriptionStatus) = this@WebPaywallRedeemerTest.setSubscriptionStatus(status)
 
+        override fun setWebEntitlements(entitlements: Set<Entitlement>) {}
+
         override suspend fun isPaywallVisible(): Boolean = this@WebPaywallRedeemerTest.isPaywallVisible()
 
         override suspend fun triggerRestoreInPaywall() = this@WebPaywallRedeemerTest.showRestoreDialogAndDismiss()
