@@ -4,6 +4,8 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## 2.8.3
 
+- Adds best-effort public IPv4 and observed IPv6 device attributes, with separate observation timestamps for downstream integrations.
+
 ## Fixes
 - Web purchase redemption now exposes the full checkout product in `didRedeemLink`, tracks `freeTrial_start` once per code, and schedules the active paywall's trial reminders from the checkout timestamp. Notification permission waits no longer block access or drop a late grant; ambiguous or already-elapsed reminders are skipped.
 - Fix multi-page paywalls only reporting the entry page view. `paywall_open` now waits for an in-flight `template_variables` send, so the runtime does not treat a late template payload as a fresh load and drop later `page_view`s.

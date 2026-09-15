@@ -204,3 +204,9 @@ This is the Superwall Android SDK - an open-source framework for remotely config
 - Immutable data classes for state representation
 - Event-driven state transitions
 - Proper lifecycle management for Android components
+### Device IP enrichment
+
+`DeviceIPCollector` owns session-local, timestamped IP observations. Keep collection
+independent of enrichment success and purchase/configuration latency, preserve each family
+separately, and filter stale cached enrichment IP fields before exposing device attributes.
+Do not add customer attributes or authentication headers to the public IPv4 collection request.
