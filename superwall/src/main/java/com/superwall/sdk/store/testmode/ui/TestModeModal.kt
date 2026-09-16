@@ -29,7 +29,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 
-internal data class TestModeModalResult(
+data class TestModeModalResult(
     val entitlements: List<EntitlementSelection>,
     val freeTrialOverride: FreeTrialOverride,
 )

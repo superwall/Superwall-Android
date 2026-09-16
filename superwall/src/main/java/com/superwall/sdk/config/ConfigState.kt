@@ -1,15 +1,11 @@
-package com.superwall.sdk.config.models
+package com.superwall.sdk.config
 
 import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
-import com.superwall.sdk.config.ConfigContext
-import com.superwall.sdk.config.ConfigLogic
-import com.superwall.sdk.config.PaywallPreload
 import com.superwall.sdk.config.options.computedShouldPreload
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.Either
-import com.superwall.sdk.misc.awaitFirstValidConfig
 import com.superwall.sdk.misc.fold
 import com.superwall.sdk.misc.into
 import com.superwall.sdk.misc.onError
@@ -326,7 +322,7 @@ sealed class ConfigState {
                     manager.setOverriddenSubscriptionStatus(defaultStatus)
                     entitlements.setSubscriptionStatus(defaultStatus)
                 }
-                scope.launch { activateTestMode(config, testModeJustActivated) }
+                scope.launch { manager.activate(config, testModeJustActivated) }
             } else {
                 if (wasTestMode) {
                     manager?.clearTestModeState()
@@ -357,7 +353,7 @@ sealed class ConfigState {
                 manager.clearTestModeState()
                 setSubscriptionStatus?.invoke(SubscriptionStatus.Inactive)
             } else if (!wasTestMode && isNowTestMode) {
-                scope.launch { activateTestMode(config, true) }
+                scope.launch { manager.activate(config, justActivated = true) }
             }
         })
 

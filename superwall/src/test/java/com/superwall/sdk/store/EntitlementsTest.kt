@@ -4,6 +4,7 @@ import com.superwall.sdk.And
 import com.superwall.sdk.Given
 import com.superwall.sdk.Then
 import com.superwall.sdk.When
+import com.superwall.sdk.misc.primitives.StateActor
 import com.superwall.sdk.models.customer.CustomerInfo
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
@@ -18,6 +19,7 @@ import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
@@ -49,10 +51,30 @@ class EntitlementsTest {
                                 Entitlement("test_entitlement"),
                             ),
                     )
-                entitlements = Entitlements(storage)
+                entitlements =
+                    StateActor<EntitlementsContext, EntitlementsState>(
+                        createInitialEntitlementsState(storage),
+                        CoroutineScope(Dispatchers.Default),
+                    ).let { actor ->
+                        Entitlements(
+                            storage = storage,
+                            actor = actor,
+                            actorScope = actor.scope,
+                        )
+                    }
 
                 When("Entitlements is initialized") {
-                    val entitlements = Entitlements(storage)
+                    val entitlements =
+                        StateActor<EntitlementsContext, EntitlementsState>(
+                            createInitialEntitlementsState(storage),
+                            CoroutineScope(Dispatchers.Default),
+                        ).let { actor ->
+                            Entitlements(
+                                storage = storage,
+                                actor = actor,
+                                actorScope = actor.scope,
+                            )
+                        }
 
                     Then("it should load the stored status") {
                         assertEquals(storedStatus, entitlements.status.value)
@@ -81,7 +103,14 @@ class EntitlementsTest {
                 } just Runs
                 every { storage.read(StoredSubscriptionStatus) } returns null
                 every { storage.read(StoredEntitlementsByProductId) } returns null
-                entitlements = Entitlements(storage, scope = backgroundScope)
+                entitlements =
+                    StateActor<EntitlementsContext, EntitlementsState>(createInitialEntitlementsState(storage), backgroundScope).let { actor ->
+                        Entitlements(
+                            storage = storage,
+                            actor = actor,
+                            actorScope = backgroundScope,
+                        )
+                    }
 
                 When("setting active entitlement status") {
                     entitlements.setSubscriptionStatus(SubscriptionStatus.Active(activeEntitlements))
@@ -112,7 +141,17 @@ class EntitlementsTest {
             Given("an Entitlements instance") {
                 every { storage.read(StoredSubscriptionStatus) } returns null
                 every { storage.read(StoredEntitlementsByProductId) } returns null
-                entitlements = Entitlements(storage)
+                entitlements =
+                    StateActor<EntitlementsContext, EntitlementsState>(
+                        createInitialEntitlementsState(storage),
+                        CoroutineScope(Dispatchers.Default),
+                    ).let { actor ->
+                        Entitlements(
+                            storage = storage,
+                            actor = actor,
+                            actorScope = actor.scope,
+                        )
+                    }
 
                 When("setting active entitlement status with empty set") {
                     entitlements.setSubscriptionStatus(SubscriptionStatus.Active(emptySet()))
@@ -132,7 +171,17 @@ class EntitlementsTest {
             Given("an Entitlements instance") {
                 every { storage.read(StoredSubscriptionStatus) } returns null
                 every { storage.read(StoredEntitlementsByProductId) } returns null
-                entitlements = Entitlements(storage)
+                entitlements =
+                    StateActor<EntitlementsContext, EntitlementsState>(
+                        createInitialEntitlementsState(storage),
+                        CoroutineScope(Dispatchers.Default),
+                    ).let { actor ->
+                        Entitlements(
+                            storage = storage,
+                            actor = actor,
+                            actorScope = actor.scope,
+                        )
+                    }
                 When("setting NoActiveEntitlements status") {
                     entitlements.setSubscriptionStatus(SubscriptionStatus.Inactive)
 
@@ -151,7 +200,17 @@ class EntitlementsTest {
             Given("an Entitlements instance") {
                 every { storage.read(StoredSubscriptionStatus) } returns null
                 every { storage.read(StoredEntitlementsByProductId) } returns null
-                entitlements = Entitlements(storage)
+                entitlements =
+                    StateActor<EntitlementsContext, EntitlementsState>(
+                        createInitialEntitlementsState(storage),
+                        CoroutineScope(Dispatchers.Default),
+                    ).let { actor ->
+                        Entitlements(
+                            storage = storage,
+                            actor = actor,
+                            actorScope = actor.scope,
+                        )
+                    }
                 When("setting Unknown status") {
                     entitlements.setSubscriptionStatus(SubscriptionStatus.Unknown)
 
@@ -182,7 +241,17 @@ class EntitlementsTest {
                         ),
                     )
                 every { storage.read(StoredEntitlementsByProductId) } returns productEntitlements
-                entitlements = Entitlements(storage)
+                entitlements =
+                    StateActor<EntitlementsContext, EntitlementsState>(
+                        createInitialEntitlementsState(storage),
+                        CoroutineScope(Dispatchers.Default),
+                    ).let { actor ->
+                        Entitlements(
+                            storage = storage,
+                            actor = actor,
+                            actorScope = actor.scope,
+                        )
+                    }
 
                 When("creating a new Entitlements instance") {
                     Then("it should return correct entitlements for each product") {
@@ -216,7 +285,17 @@ class EntitlementsTest {
                     )
                 every { storage.read(StoredSubscriptionStatus) } returns null
                 every { storage.read(StoredEntitlementsByProductId) } returns productEntitlements
-                entitlements = Entitlements(storage)
+                entitlements =
+                    StateActor<EntitlementsContext, EntitlementsState>(
+                        createInitialEntitlementsState(storage),
+                        CoroutineScope(Dispatchers.Default),
+                    ).let { actor ->
+                        Entitlements(
+                            storage = storage,
+                            actor = actor,
+                            actorScope = actor.scope,
+                        )
+                    }
 
                 When("querying with subscription_monthly colon p1m colon freetrial") {
                     val result = entitlements.byProductId("subscription_monthly:p1m:freetrial")
@@ -243,7 +322,17 @@ class EntitlementsTest {
                     )
                 every { storage.read(StoredSubscriptionStatus) } returns null
                 every { storage.read(StoredEntitlementsByProductId) } returns productEntitlements
-                entitlements = Entitlements(storage)
+                entitlements =
+                    StateActor<EntitlementsContext, EntitlementsState>(
+                        createInitialEntitlementsState(storage),
+                        CoroutineScope(Dispatchers.Default),
+                    ).let { actor ->
+                        Entitlements(
+                            storage = storage,
+                            actor = actor,
+                            actorScope = actor.scope,
+                        )
+                    }
 
                 When("setting active device entitlements to only the active one") {
                     entitlements.activeDeviceEntitlements = setOf(activeEntitlement)
@@ -281,7 +370,17 @@ class EntitlementsTest {
                     )
                 every { storage.read(StoredSubscriptionStatus) } returns null
                 every { storage.read(StoredEntitlementsByProductId) } returns productEntitlements
-                entitlements = Entitlements(storage)
+                entitlements =
+                    StateActor<EntitlementsContext, EntitlementsState>(
+                        createInitialEntitlementsState(storage),
+                        CoroutineScope(Dispatchers.Default),
+                    ).let { actor ->
+                        Entitlements(
+                            storage = storage,
+                            actor = actor,
+                            actorScope = actor.scope,
+                        )
+                    }
 
                 When("no active device entitlements are set") {
                     // activeDeviceEntitlements not set, should be empty
@@ -313,7 +412,14 @@ class EntitlementsTest {
                     )
                 every { storage.read(StoredSubscriptionStatus) } returns null
                 every { storage.read(StoredEntitlementsByProductId) } returns productEntitlements
-                entitlements = Entitlements(storage, scope = backgroundScope)
+                entitlements =
+                    StateActor<EntitlementsContext, EntitlementsState>(createInitialEntitlementsState(storage), backgroundScope).let { actor ->
+                        Entitlements(
+                            storage = storage,
+                            actor = actor,
+                            actorScope = backgroundScope,
+                        )
+                    }
                 entitlements.activeDeviceEntitlements = setOf(activeEntitlement)
 
                 When("subscription status is set to Inactive") {
@@ -349,7 +455,14 @@ class EntitlementsTest {
                     )
                 every { storage.read(StoredSubscriptionStatus) } returns null
                 every { storage.read(StoredEntitlementsByProductId) } returns productEntitlements
-                entitlements = Entitlements(storage, scope = backgroundScope)
+                entitlements =
+                    StateActor<EntitlementsContext, EntitlementsState>(createInitialEntitlementsState(storage), backgroundScope).let { actor ->
+                        Entitlements(
+                            storage = storage,
+                            actor = actor,
+                            actorScope = backgroundScope,
+                        )
+                    }
 
                 When("setting both status and device entitlements") {
                     entitlements.setSubscriptionStatus(SubscriptionStatus.Active(setOf(statusActiveEntitlement)))
@@ -405,7 +518,17 @@ class EntitlementsTest {
                 every { storage.read(StoredEntitlementsByProductId) } returns null
 
                 When("accessing the web property") {
-                    entitlements = Entitlements(storage)
+                    entitlements =
+                        StateActor<EntitlementsContext, EntitlementsState>(
+                            createInitialEntitlementsState(storage),
+                            CoroutineScope(Dispatchers.Default),
+                        ).let { actor ->
+                            Entitlements(
+                                storage = storage,
+                                actor = actor,
+                                actorScope = actor.scope,
+                            )
+                        }
 
                     Then("it should return only active web entitlements") {
                         assertEquals(setOf(webEntitlement1, webEntitlement2), entitlements.web)
@@ -440,7 +563,17 @@ class EntitlementsTest {
                 every { storage.read(StoredEntitlementsByProductId) } returns null
 
                 When("accessing the web property") {
-                    entitlements = Entitlements(storage)
+                    entitlements =
+                        StateActor<EntitlementsContext, EntitlementsState>(
+                            createInitialEntitlementsState(storage),
+                            CoroutineScope(Dispatchers.Default),
+                        ).let { actor ->
+                            Entitlements(
+                                storage = storage,
+                                actor = actor,
+                                actorScope = actor.scope,
+                            )
+                        }
 
                     Then("it should return only active web entitlements") {
                         assertEquals(setOf(activeWebEntitlement), entitlements.web)
@@ -459,7 +592,17 @@ class EntitlementsTest {
                 every { storage.read(StoredEntitlementsByProductId) } returns null
 
                 When("accessing the web property") {
-                    entitlements = Entitlements(storage)
+                    entitlements =
+                        StateActor<EntitlementsContext, EntitlementsState>(
+                            createInitialEntitlementsState(storage),
+                            CoroutineScope(Dispatchers.Default),
+                        ).let { actor ->
+                            Entitlements(
+                                storage = storage,
+                                actor = actor,
+                                actorScope = actor.scope,
+                            )
+                        }
 
                     Then("it should return empty set") {
                         assertTrue(entitlements.web.isEmpty())
@@ -499,7 +642,14 @@ class EntitlementsTest {
                 every { storage.read(StoredEntitlementsByProductId) } returns null
 
                 When("setting subscription status (simulating external PC)") {
-                    entitlements = Entitlements(storage, scope = backgroundScope)
+                    entitlements =
+                        StateActor<EntitlementsContext, EntitlementsState>(createInitialEntitlementsState(storage), backgroundScope).let { actor ->
+                            Entitlements(
+                                storage = storage,
+                                actor = actor,
+                                actorScope = backgroundScope,
+                            )
+                        }
                     entitlements.setSubscriptionStatus(SubscriptionStatus.Active(setOf(statusEntitlement)))
 
                     Then("active should contain both status and web entitlements") {
@@ -544,7 +694,14 @@ class EntitlementsTest {
                 every { storage.read(StoredEntitlementsByProductId) } returns null
 
                 When("external PC sets status with only its entitlements") {
-                    entitlements = Entitlements(storage, scope = backgroundScope)
+                    entitlements =
+                        StateActor<EntitlementsContext, EntitlementsState>(createInitialEntitlementsState(storage), backgroundScope).let { actor ->
+                            Entitlements(
+                                storage = storage,
+                                actor = actor,
+                                actorScope = backgroundScope,
+                            )
+                        }
                     // External PC sets status (like RC does)
                     entitlements.setSubscriptionStatus(SubscriptionStatus.Active(setOf(rcEntitlement)))
 
@@ -587,7 +744,14 @@ class EntitlementsTest {
                 every { storage.read(StoredSubscriptionStatus) } returns null
                 every { storage.read(StoredEntitlementsByProductId) } returns null
 
-                entitlements = Entitlements(storage, scope = backgroundScope)
+                entitlements =
+                    StateActor<EntitlementsContext, EntitlementsState>(createInitialEntitlementsState(storage), backgroundScope).let { actor ->
+                        Entitlements(
+                            storage = storage,
+                            actor = actor,
+                            actorScope = backgroundScope,
+                        )
+                    }
 
                 When("external PC reads web entitlements and merges them into status") {
                     // This simulates what the updated RC controller does:
@@ -644,7 +808,14 @@ class EntitlementsTest {
                 every { storage.read(StoredSubscriptionStatus) } returns null
                 every { storage.read(StoredEntitlementsByProductId) } returns null
 
-                entitlements = Entitlements(storage, scope = backgroundScope)
+                entitlements =
+                    StateActor<EntitlementsContext, EntitlementsState>(createInitialEntitlementsState(storage), backgroundScope).let { actor ->
+                        Entitlements(
+                            storage = storage,
+                            actor = actor,
+                            actorScope = backgroundScope,
+                        )
+                    }
                 entitlements.setSubscriptionStatus(SubscriptionStatus.Active(setOf(playEntitlement)))
 
                 When("status is reset to Inactive (simulating sign out)") {
@@ -690,7 +861,14 @@ class EntitlementsTest {
                 every { storage.read(StoredSubscriptionStatus) } returns null
                 every { storage.read(StoredEntitlementsByProductId) } returns null
 
-                entitlements = Entitlements(storage, scope = backgroundScope)
+                entitlements =
+                    StateActor<EntitlementsContext, EntitlementsState>(createInitialEntitlementsState(storage), backgroundScope).let { actor ->
+                        Entitlements(
+                            storage = storage,
+                            actor = actor,
+                            actorScope = backgroundScope,
+                        )
+                    }
 
                 // Initial state
                 entitlements.setSubscriptionStatus(SubscriptionStatus.Active(setOf(Entitlement("old_play"))))
@@ -740,30 +918,23 @@ class EntitlementsTest {
                 every { storage.read(StoredSubscriptionStatus) } returns null
                 every { storage.read(StoredEntitlementsByProductId) } returns null
 
-                entitlements = Entitlements(storage, scope = backgroundScope)
+                entitlements =
+                    StateActor<EntitlementsContext, EntitlementsState>(createInitialEntitlementsState(storage), backgroundScope).let { actor ->
+                        Entitlements(
+                            storage = storage,
+                            actor = actor,
+                            actorScope = backgroundScope,
+                        )
+                    }
                 entitlements.setSubscriptionStatus(SubscriptionStatus.Active(setOf(Entitlement("userA_play"))))
 
-                When("user B identifies and storage is updated with user B's web entitlements") {
+                When("user B identifies and web entitlements are updated") {
                     // Reset for user switch
                     entitlements.setSubscriptionStatus(SubscriptionStatus.Inactive)
 
-                    // Storage is updated with user B's web entitlements (simulating backend fetch)
+                    // Web entitlements updated via actor (simulating WebPaywallRedeemer)
                     val userBWebEntitlement = Entitlement("userB_web", isActive = true, store = Store.STRIPE)
-                    val userBWebInfo =
-                        CustomerInfo(
-                            subscriptions = emptyList(),
-                            nonSubscriptions = emptyList(),
-                            userId = "userB",
-                            entitlements = listOf(userBWebEntitlement),
-                            isPlaceholder = false,
-                        )
-                    val userBRedemption =
-                        WebRedemptionResponse(
-                            codes = emptyList(),
-                            allCodes = emptyList(),
-                            customerInfo = userBWebInfo,
-                        )
-                    every { storage.read(LatestRedemptionResponse) } returns userBRedemption
+                    entitlements.setWebEntitlements(setOf(userBWebEntitlement))
 
                     // User B's external PC sets status
                     entitlements.setSubscriptionStatus(SubscriptionStatus.Active(setOf(Entitlement("userB_play"))))
@@ -814,7 +985,14 @@ class EntitlementsTest {
                 every { storage.read(StoredEntitlementsByProductId) } returns null
 
                 When("all three sources have different entitlements") {
-                    entitlements = Entitlements(storage, scope = backgroundScope)
+                    entitlements =
+                        StateActor<EntitlementsContext, EntitlementsState>(createInitialEntitlementsState(storage), backgroundScope).let { actor ->
+                            Entitlements(
+                                storage = storage,
+                                actor = actor,
+                                actorScope = backgroundScope,
+                            )
+                        }
                     entitlements.setSubscriptionStatus(SubscriptionStatus.Active(setOf(statusEntitlement)))
                     entitlements.activeDeviceEntitlements = setOf(deviceEntitlement)
 
@@ -857,7 +1035,14 @@ class EntitlementsTest {
                 every { storage.read(StoredEntitlementsByProductId) } returns null
 
                 When("both sources have entitlement with same ID") {
-                    entitlements = Entitlements(storage, scope = backgroundScope)
+                    entitlements =
+                        StateActor<EntitlementsContext, EntitlementsState>(createInitialEntitlementsState(storage), backgroundScope).let { actor ->
+                            Entitlements(
+                                storage = storage,
+                                actor = actor,
+                                actorScope = backgroundScope,
+                            )
+                        }
                     entitlements.setSubscriptionStatus(SubscriptionStatus.Active(setOf(statusPremium)))
 
                     Then("active should deduplicate and contain only one premium entitlement") {
@@ -894,7 +1079,14 @@ class EntitlementsTest {
                 every { storage.read(StoredEntitlementsByProductId) } returns null
 
                 When("status is set to Unknown") {
-                    entitlements = Entitlements(storage, scope = backgroundScope)
+                    entitlements =
+                        StateActor<EntitlementsContext, EntitlementsState>(createInitialEntitlementsState(storage), backgroundScope).let { actor ->
+                            Entitlements(
+                                storage = storage,
+                                actor = actor,
+                                actorScope = backgroundScope,
+                            )
+                        }
                     entitlements.setSubscriptionStatus(SubscriptionStatus.Unknown)
 
                     Then("web property should still return web entitlements") {

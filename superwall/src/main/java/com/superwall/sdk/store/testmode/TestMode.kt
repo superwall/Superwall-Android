@@ -1,16 +1,17 @@
 package com.superwall.sdk.store.testmode
 
-import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
-import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.TestModeModal.State
+import android.app.Activity
+import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.ActivityProvider
 import com.superwall.sdk.misc.CurrentActivityTracker
 import com.superwall.sdk.misc.Either
-import com.superwall.sdk.misc.fold
+import com.superwall.sdk.misc.IOScope
+import com.superwall.sdk.misc.primitives.SequentialActor
+import com.superwall.sdk.misc.primitives.StateActor
 import com.superwall.sdk.models.config.Config
-import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
 import com.superwall.sdk.network.NetworkError
 import com.superwall.sdk.storage.IsTestModeActiveSubscription
@@ -21,42 +22,55 @@ import com.superwall.sdk.store.Entitlements
 import com.superwall.sdk.store.abstractions.product.StoreProduct
 import com.superwall.sdk.store.testmode.models.SuperwallEntitlementRef
 import com.superwall.sdk.store.testmode.models.SuperwallProduct
-import com.superwall.sdk.store.testmode.models.SuperwallProductPlatform
 import com.superwall.sdk.store.testmode.models.SuperwallProductsResponse
-import com.superwall.sdk.store.testmode.models.TestStoreUserType
 import com.superwall.sdk.store.testmode.ui.EntitlementSelection
 import com.superwall.sdk.store.testmode.ui.EntitlementStateOption
 import com.superwall.sdk.store.testmode.ui.TestModeModal
+import com.superwall.sdk.store.testmode.ui.TestModeModalResult
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The single test-mode surface: holds the activation state (products,
- * entitlement selections, settings persistence) AND runs the activation UI
- * flow (`activate` → refresh products → present modal).
+ * Test-mode manager.
  *
- * Not exactly a "manager" — the UI flow pieces (activity lookup, subscription
- * products fetch, modal presentation) are injected as thin lambdas so this
- * class stays testable and config-slice-free.
+ * Implements [TestModeContext] directly so [TestModeState.Actions] receive
+ * `this` as their receiver — same pattern as
+ * [com.superwall.sdk.identity.IdentityManager] / [com.superwall.sdk.identity.IdentityContext].
+ *
+ * State is held in a [SequentialActor]; pure mutations go through
+ * `update(Updates.X)` (CAS-atomic), async work (network + modal) is
+ * dispatched as [TestModeState.Actions].
  */
 class TestMode(
-    private val storage: Storage,
-    private val isTestEnvironment: Boolean = Companion.isTestEnvironment,
-    // Activation UI hooks — all default to no-ops so unit tests exercising
-    // state management can construct `TestMode(storage)` without wiring the
-    // whole UI/network surface.
-    private val getSuperwallProducts: suspend () -> Either<SuperwallProductsResponse, NetworkError> = {
+    override val storage: Storage,
+    override val isTestEnvironment: Boolean = Companion.isTestEnvironment,
+    override val getSuperwallProducts: suspend () -> Either<SuperwallProductsResponse, NetworkError> = {
         Either.Failure(NetworkError.Unknown())
     },
-    private val entitlements: Entitlements? = null,
-    private val activityProvider: () -> ActivityProvider? = { null },
-    private val activityTracker: () -> CurrentActivityTracker? = { null },
-    private val hasExternalPurchaseController: () -> Boolean = { false },
-    private val apiKey: () -> String = { "" },
-    private val dashboardBaseUrl: () -> String = { "" },
-    private val track: suspend (InternalSuperwallEvent) -> Unit = { },
-) {
+    override val entitlements: Entitlements? = null,
+    override val activityProvider: () -> ActivityProvider? = { null },
+    override val activityTracker: () -> CurrentActivityTracker? = { null },
+    override val hasExternalPurchaseController: () -> Boolean = { false },
+    override val apiKey: () -> String = { "" },
+    override val dashboardBaseUrl: () -> String = { "" },
+    override val tracker: suspend (TrackableSuperwallEvent) -> Unit = { },
+    override val showModal: suspend (
+        activity: Activity,
+        reason: String,
+        hasPurchaseController: Boolean,
+        availableEntitlements: List<String>,
+        apiKey: String,
+        dashboardBaseUrl: String,
+        savedSettings: TestModeSettings?,
+    ) -> TestModeModalResult = { activity, reason, hasPC, available, ak, db, saved ->
+        TestModeModal.show(activity, reason, hasPC, available, ak, db, saved)
+    },
+    private val ioScope: CoroutineScope = IOScope(),
+    override val actor: StateActor<TestModeContext, TestModeState> =
+        SequentialActor(TestModeState.Inactive, ioScope),
+) : TestModeContext {
     companion object {
         val isTestEnvironment: Boolean by lazy {
             try {
@@ -78,21 +92,22 @@ class TestMode(
         }
     }
 
-    var state: TestModeState = TestModeState.Inactive
-        private set
+    override val scope: CoroutineScope get() = ioScope
 
-    // Convenience accessors
-    val isTestMode: Boolean get() = state is TestModeState.Active
-    val testModeReason: TestModeReason? get() = (state as? TestModeState.Active)?.reason
-    private val session: TestModeSessionData? get() = (state as? TestModeState.Active)?.session
+    // ---- Read accessors (snapshot of state.value) -------------------------
 
-    // Backward-compatible session data accessors (return sensible defaults when inactive)
+    val isTestMode: Boolean get() = state.value is TestModeState.Active
+    val testModeReason: TestModeReason? get() = (state.value as? TestModeState.Active)?.reason
+    private val session: TestModeSessionData? get() = state.value.sessionOrNull
+
     val products: List<SuperwallProduct> get() = session?.products ?: emptyList()
     internal val testProductsByFullId: Map<String, StoreProduct> get() = session?.testProductsByFullId ?: emptyMap()
     val testEntitlementIds: Set<String> get() = session?.entitlementIds ?: emptySet()
     val testEntitlementSelections: List<EntitlementSelection> get() = session?.entitlementSelections ?: emptyList()
     val freeTrialOverride: FreeTrialOverride get() = session?.freeTrialOverride ?: FreeTrialOverride.UseDefault
     val overriddenSubscriptionStatus: SubscriptionStatus? get() = session?.overriddenSubscriptionStatus
+
+    // ---- Pure-state mutators (synchronous, CAS-atomic) --------------------
 
     fun evaluateTestMode(
         config: Config,
@@ -101,149 +116,102 @@ class TestMode(
         aliasId: String?,
         testModeBehavior: TestModeBehavior = TestModeBehavior.AUTOMATIC,
     ) {
-        when (testModeBehavior) {
-            TestModeBehavior.NEVER -> {
-                deactivateIfActive()
-                return
-            }
-
-            TestModeBehavior.ALWAYS -> {
-                activateWithReason(TestModeReason.TestModeOption)
-                return
-            }
-
-            TestModeBehavior.WHEN_ENABLED_FOR_USER -> {
-                if (checkConfigMatch(config, appUserId, aliasId)) return
-                deactivateIfActive()
-                return
-            }
-
-            TestModeBehavior.AUTOMATIC -> {
-                // Skip in test environments (JUnit on classpath)
-                if (isTestEnvironment) {
-                    deactivateIfActive()
-                    return
-                }
-                if (checkConfigMatch(config, appUserId, aliasId)) return
-                if (checkPackageNameMismatch(config, bundleId)) return
-                deactivateIfActive()
-            }
+        val newReason =
+            TestModeLogic.evaluate(
+                config = config,
+                bundleId = bundleId,
+                appUserId = appUserId,
+                aliasId = aliasId,
+                behavior = testModeBehavior,
+                isTestEnvironment = isTestEnvironment,
+            )
+        if (newReason == null) {
+            if (isTestMode) clearTestModeState()
+            return
         }
-    }
-
-    private fun deactivateIfActive() {
-        if (isTestMode) {
-            clearTestModeState()
+        val previousReason = testModeReason
+        update(TestModeState.Updates.SetActive(newReason))
+        if (previousReason != null && previousReason != newReason) {
+            storage.write(IsTestModeActiveSubscription, false)
         }
-    }
-
-    private fun activateWithReason(reason: TestModeReason) {
-        val current = state
-        state =
-            if (current is TestModeState.Active) {
-                if (current.reason != reason) {
-                    current.session.entitlementIds.clear()
-                    current.session.entitlementSelections = emptyList()
-                    current.session.overriddenSubscriptionStatus = null
-                    storage.write(IsTestModeActiveSubscription, false)
-                }
-                current.copy(reason = reason)
-            } else {
-                TestModeState.Active(reason = reason)
-            }
         Logger.debug(
             LogLevel.info,
             LogScope.superwallCore,
-            "Test mode activated: ${testModeReason?.description}",
+            "Test mode activated: ${newReason.description}",
         )
     }
 
+    fun setProducts(products: List<SuperwallProduct>) {
+        update(TestModeState.Updates.UpdateSession { it.copy(products = products) })
+    }
+
+    fun setTestProducts(productsByFullId: Map<String, StoreProduct>) {
+        update(
+            TestModeState.Updates.UpdateSession {
+                it.copy(testProductsByFullId = productsByFullId)
+            },
+        )
+        session?.productsLoaded?.complete(Unit)
+    }
+
+    /** Suspend until the test product catalog has been loaded (or [timeout] elapses). No-op when inactive. */
     suspend fun awaitTestProducts(timeout: Duration = 5.seconds) {
         val s = session ?: return
         withTimeoutOrNull(timeout) { s.productsLoaded.await() }
     }
 
-    private fun checkConfigMatch(
-        config: Config,
-        appUserId: String?,
-        aliasId: String?,
-    ): Boolean {
-        val testUsers = config.testModeUserIds ?: return false
-        for (testUser in testUsers) {
-            val match =
-                when (testUser.type) {
-                    TestStoreUserType.UserId -> appUserId == testUser.value
-                    TestStoreUserType.AliasId -> aliasId == testUser.value
-                }
-            if (match) {
-                activateWithReason(TestModeReason.ConfigMatch(matchedId = testUser.value))
-                return true
-            }
-        }
-        return false
-    }
-
-    private fun checkPackageNameMismatch(
-        config: Config,
-        actualPackageName: String,
-    ): Boolean {
-        val expectedPackageName = config.bundleIdConfig
-        if (expectedPackageName.isNullOrEmpty()) return false
-        if (expectedPackageName == actualPackageName) return false
-        // Treat as extension if actual starts with expected + "."
-        if (actualPackageName.startsWith("$expectedPackageName.")) return false
-
-        activateWithReason(
-            TestModeReason.ApplicationIdMismatch(
-                expected = expectedPackageName,
-                actual = actualPackageName,
-            ),
-        )
-        return true
-    }
-
-    fun setProducts(products: List<SuperwallProduct>) {
-        session?.products = products
-    }
-
-    fun setTestProducts(productsByFullId: Map<String, StoreProduct>) {
-        session?.let {
-            it.testProductsByFullId = productsByFullId
-            it.productsLoaded.complete(Unit)
-        }
-    }
-
     fun fakePurchase(entitlementRefs: List<SuperwallEntitlementRef>) {
-        val ids = entitlementRefs.map { it.identifier }
-        session?.entitlementIds?.addAll(ids)
+        val ids = entitlementRefs.map { it.identifier }.toSet()
+        update(
+            TestModeState.Updates.UpdateSession {
+                it.copy(entitlementIds = it.entitlementIds + ids)
+            },
+        )
         storage.write(IsTestModeActiveSubscription, testEntitlementIds.isNotEmpty())
     }
 
     fun setEntitlements(selections: List<EntitlementSelection>) {
-        val s = session ?: return
-        s.entitlementSelections = selections
-        s.entitlementIds.clear()
-        s.entitlementIds.addAll(
-            selections.filter { it.state.isActive }.map { it.identifier },
+        val newIds =
+            selections.filter { it.state.isActive }.map { it.identifier }.toSet()
+        update(
+            TestModeState.Updates.UpdateSession {
+                it.copy(entitlementSelections = selections, entitlementIds = newIds)
+            },
         )
-        storage.write(IsTestModeActiveSubscription, s.entitlementIds.isNotEmpty())
+        storage.write(IsTestModeActiveSubscription, newIds.isNotEmpty())
     }
 
-    fun setEntitlements(ids: Set<String>) {
+    fun setEntitlements(ids: Set<String>) =
         setEntitlements(
-            ids.map { EntitlementSelection(identifier = it, state = EntitlementStateOption.Subscribed) },
+            ids.map {
+                EntitlementSelection(identifier = it, state = EntitlementStateOption.Subscribed)
+            },
         )
-    }
 
     fun resetEntitlements() {
-        session?.entitlementIds?.clear()
-        session?.entitlementSelections = emptyList()
+        update(
+            TestModeState.Updates.UpdateSession {
+                it.copy(entitlementIds = emptySet(), entitlementSelections = emptyList())
+            },
+        )
         storage.write(IsTestModeActiveSubscription, false)
     }
 
     fun setFreeTrialOverride(override: FreeTrialOverride) {
-        session?.freeTrialOverride = override
+        update(TestModeState.Updates.UpdateSession { it.copy(freeTrialOverride = override) })
     }
+
+    fun setOverriddenSubscriptionStatus(status: SubscriptionStatus?) {
+        update(TestModeState.Updates.UpdateSession { it.copy(overriddenSubscriptionStatus = status) })
+    }
+
+    fun clearTestModeState() {
+        update(TestModeState.Updates.SetInactive)
+        storage.delete(IsTestModeActiveSubscription)
+        clearSettings()
+    }
+
+    // ---- Derived helpers --------------------------------------------------
 
     fun shouldShowFreeTrial(hasFreeTrial: Boolean): Boolean =
         when (freeTrialOverride) {
@@ -252,35 +220,14 @@ class TestMode(
             FreeTrialOverride.ForceUnavailable -> false
         }
 
-    fun clearTestModeState() {
-        state = TestModeState.Inactive
-        storage.delete(IsTestModeActiveSubscription)
-        clearSettings()
-    }
-
-    fun buildSubscriptionStatus(): SubscriptionStatus {
-        if (testEntitlementIds.isEmpty()) {
-            return SubscriptionStatus.Inactive
-        }
-        val activeSelections = testEntitlementSelections.filter { it.state.isActive }
-        return if (activeSelections.isNotEmpty()) {
-            SubscriptionStatus.Active(
-                activeSelections.map { it.toEntitlement() }.toSet(),
-            )
-        } else {
-            SubscriptionStatus.Active(
-                testEntitlementIds.map { Entitlement(it) }.toSet(),
-            )
-        }
-    }
-
-    fun setOverriddenSubscriptionStatus(status: SubscriptionStatus?) {
-        session?.overriddenSubscriptionStatus = status
-    }
+    fun buildSubscriptionStatus(): SubscriptionStatus = buildSubscriptionStatus(state.value)
 
     fun entitlementsForProduct(product: SuperwallProduct): List<SuperwallEntitlementRef> = product.entitlements
 
-    fun allEntitlements(): Set<String> = products.flatMap { it.entitlements.map { e -> e.identifier } }.toSet()
+    fun allEntitlements(): Set<String> =
+        products.flatMap { it.entitlements.map { e -> e.identifier } }.toSet()
+
+    // ---- Settings persistence --------------------------------------------
 
     fun saveSettings() {
         val settings =
@@ -297,106 +244,18 @@ class TestMode(
         storage.delete(StoredTestModeSettings)
     }
 
-    // ---- Activation UI flow ------------------------------------------------
+    // ---- Async activation flow -------------------------------------------
 
     /**
-     * Refresh the test product catalog and (when [justActivated] is true)
-     * present the test-mode modal. Must be called off the actor queue —
-     * [presentModal] blocks on user interaction.
+     * Refresh the test product catalog and (when [justActivated]) present
+     * the modal. Runs as a [TestModeState.Actions.Activate] action and suspends
+     * until it completes, so callers that must not wait on the modal's blocking
+     * UI (e.g. ConfigState) launch it in their own scope.
      */
     suspend fun activate(
         config: Config,
         justActivated: Boolean,
     ) {
-        refreshProducts()
-        if (justActivated) {
-            presentModal(config)
-        }
-    }
-
-    private suspend fun refreshProducts() {
-        try {
-            getSuperwallProducts().fold(
-                onSuccess = { response ->
-                    val androidProducts =
-                        response.data.filter {
-                            it.platform == SuperwallProductPlatform.ANDROID && it.price != null
-                        }
-                    setProducts(androidProducts)
-
-                    val productsByFullId =
-                        androidProducts.associate { superwallProduct ->
-                            val testProduct = TestStoreProduct(superwallProduct)
-                            superwallProduct.identifier to StoreProduct(testProduct)
-                        }
-                    setTestProducts(productsByFullId)
-
-                    Logger.debug(
-                        LogLevel.info,
-                        LogScope.superwallCore,
-                        "Test mode: loaded ${androidProducts.size} products",
-                    )
-                },
-                onFailure = { error ->
-                    Logger.debug(
-                        LogLevel.error,
-                        LogScope.superwallCore,
-                        "Test mode: failed to fetch products - ${error.message}",
-                    )
-                },
-            )
-        } finally {
-            session?.productsLoaded?.complete(Unit)
-        }
-    }
-
-    private suspend fun presentModal(config: Config) {
-        val activity =
-            activityTracker()?.getCurrentActivity()
-                ?: activityProvider()?.getCurrentActivity()
-                ?: activityTracker()?.awaitActivity(10.seconds)
-        if (activity == null) {
-            Logger.debug(
-                LogLevel.warn,
-                LogScope.superwallCore,
-                "Test mode modal could not be presented: no activity available. Setting default subscription status.",
-            )
-            val status = buildSubscriptionStatus()
-            setOverriddenSubscriptionStatus(status)
-            entitlements?.setSubscriptionStatus(status)
-            return
-        }
-
-        track(InternalSuperwallEvent.TestModeModal(State.Open))
-
-        val reason = testModeReason?.description ?: "Test mode activated"
-        val allEntitlements =
-            config.productsV3
-                ?.flatMap { it.entitlements.map { e -> e.id } }
-                ?.distinct()
-                ?.sorted()
-                ?: emptyList()
-
-        val savedSettings = loadSettings()
-
-        val result =
-            TestModeModal.show(
-                activity = activity,
-                reason = reason,
-                hasPurchaseController = hasExternalPurchaseController(),
-                availableEntitlements = allEntitlements,
-                apiKey = apiKey(),
-                dashboardBaseUrl = dashboardBaseUrl(),
-                savedSettings = savedSettings,
-            )
-
-        setFreeTrialOverride(result.freeTrialOverride)
-        setEntitlements(result.entitlements)
-        saveSettings()
-        val status = buildSubscriptionStatus()
-        setOverriddenSubscriptionStatus(status)
-        entitlements?.setSubscriptionStatus(status)
-
-        track(InternalSuperwallEvent.TestModeModal(State.Close))
+        immediate(TestModeState.Actions.Activate(config, justActivated))
     }
 }

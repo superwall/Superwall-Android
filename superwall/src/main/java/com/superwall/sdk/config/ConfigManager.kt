@@ -1,10 +1,7 @@
 package com.superwall.sdk.config
 
 import android.content.Context
-import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent
-import com.superwall.sdk.config.models.ConfigState
-import com.superwall.sdk.config.models.getConfig
 import com.superwall.sdk.config.options.SuperwallOptions
 import com.superwall.sdk.dependencies.DeviceHelperFactory
 import com.superwall.sdk.dependencies.DeviceInfoFactory
@@ -36,7 +33,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.take
-import kotlinx.coroutines.launch
 
 open class ConfigManager(
     override val context: Context,
@@ -59,7 +55,6 @@ open class ConfigManager(
     override val awaitUtilNetwork: suspend () -> Unit = {
         context.awaitUntilNetworkExists()
     },
-    override val activateTestMode: suspend (Config, Boolean) -> Unit = { _, _ -> },
     override val actor: StateActor<ConfigContext, ConfigState>,
 ) : ConfigContext {
     interface Factory :

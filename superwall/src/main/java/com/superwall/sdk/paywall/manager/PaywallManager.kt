@@ -44,7 +44,7 @@ class PaywallManager(
         return cache
     }
 
-    fun removePaywallView(identifier: PaywallIdentifier) {
+    suspend fun removePaywallView(identifier: PaywallIdentifier) {
         cache.removePaywallView(identifier)
     }
 
