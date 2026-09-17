@@ -3,6 +3,7 @@ package com.superwall.sdk.paywall.view
 import com.superwall.sdk.models.customer.CustomerInfo
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.PaywallPresentationStyle
+import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
 import com.superwall.sdk.paywall.manager.PaywallCacheLogic
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
@@ -92,9 +93,14 @@ data class PaywallViewState(
                         swProductVariablesTemplate = from.swProductVariablesTemplate,
                         isFreeTrialAvailable = from.isFreeTrialAvailable,
                         productsLoadingInfo = from.productsLoadingInfo,
-                        presentationSourceType = from.presentationSourceType,
-                        experiment = from.experiment,
                     )
+                // Note: `experiment` and `presentationSourceType` are deliberately NOT merged here.
+                // The view is cached per paywall identifier and shared by every campaign that uses
+                // the paywall, and this merge runs before the caller binds its request. A second
+                // request for the same paywall (e.g. getPaywall/getPresentationResult while an
+                // implicit presentation is in flight) would otherwise overwrite the experiment the
+                // first presentation reports. They are bound atomically with the request in
+                // [SetRequest] instead.
                 // Update productItems via setter to also refresh related fields.
                 merged.productItems = from.productItems
                 state.copy(paywall = merged)
@@ -106,12 +112,25 @@ data class PaywallViewState(
                 state.copy(customerInfo = customerInfo)
             })
 
+        /**
+         * Binds a presentation request to the view. The experiment and presentation source are
+         * bound together with the request so that [PaywallViewState.info] never combines one
+         * request's placement with another request's experiment.
+         *
+         * @param experiment The experiment this request resolved to. `null` keeps the current one.
+         */
         class SetRequest(
             val req: PresentationRequest,
             val publisher: MutableSharedFlow<PaywallState>?,
             val occurrence: TriggerRuleOccurrence?,
+            val experiment: Experiment? = null,
         ) : Updates({ state ->
                 state.copy(
+                    paywall =
+                        state.paywall.copy(
+                            experiment = experiment ?: state.paywall.experiment,
+                            presentationSourceType = req.presentationSourceType,
+                        ),
                     request = req,
                     paywallStatePublisher = publisher,
                     unsavedOccurrence = occurrence,

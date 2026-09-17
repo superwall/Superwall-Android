@@ -46,6 +46,7 @@ import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.MainScope
 import com.superwall.sdk.misc.toResult
 import com.superwall.sdk.models.paywall.PaywallPresentationStyle
+import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.paywall.manager.PaywallViewCache
@@ -261,12 +262,14 @@ class PaywallView(
         request: PresentationRequest,
         paywallStatePublisher: MutableSharedFlow<PaywallState>,
         unsavedOccurrence: TriggerRuleOccurrence?,
+        experiment: Experiment? = null,
     ) {
         controller.updateState(
             SetRequest(
                 request,
                 paywallStatePublisher,
                 unsavedOccurrence,
+                experiment,
             ),
         )
     }
@@ -303,6 +306,7 @@ class PaywallView(
         unsavedOccurrence: TriggerRuleOccurrence?,
         presentationStyleOverride: PaywallPresentationStyle?,
         paywallStatePublisher: MutableSharedFlow<PaywallState>,
+        experiment: Experiment? = null,
         completion: (Boolean) -> Unit,
     ) {
         webView.attach(this)
@@ -351,7 +355,7 @@ class PaywallView(
         cache?.acquireShimmerView()?.let {
             setupShimmer(it)
         }
-        set(request, paywallStatePublisher, unsavedOccurrence)
+        set(request, paywallStatePublisher, unsavedOccurrence, experiment)
         controller.updateState(
             SetPresentationConfig(
                 presentationStyleOverride,
