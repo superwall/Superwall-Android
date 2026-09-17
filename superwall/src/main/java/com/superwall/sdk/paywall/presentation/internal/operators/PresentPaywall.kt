@@ -43,7 +43,7 @@ suspend fun Superwall.presentPaywallView(
     debugInfo: Map<String, Any>,
     request: PresentationRequest,
     paywallStatePublisher: MutableSharedFlow<PaywallState>,
-    experiment: Experiment? = null,
+    experiment: Experiment?,
 ) {
     val trackedEvent =
         InternalSuperwallEvent.PresentationRequest(
@@ -116,6 +116,7 @@ fun Superwall.presentPaywallViewSync(
     unsavedOccurrence: TriggerRuleOccurrence?,
     debugInfo: Map<String, Any>,
     request: PresentationRequest,
+    experiment: Experiment?,
     onStateChanged: (PaywallState) -> Unit,
 ) {
     mainScope.launch {
@@ -132,6 +133,7 @@ fun Superwall.presentPaywallViewSync(
             debugInfo = debugInfo,
             request = request,
             paywallStatePublisher = publisher,
+            experiment = experiment,
         )
     }
 }

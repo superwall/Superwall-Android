@@ -746,6 +746,7 @@ class PaywallViewTest {
                             req = mockk(relaxed = true),
                             publisher = statePublisher,
                             occurrence = null,
+                            experiment = null,
                         ),
                     )
 
@@ -843,6 +844,7 @@ class PaywallViewTest {
                             req = mockk(relaxed = true),
                             publisher = statePublisher,
                             occurrence = null,
+                            experiment = null,
                         ),
                     )
                     view.controller.updateState(PaywallViewState.Updates.SetPresentedAndFinished)
@@ -1035,6 +1037,7 @@ class PaywallViewTest {
                             req = mockk(relaxed = true),
                             publisher = statePublisher,
                             occurrence = null,
+                            experiment = null,
                         ),
                     )
                     view.controller.updateState(PaywallViewState.Updates.SetPresentedAndFinished)

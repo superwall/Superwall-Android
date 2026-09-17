@@ -262,7 +262,7 @@ class PaywallView(
         request: PresentationRequest,
         paywallStatePublisher: MutableSharedFlow<PaywallState>,
         unsavedOccurrence: TriggerRuleOccurrence?,
-        experiment: Experiment? = null,
+        experiment: Experiment?,
     ) {
         controller.updateState(
             SetRequest(
@@ -306,7 +306,7 @@ class PaywallView(
         unsavedOccurrence: TriggerRuleOccurrence?,
         presentationStyleOverride: PaywallPresentationStyle?,
         paywallStatePublisher: MutableSharedFlow<PaywallState>,
-        experiment: Experiment? = null,
+        experiment: Experiment?,
         completion: (Boolean) -> Unit,
     ) {
         webView.attach(this)

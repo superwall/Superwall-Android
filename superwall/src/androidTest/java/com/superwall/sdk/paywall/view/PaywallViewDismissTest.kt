@@ -113,7 +113,7 @@ class PaywallViewDismissTest {
             val request = makeRequest()
             Given("a paywall view configured with a dismissal callback") {
                 withContext(Dispatchers.Main) {
-                    view.set(request, publisher, null)
+                    view.set(request, publisher, null, null)
                     view.onViewCreated()
                 }
 
@@ -182,7 +182,7 @@ class PaywallViewDismissTest {
             val request = makeRequest()
             Given("an embedded paywall showing the purchase spinner") {
                 withContext(Dispatchers.Main) {
-                    view.set(request, publisher, null)
+                    view.set(request, publisher, null, null)
                     view.onViewCreated()
                     // Buy tap sets this in production (Superwall.kt InitiatePurchase).
                     view.updateState(
@@ -232,7 +232,7 @@ class PaywallViewDismissTest {
             val request = makeRequest()
             Given("a paywall view configured to continue to the next paywall") {
                 withContext(Dispatchers.Main) {
-                    view.set(request, publisher, null)
+                    view.set(request, publisher, null, null)
                     view.onViewCreated()
                 }
 

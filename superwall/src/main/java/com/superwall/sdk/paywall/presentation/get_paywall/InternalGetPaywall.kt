@@ -21,7 +21,7 @@ data class PaywallComponents(
     val rulesOutcome: RuleEvaluationOutcome,
     val debugInfo: Map<String, Any>,
     /** The experiment the request resolved to. Bound to the view together with the request. */
-    val experiment: Experiment? = null,
+    val experiment: Experiment?,
 )
 
 /**
