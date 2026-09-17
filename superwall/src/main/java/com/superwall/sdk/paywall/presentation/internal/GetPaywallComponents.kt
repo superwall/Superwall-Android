@@ -4,6 +4,7 @@ import com.superwall.sdk.Superwall
 import com.superwall.sdk.misc.Either
 import com.superwall.sdk.misc.toResult
 import com.superwall.sdk.models.assignment.ConfirmedAssignment
+import com.superwall.sdk.models.triggers.InternalTriggerResult
 import com.superwall.sdk.paywall.presentation.get_paywall.PaywallComponents
 import com.superwall.sdk.paywall.presentation.internal.state.PaywallState
 import com.superwall.sdk.utilities.withErrorTracking
@@ -59,6 +60,7 @@ internal suspend fun runGetPaywallComponents(
             presenter = presenter,
             rulesOutcome = outcome,
             debugInfo = debugInfo,
+            experiment = (outcome.triggerResult as? InternalTriggerResult.Paywall)?.experiment,
         )
     }.toResult()
 

@@ -9,6 +9,7 @@ import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.PaywallPresentationStyle
 import com.superwall.sdk.models.product.CrossplatformProduct
 import com.superwall.sdk.models.product.Offer
+import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
 import com.superwall.sdk.paywall.presentation.internal.PresentationRequest
@@ -470,7 +471,7 @@ class PaywallViewStateTest {
             When("a new request is set for the second presentation") {
                 val req = makeRequest()
                 val publisher = MutableSharedFlow<com.superwall.sdk.paywall.presentation.internal.state.PaywallState>()
-                val afterSetRequest = PaywallViewState.Updates.SetRequest(req, publisher, null).transform(afterDismiss)
+                val afterSetRequest = PaywallViewState.Updates.SetRequest(req, publisher, null, null).transform(afterDismiss)
 
                 Then("presentation flags allow presentationWillBegin to run") {
                     assertEquals(true, afterSetRequest.presentationWillPrepare)
@@ -561,7 +562,7 @@ class PaywallViewStateTest {
             val occurrence = TriggerRuleOccurrence.stub()
 
             When("SetRequest is applied") {
-                val newState = PaywallViewState.Updates.SetRequest(req, publisher, occurrence).transform(state)
+                val newState = PaywallViewState.Updates.SetRequest(req, publisher, occurrence, null).transform(state)
 
                 Then("all fields are set and same instance preserved") {
                     org.junit.Assert.assertSame(req, newState.request)
@@ -583,6 +584,88 @@ class PaywallViewStateTest {
 
                 Then("surveyPresentationResult equals res") {
                     assertEquals(res, newState.surveyPresentationResult)
+                }
+            }
+        }
+    }
+
+    private fun experiment(id: String) =
+        Experiment(
+            id = id,
+            groupId = "group",
+            variant = Experiment.Variant(id = "v_$id", type = Experiment.Variant.VariantType.TREATMENT, paywallId = "pw"),
+        )
+
+    @Test
+    fun mergePaywall_doesNotOverwriteExperimentOrPresentationSource() {
+        Given("a state whose paywall is bound to experiment A") {
+            val state =
+                makeState(Paywall.stub().copy(experiment = experiment("A"), presentationSourceType = "implicit"))
+            val from = Paywall.stub().copy(experiment = experiment("B"), presentationSourceType = "getPaywall")
+
+            When("a paywall resolved for experiment B is merged") {
+                val newState = PaywallViewState.Updates.MergePaywall(from).transform(state)
+
+                Then("the experiment and source stay bound to A") {
+                    assertEquals("A", newState.paywall.experiment?.id)
+                    assertEquals("implicit", newState.paywall.presentationSourceType)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun setRequest_bindsExperimentAndSourceTogetherWithRequest() {
+        Given("a state whose paywall carries a stale experiment") {
+            val state = makeState(Paywall.stub().copy(experiment = experiment("stale"), presentationSourceType = "getPaywall"))
+            val request = makeRequest() // explicit trigger, Presentation type -> "register"
+
+            When("a request is bound with its experiment") {
+                val newState =
+                    PaywallViewState.Updates
+                        .SetRequest(request, null, null, experiment("bound"))
+                        .transform(state)
+
+                Then("info reports the bound experiment, the request's source and the request's placement") {
+                    assertEquals("bound", newState.info.experiment?.id)
+                    assertEquals("register", newState.info.presentationSourceType)
+                    assertEquals("evt", newState.info.presentedByEventWithName)
+                }
+            }
+
+            When("a request is bound with a null experiment") {
+                val newState = PaywallViewState.Updates.SetRequest(request, null, null, null).transform(state)
+
+                Then("the stale experiment is not inherited") {
+                    assertEquals(null, newState.info.experiment)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun setRequest_mintsPresentationIdPerPresentationOfACachedView() {
+        Given("a freshly created view whose paywall carries the presentation id minted at fetch time") {
+            val state = makeState(Paywall.stub().copy(presentationId = "created"))
+            val request = makeRequest()
+
+            When("its first request is bound") {
+                val first = PaywallViewState.Updates.SetRequest(request, null, null, experiment("A")).transform(state)
+
+                Then("the presentation id its load events already carry is kept") {
+                    assertEquals("created", first.info.presentationId)
+                }
+
+                When("a paywall is merged and a second request is bound to the cached view") {
+                    val merged = PaywallViewState.Updates.MergePaywall(Paywall.stub().copy(presentationId = "other")).transform(first)
+                    val second = PaywallViewState.Updates.SetRequest(request, null, null, experiment("B")).transform(merged)
+
+                    Then("the merge leaves the id alone and the re-binding mints a new one") {
+                        assertEquals("created", merged.info.presentationId)
+                        assert(second.info.presentationId != "created")
+                        assert(second.info.presentationId != "other")
+                        assert(!second.info.presentationId.isNullOrBlank())
+                    }
                 }
             }
         }
