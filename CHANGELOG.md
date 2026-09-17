@@ -2,6 +2,12 @@
 
 The changelog for `Superwall`. Also see the [releases](https://github.com/superwall/Superwall-Android/releases) on GitHub.
 
+## 2.8.4
+
+## Fixes
+- Fix trial reminder notifications being scheduled after a paywall purchase that did not start a free trial (for example a user who already used their trial and was charged immediately). Reminders and the `freeTrial_start` paywall message are now only sent when a trial actually started.
+
+
 ## 2.8.3
 
 ## Fixes
