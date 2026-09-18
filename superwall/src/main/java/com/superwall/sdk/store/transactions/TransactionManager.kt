@@ -90,7 +90,7 @@ class TransactionManager(
     private val notifyBackendOfReceipts: suspend () -> Unit = {},
     private val refreshReceipt: () -> Unit,
     private val updateState: (cacheKey: String, update: PaywallViewState.Updates) -> Unit,
-    private val notifyOfTransactionComplete: suspend (paywallCacheKey: String, trialEndDate: Long?, productId: String) -> Unit,
+    private val notifyOfTransactionComplete: suspend (paywallCacheKey: String, trialEndDate: Long?, productId: String, didStartFreeTrial: Boolean) -> Unit,
     private val notifyOfTransactionAbandon: suspend (paywallCacheKey: String) -> Unit = {},
     private val testMode: TestMode? = null,
     private val testModeTransactionHandler: TestModeTransactionHandler? = null,
@@ -1178,7 +1178,9 @@ class TransactionManager(
 
         when (purchaseSource) {
             is PurchaseSource.Internal -> {
-                val trialEnd = product.trialPeriodEndDate?.time
+                // Only report a trial end when a trial actually started; product metadata alone
+                // can describe a trial the user was not eligible for.
+                val trialEnd = if (didStartFreeTrial) product.trialPeriodEndDate?.time else null
                 val paywallInfo = purchaseSource.paywallInfo
 
                 val trackedEvent =
@@ -1204,7 +1206,12 @@ class TransactionManager(
                         )
                     track(nonRecurringEvent)
                 } else {
-                    notifyOfTransactionComplete(purchaseSource.paywallInfo.cacheKey, trialEnd, product.fullIdentifier)
+                    notifyOfTransactionComplete(
+                        purchaseSource.paywallInfo.cacheKey,
+                        trialEnd,
+                        product.fullIdentifier,
+                        didStartFreeTrial,
+                    )
                     if (didStartFreeTrial) {
                         val freeTrialEvent =
                             InternalSuperwallEvent.FreeTrialStart(paywallInfo, product)
