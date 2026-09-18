@@ -663,8 +663,7 @@ class DependencyContainer(
                     // hasn't been updated to send the ScheduleNotification message dynamically.
                     // If the paywall sends a ScheduleNotification message, it will cancel and
                     // replace this notification.
-                    // Nothing is scheduled (and no trial-started message is sent to the paywall)
-                    // when the purchase did not start a free trial.
+                    // Nothing is scheduled when the purchase did not start a free trial.
                     val paywallInfo = paywallView.state.info
                     val trialNotifications =
                         TrialReminderLogic.fallbackTrialNotifications(
@@ -694,12 +693,18 @@ class DependencyContainer(
                                 "No paywall activity available to schedule fallback notifications",
                             )
                         }
+                    }
+
+                    // Tell the paywall a trial started whenever one did, independent of whether
+                    // it has trial reminders configured. This only forwards into the webview, so
+                    // it does not double-track the freeTrial_start placement.
+                    if (didStartFreeTrial) {
                         // Await message delivery to ensure webview has time to process before dismiss
                         paywallView.webView.messageHandler.handle(
                             PaywallMessage.TrialStarted(
                                 trialEndDate,
-                                id
-                            )
+                                id,
+                            ),
                         )
                     }
                 },

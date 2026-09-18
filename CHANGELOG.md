@@ -5,7 +5,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 ## 2.8.4
 
 ## Fixes
-- Fix trial reminder notifications being scheduled after a paywall purchase that did not start a free trial (for example a user who already used their trial and was charged immediately). Reminders and the `freeTrial_start` paywall message are now only sent when a trial actually started.
+- Fix trial reminder notifications being scheduled after a paywall purchase that did not start a free trial (for example a user who already used their trial and was charged immediately). Reminders are now only scheduled when a trial actually started, and the paywall receives the `freeTrial_start` message for every started trial, even when it has no trial reminders configured.
 
 
 ## 2.8.3
