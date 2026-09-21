@@ -7,6 +7,7 @@ import com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.logger.Logger
+import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
 import com.superwall.sdk.paywall.presentation.internal.InternalPresentationLogic
 import com.superwall.sdk.paywall.presentation.internal.PaywallPresentationRequestStatus
@@ -31,6 +32,7 @@ import kotlinx.coroutines.withContext
  * @param debugInfo Information to help with debugging.
  * @param request The request to present the paywall.
  * @param paywallStatePublisher A `MutableStateFlow` that gets sent `PaywallState` objects.
+ * @param experiment The experiment the request resolved to, bound to the view with the request.
  *
  * @return A publisher that contains info for the next pipeline operator.
  */
@@ -41,6 +43,7 @@ suspend fun Superwall.presentPaywallView(
     debugInfo: Map<String, Any>,
     request: PresentationRequest,
     paywallStatePublisher: MutableSharedFlow<PaywallState>,
+    experiment: Experiment?,
 ) {
     val trackedEvent =
         InternalSuperwallEvent.PresentationRequest(
@@ -64,6 +67,7 @@ suspend fun Superwall.presentPaywallView(
                 unsavedOccurrence = unsavedOccurrence,
                 presentationStyleOverride = request.paywallOverrides?.presentationStyle,
                 paywallStatePublisher = paywallStatePublisher,
+                experiment = experiment,
             ) { isPresented ->
                 if (isPresented) {
                     val state = PaywallState.Presented(paywallView.info)
@@ -112,6 +116,7 @@ fun Superwall.presentPaywallViewSync(
     unsavedOccurrence: TriggerRuleOccurrence?,
     debugInfo: Map<String, Any>,
     request: PresentationRequest,
+    experiment: Experiment?,
     onStateChanged: (PaywallState) -> Unit,
 ) {
     mainScope.launch {
@@ -128,6 +133,7 @@ fun Superwall.presentPaywallViewSync(
             debugInfo = debugInfo,
             request = request,
             paywallStatePublisher = publisher,
+            experiment = experiment,
         )
     }
 }

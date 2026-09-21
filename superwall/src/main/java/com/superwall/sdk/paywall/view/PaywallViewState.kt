@@ -3,6 +3,7 @@ package com.superwall.sdk.paywall.view
 import com.superwall.sdk.models.customer.CustomerInfo
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.PaywallPresentationStyle
+import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
 import com.superwall.sdk.paywall.manager.PaywallCacheLogic
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
@@ -14,6 +15,7 @@ import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 import com.superwall.sdk.paywall.view.survey.SurveyPresentationResult
 import kotlinx.coroutines.flow.MutableSharedFlow
 import java.util.Date
+import java.util.UUID
 
 data class PaywallViewState(
     val paywall: Paywall,
@@ -92,9 +94,14 @@ data class PaywallViewState(
                         swProductVariablesTemplate = from.swProductVariablesTemplate,
                         isFreeTrialAvailable = from.isFreeTrialAvailable,
                         productsLoadingInfo = from.productsLoadingInfo,
-                        presentationSourceType = from.presentationSourceType,
-                        experiment = from.experiment,
                     )
+                // Note: `experiment`, `presentationSourceType` and `presentationId` are deliberately
+                // NOT merged here. The view is cached per paywall identifier and shared by every
+                // campaign that uses the paywall, and this merge runs before the caller binds its
+                // request. A second request for the same paywall (e.g. getPaywall/getPresentationResult
+                // while an implicit presentation is in flight) would otherwise overwrite the metadata
+                // the first presentation reports. They are bound atomically with the request in
+                // [SetRequest] instead.
                 // Update productItems via setter to also refresh related fields.
                 merged.productItems = from.productItems
                 state.copy(paywall = merged)
@@ -106,12 +113,35 @@ data class PaywallViewState(
                 state.copy(customerInfo = customerInfo)
             })
 
+        /**
+         * Binds a presentation request to the view. The per-presentation metadata - experiment,
+         * presentation source and presentation id - is bound in the same transition as the
+         * request so that [PaywallViewState.info] never combines one request's placement with
+         * another request's experiment or presentation id. This is the only place that metadata
+         * is written; [MergePaywall] deliberately leaves it alone.
+         *
+         * @param experiment The experiment this request resolved to. Required so a caller cannot
+         * silently inherit whatever the shared cached view was last bound to.
+         */
         class SetRequest(
             val req: PresentationRequest,
             val publisher: MutableSharedFlow<PaywallState>?,
             val occurrence: TriggerRuleOccurrence?,
+            val experiment: Experiment?,
         ) : Updates({ state ->
+                // A fresh view is created with the presentation id its load events already carry,
+                // so the first binding keeps it. Every re-binding of a cached view is a new
+                // presentation and mints its own id.
+                val presentationId =
+                    state.paywall.presentationId.takeIf { state.request == null }
+                        ?: UUID.randomUUID().toString()
                 state.copy(
+                    paywall =
+                        state.paywall.copy(
+                            experiment = experiment,
+                            presentationSourceType = req.presentationSourceType,
+                            presentationId = presentationId,
+                        ),
                     request = req,
                     paywallStatePublisher = publisher,
                     unsavedOccurrence = occurrence,
