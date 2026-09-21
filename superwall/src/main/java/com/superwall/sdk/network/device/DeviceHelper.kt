@@ -94,6 +94,8 @@ class DeviceHelper(
         ActiveEntitlementsFactory,
         StorefrontCountryFactory
 
+    private val ipCollector = DeviceIPCollector()
+
     private val json =
         Json {
             encodeDefaults = true
@@ -683,8 +685,10 @@ class DeviceHelper(
                     enrichment
                         ?.device
                         ?: emptyMap()
-                enriched
+                ipCollector.record(enriched)
+                (enriched - DeviceIPCollector.attributeKeys)
                     .plus(it)
+                    .plus(ipCollector.attributes())
                     .let {
                         withErrorTracking {
                             if (factory.makeSuperwallOptions().enableExperimentalDeviceVariables) {
@@ -720,6 +724,7 @@ class DeviceHelper(
         maxRetry: Int,
         timeout: Duration,
     ): Either<Enrichment, NetworkError> {
+        ipCollector.refreshIfNeeded()
         val userAttributes =
             factory.makeIdentityManager().userAttributes.mapValues {
                 it.value.convertToJsonElement()
@@ -739,7 +744,7 @@ class DeviceHelper(
                     Superwall.instance.setUserAttributes(it.toMap())
                 }
                 it.device.let {
-                    Superwall.instance.setUserAttributes(it.toMap())
+                    Superwall.instance.setUserAttributes(it - DeviceIPCollector.attributeKeys)
                 }
             }
     }
