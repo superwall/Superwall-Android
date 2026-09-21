@@ -62,7 +62,6 @@ import com.superwall.sdk.models.entitlements.TransactionReceipt
 import com.superwall.sdk.models.events.EventData
 import com.superwall.sdk.models.internal.VendorId
 import com.superwall.sdk.models.paywall.LocalNotification
-import com.superwall.sdk.models.paywall.LocalNotificationType
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.product.ProductVariable
 import com.superwall.sdk.network.Api
@@ -128,6 +127,7 @@ import com.superwall.sdk.store.abstractions.transactions.StoreTransaction
 import com.superwall.sdk.store.testmode.TestMode
 import com.superwall.sdk.store.testmode.TestModeTransactionHandler
 import com.superwall.sdk.store.transactions.TransactionManager
+import com.superwall.sdk.store.transactions.notifications.TrialReminderLogic
 import com.superwall.sdk.utilities.DateUtils
 import com.superwall.sdk.utilities.ErrorTracker
 import com.superwall.sdk.utilities.dateFormat
@@ -642,7 +642,7 @@ class DependencyContainer(
                     }
                     paywallView.webView.messageHandler.handle(PaywallMessage.TransactionAbandon)
                 },
-                notifyOfTransactionComplete = { key, trialEndDate, id ->
+                notifyOfTransactionComplete = { key, trialEndDate, id, didStartFreeTrial ->
                     val paywallView =
                         resolvePaywallViewForKey(
                             makeViewStore(),
@@ -663,14 +663,13 @@ class DependencyContainer(
                     // hasn't been updated to send the ScheduleNotification message dynamically.
                     // If the paywall sends a ScheduleNotification message, it will cancel and
                     // replace this notification.
+                    // Nothing is scheduled when the purchase did not start a free trial.
                     val paywallInfo = paywallView.state.info
                     val trialNotifications =
-                        paywallInfo.localNotifications
-                            .filter {
-                                it.type == LocalNotificationType.TrialStarted
-                            }.map {
-                                it.copy("${paywallInfo.identifier}_${it.type.raw}")
-                            }
+                        TrialReminderLogic.fallbackTrialNotifications(
+                            paywallInfo = paywallInfo,
+                            didStartFreeTrial = didStartFreeTrial,
+                        )
 
                     if (trialNotifications.isNotEmpty()) {
 
@@ -694,12 +693,18 @@ class DependencyContainer(
                                 "No paywall activity available to schedule fallback notifications",
                             )
                         }
+                    }
+
+                    // Tell the paywall a trial started whenever one did, independent of whether
+                    // it has trial reminders configured. This only forwards into the webview, so
+                    // it does not double-track the freeTrial_start placement.
+                    if (didStartFreeTrial) {
                         // Await message delivery to ensure webview has time to process before dismiss
                         paywallView.webView.messageHandler.handle(
                             PaywallMessage.TrialStarted(
                                 trialEndDate,
-                                id
-                            )
+                                id,
+                            ),
                         )
                     }
                 },
