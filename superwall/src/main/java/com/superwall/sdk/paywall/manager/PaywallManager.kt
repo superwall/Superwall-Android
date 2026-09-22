@@ -90,9 +90,9 @@ class PaywallManager(
                             // isForPresentation because getPresentationResult() (a pure query API)
                             // also fetches through here — a result check while this paywall is
                             // on screen mid-purchase must not wipe its live spinner or prepare flags.
-                            // The view itself also refuses the reset while it is presented and
-                            // attached to a window, so a getPaywall() for a paywall that is on
-                            // screen hands the live view back without starting a new presentation.
+                            // A getPaywall() for a paywall that is currently on screen also lands
+                            // here: it takes the view over (prepareToDisplay() detaches it from
+                            // its current parent), so it is a new presentation like any other.
                             if (isForPresentation) {
                                 view.resetTransientPresentationState()
                             }

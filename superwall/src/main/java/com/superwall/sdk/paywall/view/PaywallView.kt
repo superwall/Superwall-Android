@@ -419,10 +419,10 @@ class PaywallView(
             return
         }
         controller.updateState(PresentationWillBegin)
-        // A new presentation is being prepared on this view (the guard above excludes a live
-        // one), so mint its id now: willPresentPaywall(info), didPresentPaywall(info) and the
-        // paywall_open that follows must all report the same id. onViewCreated() runs the same
-        // idempotent update for hosts that skip beforeViewCreated().
+        // A new presentation is being prepared on this view (the guard above excludes one that
+        // already finished preparing), so mint its id now: willPresentPaywall(info),
+        // didPresentPaywall(info) and the paywall_open that follows must all report the same id.
+        // onViewCreated() runs the same idempotent update for hosts that skip beforeViewCreated().
         controller.updateState(PaywallViewState.Updates.BeginPresentation)
 
         factory
@@ -529,18 +529,15 @@ class PaywallView(
     // resume-same-instance (that goes through onResume -> onViewCreated) nor during an in-flight
     // purchase.
     //
-    // A view that is presented AND attached to a window is a live presentation, not a cached
-    // view being re-presented: the caller asked for a paywall that is on screen (a getPaywall()
-    // for it mid-presentation). Resetting it would start a second presentation on the live view -
-    // its next onResume -> onViewCreated() would re-run the flow, fire another paywall_open and
-    // rotate its presentation id away from the pending paywall_close. So it is left alone.
-    // `isPresented` alone is not enough: it is only cleared by a finishing teardown, and an
-    // embedded host that re-presents a cached view detaches it first without tearing it down
-    // (PaywallHostFragment), which is exactly the case this reset exists for.
+    // This also runs when the view is still presented and attached: the only request that reaches
+    // the cache-hit branch while a paywall is on screen is a getPaywall() for that same paywall
+    // (register() is rejected earlier by checkNoPaywallAlreadyPresented), and that call always
+    // takes the view over - prepareToDisplay() removes it from its current parent in the same
+    // call. The view cannot tell that apart from an embedded host re-presenting a detached view,
+    // and it does not need to: both are the next presentation of this view, so both get a clean
+    // slate and a new presentation id (minted in beforeViewCreated()/onViewCreated()). The
+    // presentation being taken over ends here without a paywall_close of its own.
     internal fun resetTransientPresentationState() {
-        if (state.isPresented && isAttachedToWindow) {
-            return
-        }
         if (loadingState is PaywallLoadingState.LoadingPurchase ||
             loadingState is PaywallLoadingState.ManualLoading
         ) {
