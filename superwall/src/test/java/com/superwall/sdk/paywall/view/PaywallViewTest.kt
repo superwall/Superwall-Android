@@ -746,6 +746,7 @@ class PaywallViewTest {
                             req = mockk(relaxed = true),
                             publisher = statePublisher,
                             occurrence = null,
+                            experiment = null,
                         ),
                     )
 
@@ -766,8 +767,11 @@ class PaywallViewTest {
             }
         }
 
-    private fun makePaywallView(cache: com.superwall.sdk.paywall.manager.PaywallViewCache?): PaywallView {
-        val state = PaywallViewState(paywall = Paywall.stub(), locale = "en-US")
+    private fun makePaywallView(
+        cache: com.superwall.sdk.paywall.manager.PaywallViewCache?,
+        paywall: Paywall = Paywall.stub(),
+    ): PaywallView {
+        val state = PaywallViewState(paywall = paywall, locale = "en-US")
         val controller = PaywallView.PaywallController(state)
         return PaywallView(
             context = context,
@@ -843,6 +847,7 @@ class PaywallViewTest {
                             req = mockk(relaxed = true),
                             publisher = statePublisher,
                             occurrence = null,
+                            experiment = null,
                         ),
                     )
                     view.controller.updateState(PaywallViewState.Updates.SetPresentedAndFinished)
@@ -1035,6 +1040,7 @@ class PaywallViewTest {
                             req = mockk(relaxed = true),
                             publisher = statePublisher,
                             occurrence = null,
+                            experiment = null,
                         ),
                     )
                     view.controller.updateState(PaywallViewState.Updates.SetPresentedAndFinished)
@@ -1429,4 +1435,184 @@ class PaywallViewTest {
                     ),
             )
     }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun onViewCreated_mintsPresentationIdOnlyForANewPresentation() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            Dispatchers.setMain(dispatcher)
+            try {
+                Given("a PaywallView presented once, whose paywall_open consumed the fetch-time id") {
+                    clearMocks(delegateAdapter, answers = false)
+                    val view = makePaywallView(cache = null, paywall = Paywall.stub().copy(presentationId = "first"))
+
+                    val trackedEvents =
+                        java.util.Collections.synchronizedList(
+                            mutableListOf<com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent>(),
+                        )
+                    // Counts down once per paywall_open; the test expects exactly two.
+                    val openLatch = CountDownLatch(2)
+                    captureTrackedEvents(trackedEvents, CountDownLatch(1), openLatch)
+
+                    view.onViewCreated()
+                    advanceUntilIdle()
+                    // trackOpen() runs on the real IO scope, so wait for the first open to land.
+                    assertTrue("Precondition: first paywall_open tracked", waitUntil { openLatch.count == 1L })
+                    assertTrue("Precondition: id consumed by the open", view.state.presentationIdOpened)
+                    assertEquals("first", view.state.info.presentationId)
+
+                    When("the Activity resumes the same presentation: onViewCreated() again") {
+                        view.onViewCreated()
+                        advanceUntilIdle()
+
+                        Then("the id is untouched") {
+                            assertEquals("first", view.state.info.presentationId)
+                        }
+                    }
+
+                    When("a new presentation starts on the cached view (cache-hit reset, then onViewCreated)") {
+                        var presentedInfoId: String? = null
+                        view.controller.updateState(
+                            PaywallViewState.Updates.SetPresentationConfig(null) { presentedInfoId = view.info.presentationId },
+                        )
+                        view.resetTransientPresentationState()
+                        view.onViewCreated()
+                        advanceUntilIdle()
+
+                        Then("a new id is minted before the Presented completion and the second open reports it") {
+                            val second = view.state.info.presentationId
+                            assert(second != "first") { "Expected a new presentation id, got $second" }
+                            assertEquals(second, presentedInfoId)
+                            assertTrue(
+                                "Expected two PaywallOpen events, got $trackedEvents",
+                                openLatch.await(2, TimeUnit.SECONDS),
+                            )
+                        }
+                    }
+                }
+            } finally {
+                Dispatchers.resetMain()
+            }
+        }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun rePresentingADetachedCachedView_reportsOneNewPresentationIdToWillDidAndOpen() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            Dispatchers.setMain(dispatcher)
+            try {
+                Given("an embedded PaywallView presented once and detached without a finishing teardown") {
+                    clearMocks(delegateAdapter, answers = false)
+                    val view = makePaywallView(cache = null, paywall = Paywall.stub().copy(presentationId = "first"))
+                    val willInfos = mutableListOf<com.superwall.sdk.paywall.presentation.PaywallInfo>()
+                    val didInfos = mutableListOf<com.superwall.sdk.paywall.presentation.PaywallInfo>()
+                    every { delegateAdapter.willPresentPaywall(capture(willInfos)) } just Runs
+                    every { delegateAdapter.didPresentPaywall(capture(didInfos)) } just Runs
+
+                    val trackedEvents =
+                        java.util.Collections.synchronizedList(
+                            mutableListOf<com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent>(),
+                        )
+                    val openLatch = CountDownLatch(2)
+                    captureTrackedEvents(trackedEvents, CountDownLatch(1), openLatch)
+
+                    view.beforeViewCreated()
+                    view.onViewCreated()
+                    advanceUntilIdle()
+                    assertTrue("Precondition: first paywall_open tracked", waitUntil { openLatch.count == 1L })
+                    assertEquals("first", willInfos.single().presentationId)
+                    assertEquals("first", didInfos.single().presentationId)
+                    assertTrue("Precondition: embedded host never tears the view down", view.state.isPresented)
+
+                    When("the host re-embeds it: cache-hit reset, beforeViewCreated(), onViewCreated()") {
+                        view.resetTransientPresentationState()
+                        view.beforeViewCreated()
+                        val idAfterWillPresent = view.state.info.presentationId
+                        view.onViewCreated()
+                        advanceUntilIdle()
+                        assertTrue("Second paywall_open tracked", openLatch.await(2, TimeUnit.SECONDS))
+
+                        Then("willPresentPaywall, didPresentPaywall and paywall_open all carry the same new id") {
+                            val second = view.state.info.presentationId
+                            assert(second != "first") { "Expected a new presentation id, got $second" }
+                            assertEquals(second, idAfterWillPresent)
+                            assertEquals(second, willInfos[1].presentationId)
+                            assertEquals(second, didInfos[1].presentationId)
+                            val opens =
+                                trackedEvents.filterIsInstance<com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.PaywallOpen>()
+                            assertEquals(listOf("first", second), opens.map { it.paywallInfo.presentationId })
+                        }
+                    }
+                }
+            } finally {
+                Dispatchers.resetMain()
+            }
+        }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun handingALiveAttachedViewToANewPresentation_resetsItAndMintsANewId() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            Dispatchers.setMain(dispatcher)
+            try {
+                Given("a PaywallView that is presented, attached to a window and mid-purchase") {
+                    clearMocks(delegateAdapter, answers = false)
+                    val view = makePaywallView(cache = null, paywall = Paywall.stub().copy(presentationId = "live"))
+                    val activity =
+                        org.robolectric.Robolectric
+                            .buildActivity(android.app.Activity::class.java)
+                            .setup()
+                            .get()
+                    activity.setContentView(view)
+                    assertTrue("Precondition: attached to a window", view.isAttachedToWindow)
+                    val willInfos = mutableListOf<com.superwall.sdk.paywall.presentation.PaywallInfo>()
+                    val didInfos = mutableListOf<com.superwall.sdk.paywall.presentation.PaywallInfo>()
+                    every { delegateAdapter.willPresentPaywall(capture(willInfos)) } just Runs
+                    every { delegateAdapter.didPresentPaywall(capture(didInfos)) } just Runs
+
+                    val trackedEvents =
+                        java.util.Collections.synchronizedList(
+                            mutableListOf<com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent>(),
+                        )
+                    val openLatch = CountDownLatch(2)
+                    captureTrackedEvents(trackedEvents, CountDownLatch(1), openLatch)
+
+                    view.beforeViewCreated()
+                    view.onViewCreated()
+                    advanceUntilIdle()
+                    assertTrue("Precondition: first paywall_open tracked", waitUntil { openLatch.count == 1L })
+                    assertEquals("live", view.state.info.presentationId)
+                    view.controller.updateState(PaywallViewState.Updates.SetLoadingState(PaywallLoadingState.LoadingPurchase))
+
+                    When("getPaywall() for this paywall takes it over: cache-hit reset, beforeViewCreated(), onViewCreated()") {
+                        view.resetTransientPresentationState()
+
+                        Then("the stale spinner and prepare flag are cleared even though it is still on screen") {
+                            assertTrue(view.loadingState is PaywallLoadingState.Ready)
+                            assertFalse(view.state.presentationDidFinishPrepare)
+                        }
+
+                        view.beforeViewCreated()
+                        view.onViewCreated()
+                        advanceUntilIdle()
+                        assertTrue("Second paywall_open tracked", openLatch.await(2, TimeUnit.SECONDS))
+
+                        Then("it is a new presentation: one new id reported to willPresent, didPresent and paywall_open") {
+                            val second = view.state.info.presentationId
+                            assert(second != "live") { "Expected a new presentation id, got $second" }
+                            assertEquals(second, willInfos[1].presentationId)
+                            assertEquals(second, didInfos[1].presentationId)
+                            val opens =
+                                trackedEvents.filterIsInstance<com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.PaywallOpen>()
+                            assertEquals(listOf("live", second), opens.map { it.paywallInfo.presentationId })
+                        }
+                    }
+                }
+            } finally {
+                Dispatchers.resetMain()
+            }
+        }
 }

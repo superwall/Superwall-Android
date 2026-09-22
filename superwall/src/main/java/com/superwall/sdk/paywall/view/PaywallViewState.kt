@@ -3,6 +3,7 @@ package com.superwall.sdk.paywall.view
 import com.superwall.sdk.models.customer.CustomerInfo
 import com.superwall.sdk.models.paywall.Paywall
 import com.superwall.sdk.models.paywall.PaywallPresentationStyle
+import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
 import com.superwall.sdk.paywall.manager.PaywallCacheLogic
 import com.superwall.sdk.paywall.presentation.PaywallCloseReason
@@ -14,6 +15,7 @@ import com.superwall.sdk.paywall.view.delegate.PaywallLoadingState
 import com.superwall.sdk.paywall.view.survey.SurveyPresentationResult
 import kotlinx.coroutines.flow.MutableSharedFlow
 import java.util.Date
+import java.util.UUID
 
 data class PaywallViewState(
     val paywall: Paywall,
@@ -46,6 +48,10 @@ data class PaywallViewState(
     val crashRetries: Int = 0,
     // / The timestamp when the paywall was opened (presented to user). Used for calculating shimmer visible duration.
     val lastOpen: Date? = null,
+    // / `true` once a `paywall_open` has been tracked under the current `paywall.presentationId`.
+    // / Deliberately survives [Updates.CleanupAfterDestroy]: a consumed id stays consumed, so the
+    // / next presentation of this cached view mints a new one in [Updates.BeginPresentation].
+    val presentationIdOpened: Boolean = false,
 ) {
     val info: PaywallInfo
         get() =
@@ -92,9 +98,14 @@ data class PaywallViewState(
                         swProductVariablesTemplate = from.swProductVariablesTemplate,
                         isFreeTrialAvailable = from.isFreeTrialAvailable,
                         productsLoadingInfo = from.productsLoadingInfo,
-                        presentationSourceType = from.presentationSourceType,
-                        experiment = from.experiment,
                     )
+                // Note: `experiment`, `presentationSourceType` and `presentationId` are deliberately
+                // NOT merged here. The view is cached per paywall identifier and shared by every
+                // campaign that uses the paywall, and this merge runs before the caller binds its
+                // request. A second request for the same paywall (e.g. getPaywall/getPresentationResult
+                // while an implicit presentation is in flight) would otherwise overwrite the metadata
+                // the first presentation reports. Experiment and source are bound atomically with
+                // the request in [SetRequest]; the id is owned by [BeginPresentation].
                 // Update productItems via setter to also refresh related fields.
                 merged.productItems = from.productItems
                 state.copy(paywall = merged)
@@ -106,17 +117,59 @@ data class PaywallViewState(
                 state.copy(customerInfo = customerInfo)
             })
 
+        /**
+         * Binds a presentation request to the view. The experiment and presentation source are
+         * bound in the same transition as the request so that [PaywallViewState.info] never
+         * combines one request's placement with another request's experiment. This is the only
+         * place they are written; [MergePaywall] deliberately leaves them alone.
+         *
+         * The presentation id is *not* touched here. Binding a request is not a presentation
+         * boundary: the same cached view can be re-bound while it is on screen (a `getPaywall()`
+         * call for a paywall that is already presented), and the view cannot tell that apart from
+         * the next presentation starting. The id is owned by [BeginPresentation].
+         *
+         * @param experiment The experiment this request resolved to. Required so a caller cannot
+         * silently inherit whatever the shared cached view was last bound to.
+         */
         class SetRequest(
             val req: PresentationRequest,
             val publisher: MutableSharedFlow<PaywallState>?,
             val occurrence: TriggerRuleOccurrence?,
+            val experiment: Experiment?,
         ) : Updates({ state ->
                 state.copy(
+                    paywall =
+                        state.paywall.copy(
+                            experiment = experiment,
+                            presentationSourceType = req.presentationSourceType,
+                        ),
                     request = req,
                     paywallStatePublisher = publisher,
                     unsavedOccurrence = occurrence,
                 )
             })
+
+        /**
+         * Marks the start of a presentation. A presentation is identified by its `paywall_open`:
+         * if the current id has already been reported by one (see [SetLastOpen]), or the view
+         * never got one at fetch time, a new id is minted here. Otherwise the id is kept, so a
+         * fresh view's load events and its first open share the id minted at fetch time.
+         *
+         * Idempotent between opens, so it can run both when a presentation is being prepared
+         * ([PaywallView.beforeViewCreated]) and when the view is created ([PaywallView.onViewCreated]).
+         * Everything tracked between two opens - `paywall_close`, `transaction_*` - keeps the id
+         * of the open that preceded it, even if the view was re-bound in between.
+         */
+        object BeginPresentation : Updates({ state ->
+            if (state.presentationIdOpened || state.paywall.presentationId == null) {
+                state.copy(
+                    paywall = state.paywall.copy(presentationId = UUID.randomUUID().toString()),
+                    presentationIdOpened = false,
+                )
+            } else {
+                state
+            }
+        })
 
         class SetPresentationConfig(
             val styleOverride: PaywallPresentationStyle?,
@@ -217,7 +270,7 @@ data class PaywallViewState(
          * Used for calculating shimmer visible duration (matching iOS behavior).
          */
         object SetLastOpen : Updates({ state ->
-            state.copy(lastOpen = Date())
+            state.copy(lastOpen = Date(), presentationIdOpened = true)
         })
 
         object ShimmerEnded : Updates({ state ->

@@ -46,6 +46,7 @@ import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.MainScope
 import com.superwall.sdk.misc.toResult
 import com.superwall.sdk.models.paywall.PaywallPresentationStyle
+import com.superwall.sdk.models.triggers.Experiment
 import com.superwall.sdk.models.triggers.TriggerRuleOccurrence
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.paywall.manager.PaywallViewCache
@@ -261,12 +262,14 @@ class PaywallView(
         request: PresentationRequest,
         paywallStatePublisher: MutableSharedFlow<PaywallState>,
         unsavedOccurrence: TriggerRuleOccurrence?,
+        experiment: Experiment?,
     ) {
         controller.updateState(
             SetRequest(
                 request,
                 paywallStatePublisher,
                 unsavedOccurrence,
+                experiment,
             ),
         )
     }
@@ -303,6 +306,7 @@ class PaywallView(
         unsavedOccurrence: TriggerRuleOccurrence?,
         presentationStyleOverride: PaywallPresentationStyle?,
         paywallStatePublisher: MutableSharedFlow<PaywallState>,
+        experiment: Experiment?,
         completion: (Boolean) -> Unit,
     ) {
         webView.attach(this)
@@ -351,7 +355,7 @@ class PaywallView(
         cache?.acquireShimmerView()?.let {
             setupShimmer(it)
         }
-        set(request, paywallStatePublisher, unsavedOccurrence)
+        set(request, paywallStatePublisher, unsavedOccurrence, experiment)
         controller.updateState(
             SetPresentationConfig(
                 presentationStyleOverride,
@@ -415,6 +419,11 @@ class PaywallView(
             return
         }
         controller.updateState(PresentationWillBegin)
+        // A new presentation is being prepared on this view (the guard above excludes one that
+        // already finished preparing), so mint its id now: willPresentPaywall(info),
+        // didPresentPaywall(info) and the paywall_open that follows must all report the same id.
+        // onViewCreated() runs the same idempotent update for hosts that skip beforeViewCreated().
+        controller.updateState(PaywallViewState.Updates.BeginPresentation)
 
         factory
             .delegate()
@@ -519,6 +528,15 @@ class PaywallView(
     // Safe because that branch only runs for a genuinely new presentation request - never on
     // resume-same-instance (that goes through onResume -> onViewCreated) nor during an in-flight
     // purchase.
+    //
+    // This also runs when the view is still presented and attached: the only request that reaches
+    // the cache-hit branch while a paywall is on screen is a getPaywall() for that same paywall
+    // (register() is rejected earlier by checkNoPaywallAlreadyPresented), and that call always
+    // takes the view over - prepareToDisplay() removes it from its current parent in the same
+    // call. The view cannot tell that apart from an embedded host re-presenting a detached view,
+    // and it does not need to: both are the next presentation of this view, so both get a clean
+    // slate and a new presentation id (minted in beforeViewCreated()/onViewCreated()). The
+    // presentation being taken over ends here without a paywall_close of its own.
     internal fun resetTransientPresentationState() {
         if (loadingState is PaywallLoadingState.LoadingPurchase ||
             loadingState is PaywallLoadingState.ManualLoading
@@ -669,10 +687,16 @@ class PaywallView(
     // Lets the view know that presentation has finished.
 // Only called once per presentation.
     fun onViewCreated() {
+        val isNewPresentation = !state.presentationDidFinishPrepare
+        if (isNewPresentation) {
+            // Before the completion below emits PaywallState.Presented(info): a new presentation
+            // on a view whose current id was already consumed by a paywall_open gets a fresh one.
+            controller.updateState(PaywallViewState.Updates.BeginPresentation)
+        }
         state.viewCreatedCompletion?.invoke(true)
         controller.updateState(ClearViewCreatedCompletion)
 
-        if (state.presentationDidFinishPrepare) {
+        if (!isNewPresentation) {
             if (state.closedForBackground) {
                 controller.updateState(SetClosedForBackground(false))
                 ioScope.launch {

@@ -44,10 +44,13 @@ import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.util.Date
 import java.util.concurrent.ConcurrentHashMap
 
 class TransactionManagerTest {
@@ -78,6 +81,7 @@ class TransactionManagerTest {
     private val alertCalls = mutableListOf<AlertControllerFactory.AlertProps>()
     private val stateUpdates = mutableListOf<Pair<String, PaywallViewState.Updates>>()
     private val transactionCompleteCalls = mutableListOf<Pair<String, Long?>>()
+    private val transactionCompleteTrialFlags = mutableListOf<Boolean>()
     private var subscriptionStatusValue: SubscriptionStatus = SubscriptionStatus.Active(setOf(Entitlement("test")))
     private var webEntitlementsValue: Set<Entitlement> = emptySet()
     private val entitlementsMap = mutableMapOf<String, Set<Entitlement>>()
@@ -93,6 +97,7 @@ class TransactionManagerTest {
         alertCalls.clear()
         stateUpdates.clear()
         transactionCompleteCalls.clear()
+        transactionCompleteTrialFlags.clear()
         refreshReceiptCalled = false
         showRestoreDialogCalled = false
         webEntitlementsValue = emptySet()
@@ -133,7 +138,10 @@ class TransactionManagerTest {
                 showRestoreDialogForWeb = { showRestoreDialogCalled = true },
                 refreshReceipt = { refreshReceiptCalled = true },
                 updateState = { key, update -> stateUpdates.add(key to update) },
-                notifyOfTransactionComplete = { cacheKey, trialEndDate, id -> transactionCompleteCalls.add(cacheKey to trialEndDate) },
+                notifyOfTransactionComplete = { cacheKey, trialEndDate, id, didStartFreeTrial ->
+                    transactionCompleteCalls.add(cacheKey to trialEndDate)
+                    transactionCompleteTrialFlags.add(didStartFreeTrial)
+                },
             )
     }
 
@@ -520,6 +528,111 @@ class TransactionManagerTest {
                                 .filterIsInstance<InternalSuperwallEvent.Transaction.State.Complete>()
                         assertTrue(completed.isNotEmpty())
                         assertTrue(completed.all { it.transaction == null })
+                    }
+                }
+            }
+        }
+
+    // endregion
+
+    // region trial reminder regression (2.7.13: reminder scheduled without a trial)
+
+    @Test
+    fun purchase_internalSubscriptionWithoutTrial_doesNotReportTrialStarted() =
+        runTest {
+            Given("a paywall purchase of a subscription whose selected offer has no free trial") {
+                // A user who already consumed their trial is charged immediately. The paywall may
+                // still have Trial Reminders configured, so the completion callback must say no
+                // trial started, otherwise a "your free trial ends" reminder gets scheduled.
+                val productId = "product_no_trial"
+                val rawProduct =
+                    mockk<RawStoreProduct>(relaxed = true) {
+                        every { fullIdentifier } returns productId
+                        every { underlyingProductDetails } returns mockProductDetails(productId)
+                        every { hasFreeTrial } returns false
+                        every { selectedOffer } returns null
+                    }
+                val product =
+                    mockk<StoreProduct>(relaxed = true) {
+                        every { fullIdentifier } returns productId
+                        every { hasFreeTrial } returns false
+                        every { rawStoreProduct } returns rawProduct
+                        every { subscriptionPeriod } returns mockk(relaxed = true)
+                        // Stale metadata can still carry a trial end date; it must not be used.
+                        every { trialPeriodEndDate } returns Date(1_700_000_000_000L)
+                    }
+                every { storeManager.getProductFromCache(productId) } returns product
+                coEvery {
+                    storeManager.purchaseController.purchase(any(), any<StoreProduct>(), any(), any())
+                } returns PurchaseResult.Purchased()
+
+                When("the purchase completes") {
+                    val result =
+                        transactionManager.purchase(
+                            TransactionManager.PurchaseSource.Internal(
+                                productId,
+                                mockk(relaxed = true),
+                            ),
+                        )
+
+                    Then("the transaction completes without a trial having started") {
+                        assertTrue(result is PurchaseResult.Purchased)
+                        assertEquals(listOf(false), transactionCompleteTrialFlags)
+                        assertEquals(1, transactionCompleteCalls.size)
+                        assertNull(transactionCompleteCalls.single().second)
+                        And("a subscription start rather than a free trial start is tracked") {
+                            assertTrue(trackedEvents.any { it is InternalSuperwallEvent.SubscriptionStart })
+                            assertFalse(trackedEvents.any { it is InternalSuperwallEvent.FreeTrialStart })
+                        }
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun purchase_internalSubscriptionWithTrial_reportsTrialStartedAndEndDate() =
+        runTest {
+            Given("a paywall purchase of a subscription whose selected offer includes a free trial") {
+                val productId = "product_with_trial"
+                val trialEnd = Date(1_800_000_000_000L)
+                val rawProduct =
+                    mockk<RawStoreProduct>(relaxed = true) {
+                        every { fullIdentifier } returns productId
+                        every { underlyingProductDetails } returns mockProductDetails(productId)
+                        every { hasFreeTrial } returns true
+                        every { selectedOffer } returns
+                            RawStoreProduct.SelectedOfferDetails.Subscription(mockk(relaxed = true))
+                    }
+                val product =
+                    mockk<StoreProduct>(relaxed = true) {
+                        every { fullIdentifier } returns productId
+                        every { hasFreeTrial } returns true
+                        every { rawStoreProduct } returns rawProduct
+                        every { subscriptionPeriod } returns mockk(relaxed = true)
+                        every { trialPeriodEndDate } returns trialEnd
+                    }
+                every { storeManager.getProductFromCache(productId) } returns product
+                coEvery {
+                    storeManager.purchaseController.purchase(any(), any<StoreProduct>(), any(), any())
+                } returns PurchaseResult.Purchased()
+
+                When("the purchase completes") {
+                    val result =
+                        transactionManager.purchase(
+                            TransactionManager.PurchaseSource.Internal(
+                                productId,
+                                mockk(relaxed = true),
+                            ),
+                        )
+
+                    Then("the completion callback reports the trial and its end date") {
+                        assertTrue(result is PurchaseResult.Purchased)
+                        assertEquals(listOf(true), transactionCompleteTrialFlags)
+                        assertEquals(trialEnd.time, transactionCompleteCalls.single().second)
+                        And("a free trial start is tracked") {
+                            assertTrue(trackedEvents.any { it is InternalSuperwallEvent.FreeTrialStart })
+                            assertFalse(trackedEvents.any { it is InternalSuperwallEvent.SubscriptionStart })
+                        }
                     }
                 }
             }
