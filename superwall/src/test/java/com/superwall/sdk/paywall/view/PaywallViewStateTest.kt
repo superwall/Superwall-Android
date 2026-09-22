@@ -670,4 +670,35 @@ class PaywallViewStateTest {
             }
         }
     }
+
+    @Test
+    fun setRequest_keepsPresentationIdWhileTheViewIsPresented() {
+        Given("a cached view that is currently presented under a bound request") {
+            val request = makeRequest()
+            val fresh = PaywallViewState.Updates.SetRequest(request, null, null, experiment("A")).transform(makeState())
+            val cached = PaywallViewState.Updates.SetRequest(request, null, null, experiment("A")).transform(fresh)
+            val presented = PaywallViewState.Updates.SetPresentedAndFinished.transform(cached)
+            val liveId = presented.info.presentationId
+            assert(!liveId.isNullOrBlank())
+
+            When("another request is bound to it mid-presentation") {
+                val rebound = PaywallViewState.Updates.SetRequest(request, null, null, experiment("B")).transform(presented)
+
+                Then("the live presentation keeps its id but takes the new request's metadata") {
+                    assertEquals(liveId, rebound.info.presentationId)
+                    assertEquals("B", rebound.info.experiment?.id)
+                }
+
+                When("the presentation ends and the cached view is re-bound") {
+                    val destroyed = PaywallViewState.Updates.CleanupAfterDestroy.transform(rebound)
+                    val next = PaywallViewState.Updates.SetRequest(request, null, null, experiment("C")).transform(destroyed)
+
+                    Then("the next presentation mints a new id") {
+                        assert(next.info.presentationId != liveId)
+                        assert(!next.info.presentationId.isNullOrBlank())
+                    }
+                }
+            }
+        }
+    }
 }

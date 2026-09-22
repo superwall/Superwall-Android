@@ -130,10 +130,14 @@ data class PaywallViewState(
             val experiment: Experiment?,
         ) : Updates({ state ->
                 // A fresh view is created with the presentation id its load events already carry,
-                // so the first binding keeps it. Every re-binding of a cached view is a new
-                // presentation and mints its own id.
+                // so the first binding keeps it. A view that is currently presented keeps it too:
+                // it has already emitted paywall_open under that id, and re-binding it (e.g. a
+                // getPaywall() call for a paywall that is on screen) must not split the funnel
+                // between paywall_open and the paywall_close/transaction_* events that follow.
+                // Every re-binding of a cached view that is not on screen is a new presentation
+                // and mints its own id.
                 val presentationId =
-                    state.paywall.presentationId.takeIf { state.request == null }
+                    state.paywall.presentationId.takeIf { state.request == null || state.isPresented }
                         ?: UUID.randomUUID().toString()
                 state.copy(
                     paywall =
