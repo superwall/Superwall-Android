@@ -1457,6 +1457,9 @@ class PaywallViewTest {
 
                     view.onViewCreated()
                     advanceUntilIdle()
+                    // trackOpen() runs on the real IO scope, so wait for the first open to land.
+                    assertTrue("Precondition: first paywall_open tracked", waitUntil { openLatch.count == 1L })
+                    assertTrue("Precondition: id consumed by the open", view.state.presentationIdOpened)
                     assertEquals("first", view.state.info.presentationId)
 
                     When("the Activity resumes the same presentation: onViewCreated() again") {
@@ -1485,6 +1488,131 @@ class PaywallViewTest {
                                 "Expected two PaywallOpen events, got $trackedEvents",
                                 openLatch.await(2, TimeUnit.SECONDS),
                             )
+                        }
+                    }
+                }
+            } finally {
+                Dispatchers.resetMain()
+            }
+        }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun rePresentingADetachedCachedView_reportsOneNewPresentationIdToWillDidAndOpen() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            Dispatchers.setMain(dispatcher)
+            try {
+                Given("an embedded PaywallView presented once and detached without a finishing teardown") {
+                    clearMocks(delegateAdapter, answers = false)
+                    val view = makePaywallView(cache = null, paywall = Paywall.stub().copy(presentationId = "first"))
+                    val willInfos = mutableListOf<com.superwall.sdk.paywall.presentation.PaywallInfo>()
+                    val didInfos = mutableListOf<com.superwall.sdk.paywall.presentation.PaywallInfo>()
+                    every { delegateAdapter.willPresentPaywall(capture(willInfos)) } just Runs
+                    every { delegateAdapter.didPresentPaywall(capture(didInfos)) } just Runs
+
+                    val trackedEvents =
+                        java.util.Collections.synchronizedList(
+                            mutableListOf<com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent>(),
+                        )
+                    val openLatch = CountDownLatch(2)
+                    captureTrackedEvents(trackedEvents, CountDownLatch(1), openLatch)
+
+                    view.beforeViewCreated()
+                    view.onViewCreated()
+                    advanceUntilIdle()
+                    assertTrue("Precondition: first paywall_open tracked", waitUntil { openLatch.count == 1L })
+                    assertEquals("first", willInfos.single().presentationId)
+                    assertEquals("first", didInfos.single().presentationId)
+                    assertTrue("Precondition: embedded host never tears the view down", view.state.isPresented)
+
+                    When("the host re-embeds it: cache-hit reset, beforeViewCreated(), onViewCreated()") {
+                        view.resetTransientPresentationState()
+                        view.beforeViewCreated()
+                        val idAfterWillPresent = view.state.info.presentationId
+                        view.onViewCreated()
+                        advanceUntilIdle()
+                        assertTrue("Second paywall_open tracked", openLatch.await(2, TimeUnit.SECONDS))
+
+                        Then("willPresentPaywall, didPresentPaywall and paywall_open all carry the same new id") {
+                            val second = view.state.info.presentationId
+                            assert(second != "first") { "Expected a new presentation id, got $second" }
+                            assertEquals(second, idAfterWillPresent)
+                            assertEquals(second, willInfos[1].presentationId)
+                            assertEquals(second, didInfos[1].presentationId)
+                            val opens =
+                                trackedEvents.filterIsInstance<com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.PaywallOpen>()
+                            assertEquals(listOf("first", second), opens.map { it.paywallInfo.presentationId })
+                        }
+                    }
+                }
+            } finally {
+                Dispatchers.resetMain()
+            }
+        }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun reBindingALivePresentedView_doesNotStartANewPresentation() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            Dispatchers.setMain(dispatcher)
+            try {
+                Given("a PaywallView that is presented and attached to a window") {
+                    clearMocks(delegateAdapter, answers = false)
+                    val view = makePaywallView(cache = null, paywall = Paywall.stub().copy(presentationId = "live"))
+                    val activity =
+                        org.robolectric.Robolectric
+                            .buildActivity(android.app.Activity::class.java)
+                            .setup()
+                            .get()
+                    activity.setContentView(view)
+                    assertTrue("Precondition: attached to a window", view.isAttachedToWindow)
+
+                    val trackedEvents =
+                        java.util.Collections.synchronizedList(
+                            mutableListOf<com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent>(),
+                        )
+                    val openLatch = CountDownLatch(1)
+                    captureTrackedEvents(trackedEvents, CountDownLatch(1), openLatch)
+
+                    view.beforeViewCreated()
+                    view.onViewCreated()
+                    advanceUntilIdle()
+                    assertTrue("Precondition: paywall_open tracked", openLatch.await(2, TimeUnit.SECONDS))
+                    assertEquals("live", view.state.info.presentationId)
+                    clearMocks(delegateAdapter, answers = false)
+
+                    When("getPaywall() hands the live view back: cache-hit reset, beforeViewCreated(), onViewCreated()") {
+                        view.resetTransientPresentationState()
+                        view.beforeViewCreated()
+                        view.onViewCreated()
+                        advanceUntilIdle()
+
+                        Then("the live presentation is untouched: same id, no second open, no delegate callbacks") {
+                            assertTrue("prepare flag must survive", view.state.presentationDidFinishPrepare)
+                            assertEquals("live", view.state.info.presentationId)
+                            Thread.sleep(300)
+                            assertEquals(
+                                1,
+                                trackedEvents.count {
+                                    it is com.superwall.sdk.analytics.internal.trackable.InternalSuperwallEvent.PaywallOpen
+                                },
+                            )
+                            verify(exactly = 0) { delegateAdapter.willPresentPaywall(any()) }
+                            verify(exactly = 0) { delegateAdapter.didPresentPaywall(any()) }
+                        }
+                    }
+
+                    When("the host detaches it and re-presents it") {
+                        (view.parent as android.view.ViewGroup).removeView(view)
+                        assertFalse("Precondition: detached", view.isAttachedToWindow)
+                        view.resetTransientPresentationState()
+                        view.beforeViewCreated()
+
+                        Then("that is a new presentation and mints a new id") {
+                            assertFalse(view.state.presentationDidFinishPrepare)
+                            assert(view.state.info.presentationId != "live")
                         }
                     }
                 }

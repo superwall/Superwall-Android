@@ -419,14 +419,11 @@ class PaywallView(
             return
         }
         controller.updateState(PresentationWillBegin)
-        // A cached view that finished its previous presentation is about to start the next one,
-        // so mint its id now and willPresentPaywall(info) already reports it. Skipped while the
-        // view is still presented: the cache-hit reset also runs when a live view is re-bound
-        // (getPaywall() for a paywall that is on screen), and that is not a new presentation.
-        // onViewCreated() mints instead if a genuinely new presentation follows.
-        if (!state.isPresented) {
-            controller.updateState(PaywallViewState.Updates.BeginPresentation)
-        }
+        // A new presentation is being prepared on this view (the guard above excludes a live
+        // one), so mint its id now: willPresentPaywall(info), didPresentPaywall(info) and the
+        // paywall_open that follows must all report the same id. onViewCreated() runs the same
+        // idempotent update for hosts that skip beforeViewCreated().
+        controller.updateState(PaywallViewState.Updates.BeginPresentation)
 
         factory
             .delegate()
@@ -531,7 +528,19 @@ class PaywallView(
     // Safe because that branch only runs for a genuinely new presentation request - never on
     // resume-same-instance (that goes through onResume -> onViewCreated) nor during an in-flight
     // purchase.
+    //
+    // A view that is presented AND attached to a window is a live presentation, not a cached
+    // view being re-presented: the caller asked for a paywall that is on screen (a getPaywall()
+    // for it mid-presentation). Resetting it would start a second presentation on the live view -
+    // its next onResume -> onViewCreated() would re-run the flow, fire another paywall_open and
+    // rotate its presentation id away from the pending paywall_close. So it is left alone.
+    // `isPresented` alone is not enough: it is only cleared by a finishing teardown, and an
+    // embedded host that re-presents a cached view detaches it first without tearing it down
+    // (PaywallHostFragment), which is exactly the case this reset exists for.
     internal fun resetTransientPresentationState() {
+        if (state.isPresented && isAttachedToWindow) {
+            return
+        }
         if (loadingState is PaywallLoadingState.LoadingPurchase ||
             loadingState is PaywallLoadingState.ManualLoading
         ) {
