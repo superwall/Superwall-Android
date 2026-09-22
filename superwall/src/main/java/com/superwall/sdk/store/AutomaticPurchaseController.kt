@@ -25,7 +25,9 @@ import com.superwall.sdk.logger.Logger
 import com.superwall.sdk.misc.IOScope
 import com.superwall.sdk.misc.retryOrNull
 import com.superwall.sdk.models.customer.toSet
+import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
+import com.superwall.sdk.storage.LatestDeviceCustomerInfo
 import com.superwall.sdk.store.abstractions.product.BasePlanType
 import com.superwall.sdk.store.abstractions.product.OfferType
 import com.superwall.sdk.store.abstractions.product.RawStoreProduct
@@ -54,6 +56,26 @@ class AutomaticPurchaseController(
     var context: Context,
     val scope: IOScope,
     val entitlementsInfo: () -> Entitlements = { Superwall.instance.dependencyContainer.entitlements },
+    // The status holds config-shaped entitlements, which carry no expiry date.
+    // The device CustomerInfo built from Play receipts does, and it survives
+    // launches, so it is what an empty read gets measured against.
+    val deviceEntitlementRecords: () -> Set<Entitlement> = {
+        try {
+            Superwall.instance.dependencyContainer.storage
+                .read(LatestDeviceCustomerInfo)
+                ?.entitlements
+                ?.toSet() ?: emptySet()
+        } catch (e: Throwable) {
+            // Without the dates we can only fall back to demoting, which is
+            // what this read would have done anyway.
+            Logger.debug(
+                logLevel = LogLevel.error,
+                scope = LogScope.nativePurchaseController,
+                message = "Unable to read the stored device entitlements.",
+            )
+            emptySet()
+        }
+    },
     val getBilling: (Context, PurchasesUpdatedListener) -> BillingClient = { ctx, listener ->
         try {
             BillingClient
@@ -363,6 +385,11 @@ class AutomaticPurchaseController(
         val allPurchases = (subscriptionPurchases ?: emptyList()) + (inAppPurchases ?: emptyList())
         val hasActivePurchaseOrSubscription =
             allPurchases.any { it.purchaseState == Purchase.PurchaseState.PURCHASED }
+        val activeProductIds =
+            allPurchases
+                .filter { it.purchaseState == Purchase.PurchaseState.PURCHASED }
+                .flatMap { it.products }
+                .toSet()
 
         Logger.debug(
             logLevel = LogLevel.debug,
@@ -394,13 +421,19 @@ class AutomaticPurchaseController(
                             message = "Found entitlements: ${entitlements.joinToString { it.id }}",
                         )
 
-                        entitlementsInfo().activeDeviceEntitlements = entitlements
                         if (entitlements.isNotEmpty()) {
+                            entitlementsInfo().activeDeviceEntitlements = entitlements
                             SubscriptionStatus.Active(
                                 entitlements.map { it.copy(isActive = true) }.toSet(),
                             )
                         } else {
-                            SubscriptionStatus.Inactive
+                            // An active purchase that maps to no entitlement is a
+                            // mapping failure, not an answer about what it unlocks.
+                            statusForEmptyRead(
+                                activeProductIds = activeProductIds,
+                                readReturnedPurchases = allPurchases.isNotEmpty(),
+                                readFailed = failed,
+                            )
                         }
                     }
             } else {
@@ -408,7 +441,11 @@ class AutomaticPurchaseController(
                 // test mode are known before publishing Inactive - otherwise we'd
                 // fire a spurious status change in test-mode apps
                 Superwall.instance.configurationStateListener.first { it !is ConfigurationStatus.Pending }
-                SubscriptionStatus.Inactive
+                statusForEmptyRead(
+                    activeProductIds = activeProductIds,
+                    readReturnedPurchases = allPurchases.isNotEmpty(),
+                    readFailed = failed,
+                )
             }
         if (!Superwall.initialized) {
             Logger.debug(
@@ -427,6 +464,43 @@ class AutomaticPurchaseController(
                 syncSubscriptionStatusAndWait(count + 1)
             }
         }
+    }
+
+    /**
+     * Resolves the status for a read that produced no entitlements, keeping a
+     * subscriber whose entitlement hasn't expired active when the read was not
+     * an answer. See [resolveStatusForEmptyRead].
+     */
+    private fun statusForEmptyRead(
+        activeProductIds: Set<String>,
+        readReturnedPurchases: Boolean,
+        readFailed: Boolean,
+    ): SubscriptionStatus {
+        val resolved =
+            resolveStatusForEmptyRead(
+                currentStatus = entitlementsInfo().status.value,
+                deviceRecords = deviceEntitlementRecords(),
+                activeProductIds = activeProductIds,
+                readReturnedPurchases = readReturnedPurchases,
+                readFailed = readFailed,
+            )
+
+        // Keep the device view in step with the status we are about to publish,
+        // or `Entitlements.active` would go on serving whatever we just dropped.
+        entitlementsInfo().activeDeviceEntitlements =
+            if (resolved is SubscriptionStatus.Active) resolved.entitlements else emptySet()
+
+        if (resolved is SubscriptionStatus.Active) {
+            Logger.debug(
+                logLevel = LogLevel.debug,
+                scope = LogScope.nativePurchaseController,
+                message =
+                    "Read returned no entitlements and was not an answer, keeping: " +
+                        resolved.entitlements.joinToString { it.id },
+            )
+        }
+
+        return resolved
     }
 
     private suspend fun queryPurchasesOfType(productType: String): Result<List<Purchase>> {
