@@ -419,6 +419,14 @@ class PaywallView(
             return
         }
         controller.updateState(PresentationWillBegin)
+        // A cached view that finished its previous presentation is about to start the next one,
+        // so mint its id now and willPresentPaywall(info) already reports it. Skipped while the
+        // view is still presented: the cache-hit reset also runs when a live view is re-bound
+        // (getPaywall() for a paywall that is on screen), and that is not a new presentation.
+        // onViewCreated() mints instead if a genuinely new presentation follows.
+        if (!state.isPresented) {
+            controller.updateState(PaywallViewState.Updates.BeginPresentation)
+        }
 
         factory
             .delegate()
@@ -673,10 +681,16 @@ class PaywallView(
     // Lets the view know that presentation has finished.
 // Only called once per presentation.
     fun onViewCreated() {
+        val isNewPresentation = !state.presentationDidFinishPrepare
+        if (isNewPresentation) {
+            // Before the completion below emits PaywallState.Presented(info): a new presentation
+            // on a view whose current id was already consumed by a paywall_open gets a fresh one.
+            controller.updateState(PaywallViewState.Updates.BeginPresentation)
+        }
         state.viewCreatedCompletion?.invoke(true)
         controller.updateState(ClearViewCreatedCompletion)
 
-        if (state.presentationDidFinishPrepare) {
+        if (!isNewPresentation) {
             if (state.closedForBackground) {
                 controller.updateState(SetClosedForBackground(false))
                 ioScope.launch {

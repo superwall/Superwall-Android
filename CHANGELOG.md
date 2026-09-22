@@ -6,7 +6,7 @@ The changelog for `Superwall`. Also see the [releases](https://github.com/superw
 
 ## Fixes
 - Fix bug where experiment ID would be stale among paywalls sharing experiments
-- Fix `presentation_id` changing mid-presentation when `getPaywall()` is called for a paywall that is already on screen
+- Fix `presentation_id` changing mid-presentation when `getPaywall()` is called for a paywall that is already on screen. The id now rotates when a cached paywall is presented again, so every event between one `paywall_open` and the next carries the same id.
 - Fix trial reminder notifications being scheduled after a paywall purchase that did not start a free trial (for example a user who already used their trial and was charged immediately). Reminders are now only scheduled when a trial actually started, and the paywall receives the `freeTrial_start` message for every started trial, even when it has no trial reminders configured.
 
 

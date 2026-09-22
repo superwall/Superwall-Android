@@ -767,8 +767,11 @@ class PaywallViewTest {
             }
         }
 
-    private fun makePaywallView(cache: com.superwall.sdk.paywall.manager.PaywallViewCache?): PaywallView {
-        val state = PaywallViewState(paywall = Paywall.stub(), locale = "en-US")
+    private fun makePaywallView(
+        cache: com.superwall.sdk.paywall.manager.PaywallViewCache?,
+        paywall: Paywall = Paywall.stub(),
+    ): PaywallView {
+        val state = PaywallViewState(paywall = paywall, locale = "en-US")
         val controller = PaywallView.PaywallController(state)
         return PaywallView(
             context = context,
@@ -1432,4 +1435,61 @@ class PaywallViewTest {
                     ),
             )
     }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun onViewCreated_mintsPresentationIdOnlyForANewPresentation() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            Dispatchers.setMain(dispatcher)
+            try {
+                Given("a PaywallView presented once, whose paywall_open consumed the fetch-time id") {
+                    clearMocks(delegateAdapter, answers = false)
+                    val view = makePaywallView(cache = null, paywall = Paywall.stub().copy(presentationId = "first"))
+
+                    val trackedEvents =
+                        java.util.Collections.synchronizedList(
+                            mutableListOf<com.superwall.sdk.analytics.internal.trackable.TrackableSuperwallEvent>(),
+                        )
+                    // Counts down once per paywall_open; the test expects exactly two.
+                    val openLatch = CountDownLatch(2)
+                    captureTrackedEvents(trackedEvents, CountDownLatch(1), openLatch)
+
+                    view.onViewCreated()
+                    advanceUntilIdle()
+                    assertEquals("first", view.state.info.presentationId)
+
+                    When("the Activity resumes the same presentation: onViewCreated() again") {
+                        view.onViewCreated()
+                        advanceUntilIdle()
+
+                        Then("the id is untouched") {
+                            assertEquals("first", view.state.info.presentationId)
+                        }
+                    }
+
+                    When("a new presentation starts on the cached view (cache-hit reset, then onViewCreated)") {
+                        var presentedInfoId: String? = null
+                        view.controller.updateState(
+                            PaywallViewState.Updates.SetPresentationConfig(null) { presentedInfoId = view.info.presentationId },
+                        )
+                        view.resetTransientPresentationState()
+                        view.onViewCreated()
+                        advanceUntilIdle()
+
+                        Then("a new id is minted before the Presented completion and the second open reports it") {
+                            val second = view.state.info.presentationId
+                            assert(second != "first") { "Expected a new presentation id, got $second" }
+                            assertEquals(second, presentedInfoId)
+                            assertTrue(
+                                "Expected two PaywallOpen events, got $trackedEvents",
+                                openLatch.await(2, TimeUnit.SECONDS),
+                            )
+                        }
+                    }
+                }
+            } finally {
+                Dispatchers.resetMain()
+            }
+        }
 }
