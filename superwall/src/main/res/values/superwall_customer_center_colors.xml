@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="superwall_customer_center_background">#F2F2F7</color>
+    <color name="superwall_customer_center_card">#FFFFFF</color>
+    <color name="superwall_customer_center_icon">#1C1B1F</color>
+    <color name="superwall_customer_center_badge_green">#248A3D</color>
+    <color name="superwall_customer_center_badge_orange">#C93400</color>
+    <color name="superwall_customer_center_badge_red">#D70015</color>
+    <color name="superwall_customer_center_badge_gray">#6C6C70</color>
+</resources>

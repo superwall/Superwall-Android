@@ -105,6 +105,10 @@ class DeviceHelper(
     private val appInfo = context.packageManager.getPackageInfo(context.packageName, 0)
     private val appInstallDate = Date(appInfo.firstInstallTime)
 
+    /** The date the app was first installed, for consumers such as the Customer Center. */
+    val appInstallDateValue: Date
+        get() = appInstallDate
+
     fun daysSince(date: Date): Int {
         val fromDate = Instant.ofEpochMilli(date.time)
         val toDate = Instant.now()

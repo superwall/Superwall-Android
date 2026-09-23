@@ -28,6 +28,7 @@ enum class LogScope {
     nativePurchaseController,
     cache,
     deepLinks,
+    customerCenter,
     all,
     ;
 
