@@ -1,5 +1,6 @@
 package com.superwall.sdk.config.options
 
+import com.superwall.sdk.customercenter.CustomerCenterConfiguration
 import com.superwall.sdk.logger.LogLevel
 import com.superwall.sdk.logger.LogScope
 import com.superwall.sdk.store.testmode.TestModeBehavior
@@ -16,6 +17,9 @@ class SuperwallOptions() {
 
     // Configures the appearance and behavior of paywalls.
     var paywalls: PaywallOptions = PaywallOptions()
+
+    // Configures the Customer Center presented via `Superwall.instance.presentCustomerCenter()`.
+    var customerCenter: CustomerCenterConfiguration = CustomerCenterConfiguration.default
 
     var shouldObservePurchases = false
 
