@@ -10,13 +10,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 
-/**
- * Owns the single Customer Center presentation for
- * [com.superwall.sdk.Superwall.presentCustomerCenter].
- *
- * The view model lives here rather than in the activity, so it survives the activity being
- * recreated on a configuration change.
- */
 /** What [CustomerCenterActivity] needs from whoever presented it. */
 internal interface CustomerCenterSessionHost {
     /** The presentation to show, if any. */
@@ -26,6 +19,13 @@ internal interface CustomerCenterSessionHost {
     fun sessionEnded(ended: CustomerCenterManager.Session)
 }
 
+/**
+ * Owns the single Customer Center presentation for
+ * [com.superwall.sdk.Superwall.presentCustomerCenter].
+ *
+ * The view model lives here rather than in the activity, so it survives the activity being
+ * recreated on a configuration change.
+ */
 internal class CustomerCenterManager(
     private val container: DependencyContainer,
     private val launch: (Context, Intent) -> Unit = { context, intent -> context.startActivity(intent) },
@@ -39,6 +39,11 @@ internal class CustomerCenterManager(
          */
         @Suppress("unused") val delegate: CustomerCenterDelegate?,
         val onDismiss: (() -> Unit)?,
+        /**
+         * The theme of whatever presented the Customer Center, whose `colorPrimary` it tints
+         * itself with — see [CustomerCenterTint]. `0` when there's none.
+         */
+        val hostThemeResId: Int = 0,
         val dismissCompletions: MutableList<() -> Unit> = mutableListOf(),
     )
 
@@ -69,7 +74,14 @@ internal class CustomerCenterManager(
                 scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate),
                 callbacks = CustomerCenterCallbacks.from(delegate),
             )
-        session = Session(viewModel, activityReference, delegate, onDismiss)
+        session =
+            Session(
+                viewModel = viewModel,
+                activity = activityReference,
+                delegate = delegate,
+                onDismiss = onDismiss,
+                hostThemeResId = CustomerCenterTint.hostThemeResId(container.context, host),
+            )
         val intent = Intent(context, CustomerCenterActivity::class.java)
         if (host == null) {
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
