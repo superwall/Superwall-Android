@@ -1,5 +1,6 @@
 package com.superwall.sdk.dependencies
 
+import com.superwall.sdk.customercenter.CustomerCenterManager
 import android.app.Activity
 import android.app.Application
 import android.content.Context
@@ -218,6 +219,9 @@ class DependencyContainer(
     internal val testMode: TestMode
     internal val testModeTransactionHandler: TestModeTransactionHandler
     internal lateinit var customerInfoManager: CustomerInfoManager
+
+    /** Owns the Customer Center presentation. Built on first use, from the main thread. */
+    internal val customerCenterManager: CustomerCenterManager by lazy { CustomerCenterManager(this) }
     lateinit var reedemer: WebPaywallRedeemer
     private val uiScope
         get() = mainScope()

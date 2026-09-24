@@ -68,4 +68,9 @@ enum class SuperwallEvents(
     PaywallPageView("paywall_page_view"),
     TestModeModalOpen("testModeModal_open"),
     TestModeModalClose("testModeModal_close"),
+    CustomerCenterOpen("customerCenter_open"),
+    CustomerCenterClose("customerCenter_close"),
+    CustomerCenterAction("customerCenter_action"),
+    CustomerCenterSurveyResponse("customerCenter_surveyResponse"),
+    CustomerCenterRefundRequest("customerCenter_refundRequest"),
 }
