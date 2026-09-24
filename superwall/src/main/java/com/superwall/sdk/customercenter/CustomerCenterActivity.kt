@@ -66,6 +66,9 @@ class CustomerCenterActivity : AppCompatActivity() {
     private var copiedUserId = false
     private var lastState: CustomerCenterUiState? = null
 
+    /** What rows, buttons and spinners are tinted with. See [CustomerCenterTint]. */
+    private var tint: Int = CustomerCenterTint.FALLBACK_LIGHT
+
     private val backCallback =
         object : OnBackPressedCallback(false) {
             override fun handleOnBackPressed() {
@@ -85,14 +88,19 @@ class CustomerCenterActivity : AppCompatActivity() {
         session = current
         current.activity.set(this)
         detailPurchaseId = savedInstanceState?.getString(STATE_DETAIL_PURCHASE_ID)
+        tint =
+            CustomerCenterTint.resolve(
+                configured = configuredAccent(),
+                host = CustomerCenterTint.hostColor(this, current.hostThemeResId),
+                isDark = isDark(),
+            )
 
         // Drawn edge to edge on every API level, so the insets below are always the ones to honour.
         WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(buildLayout())
-        val isDark = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
         WindowCompat.getInsetsController(window, window.decorView).apply {
-            isAppearanceLightStatusBars = !isDark
-            isAppearanceLightNavigationBars = !isDark
+            isAppearanceLightStatusBars = !isDark()
+            isAppearanceLightNavigationBars = !isDark()
         }
         onBackPressedDispatcher.addCallback(this, backCallback)
 
@@ -164,7 +172,7 @@ class CustomerCenterActivity : AppCompatActivity() {
                 setBackgroundColor(ContextCompat.getColor(context, R.color.superwall_customer_center_background))
                 isClickable = true
                 addView(
-                    ProgressBar(context),
+                    tintedProgressBar(),
                     FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER),
                 )
             }
@@ -190,7 +198,7 @@ class CustomerCenterActivity : AppCompatActivity() {
                 gravity = Gravity.CENTER_HORIZONTAL
                 setPadding(dp(24), dp(24), dp(24), dp(24))
                 background = roundedBackground(ContextCompat.getColor(context, R.color.superwall_customer_center_card), dp(16).toFloat())
-                addView(ProgressBar(context))
+                addView(tintedProgressBar())
                 addView(
                     TextView(context).apply {
                         text = strings.string("customer_center_restoring")
@@ -347,11 +355,11 @@ class CustomerCenterActivity : AppCompatActivity() {
                 }
             val title =
                 text(CustomerCenterPathTitles.title(resolved, strings), 16f).apply {
-                    setTextColor(accentColor() ?: themeColor(androidx.appcompat.R.attr.colorPrimary))
+                    setTextColor(tint)
                 }
             row.addView(title, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
             if (state.busyPathId == resolved.id) {
-                row.addView(ProgressBar(this), LinearLayout.LayoutParams(dp(20), dp(20)))
+                row.addView(tintedProgressBar(), LinearLayout.LayoutParams(dp(20), dp(20)))
             }
             val enabled = state.busyPathId == null
             row.isEnabled = enabled
@@ -451,14 +459,14 @@ class CustomerCenterActivity : AppCompatActivity() {
         buttons.addView(
             MaterialButton(this).apply {
                 text = strings.string("customer_center_update_action")
-                accentColor()?.let { backgroundTintList = ColorStateList.valueOf(it) }
+                backgroundTintList = ColorStateList.valueOf(tint)
                 setOnClickListener { viewModel.openAppListing() }
             },
         )
         buttons.addView(
             MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
                 text = strings.string("customer_center_update_continue")
-                accentColor()?.let { setTextColor(it) }
+                setTextColor(tint)
                 setOnClickListener { viewModel.continueAfterUpdateWarning() }
             },
             LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
@@ -504,7 +512,7 @@ class CustomerCenterActivity : AppCompatActivity() {
         userRow.addView(
             MaterialButton(this, null, com.google.android.material.R.attr.borderlessButtonStyle).apply {
                 text = strings.string(if (copiedUserId) "customer_center_copied" else "customer_center_copy")
-                accentColor()?.let { setTextColor(it) }
+                setTextColor(tint)
                 setOnClickListener {
                     val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                     clipboard.setPrimaryClip(ClipData.newPlainText(strings.string("customer_center_user_id"), userId))
@@ -553,6 +561,7 @@ class CustomerCenterActivity : AppCompatActivity() {
             viewModel.sheetDismissed()
         }
         sheetDialog?.show()
+        (sheetDialog as? AlertDialog)?.tintButtons()
     }
 
     private fun surveyDialog(): android.app.Dialog? {
@@ -576,7 +585,7 @@ class CustomerCenterActivity : AppCompatActivity() {
         header.addView(
             MaterialButton(this, null, com.google.android.material.R.attr.borderlessButtonStyle).apply {
                 text = strings.string("customer_center_cancel")
-                accentColor()?.let { setTextColor(it) }
+                setTextColor(tint)
                 setOnClickListener { dialog.dismiss() }
             },
         )
@@ -640,6 +649,7 @@ class CustomerCenterActivity : AppCompatActivity() {
                     viewModel.restoreAlertDismissed()
                 }
                 show()
+                tintButtons()
             }
     }
 
@@ -761,12 +771,22 @@ class CustomerCenterActivity : AppCompatActivity() {
         return if (value.resourceId != 0) ContextCompat.getColor(this, value.resourceId) else value.data
     }
 
-    /** The configured accent for the current light/dark mode, or `null` to use the theme's. */
-    private fun accentColor(): Int? {
+    /** The configured accent for the current light/dark mode, or `null` when none is configured. */
+    private fun configuredAccent(): Int? {
         val pair = viewModel.configuration.appearance.accent ?: return null
-        val isDark =
-            (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
-        return CustomerCenterColors.parseHex(if (isDark) pair.dark else pair.light)
+        return CustomerCenterColors.parseHex(if (isDark()) pair.dark else pair.light)
+    }
+
+    private fun isDark(): Boolean =
+        (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+
+    private fun tintedProgressBar(): ProgressBar =
+        ProgressBar(this).apply { indeterminateTintList = ColorStateList.valueOf(tint) }
+
+    /** Dialog buttons take the theme's colour otherwise, which isn't the app's. Call after `show()`. */
+    private fun AlertDialog.tintButtons() {
+        listOf(AlertDialog.BUTTON_POSITIVE, AlertDialog.BUTTON_NEGATIVE, AlertDialog.BUTTON_NEUTRAL)
+            .forEach { getButton(it)?.setTextColor(tint) }
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
