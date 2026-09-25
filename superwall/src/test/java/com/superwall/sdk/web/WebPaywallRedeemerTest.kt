@@ -1,6 +1,7 @@
 package com.superwall.sdk.web
 
 import android.content.Context
+import com.superwall.sdk.And
 import com.superwall.sdk.Given
 import com.superwall.sdk.Then
 import com.superwall.sdk.When
@@ -42,6 +43,7 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
+import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
 
@@ -131,6 +133,7 @@ class WebPaywallRedeemerTest {
             )
         },
         var getIntegrationPropsFn: () -> Map<String, Any> = { emptyMap() },
+        var setWebEntitlementsFn: (Set<Entitlement>) -> Unit = {},
     ) : WebPaywallRedeemer.Factory {
         override fun willRedeemLink() = willRedeemLinkFn()
 
@@ -150,7 +153,7 @@ class WebPaywallRedeemerTest {
 
         override fun internallySetSubscriptionStatus(status: SubscriptionStatus) = this@WebPaywallRedeemerTest.setSubscriptionStatus(status)
 
-        override fun setWebEntitlements(entitlements: Set<Entitlement>) {}
+        override fun setWebEntitlements(entitlements: Set<Entitlement>) = setWebEntitlementsFn(entitlements)
 
         override suspend fun isPaywallVisible(): Boolean = this@WebPaywallRedeemerTest.isPaywallVisible()
 
@@ -241,6 +244,8 @@ class WebPaywallRedeemerTest {
                     )
                 } returns Either.Success(response)
 
+                val published = java.util.concurrent.CopyOnWriteArrayList<Set<Entitlement>>()
+
                 When("creating redeemer and advancing scheduler") {
                     redeemer =
                         WebPaywallRedeemer(
@@ -250,7 +255,7 @@ class WebPaywallRedeemerTest {
                             network,
                             storage,
                             customerInfoManager = mockk(relaxed = true),
-                            factory = TestFactory(),
+                            factory = TestFactory(setWebEntitlementsFn = { published.add(it) }),
                         )
                     testScheduler.advanceUntilIdle()
 
@@ -258,8 +263,13 @@ class WebPaywallRedeemerTest {
                         verify(exactly = 1) {
                             storage.write(LatestRedemptionResponse, response)
                         }
-                        println(mutableEntitlements)
                         assert(mutableEntitlements == setOf(webEntitlement, normalEntitlement))
+                    }
+
+                    And("it publishes exactly the web entitlements it persisted") {
+                        // Polling also runs, but storage holds no redemption response in this
+                        // mock, so it must not publish entitlements it cannot persist.
+                        assertEquals(listOf(setOf(webEntitlement)), published.toList())
                     }
                 }
             }

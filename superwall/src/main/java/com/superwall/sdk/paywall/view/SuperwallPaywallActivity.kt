@@ -157,8 +157,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                 }
 
             return launchPaywallActivity(context, intent).onFailure {
-                Superwall.instance.dependencyContainer
-                    .makeViewStore()
+                Superwall.instance.dependencyContainer.paywallManager.cache
                     .removeView(key)
                 view.clearActivityLaunchState()
             }
@@ -167,12 +166,13 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         private fun PaywallView.prepareViewForDisplay(key: String) {
             webView.enableBackgroundRendering()
             webView.attach(this)
-            val viewStorageViewModel = Superwall.instance.dependencyContainer.makeViewStore()
+            val cache = Superwall.instance.dependencyContainer.paywallManager.cache
             // If we started it directly and the view does not have shimmer and loading attached
-            // We set them up for this PaywallView
+            // We set them up for this PaywallView. Acquire through the cache rather than reading
+            // ViewStorage: the canonical views are created lazily, so they may not exist yet
+            // (getPaywall() + startWithView() without a prior present(), or after resetCache()).
             if (children.none { it is LoadingView || it is ShimmerView }) {
-                val loading =
-                    (viewStorageViewModel.retrieveView(LoadingView.TAG) as LoadingView)
+                val loading = cache.acquireLoadingView()
                 val style = state.paywall.presentation.style
                 val shimmer =
                     if (style is PaywallPresentationStyle.Popup) {
@@ -184,12 +184,12 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                                 )
                         }
                     } else {
-                        (viewStorageViewModel.retrieveView(ShimmerView.TAG) as ShimmerView)
+                        cache.acquireShimmerView()
                     }
 
                 setupWith(shimmer, loading)
             }
-            viewStorageViewModel.storeView(key, this)
+            cache.storeView(key, this)
         }
     }
 
@@ -286,7 +286,8 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                 }
 
                 // Store the view again with the same key for this activity
-                viewStorageViewModel.storeView(key, currentPaywallView)
+                Superwall.instance.dependencyContainer.paywallManager.cache
+                    .storeView(key, currentPaywallView)
                 // Continue with normal activity setup using the restored view
                 setupActivityWithView(currentPaywallView, presentationStyle)
                 return

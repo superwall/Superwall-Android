@@ -14,7 +14,6 @@ import com.superwall.sdk.paywall.view.webview.templating.models.ProductTemplate
 import kotlinx.serialization.json.Json
 
 object TemplateLogic {
-
     suspend fun getBase64EncodedTemplates(
         json: Json,
         paywall: Paywall,

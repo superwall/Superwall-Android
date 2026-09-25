@@ -1212,13 +1212,12 @@ class TestModeTest {
 
             // Subscription status reflects the active selection on both
             // TestMode itself and the entitlements collaborator.
-            val expectedStatus = manager.buildSubscriptionStatus()
-            assertTrue(
-                "Expected SubscriptionStatus.Active",
-                expectedStatus is SubscriptionStatus.Active,
-            )
-            assertEquals(expectedStatus, manager.overriddenSubscriptionStatus)
-            verify(exactly = 1) { entitlements.setSubscriptionStatus(expectedStatus) }
+            val status = manager.overriddenSubscriptionStatus
+            assertTrue("Expected SubscriptionStatus.Active", status is SubscriptionStatus.Active)
+            val granted = (status as SubscriptionStatus.Active).entitlements
+            assertEquals(setOf("pro"), granted.map { it.id }.toSet())
+            assertTrue("Subscribed selection must grant an active entitlement", granted.all { it.isActive })
+            verify(exactly = 1) { entitlements.setSubscriptionStatus(status) }
 
             // Open is tracked before showModal, Close after — verify both the
             // emission and ordering.
