@@ -561,4 +561,27 @@ class PaywallViewCacheTest {
                 }
             }
         }
+
+    @Test
+    fun `registry writes reach both the cache and viewStorage`() {
+        Given("the registry view of a cache") {
+            val cache = newCache()
+            val registry = cache.asRegistry()
+            val view = mockk<PaywallView>(relaxed = true)
+
+            When("a view is stored and then removed through the registry") {
+                registry.storeView("activity-key", view)
+                val stored = registry.retrieveView("activity-key")
+                val inCache = cache.getPaywallView("activity-key")
+                registry.removeView("activity-key")
+
+                Then("both stores saw each write") {
+                    assertSame(view, stored)
+                    assertSame(view, inCache)
+                    assertNull(cache.getPaywallView("activity-key"))
+                    assertNull(storage.retrieveView("activity-key"))
+                }
+            }
+        }
+    }
 }
