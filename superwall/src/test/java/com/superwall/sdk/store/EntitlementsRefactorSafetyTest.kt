@@ -119,6 +119,35 @@ class EntitlementsRefactorSafetyTest {
         }
 
     @Test
+    fun `init keeps status-only entitlements in all when product entitlements are stored`() =
+        runTest {
+            Given("a stored Active status and stored product entitlements that do not overlap") {
+                val statusOnly = Entitlement("status_only")
+                val productOnly = Entitlement("product_only")
+                val storage =
+                    mockStorage(
+                        storedStatus = SubscriptionStatus.Active(setOf(statusOnly)),
+                        storedProductEntitlements = mapOf("product_1" to setOf(productOnly)),
+                    )
+
+                When("Entitlements is created on a cold start") {
+                    val entitlements = makeEntitlements(storage, backgroundScope)
+
+                    Then("all contains both the status and the product entitlements") {
+                        assertEquals(
+                            setOf("status_only", "product_only"),
+                            entitlements.all.map { it.id }.toSet(),
+                        )
+                    }
+                    And("every active entitlement is also in all") {
+                        val allIds = entitlements.all.map { it.id }.toSet()
+                        assertTrue(entitlements.active.all { it.id in allIds })
+                    }
+                }
+            }
+        }
+
+    @Test
     fun `init with corrupted StoredEntitlementsByProductId deletes and continues`() =
         runTest {
             Given("storage throws ClassCastException for StoredEntitlementsByProductId") {

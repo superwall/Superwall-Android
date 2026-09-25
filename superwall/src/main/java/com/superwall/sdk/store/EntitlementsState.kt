@@ -159,6 +159,14 @@ internal fun createInitialEntitlementsState(storage: Storage): EntitlementsState
 
     var state = EntitlementsState()
 
+    // Restore product entitlements BEFORE the status. AddProductEntitlements
+    // replaces allTracked, so replaying it after SetActive would drop status
+    // entitlements that are not tied to a product from `all` until the next
+    // status update. The old startup code never replaced that set.
+    if (productEntitlements != null) {
+        state = EntitlementsState.Updates.AddProductEntitlements(productEntitlements).reduce(state)
+    }
+
     // Replay status to populate backingActive/allTracked correctly
     if (status != null) {
         state =
@@ -173,10 +181,6 @@ internal fun createInitialEntitlementsState(storage: Storage): EntitlementsState
                 is SubscriptionStatus.Inactive -> EntitlementsState.Updates.SetInactive.reduce(state)
                 is SubscriptionStatus.Unknown -> state
             }
-    }
-
-    if (productEntitlements != null) {
-        state = EntitlementsState.Updates.AddProductEntitlements(productEntitlements).reduce(state)
     }
 
     // Restore web entitlements from latest redemption response
