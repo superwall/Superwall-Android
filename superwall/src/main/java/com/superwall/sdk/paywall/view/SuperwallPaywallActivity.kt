@@ -157,7 +157,8 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                 }
 
             return launchPaywallActivity(context, intent).onFailure {
-                Superwall.instance.dependencyContainer.paywallManager.cache
+                Superwall.instance.dependencyContainer
+                    .makeViewRegistry()
                     .removeView(key)
                 view.clearActivityLaunchState()
             }
@@ -166,13 +167,13 @@ class SuperwallPaywallActivity : AppCompatActivity() {
         private fun PaywallView.prepareViewForDisplay(key: String) {
             webView.enableBackgroundRendering()
             webView.attach(this)
-            val cache = Superwall.instance.dependencyContainer.paywallManager.cache
+            val registry = Superwall.instance.dependencyContainer.makeViewRegistry()
             // If we started it directly and the view does not have shimmer and loading attached
             // We set them up for this PaywallView. Acquire through the cache rather than reading
             // ViewStorage: the canonical views are created lazily, so they may not exist yet
             // (getPaywall() + startWithView() without a prior present(), or after resetCache()).
             if (children.none { it is LoadingView || it is ShimmerView }) {
-                val loading = cache.acquireLoadingView()
+                val loading = registry.acquireLoadingView()
                 val style = state.paywall.presentation.style
                 val shimmer =
                     if (style is PaywallPresentationStyle.Popup) {
@@ -184,12 +185,12 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                                 )
                         }
                     } else {
-                        cache.acquireShimmerView()
+                        registry.acquireShimmerView()
                     }
 
                 setupWith(shimmer, loading)
             }
-            cache.storeView(key, this)
+            registry.storeView(key, this)
         }
     }
 
@@ -241,9 +242,9 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             return
         }
 
-        val viewStorageViewModel =
+        val viewRegistry =
             try {
-                Superwall.instance.dependencyContainer.makeViewStore()
+                Superwall.instance.dependencyContainer.makeViewRegistry()
             } catch (e: Exception) {
                 Logger.debug(
                     LogLevel.error,
@@ -254,7 +255,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             }
 
         val view =
-            viewStorageViewModel.retrieveView(key) as? PaywallView ?: run {
+            viewRegistry.retrieveView(key) as? PaywallView ?: run {
                 Logger.debug(
                     LogLevel.error,
                     LogScope.paywallView,
@@ -286,8 +287,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
                 }
 
                 // Store the view again with the same key for this activity
-                Superwall.instance.dependencyContainer.paywallManager.cache
-                    .storeView(key, currentPaywallView)
+                viewRegistry.storeView(key, currentPaywallView)
                 // Continue with normal activity setup using the restored view
                 setupActivityWithView(currentPaywallView, presentationStyle)
                 return
@@ -845,7 +845,7 @@ class SuperwallPaywallActivity : AppCompatActivity() {
             if (pv != null) {
                 (
                     Superwall.instance.dependencyContainer
-                        .makeViewStore()
+                        .makeViewRegistry()
                         .retrieveView(pv) as? PaywallView?
                 )?.cleanup()
             }

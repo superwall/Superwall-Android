@@ -80,6 +80,7 @@ import com.superwall.sdk.network.session.CustomHttpUrlConnection
 import com.superwall.sdk.paywall.manager.PaywallCacheState
 import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.paywall.manager.PaywallViewCache
+import com.superwall.sdk.paywall.manager.PaywallViewRegistry
 import com.superwall.sdk.paywall.presentation.CustomCallbackRegistry
 import com.superwall.sdk.paywall.presentation.PaywallInfo
 import com.superwall.sdk.paywall.presentation.dismiss
@@ -1118,6 +1119,12 @@ class DependencyContainer(
 
     override fun makeViewStore(): ViewStorageViewModel =
         vmProvider[ViewStorageViewModel::class.java]
+
+    /**
+     * The only way Activities and debug UI should reach paywall views, so the
+     * cache and ViewStorage stay in sync. Internal because the registry is.
+     */
+    internal fun makeViewRegistry(): PaywallViewRegistry = paywallManager.viewRegistry
 
     private var _mainScope: MainScope? = null
     private var _ioScope: IOScope? = null

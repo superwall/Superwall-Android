@@ -30,17 +30,16 @@ class PaywallManager(
 
     private var _cache: PaywallViewCache? = null
 
-    /**
-     * The single cache instance. Exposed so Activities that write to
-     * [com.superwall.sdk.paywall.view.ViewStorage] can go through it instead.
-     */
-    internal val cache: PaywallViewCache
+    private val cache: PaywallViewCache
         get() {
             if (_cache == null) {
                 _cache = createCache()
             }
             return _cache!!
         }
+
+    /** Narrow view of the cache for Activities and debug UI. */
+    internal val viewRegistry: PaywallViewRegistry by lazy { cache.asRegistry() }
 
     private fun createCache(): PaywallViewCache {
         val cache: PaywallViewCache = factory.makeCache()
