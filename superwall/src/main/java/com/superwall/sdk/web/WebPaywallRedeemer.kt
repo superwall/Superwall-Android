@@ -538,10 +538,12 @@ class WebPaywallRedeemer(
                                         LatestRedemptionResponse,
                                         updatedResponse,
                                     )
+                                    // Publish only what was persisted, so the cached web
+                                    // entitlements always match what a cold start restores.
+                                    factory.setWebEntitlements(
+                                        newEntitlements.filter { it.isActive }.toSet(),
+                                    )
                                 }
-                                factory.setWebEntitlements(
-                                    newEntitlements.filter { it.isActive }.toSet(),
-                                )
 
                                 // Trigger CustomerInfo merge
                                 customerInfoManager.updateMergedCustomerInfo()

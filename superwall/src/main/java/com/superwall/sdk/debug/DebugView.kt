@@ -923,8 +923,7 @@ internal class DebugViewActivity : AppCompatActivity() {
             view: View,
         ) {
             val key = UUID.randomUUID().toString()
-            Superwall.instance.dependencyContainer
-                .makeViewStore()
+            Superwall.instance.dependencyContainer.paywallManager.cache
                 .storeView(key, view)
 
             val intent =

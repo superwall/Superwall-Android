@@ -4,7 +4,6 @@ import com.superwall.sdk.And
 import com.superwall.sdk.Given
 import com.superwall.sdk.Then
 import com.superwall.sdk.When
-import com.superwall.sdk.misc.primitives.StateActor
 import com.superwall.sdk.models.customer.CustomerInfo
 import com.superwall.sdk.models.entitlements.Entitlement
 import com.superwall.sdk.models.entitlements.SubscriptionStatus
@@ -18,16 +17,12 @@ import com.superwall.sdk.store.abstractions.product.receipt.LatestSubscriptionSt
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.Date
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * Comprehensive tests for the Entitlements class external API.
@@ -82,16 +77,7 @@ class EntitlementsRefactorSafetyTest {
             Given("storage has no cached data") {
                 val storage = mockStorage()
                 val entitlements =
-                    StateActor<EntitlementsContext, EntitlementsState>(
-                        createInitialEntitlementsState(storage),
-                        backgroundScope,
-                    ).let { actor ->
-                        Entitlements(
-                            storage = storage,
-                            actor = actor,
-                            actorScope = backgroundScope,
-                        )
-                    }
+                    makeEntitlements(storage, backgroundScope)
 
                 Then("status should be Unknown") {
                     assertTrue(entitlements.status.value is SubscriptionStatus.Unknown)
@@ -120,16 +106,7 @@ class EntitlementsRefactorSafetyTest {
 
                 When("Entitlements is initialized") {
                     val entitlements =
-                        StateActor<EntitlementsContext, EntitlementsState>(
-                            createInitialEntitlementsState(storage),
-                            backgroundScope,
-                        ).let { actor ->
-                            Entitlements(
-                                storage = storage,
-                                actor = actor,
-                                actorScope = backgroundScope,
-                            )
-                        }
+                        makeEntitlements(storage, backgroundScope)
 
                     Then("corrupted status should be deleted from storage") {
                         verify { storage.delete(StoredSubscriptionStatus) }
@@ -154,16 +131,7 @@ class EntitlementsRefactorSafetyTest {
 
                 When("Entitlements is initialized") {
                     val entitlements =
-                        StateActor<EntitlementsContext, EntitlementsState>(
-                            createInitialEntitlementsState(storage),
-                            backgroundScope,
-                        ).let { actor ->
-                            Entitlements(
-                                storage = storage,
-                                actor = actor,
-                                actorScope = backgroundScope,
-                            )
-                        }
+                        makeEntitlements(storage, backgroundScope)
 
                     Then("corrupted entitlements-by-product should be deleted") {
                         verify { storage.delete(StoredEntitlementsByProductId) }
@@ -181,16 +149,7 @@ class EntitlementsRefactorSafetyTest {
             Given("storage contains Inactive status") {
                 val storage = mockStorage(storedStatus = SubscriptionStatus.Inactive)
                 val entitlements =
-                    StateActor<EntitlementsContext, EntitlementsState>(
-                        createInitialEntitlementsState(storage),
-                        backgroundScope,
-                    ).let { actor ->
-                        Entitlements(
-                            storage = storage,
-                            actor = actor,
-                            actorScope = backgroundScope,
-                        )
-                    }
+                    makeEntitlements(storage, backgroundScope)
 
                 Then("status should be Inactive") {
                     assertTrue(entitlements.status.value is SubscriptionStatus.Inactive)
@@ -212,16 +171,7 @@ class EntitlementsRefactorSafetyTest {
 
                 When("Entitlements is initialized") {
                     val entitlements =
-                        StateActor<EntitlementsContext, EntitlementsState>(
-                            createInitialEntitlementsState(storage),
-                            backgroundScope,
-                        ).let { actor ->
-                            Entitlements(
-                                storage = storage,
-                                actor = actor,
-                                actorScope = backgroundScope,
-                            )
-                        }
+                        makeEntitlements(storage, backgroundScope)
 
                     Then("entitlementsByProductId should contain the stored mappings") {
                         assertEquals(productMap, entitlements.entitlementsByProductId)
@@ -243,16 +193,7 @@ class EntitlementsRefactorSafetyTest {
             Given("a mix of active and inactive entitlements") {
                 val storage = mockStorage()
                 val entitlements =
-                    StateActor<EntitlementsContext, EntitlementsState>(
-                        createInitialEntitlementsState(storage),
-                        backgroundScope,
-                    ).let { actor ->
-                        Entitlements(
-                            storage = storage,
-                            actor = actor,
-                            actorScope = backgroundScope,
-                        )
-                    }
+                    makeEntitlements(storage, backgroundScope)
                 val activeE = Entitlement("active_one", isActive = true)
                 val inactiveE = Entitlement("inactive_one", isActive = false)
 
@@ -276,21 +217,12 @@ class EntitlementsRefactorSafetyTest {
         }
 
     @Test
-    fun `setSubscriptionStatus Active with all inactive entitlements becomes Inactive`() =
+    fun `setSubscriptionStatus Active with only inactive entitlements stays Active`() =
         runTest {
             Given("entitlements that are all inactive") {
                 val storage = mockStorage()
                 val entitlements =
-                    StateActor<EntitlementsContext, EntitlementsState>(
-                        createInitialEntitlementsState(storage),
-                        backgroundScope,
-                    ).let { actor ->
-                        Entitlements(
-                            storage = storage,
-                            actor = actor,
-                            actorScope = backgroundScope,
-                        )
-                    }
+                    makeEntitlements(storage, backgroundScope)
                 val inactiveE =
                     Entitlement(
                         id = "expired",
@@ -319,16 +251,7 @@ class EntitlementsRefactorSafetyTest {
             Given("entitlements with Active status") {
                 val storage = mockStorage()
                 val entitlements =
-                    StateActor<EntitlementsContext, EntitlementsState>(
-                        createInitialEntitlementsState(storage),
-                        backgroundScope,
-                    ).let { actor ->
-                        Entitlements(
-                            storage = storage,
-                            actor = actor,
-                            actorScope = backgroundScope,
-                        )
-                    }
+                    makeEntitlements(storage, backgroundScope)
                 val e1 = Entitlement("first")
                 val e2 = Entitlement("second")
 
@@ -355,16 +278,7 @@ class EntitlementsRefactorSafetyTest {
             Given("entitlements cycling through states") {
                 val storage = mockStorage()
                 val entitlements =
-                    StateActor<EntitlementsContext, EntitlementsState>(
-                        createInitialEntitlementsState(storage),
-                        backgroundScope,
-                    ).let { actor ->
-                        Entitlements(
-                            storage = storage,
-                            actor = actor,
-                            actorScope = backgroundScope,
-                        )
-                    }
+                    makeEntitlements(storage, backgroundScope)
                 val e1 = Entitlement("premium")
 
                 entitlements.setSubscriptionStatus(SubscriptionStatus.Active(setOf(e1)))
@@ -394,16 +308,7 @@ class EntitlementsRefactorSafetyTest {
             Given("entitlements in Active state with device entitlements") {
                 val storage = mockStorage()
                 val entitlements =
-                    StateActor<EntitlementsContext, EntitlementsState>(
-                        createInitialEntitlementsState(storage),
-                        backgroundScope,
-                    ).let { actor ->
-                        Entitlements(
-                            storage = storage,
-                            actor = actor,
-                            actorScope = backgroundScope,
-                        )
-                    }
+                    makeEntitlements(storage, backgroundScope)
                 entitlements.setSubscriptionStatus(SubscriptionStatus.Active(setOf(Entitlement("a"))))
                 entitlements.activeDeviceEntitlements = setOf(Entitlement("device"))
 
@@ -427,16 +332,7 @@ class EntitlementsRefactorSafetyTest {
             Given("entitlements in Unknown state") {
                 val storage = mockStorage()
                 val entitlements =
-                    StateActor<EntitlementsContext, EntitlementsState>(
-                        createInitialEntitlementsState(storage),
-                        backgroundScope,
-                    ).let { actor ->
-                        Entitlements(
-                            storage = storage,
-                            actor = actor,
-                            actorScope = backgroundScope,
-                        )
-                    }
+                    makeEntitlements(storage, backgroundScope)
 
                 When("setting Inactive from Unknown") {
                     entitlements.setSubscriptionStatus(SubscriptionStatus.Inactive)
@@ -456,16 +352,7 @@ class EntitlementsRefactorSafetyTest {
             Given("entitlements subjected to rapid transitions") {
                 val storage = mockStorage()
                 val entitlements =
-                    StateActor<EntitlementsContext, EntitlementsState>(
-                        createInitialEntitlementsState(storage),
-                        backgroundScope,
-                    ).let { actor ->
-                        Entitlements(
-                            storage = storage,
-                            actor = actor,
-                            actorScope = backgroundScope,
-                        )
-                    }
+                    makeEntitlements(storage, backgroundScope)
                 val e1 = Entitlement("a")
                 val e2 = Entitlement("b")
                 val e3 = Entitlement("c")
@@ -499,16 +386,7 @@ class EntitlementsRefactorSafetyTest {
             Given("entitlements with active device entitlements") {
                 val storage = mockStorage()
                 val entitlements =
-                    StateActor<EntitlementsContext, EntitlementsState>(
-                        createInitialEntitlementsState(storage),
-                        backgroundScope,
-                    ).let { actor ->
-                        Entitlements(
-                            storage = storage,
-                            actor = actor,
-                            actorScope = backgroundScope,
-                        )
-                    }
+                    makeEntitlements(storage, backgroundScope)
                 entitlements.activeDeviceEntitlements = setOf(Entitlement("device_premium"))
 
                 When("setting Unknown status") {
@@ -527,16 +405,7 @@ class EntitlementsRefactorSafetyTest {
             Given("entitlements with existing device entitlements") {
                 val storage = mockStorage()
                 val entitlements =
-                    StateActor<EntitlementsContext, EntitlementsState>(
-                        createInitialEntitlementsState(storage),
-                        backgroundScope,
-                    ).let { actor ->
-                        Entitlements(
-                            storage = storage,
-                            actor = actor,
-                            actorScope = backgroundScope,
-                        )
-                    }
+                    makeEntitlements(storage, backgroundScope)
                 entitlements.activeDeviceEntitlements = setOf(Entitlement("old"))
 
                 When("setting new device entitlements") {
@@ -557,16 +426,7 @@ class EntitlementsRefactorSafetyTest {
             Given("device entitlements set, then status goes Inactive") {
                 val storage = mockStorage()
                 val entitlements =
-                    StateActor<EntitlementsContext, EntitlementsState>(
-                        createInitialEntitlementsState(storage),
-                        backgroundScope,
-                    ).let { actor ->
-                        Entitlements(
-                            storage = storage,
-                            actor = actor,
-                            actorScope = backgroundScope,
-                        )
-                    }
+                    makeEntitlements(storage, backgroundScope)
                 entitlements.activeDeviceEntitlements = setOf(Entitlement("device"))
 
                 When("setting Inactive") {
@@ -594,16 +454,7 @@ class EntitlementsRefactorSafetyTest {
                         redemptionResponse = webRedemption(webE),
                     )
                 val entitlements =
-                    StateActor<EntitlementsContext, EntitlementsState>(
-                        createInitialEntitlementsState(storage),
-                        backgroundScope,
-                    ).let { actor ->
-                        Entitlements(
-                            storage = storage,
-                            actor = actor,
-                            actorScope = backgroundScope,
-                        )
-                    }
+                    makeEntitlements(storage, backgroundScope)
                 entitlements.setSubscriptionStatus(SubscriptionStatus.Active(setOf(Entitlement("from_status"))))
 
                 When("accessing all property") {
@@ -633,16 +484,7 @@ class EntitlementsRefactorSafetyTest {
                             ),
                     )
                 val entitlements =
-                    StateActor<EntitlementsContext, EntitlementsState>(
-                        createInitialEntitlementsState(storage),
-                        backgroundScope,
-                    ).let { actor ->
-                        Entitlements(
-                            storage = storage,
-                            actor = actor,
-                            actorScope = backgroundScope,
-                        )
-                    }
+                    makeEntitlements(storage, backgroundScope)
                 entitlements.setSubscriptionStatus(SubscriptionStatus.Active(setOf(activeE)))
 
                 When("accessing inactive property") {
@@ -652,11 +494,8 @@ class EntitlementsRefactorSafetyTest {
                         assertTrue(inactive.any { it.id == "inactive_product" })
                     }
                     And("it should not contain active entitlements") {
-                        // active entitlement may appear in inactive if the exact object differs
-                        // but we check the concept
                         val activeIds = entitlements.active.map { it.id }.toSet()
-                        val purelyInactive = inactive.filter { it.id !in activeIds }
-                        assertTrue(purelyInactive.any { it.id == "inactive_product" })
+                        assertTrue(inactive.none { it.id in activeIds })
                     }
                 }
             }
@@ -668,16 +507,7 @@ class EntitlementsRefactorSafetyTest {
             Given("a fresh Entitlements with no data") {
                 val storage = mockStorage()
                 val entitlements =
-                    StateActor<EntitlementsContext, EntitlementsState>(
-                        createInitialEntitlementsState(storage),
-                        backgroundScope,
-                    ).let { actor ->
-                        Entitlements(
-                            storage = storage,
-                            actor = actor,
-                            actorScope = backgroundScope,
-                        )
-                    }
+                    makeEntitlements(storage, backgroundScope)
 
                 Then("active should be empty") {
                     assertTrue(entitlements.active.isEmpty())
@@ -695,16 +525,7 @@ class EntitlementsRefactorSafetyTest {
             Given("a fresh Entitlements instance") {
                 val storage = mockStorage()
                 val entitlements =
-                    StateActor<EntitlementsContext, EntitlementsState>(
-                        createInitialEntitlementsState(storage),
-                        backgroundScope,
-                    ).let { actor ->
-                        Entitlements(
-                            storage = storage,
-                            actor = actor,
-                            actorScope = backgroundScope,
-                        )
-                    }
+                    makeEntitlements(storage, backgroundScope)
                 val e1 = Entitlement("premium")
                 val e2 = Entitlement("basic")
                 val mapping = mapOf("prod_a" to setOf(e1), "prod_b" to setOf(e2))
@@ -733,16 +554,7 @@ class EntitlementsRefactorSafetyTest {
             Given("existing entitlements for a product") {
                 val storage = mockStorage()
                 val entitlements =
-                    StateActor<EntitlementsContext, EntitlementsState>(
-                        createInitialEntitlementsState(storage),
-                        backgroundScope,
-                    ).let { actor ->
-                        Entitlements(
-                            storage = storage,
-                            actor = actor,
-                            actorScope = backgroundScope,
-                        )
-                    }
+                    makeEntitlements(storage, backgroundScope)
                 val oldE = Entitlement("old")
                 val newE = Entitlement("new")
 
@@ -767,16 +579,7 @@ class EntitlementsRefactorSafetyTest {
             Given("a fresh Entitlements instance") {
                 val storage = mockStorage()
                 val entitlements =
-                    StateActor<EntitlementsContext, EntitlementsState>(
-                        createInitialEntitlementsState(storage),
-                        backgroundScope,
-                    ).let { actor ->
-                        Entitlements(
-                            storage = storage,
-                            actor = actor,
-                            actorScope = backgroundScope,
-                        )
-                    }
+                    makeEntitlements(storage, backgroundScope)
 
                 When("adding an empty map") {
                     entitlements.addEntitlementsByProductId(emptyMap())
@@ -798,16 +601,7 @@ class EntitlementsRefactorSafetyTest {
             Given("entitlements with product mappings") {
                 val storage = mockStorage()
                 val entitlements =
-                    StateActor<EntitlementsContext, EntitlementsState>(
-                        createInitialEntitlementsState(storage),
-                        backgroundScope,
-                    ).let { actor ->
-                        Entitlements(
-                            storage = storage,
-                            actor = actor,
-                            actorScope = backgroundScope,
-                        )
-                    }
+                    makeEntitlements(storage, backgroundScope)
                 entitlements.addEntitlementsByProductId(mapOf("prod1" to setOf(Entitlement("e1"))))
 
                 When("taking a snapshot and then modifying the original") {
@@ -844,16 +638,7 @@ class EntitlementsRefactorSafetyTest {
                             ),
                     )
                 val entitlements =
-                    StateActor<EntitlementsContext, EntitlementsState>(
-                        createInitialEntitlementsState(storage),
-                        backgroundScope,
-                    ).let { actor ->
-                        Entitlements(
-                            storage = storage,
-                            actor = actor,
-                            actorScope = backgroundScope,
-                        )
-                    }
+                    makeEntitlements(storage, backgroundScope)
 
                 When("querying with the exact full ID") {
                     val result = entitlements.byProductId("sub:plan:offer")
@@ -875,16 +660,7 @@ class EntitlementsRefactorSafetyTest {
                         storedProductEntitlements = mapOf("monthly_sub" to setOf(e)),
                     )
                 val entitlements =
-                    StateActor<EntitlementsContext, EntitlementsState>(
-                        createInitialEntitlementsState(storage),
-                        backgroundScope,
-                    ).let { actor ->
-                        Entitlements(
-                            storage = storage,
-                            actor = actor,
-                            actorScope = backgroundScope,
-                        )
-                    }
+                    makeEntitlements(storage, backgroundScope)
 
                 When("querying with a full ID that contains the subscription ID") {
                     val result = entitlements.byProductId("monthly_sub:plan:offer")
@@ -905,16 +681,7 @@ class EntitlementsRefactorSafetyTest {
                         storedProductEntitlements = mapOf("known_product" to setOf(Entitlement("e"))),
                     )
                 val entitlements =
-                    StateActor<EntitlementsContext, EntitlementsState>(
-                        createInitialEntitlementsState(storage),
-                        backgroundScope,
-                    ).let { actor ->
-                        Entitlements(
-                            storage = storage,
-                            actor = actor,
-                            actorScope = backgroundScope,
-                        )
-                    }
+                    makeEntitlements(storage, backgroundScope)
 
                 When("querying an unknown product") {
                     val result = entitlements.byProductId("completely_unknown")
@@ -940,16 +707,7 @@ class EntitlementsRefactorSafetyTest {
                             ),
                     )
                 val entitlements =
-                    StateActor<EntitlementsContext, EntitlementsState>(
-                        createInitialEntitlementsState(storage),
-                        backgroundScope,
-                    ).let { actor ->
-                        Entitlements(
-                            storage = storage,
-                            actor = actor,
-                            actorScope = backgroundScope,
-                        )
-                    }
+                    makeEntitlements(storage, backgroundScope)
 
                 When("querying product_a") {
                     val result = entitlements.byProductId("product_a:plan")
@@ -971,16 +729,7 @@ class EntitlementsRefactorSafetyTest {
                         storedProductEntitlements = mapOf("com.app.product" to setOf(e)),
                     )
                 val entitlements =
-                    StateActor<EntitlementsContext, EntitlementsState>(
-                        createInitialEntitlementsState(storage),
-                        backgroundScope,
-                    ).let { actor ->
-                        Entitlements(
-                            storage = storage,
-                            actor = actor,
-                            actorScope = backgroundScope,
-                        )
-                    }
+                    makeEntitlements(storage, backgroundScope)
 
                 When("querying the simple product ID") {
                     val result = entitlements.byProductId("com.app.product")
@@ -1011,16 +760,7 @@ class EntitlementsRefactorSafetyTest {
                             ),
                     )
                 val entitlements =
-                    StateActor<EntitlementsContext, EntitlementsState>(
-                        createInitialEntitlementsState(storage),
-                        backgroundScope,
-                    ).let { actor ->
-                        Entitlements(
-                            storage = storage,
-                            actor = actor,
-                            actorScope = backgroundScope,
-                        )
-                    }
+                    makeEntitlements(storage, backgroundScope)
 
                 When("querying multiple product IDs") {
                     val result = entitlements.byProductIds(setOf("prod1", "prod2"))
@@ -1043,16 +783,7 @@ class EntitlementsRefactorSafetyTest {
                         storedProductEntitlements = mapOf("prod1" to setOf(Entitlement("e"))),
                     )
                 val entitlements =
-                    StateActor<EntitlementsContext, EntitlementsState>(
-                        createInitialEntitlementsState(storage),
-                        backgroundScope,
-                    ).let { actor ->
-                        Entitlements(
-                            storage = storage,
-                            actor = actor,
-                            actorScope = backgroundScope,
-                        )
-                    }
+                    makeEntitlements(storage, backgroundScope)
 
                 When("querying with empty set") {
                     val result = entitlements.byProductIds(emptySet())
@@ -1078,16 +809,7 @@ class EntitlementsRefactorSafetyTest {
                             ),
                     )
                 val entitlements =
-                    StateActor<EntitlementsContext, EntitlementsState>(
-                        createInitialEntitlementsState(storage),
-                        backgroundScope,
-                    ).let { actor ->
-                        Entitlements(
-                            storage = storage,
-                            actor = actor,
-                            actorScope = backgroundScope,
-                        )
-                    }
+                    makeEntitlements(storage, backgroundScope)
 
                 When("querying both products") {
                     val result = entitlements.byProductIds(setOf("prod1", "prod2"))
@@ -1110,16 +832,7 @@ class EntitlementsRefactorSafetyTest {
                         storedProductEntitlements = mapOf("known_prod" to setOf(e1)),
                     )
                 val entitlements =
-                    StateActor<EntitlementsContext, EntitlementsState>(
-                        createInitialEntitlementsState(storage),
-                        backgroundScope,
-                    ).let { actor ->
-                        Entitlements(
-                            storage = storage,
-                            actor = actor,
-                            actorScope = backgroundScope,
-                        )
-                    }
+                    makeEntitlements(storage, backgroundScope)
 
                 When("querying both") {
                     val result = entitlements.byProductIds(setOf("known_prod", "unknown_prod"))
@@ -1141,23 +854,11 @@ class EntitlementsRefactorSafetyTest {
             Given("Entitlements with backgroundScope for collector") {
                 val storage = mockStorage()
                 val entitlements =
-                    StateActor<EntitlementsContext, EntitlementsState>(
-                        createInitialEntitlementsState(storage),
-                        backgroundScope,
-                    ).let { actor ->
-                        Entitlements(
-                            storage = storage,
-                            actor = actor,
-                            actorScope = backgroundScope,
-                        )
-                    }
+                    makeEntitlements(storage, backgroundScope)
 
                 When("setting Active status") {
                     val activeE = setOf(Entitlement("persisted"))
                     entitlements.setSubscriptionStatus(SubscriptionStatus.Active(activeE))
-
-                    // Give collector time to process
-                    async(Dispatchers.Default) { delay(1.seconds) }.await()
 
                     Then("storage write should have been called with the new status") {
                         verify {
@@ -1177,20 +878,10 @@ class EntitlementsRefactorSafetyTest {
             Given("Entitlements with backgroundScope") {
                 val storage = mockStorage()
                 val entitlements =
-                    StateActor<EntitlementsContext, EntitlementsState>(
-                        createInitialEntitlementsState(storage),
-                        backgroundScope,
-                    ).let { actor ->
-                        Entitlements(
-                            storage = storage,
-                            actor = actor,
-                            actorScope = backgroundScope,
-                        )
-                    }
+                    makeEntitlements(storage, backgroundScope)
 
                 When("setting Inactive status") {
                     entitlements.setSubscriptionStatus(SubscriptionStatus.Inactive)
-                    async(Dispatchers.Default) { delay(1.seconds) }.await()
 
                     Then("Inactive should be persisted") {
                         verify {
@@ -1224,16 +915,7 @@ class EntitlementsRefactorSafetyTest {
                     )
                 val storage = mockStorage(redemptionResponse = redemption)
                 val entitlements =
-                    StateActor<EntitlementsContext, EntitlementsState>(
-                        createInitialEntitlementsState(storage),
-                        backgroundScope,
-                    ).let { actor ->
-                        Entitlements(
-                            storage = storage,
-                            actor = actor,
-                            actorScope = backgroundScope,
-                        )
-                    }
+                    makeEntitlements(storage, backgroundScope)
 
                 Then("web should be empty") {
                     assertTrue(entitlements.web.isEmpty())
@@ -1248,16 +930,7 @@ class EntitlementsRefactorSafetyTest {
                 val webE = Entitlement("web_only", isActive = true, store = Store.STRIPE)
                 val storage = mockStorage(redemptionResponse = webRedemption(webE))
                 val entitlements =
-                    StateActor<EntitlementsContext, EntitlementsState>(
-                        createInitialEntitlementsState(storage),
-                        backgroundScope,
-                    ).let { actor ->
-                        Entitlements(
-                            storage = storage,
-                            actor = actor,
-                            actorScope = backgroundScope,
-                        )
-                    }
+                    makeEntitlements(storage, backgroundScope)
 
                 Then("all should include web entitlements") {
                     assertTrue(entitlements.all.contains(webE))
@@ -1275,16 +948,7 @@ class EntitlementsRefactorSafetyTest {
                 val webE = Entitlement("web_sub", isActive = true, store = Store.STRIPE)
                 val storage = mockStorage(redemptionResponse = webRedemption(webE))
                 val entitlements =
-                    StateActor<EntitlementsContext, EntitlementsState>(
-                        createInitialEntitlementsState(storage),
-                        backgroundScope,
-                    ).let { actor ->
-                        Entitlements(
-                            storage = storage,
-                            actor = actor,
-                            actorScope = backgroundScope,
-                        )
-                    }
+                    makeEntitlements(storage, backgroundScope)
                 entitlements.setSubscriptionStatus(SubscriptionStatus.Inactive)
 
                 Then("active should still contain web entitlements") {
@@ -1303,16 +967,7 @@ class EntitlementsRefactorSafetyTest {
             Given("same entitlement ID from status and device sources") {
                 val storage = mockStorage()
                 val entitlements =
-                    StateActor<EntitlementsContext, EntitlementsState>(
-                        createInitialEntitlementsState(storage),
-                        backgroundScope,
-                    ).let { actor ->
-                        Entitlements(
-                            storage = storage,
-                            actor = actor,
-                            actorScope = backgroundScope,
-                        )
-                    }
+                    makeEntitlements(storage, backgroundScope)
                 val fromStatus = Entitlement("premium", isActive = true, store = Store.PLAY_STORE)
                 val fromDevice = Entitlement("premium", isActive = true, store = Store.PLAY_STORE)
 
@@ -1336,16 +991,7 @@ class EntitlementsRefactorSafetyTest {
                 val webE = Entitlement("premium", isActive = true, store = Store.STRIPE)
                 val storage = mockStorage(redemptionResponse = webRedemption(webE))
                 val entitlements =
-                    StateActor<EntitlementsContext, EntitlementsState>(
-                        createInitialEntitlementsState(storage),
-                        backgroundScope,
-                    ).let { actor ->
-                        Entitlements(
-                            storage = storage,
-                            actor = actor,
-                            actorScope = backgroundScope,
-                        )
-                    }
+                    makeEntitlements(storage, backgroundScope)
 
                 val statusE = Entitlement("premium", isActive = true, store = Store.PLAY_STORE)
                 val deviceE = Entitlement("premium", isActive = true)
@@ -1373,16 +1019,7 @@ class EntitlementsRefactorSafetyTest {
             Given("a richly-populated entitlement") {
                 val storage = mockStorage()
                 val entitlements =
-                    StateActor<EntitlementsContext, EntitlementsState>(
-                        createInitialEntitlementsState(storage),
-                        backgroundScope,
-                    ).let { actor ->
-                        Entitlements(
-                            storage = storage,
-                            actor = actor,
-                            actorScope = backgroundScope,
-                        )
-                    }
+                    makeEntitlements(storage, backgroundScope)
                 val now = Date()
                 val future = Date(now.time + 86400000)
                 val richE =
@@ -1427,16 +1064,7 @@ class EntitlementsRefactorSafetyTest {
             Given("a single entitlement") {
                 val storage = mockStorage()
                 val entitlements =
-                    StateActor<EntitlementsContext, EntitlementsState>(
-                        createInitialEntitlementsState(storage),
-                        backgroundScope,
-                    ).let { actor ->
-                        Entitlements(
-                            storage = storage,
-                            actor = actor,
-                            actorScope = backgroundScope,
-                        )
-                    }
+                    makeEntitlements(storage, backgroundScope)
                 val e = Entitlement("solo")
 
                 When("setting Active with single entitlement") {
@@ -1456,16 +1084,7 @@ class EntitlementsRefactorSafetyTest {
             Given("100 entitlements") {
                 val storage = mockStorage()
                 val entitlements =
-                    StateActor<EntitlementsContext, EntitlementsState>(
-                        createInitialEntitlementsState(storage),
-                        backgroundScope,
-                    ).let { actor ->
-                        Entitlements(
-                            storage = storage,
-                            actor = actor,
-                            actorScope = backgroundScope,
-                        )
-                    }
+                    makeEntitlements(storage, backgroundScope)
                 val many = (1..100).map { Entitlement("e_$it") }.toSet()
 
                 When("setting Active with all of them") {
@@ -1487,16 +1106,7 @@ class EntitlementsRefactorSafetyTest {
             Given("Entitlements instance") {
                 val storage = mockStorage()
                 val entitlements =
-                    StateActor<EntitlementsContext, EntitlementsState>(
-                        createInitialEntitlementsState(storage),
-                        backgroundScope,
-                    ).let { actor ->
-                        Entitlements(
-                            storage = storage,
-                            actor = actor,
-                            actorScope = backgroundScope,
-                        )
-                    }
+                    makeEntitlements(storage, backgroundScope)
 
                 When("setting status sequentially") {
                     entitlements.setSubscriptionStatus(SubscriptionStatus.Active(setOf(Entitlement("a"))))
@@ -1520,16 +1130,7 @@ class EntitlementsRefactorSafetyTest {
             Given("dynamically added product entitlements") {
                 val storage = mockStorage()
                 val entitlements =
-                    StateActor<EntitlementsContext, EntitlementsState>(
-                        createInitialEntitlementsState(storage),
-                        backgroundScope,
-                    ).let { actor ->
-                        Entitlements(
-                            storage = storage,
-                            actor = actor,
-                            actorScope = backgroundScope,
-                        )
-                    }
+                    makeEntitlements(storage, backgroundScope)
                 val e = Entitlement("dynamic")
 
                 When("adding and then querying") {
@@ -1551,16 +1152,7 @@ class EntitlementsRefactorSafetyTest {
             Given("only active entitlements") {
                 val storage = mockStorage()
                 val entitlements =
-                    StateActor<EntitlementsContext, EntitlementsState>(
-                        createInitialEntitlementsState(storage),
-                        backgroundScope,
-                    ).let { actor ->
-                        Entitlements(
-                            storage = storage,
-                            actor = actor,
-                            actorScope = backgroundScope,
-                        )
-                    }
+                    makeEntitlements(storage, backgroundScope)
                 val e = Entitlement("active", isActive = true)
                 entitlements.setSubscriptionStatus(SubscriptionStatus.Active(setOf(e)))
 
@@ -1581,16 +1173,7 @@ class EntitlementsRefactorSafetyTest {
 
                 val storage = mockStorage()
                 val entitlements =
-                    StateActor<EntitlementsContext, EntitlementsState>(
-                        createInitialEntitlementsState(storage),
-                        backgroundScope,
-                    ).let { actor ->
-                        Entitlements(
-                            storage = storage,
-                            actor = actor,
-                            actorScope = backgroundScope,
-                        )
-                    }
+                    makeEntitlements(storage, backgroundScope)
 
                 entitlements.setWebEntitlements(setOf(webE1))
 
@@ -1612,16 +1195,7 @@ class EntitlementsRefactorSafetyTest {
             Given("entitlements with existing product mappings") {
                 val storage = mockStorage()
                 val entitlements =
-                    StateActor<EntitlementsContext, EntitlementsState>(
-                        createInitialEntitlementsState(storage),
-                        backgroundScope,
-                    ).let { actor ->
-                        Entitlements(
-                            storage = storage,
-                            actor = actor,
-                            actorScope = backgroundScope,
-                        )
-                    }
+                    makeEntitlements(storage, backgroundScope)
                 val e1 = Entitlement("first")
                 val e2 = Entitlement("second")
 

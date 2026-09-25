@@ -5,15 +5,20 @@ import com.superwall.sdk.Given
 import com.superwall.sdk.Then
 import com.superwall.sdk.When
 import com.superwall.sdk.misc.ActivityProvider
+import com.superwall.sdk.misc.primitives.SequentialActor
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.paywall.view.LoadingView
 import com.superwall.sdk.paywall.view.PaywallView
+import com.superwall.sdk.paywall.view.ShimmerView
 import com.superwall.sdk.paywall.view.ViewStorage
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -21,6 +26,7 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
+import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -39,8 +45,16 @@ class PaywallViewCacheTest {
 
     private fun keyOf(id: String) = PaywallCacheLogic.key(id, "en_US")
 
+    private lateinit var actorScope: CoroutineScope
+
     private fun newCache(): PaywallViewCache =
-        PaywallViewCache(appCtx, storage, activityProvider, deviceHelper)
+        PaywallViewCache(
+            appCtx,
+            storage,
+            activityProvider,
+            deviceHelper,
+            actor = SequentialActor(PaywallCacheState(), actorScope),
+        )
 
     @Before
     fun setup() {
@@ -57,6 +71,12 @@ class PaywallViewCacheTest {
             object : ViewStorage {
                 override val views = ConcurrentHashMap<String, View>()
             }
+        actorScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    }
+
+    @After
+    fun tearDown() {
+        actorScope.cancel()
     }
 
     // -------------------------------------------------------------------
@@ -389,8 +409,7 @@ class PaywallViewCacheTest {
 
                 Then("the final read returns one of the assigned values") {
                     val final = cache.activePaywallVcKey
-                    assertNotNull(final)
-                    assertTrue(final!!.startsWith("k_"))
+                    assertTrue(final in (0 until 50).map { "k_$it" })
                 }
             }
         }
@@ -412,10 +431,17 @@ class PaywallViewCacheTest {
                     }
                 (savers + removers).awaitAll()
 
-                Then("the cache does not crash and getAllPaywallViews is consistent") {
-                    val views = cache.getAllPaywallViews()
-                    // Final state depends on interleaving but must not throw
-                    assertTrue(views.size in 0..ids.size)
+                Then("cache state and viewStorage agree on every key") {
+                    // Which of save/remove wins per id depends on interleaving, but the
+                    // two stores must end up agreeing on it.
+                    ids.forEach { id ->
+                        val key = keyOf(id)
+                        assertSame(storage.retrieveView(key), cache.getPaywallView(key))
+                    }
+                    assertEquals(
+                        storage.all().filterIsInstance<PaywallView>().size,
+                        cache.getAllPaywallViews().size,
+                    )
                 }
             }
         }
@@ -434,6 +460,103 @@ class PaywallViewCacheTest {
 
                     Then("the new view is readable") {
                         assertSame(fresh, cache.getPaywallView(keyOf("new")))
+                    }
+                }
+            }
+        }
+
+    // -------------------------------------------------------------------
+    // External writers (SuperwallPaywallActivity, DebugView)
+    // -------------------------------------------------------------------
+
+    @Test
+    fun `removeView evicts a saved paywall from both cache and viewStorage`() =
+        runTest {
+            Given("a saved paywall whose activity launch then fails") {
+                val cache = newCache()
+                val view = mockk<PaywallView>(relaxed = true)
+                cache.save(view, "p1")
+
+                When("the launch-failure path removes its key") {
+                    cache.removeView(keyOf("p1"))
+
+                    Then("the next lookup misses, forcing a fresh view") {
+                        assertNull(cache.getPaywallView(keyOf("p1")))
+                        assertNull(storage.retrieveView(keyOf("p1")))
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `storeView is visible to cache reads and viewStorage immediately`() {
+        Given("a view stored under an activity key") {
+            val cache = newCache()
+            val view = mockk<PaywallView>(relaxed = true)
+
+            When("storeView is called") {
+                cache.storeView("activity-key", view)
+
+                Then("both the cache and viewStorage return it synchronously") {
+                    assertSame(view, cache.getPaywallView("activity-key"))
+                    assertSame(view, storage.retrieveView("activity-key"))
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `removeAll sweeps views stored through storeView`() =
+        runTest {
+            Given("a debug view stored under an arbitrary key") {
+                val cache = newCache()
+                cache.storeView("debug-key", View(appCtx))
+
+                When("removeAll runs") {
+                    cache.removeAll()
+
+                    Then("the debug view is gone from both stores") {
+                        assertNull(cache.entries["debug-key"])
+                        assertNull(storage.retrieveView("debug-key"))
+                    }
+                }
+            }
+        }
+
+    // -------------------------------------------------------------------
+    // Loading/shimmer availability for startWithView without present()
+    // -------------------------------------------------------------------
+
+    @Test
+    fun `loading and shimmer are not in viewStorage until acquired`() {
+        Given("a cold cache, as seen by getPaywall() + startWithView()") {
+            newCache()
+
+            Then("readers must acquire through the cache instead of viewStorage") {
+                assertNull(storage.retrieveView(LoadingView.TAG))
+                assertNull(storage.retrieveView(ShimmerView.TAG))
+            }
+        }
+    }
+
+    @Test
+    fun `acquire recreates loading and shimmer after removeAll evicts them`() =
+        runTest {
+            Given("acquired loading and shimmer views") {
+                val cache = newCache()
+                val loading = cache.acquireLoadingView()
+                val shimmer = cache.acquireShimmerView()
+
+                When("removeAll evicts them and they are acquired again") {
+                    cache.removeAll()
+                    val newLoading = cache.acquireLoadingView()
+                    val newShimmer = cache.acquireShimmerView()
+
+                    Then("fresh instances are stored under their tags") {
+                        assertTrue(newLoading !== loading)
+                        assertTrue(newShimmer !== shimmer)
+                        assertSame(newLoading, storage.retrieveView(LoadingView.TAG))
+                        assertSame(newShimmer, storage.retrieveView(ShimmerView.TAG))
                     }
                 }
             }

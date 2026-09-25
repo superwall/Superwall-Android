@@ -30,7 +30,11 @@ class PaywallManager(
 
     private var _cache: PaywallViewCache? = null
 
-    private val cache: PaywallViewCache
+    /**
+     * The single cache instance. Exposed so Activities that write to
+     * [com.superwall.sdk.paywall.view.ViewStorage] can go through it instead.
+     */
+    internal val cache: PaywallViewCache
         get() {
             if (_cache == null) {
                 _cache = createCache()

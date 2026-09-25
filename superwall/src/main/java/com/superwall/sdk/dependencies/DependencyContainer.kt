@@ -76,6 +76,7 @@ import com.superwall.sdk.network.SubscriptionService
 import com.superwall.sdk.network.device.DeviceHelper
 import com.superwall.sdk.network.device.DeviceInfo
 import com.superwall.sdk.network.session.CustomHttpUrlConnection
+import com.superwall.sdk.paywall.manager.PaywallCacheState
 import com.superwall.sdk.paywall.manager.PaywallManager
 import com.superwall.sdk.paywall.manager.PaywallViewCache
 import com.superwall.sdk.paywall.presentation.CustomCallbackRegistry
@@ -908,6 +909,7 @@ class DependencyContainer(
             activityProvider!!,
             deviceHelper,
             configManager.options.paywalls.loadingColor,
+            actor = SequentialActor(PaywallCacheState(), ioScope),
         )
 
     override fun activePaywallId(): String? =

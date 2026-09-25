@@ -17,7 +17,6 @@ import com.superwall.sdk.paywall.view.PaywallView
 import com.superwall.sdk.paywall.view.ShimmerView
 import com.superwall.sdk.paywall.view.ViewStorage
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 
 /**
@@ -55,11 +54,9 @@ data class PaywallCacheState(
             val key: String?,
         ) : Updates({ it.copy(activePaywallVcKey = key) })
 
-        object RemoveAllExceptActive : Updates({ state ->
-            val active = state.activePaywallVcKey
-            val kept = if (active != null) state.views.filterKeys { it == active } else emptyMap()
-            state.copy(views = kept)
-        })
+        data class RemoveViews(
+            val keys: Set<String>,
+        ) : Updates({ it.copy(views = it.views - keys) })
 
         data class Hydrate(
             val views: Map<String, View>,
@@ -87,12 +84,16 @@ data class PaywallCacheState(
             update(Updates.RemoveView(key))
         })
 
+        /**
+         * Evicts every key except the active paywall. Removes exactly the keys
+         * it evicted from viewStorage, so a view stored concurrently through
+         * [PaywallViewCache.storeView] survives in both places.
+         */
         object RemoveAllExceptActive : Actions({
             val active = state.value.activePaywallVcKey
-            state.value.views.keys
-                .filter { it != active }
-                .forEach { viewStorage.removeView(it) }
-            update(Updates.RemoveAllExceptActive)
+            val evicted = state.value.views.keys.filterTo(mutableSetOf()) { it != active }
+            evicted.forEach { viewStorage.removeView(it) }
+            update(Updates.RemoveViews(evicted))
         })
 
         /**
@@ -100,7 +101,7 @@ data class PaywallCacheState(
          * across concurrent callers because actions are FIFO-serialized.
          *
          * The factory runs on the actor's consumer thread and must not dispatch
-         * to [Dispatchers.Main]: callers block on the result via `runBlocking`,
+         * to `Dispatchers.Main`: callers block on the result via `runBlocking`,
          * usually from the main thread, so a main hop here would deadlock.
          */
         data class EnsureLoadingView(
@@ -148,7 +149,9 @@ interface PaywallCacheContext : StoreContext<PaywallCacheState, PaywallCacheCont
  * single FIFO consumer, so `state.value` always reflects the latest committed
  * data and there are no races between save/get, remove/save, or concurrent
  * acquire calls. [ViewStorage] is kept as a write-through mirror because
- * external readers (SuperwallPaywallActivity, DebugView) access it directly.
+ * external readers (SuperwallPaywallActivity, DebugView) read it directly.
+ * Every write must go through this cache ([save], [storeView], [removeView],
+ * ...) so the two never disagree about which keys exist.
  */
 class PaywallViewCache(
     override val appCtx: Context,
@@ -156,8 +159,7 @@ class PaywallViewCache(
     override val activityProvider: ActivityProvider,
     override val deviceHelper: DeviceHelper,
     @ColorRes private val loadingColor: Int? = null,
-    override val actor: SequentialActor<PaywallCacheContext, PaywallCacheState> =
-        SequentialActor(PaywallCacheState(), CoroutineScope(Dispatchers.IO)),
+    override val actor: SequentialActor<PaywallCacheContext, PaywallCacheState>,
 ) : PaywallCacheContext {
     override val scope: CoroutineScope get() = actor.scope
 
@@ -195,6 +197,26 @@ class PaywallViewCache(
 
     suspend fun removePaywallView(identifier: PaywallIdentifier) {
         immediate(PaywallCacheState.Actions.Remove(identifier))
+    }
+
+    /**
+     * Stores a view under an arbitrary key (activity launch and restore keys,
+     * debug views). Synchronous because callers hand [key] to an Activity that
+     * reads [ViewStorage] as soon as it is created. Both writes are atomic map
+     * operations, so no queued action is needed for consistency.
+     */
+    fun storeView(
+        key: String,
+        view: View,
+    ) {
+        viewStorage.storeView(key, view)
+        actor.update(PaywallCacheState.Updates.StoreView(key, view))
+    }
+
+    /** Synchronous counterpart of [storeView]. */
+    fun removeView(key: String) {
+        viewStorage.removeView(key)
+        actor.update(PaywallCacheState.Updates.RemoveView(key))
     }
 
     suspend fun removeAll() {
