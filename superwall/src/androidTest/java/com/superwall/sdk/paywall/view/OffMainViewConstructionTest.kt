@@ -75,7 +75,7 @@ class OffMainViewConstructionTest {
     }
 
     @Test
-    fun cacheAcquireFromMainBuildsViewsOnTheActorThread() {
+    fun cacheAcquireFromMainReturnsUsableViewsWithoutDeadlocking() {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         try {
             val cache =

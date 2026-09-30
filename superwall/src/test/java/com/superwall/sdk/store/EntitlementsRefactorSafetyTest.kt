@@ -148,6 +148,32 @@ class EntitlementsRefactorSafetyTest {
         }
 
     @Test
+    fun `addEntitlementsByProductId keeps status-only entitlements in all`() =
+        runTest {
+            Given("an Active status with an entitlement not tied to any product") {
+                val statusOnly = Entitlement("status_only")
+                val productOnly = Entitlement("product_only")
+                val storage = mockStorage(storedStatus = SubscriptionStatus.Active(setOf(statusOnly)))
+                val entitlements = makeEntitlements(storage, backgroundScope)
+
+                When("product entitlements are added afterwards") {
+                    entitlements.addEntitlementsByProductId(mapOf("product_1" to setOf(productOnly)))
+
+                    Then("all contains both the status and the product entitlements") {
+                        assertEquals(
+                            setOf("status_only", "product_only"),
+                            entitlements.all.map { it.id }.toSet(),
+                        )
+                    }
+                    And("every active entitlement is also in all") {
+                        val allIds = entitlements.all.map { it.id }.toSet()
+                        assertTrue(entitlements.active.all { it.id in allIds })
+                    }
+                }
+            }
+        }
+
+    @Test
     fun `init with corrupted StoredEntitlementsByProductId deletes and continues`() =
         runTest {
             Given("storage throws ClassCastException for StoredEntitlementsByProductId") {

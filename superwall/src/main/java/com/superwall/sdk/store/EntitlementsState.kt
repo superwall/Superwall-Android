@@ -111,7 +111,7 @@ data class EntitlementsState(
                         idToEntitlements.mapValues { (_, v) -> v.toSet() }
                 state.copy(
                     entitlementsByProduct = newProducts,
-                    allTracked = newProducts.values.flatten().toSet(),
+                    allTracked = state.allTracked + newProducts.values.flatten(),
                 )
             })
 
@@ -159,10 +159,8 @@ internal fun createInitialEntitlementsState(storage: Storage): EntitlementsState
 
     var state = EntitlementsState()
 
-    // Restore product entitlements BEFORE the status. AddProductEntitlements
-    // replaces allTracked, so replaying it after SetActive would drop status
-    // entitlements that are not tied to a product from `all` until the next
-    // status update. The old startup code never replaced that set.
+    // Restore product entitlements, then the status. Both merge into
+    // allTracked, so status entitlements not tied to a product stay in `all`.
     if (productEntitlements != null) {
         state = EntitlementsState.Updates.AddProductEntitlements(productEntitlements).reduce(state)
     }
