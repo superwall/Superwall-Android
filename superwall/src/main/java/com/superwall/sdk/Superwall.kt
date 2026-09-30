@@ -98,7 +98,6 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
@@ -776,12 +775,15 @@ class Superwall(
                         else -> old::class == new::class
                     }
                 }
-                .drop(1) // Drops the cached/initial emission
-                .collect { newValue ->
+                // Pair each status with the one before it. Entitlements persists the
+                // new status before this collector runs, so storage can't supply `from`.
+                .scan<SubscriptionStatus, Pair<SubscriptionStatus?, SubscriptionStatus>?>(null) { previous, newStatus ->
+                    Pair(previous?.second, newStatus)
+                }.filterNotNull()
+                .filter { it.first != null } // Drops the cached/initial emission
+                .collect { (previous, newValue) ->
                     // Save and handle the new value
-                    val oldValue =
-                        dependencyContainer.storage.read(StoredSubscriptionStatus)
-                            ?: SubscriptionStatus.Unknown
+                    val oldValue = previous ?: SubscriptionStatus.Unknown
                     dependencyContainer.storage.write(StoredSubscriptionStatus, newValue)
                     dependencyContainer.delegateAdapter.subscriptionStatusDidChange(
                         oldValue,

@@ -18,7 +18,7 @@ data class EntitlementsState(
     val backingActive: Set<Entitlement> = emptySet(),
     /** Active web entitlements from the latest redemption response. */
     val webEntitlements: Set<Entitlement> = emptySet(),
-    /** Tracks all entitlements seen from status updates + product updates. */
+    /** Tracks all entitlements seen from status updates. */
     val allTracked: Set<Entitlement> = emptySet(),
 ) {
     // -- Derived properties --
@@ -109,10 +109,7 @@ data class EntitlementsState(
                 val newProducts =
                     state.entitlementsByProduct +
                         idToEntitlements.mapValues { (_, v) -> v.toSet() }
-                state.copy(
-                    entitlementsByProduct = newProducts,
-                    allTracked = state.allTracked + newProducts.values.flatten(),
-                )
+                state.copy(entitlementsByProduct = newProducts)
             })
 
         data class SetDeviceEntitlements(
@@ -159,8 +156,8 @@ internal fun createInitialEntitlementsState(storage: Storage): EntitlementsState
 
     var state = EntitlementsState()
 
-    // Restore product entitlements, then the status. Both merge into
-    // allTracked, so status entitlements not tied to a product stay in `all`.
+    // Restore product entitlements, then the status. allTracked only holds
+    // status entitlements; `all` adds the product ones from entitlementsByProduct.
     if (productEntitlements != null) {
         state = EntitlementsState.Updates.AddProductEntitlements(productEntitlements).reduce(state)
     }

@@ -17,6 +17,9 @@ import com.superwall.sdk.store.abstractions.product.receipt.LatestSubscriptionSt
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -1245,7 +1248,65 @@ class EntitlementsRefactorSafetyTest {
         }
 
     @Test
-    fun `addEntitlementsByProductId clears and rebuilds _all`() =
+    fun `status collector can re-set the status with extra entitlements`() =
+        runTest {
+            Given("a status collector that adds a custom entitlement, like a delegate override") {
+                val storage = mockStorage()
+                val entitlements = makeEntitlements(storage, backgroundScope)
+                backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+                    entitlements.status.collect { status ->
+                        if (status is SubscriptionStatus.Active && status.entitlements.none { it.id == "custom" }) {
+                            entitlements.setSubscriptionStatus(
+                                SubscriptionStatus.Active(status.entitlements + Entitlement("custom")),
+                            )
+                        }
+                    }
+                }
+
+                When("the status becomes Active without the custom entitlement") {
+                    entitlements.setSubscriptionStatus(SubscriptionStatus.Active(setOf(Entitlement("pro"))))
+                    advanceUntilIdle()
+
+                    Then("the status carries both entitlements") {
+                        val status = entitlements.status.value as SubscriptionStatus.Active
+                        assertEquals(setOf("pro", "custom"), status.entitlements.map { it.id }.toSet())
+                    }
+                    And("both are active and the overridden status is persisted") {
+                        assertEquals(setOf("pro", "custom"), entitlements.active.map { it.id }.toSet())
+                        verify {
+                            storage.write(
+                                StoredSubscriptionStatus,
+                                match {
+                                    it is SubscriptionStatus.Active &&
+                                        it.entitlements.map { e -> e.id }.toSet() == setOf("pro", "custom")
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `addEntitlementsByProductId drops entitlements of a remapped product from all`() =
+        runTest {
+            Given("a product mapped to an entitlement") {
+                val storage = mockStorage()
+                val entitlements = makeEntitlements(storage, backgroundScope)
+                entitlements.addEntitlementsByProductId(mapOf("p1" to setOf(Entitlement("pro"))))
+
+                When("the same product is remapped to a different entitlement") {
+                    entitlements.addEntitlementsByProductId(mapOf("p1" to setOf(Entitlement("premium"))))
+
+                    Then("all contains only the new entitlement") {
+                        assertEquals(setOf("premium"), entitlements.all.map { it.id }.toSet())
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `addEntitlementsByProductId accumulates entitlements across adds`() =
         runTest {
             Given("entitlements with existing product mappings") {
                 val storage = mockStorage()
