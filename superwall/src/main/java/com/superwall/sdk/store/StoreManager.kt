@@ -69,6 +69,13 @@ class StoreManager(
         val productItems: List<ProductItem>,
     )
 
+    private class FetchedProducts(
+        val products: Map<String, StoreProduct>,
+        // Set when Play Billing can't be used on this device. [products] then holds
+        // whatever resolved without it.
+        val billingUnavailable: BillingError.BillingNotAvailable? = null,
+    )
+
     override suspend fun getProductVariables(
         paywall: Paywall,
         request: PaywallRequest,
@@ -115,10 +122,9 @@ class StoreManager(
         // Try Play Billing first so Play-only lookups never pay for a /products round-trip.
         val billingError =
             try {
-                for ((id, product) in fetchOrAwaitProducts(processingResult.fullProductIdsToLoad)) {
-                    productsById[id] = product
-                }
-                null
+                val fetched = fetchOrAwaitProducts(processingResult.fullProductIdsToLoad)
+                productsById.putAll(fetched.products)
+                fetched.billingUnavailable
             } catch (e: Throwable) {
                 e
             }
@@ -208,9 +214,14 @@ class StoreManager(
         val productsById = processingResult.substituteProductsById.toMutableMap()
 
         try {
-            val fetchResult = fetchOrAwaitProducts(processingResult.fullProductIdsToLoad)
-            for ((id, product) in fetchResult) {
-                productsById[id] = product
+            val fetched = fetchOrAwaitProducts(processingResult.fullProductIdsToLoad)
+            productsById.putAll(fetched.products)
+
+            // Without Play Billing a paywall can still present whatever resolved elsewhere
+            // (test, custom and substitute products). Only fail when there's nothing to
+            // show, and never in test mode.
+            fetched.billingUnavailable?.let { error ->
+                if (productsById.isEmpty() && testMode?.isTestMode != true) throw error
             }
         } catch (error: Throwable) {
             paywall.productsLoadingInfo.failAt = Date()
@@ -223,8 +234,8 @@ class StoreManager(
                 )
             track(productLoadEvent)
 
-            // If billing isn't available, make it call the onError handler when requesting
-            // a paywall.
+            // If billing isn't available and nothing resolved, make it call the onError
+            // handler when requesting a paywall.
             if (error is BillingError.BillingNotAvailable) {
                 throw error
             }
@@ -237,7 +248,7 @@ class StoreManager(
         )
     }
 
-    private suspend fun fetchOrAwaitProducts(fullProductIds: Set<String>): Map<String, StoreProduct> {
+    private suspend fun fetchOrAwaitProducts(fullProductIds: Set<String>): FetchedProducts {
         val activeTestMode = testMode?.takeIf { it.isTestMode }
         activeTestMode?.awaitTestProducts()
         val testProducts = activeTestMode?.testProductsByFullId.orEmpty()
@@ -248,7 +259,7 @@ class StoreManager(
                 fullProductIds.mapNotNull { id -> testProducts[id]?.let { id to it } }.toMap()
             }
         val remainingIds = fullProductIds - testHits.keys
-        if (remainingIds.isEmpty()) return testHits
+        if (remainingIds.isEmpty()) return FetchedProducts(testHits)
 
         val cached = mutableMapOf<String, StoreProduct>()
         val loading = mutableListOf<CompletableDeferred<StoreProduct>>()
@@ -293,8 +304,8 @@ class StoreManager(
                     productsByFullId[id] = ProductState.Error(e)
                     deferred.completeExceptionally(e)
                 }
-                if (activeTestMode != null && e is BillingError.BillingNotAvailable) {
-                    return testHits + cached
+                if (e is BillingError.BillingNotAvailable) {
+                    return FetchedProducts(testHits + cached, billingUnavailable = e)
                 }
                 throw e
             }
@@ -302,15 +313,11 @@ class StoreManager(
         val fetched =
             try {
                 fetchNewProducts(newDeferreds)
-            } catch (e: Throwable) {
-                if (activeTestMode != null && e is BillingError.BillingNotAvailable) {
-                    emptyMap()
-                } else {
-                    throw e
-                }
+            } catch (e: BillingError.BillingNotAvailable) {
+                return FetchedProducts(testHits + cached + awaited, billingUnavailable = e)
             }
 
-        return testHits + cached + awaited + fetched
+        return FetchedProducts(testHits + cached + awaited + fetched)
     }
 
     private suspend fun fetchNewProducts(deferreds: Map<String, CompletableDeferred<StoreProduct>>): Map<String, StoreProduct> {

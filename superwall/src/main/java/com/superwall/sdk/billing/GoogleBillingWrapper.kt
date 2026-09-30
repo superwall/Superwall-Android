@@ -34,6 +34,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -101,6 +102,15 @@ class GoogleBillingWrapper(
     @set:Synchronized
     private var reconnectionAlreadyScheduled = false
 
+    private val _availability = MutableStateFlow<BillingAvailability>(BillingAvailability.Unknown)
+
+    /**
+     * Whether Play Billing can be used on this device. Once [BillingAvailability.Unavailable],
+     * requests fail straight away instead of reconnecting, until the app next returns to
+     * the foreground and billing is probed again.
+     */
+    val availability = _availability.asStateFlow()
+
     // Setup mutable state flow for purchase results
     override val purchaseResults = MutableStateFlow<InternalPurchaseResult?>(null)
 
@@ -109,6 +119,19 @@ class GoogleBillingWrapper(
 
     init {
         startConnectionOnMainThread()
+        // Unavailable isn't always permanent - the user may sign in to the Play Store
+        // while the app is in the background - so probe again on every foregrounding.
+        ioScope.launch {
+            appLifecycleObserver.isInBackground
+                .drop(1)
+                .filter { inBackground -> !inBackground }
+                .collect {
+                    if (availability.value is BillingAvailability.Unavailable) {
+                        _availability.value = BillingAvailability.Unknown
+                        startConnection()
+                    }
+                }
+        }
     }
 
     internal class Handler(
@@ -148,14 +171,16 @@ class GoogleBillingWrapper(
         }
     }
 
-    override suspend fun queryAllPurchases(): List<Purchase> =
-        coroutineScope {
+    override suspend fun queryAllPurchases(): List<Purchase> {
+        if (availability.value is BillingAvailability.Unavailable) return emptyList()
+        return coroutineScope {
             val apps =
                 async { retryOrNull(QUERY_PURCHASES_MAX_RETRIES) { queryType(ProductType.INAPP).getOrThrow() } }
             val subs =
                 async { retryOrNull(QUERY_PURCHASES_MAX_RETRIES) { queryType(ProductType.SUBS).getOrThrow() } }
             (apps.await() ?: emptyList()) + (subs.await() ?: emptyList())
         }
+    }
 
     override suspend fun consume(purchaseToken: String): Result<String> =
         suspendCoroutine { cont ->
@@ -187,7 +212,18 @@ class GoogleBillingWrapper(
     fun startConnection() {
         synchronized(this@GoogleBillingWrapper) {
             if (billingClient == null) {
-                billingClient = createBillingClient(this)
+                billingClient =
+                    try {
+                        createBillingClient(this)
+                    } catch (e: Throwable) {
+                        markUnavailable(
+                            BillingError.BillingNotAvailable(
+                                "Billing is not available in this device. " +
+                                    "The billing client could not be created: ${e.message}",
+                            ),
+                        )
+                        return
+                    }
             }
 
             reconnectionAlreadyScheduled = false
@@ -275,15 +311,8 @@ class GoogleBillingWrapper(
                     }
 
                     override fun onError(error: BillingError) {
-                        // Cache BillingNotAvailable — it's a permanent device state
-                        // that won't resolve, so retrying is wasteful.
-                        // Other billing errors (service unavailable, disconnected, network)
-                        // are transient and should NOT be cached to allow retry.
-                        if (error is BillingError.BillingNotAvailable) {
-                            missingFullProductIds.forEach { fullProductId ->
-                                productsCache[fullProductId] = Either.Failure(error)
-                            }
-                        }
+                        // Billing errors aren't cached so a later request can retry.
+                        // BillingNotAvailable is remembered in [availability] instead.
                         continuation.resumeWithException(error)
                     }
                 },
@@ -411,6 +440,10 @@ class GoogleBillingWrapper(
         delayMilliseconds: Long? = null,
         request: (BillingError?) -> Unit,
     ) {
+        (availability.value as? BillingAvailability.Unavailable)?.let { unavailable ->
+            threadHandler.post { request(unavailable.error) }
+            return
+        }
         serviceRequests.add(request to delayMilliseconds)
         if (billingClient?.isReady == false) {
             startConnectionOnMainThread()
@@ -508,6 +541,7 @@ class GoogleBillingWrapper(
                         LogScope.productsManager,
                         "Billing client connected",
                     )
+                    _availability.value = BillingAvailability.Available
                     executePendingRequests()
                     reconnectMilliseconds = RECONNECT_TIMER_START_MILLISECONDS
                     trackProductDetailsNotSupportedIfNeeded()
@@ -554,7 +588,7 @@ class GoogleBillingWrapper(
                     )
                     // The calls will fail with an error that will be surfaced. We want to surface these errors
                     // Can't call executePendingRequests because it will not do anything since it checks for isReady()
-                    sendErrorsToAllPendingRequests(error)
+                    markUnavailable(error)
                 }
 
                 BillingClient.BillingResponseCode.ERROR,
@@ -680,6 +714,11 @@ class GoogleBillingWrapper(
                     }
                 }
             }
+    }
+
+    private fun markUnavailable(error: BillingError.BillingNotAvailable) {
+        _availability.value = BillingAvailability.Unavailable(error)
+        sendErrorsToAllPendingRequests(error)
     }
 
     @Synchronized

@@ -196,7 +196,7 @@ class TestModeBillingUnavailableIntegrationTest {
                         )
                     }
 
-                    And("a second load succeeds despite the permanently cached billing failure") {
+                    And("a second load succeeds now that billing is known to be unavailable") {
                         val job2 = async { storeManager.getProducts(null, makePaywall(), null) }
                         advanceUntilIdle()
                         assertEquals(

@@ -829,6 +829,59 @@ class StoreManagerTest {
         }
 
     @Test
+    fun `getProducts presents a mixed paywall with its custom products when billing is unavailable`() =
+        runTest {
+            Given("a paywall mixing a custom and a Play product on a device without billing") {
+                val manager = storeManagerWith { Either.Success(customProductsResponse("custom_1")) }
+                manager.fetchAndCacheCustomProducts(setOf("custom_1"), required = true)
+                coEvery { billing.awaitGetProducts(any()) } throws BillingError.BillingNotAvailable("nope")
+                val paywall =
+                    Paywall.stub().copy(
+                        productIds = listOf("custom_1", "product1:basePlan1:sw-auto"),
+                    )
+
+                When("getProducts is called outside of test mode") {
+                    val result = manager.getProducts(null, paywall, null)
+
+                    Then("it returns the custom product instead of throwing") {
+                        assertEquals(setOf("custom_1"), result.productsByFullId.keys)
+                    }
+
+                    And("the load is not marked as failed") {
+                        assertNull(paywall.productsLoadingInfo.failAt)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `getProducts in test mode presents a Play-only paywall even when nothing resolves`() =
+        runTest {
+            Given("test mode is active with a catalog that doesn't cover the paywall and billing is unavailable") {
+                val testMode = makeActiveTestMode()
+                testMode.setTestProducts(
+                    mapOf(
+                        "other:basePlan1:sw-auto" to
+                            mockk<StoreProduct> {
+                                every { fullIdentifier } returns "other:basePlan1:sw-auto"
+                            },
+                    ),
+                )
+                storeManager.testMode = testMode
+                coEvery { billing.awaitGetProducts(any()) } throws
+                    BillingError.BillingNotAvailable("Billing not available")
+
+                When("getProducts is called") {
+                    val result = storeManager.getProducts(null, makePaywallWithTwoProducts(), null)
+
+                    Then("it returns no products instead of throwing") {
+                        junitAssertTrue(result.productsByFullId.isEmpty())
+                    }
+                }
+            }
+        }
+
+    @Test
     fun `fetchAndCacheCustomProducts rethrows on products failure when required`() =
         runTest {
             Given("a /products endpoint that fails") {
