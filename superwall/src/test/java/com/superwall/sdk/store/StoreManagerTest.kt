@@ -847,8 +847,39 @@ class StoreManagerTest {
                         assertEquals(setOf("custom_1"), result.productsByFullId.keys)
                     }
 
-                    And("the load is not marked as failed") {
-                        assertNull(paywall.productsLoadingInfo.failAt)
+                    And("the load is marked as failed so the paywall reloads its products later") {
+                        junitAssertTrue(paywall.productsLoadingInfo.failAt != null)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `getProducts picks up Play products on reload once billing is available again`() =
+        runTest {
+            Given("a mixed paywall that loaded without its Play product while billing was unavailable") {
+                val manager = storeManagerWith { Either.Success(customProductsResponse("custom_1")) }
+                manager.fetchAndCacheCustomProducts(setOf("custom_1"), required = true)
+                val playProduct =
+                    mockk<StoreProduct> {
+                        every { fullIdentifier } returns "product1:basePlan1:sw-auto"
+                    }
+                coEvery { billing.awaitGetProducts(any()) } throws
+                    BillingError.BillingNotAvailable("nope") andThen setOf(playProduct)
+                val paywall =
+                    Paywall.stub().copy(
+                        productIds = listOf("custom_1", "product1:basePlan1:sw-auto"),
+                    )
+                manager.getProducts(null, paywall, null)
+
+                When("the paywall's products are loaded again after billing recovers") {
+                    val result = manager.getProducts(null, paywall, null)
+
+                    Then("the Play product is included") {
+                        assertEquals(
+                            setOf("custom_1", "product1:basePlan1:sw-auto"),
+                            result.productsByFullId.keys,
+                        )
                     }
                 }
             }

@@ -224,6 +224,9 @@ class StoreManager(
                 if (productsById.isEmpty() && testMode?.isTestMode != true) throw error
                 val unresolved = processingResult.fullProductIdsToLoad - productsById.keys
                 if (unresolved.isNotEmpty()) {
+                    // Mark the load as failed so a cached paywall reloads its products on the
+                    // next request, picking them up once billing is available again.
+                    paywall.productsLoadingInfo.failAt = Date()
                     Logger.debug(
                         LogLevel.warn,
                         LogScope.productsManager,
