@@ -80,7 +80,7 @@ internal object TestModePurchaseDrawer {
                 dialog.dismiss()
             }
 
-            dialog.setContentView(view)
+            dialog.setSheetContent(view)
             dialog.setOnDismissListener {
                 if (!result.isCompleted) {
                     result.complete(PurchaseSimulationResult.Abandoned)

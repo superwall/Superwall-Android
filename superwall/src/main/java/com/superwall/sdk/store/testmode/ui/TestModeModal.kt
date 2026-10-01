@@ -173,7 +173,7 @@ internal object TestModeModal {
                 dialog.dismiss()
             }
 
-            dialog.setContentView(view)
+            dialog.setSheetContent(view)
             dialog.setOnDismissListener {
                 ioScope.cancel()
                 if (!result.isCompleted) {

@@ -50,6 +50,8 @@ private val BILLING_INSANTIATION_ERROR =
     - User not being signed in into the play store
     - Mismatching Google Play Billing versions"""
 
+private const val BILLING_UNAVAILABLE_ERROR = "Google Play Billing is not available on this device."
+
 class AutomaticPurchaseController(
     var context: Context,
     val scope: IOScope,
@@ -81,7 +83,9 @@ class AutomaticPurchaseController(
         private const val MAX_RETRIES = 3
     }
 
-    private var billingClient: BillingClient = getBilling(context, this)
+    // Null when the client can't be created (e.g. no Play Store on the device). Creating
+    // it must never throw, as that would take down the whole SDK configuration.
+    private val billingClient: BillingClient? = runCatching { getBilling(context, this) }.getOrNull()
 
     // Tri-state so waiters can short-circuit when the connection is known to
     // have failed instead of blocking until the timeout
@@ -102,6 +106,12 @@ class AutomaticPurchaseController(
     }
 
     private fun startConnection() {
+        val billingClient =
+            billingClient ?: run {
+                connectionState.value = ConnectionState.Failed
+                syncSubscriptionStatus()
+                return
+            }
         try {
             billingClient.startConnection(
                 object : BillingClientStateListener {
@@ -150,6 +160,24 @@ class AutomaticPurchaseController(
         }
     }
 
+    /**
+     * Waits for the billing client to be connected, giving a failed connection one more
+     * attempt - billing may have become available since (e.g. the user signed in to the
+     * Play Store).
+     *
+     * @return The connected client, or null if billing can't be used.
+     */
+    private suspend fun awaitConnectedClient(): BillingClient? {
+        val billingClient = billingClient ?: return null
+        if (connectionState.value == ConnectionState.Failed) {
+            connectionState.value = ConnectionState.Connecting
+            startConnection()
+        }
+        val state =
+            withTimeoutOrNull(CONNECTION_TIMEOUT_MS) { connectionState.first { it != ConnectionState.Connecting } }
+        return billingClient.takeIf { state == ConnectionState.Connected }
+    }
+
     //endregion
 
     //region Public
@@ -189,6 +217,24 @@ class AutomaticPurchaseController(
         basePlanId: String?,
         offerId: String?,
     ): PurchaseResult {
+        Logger.debug(
+            logLevel = LogLevel.info,
+            scope = LogScope.nativePurchaseController,
+            message = "Waiting for billing client to be connected",
+        )
+
+        // Without a connected billing client the purchase can never complete, so fail
+        // instead of waiting forever
+        val billingClient =
+            awaitConnectedClient()
+                ?: return PurchaseResult.Failed(BILLING_UNAVAILABLE_ERROR)
+
+        Logger.debug(
+            logLevel = LogLevel.info,
+            scope = LogScope.nativePurchaseController,
+            message = "Billing client is connected",
+        )
+
         // Clear previous purchase results to avoid emitting old results
         purchaseResults.value = null
 
@@ -268,21 +314,6 @@ class AutomaticPurchaseController(
                     setObfuscatedAccountId(Superwall.instance.externalAccountId)
                 }.setProductDetailsParamsList(listOf(productDetailsParams))
                 .build()
-
-        Logger.debug(
-            logLevel = LogLevel.info,
-            scope = LogScope.nativePurchaseController,
-            message = "Waiting for billing client to be connected",
-        )
-
-        // Wait until the billing client becomes connected
-        connectionState.first { it == ConnectionState.Connected }
-
-        Logger.debug(
-            logLevel = LogLevel.info,
-            scope = LogScope.nativePurchaseController,
-            message = "Billing client is connected",
-        )
 
         billingClient.launchBillingFlow(activity, flowParams)
 
@@ -434,9 +465,9 @@ class AutomaticPurchaseController(
 
         val params = QueryPurchasesParams.newBuilder().setProductType(productType).build()
 
-        if (!billingClient.isReady) {
-            return Result.failure(IllegalStateException("Billing client not ready"))
-        }
+        val billingClient =
+            billingClient?.takeIf { it.isReady }
+                ?: return Result.failure(IllegalStateException("Billing client not ready"))
 
         billingClient.queryPurchasesAsync(params) { billingResult, purchasesList ->
             if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
@@ -466,7 +497,7 @@ class AutomaticPurchaseController(
                         .setPurchaseToken(purchase.purchaseToken)
                         .build()
 
-                billingClient.acknowledgePurchase(acknowledgePurchaseParams) { billingResult ->
+                billingClient?.acknowledgePurchase(acknowledgePurchaseParams) { billingResult ->
                     if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
                         Logger.debug(
                             logLevel = LogLevel.error,
