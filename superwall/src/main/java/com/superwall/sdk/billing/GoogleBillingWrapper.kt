@@ -51,6 +51,11 @@ import kotlin.math.min
 internal const val RECONNECT_TIMER_START_MILLISECONDS = 1L * 1000L
 internal const val RECONNECT_TIMER_MAX_TIME_MILLISECONDS = 16L * 1000L
 
+// Consecutive transient setup failures after which billing is treated as unavailable, so
+// requests stop waiting on a connection that may never come (e.g. a broken Play Store).
+// Reconnecting carries on in the background and a later successful setup makes it available.
+internal const val MAX_TRANSIENT_SETUP_FAILURES = 3
+
 class GoogleBillingWrapper(
     val context: Context,
     val ioScope: IOScope,
@@ -102,6 +107,8 @@ class GoogleBillingWrapper(
     @set:Synchronized
     private var reconnectionAlreadyScheduled = false
 
+    private val transientSetupFailures = AtomicInteger(0)
+
     private val _availability = MutableStateFlow<BillingAvailability>(BillingAvailability.Unknown)
 
     /**
@@ -128,6 +135,7 @@ class GoogleBillingWrapper(
                 .collect {
                     if (availability.value is BillingAvailability.Unavailable) {
                         _availability.value = BillingAvailability.Unknown
+                        transientSetupFailures.set(0)
                         startConnection()
                     }
                 }
@@ -545,6 +553,7 @@ class GoogleBillingWrapper(
                     _availability.value = BillingAvailability.Available
                     executePendingRequests()
                     reconnectMilliseconds = RECONNECT_TIMER_START_MILLISECONDS
+                    transientSetupFailures.set(0)
                     trackProductDetailsNotSupportedIfNeeded()
                 }
 
@@ -603,6 +612,18 @@ class GoogleBillingWrapper(
                         LogScope.productsManager,
                         "Billing client error, retrying: ${billingResult.responseCode}",
                     )
+                    val failures = transientSetupFailures.incrementAndGet()
+                    if (failures >= MAX_TRANSIENT_SETUP_FAILURES &&
+                        availability.value !is BillingAvailability.Unavailable
+                    ) {
+                        markUnavailable(
+                            BillingError.BillingNotAvailable(
+                                "Billing is not available in this device. Setup failed $failures " +
+                                    "times in a row. Last error: ${billingResult.debugMessage} " +
+                                    "ErrorCode: ${billingResult.responseCode}.",
+                            ),
+                        )
+                    }
                     retryBillingServiceConnectionWithExponentialBackoff()
                 }
 

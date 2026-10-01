@@ -247,4 +247,70 @@ class GoogleBillingWrapperAvailabilityTest {
                 }
             }
         }
+
+    @Test
+    fun `repeated transient setup failures mark billing unavailable and fail waiting requests`() =
+        runTest {
+            Given("a device whose billing setup keeps failing with ERROR") {
+                val wrapper = makeWrapper { disconnectedClient() }
+                runCurrent()
+                val job = backgroundScope.async { runCatching { wrapper.awaitGetProducts(setOf(productId)) } }
+                runCurrent()
+
+                When("setup fails fewer times than the limit") {
+                    repeat(MAX_TRANSIENT_SETUP_FAILURES - 1) {
+                        wrapper.onBillingSetupFinished(billingResult(BillingClient.BillingResponseCode.ERROR))
+                    }
+                    runCurrent()
+
+                    Then("billing is still treated as transient and the request keeps waiting") {
+                        assertEquals(BillingAvailability.Unknown, wrapper.availability.value)
+                        assertTrue(!job.isCompleted)
+                    }
+                }
+
+                When("setup fails once more") {
+                    wrapper.onBillingSetupFinished(billingResult(BillingClient.BillingResponseCode.ERROR))
+                    runCurrent()
+
+                    Then("billing is unavailable and the waiting request fails") {
+                        assertTrue(wrapper.availability.value is BillingAvailability.Unavailable)
+                        assertTrue(job.isCompleted)
+                        assertTrue(job.await().exceptionOrNull() is BillingError.BillingNotAvailable)
+                    }
+                }
+
+                When("a later reconnect succeeds") {
+                    wrapper.onBillingSetupFinished(billingResult(BillingClient.BillingResponseCode.OK))
+                    runCurrent()
+
+                    Then("billing is available again") {
+                        assertEquals(BillingAvailability.Available, wrapper.availability.value)
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun `a successful setup resets the transient failure count`() =
+        runTest {
+            Given("a device whose billing setup fails transiently, then connects") {
+                val wrapper = makeWrapper { disconnectedClient() }
+                runCurrent()
+                repeat(MAX_TRANSIENT_SETUP_FAILURES - 1) {
+                    wrapper.onBillingSetupFinished(billingResult(BillingClient.BillingResponseCode.ERROR))
+                }
+                wrapper.onBillingSetupFinished(billingResult(BillingClient.BillingResponseCode.OK))
+                runCurrent()
+
+                When("setup later fails transiently again") {
+                    wrapper.onBillingSetupFinished(billingResult(BillingClient.BillingResponseCode.ERROR))
+                    runCurrent()
+
+                    Then("billing is not marked unavailable") {
+                        assertEquals(BillingAvailability.Available, wrapper.availability.value)
+                    }
+                }
+            }
+        }
 }
