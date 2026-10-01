@@ -222,6 +222,15 @@ class StoreManager(
             // show, and never in test mode.
             fetched.billingUnavailable?.let { error ->
                 if (productsById.isEmpty() && testMode?.isTestMode != true) throw error
+                val unresolved = processingResult.fullProductIdsToLoad - productsById.keys
+                if (unresolved.isNotEmpty()) {
+                    Logger.debug(
+                        LogLevel.warn,
+                        LogScope.productsManager,
+                        "Google Play Billing is not available, presenting the paywall without " +
+                            "products: ${unresolved.joinToString()}",
+                    )
+                }
             }
         } catch (error: Throwable) {
             paywall.productsLoadingInfo.failAt = Date()

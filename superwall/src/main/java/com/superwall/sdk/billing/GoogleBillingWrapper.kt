@@ -109,7 +109,7 @@ class GoogleBillingWrapper(
      * requests fail straight away instead of reconnecting, until the app next returns to
      * the foreground and billing is probed again.
      */
-    val availability = _availability.asStateFlow()
+    internal val availability = _availability.asStateFlow()
 
     // Setup mutable state flow for purchase results
     override val purchaseResults = MutableStateFlow<InternalPurchaseResult?>(null)
@@ -311,8 +311,9 @@ class GoogleBillingWrapper(
                     }
 
                     override fun onError(error: BillingError) {
-                        // Billing errors aren't cached so a later request can retry.
-                        // BillingNotAvailable is remembered in [availability] instead.
+                        // Billing errors aren't cached so a later request can retry. Setup-time
+                        // unavailability is remembered in [availability]; a BillingNotAvailable
+                        // returned by a query isn't, so the next load queries billing again.
                         continuation.resumeWithException(error)
                     }
                 },

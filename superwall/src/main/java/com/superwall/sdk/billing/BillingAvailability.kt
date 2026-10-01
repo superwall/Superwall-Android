@@ -4,7 +4,7 @@ package com.superwall.sdk.billing
  * Whether Google Play Billing can be used on this device, as learned from the billing
  * client's connection attempts.
  */
-sealed interface BillingAvailability {
+internal sealed interface BillingAvailability {
     /** No connection attempt has resolved yet. */
     object Unknown : BillingAvailability
 
